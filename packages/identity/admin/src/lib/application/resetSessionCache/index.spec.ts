@@ -24,7 +24,7 @@ function clientWith(entries: [readonly unknown[], unknown][]): QueryClient {
  * is calling this from.
  */
 describe('resetSessionCache', () => {
-    it('drops everything the outgoing session cached', () => {
+    it('drops everything the outgoing session cached [identity:I-30]', () => {
         const queryClient = clientWith([
             [['workspaces'], [{ id: 'ws_1' }]],
             [['users'], [{ id: 'usr_1' }]],
@@ -38,7 +38,7 @@ describe('resetSessionCache', () => {
         expect(queryClient.getQueryData(['activity'])).toBeUndefined();
     });
 
-    it('keeps the current-user probe, which the caller re-seeds itself', () => {
+    it('keeps the current-user probe, which the caller re-seeds itself [identity:I-30]', () => {
         const queryClient = clientWith([
             [['auth', 'me'], { id: 'usr_1' }],
             [['workspaces'], [{ id: 'ws_1' }]]

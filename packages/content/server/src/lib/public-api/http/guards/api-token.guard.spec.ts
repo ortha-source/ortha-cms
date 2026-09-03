@@ -306,7 +306,7 @@ describe('ApiTokenGuard', () => {
             expect(canAll).not.toHaveBeenCalled();
         });
 
-        it('delegates the decision to AccessPolicy instead of deciding itself', async () => {
+        it('delegates the decision to AccessPolicy instead of deciding itself [identity:I-15]', async () => {
             // The stub answers the *opposite* of the scope map both ways. If the
             // guard consulted `scopePermissions` directly, neither case would
             // change — so these two assertions are the delegation.
@@ -329,7 +329,7 @@ describe('ApiTokenGuard', () => {
             ).resolves.toBe(true);
         });
 
-        it('hands the policy the token as actor and the route keys as permissions', async () => {
+        it('hands the policy the token as actor and the route keys as permissions [api-tokens:I-15]', async () => {
             const stub = { canAll: jest.fn(() => true) };
             const token = record({ scope: 'full' });
             const { guard, context } = harness({

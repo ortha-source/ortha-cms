@@ -53,7 +53,7 @@ test.describe('Role tab guardrails', () => {
         ).toBeDisabled();
     });
 
-    test('locks the sole active admin with the reason', async ({
+    test('locks the sole active admin with the reason [users:I-16]', async ({
         userDetailPage,
         page
     }) => {

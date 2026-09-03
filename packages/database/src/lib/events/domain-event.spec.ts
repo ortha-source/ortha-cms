@@ -60,7 +60,7 @@ describe('attachActor', () => {
         })
     ];
 
-    it('merges the actor into each payload without touching the inputs', () => {
+    it('merges the actor into each payload without touching the inputs [database:I-22]', () => {
         const events = source();
         const snapshot = JSON.parse(JSON.stringify(events[0].payload));
 
@@ -115,7 +115,7 @@ describe('attachActor', () => {
         expect(enriched.occurredAt).toBe(original.occurredAt);
     });
 
-    it('overwrites an actor a producer had already put on the payload', () => {
+    it('overwrites an actor a producer had already put on the payload [database:I-22]', () => {
         const events = [
             createDomainEvent({
                 kind: 'k',

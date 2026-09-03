@@ -69,6 +69,7 @@ describe('domain layer imports', () => {
         ).toBe(true);
     });
 
+    // covers: workspaces:I-23
     it.each(FORBIDDEN)('imports nothing from %s', (_label, forbidden) => {
         const offenders = FILES.filter((path) =>
             specifiersOf(path).some(forbidden)

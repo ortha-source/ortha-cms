@@ -84,7 +84,7 @@ test.describe('Records filter — hand-edited ?filter=', () => {
      * all that is left.
      */
     for (const op of ['constructor', 'toString', 'valueOf', '__proto__']) {
-        test(`an "${op}" operator is dropped, not rendered`, async ({
+        test(`an "${op}" operator is dropped, not rendered [query-builder:I-08] [query-builder:I-10]`, async ({
             contentLibraryPage,
             page
         }) => {
@@ -115,7 +115,7 @@ test.describe('Records filter — hand-edited ?filter=', () => {
      * reads as an unfinished draft rather than a broken rule. Hence the error
      * shows unconditionally, before any Apply.
      */
-    test('an operator the field does not offer is reported without pressing Apply', async ({
+    test('an operator the field does not offer is reported without pressing Apply [query-builder:I-16]', async ({
         contentLibraryPage,
         page
     }) => {
@@ -136,7 +136,7 @@ test.describe('Records filter — hand-edited ?filter=', () => {
      * server answers that with a 500, not a validation error, so the user gets
      * "couldn't load this collection" over a filter the drawer agreed to send.
      */
-    test('the Apply gate refuses a substring operator on a date field', async ({
+    test('the Apply gate refuses a substring operator on a date field [query-builder:I-17]', async ({
         contentLibraryPage,
         page
     }) => {
@@ -162,7 +162,7 @@ test.describe('Records filter — hand-edited ?filter=', () => {
      * invalid and then fell through the code ladder without returning one, so
      * the gate passed it and the request 400d.
      */
-    test('the Apply gate refuses a non-boolean value on a boolean field', async ({
+    test('the Apply gate refuses a non-boolean value on a boolean field [query-builder:I-15]', async ({
         contentLibraryPage,
         page
     }) => {
@@ -205,7 +205,7 @@ test.describe('Records filter — hand-edited ?filter=', () => {
      * therefore threw `RangeError` mid-typing — the panel died under the user's
      * cursor, with the number half-entered.
      */
-    test('a huge "within the last" count is clamped instead of crashing the panel', async ({
+    test('a huge "within the last" count is clamped instead of crashing the panel [query-builder:I-09]', async ({
         contentLibraryPage,
         page
     }) => {

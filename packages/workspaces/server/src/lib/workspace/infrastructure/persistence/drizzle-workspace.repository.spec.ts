@@ -144,7 +144,7 @@ describe('DrizzleWorkspaceRepository', () => {
             expect(log[1]).toBe('select:workspaces');
         });
 
-        it('takes the exclusive lock, not the shared one entry writes take', async () => {
+        it('takes the exclusive lock, not the shared one entry writes take [workspaces:I-16]', async () => {
             const { repo, executed } = repository();
 
             await repo.findByIdForContentMutation(id);
@@ -195,7 +195,7 @@ describe('DrizzleWorkspaceRepository', () => {
      * ordinary race gets a 500 for a collision that has always meant 409.
      */
     describe('save', () => {
-        it('turns the slug unique violation into SlugTakenError', async () => {
+        it('turns the slug unique violation into SlugTakenError [workspaces:I-10]', async () => {
             const { repo } = repository({
                 insertFails: Object.assign(new Error('Failed query'), {
                     cause: {

@@ -68,7 +68,7 @@ describe('API token management (/api/api-tokens)', () => {
         return agent;
     }
 
-    it('mints a token and returns the plaintext exactly once', async () => {
+    it('mints a token and returns the plaintext exactly once [api-tokens:I-01] [identity:I-10]', async () => {
         const agent = await login(ADMIN_EMAIL);
         const res = await agent
             .post('/api/api-tokens')
@@ -110,7 +110,7 @@ describe('API token management (/api/api-tokens)', () => {
         );
     });
 
-    it('collapses duplicate workspace ids', async () => {
+    it('collapses duplicate workspace ids [api-tokens:I-06]', async () => {
         const agent = await login(ADMIN_EMAIL);
         const res = await agent
             .post('/api/api-tokens')
@@ -124,7 +124,7 @@ describe('API token management (/api/api-tokens)', () => {
         expect(res.body.workspaceIds).toEqual([workspaceId]);
     });
 
-    it('rejects an empty workspace bucket', async () => {
+    it('rejects an empty workspace bucket [api-tokens:I-05] [identity:I-18]', async () => {
         const agent = await login(ADMIN_EMAIL);
         await agent
             .post('/api/api-tokens')
@@ -132,7 +132,7 @@ describe('API token management (/api/api-tokens)', () => {
             .expect(400);
     });
 
-    it('rejects a bucket naming a workspace that does not exist', async () => {
+    it('rejects a bucket naming a workspace that does not exist [api-tokens:I-07] [identity:I-18]', async () => {
         // BUG-identity-server-06. `api_token_workspaces` carries no
         // cross-plugin foreign key, so a typo used to mint happily and leave a
         // row pointing at nothing — a token that reads as configured, grants
@@ -152,9 +152,9 @@ describe('API token management (/api/api-tokens)', () => {
         expect(res.body.message).toContain(phantom);
 
         // Nothing was written — not the token, not the bucket row.
-        expect((await agent.get('/api/api-tokens').expect(200)).body.total).toBe(
-            0
-        );
+        expect(
+            (await agent.get('/api/api-tokens').expect(200)).body.total
+        ).toBe(0);
     });
 
     it('rejects a bucket that mixes real and phantom workspaces', async () => {
@@ -172,12 +172,12 @@ describe('API token management (/api/api-tokens)', () => {
             })
             .expect(400);
 
-        expect((await agent.get('/api/api-tokens').expect(200)).body.total).toBe(
-            0
-        );
+        expect(
+            (await agent.get('/api/api-tokens').expect(200)).body.total
+        ).toBe(0);
     });
 
-    it('still accepts an archived workspace — existence, not status', async () => {
+    it('still accepts an archived workspace — existence, not status [api-tokens:I-08]', async () => {
         const agent = await login(ADMIN_EMAIL);
         await archiveWorkspace(workspaceId);
 
@@ -191,7 +191,7 @@ describe('API token management (/api/api-tokens)', () => {
             .expect(201);
     });
 
-    it('lists a multi-workspace token under each of its workspaces', async () => {
+    it('lists a multi-workspace token under each of its workspaces [api-tokens:I-20]', async () => {
         const agent = await login(ADMIN_EMAIL);
         await agent
             .post('/api/api-tokens')
@@ -238,7 +238,7 @@ describe('API token management (/api/api-tokens)', () => {
         expect(item.revokedAt).not.toBeNull();
     });
 
-    it('gates management on the tokens permissions', async () => {
+    it('gates management on the tokens permissions [api-tokens:I-14] [identity:I-19]', async () => {
         await seedUserWithEmptyRole(harness.app, {
             email: NORIGHTS_EMAIL,
             password: PASSWORD,
@@ -340,9 +340,11 @@ describe('API token management (/api/api-tokens)', () => {
                 .query({ page: 3, pageSize: 2 })
                 .expect(200);
 
-            const ids = [...first.body.items, ...second.body.items, ...third.body.items].map(
-                (item: { id: string }) => item.id
-            );
+            const ids = [
+                ...first.body.items,
+                ...second.body.items,
+                ...third.body.items
+            ].map((item: { id: string }) => item.id);
             expect(ids).toHaveLength(5);
             expect(new Set(ids).size).toBe(5);
             expect(first.body.total).toBe(5);
@@ -350,7 +352,7 @@ describe('API token management (/api/api-tokens)', () => {
     });
 
     describe('secrets at rest', () => {
-        it('stores the SHA-256 of the secret, never the secret', async () => {
+        it('stores the SHA-256 of the secret, never the secret [api-tokens:I-02] [identity:I-09]', async () => {
             const agent = await login(ADMIN_EMAIL);
             const created = await agent
                 .post('/api/api-tokens')
@@ -369,9 +371,9 @@ describe('API token management (/api/api-tokens)', () => {
             expect(stored).toMatch(/^[0-9a-f]{64}$/);
             // The display prefix is the non-secret handle, and it is only a
             // prefix — it must not be enough to reconstruct the token.
-            expect(created.body.secret.startsWith(created.body.lookupPrefix)).toBe(
-                true
-            );
+            expect(
+                created.body.secret.startsWith(created.body.lookupPrefix)
+            ).toBe(true);
             expect(created.body.lookupPrefix.length).toBeLessThan(
                 created.body.secret.length
             );
@@ -398,7 +400,7 @@ describe('API token management (/api/api-tokens)', () => {
             return rows.filter((row) => row.kind.startsWith('token.'));
         }
 
-        it('records token.created when a token is minted', async () => {
+        it('records token.created when a token is minted [api-tokens:I-13]', async () => {
             // BUG-identity-server-01: minting and revoking wrote nothing at
             // all, so the log could not answer "who issued this credential,
             // when, and scoped to what" — for a long-lived key to workspace
@@ -431,7 +433,7 @@ describe('API token management (/api/api-tokens)', () => {
             ).toEqual([workspaceId, otherWorkspaceId].sort());
         });
 
-        it('never writes the secret or its hash into the log', async () => {
+        it('never writes the secret or its hash into the log [api-tokens:I-01] [api-tokens:I-13] [identity:I-10]', async () => {
             const agent = await login(ADMIN_EMAIL);
             const created = await agent
                 .post('/api/api-tokens')
@@ -479,7 +481,7 @@ describe('API token management (/api/api-tokens)', () => {
             expect(revoked[0].meta).toMatchObject({ name: 'temp' });
         });
 
-        it('audits a replayed revoke once, not once per call', async () => {
+        it('audits a replayed revoke once, not once per call [api-tokens:I-11]', async () => {
             // The route is idempotent — a second DELETE still 204s — but only
             // the call that actually revoked a live token is an event.
             const agent = await login(ADMIN_EMAIL);
@@ -515,7 +517,7 @@ describe('API token management (/api/api-tokens)', () => {
             expect(await tokenAudit()).toEqual([]);
         });
 
-        it('writes no audit row when the mint is rejected', async () => {
+        it('writes no audit row when the mint is rejected [api-tokens:I-12]', async () => {
             // The event commits with the token or not at all: a rejected mint
             // must leave the log as clean as it leaves `api_tokens`.
             const agent = await login(ADMIN_EMAIL);
@@ -525,8 +527,9 @@ describe('API token management (/api/api-tokens)', () => {
                 .expect(400);
 
             expect(await tokenAudit()).toEqual([]);
-            expect((await agent.get('/api/api-tokens').expect(200)).body.total)
-                .toBe(0);
+            expect(
+                (await agent.get('/api/api-tokens').expect(200)).body.total
+            ).toBe(0);
         });
     });
 
@@ -544,7 +547,7 @@ describe('API token management (/api/api-tokens)', () => {
      * published OpenAPI, so an integrator serialising their whole form did.
      */
     describe('expiry', () => {
-        it('treats an omitted and an explicitly null expiry the same', async () => {
+        it('treats an omitted and an explicitly null expiry the same [api-tokens:I-09]', async () => {
             const agent = await login(ADMIN_EMAIL);
 
             const omitted = await agent
@@ -579,7 +582,7 @@ describe('API token management (/api/api-tokens)', () => {
             ).toEqual([null, null]);
         });
 
-        it('rejects an expiry in the past', async () => {
+        it('rejects an expiry in the past [api-tokens:I-09]', async () => {
             const agent = await login(ADMIN_EMAIL);
             await agent
                 .post('/api/api-tokens')
@@ -592,7 +595,7 @@ describe('API token management (/api/api-tokens)', () => {
                 .expect(400);
         });
 
-        it('rejects an expiry that is not a timestamp', async () => {
+        it('rejects an expiry that is not a timestamp [api-tokens:I-09]', async () => {
             // The DTO's `@IsISO8601` has to hold the line: `parseExpiry` only
             // compares against `Date.now()`, and `new Date('whenever')` is
             // `NaN`, which is neither greater nor less than anything — so a
@@ -938,7 +941,7 @@ describe('API token management (/api/api-tokens)', () => {
      * has to be the one that wins and the one that always lands.
      */
     describe('revocation and expiry together', () => {
-        it('keeps a revoked token dead despite an expiry still in the future', async () => {
+        it('keeps a revoked token dead despite an expiry still in the future [api-tokens:I-10]', async () => {
             const agent = await login(ADMIN_EMAIL);
             const expiresAt = new Date(Date.now() + 86_400_000).toISOString();
             const created = await agent
@@ -1006,7 +1009,7 @@ describe('API token management (/api/api-tokens)', () => {
             expect(revoked[0].subjectId).toBe(created.body.id);
         });
 
-        it('leaves revoked_at where it was when the revoke is replayed', async () => {
+        it('leaves revoked_at where it was when the revoke is replayed [api-tokens:I-11]', async () => {
             // The audit count already proves the second call raises no event.
             // This is the column itself: the update is guarded on
             // `revoked_at IS NULL`, so a replay must not restamp the row — the
@@ -1049,7 +1052,7 @@ describe('API token management (/api/api-tokens)', () => {
      * never lose it.
      */
     describe('durability of the mint', () => {
-        it('commits the token and its event together, and survives a dead dispatcher', async () => {
+        it('commits the token and its event together, and survives a dead dispatcher [api-tokens:I-12] [database:I-13]', async () => {
             const agent = await login(ADMIN_EMAIL);
             // Logged in *before* the suspension so the session's own events are
             // already delivered and the assertions below are about the mint.

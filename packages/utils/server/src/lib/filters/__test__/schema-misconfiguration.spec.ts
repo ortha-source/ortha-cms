@@ -146,7 +146,7 @@ describe('schema misconfiguration reaches the translator as a typed error', () =
         );
     });
 
-    it('a field declaring an unrecognised scalar type', async () => {
+    it('a field declaring an unrecognised scalar type [utils:I-30]', async () => {
         // A runtime-derived schema (the content plugin builds one per content
         // type) can carry a type the union does not cover. Falling out of the
         // coercion switch returned `undefined`, which drizzle renders as the
@@ -162,7 +162,7 @@ describe('schema misconfiguration reaches the translator as a typed error', () =
         ).toThrow(/declares unknown type "not-a-type"/);
     });
 
-    it('a relation declaring an unrecognised kind', async () => {
+    it('a relation declaring an unrecognised kind [utils:I-30]', async () => {
         const schema = {
             relations: {
                 tags: {

@@ -338,6 +338,7 @@ describe('buildEntryFilterSurface', () => {
         // one most likely to outrun `maxDepth`.
         ['page', page]
     ])(
+        // covers: content:I-25
         'every offered %s path parses against its schema (no drift)',
         (_name, type) => {
             const { schema, fields } = buildEntryFilterSurface(type, {

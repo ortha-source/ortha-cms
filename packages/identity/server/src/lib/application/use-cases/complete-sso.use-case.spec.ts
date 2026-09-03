@@ -482,7 +482,7 @@ describe('CompleteSsoUseCase', () => {
             expect(calls).not.toContain('adapter.complete');
         });
 
-        it('burns the attempt before it exchanges anything, and outside the transaction', async () => {
+        it('burns the attempt before it exchanges anything, and outside the transaction [identity:I-21]', async () => {
             const { useCase, calls } = harness();
 
             await useCase.execute(input());
@@ -631,7 +631,7 @@ describe('CompleteSsoUseCase', () => {
     // --- claiming an account that already exists -------------------------
 
     describe('when a first sign-in claims an existing account', () => {
-        it('refuses to link an address the provider will not vouch for', async () => {
+        it('refuses to link an address the provider will not vouch for [identity:I-22]', async () => {
             const { useCase, calls } = harness({
                 profile: ssoProfile({ emailVerified: false })
             });
@@ -846,7 +846,7 @@ describe('CompleteSsoUseCase', () => {
     // --- role mapping -----------------------------------------------------
 
     describe('role mapping', () => {
-        it('never demotes an account that already holds admin', async () => {
+        it('never demotes an account that already holds admin [identity:I-23]', async () => {
             const { useCase, calls, setRoleCalls, warnings, events } = harness({
                 currentRoleKey: 'admin',
                 resolveRole: () => 'viewer'
@@ -865,7 +865,7 @@ describe('CompleteSsoUseCase', () => {
             expect(kinds(events)).toContain(IDENTITY_EVENT_KINDS.SIGNED_IN);
         });
 
-        it('ignores a role key this deployment does not have, and says so', async () => {
+        it('ignores a role key this deployment does not have, and says so [identity:I-23]', async () => {
             const { useCase, calls, setRoleCalls, warnings } = harness({
                 currentRoleKey: 'viewer',
                 resolveRole: () => 'editor-in-chief'

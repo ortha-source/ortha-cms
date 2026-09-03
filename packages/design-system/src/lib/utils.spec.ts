@@ -4,7 +4,7 @@ import { cn } from './utils';
 
 /** QA ORT-49 · F1 — the class merge every component's `className` prop rides on. */
 describe('cn', () => {
-    it('lets the later Tailwind class win a conflict', () => {
+    it('lets the later Tailwind class win a conflict [design-system:I-05]', () => {
         expect(cn('px-4', 'px-8')).toBe('px-8');
     });
 

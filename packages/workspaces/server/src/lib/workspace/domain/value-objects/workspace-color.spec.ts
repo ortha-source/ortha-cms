@@ -13,6 +13,7 @@ describe('WorkspaceColor', () => {
         ['a css token', 'var(--color-avatar-slate)'],
         ['right key, wrong case', 'Violet'],
         ['padded', ' violet ']
+        // covers: workspaces:I-12
     ])('rejects %s', (_label, value) => {
         // The point of the VO: an arbitrary string must never reach the column,
         // because the admin casts what it reads back to an `AvatarColor`.

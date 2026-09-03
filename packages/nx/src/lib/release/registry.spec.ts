@@ -86,6 +86,7 @@ describe('probeRegistry', () => {
                 }
             })
         ]
+        // covers: nx:I-24
     ])('answers unknown for %s', async (_label, response) => {
         fetchMock.mockImplementation(response);
 

@@ -375,7 +375,7 @@ describe('Copilot file creation', () => {
         // A model asked for a report proposes `reports/2026/q3.md` readily.
         // Flattening it silently would file the report at the root while the
         // model told the user it went to `reports/2026`.
-        it('rejects a path and names the parameter that does the job', async () => {
+        it('rejects a path and names the parameter that does the job [media:I-32]', async () => {
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
 
             const result = await attempt(agent, {
@@ -434,7 +434,7 @@ describe('Copilot file creation', () => {
         // The closed enum is what stops a generated file being stored as
         // something executable — `MediaKind.classify` would file
         // `application/x-msdownload` under `document` without complaint.
-        it('rejects a format outside the enum', async () => {
+        it('rejects a format outside the enum [media:I-32]', async () => {
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
 
             const result = await attempt(agent, {
@@ -547,7 +547,7 @@ describe('Copilot file creation', () => {
 
         // The whole reason attachments needed no new authority: the id is the
         // only part the server can verify, so a foreign one must not resolve.
-        it('refuses an asset from another workspace', async () => {
+        it('refuses an asset from another workspace [copilot:I-24]', async () => {
             const other = await seedWorkspace({ name: 'Other', slug: 'other' });
             const { user, agent } = await signIn(ADMIN_EMAIL, 'admin');
             const outside = await seedMediaAsset({

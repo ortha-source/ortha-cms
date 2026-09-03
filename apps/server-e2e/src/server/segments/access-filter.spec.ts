@@ -184,7 +184,7 @@ describe('Filtering records by audience', () => {
     });
 
     describe('accessRestricted', () => {
-        it('splits restricted from open', async () => {
+        it('splits restricted from open [content:I-17]', async () => {
             const agent = await login();
             await seedEntry(agent, 'Restricted', { allow: [acme] });
             await seedEntry(agent, 'Open');
@@ -202,7 +202,7 @@ describe('Filtering records by audience', () => {
             ).resolves.toEqual(['Open']);
         });
 
-        it('counts an entry opened back up as open', async () => {
+        it('counts an entry opened back up as open [segments:I-13]', async () => {
             // The writer deletes the row when both lists empty, so "has a row"
             // *is* "is restricted" — this is the assertion that keeps the two
             // rules from drifting apart.

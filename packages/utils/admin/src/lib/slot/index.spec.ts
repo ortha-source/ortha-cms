@@ -34,7 +34,7 @@ describe('createSlot', () => {
     // BUG-utils-admin-05 — `getItems()` handed back the live internal array, so
     // any consumer (or a stray `.sort()`/`.push()` in a render) could rewrite
     // shared plugin state for every other consumer of the same slot.
-    it('does not let a consumer mutate the slot through the returned array', () => {
+    it('does not let a consumer mutate the slot through the returned array [bootstrap:I-23] [shell:I-06] [utils:I-11]', () => {
         const slot = createSlot<Item>('t');
         slot._register([{ order: 1, id: 'a' }]);
 
@@ -97,7 +97,7 @@ describe('wireSlotContributions', () => {
         ]);
     });
 
-    it('is idempotent — running it again does not double anything', () => {
+    it('is idempotent — running it again does not double anything [bootstrap:I-22] [shell:I-05] [utils:I-13]', () => {
         const slot = nav();
         const contributions = [{ slot, items: [{ order: 1, id: 'home' }] }];
 
@@ -108,7 +108,7 @@ describe('wireSlotContributions', () => {
         expect(slot.getItems().map((item) => item.id)).toEqual(['home']);
     });
 
-    it('does not drop an earlier contribution to the same slot', () => {
+    it('does not drop an earlier contribution to the same slot [shell:I-05] [utils:I-14]', () => {
         // The reset is a separate pass for this reason: several plugins
         // contribute to one slot, so clearing per contribution would wipe what
         // the previous one in the same run had just registered.

@@ -110,7 +110,7 @@ describe('Content entry writes (/api/content/:type)', () => {
             expect(update.body.values.text).toBe('Edited title');
         });
 
-        it('saves an incomplete draft of a publishable type, but 422s on publish', async () => {
+        it('saves an incomplete draft of a publishable type, but 422s on publish [content:I-07] [content:I-09]', async () => {
             const agent = await login(ADMIN_EMAIL);
             // A publishable type's draft may be incomplete — create doesn't validate.
             const create = await agent
@@ -155,7 +155,7 @@ describe('Content entry writes (/api/content/:type)', () => {
             expect(edited.body.status).toBe('draft');
         });
 
-        it('422s an invalid create of a non-publishable (always-live) type', async () => {
+        it('422s an invalid create of a non-publishable (always-live) type [content:I-07]', async () => {
             const agent = await login(ADMIN_EMAIL);
             // `landing` is a single, not publishable → its writes validate now.
             const res = await agent
@@ -497,7 +497,7 @@ describe('Content entry writes (/api/content/:type)', () => {
             expect(page3.body.items).toHaveLength(1);
         });
 
-        it('400s a relation delta on a single relation', async () => {
+        it('400s a relation delta on a single relation [content:I-21]', async () => {
             const agent = await login(ADMIN_EMAIL);
             const author = (
                 await agent
@@ -515,7 +515,7 @@ describe('Content entry writes (/api/content/:type)', () => {
                 .expect(400);
         });
 
-        it('400s a malformed relation delta (non-array unlink), not a 500', async () => {
+        it('400s a malformed relation delta (non-array unlink), not a 500 [content:I-22]', async () => {
             const agent = await login(ADMIN_EMAIL);
             const id = await createArticle(agent);
             await agent
@@ -665,7 +665,7 @@ describe('Content entry writes (/api/content/:type)', () => {
         // separates a never-published draft from a published record with
         // unpublished edits (the admin's "Modified"). An edit must not clear it;
         // only an explicit unpublish may.
-        it('keeps publishedAt through an edit and clears it on unpublish', async () => {
+        it('keeps publishedAt through an edit and clears it on unpublish [content:I-08]', async () => {
             const agent = await login(ADMIN_EMAIL);
             const id = await createArticle(agent);
 
@@ -803,7 +803,7 @@ describe('Content entry writes (/api/content/:type)', () => {
             expect(res.body.count).toBe(2);
         });
 
-        it('skips an id from another workspace, and does not report it as done', async () => {
+        it('skips an id from another workspace, and does not report it as done [content:I-04]', async () => {
             // A bulk verdict list is an oracle if it distinguishes "exists but
             // you may not touch it" from "no such id": the foreign id has to
             // come back with exactly the verdict an invented uuid gets, and
@@ -830,9 +830,10 @@ describe('Content entry writes (/api/content/:type)', () => {
 
             expect(res.body.published).toEqual([mine]);
             const byId = Object.fromEntries(
-                res.body.skipped.map(
-                    (row: { id: string; reason: string }) => [row.id, row.reason]
-                )
+                res.body.skipped.map((row: { id: string; reason: string }) => [
+                    row.id,
+                    row.reason
+                ])
             );
             expect(byId[foreignId]).toBe(byId[invented]);
             expect(res.body.published).not.toContain(foreignId);

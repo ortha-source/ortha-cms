@@ -13,7 +13,7 @@ describe('opsForField', () => {
         expect(opsForField({ type: FIELD_TYPE.Enum })).toContain(OP.IsOneOf);
     });
 
-    it('keeps the order the field declared, so it chooses its own default', () => {
+    it('keeps the order the field declared, so it chooses its own default [query-builder:I-06]', () => {
         // The reason this is the field's call and not the type's: segments'
         // audience fields are asked "which audiences", where the multi-select
         // answers the single-audience case too. Ordered by the type instead,
@@ -26,7 +26,7 @@ describe('opsForField', () => {
         ).toEqual([OP.IsOneOf, OP.Equals]);
     });
 
-    it('still refuses an operator the type does not admit', () => {
+    it('still refuses an operator the type does not admit [query-builder:I-07]', () => {
         // The declaration picks *from* the type's set; it does not extend it. A
         // boolean field asking for a range would otherwise render an editor its
         // value shape cannot fill.
@@ -38,7 +38,7 @@ describe('opsForField', () => {
         ).toEqual([OP.Equals]);
     });
 
-    it('falls back to the type’s set when the declaration matches nothing', () => {
+    it('falls back to the type’s set when the declaration matches nothing [query-builder:I-07]', () => {
         // A config error, and an operator picker with no options at all is the
         // worse of the two failures — the rule can then never be completed.
         expect(
@@ -49,7 +49,7 @@ describe('opsForField', () => {
         ).toEqual([OP.Equals]);
     });
 
-    it('offers nothing for a type it has never heard of', () => {
+    it('offers nothing for a type it has never heard of [query-builder:I-08]', () => {
         // `OPS_FOR_TYPE` is a plain object and the type arrives from a server
         // response, so a field naming an `Object.prototype` member must not read
         // back a truthy non-array.

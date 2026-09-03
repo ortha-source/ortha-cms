@@ -53,7 +53,7 @@ describe('useIsMobile', () => {
     });
 
     // EC-12 — the query is `(max-width: 767px)`, so 768 is desktop.
-    it('treats exactly 768px as desktop', () => {
+    it('treats exactly 768px as desktop [design-system:I-22]', () => {
         setViewport(768);
         render(<Probe />);
         expect(out()).toBe('false');
@@ -68,7 +68,7 @@ describe('useIsMobile', () => {
     // The value that decides whether `Sidebar` mounts a desktop panel or a
     // Sheet is read during render, not after the effects — so the *first*
     // frame is the one that matters. It reported desktop on every device.
-    it('reports mobile on the very first frame, before any effect runs', () => {
+    it('reports mobile on the very first frame, before any effect runs [design-system:I-21]', () => {
         setViewport(500);
         render(<Probe />);
         expect(frames[0]).toBe(true);
@@ -76,7 +76,7 @@ describe('useIsMobile', () => {
 
     // EC-29 — jsdom without a polyfill, and any environment where the API is
     // absent, must render rather than throw.
-    it('falls back to desktop when matchMedia is unavailable', () => {
+    it('falls back to desktop when matchMedia is unavailable [design-system:I-23]', () => {
         setViewport(500);
         const original = window.matchMedia;
         // @ts-expect-error deliberately removing the API under test

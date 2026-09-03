@@ -113,7 +113,7 @@ describe('Content grants on the admin API (workspace_content)', () => {
             expect(ungranted.body.statusCode).toBe(unknown.body.statusCode);
         });
 
-        it('404s the entries list of an ungranted type with the same body', async () => {
+        it('404s the entries list of an ungranted type with the same body [content:I-05]', async () => {
             const agent = await login();
             const ungranted = await agent
                 .get('/api/content/test_tag')

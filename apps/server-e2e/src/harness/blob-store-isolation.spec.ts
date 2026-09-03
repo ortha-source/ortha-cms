@@ -1,9 +1,5 @@
 import request from 'supertest';
-import {
-    closeTestApp,
-    createTestApp,
-    type TestApp
-} from '../support/test-app';
+import { closeTestApp, createTestApp, type TestApp } from '../support/test-app';
 import {
     resetDb,
     seedActiveUser,
@@ -59,7 +55,7 @@ describe('media blob store', () => {
         return agent;
     }
 
-    it('holds the bytes after an upload and drops them on delete', async () => {
+    it('holds the bytes after an upload and drops them on delete [media:I-12]', async () => {
         const agent = await login();
         expect(blobStoreKeys()).toHaveLength(0);
 

@@ -137,7 +137,7 @@ test.describe('API tokens page', () => {
         ).toHaveCount(0);
     });
 
-    test('a failed list gets its own state, not the empty one', async ({
+    test('a failed list gets its own state, not the empty one [api-tokens:I-23]', async ({
         page,
         apiTokensPage
     }) => {
@@ -189,7 +189,7 @@ test.describe('API tokens page', () => {
         await expect(apiTokensPage.newTokenButton).toHaveCount(0);
     });
 
-    test('without tokens:read the page refuses and never asks the API', async ({
+    test('without tokens:read the page refuses and never asks the API [api-tokens:I-22]', async ({
         page,
         apiTokensPage
     }) => {
@@ -204,7 +204,7 @@ test.describe('API tokens page', () => {
         expect(api.listCalls).toBe(0);
     });
 
-    test('without tokens:delete the actions column is absent entirely', async ({
+    test('without tokens:delete the actions column is absent entirely [api-tokens:I-22]', async ({
         page,
         apiTokensPage
     }) => {
@@ -241,7 +241,7 @@ test.describe('API tokens page', () => {
         await expect(apiTokensPage.actionsColumnHeader()).toHaveCount(1);
     });
 
-    test('without tokens:create a populated page offers no way in either', async ({
+    test('without tokens:create a populated page offers no way in either [api-tokens:I-22]', async ({
         page,
         apiTokensPage
     }) => {
@@ -453,7 +453,7 @@ test.describe('API tokens page', () => {
         expect(api.createCalls).toBe(1);
     });
 
-    test('a broken workspace fetch says so instead of reading as empty', async ({
+    test('a broken workspace fetch says so instead of reading as empty [api-tokens:I-23]', async ({
         page,
         apiTokensPage
     }) => {
@@ -613,7 +613,7 @@ test.describe('API tokens page', () => {
         await expect(apiTokensPage.pageIndicator()).toHaveCount(0);
     });
 
-    test('the page lives in the URL, so it is linkable and survives a reload', async ({
+    test('the page lives in the URL, so it is linkable and survives a reload [api-tokens:I-24]', async ({
         page,
         apiTokensPage
     }) => {
@@ -636,7 +636,7 @@ test.describe('API tokens page', () => {
         await expect(apiTokensPage.pageIndicator()).toHaveText('Page 2 of 2');
     });
 
-    test('a deep link past the end clamps back to the last page', async ({
+    test('a deep link past the end clamps back to the last page [api-tokens:I-24]', async ({
         page,
         apiTokensPage
     }) => {
@@ -648,7 +648,7 @@ test.describe('API tokens page', () => {
         await expect(page).toHaveURL(/[?&]page=2/);
     });
 
-    test('a nonsense ?page= lands on the first page rather than an error', async ({
+    test('a nonsense ?page= lands on the first page rather than an error [api-tokens:I-24]', async ({
         page,
         apiTokensPage
     }) => {

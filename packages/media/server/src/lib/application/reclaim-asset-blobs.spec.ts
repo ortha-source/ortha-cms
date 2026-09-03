@@ -32,7 +32,7 @@ function trackingProvider() {
 }
 
 describe('reclaimAssetBlobs', () => {
-    it('removes the original and every derivative', async () => {
+    it('removes the original and every derivative [media:I-12]', async () => {
         const { provider, removed } = trackingProvider();
 
         await reclaimAssetBlobs(provider, asset(1));
@@ -55,7 +55,7 @@ describe('reclaimAssetBlobs', () => {
         ).resolves.toBeUndefined();
     });
 
-    it('skips an asset written by a different provider', async () => {
+    it('skips an asset written by a different provider [media:I-03]', async () => {
         // Those bytes live in a backend this process is not connected to, and
         // its keys mean nothing here — a remove would either no-op or address
         // something unrelated. (The boot check refuses to start in this state;

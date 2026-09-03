@@ -41,7 +41,7 @@ async function infer(...files: string[]) {
 }
 
 describe('createNodesV2 glob', () => {
-    it('matches the three config files inference dispatches on', () => {
+    it('matches the three config files inference dispatches on [nx:I-01]', () => {
         expect(glob).toBe(
             '**/{drizzle.config.ts,ortha.config.ts,package.json}'
         );
@@ -49,7 +49,7 @@ describe('createNodesV2 glob', () => {
 });
 
 describe('db:generate inference', () => {
-    it('attaches to any project with a drizzle.config.ts, with a cwd-relative config', async () => {
+    it('attaches to any project with a drizzle.config.ts, with a cwd-relative config [nx:I-02]', async () => {
         const targets = await infer('packages/media/server/drizzle.config.ts');
 
         expect(targets['packages/media/server/drizzle.config.ts']).toEqual({
@@ -77,7 +77,7 @@ describe('db:generate inference', () => {
      * `migrations/meta/*_snapshot.json`, which lives inside the declared
      * output. So the target must not be cached at all.
      */
-    it('is never cached, and declares no inputs or outputs to be cached against', async () => {
+    it('is never cached, and declares no inputs or outputs to be cached against [nx:I-04]', async () => {
         const targets = await infer('packages/media/server/drizzle.config.ts');
         const generate =
             targets['packages/media/server/drizzle.config.ts']['db:generate'];
@@ -87,7 +87,7 @@ describe('db:generate inference', () => {
         expect(generate).not.toHaveProperty('outputs');
     });
 
-    it('does not attach db:migrate or db:studio', async () => {
+    it('does not attach db:migrate or db:studio [nx:I-02]', async () => {
         const targets = await infer('packages/media/server/drizzle.config.ts');
 
         expect(
@@ -97,7 +97,7 @@ describe('db:generate inference', () => {
 });
 
 describe('db:migrate / db:studio inference', () => {
-    it('attaches both to the project owning ortha.config.ts, uncached', async () => {
+    it('attaches both to the project owning ortha.config.ts, uncached [nx:I-03]', async () => {
         const targets = await infer('apps/server/ortha.config.ts');
 
         expect(targets['apps/server/ortha.config.ts']).toEqual({
@@ -131,7 +131,7 @@ describe('packages/* build, pack and publish inference', () => {
         return `${root}/package.json`;
     }
 
-    it('gives a publishable package build, pack and a redirected nx-release-publish', async () => {
+    it('gives a publishable package build, pack and a redirected nx-release-publish [nx:I-15] [nx:I-18] [nx:I-19]', async () => {
         const file = stagePackage('packages/utils/admin', {
             name: '@orthacms/utils-admin'
         });
@@ -154,7 +154,7 @@ describe('packages/* build, pack and publish inference', () => {
         });
     });
 
-    it('gives a private package build only — workspace tooling is not a distributable', async () => {
+    it('gives a private package build only — workspace tooling is not a distributable [nx:I-17]', async () => {
         const file = stagePackage('packages/nx', {
             name: '@orthacms/nx',
             private: true
@@ -186,13 +186,14 @@ describe('packages/* build, pack and publish inference', () => {
                     { tsconfig: false }
                 )
         ]
+        // covers: nx:I-15
     ])('contributes no targets for %s', async (_label, stage) => {
         const file = stage();
 
         expect((await infer(file))[file]).toEqual({});
     });
 
-    it('contributes no targets for an unparseable manifest, rather than failing the graph', async () => {
+    it('contributes no targets for an unparseable manifest, rather than failing the graph [nx:I-16]', async () => {
         write('packages/broken/package.json', '{ not json');
         write('packages/broken/tsconfig.lib.json', '{}');
 

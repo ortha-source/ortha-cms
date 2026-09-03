@@ -195,7 +195,7 @@ describe('DeleteWorkspaceUseCase', () => {
     });
 
     describe('ordering', () => {
-        it('loads under the content lock, never through the plain reader', async () => {
+        it('loads under the content lock, never through the plain reader [workspaces:I-16]', async () => {
             // `findById` would let a concurrent entry create land between the
             // count and the delete — the exact race the exclusive advisory
             // lock exists to close.
@@ -207,7 +207,7 @@ describe('DeleteWorkspaceUseCase', () => {
             expect(log).not.toContain('load:unlocked');
         });
 
-        it('purges inside the unit of work and before the workspace row goes', async () => {
+        it('purges inside the unit of work and before the workspace row goes [workspaces:I-17]', async () => {
             const { useCase, log } = harness();
 
             await useCase.execute(ACTOR, WORKSPACE_ID);
@@ -224,7 +224,7 @@ describe('DeleteWorkspaceUseCase', () => {
             ]);
         });
 
-        it('runs the reclaim thunk only after the run resolves', async () => {
+        it('runs the reclaim thunk only after the run resolves [workspaces:I-18]', async () => {
             // Blobs in object storage cannot join a transaction, so destroying
             // them before the commit would strand a surviving workspace's
             // bytes on a rollback.

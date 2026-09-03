@@ -66,6 +66,7 @@ describe('every published package is accounted for', () => {
         ...ALL_FEATURES.flatMap((feature) => feature.packages)
     ]);
 
+    // covers: create-ortha-app:I-01
     it.each(publishedPackages())('%s is classified', (name) => {
         // If this fails you added a package. Put it in one of `CORE_PACKAGES`,
         // a `Feature`'s `packages`, or `TRANSITIVE_PACKAGES` — whichever is
@@ -73,7 +74,7 @@ describe('every published package is accounted for', () => {
         expect([...classified]).toContain(name);
     });
 
-    it('classifies nothing that does not exist', () => {
+    it('classifies nothing that does not exist [create-ortha-app:I-02]', () => {
         const published = new Set(publishedPackages());
         const phantom = [...classified].filter(
             (name) => !published.has(name) && name !== '@orthacms/cli'
@@ -82,7 +83,7 @@ describe('every published package is accounted for', () => {
         expect(phantom).toEqual([]);
     });
 
-    it('puts no package in two groups at once', () => {
+    it('puts no package in two groups at once [create-ortha-app:I-01]', () => {
         const all = [
             ...CORE_PACKAGES,
             ...TRANSITIVE_PACKAGES,
@@ -130,7 +131,7 @@ describe('resolvePackages', () => {
      * stand-in among them, so an app that picks none installs the plugin and
      * registers nothing.
      */
-    it('installs the copilot with nothing enabled', () => {
+    it('installs the copilot with nothing enabled [create-ortha-app:I-14]', () => {
         const packages = resolvePackages(selectionOf());
 
         expect(packages).toEqual(
@@ -240,7 +241,7 @@ describe('availability', () => {
         expect(s3?.available).toBe(true);
     });
 
-    it('leaves exactly one storage adapter selectable by default', () => {
+    it('leaves exactly one storage adapter selectable by default [create-ortha-app:I-12]', () => {
         const defaults = MEDIA_PROVIDERS.filter(
             (provider) => provider.enabledByDefault && provider.available
         );
@@ -254,7 +255,7 @@ describe('availability', () => {
      * and single sign-on needs an issuer, a client and a callback URL
      * registered on the other side — none of which a scaffolder can invent.
      */
-    it('starts every opt-in feature switched off', () => {
+    it('starts every opt-in feature switched off [create-ortha-app:I-13]', () => {
         const optIn = [
             ...COPILOT_PROVIDERS,
             ...SSO_PROVIDERS,

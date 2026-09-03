@@ -36,7 +36,7 @@ describe('setTitleDecorator', () => {
         expect(document.title).toBe(`(3) Members · ${APP_NAME}`);
     });
 
-    it('does not compound when the page title changes underneath it', () => {
+    it('does not compound when the page title changes underneath it [utils:I-20]', () => {
         setTitleDecorator((title) => `(3) ${title}`);
         setDocumentTitle('Members');
         setDocumentTitle('Activity');

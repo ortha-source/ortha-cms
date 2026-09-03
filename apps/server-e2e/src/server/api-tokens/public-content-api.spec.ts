@@ -205,7 +205,7 @@ describe('Public content API (/api/v1)', () => {
                 .expect(401);
         });
 
-        it('answers unknown, revoked and expired with byte-identical 401s', async () => {
+        it('answers unknown, revoked and expired with byte-identical 401s [api-tokens:I-17]', async () => {
             // The three refusals above each assert a status code, which is the
             // weaker half of the claim. "Indistinguishable" is a statement
             // about the bytes: any difference — a `message`, a header, a
@@ -234,7 +234,7 @@ describe('Public content API (/api/v1)', () => {
             expect(stale.text).toBe(unknown.text);
         });
 
-        it('does not open the management API to a bearer token', async () => {
+        it('does not open the management API to a bearer token [api-tokens:I-14]', async () => {
             const { secret } = await mintToken({
                 workspaceIds: [workspaceId],
                 scope: 'full'
@@ -249,7 +249,7 @@ describe('Public content API (/api/v1)', () => {
     });
 
     describe('workspace resolution', () => {
-        it('defaults to the only workspace of a single-workspace token', async () => {
+        it('defaults to the only workspace of a single-workspace token [api-tokens:I-19]', async () => {
             await seedPublished('Only workspace');
             const { secret } = await mintToken({
                 workspaceIds: [workspaceId]
@@ -264,7 +264,7 @@ describe('Public content API (/api/v1)', () => {
             expect(res.body.items[0].values.text).toBe('Only workspace');
         });
 
-        it('requires X-Workspace-Id when the token covers several', async () => {
+        it('requires X-Workspace-Id when the token covers several [api-tokens:I-19]', async () => {
             const { secret } = await mintToken({
                 workspaceIds: [workspaceId, otherWorkspaceId]
             });
@@ -318,7 +318,7 @@ describe('Public content API (/api/v1)', () => {
                 .expect(403);
         });
 
-        it('403s a foreign X-Workspace-Id even on a single-workspace token', async () => {
+        it('403s a foreign X-Workspace-Id even on a single-workspace token [api-tokens:I-18]', async () => {
             const { secret } = await mintToken({
                 workspaceIds: [workspaceId]
             });
@@ -341,7 +341,7 @@ describe('Public content API (/api/v1)', () => {
                 .expect(200);
         });
 
-        it('403s a token whose every workspace has been deleted', async () => {
+        it('403s a token whose every workspace has been deleted [api-tokens:I-05]', async () => {
             // Deleting a workspace purges its `api_token_workspaces` rows and
             // deliberately stops short of revoking the credential — narrowing a
             // token's reach is one call, killing it is another, and the purger
@@ -402,7 +402,7 @@ describe('Public content API (/api/v1)', () => {
     });
 
     describe('entry reads', () => {
-        it('serves only published, non-deleted entries', async () => {
+        it('serves only published, non-deleted entries [content:I-16]', async () => {
             await seedPublished('Live');
             await seedArticles(
                 [{ text: 'Draft', select: 'article' }],
@@ -508,7 +508,7 @@ describe('Public content API (/api/v1)', () => {
                 .expect(404);
         });
 
-        it('404s an entry that lives in another workspace', async () => {
+        it('404s an entry that lives in another workspace [content:I-04]', async () => {
             const id = await seedPublished('In B', otherWorkspaceId);
             const { secret } = await mintToken({
                 workspaceIds: [workspaceId]
@@ -745,7 +745,7 @@ describe('Public content API (/api/v1)', () => {
             );
         });
 
-        it('never lets a filter widen the published-only scope', async () => {
+        it('never lets a filter widen the published-only scope [content:I-16]', async () => {
             await seedPublished('Live');
             await seedArticles(
                 [{ text: 'Draft', select: 'article' }],
@@ -837,7 +837,7 @@ describe('Public content API (/api/v1)', () => {
                 .expect(400);
         });
 
-        it('returns only the selected fields', async () => {
+        it('returns only the selected fields [content:I-24]', async () => {
             await seedPublished('Sparse');
             const { secret } = await mintToken({
                 workspaceIds: [workspaceId]
@@ -873,7 +873,7 @@ describe('Public content API (/api/v1)', () => {
             expect(res.body.id).toBe(id);
         });
 
-        it('400s an unknown or unselectable field name', async () => {
+        it('400s an unknown or unselectable field name [content:I-24]', async () => {
             const { secret } = await mintToken({
                 workspaceIds: [workspaceId]
             });
@@ -900,7 +900,7 @@ describe('Public content API (/api/v1)', () => {
                 .expect(400);
         });
 
-        it('reads an empty ?fields= as "no preference", not "no fields"', async () => {
+        it('reads an empty ?fields= as "no preference", not "no fields" [content:I-24]', async () => {
             await seedPublished('Everything');
             const { secret } = await mintToken({
                 workspaceIds: [workspaceId]

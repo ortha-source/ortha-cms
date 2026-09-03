@@ -12,11 +12,13 @@ describe('classifyStatus', () => {
         expect(classifyStatus(status)).toEqual({ outcome: 'succeeded' });
     });
 
+    // covers: webhooks:I-12
     it.each([500, 502, 503, 504])('retries %i', (status) => {
         expect(classifyStatus(status).outcome).toBe('retry');
     });
 
     it.each([408, 429])(
+        // covers: webhooks:I-12
         'retries %i — it describes a moment, not the request',
         (status) => {
             expect(classifyStatus(status).outcome).toBe('retry');
@@ -24,6 +26,7 @@ describe('classifyStatus', () => {
     );
 
     it.each([400, 401, 403, 404, 410, 422])(
+        // covers: webhooks:I-12
         'gives up on %i rather than spending five more attempts',
         (status) => {
             const verdict = classifyStatus(status);
@@ -41,7 +44,7 @@ describe('classifyStatus', () => {
         });
     });
 
-    it('caps a Retry-After so a receiver cannot park us for a day', () => {
+    it('caps a Retry-After so a receiver cannot park us for a day [webhooks:I-12]', () => {
         expect(classifyStatus(429, 24 * 60 * 60_000)).toEqual({
             outcome: 'retry',
             retryAfterMs: MAX_RETRY_AFTER_MS

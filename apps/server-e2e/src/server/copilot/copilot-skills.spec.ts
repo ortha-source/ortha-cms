@@ -188,7 +188,7 @@ describe('Copilot skills', () => {
     });
 
     describe('authoring', () => {
-        it('lets an admin create, edit and delete one', async () => {
+        it('lets an admin create, edit and delete one [copilot:I-33]', async () => {
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
 
             const created = await createSkill(agent);
@@ -259,7 +259,7 @@ describe('Copilot skills', () => {
 
         // Refused at the write rather than left to the read-time merge, which
         // drops the shadowed row silently — a saved skill that never runs.
-        it('409s a name a code skill already holds', async () => {
+        it('409s a name a code skill already holds [copilot:I-29]', async () => {
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
 
             const response = await agent
@@ -327,7 +327,7 @@ describe('Copilot skills', () => {
     });
 
     describe('a run', () => {
-        it('puts an always-on skill in force without being asked', async () => {
+        it('puts an always-on skill in force without being asked [copilot:I-27]', async () => {
             const { agent } = await signIn(CONTRIBUTOR_EMAIL, 'contributor');
             scriptCopilot({ text: 'ok' });
 
@@ -387,7 +387,7 @@ describe('Copilot skills', () => {
             expect(userTurn.skills[0].title).toBe('House style');
         });
 
-        it('ends the run with a readable error when a skill does not resolve', async () => {
+        it('ends the run with a readable error when a skill does not resolve [copilot:I-26]', async () => {
             const { agent } = await signIn(CONTRIBUTOR_EMAIL, 'contributor');
             scriptCopilot({ text: 'ok' });
 
@@ -446,7 +446,7 @@ describe('Copilot skills', () => {
 
         // The client sends names; anything else is a 400 from the strict pipe.
         // This is the property that stops a caller writing their own prompt.
-        it('refuses instruction text in the request body', async () => {
+        it('refuses instruction text in the request body [copilot:I-27]', async () => {
             const { agent } = await signIn(CONTRIBUTOR_EMAIL, 'contributor');
 
             await agent

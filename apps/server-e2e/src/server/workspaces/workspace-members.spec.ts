@@ -113,9 +113,7 @@ describe('Workspace members + activity', () => {
                 .send({ userId: member.id })
                 .expect(201);
             expect(
-                res.body.members.some(
-                    (m: { id: string }) => m.id === member.id
-                )
+                res.body.members.some((m: { id: string }) => m.id === member.id)
             ).toBe(true);
 
             const added = (await getActivityRows()).find(
@@ -245,7 +243,7 @@ describe('Workspace members + activity', () => {
             });
         });
 
-        it('removes the creator like any other member (no owner protection)', async () => {
+        it('removes the creator like any other member (no owner protection) [workspaces:I-07]', async () => {
             const { user, agent } = await loginAs('admin', ADMIN_EMAIL);
             const id = await createWorkspace(agent);
 
@@ -267,9 +265,7 @@ describe('Workspace members + activity', () => {
                 .expect(204);
 
             const res = await otherAgent.get('/api/workspaces').expect(200);
-            const workspace = res.body.find(
-                (w: { id: string }) => w.id === id
-            );
+            const workspace = res.body.find((w: { id: string }) => w.id === id);
             expect(
                 workspace.members.some((m: { id: string }) => m.id === user.id)
             ).toBe(false);

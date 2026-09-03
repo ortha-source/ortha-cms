@@ -57,7 +57,7 @@ describe('runNpmPublish', () => {
         ]);
     });
 
-    it('reads a republish of an existing version as success', () => {
+    it('reads a republish of an existing version as success [nx:I-25]', () => {
         execFileSync.mockImplementation(() => {
             throw npmFailure('', 'npm error code EPUBLISHCONFLICT');
         });
@@ -89,6 +89,7 @@ describe('runNpmPublish', () => {
         'npm error code E403 Forbidden',
         'npm error code ENEEDAUTH',
         'npm error Tarball is not a package: 503 bytes'
+        // covers: nx:I-28
     ])('does not retry %s — that answer will not change', (output) => {
         execFileSync.mockImplementation(() => {
             throw npmFailure(output);
@@ -126,7 +127,7 @@ describe('publishWithRetry', () => {
         expect(execFileSync).toHaveBeenCalledTimes(1);
     });
 
-    it('retries a rate-limited version bump up to the configured ceiling', async () => {
+    it('retries a rate-limited version bump up to the configured ceiling [nx:I-26]', async () => {
         execFileSync.mockImplementation(() => {
             throw npmFailure('npm error code E429');
         });
@@ -159,7 +160,7 @@ describe('publishWithRetry', () => {
      * outlasts, so it gets one attempt and an honest answer rather than a
      * twelve-minute ladder per package.
      */
-    it('gives a rate-limited name creation exactly one attempt', async () => {
+    it('gives a rate-limited name creation exactly one attempt [nx:I-26]', async () => {
         execFileSync.mockImplementation(() => {
             throw npmFailure('npm error code E429');
         });

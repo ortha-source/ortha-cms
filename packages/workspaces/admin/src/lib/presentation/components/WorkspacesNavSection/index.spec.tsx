@@ -124,7 +124,7 @@ describe('WorkspacesNavSection', () => {
         hasPermission.mockReturnValue(false);
     });
 
-    it('says the list could not be loaded rather than showing nothing', () => {
+    it('says the list could not be loaded rather than showing nothing [workspaces:I-31]', () => {
         answerWith({ isError: true });
 
         const section = renderSection();

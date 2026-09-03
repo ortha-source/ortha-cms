@@ -29,7 +29,7 @@ describe('SYSTEM_ROLES', () => {
      * being granted to admin fails here, which is the intended nag.
      */
     describe('admin', () => {
-        it('grants exactly the catalogue, by enumeration', () => {
+        it('grants exactly the catalogue, by enumeration [identity:I-14]', () => {
             expect(grants('admin')).toEqual([...PERMISSION_KEYS].sort());
         });
 
@@ -45,7 +45,7 @@ describe('SYSTEM_ROLES', () => {
             expect(new Set(PERMISSION_KEYS).size).toBe(PERMISSION_KEYS.length);
         });
 
-        it('contains no wildcard, in any role', () => {
+        it('contains no wildcard, in any role [identity:I-14]', () => {
             for (const role of SYSTEM_ROLES) {
                 for (const permission of role.permissions) {
                     expect(permission).not.toContain('*');

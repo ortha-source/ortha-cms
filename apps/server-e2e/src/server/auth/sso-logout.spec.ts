@@ -121,7 +121,7 @@ describe('SSO back-channel logout', () => {
             .expect(400);
     });
 
-    it('is idempotent, because providers retry', async () => {
+    it('is idempotent, because providers retry [identity:I-25]', async () => {
         await signInWithSso();
         const token = fakeSsoProvider.logoutToken({
             sessionId: `fake-session-${SSO_SUBJECTS.linked}`
@@ -146,7 +146,7 @@ describe('SSO back-channel logout', () => {
         expect(response.body).toEqual({ revoked: 0 });
     });
 
-    it('404s for a provider nobody registered', async () => {
+    it('404s for a provider nobody registered [identity:I-25]', async () => {
         await request(harness.server)
             .post('/api/auth/sso/not-registered/backchannel-logout')
             .type('form')
@@ -154,7 +154,7 @@ describe('SSO back-channel logout', () => {
             .expect(404);
     });
 
-    it('tells intermediaries not to cache the answer', async () => {
+    it('tells intermediaries not to cache the answer [identity:I-25]', async () => {
         // A cached `200` would swallow every later notification.
         const response = await notify(
             fakeSsoProvider.logoutToken({ subject: SSO_SUBJECTS.linked })

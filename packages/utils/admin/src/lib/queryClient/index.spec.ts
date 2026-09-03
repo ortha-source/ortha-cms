@@ -28,12 +28,14 @@ describe('queryClient retry policy', () => {
     // BUG-utils-admin-02 claimed a bare `new QueryClient()`. It is not: a 4xx
     // fails fast, which is what keeps a 404 from parking the page on a skeleton.
     it.each([400, 401, 403, 404, 409, 418, 422, 499])(
+        // covers: utils:I-10
         'does not retry the settled client error %i',
         (status) => {
             expect(retry(0, axiosErrorWith(status))).toBe(false);
         }
     );
 
+    // covers: utils:I-10
     it.each([408, 429])('retries the transient client error %i', (status) => {
         expect(retry(0, axiosErrorWith(status))).toBe(true);
     });
@@ -42,7 +44,7 @@ describe('queryClient retry policy', () => {
         expect(retry(0, axiosErrorWith(status))).toBe(true);
     });
 
-    it('retries a transport failure with no response at all', () => {
+    it('retries a transport failure with no response at all [utils:I-09]', () => {
         expect(retry(0, new ApiError(null, 'Network Error'))).toBe(true);
     });
 
@@ -54,7 +56,7 @@ describe('queryClient retry policy', () => {
         expect(retry(0, axiosErrorWith(500))).toBe(true);
     });
 
-    it('gives up after three attempts even on a retryable failure', () => {
+    it('gives up after three attempts even on a retryable failure [utils:I-10]', () => {
         expect(retry(2, axiosErrorWith(500))).toBe(true);
         expect(retry(3, axiosErrorWith(500))).toBe(false);
     });

@@ -34,7 +34,7 @@ describe('isInlineSafe', () => {
 });
 
 describe('downloadHeadersFor', () => {
-    it('always sends nosniff and a no-capability CSP', () => {
+    it('always sends nosniff and a no-capability CSP [media:I-19]', () => {
         const { headers } = downloadHeadersFor('image/png', 'logo.png');
 
         expect(headers['X-Content-Type-Options']).toBe('nosniff');

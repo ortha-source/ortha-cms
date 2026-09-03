@@ -141,7 +141,7 @@ describe('API token last-used tracking', () => {
         ).toBeNull();
     });
 
-    it('writes one row for two requests inside the same minute', async () => {
+    it('writes one row for two requests inside the same minute [activity:I-36] [api-tokens:I-21]', async () => {
         const { id, secret } = await mintToken();
 
         await useToken(secret);
@@ -157,7 +157,7 @@ describe('API token last-used tracking', () => {
         expect(await getApiTokenLastUsed(id)).toEqual(afterFirst);
     });
 
-    it('writes a second row once the throttle window has passed', async () => {
+    it('writes a second row once the throttle window has passed [activity:I-36]', async () => {
         const { id, secret } = await mintToken();
 
         await useToken(secret);

@@ -123,7 +123,7 @@ describe('POST /api/users/:id/(disable|enable)', () => {
         expect(await countUserSessions(member.id)).toBe(2);
     });
 
-    it('refuses to let a member disable themselves with 409', async () => {
+    it('refuses to let a member disable themselves with 409 [users:I-02]', async () => {
         const agent = await login(ADMIN_EMAIL);
         const res = await agent
             .post(`/api/users/${admin.id}/disable`)
@@ -141,7 +141,7 @@ describe('POST /api/users/:id/(disable|enable)', () => {
         expect(row?.status).toBe('active');
     });
 
-    it('refuses to disable the only active admin with 409', async () => {
+    it('refuses to disable the only active admin with 409 [users:I-01] [users:I-16]', async () => {
         // Needs a non-admin holding users:update: an admin aiming at the sole
         // remaining admin is aiming at themselves, and SELF_ACTION fires
         // first — so from an admin's session this 409 is unreachable and the
@@ -168,7 +168,7 @@ describe('POST /api/users/:id/(disable|enable)', () => {
         await adminAgent.get('/api/auth/me').expect(200);
     });
 
-    it('rejects disabling an already-disabled member with 409', async () => {
+    it('rejects disabling an already-disabled member with 409 [users:I-09]', async () => {
         const member = await seedUser(harness.app, {
             email: 'member@example.com',
             role: 'viewer',
@@ -194,7 +194,7 @@ describe('POST /api/users/:id/(disable|enable)', () => {
         expect(row?.status).toBe('active');
     });
 
-    it('rejects enabling an already-active member with 409', async () => {
+    it('rejects enabling an already-active member with 409 [users:I-09]', async () => {
         const member = await seedActiveUser(harness.app, {
             email: 'member@example.com',
             password: PASSWORD,
@@ -204,7 +204,7 @@ describe('POST /api/users/:id/(disable|enable)', () => {
         await agent.post(`/api/users/${member.id}/enable`).expect(409);
     });
 
-    it('rejects enabling a pending member with 409', async () => {
+    it('rejects enabling a pending member with 409 [users:I-09]', async () => {
         // Only a `disabled` account may be enabled. A pending invitee becomes
         // active by accepting their invite — flipping the row here would leave
         // an "active" account with no credential on it, which nothing

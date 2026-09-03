@@ -153,7 +153,7 @@ describe('Public reads, scoped by segment (/api/v1)', () => {
             expect(response.body.total).toBe(1);
         });
 
-        it('hides a restricted entry from a reader in no segment', async () => {
+        it('hides a restricted entry from a reader in no segment [segments:I-05]', async () => {
             const id = await seedPublished('Members only');
             await restrict(id, { allow: [acme] });
             const token = await mintToken();
@@ -267,7 +267,7 @@ describe('Public reads, scoped by segment (/api/v1)', () => {
             return { articleId, tagIds };
         }
 
-        it('drops a target the reader cannot see from BOTH items and total', async () => {
+        it('drops a target the reader cannot see from BOTH items and total [content:I-18] [segments:I-07]', async () => {
             // The half that leaked: `items` was filtered at hydration while
             // `total` still counted the link, so "2 links, 1 visible" told the
             // reader a restricted record existed there.
@@ -334,7 +334,7 @@ describe('Public reads, scoped by segment (/api/v1)', () => {
     });
 
     describe('when nothing is configured', () => {
-        it('serves exactly what it did before the plugin existed', async () => {
+        it('serves exactly what it did before the plugin existed [segments:I-01]', async () => {
             // With no segment the catalogue is empty, the scope returns
             // `undefined`, and no fragment is emitted.
             const agent = await login();

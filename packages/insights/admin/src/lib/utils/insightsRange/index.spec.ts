@@ -24,7 +24,7 @@ describe('parseInsightsRange', () => {
         expect(parseInsightsRange('')).toBe(DEFAULT_RANGE);
     });
 
-    it('falls back to the default on a value it does not offer', () => {
+    it('falls back to the default on a value it does not offer [insights:I-18]', () => {
         // A typo, a stale link, and a plausible-but-wrong spelling of 12m:
         // none of them should leave the page with no window at all.
         expect(parseInsightsRange('90')).toBe(DEFAULT_RANGE);

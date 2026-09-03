@@ -82,7 +82,7 @@ describe('disabling an account while it is signing in', () => {
         return agent;
     }
 
-    it('leaves no usable credential behind, whichever side wins', async () => {
+    it('leaves no usable credential behind, whichever side wins [users:I-03]', async () => {
         // Several rounds, because the winner is genuinely a race — a single
         // round would silently only ever exercise whichever side happens to be
         // faster on the machine running it, and the point is that both

@@ -91,7 +91,7 @@ describe('media direct serve', () => {
         return res.body as { id: string };
     }
 
-    it('redirects an image to a signed URL instead of streaming it', async () => {
+    it('redirects an image to a signed URL instead of streaming it [media:I-20]', async () => {
         const agent = await login();
         const asset = await upload(agent, PNG, 'logo.png', 'image/png');
 
@@ -108,7 +108,7 @@ describe('media direct serve', () => {
         expect(location.searchParams.get('ttl')).toBe('42');
     });
 
-    it('never caches the redirect, which outlives the URL it points at', async () => {
+    it('never caches the redirect, which outlives the URL it points at [media:I-20]', async () => {
         const agent = await login();
         const asset = await upload(agent, PNG, 'logo.png', 'image/png');
 
@@ -135,7 +135,7 @@ describe('media direct serve', () => {
         expect(location.searchParams.get('disposition')).toBe('attachment');
     });
 
-    it('authorizes before it redirects — a non-member gets the same 404', async () => {
+    it('authorizes before it redirects — a non-member gets the same 404 [media:I-20]', async () => {
         // The one that matters: a redirect issued before the membership check
         // would hand the bytes to anyone holding an asset id, and the app would
         // never see the request that fetched them.
@@ -153,7 +153,7 @@ describe('media direct serve', () => {
         await outsider.get(`/api/media/assets/${asset.id}/raw`).expect(404);
     });
 
-    it('still 404s an asset that does not exist', async () => {
+    it('still 404s an asset that does not exist [media:I-17]', async () => {
         const agent = await login();
 
         await agent

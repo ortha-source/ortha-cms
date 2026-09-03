@@ -48,7 +48,7 @@ test.describe('Content i18n — degraded reads and edge locales', () => {
         ).toBeVisible();
     }
 
-    test('a failed locale list leaves a retry in the toolbar, not a hole', async ({
+    test('a failed locale list leaves a retry in the toolbar, not a hole [i18n:I-30]', async ({
         page,
         contentLibraryPage
     }) => {
@@ -69,7 +69,7 @@ test.describe('Content i18n — degraded reads and edge locales', () => {
         await expect(contentLibraryPage.localeSwitcher).toHaveCount(0);
     });
 
-    test('a failed group read says so instead of offering to create what exists', async ({
+    test('a failed group read says so instead of offering to create what exists [i18n:I-30]', async ({
         page,
         contentLibraryPage
     }) => {
@@ -93,7 +93,7 @@ test.describe('Content i18n — degraded reads and edge locales', () => {
         ).toBeVisible();
     });
 
-    test('a failed summary batch marks the Locales cells unavailable', async ({
+    test('a failed summary batch marks the Locales cells unavailable [i18n:I-30]', async ({
         page,
         contentLibraryPage
     }) => {
@@ -134,7 +134,7 @@ test.describe('Content i18n — degraded reads and edge locales', () => {
         expect(summaries.count).toBe(1);
     });
 
-    test('an unconfigured ?locale= is reported, and any pick clears it', async ({
+    test('an unconfigured ?locale= is reported, and any pick clears it [i18n:I-05]', async ({
         page,
         contentLibraryPage
     }) => {

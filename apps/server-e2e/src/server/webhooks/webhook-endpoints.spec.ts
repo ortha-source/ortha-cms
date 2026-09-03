@@ -76,7 +76,7 @@ describe('Webhook endpoints API', () => {
             expect(body.endpoint.secretHint).toBe(body.secret.slice(-4));
         });
 
-        it('never returns the secret again', async () => {
+        it('never returns the secret again [webhooks:I-09]', async () => {
             const { body: created } = await admin
                 .post('/api/webhooks')
                 .send({ name: 'S', url: 'https://example.com/hooks' })
@@ -153,7 +153,7 @@ describe('Webhook endpoints API', () => {
             expect(body.message).toEqual(expect.any(String));
         });
 
-        it('refuses a reserved header', async () => {
+        it('refuses a reserved header [webhooks:I-11]', async () => {
             await admin
                 .post('/api/webhooks')
                 .send({
@@ -205,7 +205,7 @@ describe('Webhook endpoints API', () => {
             await request(harness.server).get('/api/webhooks').expect(401);
         });
 
-        it('refuses a contributor, even for reads', async () => {
+        it('refuses a contributor, even for reads [webhooks:I-18]', async () => {
             await seedActiveUser(harness.app, {
                 email: CONTRIBUTOR_EMAIL,
                 password: PASSWORD,
@@ -269,7 +269,7 @@ describe('Webhook endpoints API', () => {
             });
         });
 
-        it('rotates the secret and returns the new one once', async () => {
+        it('rotates the secret and returns the new one once [webhooks:I-09]', async () => {
             const { body: first } = await admin
                 .post(`/api/webhooks/${endpointId}/secret`)
                 .expect(201);
@@ -323,7 +323,7 @@ describe('Webhook endpoints API', () => {
  * most. This boots a second app with the shipped policy, so what is covered here
  * is the configuration a real install runs.
  */
-describe('Webhook endpoints API — the shipped URL policy', () => {
+describe('Webhook endpoints API — the shipped URL policy [webhooks:I-10]', () => {
     let strict: TestApp;
     let admin: request.Agent;
 

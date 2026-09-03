@@ -106,7 +106,7 @@ describe('mergeSkills', () => {
         ]);
     });
 
-    it('drops a CMS skill whose name a code skill already holds', () => {
+    it('drops a CMS skill whose name a code skill already holds [copilot:I-29]', () => {
         const merged = mergeSkills(
             [
                 skill({

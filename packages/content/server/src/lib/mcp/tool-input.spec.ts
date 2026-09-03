@@ -125,7 +125,7 @@ describe('validateToolInput', () => {
 
     // The same bound the HTTP route enforces, because it is literally the
     // same DTO — this is the drift the shared class exists to prevent.
-    it('enforces the DTO’s pageSize cap', async () => {
+    it('enforces the DTO’s pageSize cap [content:I-29]', async () => {
         await expect(
             validateToolInput(PublicListEntriesQueryDto, { pageSize: 5000 })
         ).rejects.toBeInstanceOf(BadRequestException);

@@ -69,9 +69,14 @@ describe('Media insights (/api/insights/media)', () => {
     }
 
     /** Seeds an asset into the workspace under test. */
-    function asset(over: Parameters<typeof seedMediaAsset>[0] extends never
-        ? never
-        : Omit<Parameters<typeof seedMediaAsset>[0], 'workspaceId' | 'uploadedBy'>) {
+    function asset(
+        over: Parameters<typeof seedMediaAsset>[0] extends never
+            ? never
+            : Omit<
+                  Parameters<typeof seedMediaAsset>[0],
+                  'workspaceId' | 'uploadedBy'
+              >
+    ) {
         return seedMediaAsset({
             workspaceId,
             uploadedBy: admin.id,
@@ -109,7 +114,11 @@ describe('Media insights (/api/insights/media)', () => {
             // string. Left unconverted the client's arithmetic silently becomes
             // string concatenation and every bar is wrong.
             const agent = await login();
-            await asset({ name: 'big.mp4', kind: 'video', size: 4 * 1024 * MB });
+            await asset({
+                name: 'big.mp4',
+                kind: 'video',
+                size: 4 * 1024 * MB
+            });
 
             const res = await agent
                 .get('/api/insights/media/storage')
@@ -160,7 +169,7 @@ describe('Media insights (/api/insights/media)', () => {
             expect(res.body).toEqual({ images: 2, withAlt: 1, missing: 1 });
         });
 
-        it('does not count a blank alt as covered', async () => {
+        it('does not count a blank alt as covered [media:I-25]', async () => {
             // An empty string is the markup for "decorative". Counting it would
             // report accessibility work as done that nobody has done.
             const agent = await login();

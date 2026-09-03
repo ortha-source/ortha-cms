@@ -111,7 +111,7 @@ test.describe('Content i18n', () => {
         );
     });
 
-    test('the default locale keeps a clean URL through the editor', async ({
+    test('the default locale keeps a clean URL through the editor [i18n:I-06]', async ({
         page,
         contentLibraryPage
     }) => {
@@ -446,7 +446,7 @@ test.describe('Content i18n', () => {
         await expect(page).toHaveURL(/\/localized_post\/lp-de-1$/);
     });
 
-    test('the relation picker on a translation-create form is scoped to that locale', async ({
+    test('the relation picker on a translation-create form is scoped to that locale [i18n:I-31]', async ({
         page,
         relationsEditorPage
     }) => {

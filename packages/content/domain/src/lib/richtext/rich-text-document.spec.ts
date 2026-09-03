@@ -110,7 +110,7 @@ describe('richTextPlainText', () => {
 });
 
 describe('isEmptyRichText', () => {
-    it('treats the document an emptied editor leaves behind as empty', () => {
+    it('treats the document an emptied editor leaves behind as empty [wysiwyg:I-12]', () => {
         expect(isEmptyRichText(doc({ type: RICH_TEXT_NODE.Paragraph }))).toBe(
             true
         );
@@ -125,7 +125,7 @@ describe('isEmptyRichText', () => {
         expect(isEmptyRichText(null)).toBe(true);
     });
 
-    it('treats a node that means something without words as content', () => {
+    it('treats a node that means something without words as content [wysiwyg:I-12]', () => {
         // The lost-edit case: a table or a divider an author has inserted but
         // not yet typed into is content, and collapsing it to empty throws it
         // away on save.

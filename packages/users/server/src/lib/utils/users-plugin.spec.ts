@@ -20,7 +20,7 @@ describe('UsersPlugin', () => {
         expect(plugin.module).toEqual(UsersModule.forRoot());
     });
 
-    it('ships no migrations — it owns no schema', () => {
+    it('ships no migrations — it owns no schema [users:I-13]', () => {
         expect(UsersPlugin().migrations).toBeUndefined();
     });
 

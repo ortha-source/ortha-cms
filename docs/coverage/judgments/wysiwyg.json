@@ -1,0 +1,132 @@
+{
+    "package": "wysiwyg",
+    "citations": [
+        {
+            "id": "wysiwyg:I-02",
+            "file": "apps/admin-e2e/src/content/wysiwyg-fields.spec.ts",
+            "anchor": "keeps a plain textarea for a field that opted out",
+            "why": "The `rawHtml` field (admin.widget === 'textarea') renders content-admin's textarea and `control('Raw HTML')` has count 0 — the one exception isWysiwygField makes."
+        },
+        {
+            "id": "wysiwyg:I-02",
+            "file": "apps/admin-e2e/src/content/wysiwyg-fields.spec.ts",
+            "anchor": "renders stored HTML as content, not markup",
+            "why": "The plain `richtext` `body` field (no admin.widget at all) renders the plugin's preview, so the default-claim half holds: a richtext field is claimed with no opt-in."
+        },
+        {
+            "id": "wysiwyg:I-07",
+            "file": "apps/admin-e2e/src/content/wysiwyg-fields.spec.ts",
+            "anchor": "keeps the record and its chrome on screen",
+            "why": "With the field unfolded, the content nav, the Properties rail, the top-bar Save and the record heading are all asserted visible — the 'stays mounted and operable' half, which a dialog could not satisfy."
+        },
+        {
+            "id": "wysiwyg:I-07",
+            "file": "apps/admin-e2e/src/content/wysiwyg-fields.spec.ts",
+            "anchor": "takes over the work area with the caret already in the text",
+            "why": "The tab strip is hidden and `control('Summary')` has count 0 once unfolded — the working area's content was replaced, not covered."
+        },
+        {
+            "id": "wysiwyg:I-10",
+            "file": "apps/admin-e2e/src/content/wysiwyg-fields.spec.ts",
+            "anchor": "writes edits back to the form as they are made",
+            "why": "Typing then leaving the editor (no save, no editor-local commit) leaves the typed text in the form's own preview — the edit reached the entry form through onChange."
+        },
+        {
+            "id": "wysiwyg:I-11",
+            "file": "apps/admin-e2e/src/content/wysiwyg-fields.spec.ts",
+            "anchor": "stores the formatting the toolbar applied",
+            "why": "The saved body is compared with toEqual against the exact expected document, so a meaningful document is handed to the form verbatim. The other half — an empty document stored as null — is NOT pinned: the emptied-field test only asserts the required error, and content-admin's required check calls isEmptyRichText, which an empty-paragraph document also satisfies."
+        },
+        {
+            "id": "wysiwyg:I-12",
+            "file": "packages/content/domain/src/lib/richtext/rich-text-document.spec.ts",
+            "anchor": "treats a node that means something without words as content",
+            "why": "A document holding only a table, a horizontal rule, or a `callout` (a node the core does not know) reads as non-empty — which only holds if emptiness is an allowlist of what emptiness is, not the negation of a list of meaningful nodes."
+        },
+        {
+            "id": "wysiwyg:I-12",
+            "file": "packages/content/domain/src/lib/richtext/rich-text-document.spec.ts",
+            "anchor": "treats the document an emptied editor leaves behind as empty",
+            "why": "The members of the emptiness list are asserted: a bare doc, a doc holding one empty paragraph, and a paragraph of whitespace text all read empty."
+        },
+        {
+            "id": "wysiwyg:I-13",
+            "file": "apps/admin-e2e/src/content/wysiwyg-fields.spec.ts",
+            "anchor": "names the structural problems in a body it is handed",
+            "why": "The remarks under the document name exactly inspectRichText's two findings for that stored body (a table with no header cells, a heading above the level) — the list is built from the core's inspection, not from a second rule set."
+        },
+        {
+            "id": "wysiwyg:I-13",
+            "file": "apps/admin-e2e/src/content/wysiwyg-fields.spec.ts",
+            "anchor": "refuses to save a body a screen reader could not follow",
+            "why": "An error-severity finding blocks the save: the field error names it and saves.bodies stays empty. The complementary half — a warning does NOT block — is not exercised anywhere (the checklist's 'click here' link case has no test)."
+        },
+        {
+            "id": "wysiwyg:I-14",
+            "file": "apps/admin-e2e/src/content/wysiwyg-fields.spec.ts",
+            "anchor": "refuses a language tag assistive tech would ignore",
+            "why": "The dialog refuses `fr_FR` and stays open with a BCP-47 error, so the tag never reaches the document — the check the dialog runs is isWellFormedLanguageTag, the same one the save applies."
+        },
+        {
+            "id": "wysiwyg:I-21",
+            "file": "apps/admin-e2e/src/content/wysiwyg-fields.spec.ts",
+            "anchor": "refuses a URL the editor would not publish",
+            "why": "Pins the dialog half only: `javascript:alert(1)` shows the error and inserts no image. The node's own check on insert and on parseHTML, and the rejection of a protocol-relative `//host/…`, are not exercised."
+        },
+        {
+            "id": "wysiwyg:I-23",
+            "file": "apps/admin-e2e/src/content/wysiwyg-fields.spec.ts",
+            "anchor": "resizes an image from the keyboard, and stores the width",
+            "why": "Pins the first clause: a keyboard resize lands in the saved node's `width` attribute. The 'a height is never stored' and 'below 64px reads as no width chosen' clauses are not asserted."
+        },
+        {
+            "id": "wysiwyg:I-24",
+            "file": "apps/admin-e2e/src/content/wysiwyg-fields.spec.ts",
+            "anchor": "centres a selected image, and stores where it sits",
+            "why": "The figure carries data-align=\"center\", the saved image node's align is 'center', and the Alignment menu has no 'Justify' item while media is selected. Not pinned: that `left` is never written, and that the alignment is applied with margins."
+        },
+        {
+            "id": "wysiwyg:I-26",
+            "file": "apps/admin-e2e/src/content/wysiwyg-fields.spec.ts",
+            "anchor": "records a decorative image as answered, not as missing",
+            "why": "Pins the second clause: the saved image carries the real alt value, empty included (alt === '' alongside decorative). The editor-side fallback accessible name ('Embedded image') is asserted nowhere."
+        },
+        {
+            "id": "wysiwyg:I-27",
+            "file": "apps/admin-e2e/src/content/wysiwyg-fields.spec.ts",
+            "anchor": "never saves the record from an overlay’s own form",
+            "why": "On an existing record, submitting the alt popover, the media URL dialog and the link popover each leave saves.bodies empty with no saved toast — the entry is never saved from a popup. The language dialog is the one popup form not exercised."
+        },
+        {
+            "id": "wysiwyg:I-28",
+            "file": "apps/admin-e2e/src/content/wysiwyg-fields.spec.ts",
+            "anchor": "stores an image named by URL",
+            "why": "The built-in 'by URL' dialog is opened from the Insert ▸ Media menu and is then filled and submitted after the menu has closed — it could not survive that if the menu item mounted it."
+        },
+        {
+            "id": "wysiwyg:I-28",
+            "file": "apps/admin-e2e/src/content/wysiwyg-fields.spec.ts",
+            "anchor": "places an asset picked from the Media Library",
+            "why": "The same for a contributed source: the Media Library picker is driven to completion after the menu that opened it is gone, so the slot's Source is mounted by the toolbar."
+        },
+        {
+            "id": "wysiwyg:I-31",
+            "file": "apps/admin-e2e/src/content/entry-read-only.spec.ts",
+            "anchor": "offers the rich-text body to view, not to edit",
+            "why": "Pins the toolbar clause: the expanded read-only view has no 'Formatting' group at all (count 0). Not pinned: that onUpdate writes nothing into the form, that focus is not set, and that the surface's role is `region` rather than `textbox`."
+        },
+        {
+            "id": "wysiwyg:I-36",
+            "file": "apps/admin-e2e/src/content/wysiwyg-fields.spec.ts",
+            "anchor": "a translated body claims its own language, expanded or not",
+            "why": "The unfolded view's surface resolves lang='de' for a localized field, outside the form's Translated group. The 'never for a shared one' half is not exercised — every richtext field in the seed is localized."
+        },
+        {
+            "id": "wysiwyg:I-37",
+            "file": "apps/admin-e2e/src/content/wysiwyg-fields.spec.ts",
+            "anchor": "returns focus to the field when the editor closes",
+            "why": "After opening from the keyboard and pressing Done, focus is asserted on the field's own control rather than on <body> — the deferred getElementById(id) restore."
+        }
+    ],
+    "judgments": {}
+}

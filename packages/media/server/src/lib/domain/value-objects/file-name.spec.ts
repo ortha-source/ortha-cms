@@ -1,7 +1,7 @@
 import { InvalidFileNameError } from '../errors/invalid-file-name.error';
 import { FileName } from './file-name';
 
-describe('FileName', () => {
+describe('FileName [media:I-22]', () => {
     it('trims and keeps a plain leaf name', () => {
         expect(FileName.create('  logo.png  ').value).toBe('logo.png');
     });

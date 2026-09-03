@@ -22,7 +22,7 @@ describe('ContentGraphqlPlugin', () => {
         expect(pluginFor([tag])).not.toThrow();
     });
 
-    it('refuses two content types that collide as GraphQL names', () => {
+    it('refuses two content types that collide as GraphQL names [content:I-02]', () => {
         // A singular/plural pair: `article`'s list field and `articles`'s
         // single field are both `articles`. (The other collision the docs name
         // — `blog_post` vs `blogPost` — cannot happen: `define()` already

@@ -123,7 +123,7 @@ describe('Workspaces regressions', () => {
     }
 
     describe('removing the last member', () => {
-        it('is refused, leaving the workspace reachable', async () => {
+        it('is refused, leaving the workspace reachable [workspaces:I-08]', async () => {
             const { user, agent } = await loginAs(
                 'admin',
                 'wsr-last@example.com'
@@ -177,7 +177,7 @@ describe('Workspaces regressions', () => {
     });
 
     describe('concurrent creates with the same slug', () => {
-        it('yields exactly one 201 and 409s the losers, never a 500', async () => {
+        it('yields exactly one 201 and 409s the losers, never a 500 [workspaces:I-10]', async () => {
             const { agent } = await loginAs('admin', 'wsr-race@example.com');
 
             // The availability pre-check is a read-then-write: every request
@@ -273,7 +273,7 @@ describe('Workspaces regressions', () => {
     });
 
     describe('read routes that fed the create/grant decision', () => {
-        it('403s the slug probe for a role that cannot create', async () => {
+        it('403s the slug probe for a role that cannot create [workspaces:I-29]', async () => {
             const { agent } = await loginAs('viewer', 'wsr-probe@example.com');
 
             // It answers "does this slug exist" — an enumeration of the tenancy
@@ -298,7 +298,7 @@ describe('Workspaces regressions', () => {
     });
 
     describe('deleting a workspace purges its cross-plugin rows', () => {
-        it('removes media and token-bucket rows that no foreign key reaches', async () => {
+        it('removes media and token-bucket rows that no foreign key reaches [media:I-35]', async () => {
             const { user, agent } = await loginAs(
                 'admin',
                 'wsr-purge@example.com'
@@ -345,7 +345,7 @@ describe('Workspaces regressions', () => {
             expect(await countApiTokenGrants(id)).toBe(0);
         });
 
-        it('drops the workspace from a token bucket without revoking the token', async () => {
+        it('drops the workspace from a token bucket without revoking the token [workspaces:I-28]', async () => {
             const { user, agent } = await loginAs(
                 'admin',
                 'wsr-token@example.com'
@@ -447,7 +447,7 @@ describe('Workspaces regressions', () => {
             expect(await countMediaFolders(id)).toBe(1);
         });
 
-        it('rolls everything back when one purger throws', async () => {
+        it('rolls everything back when one purger throws [workspaces:I-17]', async () => {
             const { user, agent } = await loginAs(
                 'admin',
                 'wsr-purger@example.com'
@@ -634,7 +634,7 @@ describe('Workspaces regressions', () => {
     });
 
     describe('the outbox survives a dispatcher outage', () => {
-        it('commits the change, holds the event, and audits it on recovery', async () => {
+        it('commits the change, holds the event, and audits it on recovery [workspaces:I-22]', async () => {
             const { agent } = await loginAs('admin', 'wsr-outbox@example.com');
             const restore = suspendOutboxDispatch(harness.app);
 

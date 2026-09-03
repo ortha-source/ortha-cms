@@ -113,7 +113,7 @@ describe('reset a password', () => {
             }
         });
 
-        it('stores only the hash — the raw token is not in the database', async () => {
+        it('stores only the hash — the raw token is not in the database [identity:I-09]', async () => {
             const token = await issueReset();
             const [hash] = await getResetTokenHashes(member.id);
             expect(hash).not.toBe(token);
@@ -345,7 +345,7 @@ describe('reset a password', () => {
                 .expect(401);
         });
 
-        it('revokes every live session — the old password does not outlive itself', async () => {
+        it('revokes every live session — the old password does not outlive itself [identity:I-06]', async () => {
             const live = await loginAsMember();
             await loginAsMember();
             expect(await countUserSessions(member.id)).toBe(2);
@@ -362,7 +362,7 @@ describe('reset a password', () => {
             await live.get('/api/auth/me').expect(401);
         });
 
-        it('issues no session of its own — holding a link is not signing in', async () => {
+        it('issues no session of its own — holding a link is not signing in [identity:I-06]', async () => {
             const token = await issueReset();
             const agent = request.agent(harness.server);
 
@@ -403,7 +403,7 @@ describe('reset a password', () => {
                 .expect(201);
         });
 
-        it('lets only one of two concurrent redemptions of the same link through', async () => {
+        it('lets only one of two concurrent redemptions of the same link through [identity:I-05]', async () => {
             // The pre-check outside the transaction is advisory: both requests
             // read a live token, both hash a password, and then the conditional
             // `consume` decides. If that write were a read-then-update the

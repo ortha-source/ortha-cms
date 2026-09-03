@@ -31,7 +31,7 @@ beforeEach(() => {
 afterEach(() => jest.restoreAllMocks());
 
 describe('runDrizzleKitStudio', () => {
-    it('hands drizzle-kit an ephemeral config that never holds the credential', () => {
+    it('hands drizzle-kit an ephemeral config that never holds the credential [cli:I-10] [nx:I-10]', () => {
         let contents = '';
         execFileSync.mockImplementation(() => {
             contents = ephemeralConfig().contents;
@@ -44,7 +44,7 @@ describe('runDrizzleKitStudio', () => {
         expect(contents).not.toContain('ortha_cms');
     });
 
-    it('passes the URL through the child’s environment instead', () => {
+    it('passes the URL through the child’s environment instead [cli:I-10] [nx:I-10]', () => {
         runDrizzleKitStudio(URL);
 
         expect(execFileSync.mock.calls[0][2].env).toMatchObject({
@@ -52,7 +52,7 @@ describe('runDrizzleKitStudio', () => {
         });
     });
 
-    it('removes the temp directory when Studio exits', () => {
+    it('removes the temp directory when Studio exits [nx:I-11]', () => {
         let path = '';
         execFileSync.mockImplementation(() => {
             path = ephemeralConfig().path;
@@ -88,7 +88,7 @@ describe('runDrizzleKitStudio', () => {
      * difference.
      */
     describe('binding a non-loopback interface', () => {
-        it('warns, naming the exposure and how to undo it', () => {
+        it('warns, naming the exposure and how to undo it [cli:I-11] [nx:I-13]', () => {
             runDrizzleKitStudio(URL, { host: '0.0.0.0' });
 
             const warning = (console.warn as jest.Mock).mock.calls[0][0];
@@ -127,6 +127,7 @@ describe('runDrizzleKitStudio', () => {
      * target trains people to ignore red.
      */
     it.each(['SIGINT', 'SIGTERM'])(
+        // covers: cli:I-18, nx:I-14
         'exits cleanly when stopped with %s',
         (signal) => {
             execFileSync.mockImplementation(() => {
@@ -148,7 +149,7 @@ describe('runDrizzleKitStudio', () => {
         expect(() => runDrizzleKitStudio(URL)).toThrow('bad config');
     });
 
-    it('cleans up the temp directory even when Studio fails', () => {
+    it('cleans up the temp directory even when Studio fails [cli:I-10] [nx:I-11]', () => {
         let path = '';
         execFileSync.mockImplementation(() => {
             path = ephemeralConfig().path;

@@ -75,7 +75,7 @@ describe('WebhookFanoutSubscriber', () => {
         expect(dispatcher.register).toHaveBeenCalledWith(subscriber);
     });
 
-    it('subscribes to the catalogue but never to ping', () => {
+    it('subscribes to the catalogue but never to ping [webhooks:I-05]', () => {
         const { subscriber } = build([]);
         expect(subscriber.kinds).toContain('entry.published');
         // `ping` is addressed to one endpoint by hand and never reaches the
@@ -83,7 +83,7 @@ describe('WebhookFanoutSubscriber', () => {
         expect(subscriber.kinds).not.toContain('ping');
     });
 
-    it('queues one delivery per interested endpoint', async () => {
+    it('queues one delivery per interested endpoint [webhooks:I-01]', async () => {
         const { subscriber, queued } = build([
             subscription({ id: 'a' }),
             subscription({ id: 'b', allWorkspaces: true, workspaceIds: [] })
@@ -180,7 +180,7 @@ describe('WebhookFanoutSubscriber', () => {
         });
     });
 
-    it('routes an entry with no workspace only to an all-workspaces endpoint', async () => {
+    it('routes an entry with no workspace only to an all-workspaces endpoint [webhooks:I-04]', async () => {
         const { subscriber, queued } = build([
             subscription({ id: 'named' }),
             subscription({ id: 'all', allWorkspaces: true, workspaceIds: [] })

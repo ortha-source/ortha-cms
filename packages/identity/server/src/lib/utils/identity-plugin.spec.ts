@@ -47,7 +47,7 @@ function build(
  */
 describe('IdentityPlugin construction checks', () => {
     describe('SSO providers versus a strict session cookie', () => {
-        it('refuses to build with providers registered and cookieSameSite "strict"', () => {
+        it('refuses to build with providers registered and cookieSameSite "strict" [identity:I-26]', () => {
             expect(
                 build(
                     {
@@ -85,7 +85,7 @@ describe('IdentityPlugin construction checks', () => {
     });
 
     describe('just-in-time provisioning settings', () => {
-        it('refuses an empty domain allow-list even with no provider registered', () => {
+        it('refuses an empty domain allow-list even with no provider registered [identity:I-24]', () => {
             // Checked whenever provisioning is configured, so a deployment that
             // turns it on and adds a provider later hears about it on the
             // commit that wrote it, not on the one that made it reachable.

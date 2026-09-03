@@ -19,7 +19,7 @@ import { Slug } from './index';
  * does not; and 120 vs. 121 is a boundary an admin-side copy is free to get off
  * by one, since nothing but this test compares the two numbers.
  */
-describe('Slug (admin mirror of the server rule)', () => {
+describe('Slug (admin mirror of the server rule) [workspaces:I-11]', () => {
     it.each([
         ['lowercase letters', 'marketing'],
         ['letters, digits and hyphens', 'marketing-01'],

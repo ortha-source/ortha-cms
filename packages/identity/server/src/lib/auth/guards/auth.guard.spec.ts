@@ -134,7 +134,7 @@ describe('AuthGuard', () => {
         ]);
     });
 
-    it('protects a route that carries no metadata at all', async () => {
+    it('protects a route that carries no metadata at all [identity:I-01]', async () => {
         // The default has to be "guarded": a new controller nobody annotated
         // must not be open.
         const { guard, context } = harness({

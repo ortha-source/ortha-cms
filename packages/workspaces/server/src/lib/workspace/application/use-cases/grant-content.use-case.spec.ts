@@ -123,7 +123,7 @@ describe('GrantContentUseCase', () => {
         });
     });
 
-    it('derives the kind from the catalogue rather than the request', async () => {
+    it('derives the kind from the catalogue rather than the request [workspaces:I-20]', async () => {
         const { useCase, appended } = harness();
 
         await useCase.execute(ACTOR, WORKSPACE_ID, 'home');

@@ -178,7 +178,7 @@ describe('Entry access via the entry save', () => {
             });
         });
 
-        it('rolls the whole save back on a malformed payload', async () => {
+        it('rolls the whole save back on a malformed payload [segments:I-16]', async () => {
             // The atomicity claim, from the failing side: the entry must not
             // land with a restriction the request could not express.
             const agent = await login(ADMIN);
@@ -196,7 +196,7 @@ describe('Entry access via the entry save', () => {
             expect(list.body.total).toBe(0);
         });
 
-        it('refuses more audiences on one side than an entry may hold', async () => {
+        it('refuses more audiences on one side than an entry may hold [segments:I-42]', async () => {
             // The cap the two PUT routes declare on their DTOs. This path has
             // no DTO — content forwards the bag opaquely — and it is the path
             // the admin writes through, so without the check here an entry
@@ -311,7 +311,7 @@ describe('Entry access via the entry save', () => {
             return response.body.id as string;
         }
 
-        it('applies a decision to every language of the record', async () => {
+        it('applies a decision to every language of the record [segments:I-15]', async () => {
             // Access is not a translated field: "who may read this" is a fact
             // about the record, not about its German wording. Left per-row, an
             // editor who restricted the English article published the German one
@@ -337,7 +337,7 @@ describe('Entry access via the entry save', () => {
             });
         });
 
-        it('reaches a translation created after the decision', async () => {
+        it('reaches a translation created after the decision [segments:I-23]', async () => {
             // The other order, and the one an editor is likelier to hit: restrict
             // the article, then translate it. i18n copies the row's shared
             // fields; the access row is ours, so the create's own extension pass
@@ -439,7 +439,7 @@ describe('Entry access via the entry save', () => {
             });
         });
 
-        it('appends a revision on every sibling it rewrote', async () => {
+        it('appends a revision on every sibling it rewrote [segments:I-22]', async () => {
             // The same thing content does for the rows i18n's shared-field sync
             // rewrote, and for the same reason: a sibling whose stored state
             // moved while its timeline did not is a history that hides the
@@ -479,7 +479,7 @@ describe('Entry access via the entry save', () => {
             });
         });
 
-        it('appends exactly one revision when a save moves both a shared field and access', async () => {
+        it('appends exactly one revision when a save moves both a shared field and access [content:I-15]', async () => {
             // `select` carries no `localized` flag, so it is a **shared** field:
             // i18n syncs it to the sibling and reports the row, while the access
             // write reports the same id. Two paths, one row — a second revision
@@ -572,7 +572,7 @@ describe('Entry access via the entry save', () => {
             });
         });
 
-        it('records the access of a save that never mentioned it', async () => {
+        it('records the access of a save that never mentioned it [segments:I-19]', async () => {
             // `capture` runs for every snapshot. A version that recorded state
             // only when it changed would restore as a version that had none —
             // and quietly open the entry up.
@@ -741,7 +741,7 @@ describe('Entry access via the entry save', () => {
             });
         });
 
-        it('answers an entry id that exists nowhere the same way', async () => {
+        it('answers an entry id that exists nowhere the same way [segments:I-41]', async () => {
             // Same refusal for "not yours" and "not there": telling them apart
             // would make the route an oracle for entry ids.
             const agent = await login(ADMIN);

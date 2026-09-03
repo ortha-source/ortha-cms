@@ -78,7 +78,9 @@ describe('Session lifetime boundaries', () => {
             }
 
             const [after] = await getUserSessions(user.id);
-            expect(after.lastUsedAt.getTime()).toBe(before.lastUsedAt.getTime());
+            expect(after.lastUsedAt.getTime()).toBe(
+                before.lastUsedAt.getTime()
+            );
         });
 
         it('writes once the throttle window has elapsed, then throttles again', async () => {
@@ -140,7 +142,7 @@ describe('Session lifetime boundaries', () => {
     });
 
     describe('secrets at rest', () => {
-        it('stores the session token’s digest, never the token', async () => {
+        it('stores the session token’s digest, never the token [identity:I-09]', async () => {
             const cookie = await login();
             const token = cookie.split('=')[1];
 
@@ -150,7 +152,7 @@ describe('Session lifetime boundaries', () => {
             expect(row.id).not.toBe(token);
         });
 
-        it('stores a password as bcrypt at cost 12', async () => {
+        it('stores a password as bcrypt at cost 12 [identity:I-09]', async () => {
             // The cost is a security parameter; lowering it is a silent
             // downgrade that no functional test would notice.
             expect((await getUserByEmail(EMAIL))?.passwordHash).toMatch(

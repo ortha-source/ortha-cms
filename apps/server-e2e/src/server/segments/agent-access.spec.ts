@@ -204,7 +204,7 @@ describe('Segments over MCP and the public API', () => {
             expect(names).toContain('content_access_set');
         });
 
-        it('offers no tool over the audience directory, at any scope', async () => {
+        it('offers no tool over the audience directory, at any scope [segments:I-33]', async () => {
             // Deliberate: renaming one audience's tags changes who every entry
             // naming it is visible to, installation-wide. That is administration
             // of the vocabulary and stays on a screen where a person reads the
@@ -308,7 +308,7 @@ describe('Segments over MCP and the public API', () => {
             ).toEqual(['Globex']);
         });
 
-        it('reads back what it just restricted', async () => {
+        it('reads back what it just restricted [segments:I-31]', async () => {
             // The reason `content_access_get` answers from the access table
             // rather than through the public entry read: that read is
             // reader-scoped, so the restriction the agent just wrote would be

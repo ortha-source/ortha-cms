@@ -93,7 +93,7 @@ describe('resolveFileName', () => {
             );
         });
 
-        it('names the folder parameter in the path message', () => {
+        it('names the folder parameter in the path message [media:I-32]', () => {
             expect(() => resolveFileName('reports/q3', 'md')).toThrow(
                 /folderId/
             );

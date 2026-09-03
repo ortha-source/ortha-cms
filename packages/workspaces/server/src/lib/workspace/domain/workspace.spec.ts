@@ -119,7 +119,7 @@ describe('Workspace aggregate', () => {
             expect(workspace.changes().removedMemberIds).toEqual([CREATOR]);
         });
 
-        it('refuses to remove the last member (no-memberless-workspace)', () => {
+        it('refuses to remove the last member (no-memberless-workspace) [workspaces:I-08]', () => {
             const workspace = rehydrated();
 
             // Access is membership-scoped, so a workspace with no members is
@@ -159,7 +159,7 @@ describe('Workspace aggregate', () => {
         });
     });
 
-    describe('a no-op raises nothing (the other half of idempotence)', () => {
+    describe('a no-op raises nothing (the other half of idempotence) [workspaces:I-09]', () => {
         // Every mutator returns whether it *actually* changed anything, and the
         // application layer drains `pullEvents()` into the outbox on the way
         // out — where the activity subscriber turns each one into an audit row.

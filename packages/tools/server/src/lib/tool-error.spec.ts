@@ -26,7 +26,7 @@ describe('toToolError', () => {
 
     // The single most valuable thing a model can be handed back: a 422 naming
     // the offending fields is a failure it can fix on the next call.
-    it('carries per-field validation issues through verbatim', () => {
+    it('carries per-field validation issues through verbatim [tools:I-21]', () => {
         const issues = [{ field: 'title', message: 'is required' }];
 
         expect(
@@ -56,7 +56,7 @@ describe('toToolError', () => {
 
     // A raw error could name a table, a column, or a connection string, and a
     // tool result is read by a third-party model.
-    it('reports a non-HTTP error as an opaque internal error', () => {
+    it('reports a non-HTTP error as an opaque internal error [tools:I-20]', () => {
         const error = toToolError(
             new Error('connect ECONNREFUSED 10.0.0.5:5432 (db "ortha_prod")')
         );

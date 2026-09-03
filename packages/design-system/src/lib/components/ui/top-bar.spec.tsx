@@ -17,7 +17,7 @@ const bar = () => document.querySelector('[data-slot="top-bar"]');
 const strip = () => document.querySelector('[data-slot="sidebar-inset-bar"]');
 
 describe('TopBar', () => {
-    it('hoists itself into the inset strip, above the scrollport', () => {
+    it('hoists itself into the inset strip, above the scrollport [design-system:I-27]', () => {
         render(
             <SidebarProvider>
                 <SidebarInset>

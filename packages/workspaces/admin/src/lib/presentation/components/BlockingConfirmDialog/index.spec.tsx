@@ -69,7 +69,7 @@ describe('BlockingConfirmDialog', () => {
         expect(screen.getByText('Checking for content…')).toBeTruthy();
     });
 
-    it('blocks the action when the count could not be read', () => {
+    it('blocks the action when the count could not be read [workspaces:I-32]', () => {
         renderDialog({ isChecking: false, isError: true, count: undefined });
 
         expect(confirmIsDisabled()).toBe(true);
@@ -96,7 +96,7 @@ describe('BlockingConfirmDialog', () => {
         );
     });
 
-    it('allows the action only on a known zero, with no warning shown', () => {
+    it('allows the action only on a known zero, with no warning shown [workspaces:I-32]', () => {
         renderDialog({ isChecking: false, isError: false, count: 0 });
 
         expect(confirmIsDisabled()).toBe(false);

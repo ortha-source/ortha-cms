@@ -32,6 +32,7 @@ async function walk(dir: string, root = dir): Promise<string[]> {
  */
 const roots = new Map<string, string>();
 
+// covers: media:I-06, media:I-09
 describeStorageProvider('media-provider-local', {
     create() {
         const rootDir = mkdtempSync(join(tmpdir(), 'ortha-media-contract-'));

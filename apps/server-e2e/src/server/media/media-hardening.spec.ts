@@ -102,7 +102,7 @@ describe('media hardening', () => {
             );
         });
 
-        it('serves a scripted SVG as an attachment too', async () => {
+        it('serves a scripted SVG as an attachment too [media:I-19]', async () => {
             // SVG is an image, but also a scriptable document when navigated to
             // directly — and `MediaKind` files it as `kind: 'image'`, so it
             // would otherwise ride the image allowance. `<img src>` ignores
@@ -132,7 +132,7 @@ describe('media hardening', () => {
             expect(res.headers['content-security-policy']).toContain('sandbox');
         });
 
-        it('hardens the token-authenticated /v1 download the same way', async () => {
+        it('hardens the token-authenticated /v1 download the same way [media:I-19]', async () => {
             const agent = await login();
             const asset = await upload(agent, HTML, 'x.html', 'text/html');
             const minted = await agent
@@ -161,7 +161,7 @@ describe('media hardening', () => {
      * is plainly a bad request.
      */
     describe('list filters', () => {
-        it('rejects a non-uuid folderId with 400, not 500', async () => {
+        it('rejects a non-uuid folderId with 400, not 500 [media:I-24]', async () => {
             const agent = await login();
 
             const res = await agent
@@ -172,7 +172,7 @@ describe('media hardening', () => {
             expect(res.body.message).toContain('folderId');
         });
 
-        it('rejects an unknown kind with 400, not 500', async () => {
+        it('rejects an unknown kind with 400, not 500 [media:I-24]', async () => {
             const agent = await login();
 
             const res = await agent
@@ -199,7 +199,7 @@ describe('media hardening', () => {
                 .expect(200);
         });
 
-        it('treats % and _ in ?search= as literal characters', async () => {
+        it('treats % and _ in ?search= as literal characters [media:I-24]', async () => {
             const agent = await login();
             await upload(agent, PNG, 'logo.png', 'image/png');
             await upload(agent, PNG, 'a_b.png', 'image/png');
@@ -235,9 +235,7 @@ describe('media hardening', () => {
             'image/png'
         );
 
-        await agent
-            .post(`/api/media/assets/${asset.id}/duplicate`)
-            .expect(400);
+        await agent.post(`/api/media/assets/${asset.id}/duplicate`).expect(400);
     });
 
     it('lets two sibling folders share a name', async () => {
@@ -246,8 +244,14 @@ describe('media hardening', () => {
         // check in the use case.
         const agent = await login();
 
-        await agent.post('/api/media/folders').send({ name: 'Brand' }).expect(201);
-        await agent.post('/api/media/folders').send({ name: 'Brand' }).expect(201);
+        await agent
+            .post('/api/media/folders')
+            .send({ name: 'Brand' })
+            .expect(201);
+        await agent
+            .post('/api/media/folders')
+            .send({ name: 'Brand' })
+            .expect(201);
 
         const res = await agent.get('/api/media/folders').expect(200);
         expect(

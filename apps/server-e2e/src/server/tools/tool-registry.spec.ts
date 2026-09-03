@@ -121,7 +121,7 @@ describe('Tool registry (one registry, two surfaces)', () => {
         // plugin. Both consumers seeing the *same* tool is therefore the proof
         // that there is one instance — and a shared tool is the only kind that
         // can be asked of both.
-        it('shows one shared tool to both surfaces of one running app', async () => {
+        it('shows one shared tool to both surfaces of one running app [tools:I-17]', async () => {
             const agent = await signInAdmin(harness, workspace);
             const secret = await mintToken(agent, workspace.id);
 
@@ -178,7 +178,7 @@ describe('Tool registry (one registry, two surfaces)', () => {
             await seedContentGrants(workspace.id, ['test_article']);
         });
 
-        it('leaves the copilot a full catalogue', async () => {
+        it('leaves the copilot a full catalogue [mcp:I-20] [tools:I-19]', async () => {
             const agent = await signInAdmin(harness, workspace);
 
             await request(harness.server).post(MCP_PATH).send({}).expect(404);
@@ -211,7 +211,7 @@ describe('Tool registry (one registry, two surfaces)', () => {
             await seedContentGrants(workspace.id, ['test_article']);
         });
 
-        it('leaves the MCP endpoint a full catalogue', async () => {
+        it('leaves the MCP endpoint a full catalogue [copilot:I-34] [mcp:I-20] [tools:I-19]', async () => {
             const agent = await signInAdmin(harness, workspace);
             const secret = await mintToken(agent, workspace.id);
 

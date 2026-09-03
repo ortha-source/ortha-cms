@@ -40,7 +40,7 @@ function tool(segments: Segment[], stored?: Parameters<typeof access>[0]) {
 }
 
 describe('content_propose_access', () => {
-    it('is a copilot-only propose tool gated on segments:manage', () => {
+    it('is a copilot-only propose tool gated on segments:manage [segments:I-32]', () => {
         // The three properties that make it a *proposal* rather than a write:
         // the copilot acts for a person, so the change is drafted, shown, and
         // carried out under that person's own permissions.
@@ -163,7 +163,7 @@ describe('EntryAccessProposalApplier', () => {
         expect(result.detail?.['entries']).toBe(2);
     });
 
-    it('re-checks the grant rather than trusting the proposal', async () => {
+    it('re-checks the grant rather than trusting the proposal [segments:I-34]', async () => {
         // A proposal can sit between being drafted and being accepted, and a
         // type ungranted in that window must not be written through an old card.
         const ungranted = {

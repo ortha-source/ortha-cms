@@ -33,7 +33,7 @@ test.describe('Ortha AI dock', () => {
         await contentLibraryPage.goto(WORKSPACE_ID);
     });
 
-    test('is the entry point, and opens a window focused on the composer', async ({
+    test('is the entry point, and opens a window focused on the composer [shell:I-13]', async ({
         copilotDockPage
     }) => {
         // With nothing open the dock *is* the button, carrying the shortcut

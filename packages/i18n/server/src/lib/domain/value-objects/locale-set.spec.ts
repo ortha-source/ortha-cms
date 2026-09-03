@@ -20,11 +20,11 @@ describe('LocaleSet value object', () => {
         expect(set.has('fr')).toBe(false);
     });
 
-    it('rejects an empty set', () => {
+    it('rejects an empty set [i18n:I-02]', () => {
         expect(() => LocaleSet.fromDefs([])).toThrow(/at least one locale/);
     });
 
-    it('rejects a duplicate slug', () => {
+    it('rejects a duplicate slug [i18n:I-02]', () => {
         expect(() =>
             LocaleSet.fromDefs([en, { slug: 'en', name: 'English (US)' }])
         ).toThrow(/Duplicate locale slug "en"/);
@@ -33,6 +33,7 @@ describe('LocaleSet value object', () => {
     it.each([
         ['zero', [de], 0],
         ['two', [en, { slug: 'de', name: 'Deutsch', isDefault: true }], 2]
+        // covers: i18n:I-01
     ])('rejects %s defaults', (_label, defs, count) => {
         expect(() => LocaleSet.fromDefs(defs)).toThrow(
             new RegExp(

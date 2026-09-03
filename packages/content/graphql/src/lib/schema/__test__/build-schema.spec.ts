@@ -149,7 +149,7 @@ describe('buildContentSchema', () => {
             expect(sdl).not.toContain('publishTag(');
         });
 
-        it('never gives a write input field a default', () => {
+        it('never gives a write input field a default [content:I-28]', () => {
             // A default materialises the key in the coerced input even when the
             // caller omitted it, which would turn "leave this field alone" into
             // "overwrite it" on every partial update.

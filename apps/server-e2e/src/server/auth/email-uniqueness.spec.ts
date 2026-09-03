@@ -94,7 +94,7 @@ describe('email uniqueness is case-insensitive at the database level', () => {
         }
     }
 
-    it('refuses a second row differing only in case', async () => {
+    it('refuses a second row differing only in case [identity:I-12] [users:I-10]', async () => {
         const error = await insertDirectly(MEMBER_EMAIL.toUpperCase());
 
         expect(error).not.toBeNull();

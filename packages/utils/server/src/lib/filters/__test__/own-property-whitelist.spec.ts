@@ -70,7 +70,7 @@ const INHERITED = [
 describe('schema lookups ignore inherited Object.prototype members', () => {
     describe('as a leaf field', () => {
         for (const name of INHERITED) {
-            it(`rejects "${name}" with FILTER_UNKNOWN_FIELD`, () => {
+            it(`rejects "${name}" with FILTER_UNKNOWN_FIELD [utils:I-22]`, () => {
                 expect(() =>
                     parseFilterTree(
                         { field: name, op: 'eq', value: 'x' },
@@ -104,7 +104,7 @@ describe('schema lookups ignore inherited Object.prototype members', () => {
 
     describe('as a mid-path relation segment', () => {
         for (const name of INHERITED) {
-            it(`rejects "${name}.key" with FILTER_UNKNOWN_RELATION`, () => {
+            it(`rejects "${name}.key" with FILTER_UNKNOWN_RELATION [utils:I-22]`, () => {
                 try {
                     parseFilterTree(
                         { field: `${name}.key`, op: 'eq', value: 'x' },
@@ -121,7 +121,7 @@ describe('schema lookups ignore inherited Object.prototype members', () => {
         }
     });
 
-    it('is unreachable at the translator too, if a tree is hand-built', async () => {
+    it('is unreachable at the translator too, if a tree is hand-built [utils:I-21]', async () => {
         // The parser is the primary guard, but `applyFilterTree` accepts a
         // `ParsedNode` directly (the copilot builds one), so its own
         // `schema.relations[key]` lookup must not accept an inherited name

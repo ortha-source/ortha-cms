@@ -17,7 +17,7 @@ describe('collection() / single() validation', () => {
         expect(() => collection('empty', { fields: {} })).toThrow(/no fields/);
     });
 
-    it('rejects a field that collides with an envelope column', () => {
+    it('rejects a field that collides with an envelope column [content:I-06]', () => {
         expect(() =>
             collection('post', { fields: { status: field.text() } })
         ).toThrow(/envelope column/);
@@ -173,7 +173,7 @@ describe('content-type i18n metadata', () => {
         expect(cols(post).localeGroupId).toBeDefined();
     });
 
-    it('reserves locale and locale_group_id as field names', () => {
+    it('reserves locale and locale_group_id as field names [content:I-06]', () => {
         expect(() =>
             collection('post', {
                 i18n: true,

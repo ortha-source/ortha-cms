@@ -144,7 +144,7 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
                 .expect(400);
         });
 
-        it('gives a plain create its own fresh translation group', async () => {
+        it('gives a plain create its own fresh translation group [i18n:I-11]', async () => {
             const agent = await login();
             const a = await createArticle(agent);
             const b = await createArticle(agent);
@@ -153,7 +153,7 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
     });
 
     describe('strict list scoping + default fallback', () => {
-        it('lists only the default locale when no ?locale= is sent', async () => {
+        it('lists only the default locale when no ?locale= is sent [i18n:I-06]', async () => {
             const agent = await login();
             await createArticle(agent); // en
             const de = await createArticle(agent, { locale: 'de' });
@@ -181,7 +181,7 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             expect(ids).not.toContain(en.id);
         });
 
-        it('400s a list scoped to an unknown locale', async () => {
+        it('400s a list scoped to an unknown locale [i18n:I-05]', async () => {
             const agent = await login();
             await agent.get('/api/content/test_article?locale=zz').expect(400);
         });
@@ -217,7 +217,7 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             expect(res.body.values.text).toBe('Winter boots');
         });
 
-        it('409s a duplicate locale in the group', async () => {
+        it('409s a duplicate locale in the group [i18n:I-09]', async () => {
             const agent = await login();
             const en = await createArticle(agent);
             await createTranslation(agent, en, 'de');
@@ -230,7 +230,7 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             await createTranslation(agent, en, 'zz', 400);
         });
 
-        it('404s a localeGroupId that names no group in the workspace', async () => {
+        it('404s a localeGroupId that names no group in the workspace [i18n:I-10]', async () => {
             const agent = await login();
             await agent
                 .post('/api/content/test_article')
@@ -318,7 +318,7 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             expect(deAfter.body.values.json).toEqual({ a: 2 });
         });
 
-        it('leaves siblings alone when an array-valued shared field is resent unchanged', async () => {
+        it('leaves siblings alone when an array-valued shared field is resent unchanged [i18n:I-14]', async () => {
             const agent = await login();
             const en = await createArticle(agent, {
                 values: {
@@ -359,7 +359,7 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             expect(await revisionCount(de.id)).toBe(beforeDe);
         });
 
-        it('appends a revision to each sibling the sync rewrote', async () => {
+        it('appends a revision to each sibling the sync rewrote [content:I-15] [i18n:I-20]', async () => {
             const agent = await login();
             const en = await createArticle(agent, {
                 values: { text: 'EN title', select: 'article' }
@@ -519,7 +519,7 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             expect(enAfter.values.text).toBe('EN title');
         });
 
-        it('422s and rolls back when the sync would invalidate a published sibling', async () => {
+        it('422s and rolls back when the sync would invalidate a published sibling [i18n:I-16]', async () => {
             const agent = await login();
             const en = await createArticle(agent, {
                 values: { text: 'EN title', select: 'article' }
@@ -550,7 +550,7 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
         // A shared edit is pending everywhere until it is published. Leaving a
         // rewritten sibling `published` made the same value live in the
         // untouched locales while still pending in the edited one.
-        it('moves a rewritten published sibling back to draft, keeping publishedAt', async () => {
+        it('moves a rewritten published sibling back to draft, keeping publishedAt [i18n:I-15]', async () => {
             const agent = await login();
             const en = await createArticle(agent, {
                 values: { text: 'EN title', select: 'article' }
@@ -739,7 +739,7 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             expect(await linkIds(agent, de.id, 'tags')).toEqual([design.id]);
         });
 
-        it('gives a new translation the links the group already had', async () => {
+        it('gives a new translation the links the group already had [i18n:I-19]', async () => {
             const agent = await login();
             const en = await createArticle(agent);
             const design = await createTag(agent, 'Design');
@@ -822,7 +822,7 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             expect(deAfter.values.author).toBe(adaDe.id);
         });
 
-        it('drops a mirrored link whose target is untranslated, and still saves', async () => {
+        it('drops a mirrored link whose target is untranslated, and still saves [i18n:I-18]', async () => {
             const agent = await login();
             const en = await createArticle(agent);
             const de = (await createTranslation(agent, en, 'de')).body as {
@@ -1170,7 +1170,7 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
     });
 
     describe('non-i18n regression', () => {
-        it('ignores ?locale= on a non-localized type', async () => {
+        it('ignores ?locale= on a non-localized type [i18n:I-08]', async () => {
             const agent = await login();
             await agent
                 .post('/api/content/test_seo')

@@ -178,7 +178,7 @@ describe('POST /api/workspaces', () => {
             await agent.post('/api/workspaces').send(body).expect(400);
         });
 
-        it('rejects a color outside the seven-key palette', async () => {
+        it('rejects a color outside the seven-key palette [workspaces:I-12]', async () => {
             const { agent } = await loginAs('admin', ADMIN_EMAIL);
             // The palette is a closed set (`WORKSPACE_COLORS`) because the
             // admin casts the stored value straight to an `AvatarColor`; a
@@ -229,7 +229,7 @@ describe('POST /api/workspaces', () => {
     });
 
     describe('member resolution', () => {
-        it('provisions one account and one membership for an address invited twice', async () => {
+        it('provisions one account and one membership for an address invited twice [workspaces:I-25]', async () => {
             const { agent } = await loginAs('admin', ADMIN_EMAIL);
 
             // The wizard can put the same address in the list twice (typed
@@ -272,7 +272,7 @@ describe('POST /api/workspaces', () => {
             ]);
         });
 
-        it('drops a member id that resolves to no user, and still creates', async () => {
+        it('drops a member id that resolves to no user, and still creates [workspaces:I-26]', async () => {
             const { agent } = await loginAs('admin', ADMIN_EMAIL);
 
             // A stale id out of a directory picker — the user was deleted

@@ -140,7 +140,7 @@ describe('UnsavedChangesProvider', () => {
     // a raw `pushState({}, '', url)` plus a synthetic `popstate`, which wipes
     // the router's own history state. React Router then loses its index and
     // every later navigation writes a broken one, breaking Back/Forward deltas.
-    it('leaves React Router its history index after a confirmed navigation', () => {
+    it('leaves React Router its history index after a confirmed navigation [utils:I-17]', () => {
         // Only the entry form is dirty, so once it unmounts the follow-up
         // navigation is an ordinary one and its index can be compared.
         renderApp({ composerDirty: false });
@@ -166,7 +166,7 @@ describe('UnsavedChangesProvider', () => {
     // whole dirty set, so a second still-mounted dirty form (the docked
     // composer, a dialog form) was silently disarmed for the rest of the
     // session and its edits could then be lost without a prompt.
-    it('keeps the guard armed for a second form that is still dirty', () => {
+    it('keeps the guard armed for a second form that is still dirty [utils:I-16]', () => {
         renderApp();
         fireEvent.click(screen.getByText('to b'));
         fireEvent.click(screen.getByText('Leave and discard'));
@@ -319,7 +319,7 @@ describe('UnsavedChangesProvider', () => {
         });
     });
 
-    it('degrades to no guard outside a provider instead of throwing', () => {
+    it('degrades to no guard outside a provider instead of throwing [utils:I-19]', () => {
         function Bare() {
             useUnsavedChanges(true, 'orphan');
             const api = useUnsavedChangesApi();

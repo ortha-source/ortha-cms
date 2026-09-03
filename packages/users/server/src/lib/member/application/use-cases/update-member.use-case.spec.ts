@@ -165,7 +165,7 @@ describe('UpdateMemberUseCase', () => {
     });
 
     describe('what reaches the outbox', () => {
-        it('appends both facts when a patch changes name and role', async () => {
+        it('appends both facts when a patch changes name and role [users:I-14]', async () => {
             const test = harness(ada());
 
             await test.useCase.execute(
@@ -185,7 +185,7 @@ describe('UpdateMemberUseCase', () => {
             });
         });
 
-        it('writes nothing when the patch changes neither', async () => {
+        it('writes nothing when the patch changes neither [users:I-14]', async () => {
             const test = harness(ada());
 
             await test.useCase.execute(
@@ -199,7 +199,7 @@ describe('UpdateMemberUseCase', () => {
             expect(test.trace).not.toContain('outbox:append');
         });
 
-        it('stamps the actor on every appended event', async () => {
+        it('stamps the actor on every appended event [users:I-14]', async () => {
             const test = harness(ada());
 
             await test.useCase.execute(
@@ -215,7 +215,7 @@ describe('UpdateMemberUseCase', () => {
             }
         });
 
-        it('appends inside the unit of work, not after it', async () => {
+        it('appends inside the unit of work, not after it [users:I-14]', async () => {
             const test = harness(ada());
 
             await test.useCase.execute(

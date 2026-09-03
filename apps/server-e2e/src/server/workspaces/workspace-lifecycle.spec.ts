@@ -256,7 +256,7 @@ describe('Workspace lifecycle (archive / unarchive / delete)', () => {
             await outsider.get(`/api/workspaces/${id}/entry-count`).expect(403);
         });
 
-        it('refuses (409) to delete a workspace that still has content entries', async () => {
+        it('refuses (409) to delete a workspace that still has content entries [workspaces:I-14]', async () => {
             const { agent } = await loginAs('admin', ADMIN_EMAIL);
             const id = await createWorkspace(agent);
 
@@ -306,7 +306,7 @@ describe('Workspace lifecycle (archive / unarchive / delete)', () => {
     });
 
     describe('the two counters are gated separately', () => {
-        it('serves the per-type count to workspaces:update and refuses the workspace count', async () => {
+        it('serves the per-type count to workspaces:update and refuses the workspace count [workspaces:I-30]', async () => {
             const { agent: admin } = await loginAs('admin', ADMIN_EMAIL);
             const id = await createWorkspace(admin);
 
@@ -340,7 +340,7 @@ describe('Workspace lifecycle (archive / unarchive / delete)', () => {
     });
 
     describe('with no content plugin bound', () => {
-        it('refuses both destructive routes with 503 while the counters read 0', async () => {
+        it('refuses both destructive routes with 503 while the counters read 0 [activity:I-22] [workspaces:I-15]', async () => {
             const { agent } = await loginAs('admin', ADMIN_EMAIL);
             const id = await createWorkspace(agent);
             // Real rows, written while the content plugin was installed. The

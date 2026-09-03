@@ -136,7 +136,7 @@ const ACTIVITY_SUBJECT_TYPES = adminCatalogue('ACTIVITY_SUBJECT_TYPES');
 
 describe('toAuditRow — event → audit-row parity', () => {
     describe('workspaces (event kind === audit kind)', () => {
-        it('workspace.created → { name, slug } against the workspace', () => {
+        it('workspace.created → { name, slug } against the workspace [activity:I-03]', () => {
             const row = toAuditRow(
                 event('workspace.created', 'workspace', WORKSPACE_ID, {
                     name: 'Marketing',
@@ -166,7 +166,7 @@ describe('toAuditRow — event → audit-row parity', () => {
             });
         });
 
-        it('workspace.archived → empty meta object (not null)', () => {
+        it('workspace.archived → empty meta object (not null) [activity:I-31]', () => {
             const row = toAuditRow(
                 event('workspace.archived', 'workspace', WORKSPACE_ID, {})
             );
@@ -204,7 +204,7 @@ describe('toAuditRow — event → audit-row parity', () => {
             });
         });
 
-        it('workspace.member_added → subject is the USER, meta { workspaceId, email }', () => {
+        it('workspace.member_added → subject is the USER, meta { workspaceId, email } [activity:I-04]', () => {
             const row = toAuditRow(
                 event('workspace.member_added', 'workspace', WORKSPACE_ID, {
                     userId: TARGET_USER_ID,
@@ -220,7 +220,7 @@ describe('toAuditRow — event → audit-row parity', () => {
             });
         });
 
-        it('workspace.member_removed → subject is the USER, nullable email', () => {
+        it('workspace.member_removed → subject is the USER, nullable email [activity:I-13]', () => {
             const row = toAuditRow(
                 event('workspace.member_removed', 'workspace', WORKSPACE_ID, {
                     userId: TARGET_USER_ID,
@@ -236,6 +236,7 @@ describe('toAuditRow — event → audit-row parity', () => {
             });
         });
 
+        // covers: activity:I-05
         it.each(['workspace.member_added', 'workspace.member_removed'])(
             '%s refuses a payload with no userId rather than writing an empty subject',
             (kind) => {
@@ -252,7 +253,7 @@ describe('toAuditRow — event → audit-row parity', () => {
             }
         );
 
-        it('a non-string userId is refused too (not coerced)', () => {
+        it('a non-string userId is refused too (not coerced) [activity:I-06]', () => {
             expect(() =>
                 toAuditRow(
                     event('workspace.member_added', 'workspace', WORKSPACE_ID, {
@@ -294,7 +295,7 @@ describe('toAuditRow — event → audit-row parity', () => {
     });
 
     describe('users (member.* → user.*)', () => {
-        it('member.invited → user.invited { email }', () => {
+        it('member.invited → user.invited { email } [activity:I-12]', () => {
             const row = toAuditRow(
                 event('member.invited', 'member', MEMBER_ID, {
                     email: 'ada@example.com'
@@ -408,7 +409,7 @@ describe('toAuditRow — event → audit-row parity', () => {
     });
 
     describe('identity (auth.* → user.*, actor is the signer)', () => {
-        it('auth.signed_in → user.signed_in, actor = the user', () => {
+        it('auth.signed_in → user.signed_in, actor = the user [activity:I-12]', () => {
             const row = toAuditRow(
                 event(
                     'auth.signed_in',
@@ -575,7 +576,7 @@ describe('toAuditRow — event → audit-row parity', () => {
     describe('API token lifecycle', () => {
         const TOKEN_ID = '99999999-9999-4999-8999-999999999999';
 
-        it('api_token.created → token.created on an api_token subject', () => {
+        it('api_token.created → token.created on an api_token subject [activity:I-12]', () => {
             const row = toAuditRow(
                 event(
                     'api_token.created',
@@ -637,7 +638,7 @@ describe('toAuditRow — event → audit-row parity', () => {
             });
         });
 
-        it('never carries a secret or a hash into the audit row', () => {
+        it('never carries a secret or a hash into the audit row [activity:I-08]', () => {
             // The mapper projects a fixed field set, so even a producer that
             // over-shares cannot leak a credential into the log — `api_tokens`
             // stores only a SHA-256 for exactly this reason, and the audit
@@ -696,7 +697,7 @@ describe('toAuditRow — event → audit-row parity', () => {
         const ASSET_ID = '44444444-4444-4444-8444-444444444444';
         const FOLDER_ID = '55555555-5555-4555-8555-555555555555';
 
-        it('media.asset.uploaded → media_asset subject, payload minus actor', () => {
+        it('media.asset.uploaded → media_asset subject, payload minus actor [activity:I-12]', () => {
             const row = toAuditRow(
                 event('media.asset.uploaded', 'media.asset', ASSET_ID, {
                     name: 'hero.png',
@@ -804,7 +805,7 @@ describe('toAuditRow — event → audit-row parity', () => {
             });
         });
 
-        it('never repeats the actor inside meta — it owns two columns already', () => {
+        it('never repeats the actor inside meta — it owns two columns already [activity:I-07]', () => {
             const row = toAuditRow(
                 event('media.asset.uploaded', 'media.asset', ASSET_ID, {
                     name: 'hero.png'
@@ -817,7 +818,7 @@ describe('toAuditRow — event → audit-row parity', () => {
     });
 
     describe('non-audited kinds', () => {
-        it('returns null for an unmapped kind', () => {
+        it('returns null for an unmapped kind [activity:I-05]', () => {
             expect(
                 toAuditRow(
                     event(
@@ -975,7 +976,7 @@ describe('toAuditRow — event → audit-row parity', () => {
             );
         });
 
-        it('declares no kind no mapper can emit', () => {
+        it('declares no kind no mapper can emit [activity:I-34]', () => {
             const produced = new Set(
                 AUDITED_EVENT_KINDS.map((kind) => rowFor(kind).kind)
             );
@@ -1014,7 +1015,7 @@ describe('toAuditRow — event → audit-row parity', () => {
      * nothing at all — see the fixture's own note.
      */
     describe('the admin catalogue', () => {
-        it('lists every kind the server can produce', () => {
+        it('lists every kind the server can produce [activity:I-34]', () => {
             const missing = AUDIT_KINDS.filter(
                 (kind) => !ACTIVITY_KINDS.includes(kind)
             );
@@ -1023,7 +1024,7 @@ describe('toAuditRow — event → audit-row parity', () => {
             );
         });
 
-        it('lists no kind the server cannot produce', () => {
+        it('lists no kind the server cannot produce [activity:I-34]', () => {
             const extra = ACTIVITY_KINDS.filter(
                 (kind) => !(AUDIT_KINDS as readonly string[]).includes(kind)
             );

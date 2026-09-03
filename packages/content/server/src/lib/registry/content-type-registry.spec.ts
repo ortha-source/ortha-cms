@@ -19,14 +19,14 @@ const home = single('home', {
 });
 
 describe('ContentTypeRegistry', () => {
-    it('throws on duplicate type names', () => {
+    it('throws on duplicate type names [content:I-02]', () => {
         const dup = collection('author', { fields: { name: field.text() } });
         expect(() => new ContentTypeRegistry([author, dup])).toThrow(
             /Duplicate content type "author"/
         );
     });
 
-    it('throws when a relation targets an unregistered type', () => {
+    it('throws when a relation targets an unregistered type [content:I-02]', () => {
         // `post` references `author` and `tag`, but only `post` is registered.
         expect(() => new ContentTypeRegistry([post])).toThrow(
             /not registered with ContentPlugin/
@@ -190,7 +190,7 @@ describe('ContentTypeRegistry', () => {
             });
         });
 
-        it('throws when the inverse targets a non-relation field', () => {
+        it('throws when the inverse targets a non-relation field [content:I-02]', () => {
             const bad = collection('bad', {
                 fields: {
                     // story.title is text, not a relation.

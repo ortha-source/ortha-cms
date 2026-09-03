@@ -40,7 +40,7 @@ describe('runDrizzleKitGenerate', () => {
      * `execFileSync` is given an argv array and no shell, so a migration name
      * is a migration name however it is spelled.
      */
-    it('passes a hostile --name as one literal argv element', () => {
+    it('passes a hostile --name as one literal argv element [cli:I-21]', () => {
         runDrizzleKitGenerate('/repo/x', 'drizzle.config.ts', 'a b; rm -rf /');
 
         expect(execFileSync.mock.calls[0][1]).toContain('--name=a b; rm -rf /');

@@ -27,7 +27,7 @@ import {
  * SSO registration, would pass.
  */
 describe('identity boot refusal (strict cookie + SSO providers)', () => {
-    it('refuses to build the app, naming the setting', async () => {
+    it('refuses to build the app, naming the setting [identity:I-26]', async () => {
         await expect(
             createTestApp({ session: { cookieSameSite: 'strict' } })
         ).rejects.toThrow(/cookieSameSite/);

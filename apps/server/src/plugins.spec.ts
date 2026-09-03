@@ -78,7 +78,7 @@ describe('buildPlugins()', () => {
         );
     });
 
-    it('gives every migration-shipping plugin its own tracking table', () => {
+    it('gives every migration-shipping plugin its own tracking table [bootstrap:I-19]', () => {
         // Two plugins sharing one `__drizzle_migrations_*` table would read each
         // other's history as their own and skip their real migrations.
         const tables = buildPlugins(config)
@@ -212,7 +212,7 @@ describe('copilotProviders()', () => {
         apiKey: ''
     };
 
-    it('registers nothing when nothing is configured', () => {
+    it('registers nothing when nothing is configured [copilot:I-37]', () => {
         // The fresh-clone case. There is no scripted offline adapter in this
         // list any more — the fake provider is a private test fixture — so a
         // keyless deployment gets no copilot rather than one that answers every

@@ -36,7 +36,7 @@ async function raise(...messages: string[]) {
 }
 
 describe('Toaster', () => {
-    it('dismisses only the toast whose body was clicked', async () => {
+    it('dismisses only the toast whose body was clicked [design-system:I-28]', async () => {
         await raise('first', 'second', 'third');
 
         fireEvent.click(screen.getByText('second'));
@@ -61,7 +61,7 @@ describe('Toaster', () => {
         ).toHaveLength(0);
     });
 
-    it('lets the close button own its own click', async () => {
+    it('lets the close button own its own click [design-system:I-28]', async () => {
         await raise('first', 'second');
 
         const closeButton = toasts()[0].querySelector(

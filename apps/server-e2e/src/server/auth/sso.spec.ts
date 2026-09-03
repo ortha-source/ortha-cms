@@ -252,7 +252,7 @@ describe('SSO sign-in', () => {
         /** Every refusal lands on the sign-in screen with the same flag. */
         const FAILURE = `${TEST_ALLOWED_ORIGIN}/identity/signin?error=sso`;
 
-        it('refuses a callback with no attempt cookie', async () => {
+        it('refuses a callback with no attempt cookie [identity:I-20]', async () => {
             await seedLinkedAccount();
             const { callback } = await start();
 
@@ -309,7 +309,7 @@ describe('SSO sign-in', () => {
             expect(await countUserSessions(user.id)).toBe(1);
         });
 
-        it('refuses a foreign state before it exchanges anything', async () => {
+        it('refuses a foreign state before it exchanges anything [identity:I-21]', async () => {
             await seedLinkedAccount();
             const { agent, params } = await start();
             const before = fakeSsoProvider.calls().complete;
@@ -363,7 +363,7 @@ describe('SSO sign-in', () => {
             expect(await getUserByEmail(SSO_EMAILS.stranger)).toBeNull();
         });
 
-        it('refuses a disabled account, the same way the password path does', async () => {
+        it('refuses a disabled account, the same way the password path does [identity:I-22]', async () => {
             const user = await seedLinkedAccount();
             await setUserStatus(user.id, 'disabled');
 
@@ -387,7 +387,7 @@ describe('SSO sign-in', () => {
             expect(done.headers['location']).toBe(FAILURE);
         });
 
-        it('refuses when the provider itself declines', async () => {
+        it('refuses when the provider itself declines [identity:I-20]', async () => {
             await seedLinkedAccount();
             const { agent, callback } = await start();
             fakeSsoProvider.failNextVerification('the user cancelled');

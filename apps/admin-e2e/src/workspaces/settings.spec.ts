@@ -338,7 +338,7 @@ test.describe('Workspace settings page', () => {
                 });
             });
 
-            test('blocks Delete when the content check cannot be read', async ({
+            test('blocks Delete when the content check cannot be read [workspaces:I-32]', async ({
                 workspaceSettingsPage
             }) => {
                 await workspaceSettingsPage.goto(WORKSPACE_ID);
@@ -433,7 +433,7 @@ test.describe('Workspace settings page', () => {
             await mockWorkspaceSettingsApi(page, [seed()]);
         });
 
-        test('hides edit controls and the danger tab', async ({
+        test('hides edit controls and the danger tab [workspaces:I-34]', async ({
             workspaceSettingsPage
         }) => {
             await workspaceSettingsPage.goto(WORKSPACE_ID);
@@ -461,7 +461,7 @@ test.describe('Workspace settings page', () => {
         // back button all walk straight past the tab bar, so the route itself
         // has to refuse; and since the page then swaps under the user, the
         // refusal has to be said out loud and focus has to go somewhere.
-        test('refuses a deep link to the Danger zone at the route', async ({
+        test('refuses a deep link to the Danger zone at the route [workspaces:I-34]', async ({
             page,
             workspaceSettingsPage
         }) => {

@@ -45,7 +45,7 @@ describe('scalar coercion', () => {
             expect(coerce('email', 'eq', true)).toBe('true');
         });
 
-        it('rejects null instead of searching for the text "null"', () => {
+        it('rejects null instead of searching for the text "null" [utils:I-23]', () => {
             // `String(v)` used to stringify every non-string, so a client
             // sending `"value": null` meaning "no value" got a 200 and an
             // empty result set from `email = 'null'` — the one silent failure
@@ -57,13 +57,13 @@ describe('scalar coercion', () => {
             expect(e.message).toMatch(/string, number or boolean/);
         });
 
-        it('rejects a missing `value` key instead of searching for "undefined"', () => {
+        it('rejects a missing `value` key instead of searching for "undefined" [utils:I-23]', () => {
             const e = reject('email', 'eq');
             expect(e.code).toBe(FilterErrorCode.InvalidValue);
             expect(e.message).toMatch(/value is required/);
         });
 
-        it('rejects an object and an array', () => {
+        it('rejects an object and an array [utils:I-23]', () => {
             // `"[object Object]"` and `"1,2"` respectively, before the guard.
             expect(reject('email', 'eq', {}).code).toBe(
                 FilterErrorCode.InvalidValue

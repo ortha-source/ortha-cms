@@ -67,7 +67,7 @@ describe('@CurrentWorkspace()', () => {
         );
     });
 
-    it('throws on an empty id rather than passing it through', () => {
+    it('throws on an empty id rather than passing it through [workspaces:I-06]', () => {
         // An empty string is falsy but very much a value: handed to a `where`
         // clause it matches nothing rather than everything, which reads as an
         // empty workspace instead of a wiring bug.

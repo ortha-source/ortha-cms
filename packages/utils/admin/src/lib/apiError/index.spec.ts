@@ -58,7 +58,7 @@ describe('toApiError', () => {
         });
     });
 
-    it('reports a transport failure as status null with no details', () => {
+    it('reports a transport failure as status null with no details [utils:I-09]', () => {
         const normalized = toApiError(axiosError(null, 'Network Error'));
         expect(normalized.status).toBeNull();
         expect(normalized.message).toBe('Network Error');

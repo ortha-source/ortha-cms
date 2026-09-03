@@ -132,7 +132,7 @@ describe('Public content API — writes (/api/v1)', () => {
     }
 
     describe('scope', () => {
-        it('refuses every write to a read-only token', async () => {
+        it('refuses every write to a read-only token [api-tokens:I-15] [api-tokens:I-16]', async () => {
             const entryId = await create(await mintToken(), {
                 values: publishable('Existing')
             }).then((entry) => entry.id);
@@ -234,7 +234,7 @@ describe('Public content API — writes (/api/v1)', () => {
                 .expect(200);
         });
 
-        it('lets a write-scoped token read its own draft back', async () => {
+        it('lets a write-scoped token read its own draft back [content:I-16]', async () => {
             const secret = await mintToken();
             const readOnly = await mintToken({ scope: 'read' });
             const entry = await create(secret, {
@@ -394,6 +394,7 @@ describe('Public content API — writes (/api/v1)', () => {
             await request(harness.server)
                 .patch(`/api/v1/content/test_article/${theirs}`)
                 .set('Authorization', `Bearer ${secret}`)
+                // covers: content:I-04
                 .send({ values: { text: 'Mine now' } })
                 .expect(404);
         });
@@ -441,7 +442,7 @@ describe('Public content API — writes (/api/v1)', () => {
             expect(await tagNames(secret, entry.id)).toEqual(['Beta']);
         });
 
-        it('refuses to link two localized types across locales', async () => {
+        it('refuses to link two localized types across locales [content:I-19]', async () => {
             const secret = await mintToken();
             // `test_article` and `test_author` are both localized, and `author`
             // is a single owning relation between them — a per-locale relation.
@@ -682,7 +683,7 @@ describe('Public content API — writes (/api/v1)', () => {
             expect(res.body.issues[0].message).toContain('"de"');
         });
 
-        it('422s a malformed relation id instead of 500ing', async () => {
+        it('422s a malformed relation id instead of 500ing [content:I-23]', async () => {
             const secret = await mintToken();
             const article = await create(secret, {
                 values: publishable('Bad id')
@@ -791,7 +792,7 @@ describe('Public content API — writes (/api/v1)', () => {
                 .expect(404);
         });
 
-        it('addresses a write at the group’s row for the requested locale', async () => {
+        it('addresses a write at the group’s row for the requested locale [content:I-20]', async () => {
             const secret = await mintToken();
             const en = await create(secret, { values: publishable('English') });
             const de = await create(secret, {
@@ -957,7 +958,7 @@ describe('Public content API — writes (/api/v1)', () => {
             expect(bytes.body).toEqual(PNG);
         });
 
-        it('lets a read-only token fetch bytes but never upload', async () => {
+        it('lets a read-only token fetch bytes but never upload [media:I-26]', async () => {
             const writer = await mintToken();
             const readOnly = await mintToken({ scope: 'read' });
             const upload = await request(harness.server)
@@ -986,7 +987,7 @@ describe('Public content API — writes (/api/v1)', () => {
                 .expect(403);
         });
 
-        it('404s an asset outside the request’s workspace', async () => {
+        it('404s an asset outside the request’s workspace [media:I-28]', async () => {
             const secret = await mintToken({
                 workspaceIds: [workspaceId, otherWorkspaceId]
             });

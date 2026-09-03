@@ -176,7 +176,7 @@ test.describe('The alarms page', () => {
  * than either state.
  */
 test.describe('Muting', () => {
-    test('is offered nowhere', async ({ page, alarmsPage }) => {
+    test('is offered nowhere [alarms:I-20]', async ({ page, alarmsPage }) => {
         await mockAlarmsApi(page);
         await alarmsPage.goto(WORKSPACE_ID);
         await expect(
@@ -293,7 +293,7 @@ test.describe('The rule editor', () => {
         await expect(alarmsPage.unsavedNotice()).toBeVisible();
     });
 
-    test('cannot be saved with no conditions at all', async ({
+    test('cannot be saved with no conditions at all [alarms:I-27]', async ({
         page,
         alarmsPage
     }) => {
@@ -369,6 +369,7 @@ test.describe('The rule editor', () => {
         // the editor is the only place a rule's condition is changed, so an
         // update that quietly kept the old one would be the worst outcome
         // available to it.
+        // covers: alarms:I-28
         expect(api.updates[0].filter).toEqual(CONTAINS_RULE.filter);
     });
 

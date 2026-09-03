@@ -22,7 +22,7 @@ describe('InputField', () => {
         expect(email().id).toBe('email');
     });
 
-    it('describes the control with the hint and the error, hint first', () => {
+    it('describes the control with the hint and the error, hint first [design-system:I-13]', () => {
         render(
             <InputField
                 id="email"
@@ -37,7 +37,7 @@ describe('InputField', () => {
         );
     });
 
-    it('appends a consumer aria-describedby rather than replacing it', () => {
+    it('appends a consumer aria-describedby rather than replacing it [design-system:I-13]', () => {
         render(
             <InputField
                 id="email"
@@ -67,7 +67,7 @@ describe('InputField', () => {
 
     // BUG-design-system-05, first half: the message is the only thing telling
     // the user what to fix, so `invalid` must not be able to swallow it.
-    it('still renders a supplied error when invalid={false} is passed', () => {
+    it('still renders a supplied error when invalid={false} is passed [design-system:I-12]', () => {
         render(
             <InputField id="email" label="Email" invalid={false} error="Nope" />
         );
@@ -138,7 +138,7 @@ describe('FieldError', () => {
     });
 
     // EC-01 at the primitive.
-    it('renders nothing for an empty errors array', () => {
+    it('renders nothing for an empty errors array [design-system:I-11]', () => {
         const { container } = render(<FieldError errors={[]} />);
         expect(container.innerHTML).toBe('');
     });

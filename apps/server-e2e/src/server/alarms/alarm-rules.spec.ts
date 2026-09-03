@@ -128,6 +128,7 @@ describe('Alarm rules (/api/alarms/rules)', () => {
                 .send(rulePayload())
                 .expect(201);
 
+            // covers: alarms:I-07
             expect(res.body.scan.open).toBe(2);
             expect(res.body.rule.openCount).toBe(2);
         });
@@ -146,13 +147,13 @@ describe('Alarm rules (/api/alarms/rules)', () => {
                 .expect(400);
         });
 
-        it('refuses a second rule with the same name in the workspace', async () => {
+        it('refuses a second rule with the same name in the workspace [alarms:I-14]', async () => {
             const api = await asAdmin();
             await api.post('/api/alarms/rules').send(rulePayload()).expect(201);
             await api.post('/api/alarms/rules').send(rulePayload()).expect(409);
         });
 
-        it('answers 404 for an ungranted type, exactly as for an unknown one', async () => {
+        it('answers 404 for an ungranted type, exactly as for an unknown one [alarms:I-16]', async () => {
             // Re-grant nothing but a single unrelated type, so `test_article`
             // is registered-but-ungranted.
             await resetDb();
@@ -248,7 +249,7 @@ describe('Alarm rules (/api/alarms/rules)', () => {
     });
 
     describe('deletion', () => {
-        it('takes the rule and its findings with it', async () => {
+        it('takes the rule and its findings with it [alarms:I-13]', async () => {
             await seedArticles(
                 [{ text: null, status: 'published' }],
                 workspaceId
@@ -269,7 +270,7 @@ describe('Alarm rules (/api/alarms/rules)', () => {
     });
 
     describe('authorization', () => {
-        it('lets a viewer read rules but not write them', async () => {
+        it('lets a viewer read rules but not write them [alarms:I-17]', async () => {
             const api = await asAdmin();
             await api.post('/api/alarms/rules').send(rulePayload()).expect(201);
 
@@ -285,7 +286,7 @@ describe('Alarm rules (/api/alarms/rules)', () => {
                 .expect(403);
         });
 
-        it('refuses a caller who is not a member of the workspace', async () => {
+        it('refuses a caller who is not a member of the workspace [alarms:I-17]', async () => {
             const outsider = await seedActiveUser(harness.app, {
                 email: 'outsider@example.com',
                 password: PASSWORD,

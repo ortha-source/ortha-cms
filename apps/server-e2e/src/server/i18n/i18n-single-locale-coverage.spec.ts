@@ -59,7 +59,7 @@ describe('i18n coverage with one configured locale (/api/insights/i18n)', () => 
         await seedAllContentGrants(workspaceId);
     });
 
-    it('forces notLocalized to 0 — there is nowhere to translate to (F27)', async () => {
+    it('forces notLocalized to 0 — there is nowhere to translate to (F27) [i18n:I-25]', async () => {
         const agent = request.agent(harness.server);
         await agent
             .post('/api/auth/login')

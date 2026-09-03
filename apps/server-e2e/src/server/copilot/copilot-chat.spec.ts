@@ -380,7 +380,7 @@ describe('Copilot chat (POST /api/copilot/runs)', () => {
 
         // ADR-0005 §8: tool output enters the model as data, never as
         // instructions, and the fence must be unforgeable from inside it.
-        it('fences the tool result as untrusted data', async () => {
+        it('fences the tool result as untrusted data [copilot:I-20]', async () => {
             scriptCopilot(
                 {
                     toolCalls: [
@@ -410,7 +410,7 @@ describe('Copilot chat (POST /api/copilot/runs)', () => {
             expect(content).toContain('\\u003c/untrusted-data>');
         });
 
-        it('turns a tool that throws into a tool error and keeps going', async () => {
+        it('turns a tool that throws into a tool error and keeps going [copilot:I-18]', async () => {
             scriptCopilot(
                 { toolCalls: [{ name: 'fixture.explodes', input: {} }] },
                 { text: 'That failed, sorry.' }
@@ -427,7 +427,7 @@ describe('Copilot chat (POST /api/copilot/runs)', () => {
             expect(framesOfType(events, 'done')[0].stopReason).toBe('end');
         });
 
-        it('refuses a tool the model invented, without failing the run', async () => {
+        it('refuses a tool the model invented, without failing the run [copilot:I-18]', async () => {
             scriptCopilot(
                 {
                     toolCalls: [{ name: 'content.deleteEverything', input: {} }]
@@ -444,7 +444,7 @@ describe('Copilot chat (POST /api/copilot/runs)', () => {
             expect(assembledText(events)).toBe('I cannot do that.');
         });
 
-        it('rejects arguments that do not match the tool schema', async () => {
+        it('rejects arguments that do not match the tool schema [copilot:I-18]', async () => {
             scriptCopilot(
                 // `q` is required and must be a string.
                 {
@@ -467,7 +467,7 @@ describe('Copilot chat (POST /api/copilot/runs)', () => {
         // burns every remaining step on identical queries and ends on
         // `max-steps` with nothing to show for it. Smaller local models do this
         // routinely.
-        it('refuses an identical repeated call instead of re-running the tool', async () => {
+        it('refuses an identical repeated call instead of re-running the tool [copilot:I-19]', async () => {
             scriptCopilot(
                 {
                     toolCalls: [
@@ -521,7 +521,7 @@ describe('Copilot chat (POST /api/copilot/runs)', () => {
             ]);
         });
 
-        it('stops with max-steps when the model never stops calling tools', async () => {
+        it('stops with max-steps when the model never stops calling tools [copilot:I-21]', async () => {
             // One more turn than the ceiling allows, and every call distinct so
             // the repeat guard doesn't end the run first. Counted off
             // `DEFAULT_RUN_LIMITS` rather than written out: the ceiling is
@@ -550,7 +550,7 @@ describe('Copilot chat (POST /api/copilot/runs)', () => {
             );
         });
 
-        it('audits every attempted call, successful or not', async () => {
+        it('audits every attempted call, successful or not [copilot:I-17]', async () => {
             scriptCopilot(
                 {
                     toolCalls: [

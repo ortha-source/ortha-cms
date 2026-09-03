@@ -104,7 +104,7 @@ test.describe('API token reveal-once dialog', () => {
         await expect(apiTokensPage.secretField()).toBeVisible();
     });
 
-    test('Done asks before discarding an uncopied secret', async ({
+    test('Done asks before discarding an uncopied secret [api-tokens:I-04]', async ({
         apiTokensPage
     }) => {
         await apiTokensPage.goto();
@@ -125,7 +125,7 @@ test.describe('API token reveal-once dialog', () => {
         await expect(apiTokensPage.revealDialog()).toHaveCount(0);
     });
 
-    test('Escape asks too — every dismissal path funnels through the guard', async ({
+    test('Escape asks too — every dismissal path funnels through the guard [api-tokens:I-04]', async ({
         apiTokensPage,
         page
     }) => {
@@ -139,7 +139,7 @@ test.describe('API token reveal-once dialog', () => {
         await expect(apiTokensPage.revealDialog()).toBeVisible();
     });
 
-    test('the backdrop asks too — a stray click must not cost a credential', async ({
+    test('the backdrop asks too — a stray click must not cost a credential [api-tokens:I-04]', async ({
         apiTokensPage
     }) => {
         await apiTokensPage.goto();
@@ -159,7 +159,7 @@ test.describe('API token reveal-once dialog', () => {
         await expect(apiTokensPage.secretField()).toHaveValue(REVEALED_SECRET);
     });
 
-    test('the corner X asks too, so no exit is unguarded', async ({
+    test('the corner X asks too, so no exit is unguarded [api-tokens:I-04]', async ({
         apiTokensPage
     }) => {
         await apiTokensPage.goto();
@@ -225,7 +225,7 @@ test.describe('API token reveal-once dialog', () => {
         await expect(apiTokensPage.revealDialog()).toBeVisible();
     });
 
-    test('the plaintext is gone from the client once the dialog is dismissed', async ({
+    test('the plaintext is gone from the client once the dialog is dismissed [api-tokens:I-03]', async ({
         apiTokensPage,
         page
     }) => {

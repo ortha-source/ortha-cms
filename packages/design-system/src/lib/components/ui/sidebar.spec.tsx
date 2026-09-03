@@ -56,7 +56,7 @@ describe('SidebarProvider', () => {
         expect(root().getAttribute('data-state')).toBe('collapsed');
     });
 
-    it('takes the collapsed panel out of the tab order and the a11y tree', () => {
+    it('takes the collapsed panel out of the tab order and the a11y tree [design-system:I-19]', () => {
         render(<Shell />);
 
         fireEvent.click(screen.getByTestId('in-bar'));
@@ -78,7 +78,7 @@ describe('SidebarProvider', () => {
     // and inside the rich-text editor. The window listener called
     // `preventDefault()` unconditionally, so the sidebar moved and the text did
     // not go bold.
-    it('leaves Ctrl+B alone inside a text field', () => {
+    it('leaves Ctrl+B alone inside a text field [design-system:I-20]', () => {
         render(
             <Shell>
                 <Input data-testid="title" />
@@ -207,7 +207,7 @@ describe('SidebarProvider', () => {
     // EC-28 — `document.cookie` throws in a sandboxed iframe without
     // `allow-same-origin`. The write was unguarded, which took the whole toggle
     // down with it.
-    it('keeps toggling when the cookie jar is unwritable', () => {
+    it('keeps toggling when the cookie jar is unwritable [design-system:I-23]', () => {
         const jar = Object.getOwnPropertyDescriptor(
             Document.prototype,
             'cookie'
@@ -247,7 +247,7 @@ describe('SidebarProvider', () => {
 describe('SidebarInset', () => {
     // The scrollport is the app's only scroll container; ORT-150 fixed the
     // missing focus ring on it and left the naming question open on purpose.
-    it('keeps the scrollport a visibly-focusable tab stop', () => {
+    it('keeps the scrollport a visibly-focusable tab stop [design-system:I-17]', () => {
         render(<Shell />);
         const scrollport = document.querySelector(
             '[data-slot="sidebar-inset-scroll"]'
@@ -257,7 +257,7 @@ describe('SidebarInset', () => {
         expect(scrollport.className).toContain('focus-visible:ring-2');
     });
 
-    it('exposes exactly one landmark of its own', () => {
+    it('exposes exactly one landmark of its own [design-system:I-18]', () => {
         render(<Shell />);
         expect(screen.getAllByRole('main')).toHaveLength(1);
     });

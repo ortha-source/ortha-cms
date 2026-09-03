@@ -204,7 +204,7 @@ describe('Workspace access is scoped to membership', () => {
     }
 
     describe('GET /api/workspaces', () => {
-        it('returns only the workspaces the caller belongs to', async () => {
+        it('returns only the workspaces the caller belongs to [workspaces:I-04]', async () => {
             const { agent: alice } = await loginAs(
                 'admin',
                 'wsa-a@example.com'
@@ -365,7 +365,7 @@ describe('Workspace access is scoped to membership', () => {
             expect(workspace.members).toHaveLength(1);
         });
 
-        it('answers the same bytes for "not a member" and "no such workspace"', async () => {
+        it('answers the same bytes for "not a member" and "no such workspace" [workspaces:I-03]', async () => {
             const { alice, bob, aliceWorkspace } = await twoTenants();
 
             // The flat 403 is only worth having if the two cases are

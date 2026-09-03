@@ -33,7 +33,7 @@ describe('matches', () => {
         );
     });
 
-    describe('the empty set means "everything"', () => {
+    describe('the empty set means "everything" [webhooks:I-03]', () => {
         it('an empty kind list takes every kind', () => {
             expect(
                 matches(subscription({ eventKinds: [] }), {
@@ -91,7 +91,7 @@ describe('matches', () => {
         });
     });
 
-    it('refuses a kind that is not in the catalogue', () => {
+    it('refuses a kind that is not in the catalogue [webhooks:I-05]', () => {
         // Without a descriptor there is no way to know whether the workspace or
         // content-type filters even apply, so the safe answer is "not yours".
         expect(

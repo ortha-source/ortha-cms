@@ -257,7 +257,7 @@ describe('Copilot changes', () => {
     // anything happens. Untested, it is also *invisible* — a run that silently
     // stopped asking would look exactly like these suites passing.
     describe('a write asks before it runs', () => {
-        it('parks the call and shows the user its arguments', async () => {
+        it('parks the call and shows the user its arguments [copilot:I-07]', async () => {
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
 
             const { permission, result, events } = await propose(
@@ -284,7 +284,7 @@ describe('Copilot changes', () => {
             expect(result.ok).toBe(true);
         });
 
-        it('never asks about a read', async () => {
+        it('never asks about a read [copilot:I-07]', async () => {
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
             scriptCopilot(
                 {
@@ -328,7 +328,7 @@ describe('Copilot changes', () => {
             expect(await proposalRows(agent)).toHaveLength(0);
         });
 
-        it('stops asking for the rest of the chat once allowed for it', async () => {
+        it('stops asking for the rest of the chat once allowed for it [copilot:I-08]', async () => {
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
             scriptCopilot(
                 {
@@ -487,7 +487,7 @@ describe('Copilot changes', () => {
             expect(result.error).toContain('nope');
         });
 
-        it('refuses a content type the workspace was not granted', async () => {
+        it('refuses a content type the workspace was not granted [content:I-33]', async () => {
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
 
             const { result } = await propose(agent, 'content_propose_create', {
@@ -530,7 +530,7 @@ describe('Copilot changes', () => {
             return { en, de };
         }
 
-        it('names the sibling locales and the shared field on an edit', async () => {
+        it('names the sibling locales and the shared field on an edit [content:I-32]', async () => {
             const { en } = await seedTranslated({
                 text: 'Headline',
                 select: 'article'
@@ -687,7 +687,7 @@ describe('Copilot changes', () => {
             return proposal;
         }
 
-        it('writes the change and records who made it', async () => {
+        it('writes the change and records who made it [copilot:I-01]', async () => {
             const [id] = await seedArticles(
                 [{ text: 'Old headline', select: 'article' }],
                 workspace.id
@@ -712,7 +712,7 @@ describe('Copilot changes', () => {
             });
         });
 
-        it('appends a revision, because it went through the ordinary write', async () => {
+        it('appends a revision, because it went through the ordinary write [content:I-30] [copilot:I-13]', async () => {
             const [id] = await seedArticles(
                 [{ text: 'Old headline', select: 'article' }],
                 workspace.id
@@ -816,7 +816,7 @@ describe('Copilot changes', () => {
             return new Map(items.map((item) => [item.locale, item.entry]));
         }
 
-        it('writes every locale, carrying the shared values over', async () => {
+        it('writes every locale, carrying the shared values over [i18n:I-28]', async () => {
             const [id] = await seedArticles(
                 [{ text: 'English headline', select: 'article' }],
                 workspace.id
@@ -870,7 +870,7 @@ describe('Copilot changes', () => {
             expect(english.values['select']).toBe('article');
         });
 
-        it('stops at the first failure and says how many landed', async () => {
+        it('stops at the first failure and says how many landed [i18n:I-29]', async () => {
             const [id] = await seedArticles(
                 [{ text: 'English headline', select: 'article' }],
                 workspace.id

@@ -125,7 +125,7 @@ describe('CopilotModule kill switch', () => {
         expect(module.controllers?.length).toBeGreaterThan(0);
     });
 
-    it('registers no controller at all when it is off', () => {
+    it('registers no controller at all when it is off [copilot:I-34]', () => {
         const module = CopilotModule.forRoot({
             providers: registrations,
             config: { ...config, enabled: false }

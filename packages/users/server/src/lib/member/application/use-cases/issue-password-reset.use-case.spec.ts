@@ -114,7 +114,7 @@ describe('IssuePasswordResetUseCase', () => {
         });
     }
 
-    it('returns the raw token for an active member', async () => {
+    it('returns the raw token for an active member [users:I-08]', async () => {
         const test = harness(member());
 
         await expect(test.useCase.execute(ACTOR, MEMBER_ID)).resolves.toBe(

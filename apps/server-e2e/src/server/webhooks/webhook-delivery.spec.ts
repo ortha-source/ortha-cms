@@ -167,7 +167,7 @@ describe('Webhook delivery', () => {
             expect(row.attempts).toBe(1);
         });
 
-        it('carries a body that names its own delivery and event ids', async () => {
+        it('carries a body that names its own delivery and event ids [webhooks:I-06]', async () => {
             const client = await api();
             const { id: endpointId } = await createEndpoint(client);
 
@@ -246,7 +246,7 @@ describe('Webhook delivery', () => {
     });
 
     describe('idempotency', () => {
-        it('queues nothing extra when the same event is delivered twice', async () => {
+        it('queues nothing extra when the same event is delivered twice [webhooks:I-08]', async () => {
             const client = await api();
             const { id: endpointId } = await createEndpoint(client, {
                 eventKinds: ['entry.published']
@@ -401,7 +401,7 @@ describe('Webhook delivery', () => {
     });
 
     describe('sending one again', () => {
-        it('queues a fresh delivery keeping the original event id', async () => {
+        it('queues a fresh delivery keeping the original event id [webhooks:I-06] [webhooks:I-08]', async () => {
             const client = await api();
             const { id: endpointId } = await createEndpoint(client, {
                 eventKinds: ['entry.published']

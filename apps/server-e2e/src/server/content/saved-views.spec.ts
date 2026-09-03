@@ -225,7 +225,7 @@ describe('Saved views (/api/views)', () => {
             expect(body[0].isOwn).toBe(false);
         });
 
-        it('403s sharing without views:share, while a private view still saves', async () => {
+        it('403s sharing without views:share, while a private view still saves [content:I-35]', async () => {
             // A role holding content:read but not views:share — every member can
             // bookmark a list; making the bookmark everyone's is the gated act.
             const noShare = await seedUserWithPermissions(harness.app, {
@@ -263,7 +263,7 @@ describe('Saved views (/api/views)', () => {
                 .expect(201);
         });
 
-        it('403s reading views without content:read — a view is not a way in', async () => {
+        it('403s reading views without content:read — a view is not a way in [content:I-34]', async () => {
             const noRead = await seedUserWithPermissions(harness.app, {
                 email: 'saved-views-blind@example.com',
                 password: PASSWORD,
@@ -286,7 +286,7 @@ describe('Saved views (/api/views)', () => {
     });
 
     describe('only the owner writes', () => {
-        it('403s another member editing a shared view', async () => {
+        it('403s another member editing a shared view [content:I-35]', async () => {
             const ownerAgent = await login();
             const view = await createView(ownerAgent, {
                 name: 'Editorial backlog',
@@ -300,7 +300,7 @@ describe('Saved views (/api/views)', () => {
                 .expect(403);
         });
 
-        it('403s another member deleting a shared view', async () => {
+        it('403s another member deleting a shared view [content:I-35]', async () => {
             const ownerAgent = await login();
             const view = await createView(ownerAgent, {
                 name: 'Editorial backlog',
@@ -344,7 +344,7 @@ describe('Saved views (/api/views)', () => {
             expect(body).toEqual([]);
         });
 
-        it('404s — not 403s — a view addressed from another workspace', async () => {
+        it('404s — not 403s — a view addressed from another workspace [content:I-34]', async () => {
             const primaryAgent = await login();
             const view = await createView(primaryAgent);
 
@@ -360,7 +360,7 @@ describe('Saved views (/api/views)', () => {
     });
 
     describe('scope is grant-checked', () => {
-        it('404s an ungranted type exactly as an unknown one', async () => {
+        it('404s an ungranted type exactly as an unknown one [content:I-36]', async () => {
             const agent = await login();
             const ungranted = await agent
                 .get('/api/views')
@@ -379,7 +379,7 @@ describe('Saved views (/api/views)', () => {
             );
         });
 
-        it('404s saving a view over an ungranted type', async () => {
+        it('404s saving a view over an ungranted type [content:I-36]', async () => {
             const agent = await login();
             await agent
                 .post('/api/views')
@@ -428,7 +428,7 @@ describe('Saved views (/api/views)', () => {
             expect(body[0].isDefault).toBe(false);
         });
 
-        it('lets a member default to a shared view they do not own', async () => {
+        it('lets a member default to a shared view they do not own [content:I-35]', async () => {
             const ownerAgent = await login();
             const view = await createView(ownerAgent, {
                 name: 'Editorial backlog',

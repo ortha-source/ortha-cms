@@ -155,14 +155,14 @@ describe('Member aggregate', () => {
             expect(() => member.ensureCanResetPassword()).not.toThrow();
         });
 
-        it('rejects a pending member — there is no password to reset yet', () => {
+        it('rejects a pending member — there is no password to reset yet [users:I-08]', () => {
             const member = rehydrated({ status: 'pending' });
             expect(() => member.ensureCanResetPassword()).toThrow(
                 InvalidMemberStateError
             );
         });
 
-        it('rejects a disabled member — a reset must not reopen a closed account', () => {
+        it('rejects a disabled member — a reset must not reopen a closed account [users:I-08]', () => {
             const member = rehydrated({ status: 'disabled' });
             expect(() => member.ensureCanResetPassword()).toThrow(
                 InvalidMemberStateError
@@ -179,7 +179,7 @@ describe('Member aggregate', () => {
             expect(event.payload).toEqual({ email: 'ada@example.com' });
         });
 
-        it('rejects revoking a non-pending member', () => {
+        it('rejects revoking a non-pending member [users:I-07]', () => {
             const member = rehydrated({ status: 'active' });
             expect(() => member.revokeInvite()).toThrow(
                 InvalidMemberStateError

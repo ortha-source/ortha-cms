@@ -14,7 +14,7 @@ describe('canRead', () => {
      * not nobody. Read the other way, switching the feature on would black out
      * every entry in the library.
      */
-    it('reads an empty allow list as everyone, not as nobody', () => {
+    it('reads an empty allow list as everyone, not as nobody [segments:I-03]', () => {
         expect(canRead({ allow: [], deny: ['globex'] }, reader())).toBe(true);
         expect(canRead({ allow: [], deny: ['globex'] }, reader('acme'))).toBe(
             true
@@ -35,7 +35,7 @@ describe('canRead', () => {
     });
 
     /** A deny beats an allow — that is what makes "all except one" sayable. */
-    it('refuses a denied reader even when they are also allowed', () => {
+    it('refuses a denied reader even when they are also allowed [segments:I-04]', () => {
         const access = { allow: ['acme', 'globex'], deny: ['globex'] };
         expect(canRead(access, reader('acme'))).toBe(true);
         expect(canRead(access, reader('globex'))).toBe(false);

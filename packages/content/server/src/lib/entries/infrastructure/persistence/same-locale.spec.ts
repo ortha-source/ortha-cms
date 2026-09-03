@@ -36,7 +36,7 @@ describe('assertSameLocale', () => {
         ).not.toThrow();
     });
 
-    it('rejects a target in another locale, naming both sides', () => {
+    it('rejects a target in another locale, naming both sides [content:I-19]', () => {
         let caught: UnprocessableEntityException | undefined;
         try {
             assertSameLocale([row('a', 'de')], localized, 'tags', 'en');

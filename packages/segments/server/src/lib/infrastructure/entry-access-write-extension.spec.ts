@@ -90,7 +90,7 @@ describe('EntryAccessWriteExtension', () => {
             expect(access.current).toEqual({ allow: ['s1'], deny: [] });
         });
 
-        it('refuses a caller who may edit the record but not decide who reads it', async () => {
+        it('refuses a caller who may edit the record but not decide who reads it [segments:I-17]', async () => {
             // The escalation this gate exists for: the save it rides asked only
             // for `content:update`, so without this a contributor could restrict
             // any entry they can edit by naming the key in the body.
@@ -103,7 +103,7 @@ describe('EntryAccessWriteExtension', () => {
             expect(access.writes).toBe(0);
         });
 
-        it('refuses a caller it cannot identify', async () => {
+        it('refuses a caller it cannot identify [segments:I-18]', async () => {
             // A path the principal middleware did not cover cannot be shown to
             // hold the permission, so it does not.
             const extension = build(accessService(), null);
@@ -126,7 +126,7 @@ describe('EntryAccessWriteExtension', () => {
             expect(access.writes).toBe(0);
         });
 
-        it('refuses a restore that would change who can read the entry', async () => {
+        it('refuses a restore that would change who can read the entry [segments:I-21]', async () => {
             const access = accessService({ allow: ['s1'], deny: [] });
             const extension = build(access, ['content:update']);
 
@@ -148,7 +148,7 @@ describe('EntryAccessWriteExtension', () => {
             expect(access.writes).toBe(0);
         });
 
-        it('reads a missing list as empty rather than refusing it', async () => {
+        it('reads a missing list as empty rather than refusing it [segments:I-14]', async () => {
             const access = accessService({ allow: ['s1'], deny: [] });
             await build(access, MANAGE).apply(input({ deny: ['s2'] }));
 

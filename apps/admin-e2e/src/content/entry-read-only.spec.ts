@@ -91,7 +91,7 @@ test.describe('Entry editor — read-only', () => {
             await expect(contentLibraryPage.editorSave).toHaveCount(0);
         });
 
-        test('renders every text field read-only, colour field included', async ({
+        test('renders every text field read-only, colour field included [content:I-39]', async ({
             contentLibraryPage
         }) => {
             await contentLibraryPage.gotoSingle(WS, TYPE);
@@ -151,7 +151,7 @@ test.describe('Entry editor — read-only', () => {
             }
         });
 
-        test('offers the rich-text body to view, not to edit', async ({
+        test('offers the rich-text body to view, not to edit [wysiwyg:I-31]', async ({
             contentLibraryPage,
             wysiwygFieldPage
         }) => {
@@ -210,7 +210,7 @@ test.describe('Entry editor — read-only', () => {
             await expect(mediaFieldPage.removeAsset('hero.png')).toHaveCount(0);
         });
 
-        test('never saves, even on a form submit from a field', async ({
+        test('never saves, even on a form submit from a field [content:I-39]', async ({
             contentLibraryPage,
             page
         }) => {

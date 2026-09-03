@@ -170,10 +170,11 @@ describe('Alarm findings lifecycle', () => {
         await drainOutbox(harness.app);
 
         const after = await client.get('/api/alarms/findings').expect(200);
+        // covers: alarms:I-18
         expect(after.body.total).toBe(0);
     });
 
-    it('is idempotent under a re-delivered event', async () => {
+    it('is idempotent under a re-delivered event [alarms:I-05]', async () => {
         const client = await api();
         await createRule(client);
         await publishArticle(client);
@@ -185,7 +186,7 @@ describe('Alarm findings lifecycle', () => {
         expect((await client.get('/api/alarms/findings')).body.total).toBe(1);
     });
 
-    it('has no mute route left to call', async () => {
+    it('has no mute route left to call [alarms:I-20]', async () => {
         const client = await api();
         await createRule(client);
         const entryId = await publishArticle(client);
@@ -219,6 +220,7 @@ describe('Alarm findings lifecycle', () => {
             .expect(200);
 
         expect(Object.keys(res.body.byEntry)).toEqual([first]);
+        // covers: alarms:I-04
         expect(res.body.byEntry[first]).toHaveLength(1);
     });
 
@@ -238,7 +240,7 @@ describe('Alarm findings lifecycle', () => {
         expect(summary.body).not.toHaveProperty('muted');
     });
 
-    it('closes the findings on an entry when it is deleted', async () => {
+    it('closes the findings on an entry when it is deleted [alarms:I-12]', async () => {
         const client = await api();
         await createRule(client);
         const entryId = await publishArticle(client);

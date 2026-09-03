@@ -107,7 +107,7 @@ describe('Copilot read catalogue', () => {
 
     // ------------------------------------------------------------- the offer
     describe('the offer', () => {
-        it('offers every read tool in the catalogue to an admin', async () => {
+        it('offers every read tool in the catalogue to an admin [media:I-30]', async () => {
             scriptCopilot({ text: 'ok' });
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
 
@@ -308,7 +308,7 @@ describe('Copilot read catalogue', () => {
             expect(result.error).toContain('9');
         });
 
-        it('refuses a content type the workspace was not granted', async () => {
+        it('refuses a content type the workspace was not granted [tools:I-11]', async () => {
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
 
             const result = await callTool(agent, 'admin_content_revisions', {
@@ -488,7 +488,7 @@ describe('Copilot read catalogue', () => {
         // the library" wants links the *person* can click, and their browser is
         // signed in — which is exactly the case the raw route already serves by
         // deriving its scope from membership rather than a header.
-        it('carries a download path the asking user’s browser can follow', async () => {
+        it('carries a download path the asking user’s browser can follow [media:I-30]', async () => {
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
             // Uploaded rather than seeded: this is the one media case in the
             // suite that follows the link, and a seeded row points at a
@@ -800,7 +800,7 @@ describe('Copilot read catalogue', () => {
             expect(output.items[0].at).toEqual(expect.any(String));
         });
 
-        it('is not callable by a contributor even if the model names it', async () => {
+        it('is not callable by a contributor even if the model names it [activity:I-21]', async () => {
             const { agent } = await signIn(CONTRIBUTOR_EMAIL, 'contributor');
 
             const result = await callTool(agent, 'activity_recent', {});
@@ -1025,10 +1025,11 @@ describe('Copilot read catalogue', () => {
             expect(output.items[0].severity).toBe('error');
             // The tally follows the same predicate the list did, so it
             // describes the filtered set rather than the workspace.
+            // covers: alarms:I-19
             expect(output.bySeverity).toMatchObject({ error: 1, warn: 0 });
         });
 
-        it('does not see another workspace’s findings', async () => {
+        it('does not see another workspace’s findings [alarms:I-34]', async () => {
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
             await createRule(agent);
             await publishArticle(agent);

@@ -74,7 +74,7 @@ test.describe('Insights announcements and outline', () => {
      * tile whose value is simply absent, which is the exact confusion the em
      * dash was chosen to prevent for sighted readers.
      */
-    test('a failed stat tile says its value is unavailable', async ({
+    test('a failed stat tile says its value is unavailable [insights:I-11]', async ({
         page,
         insightsPage
     }) => {
@@ -91,7 +91,7 @@ test.describe('Insights announcements and outline', () => {
      * passed over it. Asserted as "no widget title is an h4" rather than on one
      * card, so moving a single heading cannot make this go green.
      */
-    test('the document outline has no skipped heading level', async ({
+    test('the document outline has no skipped heading level [insights:I-24]', async ({
         page,
         insightsPage
     }) => {

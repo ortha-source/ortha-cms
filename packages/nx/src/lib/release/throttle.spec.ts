@@ -47,7 +47,7 @@ describe('withPublishSlot', () => {
         ).resolves.toBe('ok');
     });
 
-    it('holds the lock for the duration and drops it after', async () => {
+    it('holds the lock for the duration and drops it after [nx:I-20]', async () => {
         let heldDuring = false;
 
         await withPublishSlot({ dir, spacing: 0 }, async () => {
@@ -91,7 +91,7 @@ describe('withPublishSlot', () => {
      * has since learned a peer is blocked should bow out rather than sit out
      * the gap first.
      */
-    it('evaluates a spacing function only once the slot is held', async () => {
+    it('evaluates a spacing function only once the slot is held [nx:I-21]', async () => {
         const spacing = jest.fn(() => {
             expect(existsSync(lock())).toBe(true);
             return 0;
@@ -102,7 +102,7 @@ describe('withPublishSlot', () => {
         expect(spacing).toHaveBeenCalledTimes(1);
     });
 
-    it('waits rather than stealing while a live holder has the lock', async () => {
+    it('waits rather than stealing while a live holder has the lock [nx:I-20]', async () => {
         writeFileSync(lock(), `${process.pid}`);
         const waits: string[] = [];
 
@@ -120,7 +120,7 @@ describe('withPublishSlot', () => {
         await expect(run).resolves.toBe('done');
     });
 
-    it('steals immediately from a holder that no longer exists', async () => {
+    it('steals immediately from a holder that no longer exists [nx:I-23]', async () => {
         // A pid nothing can be running under; `process.kill(pid, 0)` gives ESRCH.
         writeFileSync(lock(), '2147483646');
 
@@ -131,7 +131,7 @@ describe('withPublishSlot', () => {
         ).resolves.toBe(`${process.pid}`);
     });
 
-    it('treats an empty or malformed lock as held, so a genuine race still waits', async () => {
+    it('treats an empty or malformed lock as held, so a genuine race still waits [nx:I-23]', async () => {
         writeFileSync(lock(), '');
         let acquired = false;
 
@@ -169,7 +169,7 @@ describe('withPublishSlot', () => {
      * holder now refreshes the lock while it works, so `staleAfter` bounds
      * silence rather than work.
      */
-    it('is not stolen from a holder that outlives staleAfter but keeps beating', async () => {
+    it('is not stolen from a holder that outlives staleAfter but keeps beating [nx:I-22]', async () => {
         const order: string[] = [];
 
         const holder = withPublishSlot(
@@ -196,7 +196,7 @@ describe('withPublishSlot', () => {
         expect(order).toEqual(['holder:start', 'holder:end', 'peer:start']);
     });
 
-    it('keeps refreshing the lock while it is held', async () => {
+    it('keeps refreshing the lock while it is held [nx:I-22]', async () => {
         let first = 0;
         let last = 0;
 
@@ -219,7 +219,7 @@ describe('withPublishSlot', () => {
      * remove the thief's lock — that would hand a third publisher the slot
      * while the thief is still uploading, turning one overlap into a cascade.
      */
-    it('does not remove a lock that is no longer ours', async () => {
+    it('does not remove a lock that is no longer ours [nx:I-21]', async () => {
         await withPublishSlot({ dir, spacing: 0 }, async () => {
             writeFileSync(lock(), '999999');
         });

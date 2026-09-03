@@ -182,7 +182,7 @@ describe('AuthProvider', () => {
         // `500`, a timeout, or a dropped connection — none of which say
         // anything about the session. `RequireAuth` reads this and shows the
         // outage screen instead of redirecting.
-        it('reports a failed probe as unavailable, not unauthenticated', () => {
+        it('reports a failed probe as unavailable, not unauthenticated [identity:I-28]', () => {
             probeReturns({ isError: true });
 
             renderProvider();

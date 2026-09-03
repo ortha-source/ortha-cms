@@ -156,7 +156,7 @@ describe('RevokeContentUseCase', () => {
         });
     });
 
-    it('loads under the content lock, never through the plain reader', async () => {
+    it('loads under the content lock, never through the plain reader [workspaces:I-16]', async () => {
         const { useCase, log } = harness();
 
         await useCase.execute(ACTOR, WORKSPACE_ID, 'blog_post');

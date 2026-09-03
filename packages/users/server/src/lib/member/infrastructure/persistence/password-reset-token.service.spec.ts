@@ -128,7 +128,7 @@ describe('PasswordResetTokenService.rotate', () => {
         return new PasswordResetTokenService(db, config);
     }
 
-    it('takes the advisory lock before touching any row', async () => {
+    it('takes the advisory lock before touching any row [users:I-04]', async () => {
         const double = executorDouble();
 
         await service().rotate(USER_ID, double.executor);
@@ -163,7 +163,7 @@ describe('PasswordResetTokenService.rotate', () => {
         ]);
     });
 
-    it('stores only the SHA-256, and returns the raw token exactly once', async () => {
+    it('stores only the SHA-256, and returns the raw token exactly once [users:I-05]', async () => {
         const double = executorDouble();
 
         const raw = await service().rotate(USER_ID, double.executor);
@@ -207,7 +207,7 @@ describe('PasswordResetTokenService.rotate', () => {
         expect(double.kinds()).not.toContain('select');
     });
 
-    it('refuses an issue inside the cooldown, having already taken the lock', async () => {
+    it('refuses an issue inside the cooldown, having already taken the lock [users:I-06]', async () => {
         const double = executorDouble({
             createdAt: new Date(NOW.getTime() - 10_000)
         });

@@ -59,7 +59,7 @@ describe('WorkspaceCopilotToolProvider', () => {
     }
 
     describe('handler', () => {
-        it('reads the workspace from the run context', async () => {
+        it('reads the workspace from the run context [users:I-17]', async () => {
             const query = queryDouble();
 
             await definition(query.members).handler({}, context());
@@ -67,7 +67,7 @@ describe('WorkspaceCopilotToolProvider', () => {
             expect(query.calls[0].workspaceId).toBe(WORKSPACE_ID);
         });
 
-        it('ignores a workspaceId smuggled into the arguments', async () => {
+        it('ignores a workspaceId smuggled into the arguments [users:I-17]', async () => {
             const query = queryDouble();
 
             await definition(query.members).handler(
@@ -136,7 +136,7 @@ describe('WorkspaceCopilotToolProvider', () => {
             expect(registered).toEqual([provider]);
         });
 
-        it('does nothing when no registry is bound', () => {
+        it('does nothing when no registry is bound [tools:I-18]', () => {
             const provider = new WorkspaceCopilotToolProvider(
                 queryDouble().members
             );

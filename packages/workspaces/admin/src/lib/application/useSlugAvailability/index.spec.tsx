@@ -52,7 +52,7 @@ describe('useSlugAvailability', () => {
         vi.clearAllMocks();
     });
 
-    it('reports a failed check as Unknown, never Available', async () => {
+    it('reports a failed check as Unknown, never Available [workspaces:I-33]', async () => {
         checkSlugAvailable.mockRejectedValue(new Error('network down'));
 
         const { result } = renderHook(

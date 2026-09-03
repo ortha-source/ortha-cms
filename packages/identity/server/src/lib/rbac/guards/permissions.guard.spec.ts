@@ -165,7 +165,7 @@ describe('PermissionsGuard', () => {
         );
     });
 
-    it('delegates the all-of decision to AccessPolicy, with the caller’s grants', async () => {
+    it('delegates the all-of decision to AccessPolicy, with the caller’s grants [identity:I-15]', async () => {
         const { guard, context, canAll, canAny } = harness({
             required: [PERMISSIONS.USERS_UPDATE],
             granted: [PERMISSIONS.USERS_UPDATE]

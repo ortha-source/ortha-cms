@@ -26,8 +26,17 @@ describe('TransferIdMap', () => {
         const map = new TransferIdMap();
         // Same key, two different rows: the document's own id is the exact
         // answer, the key is a guess that could land on the wrong one.
-        map.remember('author', 'src-1', { email: 'shared@example.com' }, 'from-document');
-        map.rememberExisting('author', { email: 'shared@example.com' }, 'from-database');
+        map.remember(
+            'author',
+            'src-1',
+            { email: 'shared@example.com' },
+            'from-document'
+        );
+        map.rememberExisting(
+            'author',
+            { email: 'shared@example.com' },
+            'from-database'
+        );
 
         expect(
             map.resolve({
@@ -48,14 +57,14 @@ describe('TransferIdMap', () => {
         ).toEqual({ via: RESOLVED_VIA.Unresolved });
     });
 
-    it('does not index an empty key', () => {
+    it('does not index an empty key [transfer:I-17]', () => {
         const map = new TransferIdMap();
         map.remember('author', 'src-1', {}, 'tgt-1');
 
         // Indexing it would make every keyless author of this type collide.
-        expect(
-            map.resolve({ $type: 'author', $key: {} })
-        ).toEqual({ via: RESOLVED_VIA.Unresolved });
+        expect(map.resolve({ $type: 'author', $key: {} })).toEqual({
+            via: RESOLVED_VIA.Unresolved
+        });
     });
 
     it('matches a key regardless of the order its fields were written in', () => {

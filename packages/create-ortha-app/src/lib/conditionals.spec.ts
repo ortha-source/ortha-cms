@@ -6,7 +6,7 @@ function apply(source: string, ...flags: string[]): string {
 }
 
 describe('applyConditionals', () => {
-    it('keeps a block whose flag is on, without its markers', () => {
+    it('keeps a block whose flag is on, without its markers [create-ortha-app:I-09]', () => {
         const source = [
             'before',
             '// ortha:if copilot',
@@ -18,7 +18,7 @@ describe('applyConditionals', () => {
         expect(apply(source, 'copilot')).toBe('before\nkept\nafter');
     });
 
-    it('drops a block whose flag is off', () => {
+    it('drops a block whose flag is off [create-ortha-app:I-09]', () => {
         const source = [
             'before',
             '// ortha:if copilot',
@@ -52,7 +52,7 @@ describe('applyConditionals', () => {
         expect(apply([open, 'body', close].join('\n'))).toBe('');
     });
 
-    it('nests, and an inner block inside a dropped one stays dropped', () => {
+    it('nests, and an inner block inside a dropped one stays dropped [create-ortha-app:I-08]', () => {
         const source = [
             '// ortha:if copilot',
             'outer',
@@ -104,7 +104,7 @@ describe('applyConditionals', () => {
      * silently deletes every plugin below it, and the app boots with no API
      * rather than failing to render.
      */
-    it('throws on an unclosed block rather than swallowing the rest', () => {
+    it('throws on an unclosed block rather than swallowing the rest [create-ortha-app:I-07]', () => {
         expect(() =>
             applyConditionals(
                 '// ortha:if copilot\nbody\nmore',
@@ -114,13 +114,13 @@ describe('applyConditionals', () => {
         ).toThrow(/unclosed/);
     });
 
-    it('names the file in that error', () => {
+    it('names the file in that error [create-ortha-app:I-07]', () => {
         expect(() =>
             applyConditionals('// ortha:if x\n', new Set(), 'plugins.ts')
         ).toThrow(/plugins\.ts/);
     });
 
-    it('throws on a stray end', () => {
+    it('throws on a stray end [create-ortha-app:I-07]', () => {
         expect(() =>
             applyConditionals('// ortha:end\n', new Set(), 'env.tmpl')
         ).toThrow(/no matching/);

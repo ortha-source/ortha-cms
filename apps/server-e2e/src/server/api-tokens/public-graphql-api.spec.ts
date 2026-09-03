@@ -262,7 +262,7 @@ describe('Public GraphQL API (/api/v1/graphql)', () => {
     // ---- grant pruning ----------------------------------------------------
 
     describe('grant pruning', () => {
-        it('omits an ungranted content type from the schema entirely', async () => {
+        it('omits an ungranted content type from the schema entirely [content:I-27]', async () => {
             const secret = await mintToken({ workspaceIds: [workspaceId] });
             const sdl = await request(harness.server)
                 .get('/api/v1/graphql')
@@ -296,7 +296,7 @@ describe('Public GraphQL API (/api/v1/graphql)', () => {
             expect(names).not.toContain('test_page');
         });
 
-        it('gives two workspaces different schemas', async () => {
+        it('gives two workspaces different schemas [content:I-27]', async () => {
             // Introspection legitimately differs per token — that is what stops
             // a token enumerating content its workspace does not expose.
             const secret = await mintToken({
@@ -972,6 +972,7 @@ describe('Public GraphQL API (/api/v1/graphql)', () => {
             ['pageSize below the minimum', 'pageSize: -1', 'pageSize=-1'],
             ['a page below the minimum', 'page: 0', 'page=0'],
             ['pageSize past MAX_PAGE_SIZE', 'pageSize: 500', 'pageSize=500']
+            // covers: content:I-29
         ])('refuses %s over both protocols', async (_name, arg, query) => {
             const secret = await mintToken({ workspaceIds: [workspaceId] });
 
@@ -1012,8 +1013,12 @@ describe('Public GraphQL API (/api/v1/graphql)', () => {
             const secret = await mintToken({ workspaceIds: [workspaceId] });
 
             expect(
-                (await gql(secret, '{ testArticles(page: 1, pageSize: 100) { total } }'))
-                    .errors
+                (
+                    await gql(
+                        secret,
+                        '{ testArticles(page: 1, pageSize: 100) { total } }'
+                    )
+                ).errors
             ).toBeUndefined();
         });
     });

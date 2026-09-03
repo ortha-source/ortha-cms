@@ -412,7 +412,7 @@ test.describe('Members page', () => {
         expect(roster.count).toBe(0);
     });
 
-    test('offers the Members nav entry only to someone who can read it', async ({
+    test('offers the Members nav entry only to someone who can read it [shell:I-08]', async ({
         membersPage,
         page
     }) => {

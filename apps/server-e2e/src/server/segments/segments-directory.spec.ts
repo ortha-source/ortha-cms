@@ -246,7 +246,7 @@ describe('Segments directory (/api/segments)', () => {
             expect(wildcard.body.total).toBe(0);
         });
 
-        it('offers an unscoped audience in every workspace', async () => {
+        it('offers an unscoped audience in every workspace [segments:I-10]', async () => {
             // Empty means every one — the same reading as an entry's empty
             // allow list, and the state every segment starts in.
             const agent = await login(ADMIN);

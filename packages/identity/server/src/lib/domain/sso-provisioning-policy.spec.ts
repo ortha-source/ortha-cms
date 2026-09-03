@@ -12,7 +12,7 @@ describe('isProvisionableEmail', () => {
         expect(isProvisionableEmail('Ada@ACME.com', ['Acme.COM'])).toBe(true);
     });
 
-    it('refuses a domain that merely ends with an allowed one', () => {
+    it('refuses a domain that merely ends with an allowed one [identity:I-24]', () => {
         // The whole point of the check. A suffix match would admit an attacker
         // who registers `evil-acme.com` and stands up an identity provider on
         // it, which is not a theoretical shape of attack.

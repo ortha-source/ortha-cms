@@ -52,7 +52,7 @@ describe('Activity log (GET /api/activity + recording)', () => {
     }
 
     describe('recording (in-band, transactional)', () => {
-        it('records user.signed_in on login and exposes it via the read API', async () => {
+        it('records user.signed_in on login and exposes it via the read API [activity:I-04]', async () => {
             const agent = await login(ADMIN_EMAIL);
 
             const res = await agent
@@ -69,6 +69,7 @@ describe('Activity log (GET /api/activity + recording)', () => {
                 actorId: admin.id,
                 actorEmail: ADMIN_EMAIL
             });
+            // covers: activity:I-20
             // `created_at` is internal and never reaches the wire.
             expect(event).not.toHaveProperty('createdAt');
             expect(event).not.toHaveProperty('created_at');
@@ -170,9 +171,7 @@ describe('Activity log (GET /api/activity + recording)', () => {
             await agent.post(`/api/users/${member.id}/enable`).expect(409);
 
             const rows = await getActivityRows();
-            expect(
-                rows.some((row) => row.subjectId === member.id)
-            ).toBe(false);
+            expect(rows.some((row) => row.subjectId === member.id)).toBe(false);
         });
     });
 
@@ -196,11 +195,16 @@ describe('Activity log (GET /api/activity + recording)', () => {
                 .get('/api/activity?kind=user.suspended,user.reactivated')
                 .expect(200);
 
-            const kinds = res.body.items.map((item: { kind: string }) => item.kind);
-            expect(kinds.sort()).toEqual(['user.reactivated', 'user.suspended']);
+            const kinds = res.body.items.map(
+                (item: { kind: string }) => item.kind
+            );
+            expect(kinds.sort()).toEqual([
+                'user.reactivated',
+                'user.suspended'
+            ]);
         });
 
-        it('filters by actor email (case-insensitive substring)', async () => {
+        it('filters by actor email (case-insensitive substring) [activity:I-19]', async () => {
             const { agent } = await seedEvents();
 
             const res = await agent
@@ -213,7 +217,7 @@ describe('Activity log (GET /api/activity + recording)', () => {
             }
         });
 
-        it('paginates with page/pageSize and echoes the envelope', async () => {
+        it('paginates with page/pageSize and echoes the envelope [activity:I-15]', async () => {
             const { agent } = await seedEvents();
 
             const res = await agent
@@ -228,9 +232,7 @@ describe('Activity log (GET /api/activity + recording)', () => {
             const { agent } = await seedEvents();
 
             const desc = await agent.get('/api/activity').expect(200);
-            const asc = await agent
-                .get('/api/activity?order=asc')
-                .expect(200);
+            const asc = await agent.get('/api/activity?order=asc').expect(200);
 
             const descKinds = desc.body.items.map(
                 (item: { kind: string }) => item.kind
@@ -259,7 +261,7 @@ describe('Activity log (GET /api/activity + recording)', () => {
             await agent.get('/api/activity').expect(200);
         });
 
-        it('forbids a contributor with 403', async () => {
+        it('forbids a contributor with 403 [activity:I-14]', async () => {
             await seedActiveUser(harness.app, {
                 email: 'contributor@example.com',
                 password: PASSWORD,
@@ -279,7 +281,7 @@ describe('Activity log (GET /api/activity + recording)', () => {
             await agent.get('/api/activity').expect(403);
         });
 
-        it('rejects an unauthenticated request with 401', async () => {
+        it('rejects an unauthenticated request with 401 [activity:I-14]', async () => {
             await request(harness.server).get('/api/activity').expect(401);
         });
     });

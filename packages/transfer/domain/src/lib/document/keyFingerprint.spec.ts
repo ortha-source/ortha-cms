@@ -7,7 +7,7 @@ describe('keyFingerprint', () => {
         );
     });
 
-    it('separates two locales of the same key', () => {
+    it('separates two locales of the same key [transfer:I-18]', () => {
         // The whole reason the locale is in here: a localized type's key values
         // are per-row, and a translation may share a slug with its source.
         expect(keyFingerprint('article', { slug: 'hello' }, 'en')).not.toBe(
@@ -21,7 +21,7 @@ describe('keyFingerprint', () => {
         );
     });
 
-    it('cannot be forged by a value containing the separator', () => {
+    it('cannot be forged by a value containing the separator [transfer:I-19]', () => {
         // Any separator character a slug could contain would collapse these two
         // into one key; JSON encoding is what keeps them apart.
         expect(keyFingerprint('t', { a: '1', b: '2' })).not.toBe(

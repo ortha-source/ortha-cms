@@ -39,7 +39,7 @@ describe('DownloadAssetQuery.open', () => {
         );
     });
 
-    it('refuses a row written by another provider, naming both', async () => {
+    it('refuses a row written by another provider, naming both [media:I-03]', async () => {
         // The row's name is checked, not used to look a backend up: this
         // deployment runs one provider, and a foreign key means nothing to it.
         // Handing it over anyway would serve whatever that key happens to

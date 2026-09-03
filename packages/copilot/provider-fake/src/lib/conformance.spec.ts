@@ -73,6 +73,7 @@ describe('ModelProvider conformance', () => {
         });
     });
 
+    // covers: copilot:I-22
     it.each(MODEL_PROVIDER_CONFORMANCE_CHECKS)('%s', (check) => {
         expect(report[check]).toBeNull();
     });

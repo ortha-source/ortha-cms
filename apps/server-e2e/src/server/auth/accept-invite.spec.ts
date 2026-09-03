@@ -71,7 +71,7 @@ describe('accept an invite', () => {
     }
 
     describe('the invite response', () => {
-        it('hands the raw token back exactly once, on invite', async () => {
+        it('hands the raw token back exactly once, on invite [users:I-05]', async () => {
             const { id, token } = await invite();
 
             expect(typeof token).toBe('string');
@@ -276,7 +276,7 @@ describe('accept an invite', () => {
             expect(await countUserSessions(id)).toBe(1);
         });
 
-        it('rejects only one of two concurrent accepts of the same link', async () => {
+        it('rejects only one of two concurrent accepts of the same link [identity:I-05]', async () => {
             const { id, token } = await invite();
             const body = {
                 token,
@@ -319,7 +319,7 @@ describe('accept an invite', () => {
             );
         });
 
-        it('404s an unknown token, without hinting that it is unknown', async () => {
+        it('404s an unknown token, without hinting that it is unknown [identity:I-04]', async () => {
             const res = await request(harness.server)
                 .post('/api/auth/invite/accept')
                 .set('Origin', TEST_ALLOWED_ORIGIN)
@@ -404,7 +404,7 @@ describe('accept an invite', () => {
                 .expect(400);
         });
 
-        it('accepts the exact 12-character floor', async () => {
+        it('accepts the exact 12-character floor [identity:I-11]', async () => {
             const { token } = await invite();
             const exactly12 = 'a'.repeat(12);
 
@@ -434,7 +434,7 @@ describe('accept an invite', () => {
                 .expect(201);
         });
 
-        it('counts the ceiling in bytes, so a 72-character accented passphrase is rejected', async () => {
+        it('counts the ceiling in bytes, so a 72-character accented passphrase is rejected [identity:I-11]', async () => {
             // BUG-identity-server-03. `'é'.repeat(72)` is 72 UTF-16 code units
             // but 144 UTF-8 bytes. `@MaxLength(72)` measured the former and let
             // it through, and bcrypt then hashed only the first 72 bytes — so

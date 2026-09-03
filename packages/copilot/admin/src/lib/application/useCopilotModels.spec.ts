@@ -97,7 +97,7 @@ describe('copilotIsOff', () => {
         expect(copilotIsOff(undefined)).toBe(false);
     });
 
-    it('is off on a 404 — the routes are not registered', () => {
+    it('is off on a 404 — the routes are not registered [copilot:I-40]', () => {
         expect(copilotIsOff(failure(HTTP_STATUS.NOT_FOUND))).toBe(true);
     });
 
@@ -105,7 +105,7 @@ describe('copilotIsOff', () => {
     // have its surfaces taken away by a blip or a permission answer. Every one
     // of these leaves the launcher, the switcher and the page up, and the
     // server still refuses whatever it was going to refuse.
-    it('is not off for any other failure', () => {
+    it('is not off for any other failure [copilot:I-40]', () => {
         expect(copilotIsOff(failure(HTTP_STATUS.FORBIDDEN))).toBe(false);
         expect(copilotIsOff(failure(500))).toBe(false);
         expect(copilotIsOff(new TypeError('Failed to fetch'))).toBe(false);

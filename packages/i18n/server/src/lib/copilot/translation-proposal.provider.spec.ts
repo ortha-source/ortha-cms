@@ -227,7 +227,7 @@ describe('i18n_propose_bulk_translation', () => {
         ).rejects.toThrow(/Item 2:.*already translates this record into "de"/);
     });
 
-    it('refuses a shared field, naming the ones that vary', async () => {
+    it('refuses a shared field, naming the ones that vary [i18n:I-28]', async () => {
         const { tool } = build({ groups: { 'entry-en': group('group-1') } });
 
         await expect(
@@ -298,7 +298,7 @@ describe('i18n_propose_bulk_translation', () => {
         ).rejects.toThrow(/Too many translations in one change: 51/);
     });
 
-    it('refuses a type this workspace was not granted, without saying so', async () => {
+    it('refuses a type this workspace was not granted, without saying so [i18n:I-27]', async () => {
         const { tool } = build({
             granted: ['post'],
             groups: { 'entry-en': group('group-1') }

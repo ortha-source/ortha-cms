@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { byOrder } from '.';
 
 describe('byOrder', () => {
-    it('sorts ascending into a new array, leaving the source untouched', () => {
+    it('sorts ascending into a new array, leaving the source untouched [utils:I-15]', () => {
         const source = [
             { order: 3, id: 'c' },
             { order: 1, id: 'a' },
@@ -15,7 +15,7 @@ describe('byOrder', () => {
         expect(sorted).not.toBe(source);
     });
 
-    it('keeps registration order for ties, so slot order is stable', () => {
+    it('keeps registration order for ties, so slot order is stable [shell:I-07]', () => {
         const sorted = byOrder([
             { order: 1, id: 'first' },
             { order: 1, id: 'second' },

@@ -25,7 +25,7 @@ function content(dto: unknown): ContentDto {
  */
 describe('resolveGrants', () => {
     describe("mode 'all'", () => {
-        it('expands to one row per known slug, collections before pages', () => {
+        it('expands to one row per known slug, collections before pages [workspaces:I-21]', () => {
             expect(resolveGrants(content({ mode: 'all' }), KNOWN)).toEqual([
                 { kind: 'collection', slug: 'article' },
                 { kind: 'collection', slug: 'author' },

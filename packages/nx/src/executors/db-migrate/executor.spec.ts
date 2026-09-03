@@ -32,7 +32,7 @@ function hostConfig(url: string | undefined) {
 beforeEach(() => jest.clearAllMocks());
 
 describe('db-migrate executor', () => {
-    it('loads the host config and its plugin factory from the workspace root', async () => {
+    it('loads the host config and its plugin factory from the workspace root [nx:I-33]', async () => {
         hostConfig('postgresql://localhost/ortha_cms');
 
         await dbMigrateExecutor(options, context);
@@ -45,7 +45,7 @@ describe('db-migrate executor', () => {
         );
     });
 
-    it('applies the plugins the host built, against the configured URL', async () => {
+    it('applies the plugins the host built, against the configured URL [cli:I-01] [nx:I-32]', async () => {
         hostConfig('postgresql://localhost/ortha_cms');
 
         await expect(dbMigrateExecutor(options, context)).resolves.toEqual({
@@ -77,7 +77,7 @@ describe('db-migrate executor', () => {
             );
         });
 
-        it('says it will not fall back to the local defaults', async () => {
+        it('says it will not fall back to the local defaults [nx:I-06]', async () => {
             hostConfig('');
 
             await expect(dbMigrateExecutor(options, context)).rejects.toThrow(
@@ -85,7 +85,7 @@ describe('db-migrate executor', () => {
             );
         });
 
-        it('opens nothing and applies nothing', async () => {
+        it('opens nothing and applies nothing [nx:I-07]', async () => {
             hostConfig('');
 
             await dbMigrateExecutor(options, context).catch(() => undefined);
@@ -93,7 +93,7 @@ describe('db-migrate executor', () => {
             expect(applyPluginMigrations).not.toHaveBeenCalled();
         });
 
-        it('refuses before building the plugin list', async () => {
+        it('refuses before building the plugin list [nx:I-07]', async () => {
             hostConfig('');
 
             await dbMigrateExecutor(options, context).catch(() => undefined);

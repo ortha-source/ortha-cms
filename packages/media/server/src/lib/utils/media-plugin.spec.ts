@@ -52,7 +52,7 @@ describe('MediaServerPlugin()', () => {
         ).toThrow(/requires a storage provider/);
     });
 
-    it('rejects a provider with no id — the value every asset row records', () => {
+    it('rejects a provider with no id — the value every asset row records [media:I-03]', () => {
         expect(() =>
             MediaServerPlugin(options({ provider: provider({ id: '  ' }) }))
         ).toThrow(/non-empty `id`/);
@@ -71,7 +71,7 @@ describe('MediaServerPlugin()', () => {
         ).toThrow(/declares no `capabilities`/);
     });
 
-    it('rejects a declared directUrl capability with no directUrl()', () => {
+    it('rejects a declared directUrl capability with no directUrl() [media:I-05]', () => {
         // The download route would offer a redirect the provider cannot mint,
         // which is a 500 per image rather than a boot failure.
         expect(() =>
@@ -89,7 +89,7 @@ describe('MediaServerPlugin()', () => {
         ).toThrow(/declares `capabilities.directUrl` but implements/);
     });
 
-    it('refuses signed-url serving on a backend that cannot sign', () => {
+    it('refuses signed-url serving on a backend that cannot sign [media:I-05]', () => {
         // Silently proxying instead would leave the operator believing an
         // optimization is on that is not — and paying for the egress that was
         // the reason to switch backend.

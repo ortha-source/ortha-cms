@@ -59,7 +59,7 @@ describe('SegmentReadScope', () => {
         expect(scope.scope(context)).toBeUndefined();
     });
 
-    it('defaults an entry with no row to visible', () => {
+    it('defaults an entry with no row to visible [segments:I-02]', () => {
         const scope = new SegmentReadScope(catalogue(true), readerWith([]));
         // `COALESCE(…, true)` is the half that keeps an unrestricted entry —
         // every entry, until somebody decides otherwise — readable.
@@ -67,7 +67,7 @@ describe('SegmentReadScope', () => {
         expect(sqlOf(scope)).toContain(', true)');
     });
 
-    it('checks the deny list, then the empty-allow case, then the intersection', () => {
+    it('checks the deny list, then the empty-allow case, then the intersection [segments:I-06]', () => {
         const scope = new SegmentReadScope(catalogue(true), readerWith(['s1']));
         const sql = sqlOf(scope);
         // The same three rules `canRead` states, in the same order.
@@ -88,7 +88,7 @@ describe('SegmentReadScope', () => {
      * and skipping the fragment for it would serve restricted content. Loud
      * beats silent.
      */
-    it('throws rather than silently skipping a table with no id', () => {
+    it('throws rather than silently skipping a table with no id [segments:I-39]', () => {
         const idless = {
             type: {
                 name: 'odd',

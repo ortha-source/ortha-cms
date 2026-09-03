@@ -120,7 +120,7 @@ describe('Workspace content grants', () => {
             expect(granted).toHaveLength(1);
         });
 
-        it('400s for an unknown content-type slug', async () => {
+        it('400s for an unknown content-type slug [workspaces:I-20]', async () => {
             const { agent } = await loginAs('admin', ADMIN_EMAIL);
             const id = await createWorkspace(agent);
             await agent
@@ -164,7 +164,7 @@ describe('Workspace content grants', () => {
             });
         });
 
-        it('refuses (409) to revoke a type that still has entries in the workspace', async () => {
+        it('refuses (409) to revoke a type that still has entries in the workspace [workspaces:I-14]', async () => {
             const { agent } = await loginAs('admin', ADMIN_EMAIL);
             const id = await createWorkspace(agent);
             await agent
@@ -218,7 +218,10 @@ describe('Workspace content grants', () => {
                 .post(`/api/workspaces/${id}/content`)
                 .send({ slug: 'test_article' })
                 .expect(201);
-            const { agent } = await loginAs('viewer', 'wsc-viewer2@example.com');
+            const { agent } = await loginAs(
+                'viewer',
+                'wsc-viewer2@example.com'
+            );
             await agent
                 .delete(`/api/workspaces/${id}/content/test_article`)
                 .expect(403);
@@ -257,7 +260,10 @@ describe('Workspace content grants', () => {
         it('forbids a viewer (lacks workspaces:update) with 403', async () => {
             const { agent: admin } = await loginAs('admin', ADMIN_EMAIL);
             const id = await createWorkspace(admin);
-            const { agent } = await loginAs('viewer', 'wsc-viewer3@example.com');
+            const { agent } = await loginAs(
+                'viewer',
+                'wsc-viewer3@example.com'
+            );
             await agent
                 .get(`/api/workspaces/${id}/content/test_article/entry-count`)
                 .expect(403);

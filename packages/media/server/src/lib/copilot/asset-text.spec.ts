@@ -15,7 +15,7 @@ function streamOf(bytes: Buffer, chunkSize = 64): Readable {
     return Readable.from(chunks.length > 0 ? chunks : [Buffer.alloc(0)]);
 }
 
-describe('isReadableMimeType', () => {
+describe('isReadableMimeType [media:I-31]', () => {
     it.each([
         'text/plain',
         'text/markdown',
@@ -80,7 +80,7 @@ describe('readAssetText', () => {
     });
 
     describe('the byte cap', () => {
-        it('cuts a file longer than the cap short and says so', async () => {
+        it('cuts a file longer than the cap short and says so [media:I-31]', async () => {
             const result = await readAssetText(
                 streamOf(Buffer.from('a'.repeat(500))),
                 100
@@ -104,7 +104,7 @@ describe('readAssetText', () => {
         // The cap lands at an arbitrary byte, so it will sometimes fall inside
         // a multi-byte codepoint. A perfectly valid UTF-8 file must not become
         // an error because of where we stopped reading.
-        it('drops an incomplete trailing codepoint instead of throwing', async () => {
+        it('drops an incomplete trailing codepoint instead of throwing [media:I-31]', async () => {
             // '→' is three bytes, so a cap of 4 lands one byte into it.
             const result = await readAssetText(
                 streamOf(Buffer.from('ab→cd')),
@@ -157,7 +157,7 @@ describe('readAssetText', () => {
     // `notes.txt`. An error naming the problem beats a page of replacement
     // characters the model would earnestly try to summarise.
     describe('invalid UTF-8', () => {
-        it('refuses bytes that are not valid UTF-8', async () => {
+        it('refuses bytes that are not valid UTF-8 [media:I-31]', async () => {
             const bytes = Buffer.from([0xff, 0xfe, 0x00, 0x41]);
 
             await expect(readAssetText(streamOf(bytes))).rejects.toBeInstanceOf(

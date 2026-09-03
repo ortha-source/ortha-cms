@@ -148,7 +148,7 @@ test.describe('Entry editor — Access tab', () => {
             .toEqual({ access: { allow: ['seg-acme'], deny: [] } });
     });
 
-    test('sends nothing about access when nothing was staged', async ({
+    test('sends nothing about access when nothing was staged [segments:I-26]', async ({
         contentLibraryPage
     }) => {
         // What keeps the feature inert: an editor who never opens this tab
@@ -228,7 +228,7 @@ test.describe('Entry editor — Access tab', () => {
         );
     });
 
-    test('keeps a decision on an audience the list no longer shows', async ({
+    test('keeps a decision on an audience the list no longer shows [segments:I-28]', async ({
         page,
         contentLibraryPage,
         segmentsPage

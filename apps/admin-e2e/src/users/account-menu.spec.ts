@@ -29,7 +29,7 @@ test.describe('Account menu', () => {
         await mockUserDetail(page);
     });
 
-    test('shows the signed-in account in the toolbar dropdown', async ({
+    test('shows the signed-in account in the toolbar dropdown [shell:I-13]', async ({
         membersPage
     }) => {
         await membersPage.goto();

@@ -25,7 +25,7 @@ function requiredOn(handler: unknown): unknown {
  * DI container and no HTTP.
  */
 describe('UserSessionsController permission metadata', () => {
-    it('gates listing a member’s sessions on users:update, not the weaker users:read', () => {
+    it('gates listing a member’s sessions on users:update, not the weaker users:read [identity:I-16]', () => {
         expect(requiredOn(UserSessionsController.prototype.list)).toEqual([
             PERMISSIONS.USERS_UPDATE
         ]);

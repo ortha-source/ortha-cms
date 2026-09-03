@@ -25,6 +25,7 @@ describe('Locale value object', () => {
         ['leading digit', '1en'],
         ['too long a primary tag', 'abcd'],
         ['empty', '']
+        // covers: i18n:I-03
     ])('rejects a %s slug', (_label, slug) => {
         expect(() => Locale.create({ slug, name: 'X' })).toThrow(
             InvalidLocaleError

@@ -94,7 +94,7 @@ describe('McpAuthService', () => {
     });
 
     describe('actor', () => {
-        it('derives permissions from the token scope, not the minting user', async () => {
+        it('derives permissions from the token scope, not the minting user [mcp:I-07] [tools:I-05]', async () => {
             const auth = new McpAuthService(
                 tokens(tokenRecord({ scope: 'read' }))
             );
@@ -183,7 +183,7 @@ describe('McpAuthService', () => {
             expect(context.workspaceId).toBe(WORKSPACE_B);
         });
 
-        it('prefers the header over the query parameter', async () => {
+        it('prefers the header over the query parameter [mcp:I-06]', async () => {
             const auth = new McpAuthService(
                 tokens(
                     tokenRecord({ workspaceIds: [WORKSPACE_A, WORKSPACE_B] })

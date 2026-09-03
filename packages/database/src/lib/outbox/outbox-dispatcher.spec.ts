@@ -20,14 +20,14 @@ describe('nextAttemptAfter', () => {
         expect(delayAfter(1)).toBe(1_000);
     });
 
-    it('doubles with each further failure', () => {
+    it('doubles with each further failure [database:I-17]', () => {
         expect(delayAfter(2)).toBe(2_000);
         expect(delayAfter(3)).toBe(4_000);
         expect(delayAfter(4)).toBe(8_000);
         expect(delayAfter(8)).toBe(128_000);
     });
 
-    it('plateaus at five minutes rather than running away', () => {
+    it('plateaus at five minutes rather than running away [database:I-17]', () => {
         expect(delayAfter(9)).toBe(256_000);
         expect(delayAfter(MAX_DELIVERY_ATTEMPTS)).toBe(300_000);
         expect(delayAfter(100)).toBe(300_000);
@@ -42,7 +42,7 @@ describe('nextAttemptAfter', () => {
         expect(total).toBeLessThan(60 * 60_000);
     });
 
-    it('never schedules a retry in the past', () => {
+    it('never schedules a retry in the past [database:I-17]', () => {
         for (let attempts = 1; attempts <= MAX_DELIVERY_ATTEMPTS; attempts++) {
             expect(nextAttemptAfter(attempts, NOW).getTime()).toBeGreaterThan(
                 NOW.getTime()
@@ -84,7 +84,7 @@ describe('onModuleDestroy', () => {
         return { db, release, startedCount: () => started };
     };
 
-    it('waits for a drain already in flight instead of abandoning it', async () => {
+    it('waits for a drain already in flight instead of abandoning it [database:I-20]', async () => {
         // Before: `onModuleDestroy` cleared the interval and returned. A drain
         // running when SIGTERM arrived died mid-batch with its connection —
         // subscribers that had already run were never marked delivered, so
@@ -126,7 +126,7 @@ describe('onModuleDestroy', () => {
         await Promise.all([first, second]);
     });
 
-    it('does not throw when the in-flight drain fails', async () => {
+    it('does not throw when the in-flight drain fails [database:I-20]', async () => {
         // A throw here would abort the rest of the shutdown, and a failing
         // drain has already logged.
         const db = {

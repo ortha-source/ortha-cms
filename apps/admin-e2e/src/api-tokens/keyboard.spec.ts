@@ -91,7 +91,7 @@ test.describe('API tokens keyboard operability', () => {
         expect(clipped).toBe(true);
     });
 
-    test('a revoke lands focus somewhere real instead of on the body', async ({
+    test('a revoke lands focus somewhere real instead of on the body [api-tokens:I-25]', async ({
         apiTokensPage,
         page
     }) => {

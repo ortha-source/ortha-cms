@@ -351,7 +351,7 @@ describe('media assets', () => {
             expect(asset.variants).toEqual(['thumb']);
         });
 
-        it('serves the original when the requested variant does not exist', async () => {
+        it('serves the original when the requested variant does not exist [media:I-10] [media:I-23]', async () => {
             const agent = await login();
             // The fake PNG can't be decoded, so no derivatives are produced —
             // the upload still succeeds and the row carries none.
@@ -366,7 +366,7 @@ describe('media assets', () => {
             expect(Number(res.headers['content-length'])).toBe(PNG.length);
         });
 
-        it('falls back to the original for a bogus ?variant=', async () => {
+        it('falls back to the original for a bogus ?variant= [media:I-23]', async () => {
             const agent = await login();
             const asset = await uploadImage(agent, await makeImage(600, 400));
 
@@ -501,7 +501,7 @@ describe('media assets', () => {
      * says, and a non-member never does.
      */
     describe('raw download scope', () => {
-        it('streams to a member of the owning workspace, ignoring the header', async () => {
+        it('streams to a member of the owning workspace, ignoring the header [media:I-16]', async () => {
             const other = await seedWorkspace({ name: 'Other', slug: 'other' });
             await seedMembership(admin.id, other.id);
             const otherAgent = request.agent(harness.server);
@@ -527,7 +527,7 @@ describe('media assets', () => {
             expect(res.headers['content-type']).toContain('image/png');
         });
 
-        it('404s for a user who is not a member of the owning workspace', async () => {
+        it('404s for a user who is not a member of the owning workspace [media:I-16]', async () => {
             const asset = await upload(await login());
 
             // A viewer holds `media:read` (so this clears PermissionsGuard and

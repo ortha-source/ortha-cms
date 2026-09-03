@@ -113,7 +113,7 @@ describe('POST /api/auth/login', () => {
             expect(res.headers['set-cookie']).toBeUndefined();
         };
 
-        it('rejects an unknown email', async () => {
+        it('rejects an unknown email [identity:I-03]', async () => {
             expect401(
                 await post().send({
                     email: 'nobody@example.com',
@@ -128,7 +128,7 @@ describe('POST /api/auth/login', () => {
             );
         });
 
-        it('rejects a pending (not-yet-active) user', async () => {
+        it('rejects a pending (not-yet-active) user [identity:I-02]', async () => {
             await seedUser(harness.app, {
                 email: 'pending@example.com',
                 password: PASSWORD,
@@ -255,16 +255,14 @@ describe('POST /api/auth/login', () => {
             for (const email of [
                 "a' OR '1'='1@example.com",
                 'a";DROP TABLE users;--@example.com',
-                "%_@example.com"
+                '%_@example.com'
             ]) {
                 const res = await post().send({ email, password: PASSWORD });
                 expect([400, 401]).toContain(res.status);
             }
 
             // And the table is still there.
-            await post()
-                .send({ email: EMAIL, password: PASSWORD })
-                .expect(201);
+            await post().send({ email: EMAIL, password: PASSWORD }).expect(201);
         });
     });
 

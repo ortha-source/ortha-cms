@@ -24,7 +24,7 @@ function paramsOf(fragment: SQL): unknown[] {
  * `segment-read-scope.spec.ts` pass through all three.
  */
 describe('uuidArray', () => {
-    it('binds the whole list as a single parameter', () => {
+    it('binds the whole list as a single parameter [segments:I-08]', () => {
         const ids = [
             '11111111-1111-4111-8111-111111111111',
             '22222222-2222-4222-8222-222222222222'

@@ -130,7 +130,7 @@ describe('POST /api/auth/login — timing carries no enumeration signal', () => 
         expect(slower).toBeLessThan(faster * 1.5);
     }
 
-    it('answers an unknown address in the same time as a wrong password', async () => {
+    it('answers an unknown address in the same time as a wrong password [identity:I-03]', async () => {
         const { a: unknown, b: wrongPassword } = await compareBranches(
             'timing-nobody@example.com',
             EMAIL,

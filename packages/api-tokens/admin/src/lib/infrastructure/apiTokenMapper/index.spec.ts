@@ -50,7 +50,7 @@ describe('toApiToken', () => {
         vi.setSystemTime(now);
     }
 
-    it('reports a revoked token as revoked even while its expiry is in the future', () => {
+    it('reports a revoked token as revoked even while its expiry is in the future [api-tokens:I-10]', () => {
         at(NOW);
 
         const token = toApiToken(

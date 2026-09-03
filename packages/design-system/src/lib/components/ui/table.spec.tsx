@@ -102,7 +102,7 @@ describe('Table', () => {
 
     // BUG-design-system-04 / A11Y-design-system-04 — a region that scrolls has
     // to be reachable by keyboard (WCAG 2.1.1); a wheel is not a substitute.
-    it('makes the scroll container a tab stop once it overflows', () => {
+    it('makes the scroll container a tab stop once it overflows [design-system:I-16]', () => {
         const { wrapper } = renderTable();
 
         expect(wrapper.getAttribute('tabindex')).toBeNull();
@@ -115,7 +115,7 @@ describe('Table', () => {
         expect(wrapper.getAttribute('tabindex')).toBe('0');
     });
 
-    it('names the scroll region from the table it wraps', () => {
+    it('names the scroll region from the table it wraps [design-system:I-16]', () => {
         const { wrapper } = renderTable();
 
         act(() => {
@@ -123,6 +123,7 @@ describe('Table', () => {
             window.dispatchEvent(new Event('resize'));
         });
 
+        // covers: design-system:I-18
         expect(wrapper.getAttribute('role')).toBe('group');
         expect(wrapper.getAttribute('aria-label')).toBe('Members');
     });

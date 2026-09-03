@@ -45,13 +45,13 @@ describe('apiClient', () => {
     });
 
     describe('the workspace header', () => {
-        it('is omitted while no workspace is open', async () => {
+        it('is omitted while no workspace is open [utils:I-05]', async () => {
             const seen = stubTransport(200);
             await apiClient.get('/users');
             expect(seen[0].headers['X-Workspace-Id']).toBeUndefined();
         });
 
-        it('carries the active workspace once one is opened, and stops when it is cleared', async () => {
+        it('carries the active workspace once one is opened, and stops when it is cleared [utils:I-05]', async () => {
             const seen = stubTransport(200);
             setActiveWorkspaceId('ws-a');
             await apiClient.get('/content/entries');
@@ -112,6 +112,7 @@ describe('apiClient', () => {
         // resolves correctly against `baseURL`) fell out of the list and a
         // rejected sign-in read as a lost session.
         it.each(['auth/login', 'auth/me', 'auth/invite/tok-123'])(
+            // covers: utils:I-06
             'still exempts %s when the caller omits the leading slash',
             async (url) => {
                 stubTransport(401);
@@ -140,6 +141,7 @@ describe('apiClient', () => {
             '/auth/invites-admin',
             '/auth/meta',
             '/auth/logout-all'
+            // covers: utils:I-06
         ])('does not exempt the prefix-sharing path %s', async (url) => {
             stubTransport(401);
             const handler = vi.fn();
@@ -151,7 +153,7 @@ describe('apiClient', () => {
 
         // EC-04 — a handler that throws must not replace the caller's rejection,
         // or every `catch` in the app misidentifies the failure.
-        it('rethrows the original 401 even if the handler throws', async () => {
+        it('rethrows the original 401 even if the handler throws [utils:I-07]', async () => {
             stubTransport(401);
             setUnauthorizedHandler(() => {
                 throw new Error('handler blew up');

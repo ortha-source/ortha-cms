@@ -91,7 +91,7 @@ describe('skipping without a write', () => {
         expect(publishWithRetry).not.toHaveBeenCalled();
     });
 
-    it('skips a version the probe says is already on the registry, sending nothing', async () => {
+    it('skips a version the probe says is already on the registry, sending nothing [nx:I-25]', async () => {
         probeRegistry.mockResolvedValue('version-published');
         const packageRoot = stage(manifest);
 
@@ -124,7 +124,7 @@ describe('the probe’s answer reaches the retry policy', () => {
         });
     });
 
-    it('publishes anyway when the probe could not answer', async () => {
+    it('publishes anyway when the probe could not answer [nx:I-24]', async () => {
         probeRegistry.mockResolvedValue('unknown');
         const packageRoot = stage(manifest);
 
@@ -135,7 +135,7 @@ describe('the probe’s answer reaches the retry policy', () => {
 });
 
 describe('a dry run', () => {
-    it('rehearses the publish without probing or waiting', async () => {
+    it('rehearses the publish without probing or waiting [nx:I-29]', async () => {
         const packageRoot = stage(manifest);
 
         await releasePublishExecutor({ packageRoot, dryRun: true }, context());
@@ -159,7 +159,7 @@ describe('a dry run', () => {
 });
 
 describe('the creation-limit breaker', () => {
-    it('records the package that first hit the limit and fails', async () => {
+    it('records the package that first hit the limit and fails [nx:I-27]', async () => {
         probeRegistry.mockResolvedValue('name-absent');
         publishWithRetry.mockResolvedValue({
             status: 'creation-blocked',
@@ -175,7 +175,7 @@ describe('the creation-limit breaker', () => {
         );
     });
 
-    it('makes a later new name bow out without spending a request', async () => {
+    it('makes a later new name bow out without spending a request [nx:I-27]', async () => {
         probeRegistry.mockResolvedValue('name-absent');
         tripCreationLimit(throttleStateDir(root), '@orthacms/other');
         const packageRoot = stage(manifest);
@@ -225,11 +225,11 @@ describe('numeric precedence — env beats the target option beats the default',
         await expect(retriesUsed(undefined, 2)).resolves.toBe(2);
     });
 
-    it('uses the environment over the target option', async () => {
+    it('uses the environment over the target option [nx:I-30]', async () => {
         await expect(retriesUsed('8', 2)).resolves.toBe(8);
     });
 
-    it('accepts 0 from the environment — it is finite and non-negative', async () => {
+    it('accepts 0 from the environment — it is finite and non-negative [nx:I-30]', async () => {
         await expect(retriesUsed('0', 2)).resolves.toBe(0);
     });
 

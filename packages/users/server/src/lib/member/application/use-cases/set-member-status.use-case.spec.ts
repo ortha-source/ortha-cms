@@ -130,7 +130,7 @@ describe('SetMemberStatusUseCase', () => {
             expect(test.trace).toEqual([]);
         });
 
-        it('loads under the admin lock and reads the count after it', async () => {
+        it('loads under the admin lock and reads the count after it [users:I-01]', async () => {
             const test = harness(member());
 
             await test.useCase.disable(ACTOR, MEMBER_ID);
@@ -144,7 +144,7 @@ describe('SetMemberStatusUseCase', () => {
             ]);
         });
 
-        it('revokes the member’s sessions inside the transaction, after the save', async () => {
+        it('revokes the member’s sessions inside the transaction, after the save [users:I-03]', async () => {
             const test = harness(member());
 
             await test.useCase.disable(ACTOR, MEMBER_ID);
@@ -161,7 +161,7 @@ describe('SetMemberStatusUseCase', () => {
             expect(test.revoked).toEqual([MEMBER_ID]);
         });
 
-        it('propagates a failing revoke out of the unit of work', async () => {
+        it('propagates a failing revoke out of the unit of work [users:I-03]', async () => {
             const boom = new Error('sessions table unavailable');
             const test = harness(member(), { revokeFails: boom });
 
@@ -177,7 +177,7 @@ describe('SetMemberStatusUseCase', () => {
             expect(test.appended).toHaveLength(0);
         });
 
-        it('drains the aggregate’s own member.disabled fact', async () => {
+        it('drains the aggregate’s own member.disabled fact [users:I-14]', async () => {
             const test = harness(member());
 
             await test.useCase.disable(ACTOR, MEMBER_ID);

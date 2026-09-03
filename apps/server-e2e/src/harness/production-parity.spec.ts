@@ -1,9 +1,5 @@
 import request from 'supertest';
-import {
-    closeTestApp,
-    createTestApp,
-    type TestApp
-} from '../support/test-app';
+import { closeTestApp, createTestApp, type TestApp } from '../support/test-app';
 import { resetDb, seedActiveUser } from '../support/seed';
 
 const EMAIL = 'parity@example.com';
@@ -24,7 +20,7 @@ describe('production parity', () => {
         // assertable nowhere. Two apps, one flag, both directions.
         // Both routes are registered on the http adapter, so they sit OUTSIDE
         // the global `api` prefix — `/reference`, not `/api/reference`.
-        it('is not mounted with docs disabled (the production default)', async () => {
+        it('is not mounted with docs disabled (the production default) [bootstrap:I-10]', async () => {
             const harness = await createTestApp();
             try {
                 await request(harness.server).get('/reference').expect(404);
@@ -36,9 +32,10 @@ describe('production parity', () => {
             }
         });
 
-        it('is mounted, and describes the prefixed routes, with docs enabled', async () => {
+        it('is mounted, and describes the prefixed routes, with docs enabled [bootstrap:I-07]', async () => {
             const harness = await createTestApp({ docsEnabled: true });
             try {
+                // covers: bootstrap:I-08
                 await request(harness.server).get('/reference').expect(200);
                 const doc = await request(harness.server)
                     .get('/reference/json')
@@ -55,14 +52,16 @@ describe('production parity', () => {
             }
         });
 
-        it('sits outside every guard, as an unauthenticated request proves', async () => {
+        it('sits outside every guard, as an unauthenticated request proves [bootstrap:I-08]', async () => {
             // The reference is mounted on the adapter, not the Nest router, so
             // no `AuthGuard` sees it. That is deliberate and worth pinning: it
             // is also why `docs.enabled` is the *only* thing standing between a
             // production deployment and a public API map.
             const harness = await createTestApp({ docsEnabled: true });
             try {
-                await request(harness.server).get('/reference/json').expect(200);
+                await request(harness.server)
+                    .get('/reference/json')
+                    .expect(200);
                 await request(harness.server).get('/api/auth/me').expect(401);
             } finally {
                 await closeTestApp(harness);
@@ -88,7 +87,9 @@ describe('production parity', () => {
                 .send({ email: EMAIL, password: PASSWORD })
                 .expect(201);
             const header = res.headers['set-cookie'] as unknown as string[];
-            return header.find((value) => value.startsWith('ortha_session=')) ?? '';
+            return (
+                header.find((value) => value.startsWith('ortha_session=')) ?? ''
+            );
         }
 
         it('emits Secure + SameSite=None when the deployment configures them', async () => {

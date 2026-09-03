@@ -93,7 +93,7 @@ describe('PATCH /api/users/:id', () => {
         expect(res.body.name).toBe('Renamed');
     });
 
-    it('lets a member rename themselves', async () => {
+    it('lets a member rename themselves [users:I-02]', async () => {
         // The self guard is deliberately role-only: it fires when `dto.role`
         // is present *and different*, so editing your own display name is an
         // ordinary edit. Nothing else pins that asymmetry down, and widening
@@ -133,7 +133,7 @@ describe('PATCH /api/users/:id', () => {
         expect(await countActivityRows()).toBe(events);
     });
 
-    it('refuses to demote the last remaining admin with 409', async () => {
+    it('refuses to demote the last remaining admin with 409 [users:I-01]', async () => {
         // The seeded admin is the only active admin — demoting them is blocked.
         const agent = await login(ADMIN_EMAIL);
         await agent
@@ -184,7 +184,7 @@ describe('PATCH /api/users/:id', () => {
         expect((await getUserByEmail(ADMIN_EMAIL))?.roleKey).toBe('admin');
     });
 
-    it('leaves one admin standing when two demotions race', async () => {
+    it('leaves one admin standing when two demotions race [users:I-01]', async () => {
         // The only case that exercises `lockActiveAdmins` on the demote path.
         // Both transactions count-then-write the admin set; under READ
         // COMMITTED and without the advisory lock they each read two and both
@@ -379,7 +379,7 @@ describe('PATCH /api/users/:id', () => {
     });
 
     describe('conflict bodies carry a stable machine code', () => {
-        it('tags a self role change as SELF_ACTION', async () => {
+        it('tags a self role change as SELF_ACTION [users:I-02]', async () => {
             await seedActiveUser(harness.app, {
                 email: 'other-admin@example.com',
                 password: PASSWORD,

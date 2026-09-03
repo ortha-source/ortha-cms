@@ -148,7 +148,7 @@ describe('Copilot conversations (PATCH /api/copilot/conversations/:id)', () => {
                 .expect(400);
         });
 
-        it('does not reorder the list — a rename is not a use', async () => {
+        it('does not reorder the list — a rename is not a use [copilot:I-32]', async () => {
             const { agent } = await signIn(OWNER_EMAIL);
             const older = await startThread(agent, 'first');
             const newer = await startThread(agent, 'second');
@@ -239,7 +239,7 @@ describe('Copilot conversations (PATCH /api/copilot/conversations/:id)', () => {
             expect(response.body.modelChoice).toBe('default');
         });
 
-        it('400s a backend the operator never registered', async () => {
+        it('400s a backend the operator never registered [copilot:I-31]', async () => {
             const { agent } = await signIn(OWNER_EMAIL);
             const id = await startThread(agent, 'hi');
 
@@ -283,7 +283,7 @@ describe('Copilot conversations (PATCH /api/copilot/conversations/:id)', () => {
 
     // ------------------------------------------------------------ archiving
     describe('archiving', () => {
-        it('moves the thread between two disjoint lists, reversibly', async () => {
+        it('moves the thread between two disjoint lists, reversibly [copilot:I-33]', async () => {
             const { agent } = await signIn(OWNER_EMAIL);
             const id = await startThread(agent, 'file me away');
 
@@ -371,7 +371,7 @@ describe('Copilot conversations (PATCH /api/copilot/conversations/:id)', () => {
             expect(still[0].title).not.toBe('mine now');
         });
 
-        it('404s a thread from another workspace', async () => {
+        it('404s a thread from another workspace [copilot:I-30]', async () => {
             const other = await seedWorkspace({ name: 'Other', slug: 'other' });
             const { user, agent } = await signIn(OWNER_EMAIL);
             await seedMembership(user.id, other.id);

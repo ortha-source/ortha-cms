@@ -105,7 +105,7 @@ describe('createLocalStorageProvider', () => {
             ).toBe(true);
         });
 
-        it('keys a derivative under the reserved variants/ namespace, so it cannot collide with an original of the same name', async () => {
+        it('keys a derivative under the reserved variants/ namespace, so it cannot collide with an original of the same name [media:I-09]', async () => {
             const variant = await put({
                 fileName: 'thumb.webp',
                 body: Readable.from(Buffer.from('derived')),
@@ -189,7 +189,7 @@ describe('createLocalStorageProvider', () => {
         // Regression (BUG-media-server-04): a failed upload used to leave the
         // partial file on disk under a key `put` never returned, so nothing
         // could ever reclaim it.
-        it('leaves nothing behind when the body errors mid-stream', async () => {
+        it('leaves nothing behind when the body errors mid-stream [media:I-06]', async () => {
             const body = new PassThrough();
             const pending = put({ workspaceId: 'aborted', body });
             for (let index = 0; index < 20; index++) {
@@ -300,7 +300,7 @@ describe('createLocalStorageProvider', () => {
         // Regression: `createReadStream` opens lazily, so a missing blob used to
         // resolve and then emit ENOENT once the response was already a
         // streaming 200 that could no longer become a 404.
-        it('rejects for a missing key instead of failing mid-stream', async () => {
+        it('rejects for a missing key instead of failing mid-stream [media:I-07]', async () => {
             await expect(
                 provider.get(`${WORKSPACE}/${ASSET}/gone.png`)
             ).rejects.toBeInstanceOf(ObjectNotFoundError);
@@ -373,7 +373,7 @@ describe('createLocalStorageProvider', () => {
     });
 
     describe('remove', () => {
-        it('is idempotent — a missing key is a no-op', async () => {
+        it('is idempotent — a missing key is a no-op [media:I-07]', async () => {
             const stored = await put();
 
             await provider.remove(stored.storageKey);
@@ -546,7 +546,7 @@ describe('createLocalStorageProvider', () => {
     // The sharpest divergence from `provider-s3`, which throws synchronously
     // from every method: a caller written against this adapter's rejections
     // breaks against that one.
-    it('rejects rather than throwing synchronously from every method', async () => {
+    it('rejects rather than throwing synchronously from every method [media:I-08]', async () => {
         const calls = [
             () =>
                 provider.put({

@@ -123,7 +123,7 @@ describe('OutboxDispatcher (drain, retry ceiling, concurrency)', () => {
         dispatcher.onModuleDestroy();
     });
 
-    it('claims the oldest batch, delivers it, and stamps what it delivered', async () => {
+    it('claims the oldest batch, delivers it, and stamps what it delivered [database:I-14]', async () => {
         const collector = new Collector(['qa.batch']);
         dispatcher.register(collector);
         await seedPending(150, 'qa.batch');
@@ -161,7 +161,7 @@ describe('OutboxDispatcher (drain, retry ceiling, concurrency)', () => {
         expect(wildcard.seen).toHaveLength(2);
     });
 
-    it('increments attempts and leaves the row pending when a subscriber throws', async () => {
+    it('increments attempts and leaves the row pending when a subscriber throws [database:I-14] [database:I-15]', async () => {
         const failing = new AlwaysFails(['qa.retry']);
         dispatcher.register(failing);
         await seedPending(1, 'qa.retry');
@@ -178,7 +178,7 @@ describe('OutboxDispatcher (drain, retry ceiling, concurrency)', () => {
         expect(failing.calls).toBe(2);
     });
 
-    it('spaces retries out instead of burning the ceiling at commit rate', async () => {
+    it('spaces retries out instead of burning the ceiling at commit rate [database:I-15]', async () => {
         const failing = new AlwaysFails(['qa.backoff']);
         dispatcher.register(failing);
         await seedPending(1, 'qa.backoff');
@@ -209,7 +209,7 @@ describe('OutboxDispatcher (drain, retry ceiling, concurrency)', () => {
         ).toBe(1);
     });
 
-    it('stops claiming a row once it has failed MAX_DELIVERY_ATTEMPTS times', async () => {
+    it('stops claiming a row once it has failed MAX_DELIVERY_ATTEMPTS times [database:I-16]', async () => {
         const failing = new AlwaysFails(['qa.poison']);
         dispatcher.register(failing);
         await seedPending(1, 'qa.poison');
@@ -229,7 +229,7 @@ describe('OutboxDispatcher (drain, retry ceiling, concurrency)', () => {
         expect(failing.calls).toBe(MAX_DELIVERY_ATTEMPTS);
     });
 
-    it('does not let a full batch of poison rows starve the events behind them', async () => {
+    it('does not let a full batch of poison rows starve the events behind them [database:I-16]', async () => {
         // The regression this exists for: the claim is `ORDER BY occurred_at
         // LIMIT 100`, so 100 permanently-failing rows used to occupy the whole
         // batch on every drain, forever, and nothing newer was ever delivered
@@ -254,16 +254,15 @@ describe('OutboxDispatcher (drain, retry ceiling, concurrency)', () => {
         }
 
         expect(healthy.seen).toHaveLength(2);
-        expect(await countWhere('dispatched_at IS NOT NULL', 'qa.tail')).toBe(2);
+        expect(await countWhere('dispatched_at IS NOT NULL', 'qa.tail')).toBe(
+            2
+        );
         expect(
-            await countWhere(
-                `attempts = ${MAX_DELIVERY_ATTEMPTS}`,
-                'qa.head'
-            )
+            await countWhere(`attempts = ${MAX_DELIVERY_ATTEMPTS}`, 'qa.head')
         ).toBe(100);
     });
 
-    it('collapses concurrent drains instead of running one per caller', async () => {
+    it('collapses concurrent drains instead of running one per caller [database:I-18]', async () => {
         const collector = new Collector(['qa.parallel']);
         dispatcher.register(collector);
         await seedPending(500, 'qa.parallel');
@@ -286,7 +285,7 @@ describe('OutboxDispatcher (drain, retry ceiling, concurrency)', () => {
         expect(new Set(collector.seen).size).toBe(collector.seen.length);
     });
 
-    it('keeps the pool usable when many units of work commit over a backlog', async () => {
+    it('keeps the pool usable when many units of work commit over a backlog [database:I-18]', async () => {
         // Reproduces the deadlock directly: every subscriber here needs a pool
         // client of its own while the drain that called it is holding one. With
         // a drain per committing request, all ten clients ended up held by
@@ -324,7 +323,7 @@ describe('OutboxDispatcher (drain, retry ceiling, concurrency)', () => {
         expect(getPool().waitingCount).toBe(0);
     });
 
-    it('picks up a row nothing asked it to, once the poll backstop is running', async () => {
+    it('picks up a row nothing asked it to, once the poll backstop is running [database:I-13]', async () => {
         const collector = new Collector(['qa.poll']);
         dispatcher.register(collector);
         await seedPending(1, 'qa.poll');

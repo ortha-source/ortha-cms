@@ -66,7 +66,7 @@ test.describe('Records list — filtering by audience', () => {
         }
     });
 
-    test('opens on the multi-select, and names several audiences in one rule', async ({
+    test('opens on the multi-select, and names several audiences in one rule [query-builder:I-06]', async ({
         page,
         contentLibraryPage
     }) => {

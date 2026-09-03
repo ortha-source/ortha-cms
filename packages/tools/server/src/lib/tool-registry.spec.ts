@@ -58,7 +58,7 @@ describe('ToolRegistry', () => {
     describe('authorization', () => {
         // The security boundary. `visibleTo` only hides tools; a client is
         // free to call a name it was never shown, so the gate has to be here.
-        it('refuses a tool the actor lacks the permission for', async () => {
+        it('refuses a tool the actor lacks the permission for [tools:I-01]', async () => {
             const ran = { value: false };
             registry.register(
                 provider(
@@ -77,7 +77,7 @@ describe('ToolRegistry', () => {
             expect(ran.value).toBe(false);
         });
 
-        it('refuses a tool a hidden-from-list actor invokes by name', async () => {
+        it('refuses a tool a hidden-from-list actor invokes by name [copilot:I-05] [tools:I-02]', async () => {
             const ran = { value: false };
             registry.register(
                 provider(
@@ -95,7 +95,7 @@ describe('ToolRegistry', () => {
             expect(ran.value).toBe(false);
         });
 
-        it('requires EVERY permission a tool declares', async () => {
+        it('requires EVERY permission a tool declares [tools:I-03]', async () => {
             registry.register(
                 provider(
                     tool('content_media', [
@@ -172,7 +172,7 @@ describe('ToolRegistry', () => {
     });
 
     describe('call', () => {
-        it('404s an unknown tool, distinctly from a refusal', async () => {
+        it('404s an unknown tool, distinctly from a refusal [tools:I-10]', async () => {
             registry.register(provider(tool('content_list', [])));
 
             await expect(
@@ -259,7 +259,7 @@ describe('ToolRegistry', () => {
         // Otherwise a `read` token could probe a write tool's argument shape by
         // reading the refusals back, and two callers would get two different
         // answers to the same unauthorized call.
-        it('refuses on permissions before it looks at the arguments', async () => {
+        it('refuses on permissions before it looks at the arguments [tools:I-12]', async () => {
             registry.register(
                 provider({
                     ...searchTool(),
@@ -281,7 +281,7 @@ describe('ToolRegistry', () => {
         // Both consumers defended against this themselves (`args ?? {}` in the
         // MCP adapter, `call.input ?? {}` in the run engine). A third would have
         // had to remember; now it does not.
-        it('treats missing arguments as an empty object', async () => {
+        it('treats missing arguments as an empty object [tools:I-13]', async () => {
             registry.register(
                 provider({
                     ...tool('media_folders_list', []),
@@ -329,7 +329,7 @@ describe('ToolRegistry', () => {
             };
         }
 
-        it('hides a resource the actor lacks the permission for', async () => {
+        it('hides a resource the actor lacks the permission for [tools:I-14]', async () => {
             registry.register(gated([PERMISSIONS.USERS_READ]));
 
             await expect(
@@ -337,7 +337,7 @@ describe('ToolRegistry', () => {
             ).resolves.toEqual([]);
         });
 
-        it('refuses to read it even when the uri is named directly', async () => {
+        it('refuses to read it even when the uri is named directly [tools:I-14]', async () => {
             registry.register(gated([PERMISSIONS.USERS_READ]));
 
             await expect(
@@ -383,7 +383,7 @@ describe('ToolRegistry', () => {
             expect(() => registry.onApplicationBootstrap()).not.toThrow();
         });
 
-        it('refuses to boot when two providers claim one name', () => {
+        it('refuses to boot when two providers claim one name [mcp:I-22] [tools:I-15]', () => {
             registry.register(provider(tool('content_list', [])));
             registry.register(provider(tool('content_list', [])));
 
@@ -395,7 +395,7 @@ describe('ToolRegistry', () => {
         // `can()` is exact-match set membership, so a permission key that is not
         // one of ours is a tool nobody can ever call — the fail-closed direction,
         // and silent until someone asks why the tool never appears.
-        it('refuses to boot on a requires the deployment does not define', () => {
+        it('refuses to boot on a requires the deployment does not define [tools:I-15]', () => {
             registry.register(
                 provider(tool('content_list', ['content:read ' as never]))
             );
@@ -405,7 +405,7 @@ describe('ToolRegistry', () => {
             );
         });
 
-        it('refuses to boot on a name that is not snake_case', () => {
+        it('refuses to boot on a name that is not snake_case [tools:I-15]', () => {
             registry.register(provider(tool(' Content_List ', [])));
 
             expect(() => registry.onApplicationBootstrap()).toThrow(
@@ -416,7 +416,7 @@ describe('ToolRegistry', () => {
         // `!tool.surfaces` is false for `[]` and `[].includes(x)` is false, so
         // an empty array is a tool offered to neither consumer — dead on arrival
         // and impossible to tell from a typo.
-        it('refuses to boot on an empty surfaces array', () => {
+        it('refuses to boot on an empty surfaces array [tools:I-06]', () => {
             registry.register(
                 provider({ ...tool('content_list', []), surfaces: [] })
             );
@@ -426,7 +426,7 @@ describe('ToolRegistry', () => {
             );
         });
 
-        it('refuses to boot on an inputSchema that is not an object schema', () => {
+        it('refuses to boot on an inputSchema that is not an object schema [tools:I-15]', () => {
             registry.register(
                 provider({
                     ...tool('content_list', []),
@@ -439,7 +439,7 @@ describe('ToolRegistry', () => {
             );
         });
 
-        it('reports every problem at once, not just the first', () => {
+        it('reports every problem at once, not just the first [mcp:I-22] [tools:I-15]', () => {
             registry.register(
                 provider(tool('BadName', ['not:a:permission' as never]))
             );
@@ -465,7 +465,7 @@ describe('ToolRegistry', () => {
             return { ...tool(name, [], ran), surfaces };
         }
 
-        it('offers a tool that names no surfaces to both', () => {
+        it('offers a tool that names no surfaces to both [tools:I-06]', () => {
             registry.register(provider(tool('i18n_locales_list', [])));
 
             expect(registry.forSurface('mcp').map((e) => e.name)).toEqual([
@@ -495,7 +495,7 @@ describe('ToolRegistry', () => {
             ]);
         });
 
-        it('refuses to dispatch a tool the calling surface was never offered', async () => {
+        it('refuses to dispatch a tool the calling surface was never offered [tools:I-07]', async () => {
             const ran = { value: false };
             registry.register(
                 provider(narrowed('content_propose_update', ['copilot'], ran))
@@ -520,7 +520,7 @@ describe('ToolRegistry', () => {
         // for MCP), so the handler has to be told which one it is answering —
         // and told by the registry, not by the caller, so it is always the
         // surface the call was authorized against.
-        it('stamps the dispatching surface on the handler’s context', async () => {
+        it('stamps the dispatching surface on the handler’s context [mcp:I-11] [tools:I-08]', async () => {
             let seen: ToolContext | undefined;
             registry.register(
                 provider({
@@ -560,7 +560,7 @@ describe('ToolRegistry', () => {
 
         // Silently letting one win would make behaviour depend on plugin
         // registration order — the exact class of bug this fails loudly for.
-        it('throws when two providers claim the same tool name', () => {
+        it('throws when two providers claim the same tool name [tools:I-16]', () => {
             registry.register(provider(tool('content_list', [])));
             registry.register(provider(tool('content_list', [])));
 
@@ -571,7 +571,7 @@ describe('ToolRegistry', () => {
         // holds, so it must not brick it: every tool would collide with itself
         // and `all()` would throw for the rest of the process, taking both
         // surfaces down over a duplicated wiring line.
-        it('ignores a provider instance registered twice', () => {
+        it('ignores a provider instance registered twice [tools:I-16]', () => {
             const twice = provider(tool('content_list', []));
             registry.register(twice);
             registry.register(twice);

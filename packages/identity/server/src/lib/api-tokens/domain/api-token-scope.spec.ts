@@ -48,7 +48,7 @@ describe('scopePermissions', () => {
         expect(read.has('segments:manage')).toBe(false);
     });
 
-    it('never lets any token curate the media library', () => {
+    it('never lets any token curate the media library [media:I-26]', () => {
         // Attaching an asset to a record is content authoring; renaming or
         // deleting somebody else's library asset is administration, and nothing
         // on the public API needs it.
@@ -76,7 +76,7 @@ describe('tokenActor', () => {
         createdBy: 'user-1'
     };
 
-    it('identifies the actor by the token, never by the minting user', () => {
+    it('identifies the actor by the token, never by the minting user [api-tokens:I-16]', () => {
         // Revoking a token has to be enough to revoke its access. If the actor
         // were the minting user, an access decision would follow that user's
         // role instead — so a revoked token would keep working for as long as

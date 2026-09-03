@@ -169,7 +169,7 @@ test.describe('Workspaces page', () => {
     // the same way whether or not it exists; the admin has to keep that
     // promise, and it does so by never asking — the shell resolves `:id`
     // against the membership-scoped list it already holds.
-    test('a missing workspace and one you are not in read identically', async ({
+    test('a missing workspace and one you are not in read identically [workspaces:I-03]', async ({
         page,
         workspacesPage
     }) => {
@@ -207,7 +207,7 @@ test.describe('Workspaces page', () => {
             await mockWorkspacesUnavailable(page);
         });
 
-        test('the list page alerts, withholds the empty copy, and retries', async ({
+        test('the list page alerts, withholds the empty copy, and retries [workspaces:I-31]', async ({
             page,
             workspacesPage
         }) => {

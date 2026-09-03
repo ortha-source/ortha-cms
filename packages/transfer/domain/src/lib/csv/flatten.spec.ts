@@ -44,7 +44,7 @@ const identityFieldsOf = (type: string): string[] =>
     type === 'author' ? ['email'] : ['title'];
 
 describe('csvColumns', () => {
-    it('leads with the envelope and skips the inverse relation', () => {
+    it('leads with the envelope and skips the inverse relation [transfer:I-05]', () => {
         expect(csvColumns(post)).toEqual([
             '$id',
             '$depth',
@@ -167,7 +167,7 @@ describe('recordToRow / rowToRecord', () => {
         expect(parsed.$status).toBe('published');
     });
 
-    it('does not reconstruct media — a filename in a cell is not a file', () => {
+    it('does not reconstruct media — a filename in a cell is not a file [transfer:I-31]', () => {
         const columns = csvColumns(post);
         const row = recordToRow(record, post, identityFieldsOf);
 
@@ -187,7 +187,9 @@ describe('recordToRow / rowToRecord', () => {
         );
 
         expect(
-            rowToRecord(row, columns, post, identityFieldsOf).relations['author']
+            rowToRecord(row, columns, post, identityFieldsOf).relations[
+                'author'
+            ]
         ).toBeNull();
     });
 });

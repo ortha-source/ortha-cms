@@ -103,7 +103,7 @@ test.describe('Entry editor — rich text field', () => {
     });
 
     test.describe('the collapsed field', () => {
-        test('renders stored HTML as content, not markup', async ({
+        test('renders stored HTML as content, not markup [wysiwyg:I-02]', async ({
             wysiwygFieldPage
         }) => {
             await wysiwygFieldPage.gotoArticle(WS, WYSIWYG_ENTRY_ID);
@@ -143,7 +143,7 @@ test.describe('Entry editor — rich text field', () => {
             );
         });
 
-        test('keeps a plain textarea for a field that opted out', async ({
+        test('keeps a plain textarea for a field that opted out [wysiwyg:I-02]', async ({
             wysiwygFieldPage,
             contentLibraryPage
         }) => {
@@ -159,7 +159,7 @@ test.describe('Entry editor — rich text field', () => {
     });
 
     test.describe('the expanded editor', () => {
-        test('takes over the work area with the caret already in the text', async ({
+        test('takes over the work area with the caret already in the text [wysiwyg:I-07]', async ({
             wysiwygFieldPage
         }) => {
             await wysiwygFieldPage.gotoArticle(WS, WYSIWYG_ENTRY_ID);
@@ -176,7 +176,7 @@ test.describe('Entry editor — rich text field', () => {
             await expect(wysiwygFieldPage.surface('Body')).toBeFocused();
         });
 
-        test('keeps the record and its chrome on screen', async ({
+        test('keeps the record and its chrome on screen [wysiwyg:I-07]', async ({
             wysiwygFieldPage,
             contentLibraryPage
         }) => {
@@ -221,7 +221,7 @@ test.describe('Entry editor — rich text field', () => {
             await expect(wysiwygFieldPage.editorTabs).toBeVisible();
         });
 
-        test('writes edits back to the form as they are made', async ({
+        test('writes edits back to the form as they are made [wysiwyg:I-10]', async ({
             wysiwygFieldPage,
             contentLibraryPage
         }) => {
@@ -239,7 +239,7 @@ test.describe('Entry editor — rich text field', () => {
             );
         });
 
-        test('stores the formatting the toolbar applied', async ({
+        test('stores the formatting the toolbar applied [wysiwyg:I-11]', async ({
             wysiwygFieldPage,
             contentLibraryPage
         }) => {
@@ -434,7 +434,7 @@ test.describe('Entry editor — rich text field', () => {
             expect(savedText(body)).toContain('Also this.');
         });
 
-        test('names the structural problems in a body it is handed', async ({
+        test('names the structural problems in a body it is handed [wysiwyg:I-13]', async ({
             wysiwygFieldPage
         }) => {
             // The ORT-84 repro, opened in the editor. The insert command always
@@ -458,7 +458,7 @@ test.describe('Entry editor — rich text field', () => {
             ).toBeVisible();
         });
 
-        test('refuses to save a body a screen reader could not follow', async ({
+        test('refuses to save a body a screen reader could not follow [wysiwyg:I-13]', async ({
             wysiwygFieldPage,
             contentLibraryPage
         }) => {
@@ -513,7 +513,7 @@ test.describe('Entry editor — rich text field', () => {
             ).toEqual({ lang: 'fr' });
         });
 
-        test('refuses a language tag assistive tech would ignore', async ({
+        test('refuses a language tag assistive tech would ignore [wysiwyg:I-14]', async ({
             wysiwygFieldPage,
             contentLibraryPage
         }) => {
@@ -564,7 +564,7 @@ test.describe('Entry editor — rich text field', () => {
             ).toBeVisible();
         });
 
-        test('stores an image named by URL', async ({
+        test('stores an image named by URL [wysiwyg:I-28]', async ({
             wysiwygFieldPage,
             contentLibraryPage
         }) => {
@@ -600,7 +600,7 @@ test.describe('Entry editor — rich text field', () => {
             expect(attr(images[0], 'alt')).toBe('A photo');
         });
 
-        test('refuses a URL the editor would not publish', async ({
+        test('refuses a URL the editor would not publish [wysiwyg:I-21]', async ({
             wysiwygFieldPage
         }) => {
             await wysiwygFieldPage.gotoArticle(WS, WYSIWYG_ENTRY_ID);
@@ -615,7 +615,7 @@ test.describe('Entry editor — rich text field', () => {
             await expect(wysiwygFieldPage.editorImage(/./)).toHaveCount(0);
         });
 
-        test('places an asset picked from the Media Library', async ({
+        test('places an asset picked from the Media Library [wysiwyg:I-28]', async ({
             wysiwygFieldPage,
             contentLibraryPage
         }) => {
@@ -645,7 +645,7 @@ test.describe('Entry editor — rich text field', () => {
             expect(uploads.count).toBe(0);
         });
 
-        test('resizes an image from the keyboard, and stores the width', async ({
+        test('resizes an image from the keyboard, and stores the width [wysiwyg:I-23]', async ({
             wysiwygFieldPage,
             contentLibraryPage
         }) => {
@@ -678,7 +678,7 @@ test.describe('Entry editor — rich text field', () => {
             ).toEqual(expect.any(Number));
         });
 
-        test('centres a selected image, and stores where it sits', async ({
+        test('centres a selected image, and stores where it sits [wysiwyg:I-24]', async ({
             wysiwygFieldPage,
             contentLibraryPage
         }) => {
@@ -763,7 +763,7 @@ test.describe('Entry editor — rich text field', () => {
             ).toBe('Ada at her desk');
         });
 
-        test('records a decorative image as answered, not as missing', async ({
+        test('records a decorative image as answered, not as missing [wysiwyg:I-26]', async ({
             wysiwygFieldPage,
             contentLibraryPage
         }) => {
@@ -796,7 +796,7 @@ test.describe('Entry editor — rich text field', () => {
             expect(attr(images[0], 'decorative')).toBe(true);
         });
 
-        test('never saves the record from an overlay’s own form', async ({
+        test('never saves the record from an overlay’s own form [wysiwyg:I-27]', async ({
             wysiwygFieldPage,
             contentLibraryPage
         }) => {
@@ -899,7 +899,7 @@ test.describe('Entry editor — rich text field', () => {
             await expect(wysiwygFieldPage.surface('Body')).toBeFocused();
         });
 
-        test('a translated body claims its own language, expanded or not', async ({
+        test('a translated body claims its own language, expanded or not [wysiwyg:I-36]', async ({
             wysiwygFieldPage
         }) => {
             await wysiwygFieldPage.gotoArticle(WS, WYSIWYG_GERMAN_ENTRY_ID);
@@ -926,7 +926,7 @@ test.describe('Entry editor — rich text field', () => {
             expect(await wysiwygFieldPage.resolvedDir(surface)).toBe('auto');
         });
 
-        test('returns focus to the field when the editor closes', async ({
+        test('returns focus to the field when the editor closes [wysiwyg:I-37]', async ({
             wysiwygFieldPage
         }) => {
             await wysiwygFieldPage.gotoArticle(WS, WYSIWYG_ENTRY_ID);

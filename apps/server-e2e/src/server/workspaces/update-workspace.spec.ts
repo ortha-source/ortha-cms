@@ -163,7 +163,7 @@ describe('Update workspace (PATCH /api/workspaces/:id)', () => {
         ).toHaveLength(0);
     });
 
-    it('rejects a slug in the patch body and leaves the slug alone', async () => {
+    it('rejects a slug in the patch body and leaves the slug alone [workspaces:I-13]', async () => {
         const { agent } = await loginAs('admin', ADMIN_EMAIL);
         const id = await createWorkspace(agent);
 
@@ -207,7 +207,7 @@ describe('Update workspace (PATCH /api/workspaces/:id)', () => {
             .expect(403);
     });
 
-    it('forbids an admin who is not a member of the workspace', async () => {
+    it('forbids an admin who is not a member of the workspace [workspaces:I-01]', async () => {
         const { agent: owner } = await loginAs('admin', ADMIN_EMAIL);
         const id = await createWorkspace(owner);
 

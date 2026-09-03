@@ -134,6 +134,7 @@ describe('WorkspacesModule route guards', () => {
 
     describe('membership — where a caller may act', () => {
         it.each(ROUTE_CASES)(
+            // covers: workspaces:I-05
             '%s carries WorkspaceMemberGuard iff it names a workspace in the path',
             (_key, subject) => {
                 // Both directions on purpose. A missing guard is a tenancy
@@ -145,7 +146,7 @@ describe('WorkspacesModule route guards', () => {
             }
         );
 
-        it('guards the two read-only preview counters too', () => {
+        it('guards the two read-only preview counters too [workspaces:I-05]', () => {
             // The easiest omission to rationalise: they only return a number,
             // so why guard a read? Because the number is "how much content
             // does workspace X hold" — an answer no non-member is entitled to,
@@ -200,7 +201,7 @@ describe('WorkspacesModule route guards', () => {
             }
         );
 
-        it('gates the slug-availability probe on workspaces:create', () => {
+        it('gates the slug-availability probe on workspaces:create [workspaces:I-29]', () => {
             // Authentication alone was not enough: the probe answers "does
             // this slug exist" for any caller, which turns any signed-in
             // account into a directory of the tenancy, one guess at a time.
@@ -231,6 +232,7 @@ describe('WorkspacesModule route guards', () => {
                 'DELETE /workspaces/:id/content/:slug'
             ]
         ])(
+            // covers: workspaces:I-30
             "the %s counter matches its action's permission",
             (_label, counter, action) => {
                 expect(route(counter).permissions).toEqual(

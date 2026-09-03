@@ -63,6 +63,7 @@ describe('domain layer imports', () => {
         expect(FILES.some((path) => path.endsWith('member.ts'))).toBe(true);
     });
 
+    // covers: users:I-15
     it.each(FORBIDDEN)('imports nothing from %s', (_label, forbidden) => {
         const offenders = FILES.filter((path) =>
             specifiersOf(path).some(forbidden)

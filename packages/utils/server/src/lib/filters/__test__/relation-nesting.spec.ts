@@ -79,7 +79,7 @@ const parentHop = (
 });
 
 describe('relations nested under a self-referential hop', () => {
-    it('binds a nested many-to-one FK to the alias, not the outer table', () => {
+    it('binds a nested many-to-one FK to the alias, not the outer table [utils:I-28]', () => {
         const rel = parentHop('qb_parent', {
             author: {
                 kind: RelationKind.ManyToOne,
@@ -128,7 +128,7 @@ describe('relations nested under a self-referential hop', () => {
         expect(out).toContain('"qb_parent"."id" = "content_page"."parent_id"');
     });
 
-    it('binds a nested one-to-many parentKey to the alias', () => {
+    it('binds a nested one-to-many parentKey to the alias [utils:I-28]', () => {
         const rel = parentHop('qb_parent', {
             comments: {
                 kind: RelationKind.OneToMany,

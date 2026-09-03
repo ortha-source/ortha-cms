@@ -71,6 +71,7 @@ describe('isAllowedCustomHeader', () => {
         'User-Agent',
         '',
         'bad header'
+        // covers: webhooks:I-11
     ])('refuses %p', (name) => {
         expect(isAllowedCustomHeader(name)).toBe(false);
     });

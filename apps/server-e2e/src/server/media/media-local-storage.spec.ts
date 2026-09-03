@@ -165,7 +165,7 @@ describe('media assets on the local filesystem provider', () => {
         expect(await readdir(root)).toEqual([]);
     });
 
-    it('refuses to serve a file outside the storage root when the stored key traverses', async () => {
+    it('refuses to serve a file outside the storage root when the stored key traverses [media:I-18]', async () => {
         const agent = await login();
         const asset = await upload(agent);
         const outside = await mkdtemp(join(tmpdir(), 'ortha-e2e-outside-'));
@@ -216,7 +216,7 @@ describe('media assets on the local filesystem provider', () => {
         }
     });
 
-    it('answers 404 when the blob is missing from disk', async () => {
+    it('answers 404 when the blob is missing from disk [media:I-17]', async () => {
         const agent = await login();
         const asset = await upload(agent);
         // Row kept, bytes gone — a restored database pointed at an empty volume.
@@ -233,7 +233,7 @@ describe('media assets on the local filesystem provider', () => {
         expect(res.status).toBe(404);
     });
 
-    it('does not name the storage key in the 404 body', async () => {
+    it('does not name the storage key in the 404 body [media:I-17]', async () => {
         const agent = await login();
         const asset = await upload(agent);
         await rm(join(root, await storageKeyOf(asset.id)));

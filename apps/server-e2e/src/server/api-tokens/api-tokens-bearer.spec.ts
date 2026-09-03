@@ -89,7 +89,7 @@ describe('API token management refuses bearer tokens (/api/api-tokens)', () => {
             .expect(200);
     });
 
-    it('401s a bearer token minting another token — no self-issue', async () => {
+    it('401s a bearer token minting another token — no self-issue [api-tokens:I-14] [identity:I-19]', async () => {
         const { secret } = await mintToken();
 
         await request(harness.server)

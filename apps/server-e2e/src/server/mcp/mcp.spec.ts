@@ -173,7 +173,7 @@ describe('MCP endpoint (/api/v1/mcp)', () => {
     }
 
     describe('authentication', () => {
-        it('401s without an Authorization header', async () => {
+        it('401s without an Authorization header [mcp:I-01]', async () => {
             await request(harness.server)
                 .post(MCP_PATH)
                 .set('Accept', ACCEPT)
@@ -187,7 +187,7 @@ describe('MCP endpoint (/api/v1/mcp)', () => {
 
         // A cookie rides along ambiently, which is exactly what makes a
         // cookie-authenticated write CSRF-able. This endpoint writes content.
-        it('does not accept a session cookie in place of a token', async () => {
+        it('does not accept a session cookie in place of a token [mcp:I-03]', async () => {
             const agent = await login();
             await agent
                 .post(MCP_PATH)
@@ -196,7 +196,7 @@ describe('MCP endpoint (/api/v1/mcp)', () => {
                 .expect(401);
         });
 
-        it('401s once the token is revoked', async () => {
+        it('401s once the token is revoked [mcp:I-04]', async () => {
             const { id, secret } = await mintToken();
             await rpc(secret, 'tools/list').expect(200);
 
@@ -206,7 +206,7 @@ describe('MCP endpoint (/api/v1/mcp)', () => {
             await rpc(secret, 'tools/list').expect(401);
         });
 
-        it('401s once the token has expired', async () => {
+        it('401s once the token has expired [mcp:I-04]', async () => {
             // Expiry kills every surface at once — it is decided in
             // `ApiTokenService.verify`, upstream of the protocol — and the
             // refusal is a transport 401 rather than a JSON-RPC error object:
@@ -288,7 +288,7 @@ describe('MCP endpoint (/api/v1/mcp)', () => {
             expect(JSON.parse(result.content[0].text)['total']).toBe(1);
         });
 
-        it('403s a workspace outside the token bucket', async () => {
+        it('403s a workspace outside the token bucket [mcp:I-06]', async () => {
             const { secret } = await mintToken({ workspaceIds: [workspaceId] });
 
             await rpc(secret, 'tools/list', undefined, {
@@ -321,7 +321,7 @@ describe('MCP endpoint (/api/v1/mcp)', () => {
     });
 
     describe('tools/list', () => {
-        it('shows a read-scoped token only the read tools', async () => {
+        it('shows a read-scoped token only the read tools [mcp:I-18]', async () => {
             const { secret } = await mintToken({ scope: 'read' });
 
             const res = await rpc(secret, 'tools/list').expect(200);
@@ -337,7 +337,7 @@ describe('MCP endpoint (/api/v1/mcp)', () => {
             expect(names).not.toContain('content_delete');
         });
 
-        it('shows a full-scoped token the write tools too', async () => {
+        it('shows a full-scoped token the write tools too [mcp:I-18]', async () => {
             const { secret } = await mintToken({ scope: 'full' });
 
             const res = await rpc(secret, 'tools/list').expect(200);
@@ -391,7 +391,7 @@ describe('MCP endpoint (/api/v1/mcp)', () => {
         // the trash) and their write half produces proposals only the chat panel
         // can accept, so an MCP client could see unpublished content or create
         // changes it has no way to apply.
-        it('shows no copilot-only tool, whatever the scope', async () => {
+        it('shows no copilot-only tool, whatever the scope [activity:I-21] [mcp:I-09] [media:I-30]', async () => {
             const { secret } = await mintToken({ scope: 'full' });
 
             const res = await rpc(secret, 'tools/list').expect(200);
@@ -438,7 +438,7 @@ describe('MCP endpoint (/api/v1/mcp)', () => {
         // state to leak, no write, and no user-only attribution belongs to
         // both callers. These are the registry's shared tools — a change that
         // makes one of them copilot-only should have to delete an assertion.
-        it('shows the shared tools to a read-scoped token', async () => {
+        it('shows the shared tools to a read-scoped token [media:I-30]', async () => {
             const { secret } = await mintToken({ scope: 'read' });
 
             const res = await rpc(secret, 'tools/list').expect(200);
@@ -474,7 +474,7 @@ describe('MCP endpoint (/api/v1/mcp)', () => {
         // reason `ToolContext.surface` exists. The admin's raw route scopes by
         // workspace *membership*, which a token has none of, so handing an MCP
         // client that path would be a link it is guaranteed to get a 401 from.
-        it('gives an MCP caller the bearer-fetchable download path', async () => {
+        it('gives an MCP caller the bearer-fetchable download path [media:I-30]', async () => {
             const { secret: writeSecret } = await mintToken({ scope: 'full' });
             await request(harness.server)
                 .post('/api/v1/media/assets')
@@ -511,7 +511,7 @@ describe('MCP endpoint (/api/v1/mcp)', () => {
         // Surface filtering is applied in `call` too, not only in `list` —
         // exactly as the permission check is, and for the same reason: a client
         // may invoke a name it was never shown.
-        it('refuses a copilot-only tool invoked by name', async () => {
+        it('refuses a copilot-only tool invoked by name [mcp:I-09]', async () => {
             const { secret } = await mintToken({ scope: 'full' });
 
             const { isError } = await callTool(secret, 'admin_content_search', {
@@ -557,7 +557,7 @@ describe('MCP endpoint (/api/v1/mcp)', () => {
     describe('authorization', () => {
         // The security boundary: `tools/list` only hides a tool, and a client
         // is free to invoke a name it was never shown.
-        it('refuses a write tool a read token invokes by name', async () => {
+        it('refuses a write tool a read token invokes by name [mcp:I-08] [tools:I-05]', async () => {
             const { secret } = await mintToken({ scope: 'read' });
 
             const { isError, data } = await callTool(secret, 'content_create', {
@@ -592,7 +592,7 @@ describe('MCP endpoint (/api/v1/mcp)', () => {
             }
         });
 
-        it('refuses draft visibility to a read token', async () => {
+        it('refuses draft visibility to a read token [mcp:I-24]', async () => {
             const { secret } = await mintToken({ scope: 'read' });
 
             const { isError, data } = await callTool(secret, 'content_list', {
@@ -609,7 +609,7 @@ describe('MCP endpoint (/api/v1/mcp)', () => {
         // not merely hidden from `tools/list` — it does not exist here. Which
         // is the honest answer: `alarms:read` is mintable by no scope, so a
         // token that could reach the handler would be refused by it anyway.
-        it('refuses a copilot-only tool a full-scope token names', async () => {
+        it('refuses a copilot-only tool a full-scope token names [alarms:I-34]', async () => {
             const { secret } = await mintToken({ scope: 'full' });
 
             const { isError, data } = await callTool(
@@ -621,7 +621,7 @@ describe('MCP endpoint (/api/v1/mcp)', () => {
             expect(data['code']).toBe('not_found');
         });
 
-        it('reports an unknown tool as not_found', async () => {
+        it('reports an unknown tool as not_found [tools:I-10]', async () => {
             const { secret } = await mintToken();
 
             const { isError, data } = await callTool(
@@ -678,7 +678,7 @@ describe('MCP endpoint (/api/v1/mcp)', () => {
             ]);
         });
 
-        it('still answers a permission refusal before it reads the arguments', async () => {
+        it('still answers a permission refusal before it reads the arguments [mcp:I-10]', async () => {
             const { secret } = await mintToken({ scope: 'read' });
 
             const { isError, data } = await callTool(secret, 'content_delete', {
@@ -774,7 +774,7 @@ describe('MCP endpoint (/api/v1/mcp)', () => {
             expect(schema).not.toHaveProperty('required');
         });
 
-        it('404s an ungranted type exactly like an unknown one', async () => {
+        it('404s an ungranted type exactly like an unknown one [tools:I-11]', async () => {
             const { secret } = await mintToken();
 
             const ungranted = await callTool(secret, 'content_type_get', {
@@ -823,7 +823,7 @@ describe('MCP endpoint (/api/v1/mcp)', () => {
     });
 
     describe('reads', () => {
-        it('lists published entries only', async () => {
+        it('lists published entries only [mcp:I-24]', async () => {
             const { secret } = await mintToken();
             await seedPublished('Live one');
             await seedArticles(
@@ -1083,11 +1083,11 @@ describe('MCP endpoint (/api/v1/mcp)', () => {
 
         // Authentication runs before the protocol layer, so the verb answer is
         // not reachable without a credential.
-        it('401s an unauthenticated GET, before the verb is considered', async () => {
+        it('401s an unauthenticated GET, before the verb is considered [mcp:I-02]', async () => {
             await request(harness.server).get(MCP_PATH).expect(401);
         });
 
-        it('401s a bearer value carrying internal whitespace', async () => {
+        it('401s a bearer value carrying internal whitespace [mcp:I-05]', async () => {
             const { secret } = await mintToken();
 
             await request(harness.server)
@@ -1101,7 +1101,7 @@ describe('MCP endpoint (/api/v1/mcp)', () => {
         // Express parses a repeated query parameter into an array. Reading that
         // as "unnamed" let a single-workspace token quietly succeed against its
         // own workspace while the caller had named two others.
-        it('400s a repeated ?workspaceId= instead of ignoring it', async () => {
+        it('400s a repeated ?workspaceId= instead of ignoring it [mcp:I-06]', async () => {
             const { secret } = await mintToken();
 
             const res = await rpc(secret, 'tools/list', undefined, {
@@ -1194,7 +1194,7 @@ describe('MCP endpoint (/api/v1/mcp)', () => {
             );
         });
 
-        it('ignores an Mcp-Session-Id from a client that thinks it has one', async () => {
+        it('ignores an Mcp-Session-Id from a client that thinks it has one [mcp:I-17]', async () => {
             const { secret } = await mintToken();
 
             await request(harness.server)
@@ -1209,7 +1209,7 @@ describe('MCP endpoint (/api/v1/mcp)', () => {
         // The asymmetry, pinned on the wire: a tool failure is a result, a
         // resource failure is a protocol error — and it carries the same
         // flattened payload either way.
-        it('answers an unreadable resource URI with -32002 and structured data', async () => {
+        it('answers an unreadable resource URI with -32002 and structured data [mcp:I-12]', async () => {
             const { secret } = await mintToken();
 
             const res = await rpc(secret, 'resources/read', {
@@ -1224,7 +1224,7 @@ describe('MCP endpoint (/api/v1/mcp)', () => {
             expect(body.error?.data).toMatchObject({ code: 'not_found' });
         });
 
-        it('refuses a tool result over the endpoint ceiling', async () => {
+        it('refuses a tool result over the endpoint ceiling [mcp:I-15]', async () => {
             const tiny = await createTestApp({ mcpMaxResultBytes: 200 });
             try {
                 const agent = request.agent(tiny.server);
@@ -1271,7 +1271,7 @@ describe('MCP endpoint (/api/v1/mcp)', () => {
             }
         });
 
-        it('abandons a tool call that outlives the endpoint deadline', async () => {
+        it('abandons a tool call that outlives the endpoint deadline [mcp:I-15]', async () => {
             // 1ms is shorter than any real query, so whichever tool runs, the
             // deadline wins — this pins that the caller always gets an answer.
             const impatient = await createTestApp({ mcpCallTimeoutMs: 1 });

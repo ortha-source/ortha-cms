@@ -60,12 +60,14 @@ describe('UsersModule authorization posture', () => {
         expect(CONTROLLERS.length).toBeGreaterThan(0);
     });
 
+    // covers: users:I-12
     it.each(CASES)('%s binds PermissionsGuard', (_name, controller) => {
         const guards = Reflect.getMetadata(GUARDS_METADATA, controller) ?? [];
         expect(guards).toContain(PermissionsGuard);
     });
 
     it.each(CASES)(
+        // covers: users:I-12
         '%s requires a permission from the shared catalogue',
         (_name, controller) => {
             const required: unknown[] =
@@ -83,6 +85,7 @@ describe('UsersModule authorization posture', () => {
     );
 
     it.each(CASES)(
+        // covers: users:I-12
         '%s binds OriginGuard when it has a state-changing handler',
         (_name, controller) => {
             const methods = handlersOf(controller).map((handler) =>
@@ -101,6 +104,7 @@ describe('UsersModule authorization posture', () => {
         }
     );
 
+    // covers: users:I-12
     it.each(CASES)('%s exposes no public route', (_name, controller) => {
         expect(Reflect.getMetadata(IS_PUBLIC_KEY, controller)).toBeUndefined();
         for (const handler of handlersOf(controller)) {
@@ -118,7 +122,7 @@ describe('UsersModule authorization posture', () => {
 });
 
 describe('UsersModule.forRoot', () => {
-    it('exports nothing and is not global — every provider stays private', () => {
+    it('exports nothing and is not global — every provider stays private [users:I-18]', () => {
         const module = UsersModule.forRoot();
 
         expect(module.exports).toBeUndefined();

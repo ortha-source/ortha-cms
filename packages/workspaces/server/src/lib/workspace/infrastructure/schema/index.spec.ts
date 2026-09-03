@@ -40,7 +40,7 @@ describe('workspaces schema barrel', () => {
         expect(barrel.workspaceContent).toBe(workspaceContent);
     });
 
-    it('does not re-export the users stub under any name', () => {
+    it('does not re-export the users stub under any name [workspaces:I-24]', () => {
         // Identity-by-value, not by key: renaming the export on the way out
         // would still hand drizzle-kit the stub.
         expect(EXPORTED).not.toContain(users);

@@ -80,7 +80,7 @@ describe('System role seeding', () => {
         }
     });
 
-    it('is idempotent — a second run changes nothing', async () => {
+    it('is idempotent — a second run changes nothing [identity:I-13]', async () => {
         const before = await catalogue();
         const adminBefore = await grantsFor('admin');
 
@@ -90,7 +90,7 @@ describe('System role seeding', () => {
         expect(await grantsFor('admin')).toEqual(adminBefore);
     });
 
-    it('survives two instances seeding at once', async () => {
+    it('survives two instances seeding at once [identity:I-13]', async () => {
         // Every write is conflict-safe, so simultaneous boots must both
         // succeed rather than racing into a unique violation.
         await Promise.all([

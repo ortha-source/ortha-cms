@@ -61,7 +61,7 @@ test.describe('the right panel', () => {
         await contentLibraryPage.propertiesPanel.waitFor();
     }
 
-    test('collapsing it from the keyboard hands focus to the reopen button', async ({
+    test('collapsing it from the keyboard hands focus to the reopen button [shell:I-18]', async ({
         contentLibraryPage
     }) => {
         await openEditorWithPanel(contentLibraryPage);
@@ -79,7 +79,7 @@ test.describe('the right panel', () => {
         await expect(contentLibraryPage.showPropertiesButton).toBeFocused();
     });
 
-    test('reopening it from the keyboard hands focus back into the panel', async ({
+    test('reopening it from the keyboard hands focus back into the panel [shell:I-18]', async ({
         contentLibraryPage
     }) => {
         await openEditorWithPanel(contentLibraryPage);
@@ -97,7 +97,7 @@ test.describe('the right panel', () => {
         await expect(contentLibraryPage.hidePropertiesButton).toBeFocused();
     });
 
-    test('a collapse the user never asked for is not persisted as a preference', async ({
+    test('a collapse the user never asked for is not persisted as a preference [shell:I-21]', async ({
         page,
         contentLibraryPage
     }) => {
@@ -163,7 +163,10 @@ test.describe('the right panel as a narrow-viewport overlay', () => {
         await contentLibraryPage.propertiesPanel.waitFor();
     }
 
-    test('Escape dismisses it', async ({ page, contentLibraryPage }) => {
+    test('Escape dismisses it [shell:I-22]', async ({
+        page,
+        contentLibraryPage
+    }) => {
         await raiseOverlay(contentLibraryPage);
         await expect(contentLibraryPage.propertiesPanel).toBeVisible();
 
@@ -191,7 +194,7 @@ test.describe('the right panel as a narrow-viewport overlay', () => {
         await expect(contentLibraryPage.showPropertiesButton).toBeFocused();
     });
 
-    test('the scrim is decoration, not an unreachable control', async ({
+    test('the scrim is decoration, not an unreachable control [shell:I-23]', async ({
         contentLibraryPage
     }) => {
         await raiseOverlay(contentLibraryPage);

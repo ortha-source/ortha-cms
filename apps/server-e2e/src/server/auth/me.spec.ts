@@ -353,7 +353,7 @@ describe('GET /api/auth/me', () => {
          * a disable can leave behind. The cookie is still live; the account is
          * not, and the resolve must refuse it on that alone.
          */
-        it('rejects a live session whose account was suspended', async () => {
+        it('rejects a live session whose account was suspended [identity:I-02]', async () => {
             const cookie = await login();
             await setUserStatus(user.id, 'disabled');
             await get().set('Cookie', cookie).expect(401);

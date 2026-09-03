@@ -115,7 +115,7 @@ function existing(id: string): MemberInput {
  */
 describe('DrizzleMemberProvisioner', () => {
     describe('invited members', () => {
-        it('normalises and de-dupes an address, issuing one lookup and one insert', async () => {
+        it('normalises and de-dupes an address, issuing one lookup and one insert [workspaces:I-25]', async () => {
             const { subject, calls, inserted } = provisioner({
                 created: [{ id: 'user-1', email: 'grace@example.com' }],
                 existingIds: ['user-1']
@@ -194,7 +194,7 @@ describe('DrizzleMemberProvisioner', () => {
     });
 
     describe('directory ids', () => {
-        it('drops an id the users table does not have, and still succeeds', async () => {
+        it('drops an id the users table does not have, and still succeeds [workspaces:I-26]', async () => {
             const { subject } = provisioner({ existingIds: ['real-user'] });
 
             // A stale id in somebody's member picker would otherwise hit the

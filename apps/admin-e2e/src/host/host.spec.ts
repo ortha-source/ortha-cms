@@ -18,7 +18,7 @@ import { mockApiTokensApi } from '../support/api/apiTokens';
  */
 
 test.describe('a private route whose chunk never loads', () => {
-    test('shows a recoverable card instead of blanking the app', async ({
+    test('shows a recoverable card instead of blanking the app [bootstrap:I-30]', async ({
         page,
         hostPage,
         membersPage
@@ -57,7 +57,7 @@ test.describe('a private route whose chunk never loads', () => {
         await expect(hostPage.crashHeading).toBeFocused();
     });
 
-    test('a broken page does not take the toast host with it', async ({
+    test('a broken page does not take the toast host with it [bootstrap:I-30]', async ({
         page,
         hostPage,
         membersPage
@@ -79,7 +79,7 @@ test.describe('a private route whose chunk never loads', () => {
 });
 
 test.describe('client-side navigation is announced', () => {
-    test('the live region is mounted, and empty, before anything happens', async ({
+    test('the live region is mounted, and empty, before anything happens [bootstrap:I-31]', async ({
         page,
         hostPage,
         homePage
@@ -121,7 +121,7 @@ test.describe('client-side navigation is announced', () => {
         await expect(hostPage.routeAnnouncer).toHaveText('Members');
     });
 
-    test('a second navigation names the new page, not the one just left', async ({
+    test('a second navigation names the new page, not the one just left [bootstrap:I-32]', async ({
         page,
         hostPage,
         homePage,
@@ -235,7 +235,7 @@ test.describe('the toast host', () => {
 });
 
 test.describe('bypass blocks', () => {
-    test('the first Tab reaches a visible skip link', async ({
+    test('the first Tab reaches a visible skip link [shell:I-25]', async ({
         page,
         hostPage,
         homePage
@@ -252,7 +252,7 @@ test.describe('bypass blocks', () => {
         await expect(hostPage.skipLink).toBeVisible();
     });
 
-    test('activating it puts focus inside main, past the sidebar', async ({
+    test('activating it puts focus inside main, past the sidebar [shell:I-25] [shell:I-32]', async ({
         page,
         hostPage,
         homePage
@@ -340,7 +340,10 @@ test.describe('the shell chrome is inside landmarks', () => {
      * `AgentsPage.dock` both resolve it by the same landmark role and name — a
      * regression there fails every copilot suite rather than one assertion here.
      */
-    test('the sidebar is a named landmark', async ({ page, homePage }) => {
+    test('the sidebar is a named landmark [shell:I-29]', async ({
+        page,
+        homePage
+    }) => {
         await mockSignedIn(page);
         await homePage.goto();
         await expect(homePage.nav).toBeVisible();

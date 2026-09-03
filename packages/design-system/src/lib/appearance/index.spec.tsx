@@ -63,7 +63,7 @@ describe('AppearanceProvider', () => {
         expect(resolved()).toBe('light');
     });
 
-    it('reflects a chosen theme onto <html>', () => {
+    it('reflects a chosen theme onto <html> [design-system:I-24]', () => {
         render(
             <AppearanceProvider>
                 <Probe />
@@ -155,7 +155,7 @@ describe('AppearanceProvider', () => {
     });
 
     // EC-27 — private mode / quota.
-    it('renders and still repaints when storage throws', () => {
+    it('renders and still repaints when storage throws [design-system:I-23]', () => {
         const getItem = vi
             .spyOn(Storage.prototype, 'getItem')
             .mockImplementation(() => {
@@ -200,7 +200,7 @@ describe('AppearanceProvider', () => {
 });
 
 describe('useAppearance', () => {
-    it('falls back to a working no-op outside a provider', () => {
+    it('falls back to a working no-op outside a provider [design-system:I-25]', () => {
         render(<Probe />);
 
         expect(theme()).toBe('system');

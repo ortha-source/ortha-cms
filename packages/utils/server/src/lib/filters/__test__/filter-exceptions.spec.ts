@@ -32,7 +32,7 @@ describe('FilterException', () => {
         expect(e.context).toEqual({ maxNodes: 50 });
     });
 
-    it('does not let context overwrite the four reserved keys', () => {
+    it('does not let context overwrite the four reserved keys [utils:I-32]', () => {
         // The class exists so a client can branch on `code` instead of
         // string-matching the message. `...context` used to be spread LAST, so
         // a context key named `code` / `statusCode` / `error` / `message`

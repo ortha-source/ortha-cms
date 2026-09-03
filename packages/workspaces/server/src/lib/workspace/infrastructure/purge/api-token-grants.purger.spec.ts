@@ -72,7 +72,7 @@ describe('ApiTokenGrantsPurger', () => {
         ]);
     });
 
-    it('never touches api_tokens — narrowing a scope is not revoking a token', async () => {
+    it('never touches api_tokens — narrowing a scope is not revoking a token [workspaces:I-28]', async () => {
         const { subject, targets } = purger([
             { tokenId: 'token-1' },
             { tokenId: 'token-2' }

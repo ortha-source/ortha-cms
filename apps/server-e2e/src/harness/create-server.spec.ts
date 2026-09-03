@@ -93,7 +93,7 @@ describe('createServer (the host bootstrap)', () => {
             });
         }
 
-        it('accepts a body well past express’s inherited 100 kB default', async () => {
+        it('accepts a body well past express’s inherited 100 kB default [bootstrap:I-05]', async () => {
             const app = await boot();
             // 401 from the credential check, not 413 from the parser: the
             // point is that a 300 kB request reached a controller at all.
@@ -104,7 +104,7 @@ describe('createServer (the host bootstrap)', () => {
                 .expect(401);
         });
 
-        it('refuses a body over the configured cap with 413', async () => {
+        it('refuses a body over the configured cap with 413 [bootstrap:I-05]', async () => {
             const app = await boot({ bodyLimit: '20kb' });
             await request(app.getHttpServer())
                 .post('/api/auth/login')
@@ -124,7 +124,7 @@ describe('createServer (the host bootstrap)', () => {
     });
 
     describe('a boot failure says which plugin failed', () => {
-        it('names the plugin whose onPluginInit throws, and rejects', async () => {
+        it('names the plugin whose onPluginInit throws, and rejects [bootstrap:I-03]', async () => {
             const error = jest
                 .spyOn(Logger, 'error')
                 .mockImplementation(() => undefined);
@@ -156,7 +156,7 @@ describe('createServer (the host bootstrap)', () => {
     });
 
     describe('one plugin’s bad docs pass does not take the API down', () => {
-        it('logs the plugin and still serves both the API and the reference', async () => {
+        it('logs the plugin and still serves both the API and the reference [bootstrap:I-11]', async () => {
             const error = jest
                 .spyOn(Logger, 'error')
                 .mockImplementation(() => undefined);
@@ -200,7 +200,7 @@ describe('createServer (the host bootstrap)', () => {
         // serves nothing. That ordering constraint is why `createServer` calls
         // it before `listen`, and it is now written down in `AGENTS.md`.
 
-        it('returns null, and mounts nothing, when docs are disabled', async () => {
+        it('returns null, and mounts nothing, when docs are disabled [bootstrap:I-10]', async () => {
             const app = await boot();
             const config = buildTestConfig(resolveDatabaseUrl());
             expect(
@@ -243,7 +243,7 @@ describe('createServer (the host bootstrap)', () => {
             await request(app.getHttpServer()).get('/reference').expect(404);
         });
 
-        it('registers the JSON route first, so it wins a path collision', async () => {
+        it('registers the JSON route first, so it wins a path collision [bootstrap:I-09]', async () => {
             // The default has the document living *under* the UI mount, and
             // express answers with whichever handler was registered first — so
             // the ordering inside `setupApiDocs` is the whole reason
@@ -262,7 +262,7 @@ describe('createServer (the host bootstrap)', () => {
     });
 
     describe('SIGTERM is handled rather than fatal', () => {
-        it('installs shutdown listeners so in-flight requests are not dropped', async () => {
+        it('installs shutdown listeners so in-flight requests are not dropped [bootstrap:I-16]', async () => {
             const before = process.listenerCount('SIGTERM');
             const app = await boot();
             // Without `enableShutdownHooks`, node's default SIGTERM handling
@@ -273,6 +273,7 @@ describe('createServer (the host bootstrap)', () => {
 
             await app.close();
             apps.pop();
+            // covers: bootstrap:I-17
             expect(process.listenerCount('SIGTERM')).toBe(before);
         });
     });
@@ -325,7 +326,7 @@ describe('createServer (the host bootstrap)', () => {
          * returns 200 and HTML, and an API client's "route not found" becomes
          * an unexplained JSON parse error.
          */
-        it('leaves an unknown API path as a JSON 404', async () => {
+        it('leaves an unknown API path as a JSON 404 [bootstrap:I-13]', async () => {
             const app = await boot({}, [], undefined, bundle);
 
             const response = await request(app.getHttpServer())
@@ -336,7 +337,7 @@ describe('createServer (the host bootstrap)', () => {
             expect(response.text).not.toContain('ADMIN');
         });
 
-        it('does not swallow a non-GET request', async () => {
+        it('does not swallow a non-GET request [bootstrap:I-13]', async () => {
             const app = await boot({}, [], undefined, bundle);
 
             await request(app.getHttpServer())
@@ -363,7 +364,7 @@ describe('createServer (the host bootstrap)', () => {
                 .expect(404);
         });
 
-        it('404s a missing asset even when the client accepts HTML', async () => {
+        it('404s a missing asset even when the client accepts HTML [bootstrap:I-13]', async () => {
             const app = await boot({}, [], undefined, bundle);
 
             await request(app.getHttpServer())
@@ -372,7 +373,7 @@ describe('createServer (the host bootstrap)', () => {
                 .expect(404);
         });
 
-        it('gives a JSON client a 404 it can parse, not a page', async () => {
+        it('gives a JSON client a 404 it can parse, not a page [bootstrap:I-13]', async () => {
             const app = await boot({}, [], undefined, bundle);
 
             await request(app.getHttpServer())
@@ -381,7 +382,7 @@ describe('createServer (the host bootstrap)', () => {
                 .expect(404);
         });
 
-        it('serves the API only, without failing boot, when the bundle is absent', async () => {
+        it('serves the API only, without failing boot, when the bundle is absent [bootstrap:I-14]', async () => {
             const warn = jest
                 .spyOn(Logger, 'warn')
                 .mockImplementation(() => undefined);

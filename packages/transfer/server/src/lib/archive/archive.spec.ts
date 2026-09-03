@@ -94,9 +94,13 @@ describe('archives written by other tools', () => {
             join(dir, 'entries', 'post.ndjson'),
             `${'{"a":1}\n'.repeat(200)}`
         );
-        execFileSync('zip', ['-r', '-q', 'out.zip', 'manifest.json', 'entries'], {
-            cwd: dir
-        });
+        execFileSync(
+            'zip',
+            ['-r', '-q', 'out.zip', 'manifest.json', 'entries'],
+            {
+                cwd: dir
+            }
+        );
 
         const zip = readFileSync(join(dir, 'out.zip'));
         const read = readAll(zip);
@@ -118,8 +122,7 @@ describe('hostile archives', () => {
     }): Buffer {
         const name = Buffer.from(options.path, 'utf8');
         const payload = deflateRawSync(options.raw);
-        const uncompressed =
-            options.declaredUncompressed ?? options.raw.length;
+        const uncompressed = options.declaredUncompressed ?? options.raw.length;
 
         const local = Buffer.alloc(30 + name.length);
         local.writeUInt32LE(0x04034b50, 0);
@@ -155,7 +158,7 @@ describe('hostile archives', () => {
         return Buffer.concat([local, payload, central, end]);
     }
 
-    it('refuses a path that climbs out of the archive', () => {
+    it('refuses a path that climbs out of the archive [transfer:I-26]', () => {
         const zip = forge({
             path: '../../etc/passwd',
             raw: Buffer.from('pwned')
@@ -194,7 +197,7 @@ describe('hostile archives', () => {
         ).toThrow(/null byte/);
     });
 
-    it('refuses an entry declaring more than the per-entry ceiling', () => {
+    it('refuses an entry declaring more than the per-entry ceiling [transfer:I-25]', () => {
         expect(() =>
             readZipDirectory(
                 forge({ path: 'big.txt', raw: Buffer.from('x'.repeat(64)) }),
@@ -203,7 +206,7 @@ describe('hostile archives', () => {
         ).toThrow(/over the 16 limit/);
     });
 
-    it('refuses an archive whose compression ratio is not real content', () => {
+    it('refuses an archive whose compression ratio is not real content [transfer:I-25]', () => {
         // The bomb's trick: small enough to pass an upload limit, enormous once
         // unpacked. The ratio is the signal that arrives before the bytes.
         const zip = forge({
@@ -216,7 +219,7 @@ describe('hostile archives', () => {
         );
     });
 
-    it('refuses more entries than the limit before reading any of them', () => {
+    it('refuses more entries than the limit before reading any of them [transfer:I-25]', () => {
         expect(() =>
             readZipDirectory(
                 forge({
@@ -246,7 +249,10 @@ describe('hostile archives', () => {
         // Long enough to reach the directory scan rather than the length guard,
         // so this exercises "no end-of-central-directory found".
         expect(() =>
-            readZipDirectory(Buffer.from('not a zip, just text'.repeat(20)), limits)
+            readZipDirectory(
+                Buffer.from('not a zip, just text'.repeat(20)),
+                limits
+            )
         ).toThrow(/not a ZIP archive/);
         expect(looksLikeZip(Buffer.from('nope'))).toBe(false);
     });

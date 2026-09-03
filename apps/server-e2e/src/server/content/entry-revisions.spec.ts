@@ -82,7 +82,7 @@ describe('Content entry revisions (/api/content/:type/:id/revisions)', () => {
         });
     });
 
-    it('appends an incrementing revision on every save, newest first', async () => {
+    it('appends an incrementing revision on every save, newest first [content:I-12]', async () => {
         const agent = await login(ADMIN_EMAIL);
         const create = await agent
             .post('/api/content/test_article')
@@ -158,7 +158,7 @@ describe('Content entry revisions (/api/content/:type/:id/revisions)', () => {
         ]);
     });
 
-    it('restores an earlier revision as a new revision (append-only)', async () => {
+    it('restores an earlier revision as a new revision (append-only) [content:I-11]', async () => {
         const agent = await login(ADMIN_EMAIL);
         const create = await agent
             .post('/api/content/test_article')
@@ -227,7 +227,7 @@ describe('Content entry revisions (/api/content/:type/:id/revisions)', () => {
             expect(list.body.items[0].publishedAt).toEqual(expect.any(String));
         });
 
-        it('supersedes the previously-published revision when a newer one publishes', async () => {
+        it('supersedes the previously-published revision when a newer one publishes [content:I-10]', async () => {
             const agent = await login(ADMIN_EMAIL);
             const create = await agent
                 .post('/api/content/test_article')
@@ -350,7 +350,7 @@ describe('Content entry revisions (/api/content/:type/:id/revisions)', () => {
             });
         });
 
-        it('publishes a specific earlier version, making it live', async () => {
+        it('publishes a specific earlier version, making it live [content:I-11]', async () => {
             const agent = await login(ADMIN_EMAIL);
             const create = await agent
                 .post('/api/content/test_article')

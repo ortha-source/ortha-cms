@@ -89,7 +89,7 @@ describe('POST /api/auth/logout', () => {
         expect(rawSetCookie(res)).toBeDefined();
     });
 
-    it('is idempotent with a bogus session cookie', async () => {
+    it('is idempotent with a bogus session cookie [identity:I-07]', async () => {
         const res = await logout()
             .set('Cookie', 'ortha_session=not-a-real-token')
             .expect(201);
@@ -102,7 +102,7 @@ describe('POST /api/auth/logout', () => {
         await logout().set('Cookie', cookie).expect(201);
     });
 
-    it('revokes only the presented session, not the user’s others', async () => {
+    it('revokes only the presented session, not the user’s others [identity:I-07]', async () => {
         const cookieA = await login();
         const cookieB = await login();
 

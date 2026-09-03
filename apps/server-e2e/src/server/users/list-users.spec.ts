@@ -45,7 +45,7 @@ describe('GET /api/users', () => {
         await request(harness.server).get('/api/users').expect(401);
     });
 
-    it('returns the paginated envelope with the expected shape', async () => {
+    it('returns the paginated envelope with the expected shape [users:I-05]', async () => {
         const agent = await adminAgent();
         const res = await agent.get('/api/users').expect(200);
 

@@ -92,7 +92,7 @@ test.describe('Records filter — relations (query builder)', () => {
         expect(tree.and[0].value).toBe('Ada');
     });
 
-    test('a "contains" rule wraps its value in escaped wildcards', async ({
+    test('a "contains" rule wraps its value in escaped wildcards [query-builder:I-12]', async ({
         contentLibraryPage,
         page
     }) => {
@@ -279,7 +279,7 @@ test.describe('Records filter — relations (query builder)', () => {
             await expect(page).not.toHaveURL(/filter=/);
         });
 
-        test('"Clear all" drops every condition', async ({
+        test('"Clear all" drops every condition [query-builder:I-13]', async ({
             contentLibraryPage,
             page
         }) => {
@@ -304,7 +304,7 @@ test.describe('Records filter — relations (query builder)', () => {
             });
         });
 
-        test('shows an error state instead of an empty picker', async ({
+        test('shows an error state instead of an empty picker [query-builder:I-15]', async ({
             contentLibraryPage,
             page
         }) => {

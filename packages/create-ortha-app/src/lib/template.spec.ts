@@ -59,7 +59,7 @@ describe('render', () => {
 describe('the scaffolded app, whatever the features', () => {
     beforeEach(() => scaffold('media-local', 'rest'));
 
-    it('pins every @orthacms dependency to this scaffolder’s version', () => {
+    it('pins every @orthacms dependency to this scaffolder’s version [create-ortha-app:I-03]', () => {
         const { dependencies, devDependencies } = manifest();
         const ortha = Object.entries({
             ...dependencies,
@@ -100,13 +100,13 @@ describe('the scaffolded app, whatever the features', () => {
      * generated app starts by offering to commit `node_modules` — and nothing
      * about the tarball looks wrong.
      */
-    it('restores the dotfiles npm will not publish', () => {
+    it('restores the dotfiles npm will not publish [create-ortha-app:I-22]', () => {
         expect(readdirSync(target)).toContain('.gitignore');
         expect(readdirSync(target)).not.toContain('_gitignore');
         expect(rendered('.gitignore')).toContain('node_modules');
     });
 
-    it('renames the .tmpl files onto their real names', () => {
+    it('renames the .tmpl files onto their real names [create-ortha-app:I-22]', () => {
         const entries = readdirSync(target);
 
         expect(entries).toEqual(
@@ -118,14 +118,14 @@ describe('the scaffolded app, whatever the features', () => {
     // ORT-149 — the generated `.env` used to carry two 256-bit secrets that
     // nothing read. Sessions and one-time tokens are opaque random values
     // checked against a row, so there is no key to place in a scaffolded app.
-    it('scaffolds no signing secrets, because identity has none to sign with', () => {
+    it('scaffolds no signing secrets, because identity has none to sign with [create-ortha-app:I-17]', () => {
         const env = rendered('.env');
 
         expect(env).not.toContain('SESSION_SECRET');
         expect(env).not.toContain('TOKEN_SECRET');
     });
 
-    it('leaves no placeholder or directive in any rendered file', () => {
+    it('leaves no placeholder or directive in any rendered file [create-ortha-app:I-05]', () => {
         for (const file of [
             'package.json',
             '.env',
@@ -179,7 +179,7 @@ describe('the scaffolded app, whatever the features', () => {
      * Otherwise `ortha build` compiles the tests into `dist/server` and ships
      * them — along with whatever fixtures they import.
      */
-    it('keeps the unit specs out of the build', () => {
+    it('keeps the unit specs out of the build [create-ortha-app:I-24]', () => {
         const tsconfig = JSON.parse(rendered('apps/server/tsconfig.json')) as {
             exclude?: string[];
         };
@@ -218,9 +218,7 @@ describe('the scaffolded app, whatever the features', () => {
      * `Cannot find name 'describe'` in the editor of a freshly generated app.
      */
     it('gives the server specs a project that knows about jest', () => {
-        const spec = JSON.parse(
-            rendered('apps/server/tsconfig.spec.json')
-        ) as {
+        const spec = JSON.parse(rendered('apps/server/tsconfig.spec.json')) as {
             compilerOptions: { types: string[]; noEmit: boolean };
             include: string[];
         };
@@ -241,7 +239,7 @@ describe('the scaffolded app, whatever the features', () => {
      * The app is `"type": "commonjs"`, and Vite warns — and will eventually
      * fail — on ESM syntax in a config loaded as CommonJS.
      */
-    it('names the Vite config .mts', () => {
+    it('names the Vite config .mts [create-ortha-app:I-26]', () => {
         expect(readdirSync(join(target, 'apps/admin'))).toContain(
             'vite.config.mts'
         );
@@ -257,7 +255,7 @@ describe('the scaffolded app, whatever the features', () => {
      * silently unstyled. Only a literal directory becomes an explicit content
      * root. Hence the assertion on the exact, glob-free string.
      */
-    it('points Tailwind at the installed packages', () => {
+    it('points Tailwind at the installed packages [create-ortha-app:I-25]', () => {
         const styles = rendered('apps/admin/src/styles.css');
         expect(styles).toContain('@source "../../../node_modules/@orthacms";');
         expect(styles).not.toMatch(/@source\s+"[^"]*node_modules[^"]*[*]/);
@@ -368,7 +366,7 @@ describe('with a copilot provider', () => {
      * generated app, and a keyless deployment answering every question with a
      * canned sentence is worse than having no copilot.
      */
-    it('registers no offline stand-in alongside it', () => {
+    it('registers no offline stand-in alongside it [copilot:I-37]', () => {
         expect(rendered('apps/server/src/plugins.ts')).not.toContain(
             'createFakeProvider'
         );

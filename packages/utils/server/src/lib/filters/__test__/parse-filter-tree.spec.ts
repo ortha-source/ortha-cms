@@ -264,7 +264,7 @@ describe('parseFilterTree', () => {
             ).toBe(FilterErrorCode.InvalidNode);
         });
 
-        it('still rejects unknown fields via the leaf resolver', () => {
+        it('still rejects unknown fields via the leaf resolver [utils:I-21]', () => {
             expect(
                 captureCode({ field: 'secretField', op: 'eq', value: 'x' })
             ).toBe(FilterErrorCode.UnknownField);
@@ -324,7 +324,7 @@ describe('parseFilterTree', () => {
             expect(captureCode(inner)).toBe(FilterErrorCode.GroupDepthExceeded);
         });
 
-        it('rejects an empty `in` list (would match no rows)', () => {
+        it('rejects an empty `in` list (would match no rows) [utils:I-31]', () => {
             // An empty array reaches inArray(col, []) which Drizzle emits as
             // SQL `false`; reject it as a clean 400 instead.
             expect(captureCode({ field: 'status', op: 'in', value: [] })).toBe(
@@ -332,7 +332,7 @@ describe('parseFilterTree', () => {
             );
         });
 
-        it('rejects an empty `nin` list (would match every row)', () => {
+        it('rejects an empty `nin` list (would match every row) [utils:I-31]', () => {
             // notInArray(col, []) emits SQL `true` — a silent inverted filter.
             expect(captureCode({ field: 'status', op: 'nin', value: [] })).toBe(
                 FilterErrorCode.EmptyInList

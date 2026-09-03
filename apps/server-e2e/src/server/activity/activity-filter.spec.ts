@@ -114,7 +114,7 @@ describe('GET /api/activity (query-builder filter)', () => {
         expect(past.body.total).toBe(3);
     });
 
-    it('AND-composes the filter with the existing kind param', async () => {
+    it('AND-composes the filter with the existing kind param [activity:I-15]', async () => {
         const { agent } = await seedEvents();
 
         // kind=user.suspended (param) AND actorEmail eq admin (filter)
@@ -137,7 +137,7 @@ describe('GET /api/activity (query-builder filter)', () => {
         });
     });
 
-    it('rejects an unknown field with 400 (whitelist)', async () => {
+    it('rejects an unknown field with 400 (whitelist) [activity:I-16]', async () => {
         const agent = await login(ADMIN_EMAIL);
         await getFiltered(agent, {
             field: 'meta',

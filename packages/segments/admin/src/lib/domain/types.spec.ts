@@ -34,7 +34,7 @@ describe('withState', () => {
      * resolves as denied — while the editor's screen says allowed. Removing
      * before adding is what makes it unreachable.
      */
-    it('never leaves a segment in both lists', () => {
+    it('never leaves a segment in both lists [segments:I-24]', () => {
         const messy = { allow: ['s1'], deny: ['s1'] };
         const fixed = withState(messy, 's1', SEGMENT_STATE.Allow);
         expect(fixed.allow).toEqual(['s1']);
@@ -69,7 +69,7 @@ describe('isOpen', () => {
 });
 
 describe('sameAccess', () => {
-    it('ignores order, so a reordered list is not a pending change', () => {
+    it('ignores order, so a reordered list is not a pending change [segments:I-25]', () => {
         expect(
             sameAccess(
                 { allow: ['a', 'b'], deny: [] },

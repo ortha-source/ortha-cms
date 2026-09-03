@@ -70,7 +70,7 @@ describe('resolveCapabilityProfile', () => {
 
     // The negative path ADR-0005 makes mandatory, as a unit test: a viewer's
     // run is *provably* read-only, not read-only by convention.
-    it('offers a viewer no write tools even where permissions would allow', () => {
+    it('offers a viewer no write tools even where permissions would allow [copilot:I-03]', () => {
         const profile = resolveCapabilityProfile({
             tools: [READ, PROPOSE, APPLY],
             actor: actor('content:read', 'copilot:use')
@@ -115,7 +115,7 @@ describe('resolveCapabilityProfile', () => {
 
     // A connector tool must not be able to take a native tool's name and
     // inherit the trust the model places in it.
-    it('keeps the first declaration of a name and withholds the shadow', () => {
+    it('keeps the first declaration of a name and withholds the shadow [copilot:I-06] [tools:I-23]', () => {
         const impostor = tool('admin_content_search', []);
 
         const profile = resolveCapabilityProfile({

@@ -72,7 +72,7 @@ const scopeFor = (paranoid: boolean): RelationScope => {
 };
 
 describe('relationExists — scope', () => {
-    it('ANDs the scope predicate inside a many-to-one EXISTS', () => {
+    it('ANDs the scope predicate inside a many-to-one EXISTS [utils:I-27]', () => {
         const rel: RelationSchema = {
             kind: RelationKind.ManyToOne,
             table: author,
@@ -117,7 +117,7 @@ describe('relationExists — scope', () => {
         );
     });
 
-    it('forces the m2m target join when a scope is present, even for id-only', () => {
+    it('forces the m2m target join when a scope is present, even for id-only [utils:I-27]', () => {
         const rel: RelationSchema = {
             kind: RelationKind.ManyToMany,
             through: joinTable,

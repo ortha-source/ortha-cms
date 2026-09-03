@@ -48,7 +48,7 @@ async function failuresOn(
  */
 describe('UpdateWorkspaceDto', () => {
     describe('the slug is not editable here', () => {
-        it('has no slug property at all', () => {
+        it('has no slug property at all [workspaces:I-13]', () => {
             expect('slug' in new UpdateWorkspaceDto()).toBe(false);
         });
 

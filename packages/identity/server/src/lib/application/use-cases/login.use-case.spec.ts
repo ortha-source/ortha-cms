@@ -152,7 +152,7 @@ describe('LoginUseCase', () => {
         };
     }
 
-    it('compares against a dummy hash when no such account exists', async () => {
+    it('compares against a dummy hash when no such account exists [activity:I-35]', async () => {
         // No account is the case that would otherwise return instantly. One
         // comparison runs anyway, against the throwaway hash, so "unknown
         // email" and "wrong password" cost the same ~250ms.
@@ -223,7 +223,7 @@ describe('LoginUseCase', () => {
         expect(events[0].payload.userAgent).toBe('curl/8.5.0');
     });
 
-    it('refuses a pending invite the same way, opening no session', async () => {
+    it('refuses a pending invite the same way, opening no session [activity:I-35]', async () => {
         // `pending` means the invite was never accepted, so there is no hash to
         // compare — the dummy stands in for it.
         const { useCase, verifications, issued, events } = harness({

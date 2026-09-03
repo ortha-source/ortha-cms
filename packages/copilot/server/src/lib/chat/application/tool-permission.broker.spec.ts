@@ -77,7 +77,7 @@ describe('ToolPermissionBroker', () => {
         expect(broker.decide('run-1', 'call-1', 'once', owner)).toBe(false);
     });
 
-    it('refuses a second answer to a settled call', async () => {
+    it('refuses a second answer to a settled call [copilot:I-11]', async () => {
         const pending = park();
         expect(broker.decide('run-1', 'call-1', 'once', owner)).toBe(true);
         await pending;
@@ -96,7 +96,7 @@ describe('ToolPermissionBroker', () => {
         });
     });
 
-    it('spends one waiting budget across a run’s calls, not one per call', async () => {
+    it('spends one waiting budget across a run’s calls, not one per call [copilot:I-10]', async () => {
         // Four minutes on the first call…
         const first = park('run-1', 'call-1');
         jest.advanceTimersByTime(4 * 60_000);
@@ -117,7 +117,7 @@ describe('ToolPermissionBroker', () => {
         });
     });
 
-    it('refuses without asking once the budget is gone', async () => {
+    it('refuses without asking once the budget is gone [copilot:I-10]', async () => {
         const first = park('run-1', 'call-1');
         jest.advanceTimersByTime(5 * 60_000);
         await first;
@@ -141,7 +141,7 @@ describe('ToolPermissionBroker', () => {
         });
     });
 
-    it('rejects on abort, so the generator unwinds instead of leaking', async () => {
+    it('rejects on abort, so the generator unwinds instead of leaking [copilot:I-11]', async () => {
         const pending = park();
         controller.abort(new Error('client went away'));
 

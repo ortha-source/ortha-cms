@@ -79,7 +79,7 @@ describe('EntryFilterProviderRegistry.compose', () => {
         ).resolves.toBe('segments');
     });
 
-    it('keeps the first declarer of a duplicated field name', async () => {
+    it('keeps the first declarer of a duplicated field name [content:I-26]', async () => {
         // Letting the last writer win would make what a saved filter *means*
         // depend on plugin registration order.
         const registry = new EntryFilterProviderRegistry();

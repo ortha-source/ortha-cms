@@ -48,7 +48,7 @@ describe('UnitOfWork + OutboxWriter (transaction boundary)', () => {
         await resetDb();
     });
 
-    it('runs the callback in one transaction, and a nested run joins it', async () => {
+    it('runs the callback in one transaction, and a nested run joins it [database:I-07]', async () => {
         const seen: string[] = [];
         let innerExecutorIsOuter = false;
 
@@ -77,7 +77,7 @@ describe('UnitOfWork + OutboxWriter (transaction boundary)', () => {
         expect(innerExecutorIsOuter).toBe(true);
     });
 
-    it('rolls the appended events back with the state change that produced them', async () => {
+    it('rolls the appended events back with the state change that produced them [database:I-10]', async () => {
         const aggregateId = 'rollback-1';
 
         await expect(
@@ -90,7 +90,7 @@ describe('UnitOfWork + OutboxWriter (transaction boundary)', () => {
         expect(await getOutboxRows(aggregateId)).toEqual([]);
     });
 
-    it('commits the events with the state change that produced them', async () => {
+    it('commits the events with the state change that produced them [database:I-10] [database:I-21]', async () => {
         const aggregateId = 'commit-1';
 
         await uow.run(async () => {
@@ -110,7 +110,7 @@ describe('UnitOfWork + OutboxWriter (transaction boundary)', () => {
         expect(rows.map((row) => row.attempts)).toEqual([0, 0]);
     });
 
-    it('is a no-op for an empty event array', async () => {
+    it('is a no-op for an empty event array [database:I-11]', async () => {
         await expect(
             uow.run(async () => {
                 await outbox.append([]);
@@ -118,7 +118,7 @@ describe('UnitOfWork + OutboxWriter (transaction boundary)', () => {
         ).resolves.toBeUndefined();
     });
 
-    it('rejects the whole unit of work when one append repeats an eventId', async () => {
+    it('rejects the whole unit of work when one append repeats an eventId [database:I-12]', async () => {
         const aggregateId = 'duplicate-1';
         const eventId = '11111111-2222-4333-8444-555555555555';
         const duplicate = () =>
@@ -144,7 +144,7 @@ describe('UnitOfWork + OutboxWriter (transaction boundary)', () => {
         expect(await getOutboxRows(aggregateId)).toEqual([]);
     });
 
-    it('refuses an append outside a unit of work instead of committing it alone', async () => {
+    it('refuses an append outside a unit of work instead of committing it alone [database:I-09]', async () => {
         const aggregateId = 'detached-1';
 
         // Before this was enforced, the insert ran on the base pool as its own
@@ -158,7 +158,7 @@ describe('UnitOfWork + OutboxWriter (transaction boundary)', () => {
         expect(await getOutboxRows(aggregateId)).toEqual([]);
     });
 
-    it('reports whether a unit of work is active, and hands out the base connection outside one', async () => {
+    it('reports whether a unit of work is active, and hands out the base connection outside one [database:I-08]', async () => {
         expect(uow.isActive()).toBe(false);
 
         await uow.run(async () => {

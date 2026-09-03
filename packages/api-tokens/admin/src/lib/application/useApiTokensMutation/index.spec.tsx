@@ -87,7 +87,7 @@ describe('useCreateApiToken', () => {
         create.mockResolvedValue(minted);
     });
 
-    it('drops the plaintext from the mutation cache as soon as the page lets go', async () => {
+    it('drops the plaintext from the mutation cache as soon as the page lets go [api-tokens:I-03]', async () => {
         const { queryClient, wrapper } = withQueryClient();
         const { result, unmount } = renderHook(() => useCreateApiToken(), {
             wrapper

@@ -137,7 +137,7 @@ describe('DrizzleApiTokenRepository.list', () => {
         );
     });
 
-    it('returns a multi-workspace token exactly once, with its whole bucket', async () => {
+    it('returns a multi-workspace token exactly once, with its whole bucket [api-tokens:I-20]', async () => {
         const { repo } = fakeUow(bothWorkspaces);
 
         const { items, total } = await repo.list({

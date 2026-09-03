@@ -17,7 +17,7 @@ describe('McpPlugin', () => {
         expect(plugin.module).toBeDefined();
     });
 
-    it('owns no migrations', () => {
+    it('owns no migrations [mcp:I-21]', () => {
         expect(McpPlugin({ config: CONFIG }).migrations).toBeUndefined();
     });
 

@@ -23,7 +23,7 @@ describe('database connection singleton', () => {
     });
 
     describe('before initDatabase', () => {
-        it('names the mistake instead of returning undefined', () => {
+        it('names the mistake instead of returning undefined [database:I-02]', () => {
             expect(() => getDatabase()).toThrow(
                 'Database not initialized. Call initDatabase() first.'
             );
@@ -72,7 +72,7 @@ describe('database connection singleton', () => {
     });
 
     describe('idempotency', () => {
-        it('keeps the first pool, and silently keeps the first config with it', () => {
+        it('keeps the first pool, and silently keeps the first config with it [database:I-01]', () => {
             initDatabase({ connectionString: URL_A });
             const first = getPool();
 
@@ -90,7 +90,7 @@ describe('database connection singleton', () => {
     });
 
     describe('closeDatabase', () => {
-        it('clears the memo so a later init really opens a new pool', async () => {
+        it('clears the memo so a later init really opens a new pool [database:I-05]', async () => {
             initDatabase({ connectionString: URL_A });
             const first = getPool();
 
@@ -142,7 +142,7 @@ describe('DatabaseShutdown', () => {
         );
     });
 
-    it('leaves the pool alone while a second application still holds it', async () => {
+    it('leaves the pool alone while a second application still holds it [database:I-04]', async () => {
         // The pool is a process singleton and `initDatabase` is idempotent, so
         // a second app in the same process shares the first's pool rather than
         // opening one. An unconditional close on shutdown therefore ended the
@@ -160,7 +160,7 @@ describe('DatabaseShutdown', () => {
         expect(getPool()).toBe(pool);
     });
 
-    it('closes once the last holder shuts down', async () => {
+    it('closes once the last holder shuts down [database:I-01] [database:I-04]', async () => {
         initDatabase({ connectionString: URL_A });
         initDatabase({ connectionString: URL_A });
         const pool = getPool();
@@ -221,7 +221,7 @@ describe('DatabaseShutdown', () => {
         ).resolves.toBeUndefined();
     });
 
-    it('never throws out of the hook', async () => {
+    it('never throws out of the hook [database:I-06]', async () => {
         // The rest of the teardown still has to run, and the process is going
         // away regardless.
         initDatabase({ connectionString: URL_A });

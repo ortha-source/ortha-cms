@@ -56,7 +56,7 @@ describe('media upload cap (config-driven)', () => {
         return agent;
     }
 
-    it('accepts a file of exactly the cap', async () => {
+    it('accepts a file of exactly the cap [media:I-21]', async () => {
         // busboy raises its limit at `fileSize === fileSizeLimit`, not `>`, so
         // passing the cap verbatim rejected a file of exactly the documented
         // maximum. "Maximum upload size" has to include the maximum.
@@ -71,7 +71,7 @@ describe('media upload cap (config-driven)', () => {
             .expect(201);
     });
 
-    it('rejects one byte over the cap with a 413 that names the limit', async () => {
+    it('rejects one byte over the cap with a 413 that names the limit [media:I-21]', async () => {
         const agent = await login();
 
         const res = await agent
@@ -89,7 +89,7 @@ describe('media upload cap (config-driven)', () => {
         expect(res.body.message).toBe('File exceeds the maximum upload size.');
     });
 
-    it('applies the same cap to the token upload route', async () => {
+    it('applies the same cap to the token upload route [media:I-21]', async () => {
         const agent = await login();
         const minted = await agent
             .post('/api/api-tokens')

@@ -60,7 +60,7 @@ describe('manage pending invites', () => {
     }
 
     describe('POST /api/users/:id/invites/resend', () => {
-        it('rotates the invite token, keeping exactly one live', async () => {
+        it('rotates the invite token, keeping exactly one live [users:I-04]', async () => {
             const id = await invite('pending@example.com');
             const before = await getInviteTokenHashes(id);
             expect(before).toHaveLength(1);
@@ -77,7 +77,7 @@ describe('manage pending invites', () => {
             expect(after[0]).not.toBe(before[0]);
         });
 
-        it('rejects resending to an active member with 409', async () => {
+        it('rejects resending to an active member with 409 [users:I-09]', async () => {
             const member = await seedActiveUser(harness.app, {
                 email: 'active@example.com',
                 password: PASSWORD,
@@ -128,7 +128,7 @@ describe('manage pending invites', () => {
     });
 
     describe('DELETE /api/users/:id/invites', () => {
-        it('revokes a pending invite, deleting the placeholder user (204)', async () => {
+        it('revokes a pending invite, deleting the placeholder user (204) [users:I-07]', async () => {
             const id = await invite('pending@example.com');
             const agent = await login(ADMIN_EMAIL);
             await agent.delete(`/api/users/${id}/invites`).expect(204);
@@ -136,7 +136,7 @@ describe('manage pending invites', () => {
             expect(await getUserByEmail('pending@example.com')).toBeNull();
         });
 
-        it('refuses to revoke an active member with 409', async () => {
+        it('refuses to revoke an active member with 409 [users:I-07]', async () => {
             const member = await seedActiveUser(harness.app, {
                 email: 'active@example.com',
                 password: PASSWORD,
@@ -251,7 +251,7 @@ describe('manage pending invites', () => {
         // hash is stored — so the server cannot hand back the link it just
         // minted. Refusing the second call is the only way a double-clicked
         // Resend doesn't leave the admin holding a dead token.
-        it('refuses a resend issued moments ago, with a machine code', async () => {
+        it('refuses a resend issued moments ago, with a machine code [users:I-06]', async () => {
             const id = await invite('cooldown@example.com');
             const before = await getInviteTokenHashes(id);
 
@@ -294,7 +294,7 @@ describe('manage pending invites', () => {
                 .expect(201);
         });
 
-        it('keeps one live token when two resends race', async () => {
+        it('keeps one live token when two resends race [users:I-04]', async () => {
             const id = await invite('race@example.com');
             await ageInviteTokens(id);
 

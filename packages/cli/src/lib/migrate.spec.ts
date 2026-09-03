@@ -39,7 +39,7 @@ beforeEach(() => {
 afterEach(() => jest.restoreAllMocks());
 
 describe('describeTarget', () => {
-    it('names host, port and database without the credentials', () => {
+    it('names host, port and database without the credentials [cli:I-09]', () => {
         expect(describeTarget(URL)).toBe('localhost:5432/ortha_cms');
     });
 
@@ -50,7 +50,7 @@ describe('describeTarget', () => {
         expect(describeTarget(url)).toBe(expected);
     });
 
-    it('says so rather than guessing when the URL will not parse', () => {
+    it('says so rather than guessing when the URL will not parse [cli:I-09]', () => {
         expect(describeTarget('not-a-url')).toBe('(unparseable DATABASE_URL)');
     });
 
@@ -60,7 +60,7 @@ describe('describeTarget', () => {
 });
 
 describe('applyPluginMigrations', () => {
-    it('opens no connection when no plugin ships migrations', async () => {
+    it('opens no connection when no plugin ships migrations [cli:I-05]', async () => {
         await applyPluginMigrations(
             [{ name: 'mcp' } as ServerPlugin],
             'postgresql://nowhere/none'
@@ -77,7 +77,7 @@ describe('applyPluginMigrations', () => {
      * given is therefore the whole guarantee, which makes it worth asserting
      * rather than assuming.
      */
-    it('applies plugins in exactly the order the host listed them', async () => {
+    it('applies plugins in exactly the order the host listed them [bootstrap:I-20] [cli:I-04] [cli:I-05] [nx:I-08]', async () => {
         await applyPluginMigrations(
             [
                 plugin('database'),
@@ -99,7 +99,7 @@ describe('applyPluginMigrations', () => {
         ]);
     });
 
-    it('passes each plugin its own folder and tracking table', async () => {
+    it('passes each plugin its own folder and tracking table [bootstrap:I-18] [cli:I-06] [nx:I-08]', async () => {
         await applyPluginMigrations([plugin('identity', '/a/b')], URL);
 
         expect(migrate).toHaveBeenCalledWith(expect.anything(), {
@@ -136,14 +136,14 @@ describe('applyPluginMigrations', () => {
                 URL
             );
 
-        it('names the plugin, how far it got, and the order it depends on', async () => {
+        it('names the plugin, how far it got, and the order it depends on [bootstrap:I-20] [cli:I-07] [nx:I-09]', async () => {
             await expect(run()).rejects.toThrow(
                 /Migrating plugin "workspaces" failed — applied 2 of 4 plugin\(s\)/
             );
             await expect(run()).rejects.toThrow(/plugin ORDER/);
         });
 
-        it('keeps the original error as the cause', async () => {
+        it('keeps the original error as the cause [cli:I-07]', async () => {
             const error = (await run().catch((e: Error) => e)) as Error;
 
             expect((error.cause as Error).message).toBe(
@@ -151,7 +151,7 @@ describe('applyPluginMigrations', () => {
             );
         });
 
-        it('does not attempt the plugins after it', async () => {
+        it('does not attempt the plugins after it [cli:I-07]', async () => {
             await run().catch(() => undefined);
 
             expect(
@@ -159,14 +159,14 @@ describe('applyPluginMigrations', () => {
             ).not.toContain('__drizzle_migrations_content');
         });
 
-        it('still closes the pool', async () => {
+        it('still closes the pool [cli:I-08] [nx:I-09]', async () => {
             await run().catch(() => undefined);
 
             expect(end).toHaveBeenCalledTimes(1);
         });
     });
 
-    it('closes the pool on success too', async () => {
+    it('closes the pool on success too [cli:I-08]', async () => {
         await applyPluginMigrations([plugin('identity')], URL);
 
         expect(end).toHaveBeenCalledTimes(1);

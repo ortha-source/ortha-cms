@@ -61,6 +61,7 @@ describe('operator legality per field type', () => {
             ['active', 'boolean'],
             ['id', 'uuid']
         ])(
+            // covers: utils:I-24
             'rejects ilike on %s (a %s field) instead of 500ing out of the driver',
             (field) => {
                 const e = reject(field, 'ilike', '%2020%');
@@ -96,7 +97,7 @@ describe('operator legality per field type', () => {
             );
         });
 
-        it('reports the operator rather than a value the operator never had a use for', () => {
+        it('reports the operator rather than a value the operator never had a use for [utils:I-24]', () => {
             // Checked before coercion: "%2020%" is not a date either, but
             // "not a date" would point the caller at the value and leave them
             // to discover that no value at all would have worked.

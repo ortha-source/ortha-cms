@@ -30,7 +30,7 @@ describe('database connection pool limits', () => {
         await closeTestApp(harness);
     });
 
-    it('opens the pool with an explicit ceiling and an explicit wait', () => {
+    it('opens the pool with an explicit ceiling and an explicit wait [database:I-03]', () => {
         const options = getPool().options as {
             max?: number;
             connectionTimeoutMillis?: number;
@@ -42,7 +42,7 @@ describe('database connection pool limits', () => {
         expect(options.connectionTimeoutMillis).toBeGreaterThan(0);
     });
 
-    it('fails a checkout it cannot serve instead of waiting forever', async () => {
+    it('fails a checkout it cannot serve instead of waiting forever [database:I-03]', async () => {
         const pool = getPool();
         const held: PoolClient[] = [];
         try {

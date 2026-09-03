@@ -2,7 +2,7 @@ import { Slug } from './slug';
 import { InvalidSlugError } from '../errors';
 
 describe('Slug value object', () => {
-    it('accepts lowercase letters, digits, and hyphens', () => {
+    it('accepts lowercase letters, digits, and hyphens [workspaces:I-11]', () => {
         expect(Slug.create('marketing-01').value).toBe('marketing-01');
     });
 

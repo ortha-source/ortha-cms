@@ -129,7 +129,7 @@ describe('i18n locale integrity (/api/content + /api/i18n + /api/insights)', () 
     // ---- BUG-i18n-server-01 — the lock-order inversion --------------------
 
     describe('concurrent saves across a translation group', () => {
-        it('serializes two locales of one record instead of deadlocking', async () => {
+        it('serializes two locales of one record instead of deadlocking [i18n:I-12]', async () => {
             const agent = await login();
             const en = await createArticle(agent);
             const de = await createTranslation(agent, en, 'de');
@@ -206,7 +206,7 @@ describe('i18n locale integrity (/api/content + /api/i18n + /api/insights)', () 
                 .expect(200);
         });
 
-        it('echoes back only the keys the caller supplied', async () => {
+        it('echoes back only the keys the caller supplied [i18n:I-26]', async () => {
             const agent = await login();
             const mine = await createArticle(agent);
             // A group that exists, but in a workspace the request does not name.
@@ -339,7 +339,7 @@ describe('i18n locale integrity (/api/content + /api/i18n + /api/insights)', () 
     // ---- BUG-i18n-server-04 — the virtual filters -------------------------
 
     describe('virtual locale filters', () => {
-        it('counts only configured locales, so localeCount agrees with coverage (EC-25)', async () => {
+        it('counts only configured locales, so localeCount agrees with coverage (EC-25) [i18n:I-23]', async () => {
             const agent = await login();
             const en = await createArticle(agent);
             await createTranslation(agent, en, 'de');
@@ -393,6 +393,7 @@ describe('i18n locale integrity (/api/content + /api/i18n + /api/insights)', () 
             ['ne', 'de'],
             ['nin', ['de']]
         ])(
+            // covers: i18n:I-21
             'refuses hasLocale %s, which negates inside the EXISTS (EC-26)',
             async (op, value) => {
                 const agent = await login();
@@ -429,7 +430,7 @@ describe('i18n locale integrity (/api/content + /api/i18n + /api/insights)', () 
             );
         });
 
-        it('reads missingLocale in [...] as missing ALL of them (EC-27)', async () => {
+        it('reads missingLocale in [...] as missing ALL of them (EC-27) [i18n:I-22]', async () => {
             const agent = await login();
             // `both` lacks de and fr; `partial` lacks only fr.
             await createArticle(agent);
@@ -555,7 +556,7 @@ describe('i18n locale integrity (/api/content + /api/i18n + /api/insights)', () 
     // ---- A11Y-i18n-server-01 / -02 — the language wire contract -----------
 
     describe('language and direction on the wire', () => {
-        it('returns a resolved dir for every configured locale', async () => {
+        it('returns a resolved dir for every configured locale [i18n:I-04]', async () => {
             const agent = await login();
             const res = await agent.get('/api/i18n/locales').expect(200);
             const items = res.body.items as {

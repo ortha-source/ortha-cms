@@ -91,7 +91,7 @@ describe('Editing an alarm rule’s condition', () => {
         and: [{ field: 'text', op: 'ilike', value: '%QWERT%' }]
     };
 
-    it('rescans with the new condition and opens the findings it implies', async () => {
+    it('rescans with the new condition and opens the findings it implies [alarms:I-07]', async () => {
         const client = await api();
         const hit = await publishArticle(client, { text: 'Has QWERT inside' });
         await publishArticle(client, { text: 'Nothing of the sort' });
@@ -160,6 +160,7 @@ describe('Editing an alarm rule’s condition', () => {
         // Read back verbatim: the editor seeds its query builder from this, so
         // a filter the server rewrote on the way in would come back as a
         // different condition than the one that was saved.
+        // covers: alarms:I-02
         expect(stored.filter).toEqual(CONTAINS_QWERT);
         expect(stored.brokenReason).toBeNull();
 

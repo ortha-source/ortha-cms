@@ -86,7 +86,7 @@ describe('media token download scope', () => {
             .expect(200);
     });
 
-    it('404s when the header names another workspace in the same bucket', async () => {
+    it('404s when the header names another workspace in the same bucket [media:I-28]', async () => {
         await request(harness.server)
             .get(`/api/v1/media/assets/${assetInSecond}/raw`)
             .set('Authorization', `Bearer ${secret}`)

@@ -24,6 +24,7 @@ describe('@orthacms/identity-domain package manifest', () => {
     });
 
     it.each(['dependencies', 'peerDependencies'] as const)(
+        // covers: identity:I-27
         'declares no %s, so no adapter inherits one from the port',
         (field) => {
             expect(Object.keys(manifest[field] ?? {})).toEqual([]);

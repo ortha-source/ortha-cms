@@ -55,7 +55,7 @@ describe('StorageProviderCheck', () => {
         ).resolves.toBeUndefined();
     });
 
-    it('refuses to boot over assets written by another provider, naming it and the count', async () => {
+    it('refuses to boot over assets written by another provider, naming it and the count [media:I-04]', async () => {
         // The whole point: swapping the provider in `plugins.ts` makes those
         // 4000 assets unreadable — their bytes are in a store this process is
         // not connected to. Unchecked, that is a library of broken images and a
@@ -122,7 +122,7 @@ describe('StorageProviderCheck', () => {
         ).resolves.toBeUndefined();
     });
 
-    it('skips the check when media_asset is not queryable yet', async () => {
+    it('skips the check when media_asset is not queryable yet [media:I-04]', async () => {
         // Migrations are a separate step (`nx run server:db:migrate`), so a
         // fresh database boots the app before the table exists. Failing there
         // would make this check the reason a clean install cannot start —

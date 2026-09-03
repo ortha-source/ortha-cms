@@ -25,7 +25,7 @@ function hostConfig(url: string | undefined) {
 beforeEach(() => jest.clearAllMocks());
 
 describe('db-studio executor', () => {
-    it('resolves the URL from the host config — the one place that reads DATABASE_URL', async () => {
+    it('resolves the URL from the host config — the one place that reads DATABASE_URL [nx:I-32] [nx:I-33]', async () => {
         hostConfig(URL);
 
         await expect(dbStudioExecutor(options, context)).resolves.toEqual({
@@ -58,6 +58,7 @@ describe('db-studio executor', () => {
         ['empty', ''],
         ['absent', undefined]
     ])(
+        // covers: nx:I-06
         'refuses with one actionable sentence when the URL is %s',
         async (_l, url) => {
             hostConfig(url);
@@ -75,7 +76,7 @@ describe('db-studio executor', () => {
      * Refusing beats the silent drop this used to do (`if (options.port)`) and
      * beats the unusable success drizzle-kit would give.
      */
-    it('refuses port 0 rather than silently ignoring it', async () => {
+    it('refuses port 0 rather than silently ignoring it [nx:I-12]', async () => {
         hostConfig(URL);
 
         await expect(

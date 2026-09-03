@@ -82,7 +82,7 @@ describe('CopilotPlugin config validation', () => {
         ).not.toThrow();
     });
 
-    it('rejects an empty provider list once the copilot is on', () => {
+    it('rejects an empty provider list once the copilot is on [copilot:I-35]', () => {
         expect(() =>
             CopilotPlugin(
                 options({ providers: [], config: config({ enabled: true }) })
@@ -90,7 +90,7 @@ describe('CopilotPlugin config validation', () => {
         ).toThrow(/enabled but has no model provider/);
     });
 
-    it('rejects a provider declaring no models', () => {
+    it('rejects a provider declaring no models [copilot:I-35]', () => {
         expect(() =>
             CopilotPlugin(
                 options({
@@ -100,7 +100,7 @@ describe('CopilotPlugin config validation', () => {
         ).toThrow(/"claude" declares no models/);
     });
 
-    it('rejects a non-positive maxOutputTokens', () => {
+    it('rejects a non-positive maxOutputTokens [copilot:I-35]', () => {
         expect(() =>
             CopilotPlugin(options({ config: config({ maxOutputTokens: 0 }) }))
         ).toThrow(/must be a positive number/);
@@ -111,6 +111,7 @@ describe('CopilotPlugin config validation', () => {
         ['maxSteps', -1],
         ['wallClockMs', 0],
         ['maxTotalTokens', Number.NaN]
+        // covers: copilot:I-35
     ])('rejects a non-positive limits.%s (%p)', (key, value) => {
         expect(() =>
             CopilotPlugin(

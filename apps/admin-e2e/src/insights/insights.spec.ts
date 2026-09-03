@@ -381,7 +381,7 @@ test.describe('Insights', () => {
         expect(spy.days['i18n/coverage']).toBeNull();
     });
 
-    test('each widget calls its own endpoint', async ({
+    test('each widget calls its own endpoint [insights:I-15]', async ({
         page,
         insightsPage
     }) => {
@@ -408,7 +408,7 @@ test.describe('Insights', () => {
         ).toHaveLength(1);
     });
 
-    test('a failing widget does not take down the rest of the page', async ({
+    test('a failing widget does not take down the rest of the page [insights:I-10]', async ({
         page,
         insightsPage
     }) => {
@@ -428,7 +428,7 @@ test.describe('Insights', () => {
         ).toBeVisible();
     });
 
-    test('a stat tile that cannot load shows no figure at all', async ({
+    test('a stat tile that cannot load shows no figure at all [insights:I-11]', async ({
         page,
         insightsPage
     }) => {
@@ -471,7 +471,7 @@ test.describe('Insights', () => {
         );
     });
 
-    test('changing the range refetches the range-dependent widgets', async ({
+    test('changing the range refetches the range-dependent widgets [insights:I-17]', async ({
         page,
         insightsPage
     }) => {
@@ -491,7 +491,7 @@ test.describe('Insights', () => {
         expect(spy.days['content/stale']).toBeNull();
     });
 
-    test('the selected range is in the URL, so the view can be shared', async ({
+    test('the selected range is in the URL, so the view can be shared [insights:I-18]', async ({
         page,
         insightsPage
     }) => {
@@ -552,7 +552,7 @@ test.describe('Insights', () => {
         await expect.poll(() => spy.days['content/velocity']).toBe('30');
     });
 
-    test('hides content widgets from a user without content:read', async ({
+    test('hides content widgets from a user without content:read [insights:I-04] [insights:I-09]', async ({
         page,
         insightsPage
     }) => {

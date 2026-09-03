@@ -69,7 +69,7 @@ test.describe('Records resilience', () => {
         await expect(contentLibraryPage.pageReadout).toHaveText('Page 3 of 3');
     });
 
-    test('a pageSize the server would reject falls back to the default rather than an error card', async ({
+    test('a pageSize the server would reject falls back to the default rather than an error card [content:I-40]', async ({
         page,
         contentLibraryPage
     }) => {
@@ -216,7 +216,7 @@ test.describe('Records resilience', () => {
         await expect(firstRow).not.toContainText('$');
     });
 
-    test('a failed content-type catalogue leaves the sidebar an error, not an absence', async ({
+    test('a failed content-type catalogue leaves the sidebar an error, not an absence [content:I-40]', async ({
         page,
         contentLibraryPage
     }) => {

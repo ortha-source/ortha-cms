@@ -22,7 +22,7 @@ const PASSWORD = 'SecurePass123!';
  * specific pages is covered in `routing.spec.ts`.
  */
 test.describe('Private route gating', () => {
-    test('redirects a signed-out user from / to the sign-in page', async ({
+    test('redirects a signed-out user from / to the sign-in page [bootstrap:I-25] [shell:I-02]', async ({
         page,
         loginPage
     }) => {
@@ -71,7 +71,7 @@ test.describe('Private route gating', () => {
  * the user to a form that posts to the same dead API.
  */
 test.describe('Auth probe unavailable', () => {
-    test('says the server is unreachable instead of signing the user out', async ({
+    test('says the server is unreachable instead of signing the user out [identity:I-28]', async ({
         page,
         homePage,
         loginPage

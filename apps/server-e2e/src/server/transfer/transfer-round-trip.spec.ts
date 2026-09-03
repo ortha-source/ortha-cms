@@ -156,7 +156,7 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             });
         });
 
-        it('leaves relations out when they are not asked for', async () => {
+        it('leaves relations out when they are not asked for [transfer:I-04]', async () => {
             const agent = await login(ADMIN_EMAIL);
             const authorId = await createAuthor(agent, 'Ada', 'ada@x.test');
             const articleId = await createArticle(agent, {
@@ -334,7 +334,7 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             return body.verdicts.find((verdict) => verdict.$type === type);
         }
 
-        it('round-trips a graph: export, wipe, import, and it is back', async () => {
+        it('round-trips a graph: export, wipe, import, and it is back [transfer:I-11] [transfer:I-15]', async () => {
             const agent = await login(ADMIN_EMAIL);
             const authorId = await createAuthor(agent, 'Ada', 'ada@x.test');
             const articleId = await createArticle(agent, {
@@ -395,7 +395,7 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             });
         });
 
-        it('dry-runs without writing, and says what it would do', async () => {
+        it('dry-runs without writing, and says what it would do [transfer:I-08]', async () => {
             const agent = await login(ADMIN_EMAIL);
             const authorId = await createAuthor(agent, 'Ada', 'ada@x.test');
             const articleId = await createArticle(agent, {
@@ -506,7 +506,7 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             expect(await listEntries(agent, 'test_article')).toHaveLength(2);
         });
 
-        it('links a related record that is already here instead of adding another', async () => {
+        it('links a related record that is already here instead of adding another [transfer:I-15] [transfer:I-16]', async () => {
             const agent = await login(ADMIN_EMAIL);
             const authorId = await createAuthor(agent, 'Ada', 'ada@x.test');
             const articleId = await createArticle(agent, {
@@ -629,7 +629,7 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             expect(authors[0].values['name']).toBe('Ada');
         });
 
-        it('keeps the two policies apart: duplicate the record, link its author', async () => {
+        it('keeps the two policies apart: duplicate the record, link its author [transfer:I-14]', async () => {
             const agent = await login(ADMIN_EMAIL);
             const authorId = await createAuthor(agent, 'Ada', 'ada@x.test');
             const articleId = await createArticle(agent, {
@@ -655,7 +655,7 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             expect(authors[0].id).toBe(authorId);
         });
 
-        it('never writes across workspaces, whatever the manifest claims', async () => {
+        it('never writes across workspaces, whatever the manifest claims [transfer:I-23]', async () => {
             const agent = await login(ADMIN_EMAIL);
             const authorId = await createAuthor(agent, 'Ada', 'ada@x.test');
             const articleId = await createArticle(agent, {
@@ -706,7 +706,7 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             expect(there).toHaveLength(0);
         });
 
-        it('refuses a document written by a newer format version', async () => {
+        it('refuses a document written by a newer format version [transfer:I-27]', async () => {
             const agent = await login(ADMIN_EMAIL);
             const authorId = await createAuthor(agent, 'Ada', 'ada@x.test');
             const articleId = await createArticle(agent, {
@@ -817,7 +817,7 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
                 .expect(401);
         });
 
-        it('hides a content type the workspace was never granted', async () => {
+        it('hides a content type the workspace was never granted [transfer:I-24]', async () => {
             const agent = await login(ADMIN_EMAIL);
             const ungranted = await seedWorkspace({
                 name: 'Bare WS',
@@ -847,7 +847,7 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
                 .expect(400);
         });
 
-        it('rejects an empty selection', async () => {
+        it('rejects an empty selection [transfer:I-39]', async () => {
             const agent = await login(ADMIN_EMAIL);
             await agent
                 .post('/api/content/test_article/export')

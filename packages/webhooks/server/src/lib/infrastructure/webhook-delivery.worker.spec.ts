@@ -95,7 +95,7 @@ describe('WebhookDeliveryWorker', () => {
             expect(endpoints.recordSuccess).toHaveBeenCalledWith('endpoint-1');
         });
 
-        it('sends the frozen payload and the attempt number', async () => {
+        it('sends the frozen payload and the attempt number [webhooks:I-07]', async () => {
             const { tick, http } = build({});
             await tick();
 
@@ -124,7 +124,7 @@ describe('WebhookDeliveryWorker', () => {
             );
         });
 
-        it('treats a transport failure with no status as retryable', async () => {
+        it('treats a transport failure with no status as retryable [webhooks:I-12]', async () => {
             const { tick, deliveries } = build({
                 response: response({
                     statusCode: null,
@@ -197,7 +197,7 @@ describe('WebhookDeliveryWorker', () => {
         });
     });
 
-    describe('the endpoint changed under the claim', () => {
+    describe('the endpoint changed under the claim [webhooks:I-15]', () => {
         it('closes the delivery when the endpoint was deleted', async () => {
             const { tick, deliveries, http } = build({ endpoint: null });
             await tick();

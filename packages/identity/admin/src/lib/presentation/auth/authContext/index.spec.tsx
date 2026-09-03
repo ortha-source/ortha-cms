@@ -135,6 +135,7 @@ describe('authContext', () => {
             [AuthStatus.Loading],
             [AuthStatus.Unauthenticated],
             [AuthStatus.Unavailable]
+            // covers: identity:I-29
         ])('refuses every permission while %s', (status) => {
             const { result } = renderHook(
                 () => useHasPermission('workspaces:create'),

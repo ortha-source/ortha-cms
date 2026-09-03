@@ -59,7 +59,7 @@ function parsed(result: unknown): Record<string, unknown> {
 
 describe('buildMcpServer', () => {
     describe('tools/call', () => {
-        it('emits the same value as text and as structuredContent', async () => {
+        it('emits the same value as text and as structuredContent [mcp:I-14]', async () => {
             const client = await connect(
                 registry({ call: async () => ({ items: [1, 2], total: 2 }) })
             );
@@ -81,6 +81,7 @@ describe('buildMcpServer', () => {
             [[1, 2], { value: [1, 2] }],
             ['done', { value: 'done' }],
             [null, { value: null }]
+            // covers: mcp:I-14
         ])('boxes a non-object result %p under `value`', async (from, to) => {
             const client = await connect(registry({ call: async () => from }));
 
@@ -93,7 +94,7 @@ describe('buildMcpServer', () => {
 
         // A failure rides as a result, not a protocol error, so the *model*
         // reads it and can fix its next call.
-        it('reports a thrown HttpException as an isError result', async () => {
+        it('reports a thrown HttpException as an isError result [mcp:I-12]', async () => {
             const client = await connect(
                 registry({
                     call: async () => {
@@ -118,6 +119,7 @@ describe('buildMcpServer', () => {
             const client = await connect(
                 registry({
                     call: async () => {
+                        // covers: mcp:I-13
                         throw new Error('connect ECONNREFUSED 10.0.0.7:5432');
                     }
                 })
@@ -151,7 +153,7 @@ describe('buildMcpServer', () => {
 
         // The handler is *told*; whether it stops is its own business. Bounding
         // the caller's wait is the guarantee this layer makes.
-        it('hands the handler a signal that aborts on expiry', async () => {
+        it('hands the handler a signal that aborts on expiry [mcp:I-16]', async () => {
             let seen: AbortSignal | undefined;
             const client = await connect(
                 registry({
@@ -177,7 +179,7 @@ describe('buildMcpServer', () => {
         // report to. Without a catch on the loser that is an unhandled
         // rejection, which ends the process — the failure this bound exists to
         // contain, caused by the bound itself.
-        it('survives a handler that rejects after the deadline', async () => {
+        it('survives a handler that rejects after the deadline [mcp:I-16]', async () => {
             const client = await connect(
                 registry({
                     call: () =>
@@ -340,6 +342,7 @@ describe('buildMcpServer', () => {
             const client = await connect(
                 registry({
                     readResource: async () => {
+                        // covers: mcp:I-13
                         throw new Error('relation "secrets" does not exist');
                     }
                 })

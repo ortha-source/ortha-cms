@@ -44,7 +44,7 @@ describe('LocalePolicy', () => {
     });
 
     describe('fallbackChain', () => {
-        it('is [requested, default] when widening', () => {
+        it('is [requested, default] when widening [i18n:I-07]', () => {
             expect(
                 policy
                     .fallbackChain(policy.resolve('de'), true)

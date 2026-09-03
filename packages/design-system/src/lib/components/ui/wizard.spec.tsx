@@ -93,7 +93,7 @@ describe('Stepper', () => {
 
     // BUG-design-system-09: two steps sharing a label are two steps, and React
     // must be able to tell them apart.
-    it('renders every step when two share a label', () => {
+    it('renders every step when two share a label [design-system:I-35]', () => {
         const warn = vi
             .spyOn(console, 'error')
             .mockImplementation(() => undefined);

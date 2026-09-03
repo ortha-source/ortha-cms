@@ -111,7 +111,7 @@ async function translate(rule: Record<string, unknown>): Promise<string> {
 }
 
 describe('negation on a relation path → NOT EXISTS', () => {
-    it('rewrites `is none of` on a many-to-many into NOT EXISTS + IN', () => {
+    it('rewrites `is none of` on a many-to-many into NOT EXISTS + IN [utils:I-25]', () => {
         // "no tag named x", NOT "has some tag that isn't x" — an article
         // tagged [x, y] must be excluded.
         return translate({
@@ -192,7 +192,7 @@ describe('negation on a relation path → NOT EXISTS', () => {
 });
 
 describe('negative scalar operators are NULL-inclusive', () => {
-    it('`ne` also matches a NULL column', () => {
+    it('`ne` also matches a NULL column [utils:I-26]', () => {
         const out = serialize(scalar(article.title, FilterOperator.Ne, 'x'));
         expect(out).toContain('<>');
         expect(out).toContain('"title" is null');

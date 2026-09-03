@@ -114,7 +114,7 @@ test.describe('Command palette', () => {
             .toBe(true);
     });
 
-    test('closing it with Escape gives focus back to the trigger', async ({
+    test('closing it with Escape gives focus back to the trigger [shell:I-27]', async ({
         homePage,
         page
     }) => {
@@ -133,7 +133,7 @@ test.describe('Command palette', () => {
         await expect(homePage.searchTrigger()).toBeFocused();
     });
 
-    test('choosing a result does not drag focus back to the sidebar', async ({
+    test('choosing a result does not drag focus back to the sidebar [shell:I-27]', async ({
         homePage,
         page
     }) => {
@@ -177,7 +177,7 @@ test.describe('the ⌘K binding', () => {
         await expect(homePage.commandInput()).toBeFocused();
     });
 
-    test('leaves the caret alone when a page search field has it', async ({
+    test('leaves the caret alone when a page search field has it [shell:I-26]', async ({
         membersPage,
         page
     }) => {

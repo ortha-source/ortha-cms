@@ -98,7 +98,7 @@ test.describe('Activity Log page', () => {
         await expect(activityLogPage.row('ada@ortha.dev')).toHaveCount(0);
     });
 
-    test('deep-links the active search into the URL', async ({
+    test('deep-links the active search into the URL [activity:I-30]', async ({
         activityLogPage,
         page
     }) => {
@@ -170,7 +170,7 @@ test.describe('Activity Log resilience', () => {
             at: '2026-06-10T09:00:00.000Z'
         }));
 
-        test('comes back to the last page when a filter leaves fewer', async ({
+        test('comes back to the last page when a filter leaves fewer [activity:I-29]', async ({
             page,
             activityLogPage
         }) => {
@@ -191,7 +191,7 @@ test.describe('Activity Log resilience', () => {
             );
         });
 
-        test('keeps a deep-linked page instead of resetting it on arrival', async ({
+        test('keeps a deep-linked page instead of resetting it on arrival [activity:I-29]', async ({
             page,
             activityLogPage
         }) => {
@@ -326,7 +326,7 @@ test.describe('Activity Log assistive-technology semantics', () => {
         await mockSignedIn(page);
     });
 
-    test('a collapsed row contributes one table row, not two', async ({
+    test('a collapsed row contributes one table row, not two [activity:I-27]', async ({
         activityLogPage,
         page
     }) => {

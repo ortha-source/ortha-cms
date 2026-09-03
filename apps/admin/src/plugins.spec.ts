@@ -53,7 +53,7 @@ describe('buildPlugins()', () => {
         );
     });
 
-    it('has exactly one plugin contributing a layout, and it is the shell', () => {
+    it('has exactly one plugin contributing a layout, and it is the shell [shell:I-01]', () => {
         // The gate lives in the shell's layout, and the host takes the first one
         // registered. Two contributors means the loser is decided by registration
         // order — a decision nobody made — and if the loser is the shell, every
@@ -79,7 +79,7 @@ describe('buildPlugins()', () => {
         );
     });
 
-    it('gives identity the only public routes, so the sign-in page renders outside the gate', () => {
+    it('gives identity the only public routes, so the sign-in page renders outside the gate [shell:I-03]', () => {
         // A private sign-in page is an infinite redirect; a public page anywhere
         // else is an ungated page.
         const publicOwners = buildPlugins()

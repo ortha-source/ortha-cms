@@ -70,7 +70,10 @@ describe('Content entries (GET /api/content/:typeName)', () => {
             ],
             workspaceId
         );
-        await seedLanding([{ text: 'Home page', select: 'light' }], workspaceId);
+        await seedLanding(
+            [{ text: 'Home page', select: 'light' }],
+            workspaceId
+        );
     });
 
     /**
@@ -133,7 +136,9 @@ describe('Content entries (GET /api/content/:typeName)', () => {
                 .expect(200);
 
             expect(res.body.total).toBe(1);
-            expect((res.body.items as EntryItem[])[0].values.text).toBe('Alpha');
+            expect((res.body.items as EntryItem[])[0].values.text).toBe(
+                'Alpha'
+            );
         });
 
         it('sorts by a column, descending with the `-` prefix', async () => {
@@ -185,7 +190,9 @@ describe('Content entries (GET /api/content/:typeName)', () => {
     describe('publishable-only status', () => {
         it('omits `status` for a non-publishable type', async () => {
             const agent = await login(ADMIN_EMAIL);
-            const res = await agent.get('/api/content/test_landing').expect(200);
+            const res = await agent
+                .get('/api/content/test_landing')
+                .expect(200);
 
             const [item] = res.body.items as EntryItem[];
             expect(item.status).toBeUndefined();
@@ -208,7 +215,7 @@ describe('Content entries (GET /api/content/:typeName)', () => {
     });
 
     describe('workspace isolation', () => {
-        it("does not leak workspace A's entries when listing with workspace B's header", async () => {
+        it("does not leak workspace A's entries when listing with workspace B's header [content:I-04]", async () => {
             // A second workspace the SAME admin also belongs to, with its own
             // single article. This is the core regression: the list must filter
             // by the request's workspace, never bleed rows across workspaces.
@@ -222,7 +229,9 @@ describe('Content entries (GET /api/content/:typeName)', () => {
 
             // Workspace A (the suite default) sees only its three rows…
             const agentA = await login(ADMIN_EMAIL);
-            const resA = await agentA.get('/api/content/test_article').expect(200);
+            const resA = await agentA
+                .get('/api/content/test_article')
+                .expect(200);
             expect(resA.body.total).toBe(3);
             const textsA = (resA.body.items as EntryItem[]).map(
                 (item) => item.values.text
@@ -232,7 +241,9 @@ describe('Content entries (GET /api/content/:typeName)', () => {
 
             // …and workspace B sees only its one row.
             const agentB = await login(ADMIN_EMAIL, wsB.id);
-            const resB = await agentB.get('/api/content/test_article').expect(200);
+            const resB = await agentB
+                .get('/api/content/test_article')
+                .expect(200);
             expect(resB.body.total).toBe(1);
             expect((resB.body.items as EntryItem[])[0].values.text).toBe(
                 'Delta'

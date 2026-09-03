@@ -80,7 +80,7 @@ test.describe('Activity filter (query builder)', () => {
         );
     });
 
-    test('restores the filter from a deep link on load', async ({
+    test('restores the filter from a deep link on load [activity:I-30]', async ({
         activityLogPage,
         page
     }) => {

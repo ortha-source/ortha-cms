@@ -82,7 +82,7 @@ describe('Change password (ChangePasswordUseCase)', () => {
             .expect(401);
     });
 
-    it('signs out every device the old password had signed in', async () => {
+    it('signs out every device the old password had signed in [identity:I-08]', async () => {
         const deviceA = await login();
         const deviceB = await login();
         await deviceA.get('/api/auth/me').expect(200);
@@ -98,7 +98,7 @@ describe('Change password (ChangePasswordUseCase)', () => {
         expect(await countUserSessions(user.id)).toBe(2);
     });
 
-    it('keeps the caller’s own session alive when one is named', async () => {
+    it('keeps the caller’s own session alive when one is named [identity:I-08]', async () => {
         const keeper = await login();
         const other = await login();
 
@@ -192,9 +192,9 @@ describe('Change password (ChangePasswordUseCase)', () => {
         // first 72 bytes (BUG-identity-server-03).
         const before = (await getUserByEmail(EMAIL))?.passwordHash;
 
-        await expect(
-            useCase.execute(user.id, 'é'.repeat(72))
-        ).rejects.toThrow(/72 bytes/);
+        await expect(useCase.execute(user.id, 'é'.repeat(72))).rejects.toThrow(
+            /72 bytes/
+        );
 
         expect((await getUserByEmail(EMAIL))?.passwordHash).toBe(before);
     });

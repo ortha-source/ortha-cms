@@ -172,7 +172,7 @@ describe('ApiTokenService', () => {
             expect(token.workspaceIds).toEqual(['ws-1', 'ws-2', 'ws-3']);
         });
 
-        it('collapses duplicate workspace ids', async () => {
+        it('collapses duplicate workspace ids [api-tokens:I-06]', async () => {
             const { repo } = makeRepo(null);
             const { service } = makeService(repo);
 
@@ -322,7 +322,7 @@ describe('ApiTokenService', () => {
                 ).rejects.toMatchObject({ workspaceIds: ['ws-nope'] });
             });
 
-            it('skips the check entirely when no directory is bound', async () => {
+            it('skips the check entirely when no directory is bound [api-tokens:I-07]', async () => {
                 // With no workspaces plugin there is nothing to validate
                 // against; failing every mint would be worse than the gap.
                 const { repo } = makeRepo(null);
@@ -529,7 +529,7 @@ describe('ApiTokenService', () => {
                 expect(touchLastUsed).toHaveBeenCalledWith('token-1', NOW);
             });
 
-            it('leaves it alone one millisecond short of the interval', async () => {
+            it('leaves it alone one millisecond short of the interval [api-tokens:I-21]', async () => {
                 // The staleness check is what bounds the audit volume: a busy
                 // integration authenticates thousands of times an hour and the
                 // log wants one row a minute, not one per request.
@@ -559,7 +559,7 @@ describe('ApiTokenService', () => {
             });
         });
 
-        it('resolves without waiting for the touch to finish', async () => {
+        it('resolves without waiting for the touch to finish [api-tokens:I-21]', async () => {
             // The touch is bookkeeping; the request it is authenticating must
             // not pay for it. A never-settling write would hang `verify` if it
             // were awaited, so this test times out rather than passing quietly
@@ -575,7 +575,7 @@ describe('ApiTokenService', () => {
             });
         });
 
-        it('still returns the token when the touch rejects', async () => {
+        it('still returns the token when the touch rejects [api-tokens:I-21]', async () => {
             // `.catch(() => undefined)` is dead code as far as the rest of this
             // suite knows. Without it a failed `last_used_at` write becomes an
             // unhandled rejection — which, on a host that treats those as
@@ -659,7 +659,7 @@ describe('ApiTokenService', () => {
             });
         });
 
-        it('lets no event of any kind carry the secret or its hash', async () => {
+        it('lets no event of any kind carry the secret or its hash [api-tokens:I-01] [identity:I-10]', async () => {
             // `api_tokens` stores only a SHA-256 precisely so that no other
             // table yields a usable credential; `outbox_events` must not become
             // the table that does. Swept across every event the service emits,

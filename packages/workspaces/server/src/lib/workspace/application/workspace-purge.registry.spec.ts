@@ -36,7 +36,7 @@ describe('WorkspacePurgeRegistry', () => {
             expect(report).toEqual({ rowsByPurger: {}, total: 0 });
         });
 
-        it('refuses a duplicate name rather than double-counting it', () => {
+        it('refuses a duplicate name rather than double-counting it [workspaces:I-19]', () => {
             registry.register(purger('media'));
 
             // Registering twice would run the same reclaim twice and report
@@ -100,7 +100,7 @@ describe('WorkspacePurgeRegistry', () => {
             expect(reclaimed).toBe(true);
         });
 
-        it('swallows a reclaim failure — the rows are already committed', async () => {
+        it('swallows a reclaim failure — the rows are already committed [workspaces:I-18]', async () => {
             const ran: string[] = [];
             registry.register(
                 purger('media', {

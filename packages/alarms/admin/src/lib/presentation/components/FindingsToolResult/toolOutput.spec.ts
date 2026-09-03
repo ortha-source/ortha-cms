@@ -57,7 +57,7 @@ describe('readToolFindings', () => {
     // have shown anyway — a JSON blob is a far better outcome than a crashed
     // conversation.
 
-    it('refuses anything that is not an object with items', () => {
+    it('refuses anything that is not an object with items [alarms:I-35]', () => {
         expect(readToolFindings(null)).toBeNull();
         expect(readToolFindings(undefined)).toBeNull();
         expect(readToolFindings('nope')).toBeNull();
@@ -67,7 +67,7 @@ describe('readToolFindings', () => {
         expect(readToolFindings({ items: 'not an array' })).toBeNull();
     });
 
-    it('drops a row whose severity this build does not know', () => {
+    it('drops a row whose severity this build does not know [alarms:I-35]', () => {
         // Rendering it under the wrong severity would be worse than not
         // rendering it: the header's count comes from `bySeverity`, so the
         // total stays honest either way.
@@ -108,7 +108,7 @@ describe('readToolFindings', () => {
         expect(read?.total).toBe(2);
     });
 
-    it('defaults a missing severity tally to zeroes', () => {
+    it('defaults a missing severity tally to zeroes [alarms:I-35]', () => {
         const read = readToolFindings({ items: [item()], total: 1 });
         expect(read?.bySeverity).toEqual({ error: 0, warn: 0, info: 0 });
     });

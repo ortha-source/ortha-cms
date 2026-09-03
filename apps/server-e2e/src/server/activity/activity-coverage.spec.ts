@@ -261,7 +261,7 @@ describe('activity coverage — which write paths produce an audit row', () => {
             ]);
         });
 
-        it('says nothing when a save changed no value', async () => {
+        it('says nothing when a save changed no value [content:I-14]', async () => {
             // A re-submitted editor is a round trip, not an editorial change,
             // and the log is read by people. This is also what bounds the
             // volume of `entry.updated` without inventing a coalescing window.
@@ -294,7 +294,7 @@ describe('activity coverage — which write paths produce an audit row', () => {
             expect(deleted.every((row) => row.actorId === admin.id)).toBe(true);
         });
 
-        it('writes the event in the same transaction as the entry', async () => {
+        it('writes the event in the same transaction as the entry [content:I-13]', async () => {
             // The rule the whole outbox exists for: a rejected write leaves no
             // event behind claiming it happened.
             //
@@ -377,7 +377,7 @@ describe('activity coverage — which write paths produce an audit row', () => {
     });
 
     describe('idempotency under redelivery', () => {
-        it('a re-delivered event does not double-record', async () => {
+        it('a re-delivered event does not double-record [activity:I-03]', async () => {
             const agent = await login();
             const invited = await agent
                 .post('/api/users/invites')
@@ -411,7 +411,7 @@ describe('activity coverage — which write paths produce an audit row', () => {
     });
 
     describe('a subject the mapper cannot name', () => {
-        it('parks the event instead of writing an empty-string subject', async () => {
+        it('parks the event instead of writing an empty-string subject [activity:I-06]', async () => {
             const eventId = '77777777-7777-4777-8777-777777777777';
             // A membership event whose subject is the affected user, with no
             // `userId`. `subject_id` is `text NOT NULL`, so `''` would insert
@@ -464,7 +464,7 @@ describe('activity coverage — which write paths produce an audit row', () => {
     });
 
     describe('the log has no write surface', () => {
-        it('rejects every verb but GET on /api/activity', async () => {
+        it('rejects every verb but GET on /api/activity [activity:I-01]', async () => {
             const agent = await login();
             for (const verb of ['post', 'put', 'patch', 'delete'] as const) {
                 const res = await agent[verb]('/api/activity').set(

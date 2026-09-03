@@ -144,7 +144,7 @@ describe('POST /api/users/invites', () => {
             .expect(409);
     });
 
-    it('lets only one of two concurrent invites to one address through', async () => {
+    it('lets only one of two concurrent invites to one address through [users:I-10]', async () => {
         // Deliberately through the route, so the **index** is the backstop
         // under test: `email-uniqueness.spec.ts` proves it with raw inserts
         // that bypass the endpoint entirely, which says nothing about whether
@@ -177,7 +177,7 @@ describe('POST /api/users/invites', () => {
         expect(listed.body.total).toBe(1);
     });
 
-    it('treats an existing email case-insensitively (409)', async () => {
+    it('treats an existing email case-insensitively (409) [users:I-10]', async () => {
         const agent = await login(ADMIN_EMAIL);
         await agent
             .post('/api/users/invites')

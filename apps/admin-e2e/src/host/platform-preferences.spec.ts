@@ -135,7 +135,7 @@ test.describe('declarative platform preferences', () => {
 });
 
 test.describe('forced colors', () => {
-    test('a button keeps a visible focus indicator', async ({
+    test('a button keeps a visible focus indicator [design-system:I-32]', async ({
         page,
         membersPage
     }) => {
@@ -190,7 +190,7 @@ test.describe('forced colors', () => {
         expect(parseFloat(indicator.outlineWidth)).toBeGreaterThanOrEqual(1);
     });
 
-    test('nothing opts out of the user palette', async ({
+    test('nothing opts out of the user palette [design-system:I-32]', async ({
         page,
         membersPage
     }) => {

@@ -59,7 +59,7 @@ describe('User sessions (admin)', () => {
             .expect(401);
     });
 
-    it('lists a member’s live sessions', async () => {
+    it('lists a member’s live sessions [identity:I-17]', async () => {
         await login(TARGET_EMAIL); // opens one session for the target
         const adminAgent = await login(ADMIN_EMAIL);
 
@@ -71,7 +71,7 @@ describe('User sessions (admin)', () => {
         expect(res.body[0].id).toEqual(expect.any(String));
     });
 
-    it('marks the caller’s own session as current', async () => {
+    it('marks the caller’s own session as current [identity:I-17]', async () => {
         const adminAgent = await login(ADMIN_EMAIL);
         const res = await adminAgent
             .get(`/api/users/${admin.id}/sessions`)
@@ -128,7 +128,7 @@ describe('User sessions (admin)', () => {
             .expect(403);
     });
 
-    it('403s a viewer reading even their OWN session list', async () => {
+    it('403s a viewer reading even their OWN session list [identity:I-16]', async () => {
         // There is no self-service exception: nothing exposes "my sessions"
         // today, and a route that did would be scoped by the cookie rather than
         // by a path id anyone can substitute.

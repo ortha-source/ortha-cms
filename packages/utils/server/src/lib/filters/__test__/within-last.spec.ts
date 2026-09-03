@@ -97,7 +97,7 @@ describe('within_last', () => {
         );
     });
 
-    it('translates to a now()-relative comparison, not a baked-in cutoff', async () => {
+    it('translates to a now()-relative comparison, not a baked-in cutoff [utils:I-29]', async () => {
         // The whole reason this operator survives to the server: the cutoff has
         // to be computed by the database at query time, so a stored filter
         // replayed a month later still means "the last 90 days".
@@ -118,7 +118,7 @@ describe('within_last', () => {
         expect(rendered).not.toContain('90');
     });
 
-    it('emits the unit the caller asked for', async () => {
+    it('emits the unit the caller asked for [utils:I-29]', async () => {
         const forUnit = async (unit: string) => {
             const tree = parseFilterTree(
                 {

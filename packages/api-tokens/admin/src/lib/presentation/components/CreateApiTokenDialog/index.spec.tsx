@@ -135,7 +135,7 @@ describe('CreateApiTokenDialog', () => {
         expect(submitButton().disabled).toBe(true);
     });
 
-    it('still refuses with a name but no workspace', () => {
+    it('still refuses with a name but no workspace [api-tokens:I-05]', () => {
         renderDialog();
 
         fireEvent.change(nameField(), {

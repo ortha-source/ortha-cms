@@ -142,7 +142,7 @@ describe('closed by default — every documented route refuses an anonymous call
         );
     });
 
-    it('401s every operation that is not on the public list', async () => {
+    it('401s every operation that is not on the public list [identity:I-01]', async () => {
         const publicSet = new Set(PUBLIC_OPERATIONS);
         const reachable: string[] = [];
 

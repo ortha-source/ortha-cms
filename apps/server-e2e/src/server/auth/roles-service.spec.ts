@@ -63,6 +63,7 @@ describe('RolesService.delete', () => {
     });
 
     it.each(['admin', 'contributor', 'viewer'])(
+        // covers: identity:I-13
         'refuses to delete the %s system role',
         async (key) => {
             const id = await systemRoleId(key);

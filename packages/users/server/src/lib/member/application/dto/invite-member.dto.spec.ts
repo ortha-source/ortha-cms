@@ -41,7 +41,7 @@ describe('InviteMemberDto', () => {
         return Object.keys(nameError?.constraints ?? {});
     }
 
-    it('rejects a whitespace-only name — trimmed first, so isNotEmpty sees it', async () => {
+    it('rejects a whitespace-only name — trimmed first, so isNotEmpty sees it [users:I-11]', async () => {
         expect(await nameFailures(payload({ name: '   ' }))).toEqual([
             'isNotEmpty'
         ]);

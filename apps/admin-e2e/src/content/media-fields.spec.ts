@@ -189,7 +189,7 @@ test.describe('Entry editor — Media tab', () => {
         await expect(mediaFieldPage.pickerTile('hero.png')).toBeVisible();
     });
 
-    test('stages an upload and sends it only when the record is saved', async ({
+    test('stages an upload and sends it only when the record is saved [media:I-38]', async ({
         mediaFieldPage
     }) => {
         await mediaFieldPage.gotoNewArticle(WS);
@@ -346,7 +346,7 @@ test.describe('Entry editor — Media tab', () => {
         await expect(mediaFieldPage.resolvingTile).toBeHidden();
     });
 
-    test('says the library failed to load, not that it is empty', async ({
+    test('says the library failed to load, not that it is empty [media:I-36]', async ({
         page,
         mediaFieldPage
     }) => {

@@ -51,7 +51,7 @@ test.describe('workspaces-admin regressions', () => {
             });
         });
 
-        test('reports the check failed and keeps Continue disabled', async ({
+        test('reports the check failed and keeps Continue disabled [workspaces:I-33]', async ({
             createWorkspacePage
         }) => {
             await createWorkspacePage.goto();

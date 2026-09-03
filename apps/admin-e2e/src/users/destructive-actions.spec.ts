@@ -182,7 +182,7 @@ test.describe('Destructive member actions', () => {
         ).toBeFocused();
     });
 
-    test('leaves the sole admin’s Disable inert, with the reason on it', async ({
+    test('leaves the sole admin’s Disable inert, with the reason on it [users:I-16]', async ({
         membersPage,
         page
     }) => {

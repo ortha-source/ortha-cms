@@ -133,7 +133,7 @@ describe('MultiSelect', () => {
         expect(highlighted).toHaveLength(1);
     });
 
-    it('keeps two options with the same label independently chosen', async () => {
+    it('keeps two options with the same label independently chosen [design-system:I-36]', async () => {
         render(
             <MultiSelect
                 options={duplicates}
@@ -154,7 +154,7 @@ describe('MultiSelect', () => {
         ).toEqual(['false', 'true']);
     });
 
-    it('finds an option by searching its value as well as its label', async () => {
+    it('finds an option by searching its value as well as its label [design-system:I-36]', async () => {
         render(
             <MultiSelect
                 options={[

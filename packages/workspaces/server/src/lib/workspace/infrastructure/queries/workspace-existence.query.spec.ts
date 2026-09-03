@@ -74,7 +74,7 @@ describe('WorkspaceExistenceQuery', () => {
         expect(renderedSql(conditions[0])).toContain('"id" in');
     });
 
-    it('filters on nothing but the id — an archived workspace still exists', async () => {
+    it('filters on nothing but the id — an archived workspace still exists [workspaces:I-27]', async () => {
         const { query, conditions } = fakeDb([{ id: ARCHIVED }]);
 
         const found = await query.existing([ARCHIVED]);

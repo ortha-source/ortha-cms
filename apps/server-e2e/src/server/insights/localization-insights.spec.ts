@@ -136,7 +136,7 @@ describe('Localization insights (/api/insights/i18n)', () => {
             });
         });
 
-        it('counts records, not rows', async () => {
+        it('counts records, not rows [i18n:I-24]', async () => {
             // One record in three languages is three rows and ONE record. A
             // count of rows would report a small workspace as three times its
             // real size and make every percentage on the card wrong.
@@ -211,7 +211,7 @@ describe('Localization insights (/api/insights/i18n)', () => {
             expect(body.locales[1]).toMatchObject({ missing: 2 });
         });
 
-        it('reports the same figures per content type', async () => {
+        it('reports the same figures per content type [i18n:I-24]', async () => {
             // The workspace total says translation work exists; only the
             // per-type split says where it is.
             const agent = await login();
