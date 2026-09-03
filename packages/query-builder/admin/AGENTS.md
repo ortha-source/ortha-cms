@@ -119,6 +119,16 @@ Each leaf serialises to `{ field, op, value }`; groups to `{ and: [...] }` /
 Incomplete rules and empty groups are pruned at serialise time, so the
 wire payload is always well-formed even while the drawer holds drafts.
 
+**The reverse map is wider than the forward one, on purpose.** The builder
+never writes `like` — its `contains` is `ilike` — but `parseFilterTree` accepts
+`like` on every text field, and the list pages send the **raw** `?filter=` to
+the API. A link carrying `like` therefore filtered the table while the builder
+above it showed no chip at all, and the next Apply re-serialised the tree
+without it and quietly widened the filter. So `WIRE_TO_UI` maps `like` back to
+`contains`: it returns as `ilike`, a visible widening of one operator's
+case-sensitivity, which is the same lossy-but-preferred rehydration this file
+already makes for `gte`+`lte` → `between`.
+
 The `FieldPicker` is a **relation-aware** field selector. At rest the trigger
 shows the selected path as chips — relation segments as neutral chips, the
 leaf as a solid chip ("Author · Email") — or a muted "Field" placeholder;
@@ -187,6 +197,10 @@ the injected `renderRelationValue` seam.)
 - `npx nx typecheck @orthacms/query-builder-admin`
 - `npx nx test @orthacms/query-builder-admin` — the unit specs. Component
   behaviour belongs in `admin-e2e`, which drives a real browser; what lives here
-  is what a browser cannot reach cheaply, currently `utils/fieldTree` — the pure
-  tree the picker is built from, whose whole job is deciding which of three
-  buckets a field belongs in.
+  is what a browser cannot reach cheaply — `utils/fieldTree` (the pure tree the
+  picker is built from, whose whole job is deciding which of three buckets a
+  field belongs in), `utils/operators`, and the two halves of the wire format.
+  The serialiser specs exist for the parts a browser genuinely cannot watch: the
+  `relativeDates` argument, which is the only thing separating a link's frozen
+  cut-off from a stored rule's sliding window, and the `throw` that catches an
+  operator added with no `UI_TO_WIRE` entry and no branch.
