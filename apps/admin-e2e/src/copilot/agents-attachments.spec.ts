@@ -285,10 +285,14 @@ test.describe('Agents view — attaching files', () => {
 
             await agentsPage.composer().click();
             await agentsPage.composer().fill('pasted prose');
-            await agentsPage.composer().press('Control+a');
-            await agentsPage.composer().press('Control+c');
+            // `ControlOrMeta`, not `Control`: copy and paste are Cmd-based on
+            // macOS, where a bare `Control+c` copies nothing and the paste
+            // below puts back an empty clipboard — the test then fails for a
+            // reason that has nothing to do with the composer.
+            await agentsPage.composer().press('ControlOrMeta+a');
+            await agentsPage.composer().press('ControlOrMeta+c');
             await agentsPage.composer().fill('');
-            await agentsPage.composer().press('Control+v');
+            await agentsPage.composer().press('ControlOrMeta+v');
 
             await expect(agentsPage.composer()).toHaveValue('pasted prose');
             await expect(agentsPage.stagedChips()).toHaveCount(0);
