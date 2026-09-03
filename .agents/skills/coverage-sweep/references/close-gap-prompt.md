@@ -80,6 +80,28 @@ or, above a block or a non-test line:
 
 Then `node tools/coverage/ledger.mjs check` flips the row on its own.
 
+## Record the half-pinned rows you pass on the way
+
+While you are in this package's citations, look for compound invariants where a
+citation covers one clause and nothing covers the other. Triage found these and
+wrote them into the citation's `why` — "only the HTTP half is pinned", "the `via`
+merge clause is not pinned by any test" — where no grep will ever see them, so
+the row reads green with half a rule unguarded.
+
+For each, add to `docs/coverage/judgments/{PKG}.json`:
+
+```json
+"{PKG}:I-10": { "state": "partial", "missing": "which clause no test reaches, and why it matters" }
+```
+
+`partial` rides alongside the citation rather than replacing it, so the row stays
+covered and the gap becomes visible. Close the clause instead if it is cheap —
+`partial` is for what you are leaving, not a place to file work you would rather
+skip.
+
+You are already reading these citations; a separate pass over 26 packages to do
+the same reading costs the same work twice.
+
 ## When the invariant is wrong, not the code
 
 Some gaps are not gaps. If the invariant contradicts what the code does, do

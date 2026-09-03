@@ -904,8 +904,9 @@ test.describe('Entry editor — rich text field', () => {
             // The description is *gone*, not merely hidden behind the flag: a
             // non-empty alt beside `data-decorative` cannot exist in the saved
             // HTML, because a screen reader would announce it anyway.
-            expect(attr(images[0], 'alt')).toBe('');
+            console.log('DIAG', JSON.stringify({ alt: attr(images[0], 'alt'), decorative: attr(images[0], 'decorative') }));
             expect(attr(images[0], 'decorative')).toBe(true);
+            expect(attr(images[0], 'alt')).toBe('');
         });
 
         test('never saves the record from an overlay’s own form [wysiwyg:I-27]', async ({
