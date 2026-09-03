@@ -1,0 +1,240 @@
+{
+    "package": "activity",
+    "citations": [
+        {
+            "id": "activity:I-01",
+            "file": "apps/server-e2e/src/server/activity/activity-coverage.spec.ts",
+            "anchor": "rejects every verb but GET on /api/activity",
+            "why": "Drives POST/PUT/PATCH/DELETE at the route and asserts 404 on each while GET is 200 — a writing route would answer something other than 404. Only the HTTP half is pinned; nothing asserts the package holds no UPDATE/DELETE against activity_events."
+        },
+        {
+            "id": "activity:I-03",
+            "file": "packages/activity/server/src/lib/activity/infrastructure/audit-event-mapping.spec.ts",
+            "anchor": "workspace.created → { name, slug } against the workspace",
+            "why": "`toEqual({...base(), …})` pins the produced row's `id` to `EVENT_ID`, the source event's own id — a generated key would fail the equality."
+        },
+        {
+            "id": "activity:I-03",
+            "file": "apps/server-e2e/src/server/activity/activity-coverage.spec.ts",
+            "anchor": "a re-delivered event does not double-record",
+            "why": "Un-stamps a delivered outbox row, drains twice, and asserts exactly one `user.invited` audit row remains — the ON CONFLICT DO NOTHING clause is the only thing that makes that true."
+        },
+        {
+            "id": "activity:I-04",
+            "file": "packages/activity/server/src/lib/activity/infrastructure/audit-event-mapping.spec.ts",
+            "anchor": "workspace.member_added → subject is the USER, meta { workspaceId, email }",
+            "why": "The `toEqual` includes `at: AT`, the event's `occurredAt`, so a row stamped with delivery time instead would fail."
+        },
+        {
+            "id": "activity:I-04",
+            "file": "apps/server-e2e/src/server/activity/activity.spec.ts",
+            "anchor": "records user.signed_in on login and exposes it via the read API",
+            "why": "Asserts the item carries neither `createdAt` nor `created_at` — the 'never selected on a read' clause."
+        },
+        {
+            "id": "activity:I-05",
+            "file": "packages/activity/server/src/lib/activity/infrastructure/audit-event-mapping.spec.ts",
+            "anchor": "returns null for an unmapped kind",
+            "why": "Pins the null outcome for a kind with no mapper; the spec runs with no database at all, so a mapper reaching for one would fail here."
+        },
+        {
+            "id": "activity:I-05",
+            "file": "packages/activity/server/src/lib/activity/infrastructure/audit-event-mapping.spec.ts",
+            "anchor": "it.each(['workspace.member_added', 'workspace.member_removed'])",
+            "why": "The other outcome: an audited kind whose payload cannot name a subject throws `UnmappableAuditEventError` rather than returning null, so the two are provably not conflated."
+        },
+        {
+            "id": "activity:I-06",
+            "file": "packages/activity/server/src/lib/activity/infrastructure/audit-event-mapping.spec.ts",
+            "anchor": "a non-string userId is refused too (not coerced)",
+            "why": "The membership mapper refuses rather than substituting a default — a coerced or empty `subjectId` would produce a row instead of the throw this asserts."
+        },
+        {
+            "id": "activity:I-06",
+            "file": "apps/server-e2e/src/server/activity/activity-coverage.spec.ts",
+            "anchor": "parks the event instead of writing an empty-string subject",
+            "why": "End to end: a `workspace.member_added` outbox row with no `payload.userId` leaves no activity row at all and stays undispatched with attempts bumped."
+        },
+        {
+            "id": "activity:I-07",
+            "file": "packages/activity/server/src/lib/activity/infrastructure/audit-event-mapping.spec.ts",
+            "anchor": "never repeats the actor inside meta — it owns two columns already",
+            "why": "Asserts `meta` has no `actor` property while `actorId`/`actorEmail` carry it — the lift-and-do-not-duplicate clause. The `via` merge clause is not pinned by any test."
+        },
+        {
+            "id": "activity:I-08",
+            "file": "packages/activity/server/src/lib/activity/infrastructure/audit-event-mapping.spec.ts",
+            "anchor": "never carries a secret or a hash into the audit row",
+            "why": "Feeds a `secret` and a `tokenHash` into the payload and asserts `meta`'s key set is exactly the four enumerated fields and the serialized row contains neither value."
+        },
+        {
+            "id": "activity:I-12",
+            "file": "packages/activity/server/src/lib/activity/infrastructure/audit-event-mapping.spec.ts",
+            "anchor": "member.invited → user.invited { email }",
+            "why": "Pins the member.* → user.* rename for one kind; a passthrough would produce `member.invited`."
+        },
+        {
+            "id": "activity:I-12",
+            "file": "packages/activity/server/src/lib/activity/infrastructure/audit-event-mapping.spec.ts",
+            "anchor": "auth.signed_in → user.signed_in, actor = the user",
+            "why": "Pins the auth.signed_in → user.signed_in rename."
+        },
+        {
+            "id": "activity:I-12",
+            "file": "packages/activity/server/src/lib/activity/infrastructure/audit-event-mapping.spec.ts",
+            "anchor": "api_token.created → token.created on an api_token subject",
+            "why": "Pins the api_token.* → token.* rename; the `toEqual` fixes the produced `kind` exactly."
+        },
+        {
+            "id": "activity:I-12",
+            "file": "packages/activity/server/src/lib/activity/infrastructure/audit-event-mapping.spec.ts",
+            "anchor": "media.asset.uploaded → media_asset subject, payload minus actor",
+            "why": "The 'the rest pass straight through' clause for one of the untouched families: an event of kind `media.asset.uploaded` must produce the identical audit kind."
+        },
+        {
+            "id": "activity:I-13",
+            "file": "packages/activity/server/src/lib/activity/infrastructure/audit-event-mapping.spec.ts",
+            "anchor": "workspace.member_removed → subject is the USER, nullable email",
+            "why": "Asserts `subjectType: 'user'` and `subjectId` = the affected user for a workspace-membership event, with the workspace's id in `meta.workspaceId`."
+        },
+        {
+            "id": "activity:I-14",
+            "file": "apps/server-e2e/src/server/activity/activity.spec.ts",
+            "anchor": "rejects an unauthenticated request with 401",
+            "why": "The session clause for GET /api/activity. Nothing pins /dead-letters, the /entries/:id route, or the refusal of an external API bearer token."
+        },
+        {
+            "id": "activity:I-14",
+            "file": "apps/server-e2e/src/server/activity/activity.spec.ts",
+            "anchor": "forbids a contributor with 403",
+            "why": "The `activity:read` clause for GET /api/activity: a signed-in principal without the permission is refused."
+        },
+        {
+            "id": "activity:I-15",
+            "file": "apps/server-e2e/src/server/activity/activity-filter.spec.ts",
+            "anchor": "AND-composes the filter with the existing kind param",
+            "why": "A `kind` param plus an `actorEmail` `?filter=` tree must intersect: the asserted total of 1 is only reachable if the two compose with AND rather than one replacing the other."
+        },
+        {
+            "id": "activity:I-15",
+            "file": "apps/server-e2e/src/server/activity/activity.spec.ts",
+            "anchor": "paginates with page/pageSize and echoes the envelope",
+            "why": "A request carrying no filters reports `total: 3`, the whole seeded set — the 'absence of filters gives the full set' clause."
+        },
+        {
+            "id": "activity:I-16",
+            "file": "apps/server-e2e/src/server/activity/activity-filter.spec.ts",
+            "anchor": "rejects an unknown field with 400 (whitelist)",
+            "why": "A `?filter=` naming `meta` is refused with 400 — pins the 'meta is not in the filterable surface' clause. The `createdAt` half and the exact count of eight fields are not pinned."
+        },
+        {
+            "id": "activity:I-19",
+            "file": "apps/server-e2e/src/server/activity/activity.spec.ts",
+            "anchor": "filters by actor email (case-insensitive substring)",
+            "why": "Searches `ACTIVITY-ADMIN` against a lowercase address and gets all three rows — the case-insensitivity clause. The LIKE-metacharacter escaping clause is unpinned."
+        },
+        {
+            "id": "activity:I-20",
+            "file": "apps/server-e2e/src/server/activity/activity.spec.ts",
+            "anchor": "// `created_at` is internal and never reaches the wire.",
+            "why": "The two assertions under this line check the response item has neither `createdAt` nor `created_at`."
+        },
+        {
+            "id": "activity:I-21",
+            "file": "apps/server-e2e/src/server/mcp/mcp.spec.ts",
+            "anchor": "shows no copilot-only tool, whatever the scope",
+            "why": "`tools/list` on a full-scope token is asserted not to contain `activity_recent` — the `surfaces: ['copilot']` clause. The `readOnly`/`effect: 'read'` markings are not pinned anywhere."
+        },
+        {
+            "id": "activity:I-21",
+            "file": "apps/server-e2e/src/server/copilot/copilot-read-catalogue.spec.ts",
+            "anchor": "is not callable by a contributor even if the model names it",
+            "why": "Executing `activity_recent` as a contributor (who lacks `activity:read`) fails — the 'requires the same permission as the route' clause, enforced at call time as well as at offer time."
+        },
+        {
+            "id": "activity:I-22",
+            "file": "apps/server-e2e/src/server/workspaces/workspace-lifecycle.spec.ts",
+            "anchor": "refuses both destructive routes with 503 while the counters read 0",
+            "why": "Boots a second app from the `omitContent` plugin list, which registers ActivityPlugin but neither CopilotPlugin nor McpPlugin — so no `ToolsModule` binds `ToolRegistry`. Dropping the `@Optional()` on `ActivityCopilotToolProvider` makes that boot fail and this test error out."
+        },
+        {
+            "id": "activity:I-27",
+            "file": "apps/admin-e2e/src/activity/audit-log.spec.ts",
+            "anchor": "a collapsed row contributes one table row, not two",
+            "why": "`getByRole('row')` (the accessibility tree) counts events + header while collapsed, and exactly one more after expanding — which only holds if the collapsed detail `<tr>` is aria-hidden/inert."
+        },
+        {
+            "id": "activity:I-29",
+            "file": "apps/admin-e2e/src/activity/audit-log.spec.ts",
+            "anchor": "comes back to the last page when a filter leaves fewer",
+            "why": "From `?page=3`, a filter narrowing 60 events to 1 drops `page` from the URL and shows the row — the 'does not stay beyond the last page' half."
+        },
+        {
+            "id": "activity:I-29",
+            "file": "apps/admin-e2e/src/activity/audit-log.spec.ts",
+            "anchor": "keeps a deep-linked page instead of resetting it on arrival",
+            "why": "With the response delayed, `?page=3` survives the first render — the 'does not discard a deep link before the first response' half."
+        },
+        {
+            "id": "activity:I-30",
+            "file": "apps/admin-e2e/src/activity/activity-filter.spec.ts",
+            "anchor": "restores the filter from a deep link on load",
+            "why": "Navigating straight to `/activity?filter=…` reproduces the filtered table and the trigger's condition count, so the URL alone carries the state."
+        },
+        {
+            "id": "activity:I-30",
+            "file": "apps/admin-e2e/src/activity/audit-log.spec.ts",
+            "anchor": "deep-links the active search into the URL",
+            "why": "Typing in the actor-email search puts `actorEmail=` into the address bar rather than keeping it in component state only."
+        },
+        {
+            "id": "activity:I-31",
+            "file": "packages/activity/server/src/lib/activity/infrastructure/audit-event-mapping.spec.ts",
+            "anchor": "workspace.archived → empty meta object (not null)",
+            "why": "The `toEqual({...base()})` pins `actorType: 'user'` for an actor that declares no `type` — the 'an actor that says nothing about its kind is read as a user' clause. The 'actorType is null iff actorId is' clause is unpinned."
+        },
+        {
+            "id": "activity:I-34",
+            "file": "packages/activity/server/src/lib/activity/infrastructure/audit-event-mapping.spec.ts",
+            "anchor": "lists every kind the server can produce",
+            "why": "Reads the admin's `ACTIVITY_KINDS` out of its source and asserts no server `AUDIT_KINDS` entry is missing from it."
+        },
+        {
+            "id": "activity:I-34",
+            "file": "packages/activity/server/src/lib/activity/infrastructure/audit-event-mapping.spec.ts",
+            "anchor": "lists no kind the server cannot produce",
+            "why": "The other direction of the same set equality: no admin label without a server kind behind it."
+        },
+        {
+            "id": "activity:I-34",
+            "file": "packages/activity/server/src/lib/activity/infrastructure/audit-event-mapping.spec.ts",
+            "anchor": "declares no kind no mapper can emit",
+            "why": "Drives every mapper in `AUDITED_EVENT_KINDS` and asserts each declared `AUDIT_KINDS` entry is actually produced — the 'reachable from some mapper' clause."
+        },
+        {
+            "id": "activity:I-35",
+            "file": "packages/identity/server/src/lib/application/use-cases/login.use-case.spec.ts",
+            "anchor": "compares against a dummy hash when no such account exists",
+            "why": "The unknown-address refusal still runs exactly one bcrypt comparison (`verifications` has one entry) and still ends in the same `InvalidCredentialsError` — recording the failure changed neither."
+        },
+        {
+            "id": "activity:I-35",
+            "file": "packages/identity/server/src/lib/application/use-cases/login.use-case.spec.ts",
+            "anchor": "refuses a pending invite the same way, opening no session",
+            "why": "A second refusal path: one comparison, the same error, no session, and exactly one `auth.sign_in_failed` event appended. The 'a failure to record is swallowed rather than turned into a 500' clause is unpinned."
+        },
+        {
+            "id": "activity:I-36",
+            "file": "apps/server-e2e/src/server/api-tokens/api-tokens-last-used.spec.ts",
+            "anchor": "writes one row for two requests inside the same minute",
+            "why": "Two authenticated requests inside the throttle window leave exactly one `token.used` audit row and an unchanged `last_used_at` — the row follows the touch, not the traffic."
+        },
+        {
+            "id": "activity:I-36",
+            "file": "apps/server-e2e/src/server/api-tokens/api-tokens-last-used.spec.ts",
+            "anchor": "writes a second row once the throttle window has passed",
+            "why": "The complement: back-dating `last_used_at` past `LAST_USED_TOUCH_INTERVAL_MS` produces a second row, so the throttle is what bounds the count rather than the row being dropped altogether."
+        }
+    ],
+    "judgments": {}
+}

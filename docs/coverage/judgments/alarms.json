@@ -1,0 +1,138 @@
+{
+    "package": "alarms",
+    "citations": [
+        {
+            "id": "alarms:I-02",
+            "file": "apps/server-e2e/src/server/alarms/alarm-rule-edit.spec.ts",
+            "anchor": "expect(stored.filter).toEqual(CONTAINS_QWERT);",
+            "why": "Reads the saved rule back and asserts the stored filter is the query-builder tree byte for byte, then rescans it and gets the match the same tree implies — so a server-side rewrite or a second condition format would fail here."
+        },
+        {
+            "id": "alarms:I-04",
+            "file": "apps/server-e2e/src/server/alarms/alarm-findings.spec.ts",
+            "anchor": "expect(res.body.byEntry[first]).toHaveLength(1);",
+            "why": "The second entry's publish drives a one-row reconcile that matches nothing; the first entry's finding is still open afterwards, so a pass that closed findings outside its own examined set would fail."
+        },
+        {
+            "id": "alarms:I-05",
+            "file": "apps/server-e2e/src/server/alarms/alarm-findings.spec.ts",
+            "anchor": "it('is idempotent under a re-delivered event'",
+            "why": "Drains the outbox twice over one publish and asserts exactly one finding row, pinning the ON CONFLICT upsert on (rule_id, entry_id); the 'nothing but last_seen_at changed' half is not asserted."
+        },
+        {
+            "id": "alarms:I-07",
+            "file": "apps/server-e2e/src/server/alarms/alarm-rules.spec.ts",
+            "anchor": "expect(res.body.scan.open).toBe(2);",
+            "why": "Seeds three articles before the rule exists and asserts the create response already reports the two matches, so creation must scan the whole collection before answering."
+        },
+        {
+            "id": "alarms:I-07",
+            "file": "apps/server-e2e/src/server/alarms/alarm-rule-edit.spec.ts",
+            "anchor": "it('rescans with the new condition and opens the findings it implies'",
+            "why": "Pins the editing half: with no rescan call and no entry write between the PATCH and the read, the findings already describe the new filter."
+        },
+        {
+            "id": "alarms:I-12",
+            "file": "apps/server-e2e/src/server/alarms/alarm-findings.spec.ts",
+            "anchor": "it('closes the findings on an entry when it is deleted'",
+            "why": "Deleting the entry makes its open finding disappear from the default list through the entry.deleted path; the test cannot tell closed from deleted, and the entry.purged half is not covered at all."
+        },
+        {
+            "id": "alarms:I-13",
+            "file": "apps/server-e2e/src/server/alarms/alarm-rules.spec.ts",
+            "anchor": "it('takes the rule and its findings with it'",
+            "why": "Deletes a rule that has an open finding and expects 204 plus zero findings — without the FK cascade the DELETE would fail the 204. The cross-workspace clause (workspace_id in the DELETE's where) is not covered."
+        },
+        {
+            "id": "alarms:I-14",
+            "file": "apps/server-e2e/src/server/alarms/alarm-rules.spec.ts",
+            "anchor": "it('refuses a second rule with the same name in the workspace'",
+            "why": "A duplicate name answers 409 rather than a 500 from the raw unique-violation; the 'same name in another workspace is accepted' half is not covered."
+        },
+        {
+            "id": "alarms:I-16",
+            "file": "apps/server-e2e/src/server/alarms/alarm-rules.spec.ts",
+            "anchor": "it('answers 404 for an ungranted type, exactly as for an unknown one'",
+            "why": "Asserts both the registered-but-ungranted and the unknown type answer 404 with the identical 'Unknown content type \"…\".' sentence, so neither reply says whether the type exists."
+        },
+        {
+            "id": "alarms:I-17",
+            "file": "apps/server-e2e/src/server/alarms/alarm-rules.spec.ts",
+            "anchor": "it('lets a viewer read rules but not write them'",
+            "why": "Pins the permission split on the rules routes: a viewer gets 200 on GET and 403 on POST, so a read permission on a write route fails here. OriginGuard on the five write routes and the findings controller's permission are not covered."
+        },
+        {
+            "id": "alarms:I-17",
+            "file": "apps/server-e2e/src/server/alarms/alarm-rules.spec.ts",
+            "anchor": "it('refuses a caller who is not a member of the workspace'",
+            "why": "Pins the membership clause: an admin who is not a member of the workspace is refused by WorkspaceGuard on a read route."
+        },
+        {
+            "id": "alarms:I-18",
+            "file": "apps/server-e2e/src/server/alarms/alarm-findings.spec.ts",
+            "anchor": "expect(after.body.total).toBe(0);",
+            "why": "The finding is resolved rather than deleted (resolveForEntry/reconcile only set state), so a default list that did not exclude resolved would report 1 here. The per-entry batch half is not covered."
+        },
+        {
+            "id": "alarms:I-19",
+            "file": "apps/server-e2e/src/server/copilot/copilot-read-catalogue.spec.ts",
+            "anchor": "expect(output.bySeverity).toMatchObject({ error: 1, warn: 0 });",
+            "why": "With one warn and one error finding, filtering the list to severity=error also empties the warn tally — a breakdown built from a second predicate would still report the warn."
+        },
+        {
+            "id": "alarms:I-20",
+            "file": "apps/server-e2e/src/server/alarms/alarm-findings.spec.ts",
+            "anchor": "it('has no mute route left to call'",
+            "why": "The server half: both mute routes answer 404 and ?state=muted is rejected 400 by the DTO's enum."
+        },
+        {
+            "id": "alarms:I-20",
+            "file": "apps/admin-e2e/src/alarms/alarms.spec.ts",
+            "anchor": "test('is offered nowhere'",
+            "why": "The browser half: no button named /mute/i anywhere on the alarms page and no Muted tab in the strip."
+        },
+        {
+            "id": "alarms:I-27",
+            "file": "apps/admin-e2e/src/alarms/alarms.spec.ts",
+            "anchor": "test('cannot be saved with no conditions at all'",
+            "why": "Clears every condition in the editor and asserts Save is disabled, so a rule that would flag the whole collection cannot be written."
+        },
+        {
+            "id": "alarms:I-28",
+            "file": "apps/admin-e2e/src/alarms/alarms.spec.ts",
+            "anchor": "expect(api.updates[0].filter).toEqual(CONTAINS_RULE.filter);",
+            "why": "Records the PATCH body the editor actually sent and asserts the filter key is present and equal to what is on screen, so an omitted key (which the API reads as 'do not touch') fails."
+        },
+        {
+            "id": "alarms:I-34",
+            "file": "apps/server-e2e/src/server/mcp/mcp.spec.ts",
+            "anchor": "it('refuses a copilot-only tool a full-scope token names'",
+            "why": "Pins surfaces: ['copilot'] — a full-scope MCP token naming admin_alarms_findings gets not_found, so the tool does not exist on the MCP surface."
+        },
+        {
+            "id": "alarms:I-34",
+            "file": "apps/server-e2e/src/server/copilot/copilot-read-catalogue.spec.ts",
+            "anchor": "it('does not see another workspace’s findings'",
+            "why": "Pins the workspace bound: the same tool run under a second workspace's header returns total 0 with no argument able to widen it. The 'read-only, no writing counterpart' clause is not covered."
+        },
+        {
+            "id": "alarms:I-35",
+            "file": "packages/alarms/admin/src/lib/presentation/components/FindingsToolResult/toolOutput.spec.ts",
+            "anchor": "it('refuses anything that is not an object with items'",
+            "why": "null, undefined, a string, a number, an array, {} and a non-array items all return null rather than throwing, which is what makes ToolStep fall back to the raw payload."
+        },
+        {
+            "id": "alarms:I-35",
+            "file": "packages/alarms/admin/src/lib/presentation/components/FindingsToolResult/toolOutput.spec.ts",
+            "anchor": "it('drops a row whose severity this build does not know'",
+            "why": "A row with an unrecognised severity is discarded from items while the header count is unaffected."
+        },
+        {
+            "id": "alarms:I-35",
+            "file": "packages/alarms/admin/src/lib/presentation/components/FindingsToolResult/toolOutput.spec.ts",
+            "anchor": "it('defaults a missing severity tally to zeroes'",
+            "why": "Pins the bySeverity clause: a payload with no tally yields zeroes for all three rather than undefined reaching the strip."
+        }
+    ],
+    "judgments": {}
+}

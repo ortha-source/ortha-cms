@@ -1,0 +1,324 @@
+{
+    "package": "copilot",
+    "citations": [
+        {
+            "id": "copilot:I-01",
+            "file": "apps/server-e2e/src/server/copilot/copilot-proposals.spec.ts",
+            "anchor": "writes the change and records who made it",
+            "why": "Asserts the applied proposal's `decidedBy` equals the signed-in user's id, so a run carrying an identity of its own rather than the caller's would fail (the `created_by` column itself is read by no test)."
+        },
+        {
+            "id": "copilot:I-03",
+            "file": "packages/copilot/domain/src/lib/tools/capability-profile.spec.ts",
+            "anchor": "offers a viewer no write tools even where permissions would allow",
+            "why": "Asserts `profile.tools.every((t) => t.effect === 'read')` for a read-only actor handed read + propose + apply tools, as a unit test over the pure `resolveCapabilityProfile`."
+        },
+        {
+            "id": "copilot:I-04",
+            "file": "apps/server-e2e/src/server/copilot/copilot-run-authority.spec.ts",
+            "anchor": "offers no tool with a `status` parameter or a publish in its name",
+            "why": "Iterates every tool actually sent to the model on an admin run — the strongest role, whose offer set is a superset of the others — and asserts no name contains `publish` and no input schema exposes a `status` property."
+        },
+        {
+            "id": "copilot:I-05",
+            "file": "packages/tools/server/src/lib/tool-registry.spec.ts",
+            "anchor": "refuses a tool a hidden-from-list actor invokes by name",
+            "why": "Asserts that a tool hidden by the offer filter still throws `ForbiddenException` out of `registry.call` with the handler never invoked, so the authorization must sit in `call` before dispatch rather than in the filter."
+        },
+        {
+            "id": "copilot:I-06",
+            "file": "packages/copilot/domain/src/lib/tools/capability-profile.spec.ts",
+            "anchor": "keeps the first declaration of a name and withholds the shadow",
+            "why": "Asserts the later declaration of an existing tool name is absent from `tools` and present in `withheld` with reason `duplicate-name`."
+        },
+        {
+            "id": "copilot:I-07",
+            "file": "apps/server-e2e/src/server/copilot/copilot-proposals.spec.ts",
+            "anchor": "parks the call and shows the user its arguments",
+            "why": "Asserts a `tool-permission-request` frame carrying the call's arguments is emitted and that its index precedes the tool-result frame, so a propose tool that executed before asking would fail."
+        },
+        {
+            "id": "copilot:I-07",
+            "file": "apps/server-e2e/src/server/copilot/copilot-proposals.spec.ts",
+            "anchor": "never asks about a read",
+            "why": "The second clause: asserts `framesOfType(events, 'tool-permission-request')` is empty for a read tool call."
+        },
+        {
+            "id": "copilot:I-08",
+            "file": "apps/server-e2e/src/server/copilot/copilot-proposals.spec.ts",
+            "anchor": "stops asking for the rest of the chat once allowed for it",
+            "why": "Two propose calls in one turn with `chat` answered on the first assert exactly one permission frame, which only holds if `allowed_tools` is re-read per call rather than snapshotted per run; the 'appended to in SQL' clause is an implementation detail with no observable difference and stays unpinned."
+        },
+        {
+            "id": "copilot:I-09",
+            "file": "apps/server-e2e/src/server/copilot/copilot-run-authority.spec.ts",
+            "anchor": "refuses another member of the same workspace",
+            "why": "Asserts the answering statuses are [404, 204] — a same-workspace colleague gets the same 404 as 'nothing is waiting' while the owner settles the run; the `permission/extend` half of the invariant has no test anywhere."
+        },
+        {
+            "id": "copilot:I-09",
+            "file": "apps/server-e2e/src/server/copilot/copilot-run-authority.spec.ts",
+            "anchor": "refuses a member of another workspace naming their own",
+            "why": "Asserts [404, 204] for an outsider who passes `WorkspaceGuard` on their own workspace, pinning the workspace half of run ownership."
+        },
+        {
+            "id": "copilot:I-10",
+            "file": "packages/copilot/server/src/lib/chat/application/tool-permission.broker.spec.ts",
+            "anchor": "spends one waiting budget across a run",
+            "why": "Asserts a second call in the same run times out after 60s once the first spent four of the five budgeted minutes, which fails if the budget were charged per call."
+        },
+        {
+            "id": "copilot:I-10",
+            "file": "packages/copilot/server/src/lib/chat/application/tool-permission.broker.spec.ts",
+            "anchor": "refuses without asking once the budget is gone",
+            "why": "Asserts `ask` resolves to a timed-out denial with no timer advance at all, so an exhausted budget cannot park and hold the connection."
+        },
+        {
+            "id": "copilot:I-11",
+            "file": "packages/copilot/server/src/lib/chat/application/tool-permission.broker.spec.ts",
+            "anchor": "refuses a second answer to a settled call",
+            "why": "The answer exit: a second `decide` on an already-answered call must return false, which only holds if the answer path deleted the waiting entry."
+        },
+        {
+            "id": "copilot:I-11",
+            "file": "packages/copilot/server/src/lib/chat/application/tool-permission.broker.spec.ts",
+            "anchor": "rejects on abort, so the generator unwinds instead of leaking",
+            "why": "The abort exit: asserts the promise rejects and that a later `decide` finds nothing waiting; the timeout exit is pinned only indirectly (through the shared budget charge) and no test asserts a post-timeout `decide` returns false."
+        },
+        {
+            "id": "copilot:I-12",
+            "file": "apps/server-e2e/src/server/copilot/copilot-run-authority.spec.ts",
+            "anchor": "records a `copilot_proposals` row and a proposal frame",
+            "why": "An `effect: 'apply'` fixture tool that writes for itself must still leave exactly one `copilot_proposals` row plus a proposal frame — precisely the 'binder that wrote directly' case."
+        },
+        {
+            "id": "copilot:I-12",
+            "file": "apps/server-e2e/src/server/copilot/copilot-run-authority.spec.ts",
+            "anchor": "audits a failed apply as a failed tool call",
+            "why": "The ordering clause: asserts one `copilot_proposals` row exists even though the apply threw, which can only hold if the row is written before the apply."
+        },
+        {
+            "id": "copilot:I-13",
+            "file": "apps/server-e2e/src/server/copilot/copilot-proposals.spec.ts",
+            "anchor": "appends a revision, because it went through the ordinary write",
+            "why": "Asserts the entry gained a revision after a copilot edit, which fails if the applier wrote around the ordinary use case; the 'same activity row' clause is not separately asserted."
+        },
+        {
+            "id": "copilot:I-15",
+            "file": "apps/server-e2e/src/server/copilot/copilot-run-authority.spec.ts",
+            "anchor": "audits a failed apply as a failed tool call",
+            "why": "Asserts the row after a thrown apply is back to `status: 'pending'` with a truthy error and that the target column stayed null, so nothing retried it."
+        },
+        {
+            "id": "copilot:I-16",
+            "file": "apps/server-e2e/src/server/copilot/copilot-run-authority.spec.ts",
+            "anchor": "audits a failed apply as a failed tool call",
+            "why": "Asserts the `copilot_tool_calls` row for the failed apply carries `ok === false` with a non-null error, rather than the `ok = true` a dispatch-shaped audit would write."
+        },
+        {
+            "id": "copilot:I-17",
+            "file": "apps/server-e2e/src/server/copilot/copilot-chat.spec.ts",
+            "anchor": "audits every attempted call, successful or not",
+            "why": "Asserts `copilot_tool_calls` holds exactly one row per attempt with the right ok/summary/error columns for both a succeeding and a throwing tool; the refused-by-user and timed-out categories are not asserted by any test."
+        },
+        {
+            "id": "copilot:I-18",
+            "file": "apps/server-e2e/src/server/copilot/copilot-chat.spec.ts",
+            "anchor": "refuses a tool the model invented, without failing the run",
+            "why": "The unknown-tool clause: asserts a tool-result frame with `ok: false` and an 'Unknown tool' error, and that the run still produced its final text."
+        },
+        {
+            "id": "copilot:I-18",
+            "file": "apps/server-e2e/src/server/copilot/copilot-chat.spec.ts",
+            "anchor": "rejects arguments that do not match the tool schema",
+            "why": "The malformed-arguments clause: asserts `ok: false` with 'Invalid arguments' and that the tool handler was never invoked; the revoked-permission clause routes through the unknown-tool branch in the nearest test and stays unpinned."
+        },
+        {
+            "id": "copilot:I-18",
+            "file": "apps/server-e2e/src/server/copilot/copilot-chat.spec.ts",
+            "anchor": "turns a tool that throws into a tool error and keeps going",
+            "why": "The failed-tool clause: asserts `ok: false` carrying the thrown message and that the run finished with `stopReason: 'end'` rather than a 500."
+        },
+        {
+            "id": "copilot:I-19",
+            "file": "apps/server-e2e/src/server/copilot/copilot-chat.spec.ts",
+            "anchor": "refuses an identical repeated call instead of re-running the tool",
+            "why": "Asserts the second identical call comes back `ok: false` with an explanation and that the tool ran once; neither the sorted-key normalisation nor the after-authorization ordering is separately pinned."
+        },
+        {
+            "id": "copilot:I-20",
+            "file": "apps/server-e2e/src/server/copilot/copilot-chat.spec.ts",
+            "anchor": "fences the tool result as untrusted data",
+            "why": "Asserts the message the provider actually receives carries the tool output inside an `<untrusted-data source=...>` envelope, so a result reaching the model unfenced would fail."
+        },
+        {
+            "id": "copilot:I-20",
+            "file": "packages/copilot/domain/src/lib/run/untrusted.spec.ts",
+            "anchor": "renders a forged closing fence inert",
+            "why": "The unforgeability clause: a payload containing the literal closing delimiter must yield exactly one real delimiter, at the end, with the inner one escaped."
+        },
+        {
+            "id": "copilot:I-20",
+            "file": "packages/copilot/domain/src/lib/run/untrusted.spec.ts",
+            "anchor": "states the truncation and the original size",
+            "why": "The size clause: an oversized payload must be replaced by an envelope declaring `truncated` and the original length rather than being silently cut."
+        },
+        {
+            "id": "copilot:I-20",
+            "file": "packages/copilot/domain/src/lib/run/untrusted.spec.ts",
+            "anchor": "keeps the closing fence unforgeable after truncation",
+            "why": "The two clauses together: a payload made of forged closing fences that overflows the ceiling must still produce exactly one real closing delimiter."
+        },
+        {
+            "id": "copilot:I-21",
+            "file": "apps/server-e2e/src/server/copilot/copilot-chat.spec.ts",
+            "anchor": "stops with max-steps when the model never stops calling tools",
+            "why": "Pins only the steps ceiling (`stopReason === 'max-steps'` at maxSteps+1 scripted turns); the wall-clock and token ceilings, the per-tool-call clock check, and the 'a refused call still returns a tool_result' clause have no assertions anywhere."
+        },
+        {
+            "id": "copilot:I-22",
+            "file": "packages/copilot/provider-anthropic/src/lib/conformance.spec.ts",
+            "anchor": "it.each(MODEL_PROVIDER_CONFORMANCE_CHECKS)",
+            "why": "Requires every conformance check to be null against the Anthropic adapter, including `exactly-one-done-event`, `abort-mid-stream-ends-the-stream` and `abort-mid-stream-reports-zero-usage`."
+        },
+        {
+            "id": "copilot:I-22",
+            "file": "packages/copilot/provider-openai/src/lib/conformance.spec.ts",
+            "anchor": "it.each(MODEL_PROVIDER_CONFORMANCE_CHECKS)",
+            "why": "The same three done/abort clauses asserted against the OpenAI-wire adapter."
+        },
+        {
+            "id": "copilot:I-22",
+            "file": "packages/copilot/provider-fake/src/lib/conformance.spec.ts",
+            "anchor": "it.each(MODEL_PROVIDER_CONFORMANCE_CHECKS)",
+            "why": "The same three done/abort clauses asserted against provider-fake, completing the invariant's 'all three adapters'."
+        },
+        {
+            "id": "copilot:I-24",
+            "file": "apps/server-e2e/src/server/copilot/copilot-media-files.spec.ts",
+            "anchor": "refuses an asset from another workspace",
+            "why": "Asserts the conversation list is still empty after a run whose attachment failed to resolve, so resolving attachments after touching the conversation would fail; the skills half and 'the user's message is stored before the model call' are not pinned."
+        },
+        {
+            "id": "copilot:I-26",
+            "file": "apps/server-e2e/src/server/copilot/copilot-skills.spec.ts",
+            "anchor": "ends the run with a readable error when a skill does not resolve",
+            "why": "The skills clause: asserts the error frame does not contain the requested skill name; the attachment clause is unpinned because the media specs only assert the message contains 'no longer available', never that it omits the asset id."
+        },
+        {
+            "id": "copilot:I-27",
+            "file": "apps/server-e2e/src/server/copilot/copilot-skills.spec.ts",
+            "anchor": "refuses instruction text in the request body",
+            "why": "The first clause: posts a run whose skill reference carries `instructions` and asserts 400, so instruction text on the wire would fail."
+        },
+        {
+            "id": "copilot:I-27",
+            "file": "apps/server-e2e/src/server/copilot/copilot-skills.spec.ts",
+            "anchor": "puts an always-on skill in force without being asked",
+            "why": "The second clause: runs with no `skills` in the body and asserts the system prompt still carries the always-on skill's body."
+        },
+        {
+            "id": "copilot:I-29",
+            "file": "apps/server-e2e/src/server/copilot/copilot-skills.spec.ts",
+            "anchor": "409s a name a code skill already holds",
+            "why": "The write-route clause: POST of a skill named after a code-defined one must answer 409."
+        },
+        {
+            "id": "copilot:I-29",
+            "file": "packages/copilot/domain/src/lib/skills/skill-registry.spec.ts",
+            "anchor": "drops a CMS skill whose name a code skill already holds",
+            "why": "The merge clause: `mergeSkills` must discard the CMS row rather than overwrite the code skill on a name collision."
+        },
+        {
+            "id": "copilot:I-30",
+            "file": "apps/server-e2e/src/server/copilot/copilot-conversations.spec.ts",
+            "anchor": "404s a thread from another workspace",
+            "why": "Same user and session with only the workspace header changed must 404, so dropping the workspaceId predicate from the repository read would fail; no test compares that 404 against a well-formed but nonexistent id."
+        },
+        {
+            "id": "copilot:I-31",
+            "file": "apps/server-e2e/src/server/copilot/copilot-conversations.spec.ts",
+            "anchor": "400s a backend the operator never registered",
+            "why": "PATCHing `modelChoice` with an unregistered provider key must 400 while the sibling case stores a catalogue entry with 200, so a write path that skipped `ModelRegistry.catalogue()` would fail."
+        },
+        {
+            "id": "copilot:I-32",
+            "file": "apps/server-e2e/src/server/copilot/copilot-conversations.spec.ts",
+            "anchor": "does not reorder the list — a rename is not a use",
+            "why": "The updatedAt clause: asserts the rail order is unchanged after renaming the older thread; the 'ownership predicate sits in the UPDATE itself' clause is unobservable over HTTP, since a read-then-write would answer identically."
+        },
+        {
+            "id": "copilot:I-33",
+            "file": "apps/server-e2e/src/server/copilot/copilot-conversations.spec.ts",
+            "anchor": "moves the thread between two disjoint lists, reversibly",
+            "why": "The disjointness clause: asserts the archived id is absent from the active list and present in the archived one, and back again; no test issues a DELETE, so 'cannot be deleted' is unpinned."
+        },
+        {
+            "id": "copilot:I-33",
+            "file": "apps/server-e2e/src/server/copilot/copilot-skills.spec.ts",
+            "anchor": "lets an admin create, edit and delete one",
+            "why": "The contrasting clause: DELETE of a skill answers 204 and the subsequent GET 404s, so a skill really is deletable where a conversation is not."
+        },
+        {
+            "id": "copilot:I-34",
+            "file": "packages/copilot/server/src/lib/copilot.module.spec.ts",
+            "anchor": "registers no controller at all when it is off",
+            "why": "Asserts `module.controllers` is exactly `[]` with `enabled: false`, so any surviving controller fails."
+        },
+        {
+            "id": "copilot:I-34",
+            "file": "apps/server-e2e/src/server/tools/tool-registry.spec.ts",
+            "anchor": "leaves the MCP endpoint a full catalogue",
+            "why": "Boots the app with the copilot disabled and asserts the shared registry still serves its tools to MCP, so the toggle cannot shrink the shared catalogue (it is an arrayContaining, so a registry that gained an entry when off would still pass)."
+        },
+        {
+            "id": "copilot:I-35",
+            "file": "packages/copilot/server/src/lib/utils/copilot-plugin.spec.ts",
+            "anchor": "rejects an empty provider list once the copilot is on",
+            "why": "Clause 1: construction must throw when `enabled: true` meets an empty provider list."
+        },
+        {
+            "id": "copilot:I-35",
+            "file": "packages/copilot/server/src/lib/utils/copilot-plugin.spec.ts",
+            "anchor": "rejects a provider declaring no models",
+            "why": "Clause 2: construction must throw for a registered provider whose model list is empty."
+        },
+        {
+            "id": "copilot:I-35",
+            "file": "packages/copilot/server/src/lib/utils/copilot-plugin.spec.ts",
+            "anchor": "rejects a non-positive maxOutputTokens",
+            "why": "Clause 3: `maxOutputTokens: 0` must throw at construction rather than at boot."
+        },
+        {
+            "id": "copilot:I-35",
+            "file": "packages/copilot/server/src/lib/utils/copilot-plugin.spec.ts",
+            "anchor": "rejects a non-positive limits.%s (%p)",
+            "why": "Clause 4: a table over maxSteps 0 and -1, wallClockMs 0 and maxTotalTokens NaN, each required to throw at construction."
+        },
+        {
+            "id": "copilot:I-37",
+            "file": "apps/server/src/plugins.spec.ts",
+            "anchor": "registers nothing when nothing is configured",
+            "why": "Asserts this repo's composition root returns an empty provider list for an unconfigured deployment, so wiring provider-fake in would fail; nothing asserts the package.json `private` flag or the nx.json release exclusion."
+        },
+        {
+            "id": "copilot:I-37",
+            "file": "packages/create-ortha-app/src/lib/template.spec.ts",
+            "anchor": "registers no offline stand-in alongside it",
+            "why": "The scaffolded composition root: asserts the generated `plugins.ts` contains no `createFakeProvider` even when a real backend was chosen."
+        },
+        {
+            "id": "copilot:I-40",
+            "file": "packages/copilot/admin/src/lib/application/useCopilotModels.spec.ts",
+            "anchor": "is off on a 404 — the routes are not registered",
+            "why": "Asserts `copilotIsOff` is true for a 404 from the model catalogue."
+        },
+        {
+            "id": "copilot:I-40",
+            "file": "packages/copilot/admin/src/lib/application/useCopilotModels.spec.ts",
+            "anchor": "is not off for any other failure",
+            "why": "Asserts `copilotIsOff` is false for a 403, a 500 and a bare network error, so only an explicit 404 reads as switched off."
+        }
+    ],
+    "judgments": {}
+}

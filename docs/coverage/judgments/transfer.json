@@ -1,0 +1,126 @@
+{
+    "package": "transfer",
+    "citations": [
+        {
+            "id": "transfer:I-04",
+            "file": "apps/server-e2e/src/server/transfer/transfer-round-trip.spec.ts",
+            "anchor": "leaves relations out when they are not asked for",
+            "why": "With relations off the author record is absent from the document, yet the surviving reference still carries $key {email: 'ada@x.test'} — a key only the identity-column projection over the unwalked neighbour can produce, and the assertion fails if the reference falls back to the foreign row id."
+        },
+        {
+            "id": "transfer:I-05",
+            "file": "packages/transfer/domain/src/lib/csv/flatten.spec.ts",
+            "anchor": "leads with the envelope and skips the inverse relation",
+            "why": "csvColumns(post) is asserted to equal an exact list that omits the inverse relation 'backlinks' while keeping the owning 'related'. Only the CSV-column clause is pinned; that the inverse side is left out of the export document and not written on import is not asserted anywhere."
+        },
+        {
+            "id": "transfer:I-08",
+            "file": "apps/server-e2e/src/server/transfer/transfer-round-trip.spec.ts",
+            "anchor": "dry-runs without writing, and says what it would do",
+            "why": "After POSTing the document to /import/preview the entry list is asserted to still have the same length as before the call, so a preview that wrote a row fails. The 'not one byte' half (no asset blob uploaded by a dry run) is not asserted — the suite exercises no media."
+        },
+        {
+            "id": "transfer:I-11",
+            "file": "apps/server-e2e/src/server/transfer/transfer-round-trip.spec.ts",
+            "anchor": "round-trips a graph: export, wipe, import, and it is back",
+            "why": "After the import it asserts text, number and select all survived — the regression named in the test's own comment, where the relation pass resent a partial value bag and blanked every field it omitted. The second clause (the pass runs only when relations actually changed, so no second revision arises) is not asserted; nothing reads the revision count."
+        },
+        {
+            "id": "transfer:I-14",
+            "file": "apps/server-e2e/src/server/transfer/transfer-round-trip.spec.ts",
+            "anchor": "keeps the two policies apart: duplicate the record, link its author",
+            "why": "policy=duplicate with the default relation policy yields two articles and exactly one author, still the original row — if ConflictPolicy reached depth 1 a second author would appear."
+        },
+        {
+            "id": "transfer:I-15",
+            "file": "apps/server-e2e/src/server/transfer/transfer-round-trip.spec.ts",
+            "anchor": "links a related record that is already here instead of adding another",
+            "why": "The matched author is asserted to be verdict skip/relation-linked, to still be the single original row id, and to be what the new article points at — a link that wrote to the related entry would change its verdict or add a row. That its field values are left byte-for-byte untouched is not separately asserted."
+        },
+        {
+            "id": "transfer:I-15",
+            "file": "apps/server-e2e/src/server/transfer/transfer-round-trip.spec.ts",
+            "anchor": "round-trips a graph: export, wipe, import, and it is back",
+            "why": "Pins the other half: with both records wiped the default link policy has nothing to link to, and the author is asserted to come back as a created row."
+        },
+        {
+            "id": "transfer:I-16",
+            "file": "apps/server-e2e/src/server/transfer/transfer-round-trip.spec.ts",
+            "anchor": "links a related record that is already here instead of adding another",
+            "why": "The author's verdict is skip, and the imported article is then read back and asserted to have values.author === the skipped author's id — so a skipped entry that fell out of the id map would leave the relation unresolved and fail this."
+        },
+        {
+            "id": "transfer:I-17",
+            "file": "packages/transfer/domain/src/lib/import/id-map.spec.ts",
+            "anchor": "does not index an empty key",
+            "why": "remember() with an empty key, then resolve() by an empty key, is asserted to report Unresolved — indexing the keyless record would return its target id here."
+        },
+        {
+            "id": "transfer:I-18",
+            "file": "packages/transfer/domain/src/lib/document/keyFingerprint.spec.ts",
+            "anchor": "separates two locales of the same key",
+            "why": "keyFingerprint('article', {slug:'hello'}, 'en') is asserted not to equal the 'de' fingerprint; dropping the locale from the fingerprint collapses them into one match."
+        },
+        {
+            "id": "transfer:I-19",
+            "file": "packages/transfer/domain/src/lib/document/keyFingerprint.spec.ts",
+            "anchor": "cannot be forged by a value containing the separator",
+            "why": "Two key bags that a separator-joined encoding would render identically are asserted to fingerprint differently — the assertion only holds under a JSON encoding."
+        },
+        {
+            "id": "transfer:I-23",
+            "file": "apps/server-e2e/src/server/transfer/transfer-round-trip.spec.ts",
+            "anchor": "never writes across workspaces, whatever the manifest claims",
+            "why": "The manifest's sourceWorkspaceId is hand-edited to a second workspace the caller also belongs to; the forged record is asserted to land in the request's workspace and the other workspace is asserted to hold nothing."
+        },
+        {
+            "id": "transfer:I-24",
+            "file": "apps/server-e2e/src/server/transfer/transfer-round-trip.spec.ts",
+            "anchor": "hides a content type the workspace was never granted",
+            "why": "An export against a workspace with no content grants is asserted to answer 404 for a type that does exist — a 403 or any other status would leak that the type is there."
+        },
+        {
+            "id": "transfer:I-25",
+            "file": "packages/transfer/server/src/lib/archive/archive.spec.ts",
+            "anchor": "refuses more entries than the limit before reading any of them",
+            "why": "readZipDirectory alone (no readZipEntry call) is asserted to throw on the entry count, which is the 'counts rejected from the central directory, before decompression' clause."
+        },
+        {
+            "id": "transfer:I-25",
+            "file": "packages/transfer/server/src/lib/archive/archive.spec.ts",
+            "anchor": "refuses an entry declaring more than the per-entry ceiling",
+            "why": "The sizes clause: readZipDirectory throws on the declared uncompressed size against maxArchiveEntryBytes, again before any member is unpacked."
+        },
+        {
+            "id": "transfer:I-25",
+            "file": "packages/transfer/server/src/lib/archive/archive.spec.ts",
+            "anchor": "refuses an archive whose compression ratio is not real content",
+            "why": "The ratio clause: a 4 MB zero-filled member is rejected by readZipDirectory with /compressed far beyond/ without being decompressed."
+        },
+        {
+            "id": "transfer:I-26",
+            "file": "packages/transfer/server/src/lib/archive/archive.spec.ts",
+            "anchor": "refuses a path that climbs out of the archive",
+            "why": "A forged '../' member name makes readZipDirectory throw rather than return a normalised path — sanitising instead of refusing would return an entry and fail the toThrow."
+        },
+        {
+            "id": "transfer:I-27",
+            "file": "apps/server-e2e/src/server/transfer/transfer-round-trip.spec.ts",
+            "anchor": "refuses a document written by a newer format version",
+            "why": "manifest.version = 99 is asserted to give 400 with a /newer version/i message rather than a best-effort read."
+        },
+        {
+            "id": "transfer:I-31",
+            "file": "packages/transfer/domain/src/lib/csv/flatten.spec.ts",
+            "anchor": "does not reconstruct media — a filename in a cell is not a file",
+            "why": "A row round-tripped through recordToRow/rowToRecord is asserted to come back with media === [], so a populated media cell can never become an asset reference."
+        },
+        {
+            "id": "transfer:I-39",
+            "file": "apps/server-e2e/src/server/transfer/transfer-round-trip.spec.ts",
+            "anchor": "rejects an empty selection",
+            "why": "POST /export with ids: [] is asserted to answer 400 — an 'empty means everything' reading would answer 200."
+        }
+    ],
+    "judgments": {}
+}

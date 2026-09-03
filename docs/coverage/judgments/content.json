@@ -1,0 +1,366 @@
+{
+    "package": "content",
+    "citations": [
+        {
+            "id": "content:I-02",
+            "file": "packages/content/server/src/lib/registry/content-type-registry.spec.ts",
+            "anchor": "throws on duplicate type names",
+            "why": "Constructing the registry with two types of one name throws — the duplicate-name clause; the registry is built at module construction, so the throw is a boot failure."
+        },
+        {
+            "id": "content:I-02",
+            "file": "packages/content/server/src/lib/registry/content-type-registry.spec.ts",
+            "anchor": "throws when a relation targets an unregistered type",
+            "why": "The unresolvable-relation-target clause: constructing the registry throws rather than deferring to the first request."
+        },
+        {
+            "id": "content:I-02",
+            "file": "packages/content/server/src/lib/registry/content-type-registry.spec.ts",
+            "anchor": "throws when the inverse targets a non-relation field",
+            "why": "The unpaired-relationInverse clause: an inverse that does not mirror a real owning relation throws at construction."
+        },
+        {
+            "id": "content:I-02",
+            "file": "packages/content/graphql/src/lib/utils/__test__/content-graphql-plugin.spec.ts",
+            "anchor": "refuses two content types that collide as GraphQL names",
+            "why": "The GraphQL-name-collision clause: ContentGraphqlPlugin refuses to build at composition time. (Nothing pins that the failure actually aborts `createServer` boot rather than being caught somewhere.)"
+        },
+        {
+            "id": "content:I-04",
+            "file": "apps/server-e2e/src/server/content/list-entries.spec.ts",
+            "anchor": "does not leak workspace A",
+            "why": "Listing with workspace B's header returns none of workspace A's entries — the read half of the workspace AND."
+        },
+        {
+            "id": "content:I-04",
+            "file": "apps/server-e2e/src/server/content/content-entries-write.spec.ts",
+            "anchor": "skips an id from another workspace, and does not report it as done",
+            "why": "The bulk half: a foreign id in a bulk publish is neither written nor counted."
+        },
+        {
+            "id": "content:I-04",
+            "file": "apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts",
+            "anchor": "404s an entry that lives in another workspace",
+            "why": "An id from another workspace reads as a 404 on the public read route."
+        },
+        {
+            "id": "content:I-04",
+            "file": "apps/server-e2e/src/server/api-tokens/public-content-writes.spec.ts",
+            "anchor": "text: 'Mine now'",
+            "why": "The write half ('404s an entry in another workspace', the update case): a PATCH addressed at another workspace's entry is a 404, not a cross-workspace write."
+        },
+        {
+            "id": "content:I-05",
+            "file": "apps/server-e2e/src/server/content/content-grants.spec.ts",
+            "anchor": "404s the entries list of an ungranted type with the same body",
+            "why": "Asserts byte-for-byte body equality (bar the caller-supplied name) between the ungranted and the unknown 404 on the session API. The public REST, GraphQL and tool surfaces only assert the status/code, not the same text, and nothing pins that grants are read before the registry decision."
+        },
+        {
+            "id": "content:I-06",
+            "file": "packages/content/server/src/lib/collection/define.spec.ts",
+            "anchor": "rejects a field that collides with an envelope column",
+            "why": "The declaration half for status; siblings in the same file pin published_at and deleted_at. The 'cannot be set from a request body' half is not pinned on any HTTP surface."
+        },
+        {
+            "id": "content:I-06",
+            "file": "packages/content/server/src/lib/collection/define.spec.ts",
+            "anchor": "reserves locale and locale_group_id as field names",
+            "why": "The two i18n envelope columns cannot be declared as fields."
+        },
+        {
+            "id": "content:I-07",
+            "file": "apps/server-e2e/src/server/content/content-entries-write.spec.ts",
+            "anchor": "saves an incomplete draft of a publishable type, but 422s on publish",
+            "why": "On a publishable type an incomplete create is a 201 draft and the required check only fires at publish."
+        },
+        {
+            "id": "content:I-07",
+            "file": "apps/server-e2e/src/server/content/content-entries-write.spec.ts",
+            "anchor": "422s an invalid create of a non-publishable (always-live) type",
+            "why": "The non-publishable half: the same values are refused on the write itself."
+        },
+        {
+            "id": "content:I-08",
+            "file": "apps/server-e2e/src/server/content/content-entries-write.spec.ts",
+            "anchor": "keeps publishedAt through an edit and clears it on unpublish",
+            "why": "A save on a published entry returns status draft with publishedAt preserved, and only unpublish clears it."
+        },
+        {
+            "id": "content:I-09",
+            "file": "apps/server-e2e/src/server/content/content-entries-write.spec.ts",
+            "anchor": "saves an incomplete draft of a publishable type, but 422s on publish",
+            "why": "The publish call carries no body, so the 422 with per-field `issues` can only come from re-validating the stored row. (That the row is still a draft afterwards is not asserted.)"
+        },
+        {
+            "id": "content:I-10",
+            "file": "apps/server-e2e/src/server/content/entry-revisions.spec.ts",
+            "anchor": "supersedes the previously-published revision when a newer one publishes",
+            "why": "After a second publish, v2 is published and v1 is superseded — at most one version live at a time."
+        },
+        {
+            "id": "content:I-11",
+            "file": "apps/server-e2e/src/server/content/entry-revisions.spec.ts",
+            "anchor": "restores an earlier revision as a new revision (append-only)",
+            "why": "Restoring v1 appends v3 and leaves v1 in place."
+        },
+        {
+            "id": "content:I-11",
+            "file": "apps/server-e2e/src/server/content/entry-revisions.spec.ts",
+            "anchor": "publishes a specific earlier version, making it live",
+            "why": "Publishing v1 while v3 is newest marks v1 published in place and asserts total is still 3 — no copy is minted."
+        },
+        {
+            "id": "content:I-12",
+            "file": "apps/server-e2e/src/server/content/entry-revisions.spec.ts",
+            "anchor": "appends an incrementing revision on every save, newest first",
+            "why": "Version numbers increment 1, 2 within one entry. The concurrency half — the advisory lock and the unique-index backstop under two simultaneous writers — is not pinned."
+        },
+        {
+            "id": "content:I-13",
+            "file": "apps/server-e2e/src/server/activity/activity-coverage.spec.ts",
+            "anchor": "writes the event in the same transaction as the entry",
+            "why": "A create rejected inside the write transaction leaves no entry.created outbox/activity row. Pins the row-and-event clause only; the version, the links and the write extensions' state are not shown to roll back with it."
+        },
+        {
+            "id": "content:I-14",
+            "file": "apps/server-e2e/src/server/activity/activity-coverage.spec.ts",
+            "anchor": "says nothing when a save changed no value",
+            "why": "A PATCH resubmitting identical values produces no entry.updated. The bulk half (one event per changed row rather than per id passed) is not pinned — the bulk-delete test passes only ids that are actually removed."
+        },
+        {
+            "id": "content:I-15",
+            "file": "apps/server-e2e/src/server/i18n/i18n-content.spec.ts",
+            "anchor": "appends a revision to each sibling the sync rewrote",
+            "why": "A shared-field change on the source row adds exactly one revision to the sibling the i18n extension rewrote."
+        },
+        {
+            "id": "content:I-15",
+            "file": "apps/server-e2e/src/server/segments/entry-access.spec.ts",
+            "anchor": "appends exactly one revision when a save moves both a shared field and access",
+            "why": "The deduplication clause: two extensions reporting the same rewritten row still yield one version for it."
+        },
+        {
+            "id": "content:I-16",
+            "file": "apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts",
+            "anchor": "serves only published, non-deleted entries",
+            "why": "The default public read excludes drafts and soft-deleted rows."
+        },
+        {
+            "id": "content:I-16",
+            "file": "apps/server-e2e/src/server/api-tokens/public-content-writes.spec.ts",
+            "anchor": "lets a write-scoped token read its own draft back",
+            "why": "?status=draft and ?status=any are 200 for a write-scoped token and 403 for a read-only one — a guard refusing, not an empty result set."
+        },
+        {
+            "id": "content:I-16",
+            "file": "apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts",
+            "anchor": "never lets a filter widen the published-only scope",
+            "why": "A filter matching every row still returns only the published one, and `status` is not in the public filter schema at all."
+        },
+        {
+            "id": "content:I-17",
+            "file": "apps/server-e2e/src/server/segments/access-filter.spec.ts",
+            "anchor": "splits restricted from open",
+            "why": "An admin session lists a segment-restricted entry with no reader tags — if CONTENT_READ_SCOPE were applied to the admin records list the row would be hidden and the assertion would fail. The 'can only narrow' half is not pinned as such."
+        },
+        {
+            "id": "content:I-18",
+            "file": "apps/server-e2e/src/server/segments/public-read-scope.spec.ts",
+            "anchor": "drops a target the reader cannot see from BOTH items and total",
+            "why": "A relation preview over two links, one unreachable, returns items length 1 and total 1 — the restriction is inside the window and inside the count."
+        },
+        {
+            "id": "content:I-19",
+            "file": "packages/content/server/src/lib/entries/infrastructure/persistence/same-locale.spec.ts",
+            "anchor": "rejects a target in another locale, naming both sides",
+            "why": "The one assertSameLocale implementation refuses a cross-locale target when both sides are localized, and is a no-op when either side is not."
+        },
+        {
+            "id": "content:I-19",
+            "file": "apps/server-e2e/src/server/api-tokens/public-content-writes.spec.ts",
+            "anchor": "refuses to link two localized types across locales",
+            "why": "The writer, not the picker: a direct PATCH on the public API is a 422 while the same-locale sibling is accepted. Only the public write path is exercised end to end; the session API and the agent tools are not."
+        },
+        {
+            "id": "content:I-20",
+            "file": "apps/server-e2e/src/server/api-tokens/public-content-writes.spec.ts",
+            "anchor": "addresses a write at the group",
+            "why": "A group-addressed PATCH with ?locale=de rewrites the German row and leaves the English one untouched; taking the locale from body.locale (absent) would have hit the default-locale row."
+        },
+        {
+            "id": "content:I-21",
+            "file": "apps/server-e2e/src/server/content/content-entries-write.spec.ts",
+            "anchor": "400s a relation delta on a single relation",
+            "why": "A delta against a field that owns no writable link set is a 400 rather than a silently dropped change."
+        },
+        {
+            "id": "content:I-22",
+            "file": "apps/server-e2e/src/server/content/content-entries-write.spec.ts",
+            "anchor": "400s a malformed relation delta (non-array unlink), not a 500",
+            "why": "A structurally malformed delta is rejected at the DTO with a 400. The size bounds on the arrays and on the relations map are not pinned."
+        },
+        {
+            "id": "content:I-23",
+            "file": "apps/server-e2e/src/server/api-tokens/public-content-writes.spec.ts",
+            "anchor": "422s a malformed relation id instead of 500ing",
+            "why": "A non-uuid relation target comes back as a 422 rather than a Postgres cast error surfacing as a 500."
+        },
+        {
+            "id": "content:I-24",
+            "file": "apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts",
+            "anchor": "returns only the selected fields",
+            "why": "?fields= narrows `values` to exactly the named fields while id and publishedAt still come back — the envelope is not selectable away."
+        },
+        {
+            "id": "content:I-24",
+            "file": "apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts",
+            "anchor": "400s an unknown or unselectable field name",
+            "why": "An unknown name in ?fields= is a 400."
+        },
+        {
+            "id": "content:I-24",
+            "file": "apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts",
+            "anchor": "reads an empty ?fields= as",
+            "why": "An empty parameter returns the same full key set as no parameter at all. The 'narrows the SQL projection' clause is not observable from any of these assertions."
+        },
+        {
+            "id": "content:I-25",
+            "file": "packages/content/server/src/lib/entries/infrastructure/queries/entry-filter-surface.spec.ts",
+            "anchor": "every offered %s path parses against its schema (no drift)",
+            "why": "The drift test itself: every path the surface offers the picker is parsed against the SQL filter schema from the same walk, so an offered path the API would reject fails the suite."
+        },
+        {
+            "id": "content:I-26",
+            "file": "packages/content/server/src/lib/extension/entry-filter-provider.spec.ts",
+            "anchor": "keeps the first declarer of a duplicated field name",
+            "why": "The collision clause: the first declarer of a duplicated virtual field name handles the rule. The workspace-scoping half of the invariant is NOT pinned — no test shows a virtual field's subquery scoped to the workspace passed in."
+        },
+        {
+            "id": "content:I-27",
+            "file": "apps/server-e2e/src/server/api-tokens/public-graphql-api.spec.ts",
+            "anchor": "omits an ungranted content type from the schema entirely",
+            "why": "The SDL served to a token omits the ungranted type, so introspection cannot enumerate it."
+        },
+        {
+            "id": "content:I-27",
+            "file": "apps/server-e2e/src/server/api-tokens/public-graphql-api.spec.ts",
+            "anchor": "gives two workspaces different schemas",
+            "why": "The schema is per grant set: one token gets different SDL per workspace. The 'TTL is a freshness knob, not a security boundary' clause (revoke, then read before the TTL expires) is not pinned."
+        },
+        {
+            "id": "content:I-28",
+            "file": "packages/content/graphql/src/lib/schema/__test__/build-schema.spec.ts",
+            "anchor": "never gives a write input field a default",
+            "why": "Asserts no mutation input field carries a defaultValue, which is what keeps merge-by-key-presence from becoming overwrite-everything."
+        },
+        {
+            "id": "content:I-29",
+            "file": "apps/server-e2e/src/server/api-tokens/public-graphql-api.spec.ts",
+            "anchor": "refuses %s over both protocols",
+            "why": "For three out-of-bounds read arguments, the GraphQL error message is asserted equal to the REST 400's message — the same DTO decorators validated in the resolver."
+        },
+        {
+            "id": "content:I-29",
+            "file": "packages/content/server/src/lib/mcp/tool-input.spec.ts",
+            "anchor": "pageSize cap",
+            "why": "The agent-tool half: validateToolInput runs the same DTO, so a tool argument past the cap is refused exactly as the HTTP route refuses it."
+        },
+        {
+            "id": "content:I-30",
+            "file": "apps/server-e2e/src/server/copilot/copilot-proposals.spec.ts",
+            "anchor": "appends a revision, because it went through the ordinary write",
+            "why": "Applying a copilot change leaves a revision, which only the ordinary EntryWriterService path produces. That the three tool handlers themselves declare effect: 'propose' and write nothing is not asserted."
+        },
+        {
+            "id": "content:I-31",
+            "file": "apps/server-e2e/src/server/copilot/copilot-run-authority.spec.ts",
+            "anchor": "offers no tool with a `status` parameter or a publish in its name",
+            "why": "Walks every offered tool schema: no `status` property and no publish-named tool. The absence of a bulk DELETE tool is not asserted."
+        },
+        {
+            "id": "content:I-32",
+            "file": "apps/server-e2e/src/server/copilot/copilot-proposals.spec.ts",
+            "anchor": "names the sibling locales and the shared field on an edit",
+            "why": "Editing a shared field on one locale row puts the sibling locale and the field in the proposal summary and in target.fanout."
+        },
+        {
+            "id": "content:I-33",
+            "file": "apps/server-e2e/src/server/copilot/copilot-proposals.spec.ts",
+            "anchor": "refuses a content type the workspace was not granted",
+            "why": "A propose against an ungranted type is refused with the 'Unknown content type' wording — the same message a non-existent type gives — and under ADR-0009 propose is the apply."
+        },
+        {
+            "id": "content:I-34",
+            "file": "apps/server-e2e/src/server/content/saved-views.spec.ts",
+            "anchor": "403s reading views without content:read",
+            "why": "A member without content:read cannot read views at all — a saved view is not a way past the permission."
+        },
+        {
+            "id": "content:I-34",
+            "file": "apps/server-e2e/src/server/content/saved-views.spec.ts",
+            "anchor": "not 403s — a view addressed from another workspace",
+            "why": "The workspace half: a view is invisible outside the workspace it was saved in."
+        },
+        {
+            "id": "content:I-35",
+            "file": "apps/server-e2e/src/server/content/saved-views.spec.ts",
+            "anchor": "403s another member editing a shared view",
+            "why": "The other member is seeded with role 'admin', so this pins 'not even by an administrator' for the edit."
+        },
+        {
+            "id": "content:I-35",
+            "file": "apps/server-e2e/src/server/content/saved-views.spec.ts",
+            "anchor": "403s another member deleting a shared view",
+            "why": "Same, for delete."
+        },
+        {
+            "id": "content:I-35",
+            "file": "apps/server-e2e/src/server/content/saved-views.spec.ts",
+            "anchor": "lets a member default to a shared view they do not own",
+            "why": "Setting a personal default is not restricted to the owner."
+        },
+        {
+            "id": "content:I-35",
+            "file": "apps/server-e2e/src/server/content/saved-views.spec.ts",
+            "anchor": "403s sharing without views:share, while a private view still saves",
+            "why": "visibility: 'workspace' needs views:share on create while a private view still saves. That the same check runs on every write (e.g. a PATCH raising visibility) is not pinned."
+        },
+        {
+            "id": "content:I-36",
+            "file": "apps/server-e2e/src/server/content/saved-views.spec.ts",
+            "anchor": "404s an ungranted type exactly as an unknown one",
+            "why": "A scope naming an ungranted type answers with the same 404 body as an unknown one, resolved through the registry and the grants."
+        },
+        {
+            "id": "content:I-36",
+            "file": "apps/server-e2e/src/server/content/saved-views.spec.ts",
+            "anchor": "404s saving a view over an ungranted type",
+            "why": "The write side: the endpoint is not a way around ContentGrantGuard."
+        },
+        {
+            "id": "content:I-39",
+            "file": "apps/admin-e2e/src/content/entry-read-only.spec.ts",
+            "anchor": "never saves, even on a form submit from a field",
+            "why": "Enter in a text field submits the <form> directly and no save request is issued — runSave returning early, not a disabled button."
+        },
+        {
+            "id": "content:I-39",
+            "file": "apps/admin-e2e/src/content/entry-read-only.spec.ts",
+            "anchor": "renders every text field read-only, colour field included",
+            "why": "The 'read-only throughout' half: the fields themselves, not just the actions."
+        },
+        {
+            "id": "content:I-40",
+            "file": "apps/admin-e2e/src/content/records-resilience.spec.ts",
+            "anchor": "a failed content-type catalogue leaves the sidebar an error, not an absence",
+            "why": "A 500 on the type catalogue renders the sidebar error card (with a Try again the next test clicks) rather than removing the navigation."
+        },
+        {
+            "id": "content:I-40",
+            "file": "apps/admin-e2e/src/content/records-resilience.spec.ts",
+            "anchor": "a pageSize the server would reject falls back to the default rather than an error card",
+            "why": "?pageSize=999 renders rows with no alert — the out-of-range URL parameter degrades instead of stranding the reader in an error card."
+        }
+    ],
+    "judgments": {}
+}
