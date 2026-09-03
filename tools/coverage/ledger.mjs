@@ -44,10 +44,11 @@
  * working a package each: a shared file would have them clobbering one another's
  * writes, and a merge conflict per package is no conflict at all.
  *
- * A package file also carries `externalCitations` — invariants pinned by a spec
- * that lives *outside* that package's own directories. Its author records the
- * intent instead of editing a file another agent may hold open, and `apply`
- * inserts them afterwards, serially.
+ * A package file also carries `citations` — "this existing spec already asserts
+ * that invariant". Their authors record the intent rather than editing the spec
+ * themselves, because a fan-out of agents editing a shared test tree races on
+ * files two packages both touch. `apply` inserts them afterwards, serially, and
+ * from then on the citation in the spec is what `check` reads.
  *
  * ## Usage
  *
@@ -55,6 +56,7 @@
  *   node tools/coverage/ledger.mjs check          report coverage (add --strict to fail on gaps)
  *   node tools/coverage/ledger.mjs check --json   the same, machine-readable
  *   node tools/coverage/ledger.mjs gaps <pkg>     the uncovered rows of one package, with text
+ *   node tools/coverage/ledger.mjs apply [--dry]  write the recorded citations into the specs
  */
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync } from 'node:fs';
@@ -297,11 +299,81 @@ function gaps(pkg) {
     for (const r of rows) console.log(`  ${r.id}  ${r.text}\n`);
 }
 
+/* ------------------------------------------------------------------ applying */
+
+/**
+ * Insert the recorded citations into the specs. An entry anchors on an exact
+ * substring of a line — usually the test title — so the insert is unambiguous
+ * even in a file with a dozen similar cases.
+ *
+ * Where the anchored line opens a `describe`/`it`/`test`, the id goes inside the
+ * title, which is where a failure message shows it. Anything else gets a
+ * `// covers:` line above, at the same indentation.
+ */
+function apply(args) {
+    const dry = args.includes('--dry');
+    if (!existsSync(JUDGMENTS)) return console.log('no judgments to apply');
+    const edits = new Map(); // file -> [{id, anchor}]
+    for (const f of readdirSync(JUDGMENTS).filter((f) => f.endsWith('.json')).sort()) {
+        const doc = JSON.parse(readFileSync(join(JUDGMENTS, f), 'utf8'));
+        for (const c of doc.citations ?? []) {
+            if (!c.file || !c.anchor || !c.id) throw new Error(`${f}: citation needs id, file and anchor`);
+            if (!edits.has(c.file)) edits.set(c.file, []);
+            edits.get(c.file).push(c);
+        }
+    }
+    let done = 0;
+    let skipped = 0;
+    for (const [file, cs] of [...edits].sort()) {
+        const abs = join(ROOT, file);
+        if (!existsSync(abs)) {
+            console.error(`!! ${file}: no such file (${cs.length} citations dropped)`);
+            skipped += cs.length;
+            continue;
+        }
+        const lines = readFileSync(abs, 'utf8').split('\n');
+        // Group by anchor so several ids landing on one title are written once.
+        const byAnchor = new Map();
+        for (const c of cs) {
+            if (!byAnchor.has(c.anchor)) byAnchor.set(c.anchor, []);
+            byAnchor.get(c.anchor).push(c.id);
+        }
+        for (const [anchor, ids] of byAnchor) {
+            const i = lines.findIndex((l) => l.includes(anchor));
+            if (i < 0) {
+                console.error(`!! ${file}: anchor not found — ${anchor.slice(0, 60)}`);
+                skipped += ids.length;
+                continue;
+            }
+            const fresh = ids.filter((id) => !lines[i].includes(id) && !(lines[i - 1] ?? '').includes(id));
+            if (!fresh.length) continue;
+            const title = /^(\s*(?:describe|it|test)(?:\.\w+)?\s*\(\s*)(['"`])((?:\\.|(?!\2).)*)\2/.exec(lines[i]);
+            if (title) {
+                lines[i] =
+                    lines[i].slice(0, title[1].length) +
+                    title[2] +
+                    title[3] +
+                    ` [${fresh.join('] [')}]` +
+                    title[2] +
+                    lines[i].slice(title[1].length + title[2].length + title[3].length + title[2].length);
+            } else {
+                const indent = /^\s*/.exec(lines[i])[0];
+                lines.splice(i, 0, `${indent}// covers: ${fresh.join(', ')}`);
+            }
+            done += fresh.length;
+        }
+        if (!dry) writeFileSync(abs, lines.join('\n'));
+    }
+    console.log(`${dry ? '[dry] ' : ''}applied ${done} citations across ${edits.size} files${skipped ? `, ${skipped} skipped` : ''}`);
+}
+
+
 const [cmd, ...args] = process.argv.slice(2);
 if (cmd === 'build') build();
 else if (cmd === 'check') check(args);
 else if (cmd === 'gaps') gaps(args[0]);
+else if (cmd === 'apply') apply(args);
 else {
-    console.error('usage: ledger.mjs build | check [--json] [--strict] | gaps <package>');
+    console.error('usage: ledger.mjs build | check [--json] [--strict] | gaps <package> | apply [--dry]');
     process.exit(2);
 }
