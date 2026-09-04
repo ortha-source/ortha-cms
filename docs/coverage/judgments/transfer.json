@@ -23,7 +23,7 @@
             "id": "transfer:I-11",
             "file": "apps/server-e2e/src/server/transfer/transfer-round-trip.spec.ts",
             "anchor": "round-trips a graph: export, wipe, import, and it is back",
-            "why": "After the import it asserts text, number and select all survived — the regression named in the test's own comment, where the relation pass resent a partial value bag and blanked every field it omitted. The second clause (the pass runs only when relations actually changed, so no second revision arises) is not asserted; nothing reads the revision count."
+            "why": "After the import it asserts text, number and select all survived — the regression named in the test's own comment, where the relation pass resent a partial value bag and blanked every field it omitted. It then reads both histories back and asserts one revision each: the author is written first, so the article's link lands with its values and the link pass must find nothing to do. Pins the first clause and the no-second-revision half of the second."
         },
         {
             "id": "transfer:I-14",
@@ -180,6 +180,12 @@
             "file": "apps/server-e2e/src/server/transfer/transfer-round-trip.spec.ts",
             "anchor": "links a related record without writing a word to it",
             "why": "Closes the clause the other two I-15 citations left open. The live author is renamed after the export, so the file and the row differ on `name` while still sharing the `email` the key matches on; after the import the author is asserted to still read 'Ada Lovelace' rather than the file's 'Ada'. A `link` that also wrote the file's values would keep the same row id and the same skip verdict and pass everything else."
+        },
+        {
+            "id": "transfer:I-11",
+            "file": "apps/server-e2e/src/server/transfer/transfer-round-trip.spec.ts",
+            "anchor": "spends one write per record, and a second only where a link could not resolve on the first",
+            "why": "The two-page cycle is the one document holding both halves at once: whichever page is written first cannot resolve its parent and genuinely needs the link pass, while the second one's parent is already in the id map. Both parent links are asserted rebuilt — so a link pass that never fires fails here rather than passing a bare revision count — and the two revision totals are asserted to be [1, 2]: exactly one second write across the two rows. Before the guard was fixed this read [2, 2]; with the pass disabled it reads [1, 1] and the parent assertions fall first."
         }
     ],
     "judgments": {
@@ -190,10 +196,6 @@
         "transfer:I-09": {
             "state": "partial",
             "missing": "Only the second clause is pinned. `import-media.service.spec.ts` -> 'deletes only what its own run wrote' proves the rollback list is caller-owned (two runs through one singleton; rolling back the first leaves the second's row), but the first clause — that the apply runs entirely in **one transaction** — is not asserted anywhere: no test drives a mid-apply failure and reads back that the earlier entries were rolled back. That needs a real transaction, so it is server-e2e work."
-        },
-        "transfer:I-11": {
-            "state": "partial",
-            "missing": "The first clause is pinned by the round-trip spec. The second — 'runs only if the relations actually changed, so no second revision arises for one import' — is not merely unasserted; it looks untrue. import-entries.use-case.ts pushes `{ record, targetId, values }` onto `linkPass`, where `values` is the pre-link bag, while the row was written from `withLinks`. applyLinks then compares `sameLink(written[field], next)`, and for any non-null relation `written[field]` is `undefined` against a resolved id, so `any` is always true and the second UPDATE always runs. The guard can only ever fire for a record whose relations are all null. Fixing it looks like one word — push `withLinks` instead of `values` — but that is a production change, so it is recorded rather than made; a test asserting one revision after one import would fail today."
         },
         "transfer:I-28": {
             "state": "partial",
