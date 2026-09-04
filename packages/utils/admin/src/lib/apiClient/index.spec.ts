@@ -165,3 +165,35 @@ describe('apiClient', () => {
         });
     });
 });
+
+describe('the transport decides no domain meaning', () => {
+    it('hands the caller the same failure for a 401 as for a 403 [utils:I-08]', async () => {
+        // The session handler is the *only* thing a 401 does here, and it is a
+        // side effect. What the caller catches must carry the status and the
+        // server's body and nothing this package invented — identity-admin is
+        // what decides a 401 on `/auth/login` reads as "wrong password", and it
+        // can only decide that if the transport has not decided first.
+        setUnauthorizedHandler(vi.fn());
+
+        /** The rejection a caller catches, through the shipped interceptors. */
+        const rejection = async (status: number): Promise<AxiosError> => {
+            stubTransport(status);
+            try {
+                await apiClient.get('/users');
+            } catch (error) {
+                return error as AxiosError;
+            }
+            throw new Error(`expected ${status} to reject`);
+        };
+
+        const unauthorized = await rejection(401);
+        const forbidden = await rejection(403);
+
+        expect(unauthorized).toBeInstanceOf(AxiosError);
+        expect(unauthorized.response?.data).toEqual(forbidden.response?.data);
+        expect(unauthorized.message.replace('401', 'N')).toBe(
+            forbidden.message.replace('403', 'N')
+        );
+        expect(unauthorized.response?.status).toBe(401);
+    });
+});

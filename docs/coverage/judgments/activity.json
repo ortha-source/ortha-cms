@@ -5,7 +5,7 @@
             "id": "activity:I-01",
             "file": "apps/server-e2e/src/server/activity/activity-coverage.spec.ts",
             "anchor": "rejects every verb but GET on /api/activity",
-            "why": "Drives POST/PUT/PATCH/DELETE at the route and asserts 404 on each while GET is 200 — a writing route would answer something other than 404. Only the HTTP half is pinned; nothing asserts the package holds no UPDATE/DELETE against activity_events."
+            "why": "Drives POST/PUT/PATCH/DELETE at the route and asserts 404 on each while GET is 200 — a writing route would answer something other than 404. The other half is now pinned by package-shape.spec.ts → “holds no statement that changes or removes a row”, which scans the package's own sources for `.update(activityEvents)` / `.delete(activityEvents)` and for raw UPDATE/DELETE against the table — a repair path or retention sweep would fail there while leaving every one of these 404s intact."
         },
         {
             "id": "activity:I-03",
@@ -59,7 +59,7 @@
             "id": "activity:I-07",
             "file": "packages/activity/server/src/lib/activity/infrastructure/audit-event-mapping.spec.ts",
             "anchor": "never repeats the actor inside meta — it owns two columns already",
-            "why": "Asserts `meta` has no `actor` property while `actorId`/`actorEmail` carry it — the lift-and-do-not-duplicate clause. The `via` merge clause is not pinned by any test."
+            "why": "Asserts `meta` has no `actor` property while `actorId`/`actorEmail` carry it — the lift-and-do-not-duplicate clause. The `via` merge clause is pinned by the same spec's “folds the actor’s `via` into meta without displacing it”, which asserts the merged object (the kind's own `name` beside `via`), with a control case proving an ordinary row carries no `via` key at all."
         },
         {
             "id": "activity:I-08",
@@ -125,13 +125,13 @@
             "id": "activity:I-16",
             "file": "apps/server-e2e/src/server/activity/activity-filter.spec.ts",
             "anchor": "rejects an unknown field with 400 (whitelist)",
-            "why": "A `?filter=` naming `meta` is refused with 400 — pins the 'meta is not in the filterable surface' clause. The `createdAt` half and the exact count of eight fields are not pinned."
+            "why": "A `?filter=` naming `meta` is refused with 400 — pins the 'meta is not in the filterable surface' clause. The `createdAt` half and the count of eight are pinned by activity-filter.spec.ts (unit) → “offers eight columns and neither meta nor created_at”, which names all eight exhaustively — a swap keeps the count and changes the contract."
         },
         {
             "id": "activity:I-19",
             "file": "apps/server-e2e/src/server/activity/activity.spec.ts",
             "anchor": "filters by actor email (case-insensitive substring)",
-            "why": "Searches `ACTIVITY-ADMIN` against a lowercase address and gets all three rows — the case-insensitivity clause. The LIKE-metacharacter escaping clause is unpinned."
+            "why": "Searches `ACTIVITY-ADMIN` against a lowercase address and gets all three rows — the case-insensitivity clause. The LIKE-metacharacter escaping clause is pinned by activity-filter.spec.ts (unit), which renders the built predicate with Drizzle's own PgDialect and asserts the bound parameter — `%` → `%\\%%`, `_` and `\\` likewise, and an ordinary address unchanged as the control."
         },
         {
             "id": "activity:I-20",
@@ -143,7 +143,7 @@
             "id": "activity:I-21",
             "file": "apps/server-e2e/src/server/mcp/mcp.spec.ts",
             "anchor": "shows no copilot-only tool, whatever the scope",
-            "why": "`tools/list` on a full-scope token is asserted not to contain `activity_recent` — the `surfaces: ['copilot']` clause. The `readOnly`/`effect: 'read'` markings are not pinned anywhere."
+            "why": "`tools/list` on a full-scope token is asserted not to contain `activity_recent` — the `surfaces: ['copilot']` clause. The `readOnly`/`effect: 'read'` markings are now pinned by activity-tool.provider.spec.ts, which reads the definition directly."
         },
         {
             "id": "activity:I-21",
@@ -191,7 +191,7 @@
             "id": "activity:I-31",
             "file": "packages/activity/server/src/lib/activity/infrastructure/audit-event-mapping.spec.ts",
             "anchor": "workspace.archived → empty meta object (not null)",
-            "why": "The `toEqual({...base()})` pins `actorType: 'user'` for an actor that declares no `type` — the 'an actor that says nothing about its kind is read as a user' clause. The 'actorType is null iff actorId is' clause is unpinned."
+            "why": "The `toEqual({...base()})` pins `actorType: 'user'` for an actor that declares no `type`. The 'actorType is null iff actorId is' clause is now pinned by the same spec's “the actor columns move together” block: an event with no `attachActor` at all yields null on all three actor fields, and a token actor keeps `api_token` rather than being defaulted."
         },
         {
             "id": "activity:I-34",
@@ -236,5 +236,18 @@
             "why": "The complement: back-dating `last_used_at` past `LAST_USED_TOUCH_INTERVAL_MS` produces a second row, so the throttle is what bounds the count rather than the row being dropped altogether."
         }
     ],
-    "judgments": {}
+    "judgments": {
+        "activity:I-10": {
+            "state": "partial",
+            "missing": "The 'never reaches the log' and 'raises no error' clauses are pinned by audit-event.subscriber.spec.ts (handle resolves and the recording db sees no insert). The 'it is stamped delivered' clause is not: that stamping is OutboxDispatcher's, in @orthacms/database, and no test drives an outbox row of an invented kind through a real dispatcher to see dispatched_at set. outbox-dispatcher.spec.ts does not cover it either."
+        },
+        "activity:I-14": {
+            "state": "partial",
+            "missing": "Only GET /api/activity is pinned, for the session (401) and activity:read (403) clauses. Nothing pins /dead-letters under the same permission, /entries/:id under content:read plus membership of the X-Workspace-Id workspace, or the refusal of an external API bearer token on any of the three. All three are server-e2e work."
+        },
+        "activity:I-35": {
+            "state": "partial",
+            "missing": "The 'same error after the same single bcrypt comparison and the same one insert' clauses are pinned in identity's login.use-case.spec.ts. The 'a failure to record is swallowed rather than turned into a 500' clause is not: no test makes the append fail and asserts the caller still gets InvalidCredentialsError."
+        }
+    }
 }

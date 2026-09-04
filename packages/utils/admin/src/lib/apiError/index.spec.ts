@@ -99,3 +99,50 @@ describe('toApiError', () => {
         }
     );
 });
+
+describe('what a status is allowed to mean here', () => {
+    /** Every code the admin actually sees, including the ones this package branches on. */
+    const STATUSES = [400, 401, 403, 404, 409, 422, 429, 500, 503];
+
+    it('composes one sentence shape for every status [utils:I-08]', () => {
+        // The transport reports *that* the request failed and with what number.
+        // A `401 ? 'Your password is wrong'` here would be wrong twice over: it
+        // is wrong on `/auth/me` (the session expired) and it is a user-facing
+        // string in a package that ships none — but it would look right in the
+        // one flow whose author added it, which is how this kind of branch gets
+        // in.
+        expect(STATUSES.map((s) => new ApiError(s).message)).toEqual(
+            STATUSES.map((s) => `Request failed with status ${s}`)
+        );
+    });
+
+    it('passes the server’s own answer through, whatever the status [utils:I-08]', () => {
+        // The body is opaque: the caller narrows it to its endpoint's error
+        // shape. Lifting a 401's `code` into a message here would decide, for
+        // every caller at once, what that endpoint's 401 meant.
+        for (const status of STATUSES) {
+            const body = { code: 'SOMETHING_SPECIFIC', message: 'from the API' };
+            const normalized = toApiError(
+                axiosError(status, `Request failed with status code ${status}`, body)
+            );
+            expect(normalized.status).toBe(status);
+            expect(normalized.message).toBe(
+                `Request failed with status code ${status}`
+            );
+            expect(normalized.details).toBe(body);
+        }
+    });
+
+    it('reads a 401 exactly as it reads a 403 [utils:I-08]', () => {
+        // The one status this package *does* branch on, for transport reasons
+        // (the session handler). That branch must leave the error it hands the
+        // caller indistinguishable from any other client error's.
+        const unauthorized = toApiError(axiosError(401, 'failed', { a: 1 }));
+        const forbidden = toApiError(axiosError(403, 'failed', { a: 1 }));
+
+        expect(unauthorized.message).toBe(forbidden.message);
+        expect(unauthorized.name).toBe(forbidden.name);
+        expect(unauthorized.details).toEqual(forbidden.details);
+        expect(unauthorized.status).not.toBe(forbidden.status);
+    });
+});

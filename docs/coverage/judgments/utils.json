@@ -167,7 +167,7 @@
             "id": "utils:I-25",
             "file": "packages/utils/server/src/lib/filters/__test__/negation.spec.ts",
             "anchor": "rewrites `is none of` on a many-to-many into NOT EXISTS + IN",
-            "why": "Asserts the fragment starts with 'not exists' and contains the POSITIVE 'in (' and never 'not in (' — EXISTS(... NOT p ...) fails both. The 'outermost hop' clause is only exercised on a single-hop path; no test negates a multi-hop relation path."
+            "why": "Asserts the fragment starts with 'not exists' and contains the POSITIVE 'in (' and never 'not in (' — EXISTS(... NOT p ...) fails both. The 'outermost hop' clause is now pinned by its sibling 'wraps the OUTERMOST hop of a multi-hop path', which negates author.company.name and asserts exactly one 'not exists' with both the nested hop and the leaf left positive."
         },
         {
             "id": "utils:I-26",

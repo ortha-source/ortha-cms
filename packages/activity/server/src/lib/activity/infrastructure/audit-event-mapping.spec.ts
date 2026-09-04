@@ -815,6 +815,127 @@ describe('toAuditRow — event → audit-row parity', () => {
             expect(row?.actorId).toBe(ACTOR.id);
             expect(row?.actorEmail).toBe(ACTOR.email);
         });
+
+        it('folds the actor’s `via` into meta without displacing it [activity:I-07]', () => {
+            const row = toAuditRow(
+                event(
+                    'media.asset.uploaded',
+                    'media.asset',
+                    ASSET_ID,
+                    { name: 'hero.png' },
+                    { ...ACTOR, via: { kind: 'copilot', runId: 'run-1' } }
+                )
+            );
+
+            // `via` is the one part of the actor that lands in `meta` — *how*,
+            // not *who* — and it is **merged**, not substituted. A copilot-applied
+            // upload is still an upload, and a reader wants the file's name and
+            // the run that produced it. Replacing rather than merging is the
+            // failure this pins: the row would keep its provenance and lose
+            // everything the kind itself recorded.
+            expect(row?.meta).toEqual({
+                name: 'hero.png',
+                via: { kind: 'copilot', runId: 'run-1' }
+            });
+
+            // And it is still not a second copy of the actor.
+            expect(row?.meta).not.toHaveProperty('actor');
+            expect(row?.actorId).toBe(ACTOR.id);
+        });
+
+        it('leaves meta untouched when the action was performed by hand [activity:I-07]', () => {
+            // The control: an ordinary row carries no `via` key at all, rather
+            // than a null one. Most rows are this one.
+            const row = toAuditRow(
+                event('media.asset.uploaded', 'media.asset', ASSET_ID, {
+                    name: 'hero.png'
+                })
+            );
+            expect(row?.meta).toEqual({ name: 'hero.png' });
+        });
+    });
+
+    /**
+     * `actor_type` is null **if and only if** `actor_id` is.
+     *
+     * One direction is already pinned everywhere: `base()` fixes `actorType` to
+     * `'user'` for an actor that declares no kind, so every row above asserts
+     * the default. The other direction had nothing — an unactored row that
+     * still claimed `'user'` would say a person performed something nobody did,
+     * and no `toEqual` in this file drives an event with no actor on it.
+     */
+    describe('the actor columns move together', () => {
+        /** An event as it leaves an aggregate: no `attachActor`, so no actor. */
+        function unactored(kind: string): DomainEvent {
+            return createDomainEvent({
+                eventId: EVENT_ID,
+                kind,
+                aggregateType: 'workspace',
+                aggregateId: WORKSPACE_ID,
+                occurredAt: AT,
+                payload: {}
+            });
+        }
+
+        it('claims no principal at all when the event names none [activity:I-31]', () => {
+            const row = toAuditRow(unactored('workspace.archived'));
+
+            expect(row).toMatchObject({
+                actorId: null,
+                actorType: null,
+                actorEmail: null
+            });
+        });
+
+        it('reads a kindless actor as a person [activity:I-31]', () => {
+            // The default is a statement of fact rather than a guess: nothing
+            // but a person could act before `attachActor` carried a type.
+            const row = toAuditRow(
+                event(
+                    'workspace.archived',
+                    'workspace',
+                    WORKSPACE_ID,
+                    {},
+                    {
+                        id: 'actor-1',
+                        email: 'admin@example.com'
+                    }
+                )
+            );
+
+            expect(row).toMatchObject({
+                actorId: 'actor-1',
+                actorType: 'user'
+            });
+        });
+
+        it('keeps a credential’s own kind rather than defaulting it [activity:I-31]', () => {
+            // The case the default must not swallow. A token-authored write
+            // recorded as `'user'` names a person who did not do it — the exact
+            // defect `actor_type` was added to end.
+            const row = toAuditRow(
+                event(
+                    'workspace.archived',
+                    'workspace',
+                    WORKSPACE_ID,
+                    {},
+                    {
+                        id: 'token-1',
+                        email: null,
+                        type: 'api_token',
+                        label: 'CI publisher'
+                    }
+                )
+            );
+
+            expect(row).toMatchObject({
+                actorId: 'token-1',
+                actorType: 'api_token',
+                // A token has no address, so its label is what makes the row
+                // readable; the column is the same one either way.
+                actorEmail: 'CI publisher'
+            });
+        });
     });
 
     describe('non-audited kinds', () => {
@@ -986,6 +1107,52 @@ describe('toAuditRow — event → audit-row parity', () => {
             expect(`declared but unreachable: ${unreachable.join(', ')}`).toBe(
                 'declared but unreachable: '
             );
+        });
+
+        /**
+         * The collapse, named rather than counted.
+         *
+         * 62 mappers produce 60 kinds, and the two-kind difference is a
+         * decision: `user.disabled`/`user.enabled` (the identity aggregate's
+         * own pair) land on the same audit kinds as
+         * `member.disabled`/`member.reactivated`, because which aggregate
+         * suspended the account is an internal fact and the reader wants "this
+         * account was suspended".
+         *
+         * Every other collapse would be a bug — two distinct actions rendering
+         * as one row a reader cannot tell apart — and none of the checks above
+         * can see one: they are set-membership tests, and a mapper wrongly
+         * emitting a kind another mapper already emits is a member of the set
+         * either way. So the collisions are asserted **by name**, not by count:
+         * a third one fails here with the pair that caused it in the message.
+         */
+        it('collapses 62 event kinds onto 60, and only where it means to [activity:I-11]', () => {
+            const sourcesByAuditKind = new Map<string, string[]>();
+            for (const eventKind of AUDITED_EVENT_KINDS) {
+                const produced = rowFor(eventKind).kind;
+                sourcesByAuditKind.set(produced, [
+                    ...(sourcesByAuditKind.get(produced) ?? []),
+                    eventKind
+                ]);
+            }
+
+            const collisions = [...sourcesByAuditKind]
+                .filter(([, sources]) => sources.length > 1)
+                .map(
+                    ([auditKind, sources]) =>
+                        `${auditKind} ← ${[...sources].sort().join(' + ')}`
+                )
+                .sort();
+
+            expect(collisions).toEqual([
+                'user.reactivated ← member.reactivated + user.enabled',
+                'user.suspended ← member.disabled + user.disabled'
+            ]);
+
+            // The arithmetic the invariant states, which the list above only
+            // implies: 62 mappers, two collisions, 60 distinct kinds.
+            expect(AUDITED_EVENT_KINDS).toHaveLength(62);
+            expect(sourcesByAuditKind.size).toBe(60);
         });
 
         it('stamps only subject types the catalogue declares', () => {

@@ -59,6 +59,14 @@ of a guard — the test guards neither. Reach the real one.
 
 ## Prove it can fail — by mutation, not by argument
 
+**Never run `git stash`, `git checkout <branch>`, or anything else that moves the
+whole tree.** Six or seven agents share this checkout, and every one of them has
+uncommitted work in it. A repo-wide stash takes all of it hostage: if the pop
+conflicts, or the agent is killed between the two, a day of other people's work
+is in a dangling stash nobody knows to look for. It has already happened twice in
+this sweep — once leaving the tree empty mid-phase, once round-tripping only by
+luck. Scope every git command to your own paths.
+
 **Namespace every scratch file.** The mutation proof means saving a production
 file, breaking it, and restoring it — and seven agents do that at once. Two of
 them picked `/tmp/ca.bak` in the same batch, and the second restore put an

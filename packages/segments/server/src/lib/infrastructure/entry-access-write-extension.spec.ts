@@ -1,10 +1,14 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
-import type {
-    EntryWriteExtensionInput,
-    EntryWriteExtensionTarget
+import {
+    EntryWriteExtensionRegistry,
+    type EntryWriteExtensionInput,
+    type EntryWriteExtensionTarget
 } from '@orthacms/content-server';
 import { sameAccess, type EntryAccess } from '@orthacms/segments-domain';
-import { EntryAccessWriteExtension } from './entry-access-write-extension';
+import {
+    ACCESS_EXTENSION_KEY,
+    EntryAccessWriteExtension
+} from './entry-access-write-extension';
 
 /** The type only ever supplies its `name` here. */
 const TYPE = { name: 'article' } as EntryWriteExtensionTarget['type'];
@@ -32,6 +36,10 @@ function accessService(stored: EntryAccess = { allow: [], deny: [] }) {
             wanted: EntryAccess
         ) {
             return sameAccess(this.current, wanted);
+        },
+        inherits: 0,
+        async inheritFromGroup() {
+            this.inherits += 1;
         },
         async setForGroup(input: {
             entryId: string;
@@ -153,6 +161,98 @@ describe('EntryAccessWriteExtension', () => {
             await build(access, MANAGE).apply(input({ deny: ['s2'] }));
 
             expect(access.current).toEqual({ allow: [], deny: ['s2'] });
+        });
+    });
+
+    describe('inherit', () => {
+        const target: EntryWriteExtensionTarget = {
+            executor: {} as EntryWriteExtensionTarget['executor'],
+            type: TYPE,
+            entryId: 'e1',
+            workspaceId: 'w1'
+        };
+
+        /**
+         * **No permission check, deliberately** — and the reason is the whole
+         * point of the hook. Nothing is being decided: the audiences were chosen
+         * when they were chosen, and this row is joining a record that already
+         * carries them. Requiring `segments:manage` would mean a contributor
+         * could not translate a restricted article at all, and the alternative
+         * to inheriting is publishing the new German row to everyone, which is
+         * the outcome the permission exists to prevent.
+         */
+        it('gives a new translation the group’s audiences without segments:manage [segments:I-23]', async () => {
+            const access = accessService({ allow: ['s1'], deny: [] });
+
+            await build(access, ['content:update']).inherit(target);
+
+            expect(access.inherits).toBe(1);
+        });
+
+        it('runs for a caller the principal store cannot identify at all [segments:I-23]', async () => {
+            // `apply` refuses that caller; `inherit` must not, or a create on a
+            // path the middleware did not cover would produce a public copy of a
+            // restricted record.
+            const access = accessService({ allow: ['s1'], deny: [] });
+
+            await build(access, null).inherit(target);
+
+            expect(access.inherits).toBe(1);
+        });
+    });
+
+    describe('the extension key', () => {
+        const target: EntryWriteExtensionTarget = {
+            executor: {} as EntryWriteExtensionTarget['executor'],
+            type: TYPE,
+            entryId: 'e1',
+            workspaceId: 'w1'
+        };
+
+        /**
+         * The key is the slot in a save body's `extensions` bag **and** in a
+         * revision snapshot's `extra`, and the second one is what makes it
+         * permanent: every version already captured names it by this string, so
+         * renaming it orphans the access recorded in the whole existing history.
+         */
+        it('is the literal "access", stable forever [segments:I-20]', () => {
+            const extension = build(accessService(), MANAGE);
+
+            expect(ACCESS_EXTENSION_KEY).toBe('access');
+            expect(extension.key).toBe(ACCESS_EXTENSION_KEY);
+        });
+
+        /**
+         * The other half, driven through content's **real** dispatch rather than
+         * a description of it: `applyAll` is what decides an extension runs, and
+         * the claim is about a bag that does not name this key.
+         *
+         * That bag is what a restore of a pre-segments version carries — and
+         * "leaves the access untouched" is the silence you would not notice.
+         * The alternative is worse than it sounds: an absent key read as two
+         * empty lists would *open the entry up* on restore, publishing
+         * restricted content to everyone because somebody reverted a typo.
+         */
+        it('leaves the access alone when a restored version does not name it [segments:I-20]', async () => {
+            const access = accessService({ allow: ['s1'], deny: [] });
+            const registry = new EntryWriteExtensionRegistry();
+            registry.register(build(access, MANAGE));
+
+            // A snapshot's `extra` from before this plugin existed: present,
+            // but with nothing under our key.
+            await registry.applyAll(target, { somethingElse: { a: 1 } });
+
+            expect(access.writes).toBe(0);
+            expect(access.current).toEqual({ allow: ['s1'], deny: [] });
+
+            // …and the same registry does write when the key *is* there, so the
+            // no-op above is the dispatch skipping it rather than the harness
+            // never reaching anything.
+            await registry.applyAll(target, {
+                [ACCESS_EXTENSION_KEY]: { allow: ['s2'], deny: [] }
+            });
+
+            expect(access.current).toEqual({ allow: ['s2'], deny: [] });
         });
     });
 

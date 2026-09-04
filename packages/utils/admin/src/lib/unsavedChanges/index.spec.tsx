@@ -329,3 +329,108 @@ describe('UnsavedChangesProvider', () => {
         expect(screen.getByTestId('api').textContent).toBe('null');
     });
 });
+
+/**
+ * `ORT-136`, the half of it that leaves no trace. The interception is a
+ * **capture-phase listener on `document`**, so it runs before every other
+ * listener in the page; `stopPropagation()` there does not merely hide the
+ * click from the link, it hides it from every listener on every node below
+ * `document` — React's own delegated handlers included, since React 19 attaches
+ * them to the root container. And it does so *only while some form happens to
+ * be dirty*, which is why the resulting "the dropdown sometimes won't close"
+ * reports were never reproducible.
+ */
+describe('the interception’s blast radius', () => {
+    /** A dirty form, a link, and the two kinds of listener a page really has. */
+    function Page({ seen }: { seen: string[] }) {
+        return (
+            <BrowserRouter>
+                <UnsavedChangesProvider dialog={fakeDialog}>
+                    <Form dirty formKey="entry" />
+                    {/* A dropdown's close-on-outside-click, delivered the way
+                        the admin actually gets it: a React handler, i.e. a
+                        listener on the root container — a descendant of
+                        `document`. */}
+                    <div
+                        data-testid="page"
+                        onClick={() => seen.push('react')}
+                        onClickCapture={() => seen.push('react-capture')}
+                    >
+                        <Link to="/b">to b</Link>
+                    </div>
+                    <Routes>
+                        <Route path="/b" element={<span>b</span>} />
+                    </Routes>
+                </UnsavedChangesProvider>
+            </BrowserRouter>
+        );
+    }
+
+    it('holds the navigation back without silencing the click [utils:I-18]', () => {
+        const seen: string[] = [];
+        window.history.replaceState(null, '', '/a');
+        render(<Page seen={seen} />);
+
+        const wrapper = screen.getByTestId('page');
+        const onNativeCapture = () => seen.push('native-capture');
+        const onDocumentBubble = () => seen.push('document-bubble');
+        wrapper.addEventListener('click', onNativeCapture, true);
+        document.addEventListener('click', onDocumentBubble);
+
+        try {
+            fireEvent.click(screen.getByText('to b'));
+        } finally {
+            wrapper.removeEventListener('click', onNativeCapture, true);
+            document.removeEventListener('click', onDocumentBubble);
+        }
+
+        // The guard did its job…
+        expect(screen.getByRole('dialog')).toBeTruthy();
+        expect(window.location.pathname).toBe('/a');
+        // …by cancelling the default, and by nothing else. Every listener below
+        // `document` still saw the click, in order, and so did the bubble phase
+        // the capture listener sits in front of.
+        // React attaches its own capture listener to the root container,
+        // which is *above* this wrapper, so it is heard first.
+        expect(seen).toEqual([
+            'react-capture',
+            'native-capture',
+            'react',
+            'document-bubble'
+        ]);
+    });
+
+    it('leaves an unguarded click identical to a guarded one [utils:I-18]', () => {
+        // The control the assertion above needs: the same page with nothing
+        // dirty sees exactly the same listeners fire, so the list is a property
+        // of the click rather than of this fixture.
+        const dirty: string[] = [];
+        const clean: string[] = [];
+
+        window.history.replaceState(null, '', '/a');
+        const first = render(<Page seen={dirty} />);
+        fireEvent.click(screen.getByText('to b'));
+        first.unmount();
+
+        window.history.replaceState(null, '', '/a');
+        render(
+            <BrowserRouter>
+                <UnsavedChangesProvider dialog={fakeDialog}>
+                    <div
+                        data-testid="page"
+                        onClick={() => clean.push('react')}
+                        onClickCapture={() => clean.push('react-capture')}
+                    >
+                        <Link to="/b">to b</Link>
+                    </div>
+                    <Routes>
+                        <Route path="/b" element={<span>b</span>} />
+                    </Routes>
+                </UnsavedChangesProvider>
+            </BrowserRouter>
+        );
+        fireEvent.click(screen.getByText('to b'));
+
+        expect(dirty).toEqual(clean);
+    });
+});
