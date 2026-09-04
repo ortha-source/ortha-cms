@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { I18nServerPlugin } from './i18n-plugin';
 
 /**
@@ -75,5 +77,32 @@ describe('I18nServerPlugin config validation', () => {
                 locales: [{ slug: 'en', name: '   ', isDefault: true }]
             })
         ).toThrow(/empty name/);
+    });
+});
+
+/**
+ * The plugin owns **no tables**. That is a contract, not an accident: locales
+ * live in the config and the `locale` / `locale_group_id` columns live on the
+ * host-owned generated content tables, so a `drizzle.config.ts` appearing here
+ * would mean the boundary had moved without anyone saying so — and the host
+ * would start applying migrations for a plugin that has nothing to migrate.
+ */
+describe('I18nServerPlugin schema ownership [i18n:I-32]', () => {
+    /** `src/lib/utils` → the package root. */
+    const packageRoot = join(__dirname, '..', '..', '..');
+
+    it('declares no migrations on the plugin descriptor', () => {
+        const plugin = I18nServerPlugin({
+            locales: [{ slug: 'en', name: 'English', isDefault: true }]
+        });
+        expect(plugin.migrations).toBeUndefined();
+    });
+
+    it('ships neither a drizzle config nor a migrations folder', () => {
+        expect(existsSync(join(packageRoot, 'drizzle.config.ts'))).toBe(false);
+        expect(existsSync(join(packageRoot, 'migrations'))).toBe(false);
+        // Guard the guard: the paths above are only meaningful if they are
+        // resolved against the real package root.
+        expect(existsSync(join(packageRoot, 'package.json'))).toBe(true);
     });
 });

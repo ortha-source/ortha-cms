@@ -29,6 +29,11 @@ const PASSWORD = 'SecurePass123!';
  *
  * `test_article` is the fixture on purpose — it is publishable, paranoid, localized,
  * and carries a relation of every cardinality.
+ *
+ * The depth tests root themselves at `test_comment` instead, because the chain
+ * `test_comment` → `test_article` → `test_author` is three levels deep and an
+ * article alone is two. Only a graph with a depth-2 record can tell a one-hop
+ * walk apart from a recursive one.
  */
 describe('Content transfer (/api/content/:type/export, /import)', () => {
     let harness: TestApp;
@@ -92,6 +97,20 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
         return res.body.id as string;
     }
 
+    /** Creates a comment on `articleId` and returns its id. */
+    async function createComment(
+        agent: request.Agent,
+        articleId: string,
+        body: string
+    ): Promise<string> {
+        const res = await agent
+            .post('/api/content/test_comment')
+            // `test_comment` is not localized, so it carries no locale.
+            .send({ values: { author: 'Grace', body, article: articleId } })
+            .expect(201);
+        return res.body.id as string;
+    }
+
     /** Reads an entry, or `undefined` when it is gone. */
     async function readEntry(
         agent: request.Agent,
@@ -114,7 +133,7 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
     }
 
     describe('export', () => {
-        it('exports the selected record with its relations one hop out', async () => {
+        it('exports a related record in full, and links to it by natural key', async () => {
             const agent = await login(ADMIN_EMAIL);
             const authorId = await createAuthor(agent, 'Ada', 'ada@x.test');
             const articleId = await createArticle(agent, {
@@ -156,6 +175,81 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             });
         });
 
+        it('stops at one hop: a depth-2 record travels as a reference, never as a record [transfer:I-03]', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            // A three-level chain — comment -> article -> author — is what
+            // makes this test able to fail at all. With the author sitting at
+            // depth 2, a walk that followed depth-1's relations outward would
+            // put a `test_author` record in the document; a one-hop walk
+            // cannot. A graph that stopped at the article would not tell the
+            // two implementations apart.
+            const authorId = await createAuthor(agent, 'Ada', 'ada@x.test');
+            const articleId = await createArticle(agent, {
+                text: 'the middle of the chain',
+                select: 'article',
+                author: authorId
+            });
+            const commentId = await createComment(
+                agent,
+                articleId,
+                'Nice piece'
+            );
+
+            const res = await agent
+                .post('/api/content/test_comment/export')
+                .send({
+                    ids: [commentId],
+                    format: 'json',
+                    depth: { relations: true, media: false, locales: true }
+                })
+                .expect(200);
+
+            const document = JSON.parse(res.text);
+            expect(document.manifest.rootType).toBe('test_comment');
+
+            const records = document.records as {
+                $type: string;
+                $depth: number;
+                values: Record<string, unknown>;
+                relations: Record<string, { $type: string; $key: unknown }>;
+            }[];
+            const comment = records.find(
+                (record) => record.$type === 'test_comment'
+            );
+            const article = records.find(
+                (record) => record.$type === 'test_article'
+            );
+
+            // Depth 0 and depth 1 arrive in full…
+            expect(comment?.$depth).toBe(0);
+            expect(comment?.values['author']).toBe('Grace');
+            expect(article?.$depth).toBe(1);
+            expect(article?.values['text']).toBe('the middle of the chain');
+            // …and the author, one hop further out, is not in the file at all.
+            expect(records).toHaveLength(2);
+            expect(records.map((record) => record.$type)).not.toContain(
+                'test_author'
+            );
+            expect(document.manifest.counts).toMatchObject({
+                roots: 1,
+                related: 1
+            });
+
+            // It is present only as the depth-1 record's reference — and that
+            // reference still carries a resolvable natural key rather than a
+            // bare foreign row id, because the walk stops at the records, not
+            // at the references.
+            expect(article?.relations['author']).toMatchObject({
+                $type: 'test_author',
+                $key: { email: 'ada@x.test' }
+            });
+            expect(
+                (article?.relations['author'] as Record<string, unknown>)[
+                    'values'
+                ]
+            ).toBeUndefined();
+        });
+
         it('leaves relations out when they are not asked for [transfer:I-04]', async () => {
             const agent = await login(ADMIN_EMAIL);
             const authorId = await createAuthor(agent, 'Ada', 'ada@x.test');
@@ -188,7 +282,7 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             });
         });
 
-        it('reports what an export would carry without producing it', async () => {
+        it('previews the very numbers the export then carries [transfer:I-06]', async () => {
             const agent = await login(ADMIN_EMAIL);
             const authorId = await createAuthor(agent, 'Ada', 'ada@x.test');
             const articleId = await createArticle(agent, {
@@ -196,24 +290,53 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
                 select: 'article',
                 author: authorId
             });
+            // Two roots sharing one relation, which is the shape a preview
+            // computed a cheaper way gets wrong: counting references instead of
+            // records reports two related records where the export carries one.
+            // The article's own author sits at depth 2, so neither number
+            // counts it.
+            const first = await createComment(agent, articleId, 'First');
+            const second = await createComment(agent, articleId, 'Second');
+            const body = {
+                ids: [first, second],
+                format: 'json',
+                depth: { relations: true, media: false, locales: true }
+            };
 
-            const res = await agent
-                .post('/api/content/test_article/export/preview')
-                .send({
-                    ids: [articleId],
-                    format: 'json',
-                    depth: { relations: true, media: false, locales: true }
-                })
+            const preview = await agent
+                .post('/api/content/test_comment/export/preview')
+                .send(body)
                 .expect(200);
 
-            expect(res.body).toMatchObject({
-                roots: 1,
+            expect(preview.body).toMatchObject({
+                roots: 2,
                 related: 1,
                 assets: 0,
                 // JSON carries no bytes, so the dialog must not imply a
                 // download of that size.
                 carriesFileBytes: false
             });
+            // Counting is all it did: nothing was written and no file produced.
+            expect(preview.headers['content-disposition']).toBeUndefined();
+
+            // The same request, actually run, arrives with exactly those
+            // numbers — which is the whole promise the dialog makes.
+            const res = await agent
+                .post('/api/content/test_comment/export')
+                .send(body)
+                .expect(200);
+            const records = JSON.parse(res.text).records as {
+                $depth: number;
+            }[];
+            expect(
+                records.filter((record) => record.$depth === 0)
+            ).toHaveLength(preview.body.roots);
+            expect(
+                records.filter((record) => record.$depth === 1)
+            ).toHaveLength(preview.body.related);
+            expect(res.headers['x-transfer-records']).toBe(
+                String(records.length)
+            );
         });
 
         it('streams a ZIP when files are asked for, with the record files inside', async () => {

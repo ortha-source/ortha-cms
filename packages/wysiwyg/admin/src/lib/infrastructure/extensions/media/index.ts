@@ -29,6 +29,7 @@ import {
     type MediaAlign,
     type WysiwygMediaKind
 } from '../../../domain/constants';
+import { mediaAltAttributes } from '../../../domain/mediaAlt';
 import { isSafeMediaSrc, safeMediaSrc } from '../../../domain/mediaSrc';
 import { MediaNodeView } from './MediaNodeView';
 
@@ -248,15 +249,12 @@ export const ResizableImage = Node.create({
                 },
 
             setMediaAlt:
-                ({ alt, decorative }) =>
+                (input) =>
                 ({ commands }) =>
-                    commands.updateAttributes(WYSIWYG_MEDIA_KIND.Image, {
-                        // Decorative wins over whatever is in the box: the two
-                        // can't both be true, and an `alt` left behind a ticked
-                        // box would be announced by a screen reader anyway.
-                        alt: decorative ? '' : alt,
-                        decorative
-                    })
+                    commands.updateAttributes(
+                        WYSIWYG_MEDIA_KIND.Image,
+                        mediaAltAttributes(input)
+                    )
         };
     }
 });

@@ -51,6 +51,34 @@ export const SEGMENT_SEED: SegmentSeed[] = [
     }
 ];
 
+/**
+ * A vocabulary **larger than one page of the Access tab**, which paginates at
+ * `DEFAULT_PAGE_SIZE = 10`.
+ *
+ * This exists for one assertion: "every match" and "this page" have to be
+ * different sets, or a bulk action folded over the rendered rows is
+ * indistinguishable from one folded over the matched ids. Fourteen leaves four
+ * audiences that the browser never draws, so their ids can only reach the save
+ * body by way of the list response.
+ *
+ * Labels are zero-padded so `Audience 01` is a `getByRole` name that cannot
+ * also match `Audience 11`.
+ */
+export const PAGED_SEGMENT_SEED: SegmentSeed[] = Array.from(
+    { length: 14 },
+    (_unused, index) => {
+        const n = String(index + 1).padStart(2, '0');
+        return {
+            id: `seg-${n}`,
+            key: `audience-${n}`,
+            label: `Audience ${n}`,
+            tags: [`audience-${n}`],
+            workspaceIds: [],
+            usageCount: 0
+        };
+    }
+);
+
 /** What the directory and the Access tab were asked for, and what they wrote. */
 export interface SegmentsApiSpy {
     /** Bodies of every `POST /api/segments`. */
@@ -87,6 +115,13 @@ export async function mockSegmentsApi(
         listStatus?: number;
         /** Fail a create with this status — 409 drives the taken-key message. */
         createStatus?: number;
+        /**
+         * The server's `MATCHED_IDS_CAP`, in miniature. `ids` is cut to this
+         * many and `idsTruncated` says so, exactly as the real service does at
+         * 200 — which is how the bulk controls learn that the matched set is
+         * larger than an entry may name, and disable themselves.
+         */
+        matchedIdsCap?: number;
         /**
          * Hold the directory read open this long, so a spec can observe the
          * loading state. Without it the mock answers in the same tick and the
@@ -186,6 +221,7 @@ export async function mockSegmentsApi(
         const pageNumber = Number(params.get('page') ?? 1);
         const pageSize = Number(params.get('pageSize') ?? 25);
         const start = (pageNumber - 1) * pageSize;
+        const cap = options.matchedIdsCap ?? Number.POSITIVE_INFINITY;
         await route.fulfill(
             json({
                 items: matched.slice(start, start + pageSize),
@@ -193,8 +229,8 @@ export async function mockSegmentsApi(
                 page: pageNumber,
                 pageSize,
                 // Every match, not the page's.
-                ids: matched.map((segment) => segment.id),
-                idsTruncated: false
+                ids: matched.slice(0, cap).map((segment) => segment.id),
+                idsTruncated: matched.length > cap
             })
         );
     });

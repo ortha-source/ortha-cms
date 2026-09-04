@@ -134,5 +134,10 @@
             "why": "Contributor — the most privileged non-admin system role (identity/server/src/lib/rbac/system-roles.ts:137) — gets 403 on both GET and POST /api/webhooks, so neither key is held outside admin. The second clause (the editor page requiring webhooks:manage) is unpinned: admin-e2e only asserts the list page's create button is hidden, never that /webhooks/new itself refuses a webhooks:read-only user."
         }
     ],
-    "judgments": {}
+    "judgments": {
+        "webhooks:I-10": {
+            "state": "partial",
+            "missing": "Only the write-time URL policy is pinned. The connect-time half — `assertAddressAllowed` wired into the undici Agent's `lookup`, judged against the **resolved** address rather than the hostname — has no test, because `WebhookHttpClient` has no spec at all. That is the DNS-rebinding defence: a hostname that passes on save can resolve to a private address at delivery time. The no-redirects rule and `readSnippet`'s cap are unpinned for the same reason."
+        }
+    }
 }

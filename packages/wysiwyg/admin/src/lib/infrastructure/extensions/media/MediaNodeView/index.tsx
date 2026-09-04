@@ -8,6 +8,7 @@ import {
     WYSIWYG_MEDIA_KIND,
     asMediaAlign
 } from '../../../../domain/constants';
+import { mediaAltAttributes } from '../../../../domain/mediaAlt';
 import { AltTextPopover } from './AltTextPopover';
 
 const messages = defineMessages({
@@ -158,7 +159,13 @@ export function MediaNodeView({
                         <AltTextPopover
                             alt={alt}
                             decorative={decorative}
-                            onSave={(next) => updateAttributes(next)}
+                            // Through the shared rule, not straight onto the
+                            // node: the popover hands back the description it
+                            // kept on screen, and an image marked decorative
+                            // must not keep it.
+                            onSave={(next) =>
+                                updateAttributes(mediaAltAttributes(next))
+                            }
                         />
                     </div>
                 ) : null}

@@ -1,5 +1,6 @@
 import request from 'supertest';
 import { verifySignature } from '@orthacms/webhooks-domain';
+import { WEBHOOKS_DEFAULTS } from '@orthacms/webhooks-server';
 import {
     closeTestApp,
     createTestApp,
@@ -347,6 +348,35 @@ describe('Webhook delivery', () => {
 
             expect(detail.payload).toMatchObject({ event: 'entry.published' });
             expect(detail.responseSnippet).toBe('received');
+        });
+
+        it('keeps only the first responseSnippetBytes of the answer [webhooks:I-17]', async () => {
+            const client = await api();
+            const { id: endpointId } = await createEndpoint(client, {
+                eventKinds: ['entry.published']
+            });
+
+            // Comfortably past the shipped 2 KiB cap, and a single repeated
+            // character so the assertion is about length rather than encoding.
+            // A receiver that answers with a gigabyte is otherwise able to
+            // exhaust this process's memory from the far end of a connection
+            // we initiated, which is what the cap exists for — so the fixture
+            // has to be bigger than the cap or it proves nothing.
+            const oversized = 'x'.repeat(10_000);
+            receiver.respondWithBody(oversized);
+
+            await publishArticle(client);
+            await drainOutbox(harness.app);
+            await deliverWebhooks(harness.app);
+
+            const [row] = await getDeliveries(endpointId);
+            const { body: detail } = await client
+                .get(`/api/webhooks/${endpointId}/deliveries/${row.id}`)
+                .expect(200);
+
+            expect(detail.responseSnippet).toBe(
+                'x'.repeat(WEBHOOKS_DEFAULTS.responseSnippetBytes)
+            );
         });
 
         it('filters by state', async () => {

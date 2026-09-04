@@ -640,7 +640,16 @@ describe('Copilot chat (POST /api/copilot/runs)', () => {
 
         // Enforcement is in three places, and offer-time filtering is not the
         // only one: a viewer who somehow named a withheld tool is still refused.
-        it('refuses a withheld tool at execution, not only at offer time', async () => {
+        //
+        // **Which refusal, though.** A tool that was never in this caller's
+        // profile is answered by `executeTool`'s *unknown-tool* branch, one
+        // guard above the per-call re-resolve — so this case says nothing
+        // about whether the profile is recomputed, and would pass unchanged
+        // against a profile cached for the whole conversation. The assertion
+        // names the branch for that reason. The re-resolve is pinned by
+        // `copilot-run-authority.spec.ts` → “a grant revoked mid-run”, which
+        // has the tool offered first and taken away mid-turn.
+        it('answers a never-offered tool “unknown”, and runs nothing', async () => {
             scriptCopilot(
                 { toolCalls: [{ name: 'fixture.proposeThing', input: {} }] },
                 { text: 'refused' }
@@ -651,6 +660,7 @@ describe('Copilot chat (POST /api/copilot/runs)', () => {
 
             const result = framesOfType(events, 'tool-result')[0];
             expect(result.ok).toBe(false);
+            expect(result.error).toBe('Unknown tool "fixture.proposeThing".');
             expect(fixtures.invoked).toEqual([]);
         });
     });

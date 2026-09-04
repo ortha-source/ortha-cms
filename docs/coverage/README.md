@@ -38,11 +38,24 @@ its own invariants from `I-01`.
 | `uncovered` | the default | a gap — this is the work list |
 | `not-mechanically-checkable` | `judgments/<pkg>.json` | no harness can reach it (architectural statements, e.g. "the dictionary is unreachable by any token") |
 | `stale` | `judgments/<pkg>.json` | the invariant has drifted from the code — fix the **dossier**, not the test |
+| `partial` | `judgments/<pkg>.json` | a citation exists, but only part of a compound invariant is pinned. Needs `missing`, naming the clause no test reaches. Unlike every other verdict this one **qualifies** a citation rather than replacing it — the row stays covered and the gap stays visible |
 | `needs-live-stack` | `judgments/<pkg>.json` | no mocked harness can reach it; it needs a real server, a real database and applied migrations. This is the phase-4 work list, and a row leaves it by becoming `covered` — the browser finds the defect, an automated test holds it |
 
 More than a bare covered/uncovered pair exists for a reason: with only two,
 closing a row is always "write a test", and statements no harness can reach
 attract tests written to satisfy the ledger rather than to catch a defect.
+
+`partial` exists because a green row could hide half a rule. `webhooks:I-10`
+says the URL policy is checked at write time **and** at connect time against the
+resolved address; one citation covers the first half, and the second — the
+DNS-rebinding defence, where a hostname that passed on save resolves to a private
+address at delivery — is pinned by nothing. Triage recorded dozens of these
+honestly in a citation's `why`, where no grep will ever find them.
+
+Do not mine them out of prose. A loose pattern over the `why` fields returns 274
+invariants and a strict one 84, and the whole difference is wording — exactly the
+kind of derived-looking guess this ledger exists to replace. Structure them by
+hand, one at a time, as each package is worked.
 
 `needs-live-stack` is not a resting place. It means "phase 4 owes this one a
 walk", and the walk ends in an automated test — a browser observation protects

@@ -334,9 +334,21 @@ export const WYSIWYG_ENTRY_ID = 'article-rich';
  * The stored HTML {@link WYSIWYG_ENTRY_ID} comes back with. Deliberately mixed:
  * a heading, body text with a mark, and a list — enough that a preview showing
  * *tags* instead of *content* is obvious in an assertion.
+ *
+ * The **anchor is load-bearing**, not decoration. The collapsed preview sits
+ * under a full-bleed button, which is only safe because `renderRichText`
+ * flattens links to `<span data-link>`; a body with no `<a>` in it cannot tell
+ * that flattening apart from its absence, so "the preview holds no link" would
+ * pass with `flattenLinks` deleted. It is its own paragraph rather than a phrase
+ * inside one so axe's `link-in-text-block` (which only applies to a link
+ * embedded in surrounding text) stays out of the editor's a11y scan, and its
+ * text names the destination so `inspectRichText`'s 2.4.4 rule has nothing to
+ * say about it.
  */
 export const WYSIWYG_ENTRY_BODY =
-    '<h2>Release notes</h2><p>Shipped <strong>faster</strong> builds.</p><ul><li>Cold start</li><li>Watch mode</li></ul>';
+    '<h2>Release notes</h2><p>Shipped <strong>faster</strong> builds.</p>' +
+    '<p><a href="https://example.com/changelog">the full changelog</a></p>' +
+    '<ul><li>Cold start</li><li>Watch mode</li></ul>';
 
 /**
  * A **German** article. The admin hardcodes `<html lang="en">`, so a body that
@@ -375,6 +387,57 @@ export const WYSIWYG_MEDIA_ENTRY_ID = 'article-with-media';
  */
 export const WYSIWYG_MEDIA_ENTRY_BODY =
     '<p>Before</p><img src="/api/media/assets/hero/raw" alt="A hero shot" width="640"><p>After</p>';
+
+/**
+ * An article whose stored body is **hostile**. A `richtext` value is whatever
+ * some other CMS user typed, pasted, or wrote straight through the API, and the
+ * collapsed field renders it as markup — so this row is the trust boundary's
+ * fixture, not a formatting one.
+ */
+export const WYSIWYG_HOSTILE_ENTRY_ID = 'article-hostile';
+
+/**
+ * Where {@link WYSIWYG_HOSTILE_BODY}'s image points. Root-relative on purpose:
+ * `isSafeMediaSrc` admits a same-origin path, so the `<img>` is a node the
+ * editor's schema genuinely keeps — which is what makes the *absence* of its
+ * `onerror` a statement about the schema round-trip rather than about the tag
+ * being dropped wholesale. The spec answers this path itself, so the error that
+ * fires the handler is deterministic and needs no network.
+ */
+export const WYSIWYG_HOSTILE_IMAGE_SRC = '/wysiwyg-hostile-pixel.png';
+
+/** The global {@link WYSIWYG_HOSTILE_BODY}'s payloads set if anything runs. */
+export const WYSIWYG_HOSTILE_FLAG = '__orthaWysiwygXss';
+
+/**
+ * The stored HTML {@link WYSIWYG_HOSTILE_ENTRY_ID} comes back with — the
+ * dossier's own checklist case, written as a body rather than as a comment.
+ *
+ * Four vectors, each aimed at a different part of the round-trip:
+ *
+ * - `<img onerror>` — the one that actually runs on `innerHTML`. `<script>`
+ *   does not, which is why an "it's only innerHTML" review keeps concluding
+ *   this is fine.
+ * - `<a href="javascript:…">` — the Link extension's protocol allowlist, which
+ *   refuses the mark at parse time, so the words survive with no address on
+ *   them. Its text is descriptive on purpose: `inspectRichText` warns about
+ *   "read more" and friends, and this body is here for the renderer.
+ * - `<iframe>` — an element no extension declares, so the schema has nowhere to
+ *   put it.
+ * - `<p onmouseover>` — an event handler on a tag the schema *does* keep, so
+ *   dropping it can only be the attribute filter and not the tag filter.
+ *
+ * The two ordinary paragraphs are the control: a preview that rendered nothing
+ * at all would satisfy every "is absent" assertion on its own.
+ */
+export const WYSIWYG_HOSTILE_BODY =
+    '<p>Filed by a contributor.</p>' +
+    `<img src="${WYSIWYG_HOSTILE_IMAGE_SRC}" alt="A chart" ` +
+    `onerror="window.${WYSIWYG_HOSTILE_FLAG} = true">` +
+    `<p onmouseover="window.${WYSIWYG_HOSTILE_FLAG} = true">Hover me.</p>` +
+    `<p><a href="javascript:window.${WYSIWYG_HOSTILE_FLAG} = true">` +
+    'the original report</a></p>' +
+    '<iframe src="https://evil.example/panel"></iframe>';
 
 /**
  * The read-only suite's catalogue — one **single** (a routed page), which is

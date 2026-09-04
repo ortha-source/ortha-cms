@@ -68,8 +68,26 @@ const OUT_DIR = join(ROOT, 'docs/coverage');
 const INVARIANTS = join(OUT_DIR, 'invariants.json');
 const JUDGMENTS = join(OUT_DIR, 'judgments');
 
-/** The states a row can be in. Only the last three are ever authored. */
-const STATES = ['covered', 'uncovered', 'not-mechanically-checkable', 'stale', 'needs-live-stack'];
+/**
+ * The states a row can be in. Only the authored ones appear in a judgment file.
+ *
+ * `partial` is the odd one: every other verdict *replaces* a missing citation,
+ * while `partial` *rides alongside* one. A compound invariant — "checked at
+ * write time, and at connect time against the resolved address" — takes a single
+ * citation for its first half and reads as fully covered, which is how a green
+ * row can hide half a rule. It needs `missing`, naming the clause no test pins.
+ */
+const STATES = [
+    'covered',
+    'uncovered',
+    'not-mechanically-checkable',
+    'stale',
+    'needs-live-stack',
+    'partial'
+];
+
+/** Verdicts that stand in for a citation, rather than qualifying one. */
+const REPLACING = new Set(['not-mechanically-checkable', 'stale', 'needs-live-stack']);
 
 /* ------------------------------------------------------------------ parsing */
 
@@ -229,7 +247,11 @@ function loadJudgments() {
         const doc = JSON.parse(readFileSync(join(JUDGMENTS, f), 'utf8'));
         for (const [id, v] of Object.entries(doc.judgments ?? {})) {
             if (!STATES.includes(v.state)) throw new Error(`${f}: ${id} has unknown state ${v.state}`);
-            if (!v.reason) throw new Error(`${f}: ${id} has no reason`);
+            if (v.state === 'partial') {
+                if (!v.missing) throw new Error(`${f}: ${id} is partial but names no missing clause`);
+            } else if (!v.reason) {
+                throw new Error(`${f}: ${id} has no reason`);
+            }
             merged[id] = v;
         }
     }
@@ -248,11 +270,21 @@ function load() {
         const c = cited.get(r.id);
         const j = jud[r.id];
         r.specs = c ?? [];
-        r.state = c ? 'covered' : j ? j.state : 'uncovered';
-        r.reason = j?.reason ?? '';
+        // A `partial` qualifies a citation rather than replacing one, so the row
+        // stays covered and carries the unpinned clause alongside.
+        const qualifies = j?.state === 'partial';
+        r.state = c ? 'covered' : j && !qualifies ? j.state : 'uncovered';
+        r.partial = Boolean(qualifies && c);
+        r.missing = qualifies ? j.missing : '';
+        r.reason = j && !qualifies ? j.reason : '';
+        // A partial with nothing to qualify is a gap dressed as a caveat.
+        if (qualifies && !c) {
+            console.error(`!! ${r.id}: judged partial but no spec cites it — that is uncovered, not partial`);
+        }
         // A judged-unreachable invariant that later grew a test is not an error,
-        // but it is worth surfacing: the judgment is now wrong.
-        r.conflict = Boolean(c && j);
+        // but it is worth surfacing: the judgment is now wrong. A `partial`
+        // expects a citation, so it never conflicts.
+        r.conflict = Boolean(c && j && !qualifies);
     }
     return inv;
 }
@@ -271,22 +303,28 @@ function check(args) {
     const tally = (rs, s) => rs.filter((r) => r.state === s).length;
     const pad = (s, n) => String(s).padEnd(n);
     console.log(
-        `${pad('package', 20)} ${pad('inv', 5)} ${pad('cov', 5)} ${pad('uncov', 6)} ${pad('n/a', 5)} ${pad('stale', 6)} ${pad('live', 5)} axes`
+        `${pad('package', 20)} ${pad('inv', 5)} ${pad('cov', 5)} ${pad('part', 5)} ${pad('uncov', 6)} ${pad('n/a', 5)} ${pad('stale', 6)} ${pad('live', 5)} axes`
     );
-    console.log('-'.repeat(84));
+    console.log('-'.repeat(90));
     let cov = 0;
     for (const [pkg, rs] of [...byPkg].sort((a, b) => b[1].length - a[1].length)) {
         const c = tally(rs, 'covered');
         cov += c;
         console.log(
-            `${pad(pkg, 20)} ${pad(rs.length, 5)} ${pad(c, 5)} ${pad(tally(rs, 'uncovered'), 6)} ` +
+            `${pad(pkg, 20)} ${pad(rs.length, 5)} ${pad(c, 5)} ${pad(rs.filter((r) => r.partial).length, 5)} ${pad(tally(rs, 'uncovered'), 6)} ` +
                 `${pad(tally(rs, 'not-mechanically-checkable'), 5)} ${pad(tally(rs, 'stale'), 6)} ` +
                 `${pad(tally(rs, 'needs-live-stack'), 5)} ${rs[0].axes.join(',')}`
         );
     }
-    console.log('-'.repeat(84));
+    console.log('-'.repeat(90));
     const total = inv.rows.length;
     console.log(`${pad('TOTAL', 20)} ${pad(total, 5)} ${pad(cov, 5)} ${pad(total - cov, 6)}   (${((cov / total) * 100).toFixed(1)}% cited)`);
+    const partial = inv.rows.filter((r) => r.partial);
+    if (partial.length) {
+        console.log(
+            `\n${partial.length} rows are cited but only half-pinned — a clause of each is named in judgments/<pkg>.json`
+        );
+    }
     const conflicts = inv.rows.filter((r) => r.conflict);
     if (conflicts.length) {
         console.log(`\n!! ${conflicts.length} judged-but-now-cited (stale judgments): ${conflicts.map((r) => r.id).join(', ')}`);

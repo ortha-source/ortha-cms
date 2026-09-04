@@ -8,6 +8,16 @@ import { OP, type OpId } from '../types/filter-tree.type';
 export const WIRE_OP = {
     Eq: 'eq',
     Ne: 'ne',
+    /**
+     * Case-**sensitive** substring match — the other half of Postgres's `~~`
+     * family, which `parseFilterTree` accepts on every text field.
+     *
+     * The builder never emits it: its `contains` is `ilike`, because an editor
+     * searching a title list does not mean "and mind the capitals". It is here
+     * for the **inbound** direction only, since a hand-written or externally
+     * generated `?filter=` may legitimately carry it — see {@link WIRE_TO_UI}.
+     */
+    Like: 'like',
     Ilike: 'ilike',
     Nilike: 'nilike',
     In: 'in',
@@ -73,6 +83,16 @@ export const WIRE_TO_UI: Partial<Record<WireOp, OpId>> = {
     [WIRE_OP.Eq]: OP.Equals,
     [WIRE_OP.Ne]: OP.NotEquals,
     [WIRE_OP.Ilike]: OP.Contains,
+    // `like` is not something this builder can write, but it is something the
+    // server accepts — so a link may carry it, and dropping it was the worst
+    // available answer. The list pages send the **raw** `?filter=` to the API,
+    // so the table was filtered by a condition the builder above it did not
+    // show: no chip, nothing in "Filters (N)", and the next Apply re-serialised
+    // the tree without it and quietly widened the filter. It comes back as
+    // `contains` and therefore leaves as `ilike` — a *visible* widening of one
+    // operator's case-sensitivity, which is the same lossy-but-preferred trade
+    // this file already makes for `gte`+`lte` → Between.
+    [WIRE_OP.Like]: OP.Contains,
     [WIRE_OP.Nilike]: OP.NotContains,
     [WIRE_OP.In]: OP.IsOneOf,
     [WIRE_OP.Nin]: OP.NotOneOf,

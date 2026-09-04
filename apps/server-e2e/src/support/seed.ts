@@ -244,6 +244,56 @@ export async function seedUserWithPermissions(
     return { id: user.id, email: user.email };
 }
 
+/**
+ * Take one permission away from a **non-system** role, mid-test.
+ *
+ * The point is a grant that changes *while something is running*: ADR-0005 §2
+ * makes the copilot re-resolve a run's authority per call precisely because a
+ * role can be edited during a long turn, and that rule is unfalsifiable unless
+ * a test can perform the edit at the moment the run is parked.
+ *
+ * **System roles are refused.** `resetDb` deletes non-system roles and leaves
+ * the seeded ones alone, so a `DELETE` against `admin` or `contributor` would
+ * survive the reset and quietly de-authorize every later spec file in the run —
+ * a wall of unrelated 403s attributed to whichever suite ran next. Pair this
+ * with {@link seedUserWithPermissions}, whose role is disposable by
+ * construction.
+ */
+export async function revokePermissionFromRole(
+    roleKey: string,
+    permissionKey: string
+): Promise<void> {
+    const db = getDatabase();
+    const [role] = await db.select().from(roles).where(eq(roles.key, roleKey));
+    if (!role) {
+        throw new Error(`revokePermissionFromRole: no role "${roleKey}".`);
+    }
+    if (role.isSystem) {
+        throw new Error(
+            `revokePermissionFromRole: "${roleKey}" is a system role — ` +
+                'the revocation would outlive `resetDb`. Seed a role with ' +
+                '`seedUserWithPermissions` and revoke from that instead.'
+        );
+    }
+    const [permission] = await db
+        .select()
+        .from(permissionsTable)
+        .where(eq(permissionsTable.key, permissionKey));
+    if (!permission) {
+        throw new Error(
+            `revokePermissionFromRole: no permission "${permissionKey}".`
+        );
+    }
+    await db
+        .delete(rolePermissions)
+        .where(
+            and(
+                eq(rolePermissions.roleId, role.id),
+                eq(rolePermissions.permissionId, permission.id)
+            )
+        );
+}
+
 /** A seeded workspace row — what the workspaces read assertions reference. */
 export interface SeededWorkspace {
     id: string;
@@ -1063,6 +1113,24 @@ export async function seedMediaAsset(opts: {
         })
         .returning();
     return { id: row.id };
+}
+
+/**
+ * Every `media_asset` row in a workspace, whatever folder holds it.
+ *
+ * `GET /api/media/assets` cannot answer this. It lists **one** folder, and an
+ * omitted `folderId` means the workspace *root* (`ListAssetsController` passes
+ * `folderId ?? null`), not "everywhere" — so an asset nested in a surviving
+ * subfolder is absent from that response whether or not its row is still there.
+ * A cascade assertion is about the whole workspace, so it reads the table.
+ */
+export async function listMediaAssets(
+    workspaceId: string
+): Promise<{ id: string; folderId: string | null }[]> {
+    return getDatabase()
+        .select({ id: mediaAsset.id, folderId: mediaAsset.folderId })
+        .from(mediaAsset)
+        .where(eq(mediaAsset.workspaceId, workspaceId));
 }
 
 /** Count `media_asset` rows in a workspace — asserts upload/delete side effects. */

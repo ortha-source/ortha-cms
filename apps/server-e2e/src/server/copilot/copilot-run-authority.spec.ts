@@ -7,10 +7,12 @@ import {
 } from '../../support/test-app';
 import {
     resetDb,
+    revokePermissionFromRole,
     seedActiveUser,
     seedArticles,
     seedContentGrants,
     seedMembership,
+    seedUserWithPermissions,
     seedWorkspace,
     type SeededWorkspace
 } from '../../support/seed';
@@ -431,6 +433,140 @@ describe('Copilot run authority', () => {
 
             expect(seen).toEqual([204]);
             expect((await articleRow(entryId)).text).toBe('rewritten');
+        });
+    });
+
+    // ------------------------------------ authority is resolved per call
+    //
+    // ADR-0005 §2 and §3: the profile is computed at the start of a run and
+    // computed **again** before every tool call, because a role can be edited
+    // while a long turn is in flight.
+    //
+    // The implementation this is aimed at is the cheap one nobody would notice
+    // losing: resolve once and hang the profile off the conversation. Every
+    // other case in this file holds its grants still for the length of a run,
+    // so a cached profile passes all of them.
+    //
+    // It is also the shape that is easy to *think* is covered. A tool the
+    // caller never held exits down `executeTool`'s unknown-tool branch — an
+    // earlier guard, with its own message — long before the re-resolve is
+    // reached, so "a viewer cannot call a write tool" says nothing about this.
+    // The tool here is therefore genuinely offered, and taken away while the
+    // run is parked on its own permission prompt.
+    describe('a grant revoked mid-run', () => {
+        const REVOKED_EMAIL = 'authority-revoked@example.com';
+        /**
+         * A disposable role, not `contributor`.
+         *
+         * The revocation below is a real `DELETE` from `role_permissions`, and
+         * `resetDb` restores the system roles by never touching them — so
+         * taking `content:update` off the shared contributor role would outlive
+         * this test and de-authorize every later spec file in the run.
+         * `revokePermissionFromRole` refuses a system role for that reason.
+         */
+        const REVOKED_ROLE = 'authority-revoked-midrun';
+
+        /** A member who holds `content:update` — for now. */
+        async function signInRevocable() {
+            const user = await seedUserWithPermissions(harness.app, {
+                email: REVOKED_EMAIL,
+                password: PASSWORD,
+                roleKey: REVOKED_ROLE,
+                permissions: ['copilot:use', 'content:read', 'content:update']
+            });
+            await seedMembership(user.id, workspace.id);
+            const agent = request.agent(harness.server);
+            await agent
+                .post('/api/auth/login')
+                .send({ email: REVOKED_EMAIL, password: PASSWORD })
+                .expect(201);
+            return agent;
+        }
+
+        /** The tool names offered to the model on its `nth` call. */
+        function offeredOn(nth: number) {
+            return (copilotCalls()[nth]?.tools ?? []).map((tool) => tool.name);
+        }
+
+        it('refuses a tool it had already offered [copilot:I-02] [tools:I-22]', async () => {
+            const agent = await signInRevocable();
+            let revokeFailure: unknown;
+
+            // Three turns: the call, the model's answer to the refusal, and
+            // the second run's answer.
+            scriptCopilot(
+                { toolCalls: [{ name: 'fixture.proposeThing', input: {} }] },
+                { text: 'refused' },
+                { text: 'still here' }
+            );
+
+            const events = await runAnswering(
+                agent,
+                { message: 'propose something' },
+                (runId, callId) => {
+                    // Sequenced, not raced: the run is parked until the answer
+                    // lands, so the DELETE is committed before `executeTool`
+                    // re-resolves. And the decision is `once` — the user said
+                    // **yes**, which is what makes this a test of the freshly
+                    // resolved grant rather than of the prompt.
+                    void revokePermissionFromRole(
+                        REVOKED_ROLE,
+                        'content:update'
+                    )
+                        // Answered even if the revoke threw. Leaving a parked
+                        // run unanswered spends the broker's whole waiting
+                        // budget, so the mistake would arrive minutes later as
+                        // a timeout instead of as the failed assertion below.
+                        .catch((error: unknown) => {
+                            revokeFailure = error;
+                        })
+                        .then(() => answer(agent, runId, callId));
+                }
+            );
+
+            expect(revokeFailure).toBeUndefined();
+            // The half that lets this test fail at all: the tool was in the
+            // offer, so the call reaches the re-resolve instead of stopping at
+            // the unknown-tool branch above it.
+            expect(offeredOn(0)).toContain('fixture.proposeThing');
+
+            const result = framesOfType(events, 'tool-result')[0];
+            expect(result.ok).toBe(false);
+            expect(result.error).toBe(
+                'You are not permitted to use "fixture.proposeThing".'
+            );
+            // Not merely refused in the transcript: the handler never ran and
+            // nothing was written. With the profile cached for the
+            // conversation, `fixtures.invoked` would read
+            // `['fixture.proposeThing']` and a proposal row would exist.
+            expect(fixtures.invoked).toEqual([]);
+            expect(await proposalRows()).toHaveLength(0);
+            // …and the run carried on rather than dying: a revoked permission
+            // is an ordinary tool error the model can report.
+            expect(framesOfType(events, 'done')).toHaveLength(1);
+
+            const runId = framesOfType(events, 'run-started')[0].runId;
+            const calls = await copilotToolCallRows(harness.app, runId);
+            expect(calls).toHaveLength(1);
+            expect(calls[0].ok).toBe(false);
+
+            // The other half of the invariant — "recomputed on every run,
+            // nothing cached across a conversation". The *same thread*, one
+            // message later, must not be offered the withdrawn tool again.
+            const conversationId = framesOfType(events, 'run-started')[0]
+                .conversationId;
+            // Indexed rather than assumed: the first run made a model call to
+            // start with and another to read the tool error, and a loop that
+            // grew a step would silently move the offer this asserts on.
+            const secondRun = copilotCalls().length;
+            await run(agent, { message: 'and again', conversationId });
+
+            expect(offeredOn(secondRun)).not.toContain('fixture.proposeThing');
+            // Still a working copilot, not a broken one: what it lost is
+            // exactly the tool whose permission went away. (This one also
+            // fails if the second run made no model call at all, which is what
+            // keeps the assertion above from passing on an empty list.)
+            expect(offeredOn(secondRun)).toContain('fixture.readThing');
         });
     });
 

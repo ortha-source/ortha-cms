@@ -128,6 +128,15 @@ Two things about the e2e harness are worth knowing before you change it:
 - The sender's interval is **off** (`deliveryIntervalMs: 0`); suites drive one
   batch with `WebhookDeliveryWorker.runOnce()`. A background tick would post a
   delivery mid-assertion.
+- The rule in decision 1 is pinned by `webhook-transaction-boundary.spec.ts`,
+  and it is pinned by **observation, not by outcome**: `recordWebhookSends`
+  watches the HTTP client itself across a real fan-out (so "the subscriber
+  tried and failed" is not mistaken for "the subscriber did not try"), and
+  `observeDeliveryRow` — called from inside the receiver's request handler,
+  while the worker is blocked on `await request()` — asks a **second
+  connection** what it can see. A claim still open would leave the row reading
+  `pending` and would refuse a `FOR UPDATE NOWAIT` with `55P03`. If you move
+  where the transaction starts or ends, that suite is the one that will say so.
 - `resetDb` **deletes** the endpoints rather than truncating them. Since the
   fan-out subscriber reads `webhook_endpoints` from inside the outbox drain, a
   `TRUNCATE` naming both that table and `outbox_events` deadlocks against a

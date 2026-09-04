@@ -1,4 +1,5 @@
 import request from 'supertest';
+import { getPool } from '@orthacms/database';
 import {
     closeTestApp,
     createTestApp,
@@ -238,6 +239,112 @@ describe('Alarm findings lifecycle', () => {
             open: { error: 0, warn: 1, info: 0 }
         });
         expect(summary.body).not.toHaveProperty('muted');
+    });
+
+    /** One finding's `first_seen_at`, straight off the row. */
+    async function findingFirstSeen(entryId: string): Promise<Date | null> {
+        const { rows } = await getPool().query(
+            'SELECT first_seen_at FROM alarm_findings WHERE rule_id = $1 AND entry_id = $2',
+            [ruleId, entryId]
+        );
+        return (
+            (rows[0] as { first_seen_at: Date } | undefined)?.first_seen_at ??
+            null
+        );
+    }
+
+    it('keeps first_seen_at across a finding closing and reopening [alarms:I-06]', async () => {
+        const client = await api();
+        await createRule(client);
+        const entryId = await publishArticle(client);
+        await drainOutbox(harness.app);
+        const firstSeen = await findingFirstSeen(entryId);
+        expect(firstSeen).not.toBeNull();
+
+        // Fixed: the finding closes. The row stays — resolving is an UPDATE,
+        // not a delete, and that is what the history hangs off.
+        await rewriteAndPublish(client, entryId, { number: 5 });
+        await drainOutbox(harness.app);
+        expect((await client.get('/api/alarms/findings')).body.total).toBe(0);
+
+        // Broken again: the same `(rule, entry)` row reopens.
+        await rewriteAndPublish(client, entryId, {});
+        await drainOutbox(harness.app);
+        expect((await client.get('/api/alarms/findings')).body.total).toBe(1);
+
+        // "This has been open for three months" has to survive the round trip —
+        // an upsert that let `first_seen_at` move would reset the age of every
+        // recurring problem to zero each time it came back.
+        expect(await findingFirstSeen(entryId)).toEqual(firstSeen);
+    });
+
+    /**
+     * **A rule whose filter has stopped parsing.**
+     *
+     * The state is unreachable through the API — a filter is parsed *before* it
+     * is stored, and re-parsed on every edit — so the only way to reach the one
+     * the code defends against is to write the row directly, which is exactly
+     * what a host renaming a field out from under a saved rule does to it.
+     *
+     * The discriminator is the edit: it fills the number in, so a rule that
+     * still evaluated would legitimately close the finding, and a broken one
+     * that answered "nothing matched" instead of "I could not check" would
+     * close it too. The finding staying **open** is therefore only reachable
+     * through `safeMatch` returning `null` — the single line that keeps "we
+     * could not check" from silently reading as "everything is fine".
+     */
+    it('marks a rule broken rather than closing its findings when its filter stops parsing [alarms:I-08] [alarms:I-09]', async () => {
+        const client = await api();
+        await createRule(client);
+        const entryId = await publishArticle(client);
+        await drainOutbox(harness.app);
+        expect((await client.get('/api/alarms/findings')).body.total).toBe(1);
+
+        // The field the rule names disappears from under it.
+        await getPool().query(
+            'UPDATE alarm_rules SET filter = $1::jsonb WHERE id = $2',
+            [
+                JSON.stringify({
+                    and: [{ field: 'no_such_field', op: 'eq', value: 'x' }]
+                }),
+                ruleId
+            ]
+        );
+
+        // An entry write that a working rule would resolve the finding on.
+        await rewriteAndPublish(client, entryId, { number: 5 });
+        await drainOutbox(harness.app);
+
+        // I-09: still open. `safeMatch` answered `null`, so nothing was
+        // reconciled and nothing was closed.
+        const findings = await client.get('/api/alarms/findings').expect(200);
+        expect(findings.body.total).toBe(1);
+        expect(findings.body.items[0]).toMatchObject({
+            entryId,
+            state: 'open'
+        });
+
+        // I-08: broken, and *shown* to be — a rule that quietly stopped
+        // matching would be indistinguishable from a workspace whose content
+        // is fine.
+        const rules = await client.get('/api/alarms/rules').expect(200);
+        const stored = rules.body.find(
+            (rule: { id: string }) => rule.id === ruleId
+        );
+        expect(stored.brokenReason).toEqual(
+            expect.stringContaining('no_such_field')
+        );
+        expect(stored.openCount).toBe(1);
+
+        // The third path — an explicit recompute — reaches the same verdict.
+        // It is the recovery path, so it *does* retry a broken rule rather than
+        // skipping it; what it must never do is report a clean scan and close
+        // everything the rule holds.
+        const rescan = await client
+            .post(`/api/alarms/rules/${ruleId}/rescan`)
+            .expect(200);
+        expect(rescan.body).toMatchObject({ opened: 0, resolved: 0, open: 1 });
+        expect((await client.get('/api/alarms/findings')).body.total).toBe(1);
     });
 
     it('closes the findings on an entry when it is deleted [alarms:I-12]', async () => {
