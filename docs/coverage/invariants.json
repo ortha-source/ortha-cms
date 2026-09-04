@@ -2495,7 +2495,7 @@
             "axes": [
                 "unit"
             ],
-            "text": "Neither features.ts nor any template file contains a hardcoded version number."
+            "text": "No @orthacms/* version is written down in features.ts or in any template file — every one is stamped at render time from the scaffolder's own manifest. features.ts holds no version number at all; a template's own third-party dependency ranges are its business."
         },
         {
             "id": "create-ortha-app:I-05",
@@ -2647,7 +2647,7 @@
             "axes": [
                 "unit"
             ],
-            "text": "The root tsconfig.json references exactly four projects, in the order server, admin, server-e2e, admin-e2e."
+            "text": "The root tsconfig.json references exactly five projects, in the order server, the server's spec project (apps/server/tsconfig.spec.json), admin, server-e2e, admin-e2e. The server contributes two because the build project excludes the specs, so without a project of their own nothing typechecks them."
         },
         {
             "id": "create-ortha-app:I-24",

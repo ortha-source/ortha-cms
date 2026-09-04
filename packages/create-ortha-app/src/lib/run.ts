@@ -1,4 +1,13 @@
-#!/usr/bin/env node
+/**
+ * The scaffolder itself: read the flags, ask what a terminal can be asked,
+ * write the app.
+ *
+ * Separate from `src/cli.ts`, which is the `bin` and does nothing but call
+ * `main()` and turn a thrown error into an exit code. The split is what makes
+ * this testable: importing a module that scaffolds on import would scaffold
+ * during a test run, so the refusals and the defaults below could only be
+ * checked by spawning a process.
+ */
 import { randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
@@ -12,16 +21,16 @@ import {
     resolvePackages,
     type Feature,
     type FeatureSelection
-} from './lib/features';
-import { isNonEmptyDirectory, renderTemplate } from './lib/template';
-import * as ui from './lib/ui';
+} from './features';
+import { isNonEmptyDirectory, renderTemplate } from './template';
+import * as ui from './ui';
 import {
     databaseNameFrom,
     validateAppName,
     validateDatabaseUrl
-} from './lib/validate';
+} from './validate';
 
-const USAGE = `create-ortha-app — scaffold an Ortha CMS app
+export const USAGE = `create-ortha-app — scaffold an Ortha CMS app
 
 Usage: npx create-ortha-app <directory> [options]
 
@@ -115,7 +124,7 @@ function selected(
  * generates a 0.3.0 app, not whatever shipped since.
  */
 function ownVersion(): string {
-    const manifest = join(__dirname, '../package.json');
+    const manifest = join(__dirname, '../../package.json');
     return (JSON.parse(readFileSync(manifest, 'utf8')) as { version: string })
         .version;
 }
@@ -160,7 +169,7 @@ function defaultsOf(features: readonly Feature[]): string[] {
 }
 
 /** The ids that are on regardless of what was asked or passed. */
-function lockedOf(features: readonly Feature[]): string[] {
+export function lockedOf(features: readonly Feature[]): string[] {
     return features
         .filter((feature) => feature.locked && feature.available)
         .map((feature) => feature.id);
@@ -194,7 +203,7 @@ async function askText(
 }
 
 /** Everything the wizard resolves. */
-interface Answers {
+export interface Answers {
     appName: string;
     databaseUrl: string;
     adminEmail: string;
@@ -209,7 +218,7 @@ interface Answers {
  * hangs a pipeline until it times out, which is a far worse failure than
  * defaulting, so the flags and the defaults cover every question.
  */
-async function resolveAnswers(
+export async function resolveAnswers(
     argv: readonly string[],
     defaultName: string
 ): Promise<Answers> {
@@ -330,9 +339,9 @@ function describeSelection(
     ];
 }
 
-async function main(): Promise<void> {
-    const argv = process.argv.slice(2);
-
+export async function main(
+    argv: readonly string[] = process.argv.slice(2)
+): Promise<void> {
     if (flag(argv, 'help') || argv.includes('-h')) {
         console.log(USAGE);
         return;
@@ -365,7 +374,7 @@ async function main(): Promise<void> {
 
     mkdirSync(target, { recursive: true });
 
-    renderTemplate(join(__dirname, '../templates/default'), target, {
+    renderTemplate(join(__dirname, '../../templates/default'), target, {
         appName: answers.appName,
         appTitle: answers.appName,
         databaseUrl: answers.databaseUrl,
@@ -419,8 +428,3 @@ async function main(): Promise<void> {
         `npm run dev        ${ui.dim('→ http://localhost:4200')}`
     ]);
 }
-
-main().catch((error: unknown) => {
-    ui.error(error instanceof Error ? error.message : String(error));
-    process.exit(1);
-});
