@@ -53,7 +53,7 @@
  * ## Usage
  *
  *   node tools/coverage/ledger.mjs build          rebuild invariants.json from the dossiers
- *   node tools/coverage/ledger.mjs check          report coverage (add --strict to fail on gaps)
+ *   node tools/coverage/ledger.mjs check          report coverage (--strict fails on any invariant neither cited nor judged)
  *   node tools/coverage/ledger.mjs check --json   the same, machine-readable
  *   node tools/coverage/ledger.mjs gaps <pkg>     the uncovered rows of one package, with text
  *   node tools/coverage/ledger.mjs apply [--dry]  write the recorded citations into the specs
@@ -329,7 +329,20 @@ function check(args) {
     if (conflicts.length) {
         console.log(`\n!! ${conflicts.length} judged-but-now-cited (stale judgments): ${conflicts.map((r) => r.id).join(', ')}`);
     }
-    if (args.includes('--strict') && cov < total) process.exit(1);
+    // The gate asks whether every invariant has been *answered*, not whether
+    // every one has a test. A row judged unreachable or stale, with its reason
+    // written down, is answered; only `uncovered` is silence. Failing on the
+    // judged rows too would leave the gate permanently red and therefore off.
+    const unanswered = inv.rows.filter((r) => r.state === 'uncovered');
+    if (args.includes('--strict') && unanswered.length) {
+        console.error(
+            `\n${unanswered.length} invariants are neither cited nor judged:\n` +
+                unanswered.map((r) => `  ${r.id}  ${r.text.slice(0, 90)}`).join('\n') +
+                '\n\nEither pin one with a test that names it, or record why no harness can —' +
+                '\nsee docs/coverage/README.md. Silence is the one thing this gate refuses.'
+        );
+        process.exit(1);
+    }
 }
 
 function gaps(pkg) {
