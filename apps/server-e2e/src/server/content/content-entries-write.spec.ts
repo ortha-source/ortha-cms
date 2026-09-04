@@ -790,6 +790,96 @@ describe('Content entry writes (/api/content/:type)', () => {
             expect(publish.body.skipped).toHaveLength(0);
         });
 
+        it('carries a per-field checklist on every gated verdict, labelled for a human', async () => {
+            // `checks` is the payload behind the dialog's "Show field checks"
+            // disclosure (`VerdictRow` renders `item.checks` and gates the whole
+            // collapsible on `item.checks.length > 0`). Nothing asserted it in
+            // any harness: the admin-e2e mock hard-coded `checks: []`, which
+            // makes `hasChecks` false, so no browser suite has ever opened that
+            // disclosure — and a server that stopped sending the array would
+            // have looked exactly the same to every test in the repo.
+            const agent = await login(ADMIN_EMAIL);
+            const ok = await createArticle(agent);
+            // A publishable type keeps required fields nullable and checks them
+            // at publication (content:I-07), so a draft may legitimately omit
+            // `select` — which is what makes a *blocked* verdict reachable at
+            // all, and the fixture able to tell the two branches apart.
+            const blocked = await createArticle(agent, { text: 'Only text' });
+
+            const preview = await agent
+                .post('/api/content/test_article/bulk/publish/preview')
+                .send({ ids: [ok, blocked] })
+                .expect(200);
+
+            const byId = Object.fromEntries(
+                preview.body.items.map(
+                    (item: { id: string }) => [item.id, item] as const
+                )
+            );
+
+            // The passing row is not "no checks" — it is every check, passing.
+            // A row that simply dropped its checklist would otherwise read as
+            // publishable here, which is the confusion this asserts away.
+            expect(byId[ok].verdict).toBe('publishable');
+            expect(byId[ok].checks.length).toBeGreaterThan(0);
+            expect(
+                byId[ok].checks.every((check: { ok: boolean }) => check.ok)
+            ).toBe(true);
+            // `label` is the field's admin label, not its machine name: the
+            // dialog shows it to a human. `text` is declared with
+            // `admin.label: 'Text'`, so the two differ and a mapper that echoed
+            // the field name would fail here rather than pass unnoticed.
+            expect(byId[ok].checks).toContainEqual({
+                field: 'text',
+                label: 'Text',
+                ok: true
+            });
+
+            // The blocked row reports the same fields, with the failures
+            // carrying the reason the editor has to act on.
+            expect(byId[blocked].verdict).toBe('blocked');
+            expect(byId[blocked].issues.length).toBeGreaterThan(0);
+            const failed = byId[blocked].checks.filter(
+                (check: { ok: boolean }) => !check.ok
+            );
+            expect(failed).toContainEqual({
+                field: 'select',
+                label: 'Select',
+                ok: false,
+                message: expect.any(String)
+            });
+            // …and the fields that *are* filled in still come back as passing
+            // checks, so the disclosure lists the whole gate rather than only
+            // what is wrong.
+            expect(byId[blocked].checks).toContainEqual({
+                field: 'text',
+                label: 'Text',
+                ok: true
+            });
+        });
+
+        it('still returns per-field checks for an already-published row', async () => {
+            // The dossier's rule for §6.5: an already-published row keeps its
+            // checklist "so that the dialog can expand it like any other rather
+            // than leave a dead, unexpandable row". `VerdictRow` renders no
+            // trigger at all when `checks` is empty, so dropping them here
+            // produces exactly that dead row.
+            const agent = await login(ADMIN_EMAIL);
+            const id = await createArticle(agent);
+            await agent
+                .post(`/api/content/test_article/${id}/publish`)
+                .expect(201);
+
+            const preview = await agent
+                .post('/api/content/test_article/bulk/publish/preview')
+                .send({ ids: [id] })
+                .expect(200);
+
+            const [item] = preview.body.items;
+            expect(item.verdict).toBe('already-published');
+            expect(item.checks.length).toBeGreaterThan(0);
+        });
+
         it('bulk soft-deletes a set of entries', async () => {
             const agent = await login(ADMIN_EMAIL);
             const ids = [

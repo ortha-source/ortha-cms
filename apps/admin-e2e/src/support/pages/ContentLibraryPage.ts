@@ -935,4 +935,73 @@ export class ContentLibraryPage extends BasePage {
             .filter({ hasText: rowText })
             .locator(`td:nth-child(${index})`);
     }
+
+    /* --- Bulk actions + the publish pre-flight dialog --------------------- */
+
+    /** The selection bar's "Bulk actions" dropdown trigger. */
+    get bulkActions(): Locator {
+        return this.page.getByRole('button', { name: 'Bulk actions' });
+    }
+
+    /** One item of the open bulk-actions menu. */
+    bulkAction(label: string): Locator {
+        return this.page.getByRole('menuitem', { name: label, exact: true });
+    }
+
+    /** The bulk-publish pre-flight modal. */
+    get bulkPublishDialog(): Locator {
+        return this.page.getByRole('dialog');
+    }
+
+    /**
+     * The per-row verdict note ("Will publish", "1 issue", "Already
+     * published", "No longer available").
+     *
+     * `exact` on purpose: a substring match also resolves the row's wrapper and
+     * its list item, so a loose locator reports three hits for one note and a
+     * count assertion stops meaning anything.
+     */
+    verdictNote(text: string): Locator {
+        return this.bulkPublishDialog.getByText(text, { exact: true });
+    }
+
+    /** Every "Show field checks" disclosure trigger in the dialog. */
+    get verdictCheckToggles(): Locator {
+        return this.bulkPublishDialog.getByRole('button', {
+            name: 'Show field checks'
+        });
+    }
+
+    /**
+     * The expanded per-field checklist items of the `index`-th verdict row.
+     *
+     * A failing check renders as `"{label}: {message}"` in one node and a
+     * passing one as just `"{label}"`, so the whole row is read as text rather
+     * than picked apart — which is also what a reader sees.
+     *
+     * Scoped through the verdict list's **direct** children rather than
+     * `getByRole('listitem')`: an expanded row nests its checklist in a second
+     * `<ul>`, so a flat role query returns rows and checks interleaved in DOM
+     * order and `.nth(1)` silently means "row 2" or "row 1's first check"
+     * depending on which rows happen to be open.
+     */
+    verdictChecks(index: number): Locator {
+        return this.bulkPublishDialog
+            .locator('ul')
+            .first()
+            .locator('> li')
+            .nth(index)
+            .locator('ul li');
+    }
+
+    /**
+     * The dialog's confirm button. Its label carries the **publishable** count
+     * ("Publish 2 valid"), not the selection size, so passing the number is
+     * what makes the assertion about the dry run rather than about the click.
+     */
+    bulkPublishConfirm(validCount: number): Locator {
+        return this.bulkPublishDialog.getByRole('button', {
+            name: `Publish ${validCount} valid`
+        });
+    }
 }

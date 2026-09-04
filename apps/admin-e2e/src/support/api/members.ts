@@ -7,10 +7,20 @@ interface RoleSeed {
     name: string;
 }
 
-/** A member's workspace as the API returns it (server `MemberWorkspaceView`). */
+/**
+ * A member's workspace as the API returns it (server `MemberWorkspaceView`).
+ *
+ * `description` is on the wire and **required** — `memberMapper` reads
+ * `dto.description` and `WorkspaceMembershipCard` renders it behind a
+ * truthiness check. It was missing here, so every suite saw `undefined`, the
+ * card's description line never rendered, and nothing in the repo would have
+ * noticed the server dropping the field. `null` is the real "none" value, not
+ * an absent key.
+ */
 interface WorkspaceSeed {
     id: string;
     name: string;
+    description: string | null;
     color: string;
 }
 
@@ -53,9 +63,22 @@ export const DEFAULT_MEMBERS: MemberSeed[] = [
         status: 'active',
         createdAt: TIMESTAMP,
         isLastAdmin: true,
+        // One described and one not, so the card's two branches are both
+        // reachable from the default seed rather than only the empty one.
         workspaces: [
-            { id: 'ws_marketing', name: 'Marketing site', color: 'violet' },
-            { id: 'ws_internal', name: 'Internal wiki', color: 'amber' }
+            {
+                id: 'ws_marketing',
+                name: 'Marketing site',
+                description:
+                    'Landing pages, the blog, and campaign content for the public website.',
+                color: 'violet'
+            },
+            {
+                id: 'ws_internal',
+                name: 'Internal wiki',
+                description: null,
+                color: 'amber'
+            }
         ]
     },
     {
@@ -66,7 +89,15 @@ export const DEFAULT_MEMBERS: MemberSeed[] = [
         status: 'active',
         createdAt: TIMESTAMP,
         isLastAdmin: false,
-        workspaces: [{ id: 'ws_docs', name: 'Product docs', color: 'teal' }]
+        workspaces: [
+            {
+                id: 'ws_docs',
+                name: 'Product docs',
+                description:
+                    'Guides, API references, and release notes for the developer portal.',
+                color: 'teal'
+            }
+        ]
     },
     {
         id: 'u_alan',
@@ -382,13 +413,18 @@ export async function spyRevokeInvite(
 export async function spySetMemberStatus(
     page: Page,
     member: MemberSeed,
-    { status = 200 }: { status?: number } = {}
+    // 201, not 200: neither controller carries an `@HttpCode`, so Nest answers
+    // a `@Post` with `Created`. Nothing in the admin branches on which 2xx it
+    // is, so this is a truthfulness fix rather than a bug fix — but a seed that
+    // states the wrong status is the same class of claim as one that states the
+    // wrong body, and this one was never checked against a server until now.
+    { status = 201 }: { status?: number } = {}
 ): Promise<{ readonly disabled: number; readonly enabled: number }> {
     let disabled = 0;
     let enabled = 0;
     /** The body for whichever direction was asked for — or the refusal. */
     const answer = (next: 'disabled' | 'active') =>
-        status === 200
+        status < 400
             ? JSON.stringify({ ...member, status: next })
             : JSON.stringify({
                   statusCode: status,

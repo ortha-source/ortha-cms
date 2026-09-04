@@ -48,9 +48,7 @@ describe('GET /api/users/:id', () => {
     }
 
     it('rejects an unauthenticated request with 401', async () => {
-        await request(harness.server)
-            .get(`/api/users/${admin.id}`)
-            .expect(401);
+        await request(harness.server).get(`/api/users/${admin.id}`).expect(401);
     });
 
     it('returns the member with role and workspaces', async () => {
@@ -76,6 +74,64 @@ describe('GET /api/users/:id', () => {
         expect(res.body.workspaces).toEqual([
             expect.objectContaining({ id: workspace.id, name: 'Acme' })
         ]);
+    });
+
+    it('carries description and color on each workspace row', async () => {
+        // `WorkspaceMembershipCard` renders `workspace.description` behind a
+        // truthiness check, and `memberMapper` reads `dto.description` straight
+        // off the wire. Neither end was pinned: the field was absent from the
+        // admin-e2e seed, so the description block never rendered in a browser
+        // suite, and the assertion above is an `objectContaining` that would
+        // pass with the field gone. A server that dropped it would show up as
+        // nothing at all.
+        const target = await seedUser(harness.app, {
+            email: 'described@example.com',
+            name: 'Described Member',
+            role: 'contributor',
+            status: 'active'
+        });
+        const workspace = await seedWorkspace({
+            name: 'Described',
+            slug: 'described',
+            description: 'The workspace the card writes a line about.',
+            color: 'violet'
+        });
+        await seedMembership(target.id, workspace.id);
+
+        const agent = await login(ADMIN_EMAIL);
+        const res = await agent.get(`/api/users/${target.id}`).expect(200);
+
+        expect(res.body.workspaces).toEqual([
+            {
+                id: workspace.id,
+                name: 'Described',
+                description: 'The workspace the card writes a line about.',
+                color: 'violet'
+            }
+        ]);
+    });
+
+    it('sends description as null when the workspace has none', async () => {
+        // The card's third state. `description: string | null` on both sides,
+        // so "absent" and "explicitly empty" have to stay distinguishable — a
+        // mapper that dropped the key instead of passing `null` would read the
+        // same to the truthiness check but breaks the declared type.
+        const target = await seedUser(harness.app, {
+            email: 'undescribed@example.com',
+            name: 'Undescribed Member',
+            role: 'contributor',
+            status: 'active'
+        });
+        const workspace = await seedWorkspace({
+            name: 'Plain',
+            slug: 'plain'
+        });
+        await seedMembership(target.id, workspace.id);
+
+        const agent = await login(ADMIN_EMAIL);
+        const res = await agent.get(`/api/users/${target.id}`).expect(200);
+
+        expect(res.body.workspaces[0]).toHaveProperty('description', null);
     });
 
     it('flags the sole active admin with isLastAdmin', async () => {

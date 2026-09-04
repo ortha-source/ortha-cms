@@ -172,8 +172,13 @@ export const CONTENT_SCHEMA = {
  */
 export const LOCALES = {
     items: [
-        { slug: 'en', name: 'English', isDefault: true },
-        { slug: 'de', name: 'German', isDefault: false }
+        // `dir` is not optional on the wire: `list-locales.controller` sends
+        // `dir ?? 'ltr'`, so every locale the real server returns carries one,
+        // and `localePolicy.dirOf` reads it off the response. Omitting it here
+        // made this seed claim a shape the server does not have — the sibling
+        // i18n seed has always had it.
+        { slug: 'en', name: 'English', isDefault: true, dir: 'ltr' },
+        { slug: 'de', name: 'German', isDefault: false, dir: 'ltr' }
     ]
 };
 

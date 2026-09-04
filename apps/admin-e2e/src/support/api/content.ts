@@ -1299,6 +1299,20 @@ interface ContentEntriesOptions {
     status?: number;
 }
 
+/** Options for the write/bulk mocks — the read options plus the bulk gate. */
+interface ContentEntryWriteOptions extends ContentEntriesOptions {
+    /**
+     * Entry ids the publish gate rejects, each mapped to the **required field
+     * names** it fails on. An id left out passes every check.
+     *
+     * Without this the bulk dialog could only ever be driven down its happy
+     * path: the mock declared every row `publishable` with an empty checklist,
+     * which is the one combination that renders neither a failure icon nor the
+     * "Show field checks" trigger.
+     */
+    blocked?: Record<string, string[]>;
+}
+
 /**
  * Stub `GET /api/content/:name` — the records-list endpoint `useContentEntries`
  * reads. Fabricates a deterministic row set from the type's detail schema, then
@@ -1626,6 +1640,49 @@ function json(
 }
 
 /**
+ * One row of `POST …/bulk/publish/preview`, built the way the server builds it.
+ *
+ * The **checklist is the point**. `VerdictRow` gates its entire collapsible on
+ * `item.checks.length > 0`, so the previous fixture — which hard-coded
+ * `checks: []` and `verdict: 'publishable'` on every row — made the disclosure,
+ * the pass/fail icons and the blocked branch unreachable from any browser
+ * suite. A live stack answers with one check per required field, labelled by
+ * `admin.label`, on **every** gated verdict including `already-published`
+ * (dossier §6.5: an already-published row keeps its checklist so the dialog can
+ * expand it like any other rather than leave a dead, unexpandable row).
+ *
+ * `failing` names the fields this entry does not satisfy; an entry absent from
+ * the suite's `blocked` map passes every check.
+ */
+function verdictFor(
+    entryId: string,
+    detail: ContentTypeDetail | undefined,
+    failing: string[] | undefined
+) {
+    const required = (detail?.fields ?? []).filter((field) => field.required);
+    const failed = new Set(failing ?? []);
+    const checks = required.map((field) => ({
+        field: field.name,
+        // The human label, not the machine name — this is what the dialog
+        // renders. Falls back to the name exactly as the server's mapper does.
+        label: field.admin?.label ?? field.name,
+        ok: !failed.has(field.name),
+        ...(failed.has(field.name) ? { message: 'is required' } : {})
+    }));
+    const issues = checks
+        .filter((check) => !check.ok)
+        .map((check) => ({ field: check.field, message: 'is required' }));
+    return {
+        id: entryId,
+        title: entryId,
+        status: 'draft',
+        verdict: issues.length > 0 ? 'blocked' : 'publishable',
+        issues,
+        checks
+    };
+}
+
+/**
  * Stub the entry **write** API the editor, row menu, and selection bar drive:
  * read-one (`GET /api/content/:name/:id`), create (`POST /api/content/:name`),
  * update (`PATCH`), publish/unpublish/restore, soft/permanent delete, and the
@@ -1636,7 +1693,10 @@ function json(
  */
 export async function mockContentEntryWrites(
     page: Page,
-    { details = CONTENT_DETAIL_SEED }: ContentEntriesOptions = {}
+    {
+        details = CONTENT_DETAIL_SEED,
+        blocked = {}
+    }: ContentEntryWriteOptions = {}
 ): Promise<void> {
     const now = '2026-01-01T00:00:00.000Z';
 
@@ -1659,21 +1719,27 @@ export async function mockContentEntryWrites(
             const ids = body.ids ?? [];
             if (action === 'publish' && parts[5] === 'preview') {
                 return json(route, {
-                    items: ids.map((entryId) => ({
-                        id: entryId,
-                        title: entryId,
-                        status: 'draft',
-                        verdict: 'publishable',
-                        issues: [],
-                        // The per-field checklist a verdict row expands to. Part
-                        // of the contract, so it must be here even when empty —
-                        // the row reads its `.length` unconditionally.
-                        checks: []
-                    }))
+                    items: ids.map((entryId) =>
+                        verdictFor(entryId, detail, blocked[entryId])
+                    )
                 });
             }
             if (action === 'publish') {
-                return json(route, { published: ids, skipped: [] });
+                // `skipped` is a list of **objects** — `{ id, reason }` — not of
+                // ids, and the reason is the verdict kind that stopped the row
+                // (`BulkPublishResult` in the admin's domain types; pinned
+                // server-side in `content-entries-write.spec.ts`). Deriving it
+                // from the same `blocked` map the preview reads keeps the dry
+                // run and the commit telling one story, the way the server's
+                // re-validation inside the transaction does.
+                const stopped = ids.filter((entryId) => blocked[entryId]);
+                return json(route, {
+                    published: ids.filter((entryId) => !blocked[entryId]),
+                    skipped: stopped.map((entryId) => ({
+                        id: entryId,
+                        reason: 'blocked'
+                    }))
+                });
             }
             // unpublish / delete / restore / purge
             return json(route, { count: ids.length });
