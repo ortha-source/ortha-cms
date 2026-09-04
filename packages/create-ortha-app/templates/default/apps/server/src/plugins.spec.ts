@@ -29,6 +29,9 @@ const EXPECTED_PLUGINS = [
     'activity',
     'users',
     'content',
+    // A second entry from the content package: `ServerPlugin.migrations` holds
+    // one descriptor per entry, and saved list views ship their own tables.
+    'content-views',
     // ortha:if graphql
     'content-graphql',
     // ortha:end

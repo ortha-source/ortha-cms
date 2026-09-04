@@ -35,7 +35,8 @@ const EXPECTED_PLUGINS = [
     'copilot',
     'users',
     'activity',
-    'api-tokens'
+    'api-tokens',
+    'webhooks'
 ];
 
 describe('buildPlugins()', () => {
