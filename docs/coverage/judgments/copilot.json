@@ -318,7 +318,46 @@
             "file": "packages/copilot/admin/src/lib/application/useCopilotModels.spec.ts",
             "anchor": "is not off for any other failure",
             "why": "Asserts `copilotIsOff` is false for a 403, a 500 and a bare network error, so only an explicit 404 reads as switched off."
+        },
+        {
+            "id": "copilot:I-18",
+            "file": "apps/server-e2e/src/server/copilot/copilot-run-authority.spec.ts",
+            "anchor": "refuses a tool it had already offered",
+            "why": "The revoked-permission clause, which the copilot-chat citations leave to the unknown-tool branch: the tool is in the offer, the grant is deleted while the run is parked, and the answered call comes back `You are not permitted to use \"fixture.proposeThing\"` with the handler never invoked and the run carrying on."
         }
     ],
-    "judgments": {}
+    "judgments": {
+        "copilot:I-01": {
+            "state": "partial",
+            "missing": "The `copilot_proposals.created_by` column itself is read by no test; `decidedBy` standing in for it holds only while the engine writes both from the same caller."
+        },
+        "copilot:I-08": {
+            "state": "partial",
+            "missing": "The 'appended to in SQL' half. `allowTool`'s append is asserted only by its effect (a second call in the same run is not asked again), so a read-modify-write that lost a concurrent append would pass."
+        },
+        "copilot:I-09": {
+            "state": "partial",
+            "missing": "The `permission/extend` half: no test extends someone else's parked run, so only the answer route's ownership check is pinned."
+        },
+        "copilot:I-13": {
+            "state": "partial",
+            "missing": "The 'same activity row' clause. The revision half is asserted; nothing checks that an applied proposal leaves an activity-journal row attributed to the person rather than to the copilot."
+        },
+        "copilot:I-17": {
+            "state": "partial",
+            "missing": "The refused-by-the-user category. Succeeded, failed and refused-on-a-timeout are pinned (the last by `run-engine.service.spec.ts`); a call the user denied at the permission prompt is audited by no test."
+        },
+        "copilot:I-19": {
+            "state": "partial",
+            "missing": "Both qualifiers: nothing calls the same tool twice with the arguments in a different key order (the stable-serialisation half), and nothing shows the repeat check running after authorization rather than before it."
+        },
+        "copilot:I-26": {
+            "state": "partial",
+            "missing": "The attachment half. The skills message is asserted not to name the skill; the media specs assert only that the message contains 'no longer available', never that it omits the asset id — so an id oracle would pass."
+        },
+        "copilot:I-30": {
+            "state": "partial",
+            "missing": "The 'same 404 for both' half: every test compares a thread that exists but is not the caller's against a 404, and none compares that against a well-formed id that exists nowhere."
+        }
+    }
 }
