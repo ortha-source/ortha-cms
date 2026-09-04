@@ -1,5 +1,5 @@
 import type { DomainEvent } from '@orthacms/database';
-import type { StoredMediaTrack } from '../infrastructure/schema/media-asset';
+import type { StoredMediaTrack } from './value-objects/media-track';
 import { AssetId } from './value-objects/asset-id';
 import { FolderId } from './value-objects/folder-id';
 import { FileName } from './value-objects/file-name';
