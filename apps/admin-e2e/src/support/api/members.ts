@@ -7,10 +7,20 @@ interface RoleSeed {
     name: string;
 }
 
-/** A member's workspace as the API returns it (server `MemberWorkspaceView`). */
+/**
+ * A member's workspace as the API returns it (server `MemberWorkspaceView`).
+ *
+ * `description` is on the wire and **required** — `memberMapper` reads
+ * `dto.description` and `WorkspaceMembershipCard` renders it behind a
+ * truthiness check. It was missing here, so every suite saw `undefined`, the
+ * card's description line never rendered, and nothing in the repo would have
+ * noticed the server dropping the field. `null` is the real "none" value, not
+ * an absent key.
+ */
 interface WorkspaceSeed {
     id: string;
     name: string;
+    description: string | null;
     color: string;
 }
 
@@ -53,9 +63,22 @@ export const DEFAULT_MEMBERS: MemberSeed[] = [
         status: 'active',
         createdAt: TIMESTAMP,
         isLastAdmin: true,
+        // One described and one not, so the card's two branches are both
+        // reachable from the default seed rather than only the empty one.
         workspaces: [
-            { id: 'ws_marketing', name: 'Marketing site', color: 'violet' },
-            { id: 'ws_internal', name: 'Internal wiki', color: 'amber' }
+            {
+                id: 'ws_marketing',
+                name: 'Marketing site',
+                description:
+                    'Landing pages, the blog, and campaign content for the public website.',
+                color: 'violet'
+            },
+            {
+                id: 'ws_internal',
+                name: 'Internal wiki',
+                description: null,
+                color: 'amber'
+            }
         ]
     },
     {
@@ -66,7 +89,15 @@ export const DEFAULT_MEMBERS: MemberSeed[] = [
         status: 'active',
         createdAt: TIMESTAMP,
         isLastAdmin: false,
-        workspaces: [{ id: 'ws_docs', name: 'Product docs', color: 'teal' }]
+        workspaces: [
+            {
+                id: 'ws_docs',
+                name: 'Product docs',
+                description:
+                    'Guides, API references, and release notes for the developer portal.',
+                color: 'teal'
+            }
+        ]
     },
     {
         id: 'u_alan',
