@@ -1,4 +1,7 @@
-const createJiti = jest.fn(() => ({ import: jest.fn() }));
+// The parameters are declared even though the body ignores them: without them
+// the mock's call tuple is empty, so the spread below does not type and
+// `mock.calls[0][0]` is an error rather than the path under test.
+const createJiti = jest.fn((..._args: unknown[]) => ({ import: jest.fn() }));
 
 jest.mock('jiti', () => ({
     createJiti: (...args: unknown[]) => createJiti(...args)
