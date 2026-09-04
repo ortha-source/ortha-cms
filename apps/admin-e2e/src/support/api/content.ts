@@ -264,12 +264,16 @@ export const WYSIWYG_SCHEMA_SEED: ContentTypeSummary[] = [
 ];
 
 /**
- * Full field schema for the rich-text suite. Three fields, each pinning down a
+ * Full field schema for the rich-text suite. Four fields, each pinning down a
  * different branch of the plugin's `appliesTo`:
  *
  * - `body` — a plain `richtext`, which the WYSIWYG claims by default.
  * - `summary` — **required**, so the suite can prove an emptied editor stores
  *   `''` (and trips the required rule) rather than a stray `<p></p>`.
+ * - `notes` — a **shared** (`localized: false`) richtext, which is what makes
+ *   "the expanded view claims the row's language" falsifiable: every other
+ *   prose field here is localized, so a control that put `contentLocale` on
+ *   the section unconditionally would look right on all of them.
  * - `rawHtml` — `widget: 'textarea'`, the documented opt-out, which must keep
  *   content-admin's plain textarea.
  */
@@ -315,6 +319,21 @@ export const WYSIWYG_DETAIL_SEED: Record<string, ContentTypeDetail> = {
                 localized: true,
                 validation: {},
                 admin: { label: 'Summary' }
+            },
+            {
+                // Deliberately **not** localized: one value for every locale.
+                // The expanded view must therefore claim no language of its
+                // own here, because the text in it is whatever language it was
+                // first written in — not the row's. Every read fixture gives it
+                // a value, so it never reads back as dirty and never raises the
+                // "this also changes the other locales" confirmation, which
+                // would swallow a save before validation ran.
+                name: 'notes',
+                type: 'richtext',
+                required: false,
+                localized: false,
+                validation: {},
+                admin: { label: 'Notes' }
             },
             {
                 name: 'rawHtml',
@@ -366,6 +385,16 @@ export const WYSIWYG_GERMAN_BODY =
     '<h2>Überschrift</h2><p>Der Fußgängerübergang wurde gestrichen.</p>';
 
 /**
+ * What the **shared** `notes` field holds on every row.
+ *
+ * English on a German row on purpose: a shared field is one value across every
+ * locale, so the row's locale says nothing about the language its text is in.
+ * That is the whole reason the expanded view claims a language for a localized
+ * field and none for this one.
+ */
+export const WYSIWYG_SHARED_NOTES = '<p>Shared across every locale.</p>';
+
+/**
  * An article whose stored body is the one ORT-84 reported as validating clean:
  * a heading level skipped over, an `<h1>` under an `<h4>`, and a table whose
  * cells no header governs. Legacy HTML on purpose — this is what the bodies
@@ -376,6 +405,27 @@ export const WYSIWYG_INACCESSIBLE_ENTRY_ID = 'article-inaccessible';
 /** The stored HTML {@link WYSIWYG_INACCESSIBLE_ENTRY_ID} comes back with. */
 export const WYSIWYG_INACCESSIBLE_BODY =
     '<h4>Intro</h4><h1>Title</h1><table><tr><td>a</td></tr></table>';
+
+/**
+ * An article whose stored body trips a **warning** and nothing else — the other
+ * half of the severity split, and the half no fixture had.
+ *
+ * `inspectRichText` reports two grades, and only one of them is a gate: an
+ * `error` refuses the save, a `warning` is advice. With every fixture body
+ * either clean or blocking, a regression that promoted every finding to `error`
+ * would have left the whole suite green. This row is the one that notices.
+ */
+export const WYSIWYG_WARNING_ENTRY_ID = 'article-warned';
+
+/**
+ * The stored HTML {@link WYSIWYG_WARNING_ENTRY_ID} comes back with: a link whose
+ * text is "click here" — 2.4.4's judgement call, and the checklist's own example
+ * of a finding that must **not** block. Structurally the body is otherwise
+ * clean, so nothing else can be what a refused save was about.
+ */
+export const WYSIWYG_WARNING_BODY =
+    '<h2>Notes</h2><p>For the details, <a href="https://example.com/docs">' +
+    'click here</a>.</p>';
 
 /** An article whose `body` already embeds a picture. */
 export const WYSIWYG_MEDIA_ENTRY_ID = 'article-with-media';

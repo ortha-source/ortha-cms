@@ -291,6 +291,11 @@ export class ContentLibraryPage extends BasePage {
         await this.page.goto(`/workspaces/${workspaceId}/content/${typeName}`);
     }
 
+    /** Navigate straight to a collection's records table (`/content/:type`). */
+    async gotoRecords(workspaceId: string, typeName: string) {
+        await this.page.goto(`/workspaces/${workspaceId}/content/${typeName}`);
+    }
+
     /** The banner shown over a read-only entry editor. */
     get readOnlyNotice(): Locator {
         return this.page.getByText('View only', { exact: true });
@@ -823,5 +828,111 @@ export class ContentLibraryPage extends BasePage {
             .locator('dl > div')
             .filter({ has: this.page.getByText('Status', { exact: true }) })
             .locator('dd');
+    }
+
+    // --- alarms (from @orthacms/alarms-admin, via the content library slots) ---
+
+    /**
+     * The records toolbar's "Save as alarm" action.
+     *
+     * By its accessible name rather than its visible text: the label the
+     * component gives it says what pressing it *does* ("Watch for the records
+     * this filter matches"), and the visible words are a shorthand that also
+     * appear as the dialog's own title once it opens.
+     */
+    get saveAsAlarm(): Locator {
+        return this.page.getByRole('button', {
+            name: 'Watch for the records this filter matches'
+        });
+    }
+
+    /** The "Save as alarm" dialog. */
+    get saveAlarmDialog(): Locator {
+        return this.page
+            .getByRole('dialog')
+            .filter({ hasText: 'Save as alarm' });
+    }
+
+    /** Name the alarm and what editors will read on a flagged record. */
+    async fillSaveAlarmDialog(name: string, findingTitle: string) {
+        await this.saveAlarmDialog.getByLabel('Alarm name').fill(name);
+        await this.saveAlarmDialog
+            .getByLabel('What editors will see')
+            .fill(findingTitle);
+    }
+
+    /** The dialog's commit ("Save and check"). */
+    get saveAlarmSubmit(): Locator {
+        return this.saveAlarmDialog.getByRole('button', {
+            name: 'Save and check'
+        });
+    }
+
+    /**
+     * The entry rail's **Checks** block — alarms' `ENTRY_SIDEBAR_WIDGET_SLOT`
+     * contribution, and the surface the whole feature exists for.
+     *
+     * Located through its heading rather than by role: `EntrySidebarSection`
+     * renders a bare `<section>` with no accessible name, so it is not exposed
+     * as a `region` and there is nothing to ask for by name. Scoped to the
+     * Properties panel so the words inside it cannot resolve against the form.
+     */
+    get entryChecksSection(): Locator {
+        return this.propertiesPanel.locator('section').filter({
+            has: this.page.getByRole('heading', { name: 'Checks', level: 3 })
+        });
+    }
+
+    /**
+     * The Checks block's busy state.
+     *
+     * A bare spinner: the design system's `Spinner` is `aria-hidden` by
+     * default and this call site wraps it in no named status region, so there
+     * is no role, no name and no text to reach — only the animation class.
+     * Located by shape for that reason, the same escape hatch the properties
+     * scrim uses.
+     */
+    get entryChecksSpinner(): Locator {
+        return this.entryChecksSection.locator('svg.animate-spin');
+    }
+
+    /** Turn on the optional **Checks** column via the column picker. */
+    async showChecksColumn(): Promise<void> {
+        await this.columnsButton.click();
+        await this.columnOption('Checks').click();
+        await this.columnsButton.click();
+    }
+
+    /**
+     * The 1-based `<td>` position of the Checks column, resolved at runtime.
+     *
+     * An extension column is appended after the schema fields and Status but
+     * before Updated, so its index depends on the type — reading it off the
+     * header row keeps the assertion about the cell rather than about the seed
+     * a suite happens to use.
+     */
+    async checksColumnIndex(table: string): Promise<number> {
+        const labels = await this.columnHeaders(table).allInnerTexts();
+        return labels.findIndex((label) => label.trim() === 'Checks') + 1;
+    }
+
+    /** The Checks cells of every data row. */
+    async checksCells(table: string): Promise<Locator> {
+        return this.recordColumnCells(
+            table,
+            await this.checksColumnIndex(table)
+        );
+    }
+
+    /**
+     * The Checks cell of the row carrying `rowText` — by the record rather than
+     * by position, so an assertion about one seeded record does not silently
+     * move to a different row when the list's order changes.
+     */
+    async checksCellIn(table: string, rowText: string): Promise<Locator> {
+        const index = await this.checksColumnIndex(table);
+        return this.recordRows(table)
+            .filter({ hasText: rowText })
+            .locator(`td:nth-child(${index})`);
     }
 }

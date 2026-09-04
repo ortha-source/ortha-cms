@@ -154,6 +154,14 @@
         "alarms:I-18": {
             "state": "partial",
             "missing": "The list half is pinned (a resolved finding leaves the default `GET /alarms/findings`). The per-entry batch is not: 'serves findings for a batch of entries in one request' only ever asks about entries whose findings are open, so `byEntryIds` dropping its `ne(state, 'resolved')` would still pass. That clause is what keeps a closed finding off the entry editor's Checks block and out of the records list's column — the two places an editor actually reads findings."
+        },
+        "alarms:I-32": {
+            "state": "partial",
+            "missing": "The 'no surface encodes it by colour alone' clause is pinned in the browser (`alarms.spec.ts` -> 'is a shape and a word, never a colour on its own', `content/alarms-slots.spec.ts` -> 'a flagged row carries a shape and a count'): the glyphs are compared as markup, so one icon for all three severities fails. The **word** clause holds on only two of the four surfaces. `SeverityBadge` renders it (the rule card, the entry rail); the findings group header does not — its `sr-only` severity word sits inside a `CollapsibleTrigger` carrying an `aria-label`, which replaces descendant text in the accessible name, so a screen reader is told '{name} - N records' and never the severity. The records column cell has no severity word at all: `messages.summary` names the count and the finding titles only. Both are shape+colour surfaces in practice. Fixing either is a one-line message change, not a test."
+        },
+        "alarms:I-33": {
+            "state": "partial",
+            "missing": "All four named surfaces are pinned at the level a reader meets them (`content/alarms-slots.spec.ts` for the column cell and the entry rail, `alarms.spec.ts` for the findings list and the rule list — each walks loading, failed and empty in one test and asserts the other two states are not on screen). Not pinned: the **inside** of an expanded group, which has its own three states from `useAlarmFindings` — a destructive alert, two `Skeleton` blocks, and 'Nothing here any more'. The skeleton there is a bare `Skeleton` pair with no `SkeletonRegion` around it, so that state has no words and no announcement at all; it is distinguishable by eye and by nothing else."
         }
     }
 }

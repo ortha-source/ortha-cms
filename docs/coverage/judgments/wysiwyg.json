@@ -59,7 +59,7 @@
             "id": "wysiwyg:I-13",
             "file": "apps/admin-e2e/src/content/wysiwyg-fields.spec.ts",
             "anchor": "refuses to save a body a screen reader could not follow",
-            "why": "An error-severity finding blocks the save: the field error names it and saves.bodies stays empty. The complementary half — a warning does NOT block — is not exercised anywhere (the checklist's 'click here' link case has no test)."
+            "why": "An error-severity finding blocks the save: the field error names it and saves.bodies stays empty. The complementary half — a warning does **not** block — is now pinned beside it by 'lets a body with only a warning through', which drives the same action on a body whose only finding is advice."
         },
         {
             "id": "wysiwyg:I-14",
@@ -71,13 +71,13 @@
             "id": "wysiwyg:I-21",
             "file": "apps/admin-e2e/src/content/wysiwyg-fields.spec.ts",
             "anchor": "refuses a URL the editor would not publish",
-            "why": "Pins the dialog half only: `javascript:alert(1)` shows the error and inserts no image. The node's own check on insert and on parseHTML, and the rejection of a protocol-relative `//host/…`, are not exercised."
+            "why": "Pins the dialog on both refusals: `javascript:alert(1)` and the protocol-relative `//evil.host/x.png` each show the error and insert no image. The node's own check — `insertMedia`'s filter and `parseHTML`'s `getAttrs` — is still unexercised (see the `partial` for I-21)."
         },
         {
             "id": "wysiwyg:I-23",
             "file": "apps/admin-e2e/src/content/wysiwyg-fields.spec.ts",
             "anchor": "resizes an image from the keyboard, and stores the width",
-            "why": "Pins the first clause: a keyboard resize lands in the saved node's `width` attribute. The 'a height is never stored' and 'below 64px reads as no width chosen' clauses are not asserted."
+            "why": "Pins two clauses: a keyboard resize lands in the saved node's `width`, and no `height` is ever stored. The 'below 64px reads as no width chosen' clause is not asserted (see the `partial` for I-23)."
         },
         {
             "id": "wysiwyg:I-24",
@@ -88,7 +88,7 @@
         {
             "id": "wysiwyg:I-26",
             "file": "apps/admin-e2e/src/content/wysiwyg-fields.spec.ts",
-            "anchor": "records a decorative image as answered, not as missing",
+            "anchor": "clears the alt when the image is marked decorative",
             "why": "Pins the second clause: the saved image carries the real alt value, empty included (alt === '' alongside decorative). The editor-side fallback accessible name ('Embedded image') is asserted nowhere."
         },
         {
@@ -113,41 +113,103 @@
             "id": "wysiwyg:I-31",
             "file": "apps/admin-e2e/src/content/entry-read-only.spec.ts",
             "anchor": "offers the rich-text body to view, not to edit",
-            "why": "Pins the toolbar clause: the expanded read-only view has no 'Formatting' group at all (count 0). Not pinned: that onUpdate writes nothing into the form, that focus is not set, and that the surface's role is `region` rather than `textbox`."
+            "why": "Pins the toolbar clause: the expanded read-only view has no 'Formatting' group at all (count 0). The `region` role, the inert document and 'nothing is written back into the form' are pinned by the case beside it; only the unobservable `autofocus` clause is left (see the `partial` for I-31)."
         },
         {
             "id": "wysiwyg:I-36",
             "file": "apps/admin-e2e/src/content/wysiwyg-fields.spec.ts",
             "anchor": "a translated body claims its own language, expanded or not",
-            "why": "The unfolded view's surface resolves lang='de' for a localized field, outside the form's Translated group. The 'never for a shared one' half is not exercised — every richtext field in the seed is localized."
+            "why": "The unfolded view's surface resolves lang='de' for a localized field, outside the form's Translated group. The 'never for a shared one' half is pinned by 'claims no language for a body that is shared across locales', which the seed's new shared `notes` field made falsifiable."
         },
         {
             "id": "wysiwyg:I-37",
             "file": "apps/admin-e2e/src/content/wysiwyg-fields.spec.ts",
             "anchor": "returns focus to the field when the editor closes",
             "why": "After opening from the keyboard and pressing Done, focus is asserted on the field's own control rather than on <body> — the deferred getElementById(id) restore."
+        },
+        {
+            "id": "wysiwyg:I-08",
+            "file": "apps/admin-e2e/src/content/wysiwyg-fields.spec.ts",
+            "anchor": "unfolds one field at a time, and only the one that asked",
+            "why": "With `Body` unfolded, exactly **one** editing surface exists in the whole page and `control('Summary')` has count 0 — a control that owned its own expansion would leave the form (and every other field's control) mounted under it, and two could be open at once. Unfolding `Summary` afterwards resolves the view from the one name: it carries Summary's value and not Body's."
+        },
+        {
+            "id": "wysiwyg:I-09",
+            "file": "apps/admin-e2e/src/content/wysiwyg-fields.spec.ts",
+            "anchor": "mounts the editor only while the field is unfolded, and seeds it at mount",
+            "why": "The count of `[role=textbox][aria-multiline]` surfaces is 0 collapsed, 1 unfolded, 0 again after Done — a panel kept alive behind a `hidden` attribute would show up. The seeding half: a phrase typed at the caret arrives contiguous and in place, which a controlled `setContent` sync would scramble (every keystroke would write the form's value back and drop the caret at the top); reopening seeds a fresh editor from the form's current value."
+        },
+        {
+            "id": "wysiwyg:I-17",
+            "file": "apps/admin-e2e/src/content/wysiwyg-fields.spec.ts",
+            "anchor": "grows a table by one row on Tab, then lets go of the keystroke",
+            "why": "Driven end to end: caret into the last cell, written in, one Tab adds one row with focus still in the document; three more Tabs walk the empty row it made and the third releases focus with the row count unchanged. Deleting `lastRowHasContent` (or the whole extension) makes the third press append instead — the ORT-165 runaway."
+        },
+        {
+            "id": "wysiwyg:I-29",
+            "file": "apps/admin-e2e/src/content/wysiwyg-fields.spec.ts",
+            "anchor": "never lets a toolbar press take the selection it is about to act on",
+            "why": "Asserted **between mousedown and mouseup**, which is the only moment the suppression is visible: every command in the bar runs `chain().focus()`, so an assertion made after the press cannot tell the two implementations apart. Mid-press the surface is still focused and `getSelection()` still holds the phrase. Both toolbar control shapes are pressed — `ToolbarButton` (Bold) and `ToolbarMenuTrigger` (Text color), which are the only two components the bar is built from; focus is not asserted for the second because the dropdown takes it deliberately."
+        },
+        {
+            "id": "wysiwyg:I-13",
+            "file": "apps/admin-e2e/src/content/wysiwyg-fields.spec.ts",
+            "anchor": "lets a body with only a warning through",
+            "why": "The complementary half, on a fixture whose only finding is a warning (a 'click here' link): the list names it as 'Worth fixing' with no 'Blocks saving' row, and the **same** action the blocking case is refused on sends the save. A regression promoting every finding to error fails here."
+        },
+        {
+            "id": "wysiwyg:I-27",
+            "file": "apps/admin-e2e/src/content/wysiwyg-fields.spec.ts",
+            "anchor": "never saves the record from the language dialog either",
+            "why": "The fourth popup form, which the overlay case never reached. Its own test because Apply needs a live selection, and that is only guaranteed straight after unfolding."
+        },
+        {
+            "id": "wysiwyg:I-36",
+            "file": "apps/admin-e2e/src/content/wysiwyg-fields.spec.ts",
+            "anchor": "claims no language for a body that is shared across locales",
+            "why": "The falsifying half, and the fixture repair it needed: the seed now carries a **shared** (`localized: false`) richtext field, `notes`. On the German row its expanded view resolves `lang='en'` (the admin's own `<html lang>`) while `body` beside it resolves `de` — so a view that set `contentLocale` unconditionally now fails."
+        },
+        {
+            "id": "wysiwyg:I-32",
+            "file": "apps/admin-e2e/src/content/wysiwyg-fields.spec.ts",
+            "anchor": "?.attrs?.['color']",
+            "why": "The second clause, positively: a colour chosen from the toolbar swatch reaches the saved document as `textStyle` with amber's own value. The paste half stays pinned by `transformPastedHTML`'s own spec."
+        },
+        {
+            "id": "wysiwyg:I-31",
+            "file": "apps/admin-e2e/src/content/entry-read-only.spec.ts",
+            "anchor": "opens the body as a passage to read, and takes nothing back from it",
+            "why": "The remaining clauses, less one: the expanded read-only surface is a labelled `region` (with no `textbox` anywhere on the page), it is `contenteditable=\"false\"`, and keystrokes aimed at it change neither the document nor the collapsed card the form renders from."
         }
     ],
     "judgments": {
-        "wysiwyg:I-13": {
-            "state": "partial",
-            "missing": "Only the error half is pinned. `wysiwyg-fields.spec.ts` -> 'refuses to save a body a screen reader could not follow' shows an error-severity finding blocking the save, and 'names the structural problems in a body it is handed' shows the list is inspectRichText's. The complementary clause -- a *warning* is exactly what will NOT refuse the save -- is asserted nowhere: no test writes a link whose text says nothing (the checklist's 'click here' case) and then saves. A regression that promoted every finding to error would leave both citations green."
-        },
         "wysiwyg:I-31": {
             "state": "partial",
-            "missing": "Only the toolbar clause is pinned (`offers the rich-text body to view, not to edit`: the read-only expanded view has no Formatting group at all). Three clauses have no test: that `onUpdate` writes nothing into the form while read-only, that focus is not set on open, and that the surface's role is `region` rather than `textbox`. Each needs the editor panel rendered with `readOnly`, which the unit pass reaches only by mounting a full React editor -- admin-e2e is the honest home for them."
-        },
-        "wysiwyg:I-32": {
-            "state": "partial",
-            "missing": "The paste half is pinned directly (`transformPastedHTML`'s spec strips colour, font-size and background-color and keeps everything else). The second clause -- a colour applied by a *toolbar command* survives -- is pinned only **structurally**: the spec asserts the transform's single caller is `WysiwygEditorPanel`'s `editorProps.transformPastedHTML`, so an edit cannot be routed through it. Nothing asserts positively that a swatch-applied colour reaches the saved document; the e2e 'stores the formatting the toolbar applied' case exercises bold only."
+            "missing": "One clause of four is left, and it is not mechanically checkable: that focus is **not** set when a read-only panel opens. `autofocus: readOnly ? false : 'end'` cannot be observed, because a ProseMirror view with `editable: false` renders `contenteditable=\"false\"` and no `tabindex`, so `view.focus()` is a no-op — flipping the guard changes nothing a browser can see. The other three (role `region`, an inert document, nothing written back into the form) are pinned by `entry-read-only.spec.ts` -> 'opens the body as a passage to read, and takes nothing back from it'."
         },
         "wysiwyg:I-34": {
             "state": "partial",
             "missing": "The scoping half is pinned: `package-structure.spec.ts` parses `styles.css` and fails on any selector outside `.ortha-wysiwyg`, and asserts both surfaces take the class from `WYSIWYG_PROSE_CLASS`. The second clause -- 'the editor surface and the preview render the same markup identically' -- is not mechanically checked: sharing one scope and one schema makes it structural rather than proven, and comparing the two rendered surfaces needs a browser with the editor open beside a preview of the same value."
         },
-        "wysiwyg:I-36": {
+        "wysiwyg:I-11": {
             "state": "partial",
-            "missing": "Only the localized half is pinned. `a translated body claims its own language, expanded or not` asserts the unfolded view resolves `lang='de'` for a localized field. The 'never for a shared one' half is not exercised -- every richtext field in the admin-e2e seed is localized, so a control that put `contentLocale` on every field regardless would pass. It needs a shared richtext field in the seed."
+            "missing": "Only the 'handed to the form verbatim' half is pinned ('stores the formatting the toolbar applied' compares the saved body with `toEqual` against the exact document). The other half -- an **empty** document stored as `null` rather than as a doc with one empty paragraph -- is asserted nowhere: 'stores an emptied field as empty' empties a *required* field and only checks the resulting `Required` error, and content-admin's required check calls `isEmptyRichText`, which an empty-paragraph document also satisfies. It needs an emptied **optional** body saved, with `values.body` read back as `null`."
+        },
+        "wysiwyg:I-21": {
+            "state": "partial",
+            "missing": "The dialog is now pinned on both refusals ('refuses a URL the editor would not publish' covers `javascript:` and the protocol-relative `//evil.host/x.png`). What is still unpinned is that the **node itself** re-checks: `insertMedia` filters on `isSafeMediaSrc` and `parseHTML` refuses an `img[src]` that fails it, so a body written straight through the API cannot carry one. That is the check a dialog cannot stand in for, and no test reaches it."
+        },
+        "wysiwyg:I-23": {
+            "state": "partial",
+            "missing": "Two of three clauses are pinned by 'resizes an image from the keyboard, and stores the width': the keyboard resize lands in `width`, and no `height` is ever stored (the media node declares no such attribute). The third -- a width below `MEDIA_MIN_WIDTH` (64px) reads as *no width chosen* rather than being clamped up -- is not asserted: it needs the handle nudged far enough down to cross the floor, and the `parseHTML` side of the same rule (a stored `width=\"12\"` reading back as `null`) has no test at all."
+        },
+        "wysiwyg:I-24": {
+            "state": "partial",
+            "missing": "'centres a selected image, and stores where it sits' pins centre: `data-align=\"center\"` on the figure, `align: 'center'` in the saved node, and no 'Justify' item while media is selected. Two clauses are left: that `left` is **never written** (it is the default, and `renderHTML` deliberately emits nothing for it -- so choosing Alignment > Left on an aligned picture must make the attribute disappear from the saved body), and that the alignment is applied with margins rather than `text-align`, which is a computed-style question no assertion asks."
+        },
+        "wysiwyg:I-26": {
+            "state": "partial",
+            "missing": "The stored half is pinned ('records a decorative image as answered, not as missing': the saved image carries the real alt, empty included, alongside `decorative`). The editor-side clause is not: an image with no alt still gets a fallback accessible name ('Embedded image') so it does not read as an unnamed graphic to the **author's own** screen reader while they work. Nothing asserts that name, and the two are opposite requirements -- inventing an alt for published content is worse than having none -- so a fix that satisfied one by breaking the other would pass."
         }
     }
 }

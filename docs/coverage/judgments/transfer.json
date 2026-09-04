@@ -186,6 +186,36 @@
             "file": "apps/server-e2e/src/server/transfer/transfer-round-trip.spec.ts",
             "anchor": "spends one write per record, and a second only where a link could not resolve on the first",
             "why": "The two-page cycle is the one document holding both halves at once: whichever page is written first cannot resolve its parent and genuinely needs the link pass, while the second one's parent is already in the id map. Both parent links are asserted rebuilt — so a link pass that never fires fails here rather than passing a bare revision count — and the two revision totals are asserted to be [1, 2]: exactly one second write across the two rows. Before the guard was fixed this read [2, 2]; with the pass disabled it reads [1, 1] and the parent assertions fall first."
+        },
+        {
+            "id": "transfer:I-40",
+            "file": "apps/admin-e2e/src/transfer/import-dialog.spec.ts",
+            "anchor": "a different file retires the verdicts of the last one",
+            "why": "The two files answer with different verdicts, so the assertion is not only that the table vanished: after picking the second file the table is asserted gone, the Import button gone and the dialog back on 'Check the file' — then a second check is asserted to name the *second* file's record and no longer the first's. A dialog that kept the first preview would show one file's verdicts above another file's Import button and fail on the first assertion."
+        },
+        {
+            "id": "transfer:I-40",
+            "file": "apps/admin-e2e/src/transfer/import-dialog.spec.ts",
+            "anchor": "changing what happens to a matching record retires the verdicts",
+            "why": "The conflict-policy half. With verdicts on screen, selecting 'Update it with the file's values' is asserted to leave no table and no Import button, and the re-check is asserted to reach the server with policy=update (read out of the multipart body) — so a dialog that kept the skip-time table, or one that re-rendered it without re-running, fails."
+        },
+        {
+            "id": "transfer:I-40",
+            "file": "apps/admin-e2e/src/transfer/import-dialog.spec.ts",
+            "anchor": "changing what happens to the records the file links to retires them too",
+            "why": "The relation-policy half — the clause a single `onChange` on the first question would leave unguarded. Selecting 'Add them again as new records' retires the table, and the re-check is asserted to carry relations=recreate with policy still skip, so the two answers are shown to be independent as well as both invalidating."
+        },
+        {
+            "id": "transfer:I-41",
+            "file": "apps/admin-e2e/src/transfer/import-dialog.spec.ts",
+            "anchor": "an import re-reads the collection it wrote into",
+            "why": "The row set the entries mock serves is mutable and the apply handler pushes the imported record into it, so the record exists on the server the instant the apply answers and the *only* path to the screen is the refresh pass. The row is asserted absent before and visible after, with no reload — which is exactly the shipped defect (`invalidateQueries(['content'])` matched none of the library's roots, so the toast said 'imported' and the table never moved). Only the collection's own type is pinned here; see the `partial` below for the two clauses a browser cannot observe."
+        },
+        {
+            "id": "transfer:I-33",
+            "file": "apps/admin-e2e/src/transfer/export-dialog.spec.ts",
+            "anchor": "offers file bytes only in a format that can carry them",
+            "why": "Closes the interface half the export-entries citation could not reach. The Files toggle is asserted enabled and checked on ZIP, then disabled *and reading as unchecked* on JSON, JSON Lines and CSV in turn, and enabled again on the way back to ZIP — all four formats, so a dialog that special-cased the lossy one would leave Files live for JSON. Every preflight request the dialog sent is then asserted to carry `depth.media === (format === 'zip')`, which is the difference between disabling the toggle and greying it out while still asking the server for bytes."
         }
     ],
     "judgments": {
@@ -201,9 +231,9 @@
             "state": "partial",
             "missing": "The invariant is broader than the code. `upload-reader.spec.ts` pins what is true: the ZIP signature beats a `.json` filename, and a name that matches no extension falls through to a byte sniff. Among the three **text** formats the filename still decides — `readUpload` does `formatFromFilename(name) ?? sniffTextFormat(bytes)` — so a JSON document named `.csv` is parsed as CSV. The 'declared format' half is true in the strongest sense (the request's `format` field is never read by the reader at all) and is therefore unobservable rather than untested."
         },
-        "transfer:I-33": {
+        "transfer:I-41": {
             "state": "partial",
-            "missing": "The server half is pinned: `export-entries.use-case.spec.ts` asserts json/ndjson open no storage stream even with `media: true`, and that `carriesFileBytes` is true for zip alone. The **interface** half — that the export dialog disables its Files toggle from the same table rather than from a format comparison of its own — is pinned by nothing; there is no admin-e2e suite for this package at all."
+            "missing": "Only 'the collection's type' clause is pinned (import-dialog.spec.ts -> 'an import re-reads the collection it wrote into'). The other two — that **every** type named in the verdicts is refreshed, and that the media library is re-read — are not observable in a browser: `invalidateQueries` refetches only *active* queries, the import dialog is reachable only from the collection you are already looking at (so the second type's list and the media library are always unmounted), and the entry list's `staleTime` is 0, so navigating to them afterwards refetches whether or not they were invalidated. Reaching this needs a unit test over `useImportApply` with its own `QueryClient` — asserting the refresh pass ran for each `$type` in the verdicts and for the `['media']` prefix — and `packages/transfer/admin` currently has no test setup at all."
         }
     }
 }

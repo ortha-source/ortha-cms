@@ -119,18 +119,90 @@ test.describe('Activity Log page', () => {
         ).toBeVisible();
     });
 
-    test('hides the nav entry and shows no-access without activity:read', async ({
+    /**
+     * The gate, asserted where it is actually made rather than where it shows.
+     *
+     * The DOM half of this — a no-access screen, no nav entry — was already
+     * here, and it is the half that cannot fail for the right reason: the page
+     * returns `ActivityNoAccess` from an early `return`, so the screen looks
+     * identical whether or not the query underneath it was enabled. An
+     * unconditional `useActivityLog(params, true)` would still render exactly
+     * this, having asked the server for an audit log the caller may not read
+     * and taken whatever it answered. What separates the two is the request,
+     * so the request is what this counts.
+     */
+    test('makes no request at all without activity:read [activity:I-28]', async ({
         activityLogPage,
         page
     }) => {
         await mockSignedIn(page, {
             permissions: ['workspaces:read', 'users:read']
         });
+
+        const asked: string[] = [];
+        page.on('request', (request) => {
+            if (new URL(request.url()).pathname.startsWith('/api/activity')) {
+                asked.push(request.url());
+            }
+        });
+
         await activityLogPage.goto();
 
         await expect(activityLogPage.noAccessText()).toBeVisible();
         // The permission-gated nav entry is hidden.
         await expect(activityLogPage.navButton).toHaveCount(0);
+
+        // A wall-clock settle, because the assertion is an **absence**: there
+        // is no event to wait for when the correct behaviour is that nothing
+        // happens. React Query fires an enabled query during the mount commit,
+        // so half a second after the no-access screen is on the page is long
+        // past the moment a leak would have shown. `no-wait-for-timeout` is a
+        // warning here rather than an error for exactly this shape.
+        await page.waitForTimeout(500);
+        expect(asked).toEqual([]);
+    });
+});
+
+/**
+ * The home dashboard's half of the same gate: `RecentActivityPanel` returns
+ * `null` for a caller without `activity:read`, and — the part that needs a
+ * browser to see — asks for nothing on the way there.
+ *
+ * Separate from the page above because the failure is different in kind. The
+ * page has somewhere to put a refusal; the panel does not. A panel that
+ * rendered an empty card, or a spinner that never resolves, on every viewer's
+ * dashboard is the visible symptom; a panel that quietly requests an audit log
+ * the viewer cannot read is the one nobody would notice.
+ */
+test.describe('Recent activity panel — without activity:read', () => {
+    test('renders nothing and asks for nothing [activity:I-28]', async ({
+        homePage,
+        page
+    }) => {
+        await mockSignedIn(page, {
+            permissions: ['workspaces:read', 'users:read']
+        });
+        await mockWorkspaces(page);
+        await mockActivity(page);
+
+        const asked: string[] = [];
+        page.on('request', (request) => {
+            if (new URL(request.url()).pathname.startsWith('/api/activity')) {
+                asked.push(request.url());
+            }
+        });
+
+        await homePage.goto();
+
+        // The dashboard itself rendered — the sibling panel from
+        // `workspaces-admin` is there — so the activity panel's absence is a
+        // decision it made and not a page that failed to draw.
+        await expect(homePage.workspacesPanel).toBeVisible();
+        await expect(homePage.activityPanel).toHaveCount(0);
+
+        // Same settle, same reason as the page above.
+        await page.waitForTimeout(500);
+        expect(asked).toEqual([]);
     });
 });
 

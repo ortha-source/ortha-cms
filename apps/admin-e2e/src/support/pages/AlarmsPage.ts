@@ -130,6 +130,79 @@ export class AlarmsPage extends BasePage {
         return this.page.getByRole('heading', { name: text, level: 2 });
     }
 
+    /**
+     * The severity glyph on one alarm's group header.
+     *
+     * The trigger draws two SVGs: the chevron first, then the severity's own
+     * shape. Located positionally because the glyph is `aria-hidden` — it has
+     * to be, since the word beside it carries the same fact — so there is no
+     * role or name to reach it by. Its **markup** is the assertion: a build
+     * that drew one shape for all three severities would leave colour doing the
+     * work alone, and that is invisible to any name-based locator.
+     */
+    groupSeverityGlyph(name: string): Locator {
+        return this.group(name).locator('svg').nth(1);
+    }
+
+    // --- the four reading surfaces' loading / error / empty states ---
+
+    /**
+     * The page-level busy state — the route's `Suspense` fallback and the first
+     * request's wait, announced as one named `role="status"`.
+     */
+    loadingRegion(): Locator {
+        return this.page.getByText('Loading alarms…');
+    }
+
+    /** The findings list's own failed-read alert (the Flagged tab). */
+    findingsError(): Locator {
+        return this.page
+            .getByRole('alert')
+            .filter({ hasText: "Couldn't load findings" });
+    }
+
+    /** The rule list's failed-read alert (the Alarms tab). */
+    rulesError(): Locator {
+        return this.page
+            .getByRole('alert')
+            .filter({ hasText: "Couldn't load alarms" });
+    }
+
+    /** The rule list's empty state — an alert, not the centred figure. */
+    rulesEmpty(): Locator {
+        return this.page
+            .getByRole('alert')
+            .filter({ hasText: 'No alarms yet' });
+    }
+
+    /** The card for one alarm on the Alarms tab, by the alarm's name. */
+    ruleCard(name: string): Locator {
+        return this.page
+            .getByRole('list', { name: 'Alarms' })
+            .getByRole('listitem')
+            .filter({ hasText: name });
+    }
+
+    /**
+     * The workspace sidebar's Alarms entry (`WORKSPACE_NAV_SLOT`). Scoped to
+     * the "Tools" nav so it cannot resolve to the breadcrumb link of the same
+     * name, and it is the in-app way onto the page after a workspace switch —
+     * which is the only way to reach the second workspace without throwing the
+     * query cache away with a full page load.
+     */
+    navLink(): Locator {
+        return this.page
+            .getByRole('navigation', { name: 'Tools' })
+            .getByRole('link', { name: 'Alarms' });
+    }
+
+    /** The "You cannot view alarms" card shown without `alarms:read`. */
+    noAccessCard(): Locator {
+        return this.page
+            .getByRole('alert')
+            .filter({ hasText: 'You cannot view alarms' });
+    }
+
     // --- the rule editor's condition block ---
 
     /** The condition panel's heading. */

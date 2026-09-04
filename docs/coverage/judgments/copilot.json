@@ -339,6 +339,10 @@
             "state": "partial",
             "missing": "The `permission/extend` half: no test extends someone else's parked run, so only the answer route's ownership check is pinned."
         },
+        "copilot:I-11": {
+            "state": "partial",
+            "missing": "The timeout exit. The abort exit is pinned (the promise rejects and a later `decide` finds nothing waiting); the timeout is reached only indirectly through the shared budget charge, and no test asserts that a `decide` arriving after the deadline returns false rather than settling a run that has already given up."
+        },
         "copilot:I-13": {
             "state": "partial",
             "missing": "The 'same activity row' clause. The revision half is asserted; nothing checks that an applied proposal leaves an activity-journal row attributed to the person rather than to the copilot."
@@ -351,6 +355,14 @@
             "state": "partial",
             "missing": "Both qualifiers: nothing calls the same tool twice with the arguments in a different key order (the stable-serialisation half), and nothing shows the repeat check running after authorization rather than before it."
         },
+        "copilot:I-21": {
+            "state": "partial",
+            "missing": "Three of the four ceilings. Only the step ceiling is pinned (`stopReason === 'max-steps'` at maxSteps+1 scripted turns); the wall-clock ceiling, the token ceiling, the per-tool-call clock check, and the 'a refused call still returns a tool_result so the model is not left waiting' clause have no assertions anywhere."
+        },
+        "copilot:I-24": {
+            "state": "partial",
+            "missing": "Two of the three orderings. The attachment clause is pinned (a run whose attachment failed to resolve leaves the conversation list empty, so resolving attachments after touching the conversation would fail); the same ordering for skills, and 'the user's message is stored before the model call', are not."
+        },
         "copilot:I-26": {
             "state": "partial",
             "missing": "The attachment half. The skills message is asserted not to name the skill; the media specs assert only that the message contains 'no longer available', never that it omits the asset id — so an id oracle would pass."
@@ -358,6 +370,10 @@
         "copilot:I-30": {
             "state": "partial",
             "missing": "The 'same 404 for both' half: every test compares a thread that exists but is not the caller's against a 404, and none compares that against a well-formed id that exists nowhere."
+        },
+        "copilot:I-33": {
+            "state": "partial",
+            "missing": "The 'cannot be deleted' half. Disjointness is pinned in both directions (an archived id leaves the active list and appears in the archived one, and back); no test issues a DELETE against a conversation, so a route that grew one would not be caught here."
         }
     }
 }
