@@ -19,13 +19,22 @@ export interface TestApp {
 }
 
 /**
+ * The address the harness binds — and the one supertest dials.
+ *
+ * `supertest` builds every URL as `http://127.0.0.1:<port>` (hard-coded, see
+ * `Test.serverAddress`), so this is not a preference: it is the other half of
+ * an equation that has to balance. See {@link listenOnLoopback}.
+ */
+const LOOPBACK = '127.0.0.1';
+
+/**
  * Boots the real server in-process against the e2e testcontainer and returns
- * it without listening on a fixed port — supertest drives `getHttpServer()`
- * directly. This mirrors `createServer` (same plugins via `buildTestPlugins`,
- * same global prefix, `ValidationPipe` and `setupApiDocs`) but stops at
- * `app.init()`, so the only differences from production are "init, don't
- * listen" and the silenced logger. `app.init()` also runs the
- * `OnApplicationBootstrap` seeders (system roles), exactly as a real boot.
+ * it listening on an ephemeral **loopback** port, which is what supertest
+ * drives. This mirrors `createServer` (same plugins via `buildTestPlugins`,
+ * same global prefix, `ValidationPipe` and `setupApiDocs`); the only
+ * differences from production are the silenced logger and the bound address.
+ * `app.init()` also runs the `OnApplicationBootstrap` seeders (system roles),
+ * exactly as a real boot.
  *
  * Migrations are NOT run here — `global-setup` already migrated the shared
  * container once.
@@ -107,7 +116,72 @@ async function bootTestApp(
 
     await app.init();
 
-    return { app, server: app.getHttpServer() as Server };
+    const server = app.getHttpServer() as Server;
+    await listenOnLoopback(server);
+    return { app, server };
+}
+
+/**
+ * Binds the app's HTTP server to an ephemeral port **on `127.0.0.1`**, once,
+ * before any test touches it.
+ *
+ * ## Why this exists
+ *
+ * Left unlistened, supertest listens for us — and it does it wrong in a way
+ * that cost this suite roughly two tests per full run, on a different pair
+ * every time, for as long as anyone has run it end to end:
+ *
+ * ```js
+ * // supertest/lib/test.js
+ * serverAddress(app, path) {
+ *     const addr = app.address();
+ *     if (!addr) this._server = app.listen(0);      // binds the WILDCARD
+ *     const port = app.address().port;
+ *     return 'http://127.0.0.1:' + port + path;      // dials LOOPBACK
+ * }
+ * ```
+ *
+ * `listen(0)` with no host binds `0.0.0.0`/`::`, and Node sets `SO_REUSEADDR`,
+ * which on **BSD/macOS** lets that bind **succeed on a port another process
+ * already holds bound to `127.0.0.1` specifically**. The more specific socket
+ * wins for loopback traffic, so the request that follows is answered by the
+ * stranger. On a developer machine those strangers are ordinary: a JetBrains
+ * IDE's built-in server (`127.0.0.1:63342`), the JetBrains toolbox, an Electron
+ * app's local bridge. They answer `403`, or `301`, or hang up — which is
+ * exactly the shape the failures took (a content write "refused" 403, a
+ * `read ECONNRESET`).
+ *
+ * Linux refuses the overlap (`SO_REUSEADDR` there only covers `TIME_WAIT`), so
+ * a Linux runner never saw this — which is worth knowing before a CI gate is
+ * read as proof the developer machines are fine.
+ *
+ * It was rare-but-inevitable rather than random because supertest **closes the
+ * server again after every request** (`Test.end` → `server.close()`), so the
+ * old harness re-bound a fresh ephemeral port for *each* of the ~35 000
+ * requests a full run makes. macOS hands out 49152–65535 and each request burns
+ * two (the listener and the client's source port), so a full run cycles the
+ * whole range about four times and lands on every occupied port about four
+ * times. A per-directory run never gets far enough round the ring to hit one,
+ * which is why the instability was invisible until someone ran the suite whole.
+ *
+ * Naming the address closes it completely: the kernel will not hand a
+ * `127.0.0.1` listen a port that is already bound on `127.0.0.1` (it answers
+ * `EADDRINUSE` and picks another), so a collision cannot be constructed. Doing
+ * it here also means `app.address()` is already set when supertest looks, so it
+ * neither listens nor closes — one bind per spec file instead of one per
+ * request, and connections stay keep-alive across a file.
+ *
+ * `harness-binding.spec.ts` pins both halves.
+ */
+async function listenOnLoopback(server: Server): Promise<void> {
+    await new Promise<void>((resolve, reject) => {
+        const onError = (error: Error) => reject(error);
+        server.once('error', onError);
+        server.listen(0, LOOPBACK, () => {
+            server.removeListener('error', onError);
+            resolve();
+        });
+    });
 }
 
 /**

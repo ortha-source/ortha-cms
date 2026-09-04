@@ -32,8 +32,13 @@ contains no features.
 - `ServerModule` — dynamic root module; `forRoot(plugins)` imports every
   plugin's module
 - `ServerPlugin` — the plugin contract: `{ name, module, onPluginInit? }`
-- `CreateServerOptions` — `plugins`, `port?`, `globalPrefix?`, `trustProxy?`,
-  `bodyLimit?`, `docs?`, `staticDir?`
+- `CreateServerOptions` — `plugins`, `port?`, `host?`, `globalPrefix?`,
+  `trustProxy?`, `bodyLimit?`, `docs?`, `staticDir?`. `host` omitted keeps
+  Node's wildcard bind, which is what a container wants; name one to bind a
+  single interface. In-process tests must name `127.0.0.1`, because a wildcard
+  `listen(0)` succeeds on a port another process already holds on loopback
+  (Node sets `SO_REUSEADDR`) and the request then reaches that process —
+  see `apps/server-e2e/AGENTS.md`
 - `TrustProxySetting` — Express's `trust proxy` value: a hop count, a boolean,
   or a subnet/preset string
 - `setupApiDocs(app, plugins, docs?, globalPrefix?)` — the API-reference wiring,
