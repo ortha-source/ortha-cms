@@ -134,6 +134,21 @@ export class CopilotDisabledError extends Error {
 }
 
 /**
+ * The text of the step that is currently streaming, shared between the loop and
+ * `run`.
+ *
+ * It exists because a step can end in two ways: by finishing — where `loop`
+ * moves the turn's text into the run's assistant blocks — or by throwing, where
+ * there is no return value at all. Without somewhere outside `streamTurn` to
+ * accumulate into, everything a failed or cancelled step had already streamed
+ * to the client is lost at the moment it becomes the only record of the turn.
+ */
+interface PartialTurn {
+    /** What this step has said so far. Cleared when a step banks its text. */
+    text: string;
+}
+
+/**
  * The run engine: a **bounded** loop that calls the model, executes the tools
  * it asks for, feeds the results back, and stops on a final answer or a ceiling
  * ([`docs/design/copilot.md`](../../../../../../docs/design/copilot.md) §5).
@@ -295,6 +310,14 @@ export class RunEngine {
 
         const usage: ModelUsage = { inputTokens: 0, outputTokens: 0 };
         const assistantBlocks: ModelContentBlock[] = [];
+        // Text the model has already streamed to the client but that no
+        // finished step has moved into `assistantBlocks` yet. A provider that
+        // throws mid-stream — a dropped connection, a malformed frame, a
+        // cancellation an adapter raises instead of ending the stream with —
+        // otherwise takes the whole partial answer with it: the person watched
+        // it arrive, and reopening the thread showed their question and
+        // silence.
+        const partial: PartialTurn = { text: '' };
         let stopReason: RunStopReason = 'end';
 
         try {
@@ -309,9 +332,14 @@ export class RunEngine {
                 history,
                 usage,
                 assistantBlocks,
+                partial,
                 startedAt
             });
         } catch (error) {
+            // Whatever the step had already said, before whatever went wrong.
+            if (partial.text) {
+                assistantBlocks.push({ type: 'text', text: partial.text });
+            }
             if (isAbortError(error, input.signal)) {
                 stopReason = 'aborted';
             } else {
@@ -366,6 +394,7 @@ export class RunEngine {
         history: ModelMessage[];
         usage: ModelUsage;
         assistantBlocks: ModelContentBlock[];
+        partial: PartialTurn;
         startedAt: number;
     }): AsyncGenerator<CopilotRunEvent, RunStopReason> {
         const messages = [...ctx.history];
@@ -401,6 +430,9 @@ export class RunEngine {
             if (turn.text) {
                 ctx.assistantBlocks.push({ type: 'text', text: turn.text });
             }
+            // Banked: anything that throws from here on must not append it a
+            // second time.
+            ctx.partial.text = '';
             ctx.assistantBlocks.push(...turn.toolUses);
 
             if (turn.stopReason === 'aborted') return 'aborted';
@@ -505,6 +537,7 @@ export class RunEngine {
                 name: string;
                 provider: ReturnType<ModelRegistry['get']>;
             };
+            partial: PartialTurn;
         },
         messages: ModelMessage[],
         tools: ModelTool[]
@@ -518,7 +551,10 @@ export class RunEngine {
         }
     > {
         const toolUses: ToolUseBlock[] = [];
-        let text = '';
+        // The turn's text lives on the caller's accumulator rather than in a
+        // local, so a stream that throws leaves what it had already said
+        // somewhere `run` can still persist it.
+        ctx.partial.text = '';
         let usage: ModelUsage = { inputTokens: 0, outputTokens: 0 };
         let stopReason = 'end';
 
@@ -535,7 +571,7 @@ export class RunEngine {
 
         for await (const event of stream as AsyncIterable<ModelStreamEvent>) {
             if (event.type === 'text-delta') {
-                text += event.text;
+                ctx.partial.text += event.text;
                 // Yielded, not collected. Buffering these into an array and
                 // flushing after the provider's stream ends turns the whole
                 // feature off: the answer arrives in one burst when the model
@@ -554,7 +590,7 @@ export class RunEngine {
             }
         }
 
-        return { text, toolUses, usage, stopReason };
+        return { text: ctx.partial.text, toolUses, usage, stopReason };
     }
 
     /**
