@@ -1,15 +1,19 @@
 import request from 'supertest';
+import { getPool } from '@orthacms/database';
 import {
     closeTestApp,
     createTestApp,
     type TestApp
 } from '../../support/test-app';
+import { drainOutbox } from '../../support/outbox';
 import {
     countActivityRows,
     getActivityRows,
     resetDb,
     seedActiveUser,
+    seedContentGrants,
     seedUser,
+    seedWorkspace,
     type SeededUser
 } from '../../support/seed';
 
@@ -276,6 +280,75 @@ describe('Activity log (GET /api/activity + recording)', () => {
         });
     });
 
+    /**
+     * **The audit path must never be able to refuse a login.**
+     *
+     * `auth.sign_in_failed` is written on the way out of a refusal, and the
+     * write is deliberately wrapped in a bare `catch {}`. The unit test pins
+     * the shape of the refusal — one bcrypt comparison, one append, the same
+     * error — but says nothing about what happens when that append *fails*,
+     * and without the swallow an unavailable audit path turns every wrong
+     * password in the deployment into a 500. That reads to a caller as "the
+     * server is broken" rather than "that password is wrong", and it is
+     * reachable from outside by anyone who can type a bad password.
+     *
+     * The failure is made at the database rather than by stubbing a provider,
+     * so the real `try`/`catch` on the real path is what has to hold.
+     */
+    describe('a failed sign-in never depends on the audit path', () => {
+        it('refuses identically when the attempt cannot be recorded [activity:I-35]', async () => {
+            const wrong = () =>
+                request(harness.server)
+                    .post('/api/auth/login')
+                    .send({ email: ADMIN_EMAIL, password: 'WrongPass123!' });
+
+            // The control: normally the attempt *is* recorded.
+            const recorded = await wrong().expect(401);
+            await drainOutbox(harness.app);
+            expect(
+                (await getActivityRows()).filter(
+                    (row) => row.kind === 'user.sign_in_failed'
+                )
+            ).toHaveLength(1);
+
+            // Now the append cannot succeed. A CHECK constraint is the
+            // narrowest way to break exactly this one write while leaving the
+            // rest of the request — the lookup, the bcrypt comparison, the
+            // session decision — completely untouched.
+            // `NOT VALID` is load-bearing: the control above left a dispatched
+            // `auth.sign_in_failed` row in the table, and a plain `ADD
+            // CONSTRAINT` scans what is already there and refuses over it.
+            // `NOT VALID` skips only that back-scan — the constraint is still
+            // enforced against every row inserted from here on, which is the
+            // half this test needs. (Nothing ever validates it: it is dropped
+            // in the `finally` below, and `resetDb` truncates the table.)
+            await getPool().query(
+                `ALTER TABLE outbox_events ADD CONSTRAINT e2e_no_sign_in_failed
+                 CHECK (kind <> 'auth.sign_in_failed') NOT VALID`
+            );
+            try {
+                const refused = await wrong().expect(401);
+                // Byte for byte the same answer. Anything else — a 500, or a
+                // different message — is a signal the caller can read off a
+                // broken audit path.
+                expect(refused.body).toEqual(recorded.body);
+            } finally {
+                await getPool().query(
+                    'ALTER TABLE outbox_events DROP CONSTRAINT e2e_no_sign_in_failed'
+                );
+            }
+
+            // And the attempt really did go unrecorded — so the 401 above was
+            // the swallow rather than a write that quietly succeeded anyway.
+            await drainOutbox(harness.app);
+            expect(
+                (await getActivityRows()).filter(
+                    (row) => row.kind === 'user.sign_in_failed'
+                )
+            ).toHaveLength(1);
+        });
+    });
+
     describe('authorization (activity:read)', () => {
         it('allows an admin (200)', async () => {
             const agent = await login(ADMIN_EMAIL);
@@ -304,6 +377,84 @@ describe('Activity log (GET /api/activity + recording)', () => {
 
         it('rejects an unauthenticated request with 401 [activity:I-14]', async () => {
             await request(harness.server).get('/api/activity').expect(401);
+        });
+
+        /**
+         * `/dead-letters` under the **same** key as the log itself.
+         *
+         * "What is missing from the trail" names the same event kinds and
+         * aggregate ids as "what is in it", so it cannot be the weaker of the
+         * two. It is a separate controller with its own `@RequirePermissions`,
+         * which is exactly the shape that drifts: every case above is written
+         * against `GET /api/activity`, and this one is reached by no other
+         * test in the package.
+         */
+        it('gates /dead-letters on activity:read as well [activity:I-14]', async () => {
+            const adminAgent = await login(ADMIN_EMAIL);
+            await adminAgent.get('/api/activity/dead-letters').expect(200);
+
+            await seedActiveUser(harness.app, {
+                email: 'deadletters-contributor@example.com',
+                password: PASSWORD,
+                role: 'contributor'
+            });
+            const contributor = await login(
+                'deadletters-contributor@example.com'
+            );
+            await contributor.get('/api/activity/dead-letters').expect(403);
+
+            await request(harness.server)
+                .get('/api/activity/dead-letters')
+                .expect(401);
+        });
+
+        /**
+         * **No route in this plugin answers a bearer token.**
+         *
+         * An API token is a long-lived secret sitting in somebody else's CI
+         * config; the audit log carries sign-in failures, invites and role
+         * changes across the whole deployment, and the dead-letter route names
+         * the aggregates whose events were lost. Neither belongs to an
+         * integration. The token minted here is proven live against the API it
+         * *is* for first, so the 401s below are the credential being refused
+         * rather than a dead secret answering for itself.
+         */
+        it('answers no bearer token on any of its three routes [activity:I-14]', async () => {
+            const workspace = await seedWorkspace({
+                name: 'Tokens',
+                slug: 'activity-tokens'
+            });
+            await seedContentGrants(workspace.id, ['test_article']);
+
+            const agent = await login(ADMIN_EMAIL);
+            const minted = await agent
+                .post('/api/api-tokens')
+                .send({
+                    name: 'ci',
+                    workspaceIds: [workspace.id],
+                    scope: 'read'
+                })
+                .expect(201);
+            const secret = minted.body.secret as string;
+
+            // The control: this exact credential opens the public content API.
+            await request(harness.server)
+                .get('/api/v1/content-types')
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(200);
+
+            const entryId = '00000000-0000-4000-8000-00000000beef';
+            for (const route of [
+                '/api/activity',
+                '/api/activity/dead-letters',
+                `/api/activity/entries/${entryId}`
+            ]) {
+                const res = await request(harness.server)
+                    .get(route)
+                    .set('Authorization', `Bearer ${secret}`)
+                    .set('X-Workspace-Id', workspace.id);
+                expect([route, res.status]).toEqual([route, 401]);
+            }
         });
     });
 

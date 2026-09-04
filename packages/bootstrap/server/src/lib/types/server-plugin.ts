@@ -65,6 +65,18 @@ export interface CreateServerOptions {
     plugins: ServerPlugin[];
     /** Port to listen on. Defaults to 3000. */
     port?: number;
+    /**
+     * Address to bind. Omitted (the default), Node binds the **wildcard**
+     * (`0.0.0.0`/`::`), which is what a container wants.
+     *
+     * Name one to bind a single interface — `'127.0.0.1'` for a server that
+     * should only be reachable through a reverse proxy on the same host. It is
+     * also what an in-process test wants: a wildcard `listen(0)` succeeds on a
+     * port another process already holds bound to `127.0.0.1` (Node sets
+     * `SO_REUSEADDR`), and the loopback request that follows is answered by
+     * that other process rather than by this app.
+     */
+    host?: string;
     /** Global API prefix. Defaults to "api". */
     globalPrefix?: string;
     /**

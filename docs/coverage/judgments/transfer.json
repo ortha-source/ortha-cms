@@ -126,12 +126,66 @@
             "file": "packages/transfer/server/src/lib/import/infrastructure/import-media.service.spec.ts",
             "anchor": "counts but does not upload during a dry run",
             "why": "Pins the clause the e2e citation's own note says it cannot: `dryRun: true` is asserted to leave the fake uploader untouched and the run's rollback list empty, while `assetsNew` still counts the upload it would have made. A dry run that reached UploadAssetUseCase would put bytes in the bucket and fail here."
+        },
+        {
+            "id": "transfer:I-07",
+            "file": "apps/server-e2e/src/server/transfer/transfer-round-trip.spec.ts",
+            "anchor": "previews the very verdicts the apply then delivers",
+            "why": "One file is POSTed to /import/preview and then to /import with the same policy, and the two runs' verdicts are compared as (type, id, action, reason) tuples plus counts. The fixture is built so the run holds all four actions at once — a matched article (update), a purged one (create), a linked author (skip) and a record naming a type this installation lacks (error) — and that set is asserted before the comparison, so parity over a document that could only ever skip cannot pass for the invariant."
+        },
+        {
+            "id": "transfer:I-10",
+            "file": "apps/server-e2e/src/server/transfer/transfer-round-trip.spec.ts",
+            "anchor": "rebuilds a cycle the file cannot have ordered",
+            "why": "test_page is the only self-referential fixture, so alpha.parent = beta and beta.parent = alpha is a genuine cycle: both are exported as roots (asserted $depth [0, 0], so the importer's depth sort cannot re-impose an order), the rows are deleted, the document's records are reversed, and both links are asserted after the import. No single-pass write order satisfies both — dropping the applyLinks pass leaves whichever row went first pointing at null."
+        },
+        {
+            "id": "transfer:I-12",
+            "file": "apps/server-e2e/src/server/transfer/transfer-round-trip.spec.ts",
+            "anchor": "matches on the natural key before the source row id",
+            "why": "Ada's exported record is hand-edited to claim Bob's row id, so both lookups hit at once — byKey names Ada, bySourceId names Bob — and only the order decides. The verdict's targetId is asserted to be Ada and Bob's name/email are read back unchanged; swapping the `??` operands in `run` overwrites Bob with Ada and fails both."
+        },
+        {
+            "id": "transfer:I-12",
+            "file": "apps/server-e2e/src/server/transfer/transfer-round-trip.spec.ts",
+            "anchor": "keys on the identity the manifest recorded",
+            "why": "Pins the second clause. The manifest's identity for test_author is asserted to be ['email'] as derived here, then rewritten to ['name'] while the record's email is changed to one nothing holds and its $id to a uuid nothing holds. The record must still match Ada by name. Either side of the fingerprint re-deriving locally keys on email, misses, and creates a second Ada."
+        },
+        {
+            "id": "transfer:I-20",
+            "file": "apps/server-e2e/src/server/transfer/transfer-round-trip.spec.ts",
+            "anchor": "locale twins in one translation group",
+            "why": "An en/de pair is exported with locales: true (both rows and one shared $localeGroup asserted in the document), then imported under policy=duplicate so both rows are written fresh. The two created verdicts' rows are read back and asserted to share one localeGroupId that is not the source group — a create that ignored the sibling's group gives each copy a group of its own."
+        },
+        {
+            "id": "transfer:I-22",
+            "file": "apps/server-e2e/src/server/transfer/transfer-round-trip.spec.ts",
+            "anchor": "will not create what the caller could not have created by hand",
+            "why": "A role holding content:read + content:import and nothing else (seedUserWithPermissions, so no shipped role's permission set can hide the split) imports a document whose one record was purged first, so the only thing it can ask for is a create. counts.create is 0, the verdict is error/forbidden, and the type is asserted empty afterwards."
+        },
+        {
+            "id": "transfer:I-22",
+            "file": "apps/server-e2e/src/server/transfer/transfer-round-trip.spec.ts",
+            "anchor": "checks the permission the record",
+            "why": "The other half, and the one that makes the check per-action rather than per-caller: the role holds content:create but not content:update, and the file matches a live row under policy=update. The live row's `number` was moved to 99 after the export, so a write that got through would be visible; it is asserted still 99, with counts.update 0 and an error/forbidden verdict."
+        },
+        {
+            "id": "transfer:I-05",
+            "file": "apps/server-e2e/src/server/transfer/transfer-round-trip.spec.ts",
+            "anchor": "leaves the inverse side of a two-way relation out of the document",
+            "why": "Closes the export clause the flatten.spec citation could not reach. An article is tagged, the owning export is asserted to carry relations.tags (so the fixture is a real link and not an absent one), and the export rooted at the tag is asserted to hold one record with no `articles` key in relations or values — a walk that followed the inverse side would put the article in the tag's document."
+        },
+        {
+            "id": "transfer:I-15",
+            "file": "apps/server-e2e/src/server/transfer/transfer-round-trip.spec.ts",
+            "anchor": "links a related record without writing a word to it",
+            "why": "Closes the clause the other two I-15 citations left open. The live author is renamed after the export, so the file and the row differ on `name` while still sharing the `email` the key matches on; after the import the author is asserted to still read 'Ada Lovelace' rather than the file's 'Ada'. A `link` that also wrote the file's values would keep the same row id and the same skip verdict and pass everything else."
         }
     ],
     "judgments": {
         "transfer:I-05": {
             "state": "partial",
-            "missing": "Only the CSV-column clause is pinned (flatten.spec.ts asserts csvColumns omits the inverse side). That the inverse side is left out of the **export document** and is **not written on import** is asserted by no test — a walker that emitted both ends of a two-way relation, or an import that wrote the link from the inverse side too, would pass everything currently green. Both halves need the graph walk, so they belong to server-e2e."
+            "missing": "Two of the three clauses are now pinned: flatten.spec.ts pins the CSV columns, and the round-trip spec's 'leaves the inverse side of a two-way relation out of the document' pins that the inverse side is not exported. What remains unpinned is 'is not written on import' — no test feeds a document that carries an inverse-side reference and asserts the importer ignores it rather than trying to write the link from the wrong end."
         },
         "transfer:I-09": {
             "state": "partial",
@@ -139,11 +193,7 @@
         },
         "transfer:I-11": {
             "state": "partial",
-            "missing": "Only the first clause is pinned. The round-trip spec asserts the second pass starts from the value bag the first one wrote (text, number and select all survive). The second clause — that the relation pass runs **only when the relations actually changed**, so one import produces one revision rather than two — is not asserted; nothing reads the revision count."
-        },
-        "transfer:I-15": {
-            "state": "partial",
-            "missing": "`link` is pinned by its verdict, its row id and the link that points at it. What is not separately asserted is that the matched related record's **field values are left untouched** — a `link` that quietly also wrote the file's values would keep the same row id and the same skip verdict, and pass. One value read-back on the linked author would close it."
+            "missing": "The first clause is pinned by the round-trip spec. The second — 'runs only if the relations actually changed, so no second revision arises for one import' — is not merely unasserted; it looks untrue. import-entries.use-case.ts pushes `{ record, targetId, values }` onto `linkPass`, where `values` is the pre-link bag, while the row was written from `withLinks`. applyLinks then compares `sameLink(written[field], next)`, and for any non-null relation `written[field]` is `undefined` against a resolved id, so `any` is always true and the second UPDATE always runs. The guard can only ever fire for a record whose relations are all null. Fixing it looks like one word — push `withLinks` instead of `values` — but that is a production change, so it is recorded rather than made; a test asserting one revision after one import would fail today."
         },
         "transfer:I-28": {
             "state": "partial",

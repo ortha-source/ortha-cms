@@ -45,6 +45,7 @@ export async function createServer(
     const {
         plugins,
         port = 3000,
+        host,
         globalPrefix = 'api',
         trustProxy,
         bodyLimit = DEFAULT_BODY_LIMIT,
@@ -117,10 +118,12 @@ export async function createServer(
     app.enableShutdownHooks();
 
     try {
-        await app.listen(port);
+        // `host` omitted keeps Node's wildcard bind, which is what a container
+        // wants; naming one binds a single interface (see `CreateServerOptions`).
+        await (host ? app.listen(port, host) : app.listen(port));
     } catch (error) {
         Logger.error(
-            `Failed to listen on port ${port}; the server cannot start.`,
+            `Failed to listen on port ${port}${host ? ` (${host})` : ''}; the server cannot start.`,
             describeError(error)
         );
         throw error;

@@ -113,9 +113,6 @@ function codeLines(
     return out;
 }
 
-/** `path:line` for the assertion messages — the point of failing is to say where. */
-const at = (hit: { file: string; line: number }) => `${hit.file}:${hit.line}`;
-
 describe('the shape of @orthacms/database', () => {
     const PACKAGE_CODE = codeLines(sourceFiles(PACKAGE_SRC));
 

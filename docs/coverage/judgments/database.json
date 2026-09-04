@@ -125,7 +125,7 @@
             "id": "database:I-15",
             "file": "apps/server-e2e/src/server/database/outbox-dispatcher.spec.ts",
             "anchor": "it('increments attempts and leaves the row pending when a subscriber throws'",
-            "why": "Pins the increment-and-stay-undelivered clause (attempts 2 after two drains, dispatched_at NULL); the 'the batch's other rows are delivered normally' clause is not pinned — no suite mixes a failing and a succeeding row inside one claimed batch."
+            "why": "Pins the increment-and-stay-undelivered clause (attempts 2 after two drains, dispatched_at NULL). The 'the batch's other rows are delivered normally' clause is pinned separately, by 'delivers the rest of a batch around the row that failed' in the same file — a failing row interleaved between three healthy ones inside one claimed batch."
         },
         {
             "id": "database:I-15",
@@ -185,13 +185,13 @@
             "id": "database:I-20",
             "file": "packages/database/src/lib/outbox/outbox-dispatcher.spec.ts",
             "anchor": "it('does not throw when the in-flight drain fails'",
-            "why": "A drain that rejects still leaves onModuleDestroy resolving undefined; the 'bounded by one batch' clause is not asserted anywhere."
+            "why": "A drain that rejects still leaves onModuleDestroy resolving undefined. The 'bounded by one batch' clause is pinned by 'bounds the shutdown wait at one batch' in the server-e2e suite: over a 250-row backlog the destroy returns with exactly 100 delivered and 150 still pending."
         },
         {
             "id": "database:I-21",
             "file": "apps/server-e2e/src/server/database/unit-of-work.spec.ts",
             "anchor": "it('commits the events with the state change that produced them'",
-            "why": "Two events of kinds nobody subscribes to come back with attempts 0 after the post-commit drain, pinning the attempts clause; the 'marked delivered immediately' clause is not pinned — the test never reads dispatched_at."
+            "why": "Two events of kinds nobody subscribes to come back with attempts 0 after the post-commit drain, pinning the attempts clause. The 'marked delivered immediately' clause is pinned by 'stamps an event nobody listens to on the first drain, unattempted' in outbox-dispatcher.spec.ts, which reads dispatched_at."
         },
         {
             "id": "database:I-22",

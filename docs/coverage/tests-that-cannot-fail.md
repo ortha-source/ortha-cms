@@ -73,10 +73,14 @@ code under test is never reached, and the test passes for the wrong reason.
 Both shapes are invisible to a reviewer reading the test name, and both are
 invisible to coverage tooling, which sees the line execute.
 
-## Settled: the full server-e2e suite is unstable, and always was
+## Was unstable, and always was — diagnosed and fixed
 
 Not a test that cannot fail — the opposite, and it is recorded here because it
-bears on the same question: whether a green suite means anything.
+bears on the same question: whether a green suite means anything. The
+investigation is left in the order it happened, because every hypothesis it
+discards is one worth not having again; the answer is in
+**[Diagnosed and fixed](#diagnosed-and-fixed-the-requests-were-reaching-another-process)**
+at the end.
 
 A full `server-e2e` run (111 suites, 1710 tests) ends **1708 passed, 2 failed**:
 
@@ -87,7 +91,8 @@ A full `server-e2e` run (111 suites, 1710 tests) ends **1708 passed, 2 failed**:
 
 What is established:
 
-- Both pass **in isolation** (52/52 together), so it is ordering or leakage.
+- Both pass **in isolation** (52/52 together), so it is ordering-dependent.
+  (Read at the time as leakage between spec files. It was not — see the end.)
 - `jest.config.cts` sets `maxWorkers: 1`; the suite runs in band, single process.
   This is not a parallel-worker race.
 - Neither file is touched by the coverage work.
@@ -109,12 +114,68 @@ per full run wherever the ordering happens to land. The coverage work is
 exonerated, and the instability is older than it.
 
 Nobody had seen it because nobody ran the suite end to end — the specs are run
-per-directory, and a per-directory run is exactly the shape that hides
-order-dependent leakage.
+per-directory, and a per-directory run is exactly the shape that hides it.
 
-**This has to be fixed before the phase-5 CI gate, not after.** A gate on a suite
-that reddens at random teaches people to ignore the gate, and then it protects
-nothing. The next step is no longer attribution but diagnosis: the failures are
-consistent with state leaking between spec files in a single in-band process
-(`maxWorkers: 1`), so the suspects are module-level state, an app or pool not
-closed on teardown, and rows a `resetDb` does not clear.
+### Diagnosed and fixed: the requests were reaching another process
+
+It was never leakage between spec files. **The lost requests were answered by
+other programs running on the machine.**
+
+`supertest` builds every URL as `http://127.0.0.1:<port>`, but the listen it
+does for you names no address:
+
+```js
+// supertest/lib/test.js — serverAddress()
+if (!addr) this._server = app.listen(0);          // binds the WILDCARD
+return 'http://127.0.0.1:' + app.address().port;  // dials LOOPBACK
+```
+
+A wildcard `listen(0)` binds `0.0.0.0`/`::`, and Node sets `SO_REUSEADDR`, which
+on BSD/macOS lets it **succeed on a port another process already holds bound to
+`127.0.0.1` specifically**. The more specific socket wins the loopback traffic,
+and the request is answered by the stranger. (Linux refuses the overlap, so a
+Linux CI runner would never have reproduced this — the bug lived exactly where
+the suite was actually being run.) On the machine that has the problem those
+strangers are ordinary desktop software — DataGrip's built-in server on
+`127.0.0.1:63342`, the JetBrains toolbox on `52829`, two more IDE ports — and
+what they answer is `403 Forbidden`, `301 Moved Permanently`, or a hang-up the
+client reports as `read ECONNRESET`. **That is the whole failure list**: a
+content write "refused" 403, a `read ECONNRESET`, a link-delta write that got
+someone else's answer, an `ftp://` refusal that never reached the server.
+
+Why about two a run, and never in a per-directory run: supertest also **closes
+the server after every request**, so the harness re-bound a fresh ephemeral port
+for each of the ~35 000 requests a full run makes. Two ports go per request (the
+listener and the client's source port) out of macOS's 49152–65535, so a full run
+cycles the range about four times and lands on each occupied port about four
+times. A directory takes a few hundred requests and never gets round the ring.
+
+Reproduced outside the suite in a minute, with nothing but supertest and a
+one-line server that only ever answers `200`:
+
+```
+#1455 port=63342 status=301  server: DataGrip 2026.1.3
+#4342 port=52829 status=403  Forbidden
+#8340 port=60879 ERR=socket hang up
+done: 20000 requests, 11 wrong answers   (a period of ~8100 — half the range)
+```
+
+The fix is in `createTestApp`: bind `127.0.0.1` ourselves, once, before a test
+can touch the server. The kernel will not hand a loopback listen a port already
+bound on loopback, so the collision cannot be constructed; and because
+`app.address()` is already set, supertest neither listens nor closes, which
+takes the churn from one bind per request to one per spec file. `createServer`
+gained a `host` option so `create-server.spec.ts` (which drives the real host
+bootstrap) is covered by the same rule.
+
+`apps/server-e2e/src/harness/harness-binding.spec.ts` pins it: that the harness
+is bound to `127.0.0.1` before any request, that the port does not change across
+requests, and — deterministically, out of two servers of its own — the kernel
+behaviour the fix rests on, so the day a platform stops behaving this way the
+comment does not quietly become a lie.
+
+**The lesson is the same one this file keeps recording.** Every hypothesis on
+the list above was about our code: module-level state, an app not closed, rows
+`resetDb` misses. All plausible, all wrong. What settled it was reproducing the
+symptom in a program with no database, no Nest and no leak — at which point the
+answer arrived with a vendor name in the response header.

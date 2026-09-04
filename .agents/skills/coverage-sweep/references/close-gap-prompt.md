@@ -59,6 +59,12 @@ of a guard — the test guards neither. Reach the real one.
 
 ## Prove it can fail — by mutation, not by argument
 
+**A cross-package mutation needs `--skip-nx-cache`.** Nx served a cached PASS for
+a mutation in another package's source, because that file is not an input to the
+target being run — the suite never executed, and the proof silently proved
+nothing. Any mutation outside the package under test must be re-run with the
+cache off.
+
 **Never run `git stash`, `git checkout <branch>`, or anything else that moves the
 whole tree.** Six or seven agents share this checkout, and every one of them has
 uncommitted work in it. A repo-wide stash takes all of it hostage: if the pop

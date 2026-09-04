@@ -26,10 +26,13 @@ running Docker daemon for testcontainers).
    `globalSetup` throws** and the container would otherwise be orphaned.
 2. **`src/support/test-app.ts`** — `createTestApp(overrides?)` boots the server
    in-process, mirroring `createServer` (real `buildPlugins`, global `api`
-   prefix, strict `ValidationPipe`, `setupApiDocs`) but stops at **`app.init()`**
-   instead of `listen()`. `app.init()` still runs the `OnApplicationBootstrap`
-   seeders (system roles). Suites drive `harness.server` (`getHttpServer()`) with
-   supertest. `closeTestApp` closes the app and the per-file DB pool (via
+   prefix, strict `ValidationPipe`, `setupApiDocs`), runs `app.init()` — which
+   runs the `OnApplicationBootstrap` seeders (system roles) — and then binds an
+   ephemeral port **on `127.0.0.1`**. The address is not incidental: supertest
+   dials `127.0.0.1` but would bind the wildcard, which is how requests ended up
+   at other processes on the machine (see **Failure modes**). Suites drive
+   `harness.server` (`getHttpServer()`) with supertest. `closeTestApp` closes the
+   app — which closes the listener — and the per-file DB pool (via
    `closeDatabase`, which clears the memo too, so a second `createTestApp` in one
    file gets a fresh pool rather than an ended one).
 3. **`src/support/copilot.ts`** — the copilot harness. `scriptCopilot(...turns)`
@@ -108,6 +111,37 @@ The guards are asserted by `src/harness/harness-guards.spec.ts`.
   the pool with `SELECT 1` before Nest instantiates anything, so the report
   lands at the top rather than inside whichever seeder noticed first. An
   assertion failure is **never** re-labelled.
+
+- **A request answered by another process on this machine.** This is the one
+  that cost the suite roughly two tests per full run, on a different pair every
+  time, for as long as anyone had run it end to end — and it is a **binding**
+  bug, not a leak between spec files.
+
+  `supertest` builds every URL as `http://127.0.0.1:<port>`, but the listen it
+  performs for you names no address: `if (!addr) this._server = app.listen(0)`.
+  A wildcard `listen(0)` binds `0.0.0.0`/`::`, and Node sets `SO_REUSEADDR`,
+  which on **BSD/macOS** lets it **succeed on a port another process already
+  holds bound to `127.0.0.1` specifically** — a JetBrains IDE's built-in server
+  on `63342`, a toolbox, an Electron app's local bridge. The more specific
+  socket wins the loopback traffic, so the request is answered by the stranger:
+  `403`, or `301`, or a hang-up read as `ECONNRESET`. (Linux refuses the
+  overlap, so a Linux runner never saw it — do not read a green CI as evidence
+  the developer machines were fine.)
+
+  It was reached about four times a run rather than never, because supertest
+  also **closes the server after every request** (`Test.end`), so the harness
+  used to re-bind a fresh ephemeral port for each of the ~35 000 requests a full
+  run makes — two ports per request out of macOS's 49152–65535, so the range
+  cycles roughly four times and every occupied port is landed on roughly four
+  times. A per-directory run never gets far enough round the ring, which is
+  exactly why running the suite whole is what exposed it.
+
+  `createTestApp` therefore binds `127.0.0.1` itself before a test can touch the
+  server (`listenOnLoopback`), which both closes the hazard — the kernel will
+  not hand a loopback listen a port already bound on loopback — and stops the
+  churn: one bind per spec file. `createServer` takes a `host` for the same
+  reason, and `src/harness/harness-binding.spec.ts` pins both halves plus the
+  kernel behaviour the fix rests on.
 
 - **The run exhausting its own heap.** `maxWorkers: 1` does not only mean
   "one worker" — Jest's `shouldRunInBand` returns true on `maxWorkers <= 1`, so

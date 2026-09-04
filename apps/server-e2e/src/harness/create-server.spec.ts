@@ -64,6 +64,12 @@ describe('createServer (the host bootstrap)', () => {
         const app = await createServer({
             plugins: [...buildTestPlugins(config), ...extraPlugins],
             port: 0,
+            // Bind the address supertest dials. A wildcard `listen(0)`
+            // succeeds on a port another process already holds on
+            // `127.0.0.1`, and every request in this file would then be
+            // answered by that process — see `support/test-app.ts`
+            // (`listenOnLoopback`) for the whole mechanism.
+            host: '127.0.0.1',
             globalPrefix: config.globalPrefix,
             trustProxy: config.trustProxy,
             bodyLimit: config.bodyLimit,
@@ -73,6 +79,21 @@ describe('createServer (the host bootstrap)', () => {
         apps.push(app);
         return app;
     }
+
+    describe('the address it binds', () => {
+        it('binds the host it is given, rather than the wildcard', async () => {
+            // `host` exists because a wildcard `listen(0)` is handed ports
+            // other processes already hold on `127.0.0.1` — Node sets
+            // `SO_REUSEADDR` — and the loopback request that follows is
+            // answered by them. `harness-binding.spec.ts` demonstrates that
+            // hazard; this pins that the option actually reaches `listen`.
+            const app = await boot();
+            const address = app.getHttpServer().address() as {
+                address: string;
+            };
+            expect(address.address).toBe('127.0.0.1');
+        });
+    });
 
     describe('the request body cap is configured, not inherited', () => {
         // Before this, nothing set a limit, so `express.json()`'s 100 kB

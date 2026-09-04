@@ -56,7 +56,8 @@ describe('EntryLocaleExtensionService sibling locking', () => {
             {} as never, // `db` is only used by the read-only fanout query
             {} as never, // the locale registry is not consulted on this path
             {} as never, // nor is validation, which runs after the sync
-            relations as never
+            relations as never,
+            {} as never // nor the unit of work, read only by the group check
         );
     }
 

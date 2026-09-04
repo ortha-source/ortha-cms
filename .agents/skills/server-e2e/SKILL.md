@@ -27,8 +27,12 @@ a plugin, add an e2e suite here that exercises it end-to-end.
 ## The five non-negotiables
 
 1. **Boot the real app via `createTestApp()`** — never re-declare `NestFactory`,
-   the global prefix, or the `ValidationPipe` in a spec. That mirrors
-   `createServer` and stops at `app.init()`; re-declaring drifts from prod.
+   the global prefix, or the `ValidationPipe` in a spec, and never call
+   `listen()` yourself. That mirrors `createServer`, and it binds `127.0.0.1`
+   deliberately: supertest dials loopback but binds the wildcard, which is how
+   requests used to be answered by other processes on the machine (see
+   `apps/server-e2e/AGENTS.md` → Failure modes). Re-declaring drifts from prod;
+   re-listening reopens that hole.
 2. **Seed through DI**, never raw bcrypt/SQL for credentials — use the
    `seed.ts` helpers, which hash via the app's real `HashingService`.
 3. **Isolate with `resetDb()`** in `beforeEach` — truncates mutable tables,

@@ -18,7 +18,7 @@ import {
     type AnyColumn,
     type SQL
 } from 'drizzle-orm';
-import { InjectDatabase, type Database } from '@orthacms/database';
+import { InjectDatabase, UnitOfWork, type Database } from '@orthacms/database';
 import {
     EntryValidationService,
     RelationLinkService,
@@ -116,7 +116,8 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
         // replacing one are the same operations the entries pipeline performs,
         // and a second implementation here is how the join table's ordering
         // and de-duplication rules would drift.
-        private readonly relations: RelationLinkService
+        private readonly relations: RelationLinkService,
+        private readonly uow: UnitOfWork
     ) {}
 
     /** @inheritdoc */
@@ -190,9 +191,11 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
 
     /**
      * Assert a translation group has ≥1 live row in this workspace, so a
-     * sibling attaches to a real group. Runs before the create transaction —
-     * the (benign) TOCTOU window is covered by the row staying valid and the
-     * `(locale_group_id, locale)` unique index still guarding duplicates.
+     * sibling attaches to a real group. Runs before the create's own
+     * transaction — the (benign) TOCTOU window is covered by the row staying
+     * valid and the `(locale_group_id, locale)` unique index still guarding
+     * duplicates — but *inside* any enclosing unit of work, which is why it
+     * reads through {@link UnitOfWork.current} rather than the base pool.
      */
     private async assertGroupExists(
         type: AnyContentType,
@@ -200,7 +203,18 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
         workspaceId: string
     ): Promise<void> {
         const table = type.table as unknown as ContentTable;
-        const [row] = await this.db
+        // `uow.current()`, not `this.db` — the same distinction
+        // `EntryWriterService` draws for its relation-target probe. Outside a
+        // unit of work the two are one connection and an ordinary save is
+        // unaffected. Inside one they are not, and the difference decides
+        // whether a *group* can be built in a single transaction: a content
+        // import writes the `en` row and then its `de` sibling in one unit of
+        // work, and a probe on the base pool cannot see the uncommitted `en`
+        // row — so the sibling was refused with "no translation group" for a
+        // group created moments earlier in the same transaction, and an
+        // imported locale pair arrived as one row plus an error.
+        const [row] = await this.uow
+            .current()
             .select({ one: sql`1` })
             .from(type.table)
             .where(
