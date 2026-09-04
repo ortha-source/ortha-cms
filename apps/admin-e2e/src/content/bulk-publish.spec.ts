@@ -78,11 +78,7 @@ test.describe('Bulk publish pre-flight', () => {
             contentLibraryPage.verdictNote('Will publish')
         ).toHaveCount(1);
         await expect(contentLibraryPage.verdictNote('1 issue')).toHaveCount(1);
-        await expect(
-            contentLibraryPage.bulkPublishDialog.getByRole('button', {
-                name: 'Publish 1 valid'
-            })
-        ).toBeVisible();
+        await expect(contentLibraryPage.bulkPublishConfirm(1)).toBeVisible();
     });
 
     test('expands every gated row to its per-field checklist', async ({
@@ -107,18 +103,17 @@ test.describe('Bulk publish pre-flight', () => {
     });
 
     test('publishes only the valid rows and reports the count', async ({
-        page,
         contentLibraryPage
     }) => {
-        await contentLibraryPage.bulkPublishDialog
-            .getByRole('button', { name: 'Publish 1 valid' })
-            .click();
+        await contentLibraryPage.bulkPublishConfirm(1).click();
 
         // The dialog closes and the outcome lands in a toast. The commit's
         // `skipped` carries `{ id, reason }` objects while `published` carries
         // ids; the count comes from the latter, so a response that conflated
         // the two shapes would over-report here.
-        await expect(page.getByText('1 record published.')).toBeVisible();
+        await expect(
+            contentLibraryPage.toast('1 record published.')
+        ).toBeVisible();
         await expect(contentLibraryPage.bulkPublishDialog).toBeHidden();
     });
 });

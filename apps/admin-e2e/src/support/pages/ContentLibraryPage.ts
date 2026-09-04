@@ -993,4 +993,15 @@ export class ContentLibraryPage extends BasePage {
             .nth(index)
             .locator('ul li');
     }
+
+    /**
+     * The dialog's confirm button. Its label carries the **publishable** count
+     * ("Publish 2 valid"), not the selection size, so passing the number is
+     * what makes the assertion about the dry run rather than about the click.
+     */
+    bulkPublishConfirm(validCount: number): Locator {
+        return this.bulkPublishDialog.getByRole('button', {
+            name: `Publish ${validCount} valid`
+        });
+    }
 }
