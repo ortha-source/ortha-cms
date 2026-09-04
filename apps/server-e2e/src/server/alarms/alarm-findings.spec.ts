@@ -11,6 +11,7 @@ import {
     seedActiveUser,
     seedAllContentGrants,
     seedMembership,
+    seedUserWithEmptyRole,
     seedWorkspace,
     type SeededUser
 } from '../../support/seed';
@@ -175,16 +176,55 @@ describe('Alarm findings lifecycle', () => {
         expect(after.body.total).toBe(0);
     });
 
+    /** One finding, whole, for the "nothing else moved" comparison. */
+    async function findingRow(
+        entryId: string
+    ): Promise<Record<string, unknown> | undefined> {
+        const { rows } = await getPool().query(
+            'SELECT * FROM alarm_findings WHERE rule_id = $1 AND entry_id = $2',
+            [ruleId, entryId]
+        );
+        return rows[0] as Record<string, unknown> | undefined;
+    }
+
     it('is idempotent under a re-delivered event [alarms:I-05]', async () => {
         const client = await api();
         await createRule(client);
-        await publishArticle(client);
-
-        // At-least-once delivery: draining twice must not produce a second row.
-        await drainOutbox(harness.app);
+        const entryId = await publishArticle(client);
         await drainOutbox(harness.app);
 
+        const before = await findingRow(entryId);
+        expect(before).toBeDefined();
+
+        // A **real** redelivery. Draining twice delivers nothing the second
+        // time — the first drain stamps `dispatched_at`, and the claim only
+        // takes rows where it is null — so the event has to be put back the
+        // way a process that died between running its subscribers and
+        // committing leaves it. That is what at-least-once delivery actually
+        // produces, and the only state in which the upsert is reached twice.
+        const { rowCount } = await getPool().query(
+            `UPDATE outbox_events SET dispatched_at = NULL
+             WHERE aggregate_id = $1 AND kind LIKE 'entry.%'`,
+            [entryId]
+        );
+        expect(rowCount).toBeGreaterThan(0);
+        await drainOutbox(harness.app);
+
+        // Still one row: the upsert on `(rule_id, entry_id)` collapsed it.
         expect((await client.get('/api/alarms/findings')).body.total).toBe(1);
+
+        // And **nothing but `last_seen_at`** moved. `first_seen_at` is the age
+        // the whole findings list is read by; an `ON CONFLICT` whose `SET`
+        // list reached it would reset every recurring problem to zero on its
+        // next redelivery — with the row count unchanged, so a count-only
+        // assertion would never see it.
+        const after = await findingRow(entryId);
+        expect(after).toBeDefined();
+        expect({ ...after, last_seen_at: null }).toEqual({
+            ...before,
+            last_seen_at: null
+        });
+        expect(after?.last_seen_at).not.toBeNull();
     });
 
     it('has no mute route left to call [alarms:I-20]', async () => {
@@ -223,6 +263,92 @@ describe('Alarm findings lifecycle', () => {
         expect(Object.keys(res.body.byEntry)).toEqual([first]);
         // covers: alarms:I-04
         expect(res.body.byEntry[first]).toHaveLength(1);
+    });
+
+    it('keeps a resolved finding out of the per-entry batch [alarms:I-18]', async () => {
+        const client = await api();
+        await createRule(client);
+        const entryId = await publishArticle(client);
+        await drainOutbox(harness.app);
+
+        // While it is open the batch reports it — so the absence below is the
+        // `state` filter and not an empty fixture.
+        const open = await client
+            .get(`/api/alarms/findings/by-entry?entryIds=${entryId}`)
+            .expect(200);
+        expect(open.body.byEntry[entryId]).toHaveLength(1);
+
+        // Fixed. The row survives — resolving is an UPDATE — so the only thing
+        // keeping it off the entry editor's Checks block and the records
+        // list's column is `byEntryIds`' own `ne(state, 'resolved')`. Every
+        // other case in this file asks about entries whose findings are open,
+        // where dropping that clause changes nothing.
+        await rewriteAndPublish(client, entryId, { number: 5 });
+        await drainOutbox(harness.app);
+
+        const { rows } = await getPool().query(
+            'SELECT state FROM alarm_findings WHERE entry_id = $1',
+            [entryId]
+        );
+        expect(rows).toEqual([{ state: 'resolved' }]);
+
+        const after = await client
+            .get(`/api/alarms/findings/by-entry?entryIds=${entryId}`)
+            .expect(200);
+        expect(after.body.byEntry).toEqual({});
+    });
+
+    /**
+     * The findings controller's **own** permission.
+     *
+     * Every other authorization case in this package is written against
+     * `/alarms/rules`, so a findings route that lost its `@RequirePermissions`
+     * would be caught by nothing: `PermissionsGuard` lets an undecorated route
+     * through, and the caller below is already past the session check and past
+     * `WorkspaceGuard` — a member of the workspace, holding no permission at
+     * all. Reading a workspace's findings is reading an assessment of its
+     * content; membership is not the bar.
+     */
+    it('refuses a member holding no alarms:read on every findings route [alarms:I-17]', async () => {
+        const client = await api();
+        await createRule(client);
+        const entryId = await publishArticle(client);
+        await drainOutbox(harness.app);
+
+        const nobody = await seedUserWithEmptyRole(harness.app, {
+            email: 'alarm-findings-nobody@example.com',
+            password: PASSWORD,
+            roleKey: 'alarm-findings-nobody'
+        });
+        await seedMembership(nobody.id, workspaceId);
+
+        const agent = request.agent(harness.server);
+        await agent
+            .post('/api/auth/login')
+            .send({
+                email: 'alarm-findings-nobody@example.com',
+                password: PASSWORD
+            })
+            .expect(201);
+        agent.set('X-Workspace-Id', workspaceId);
+
+        for (const route of [
+            '/api/alarms/findings',
+            '/api/alarms/findings/summary',
+            `/api/alarms/findings/by-entry?entryIds=${entryId}`
+        ]) {
+            const res = await agent.get(route);
+            expect([route, res.status]).toEqual([route, 403]);
+        }
+
+        // The same three routes answer the caller who does hold the
+        // permission, so the 403s above are the permission and not the
+        // workspace header or the fixture.
+        await client.get('/api/alarms/findings').expect(200);
+        await client.get('/api/alarms/findings/summary').expect(200);
+        await client
+            .get(`/api/alarms/findings/by-entry?entryIds=${entryId}`)
+            .expect(200);
     });
 
     it('reports the open counts by severity for the workspace', async () => {

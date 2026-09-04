@@ -1,4 +1,5 @@
 import request from 'supertest';
+import { getPool } from '@orthacms/database';
 import {
     closeTestApp,
     createTestApp,
@@ -320,6 +321,101 @@ describe('Public reads, scoped by segment (/api/v1)', () => {
             expect(visible.body.total).toBe(2);
         });
 
+        /**
+         * **The other two protocols.**
+         *
+         * I-07 says "across all three", and until now only REST said it. The
+         * three reach the same rule by different call sites: GraphQL assembles
+         * a relation connection in its own nested resolver, and MCP's
+         * `content_relations` handler calls the query directly. Either could
+         * assemble `items` without the matching count, or pass no visibility at
+         * all, and every REST assertion above would stay green while the
+         * cardinality of what is hidden leaked — "2 links, 1 readable" tells a
+         * reader a restricted record is there.
+         *
+         * The reader header is the same one REST uses: the middleware is
+         * mounted on every route, so this is one resolver serving all three
+         * rather than a per-protocol hook.
+         */
+        it('hides the target from GraphQL’s nested relation, count included [segments:I-07]', async () => {
+            const { articleId } = await seedLinked();
+            expect(articleId).toBeDefined();
+            const token = await mintToken();
+
+            const query =
+                '{ testArticles { items { tags { items { name } total } } } }';
+            const ask = async (tags: string[]) => {
+                const call = request(harness.server)
+                    .post('/api/v1/graphql')
+                    .set('Authorization', `Bearer ${token}`);
+                if (tags.length) call.set(READER_TAGS_HEADER, tags.join(','));
+                const res = await call.send({ query }).expect(200);
+                expect(res.body.errors).toBeUndefined();
+                const articles = res.body.data.testArticles as {
+                    items: {
+                        tags: { items: { name: string }[]; total: number };
+                    }[];
+                };
+                return articles.items[0].tags;
+            };
+
+            const anonymous = await ask([]);
+            expect(anonymous.items.map((tag) => tag.name)).toEqual(['Open tag']);
+            expect(anonymous.total).toBe(1);
+
+            // The control: the same query, the same page, one more tag —
+            // so the 1 above is the entitlement and not a broken fixture.
+            const member = await ask(['acme']);
+            expect(member.total).toBe(2);
+            expect(member.items).toHaveLength(2);
+        });
+
+        it('hides the target from MCP’s content_relations, count included [segments:I-07]', async () => {
+            const { articleId } = await seedLinked();
+            const token = await mintToken();
+
+            const ask = async (tags: string[]) => {
+                const call = request(harness.server)
+                    .post('/api/v1/mcp')
+                    .set('Authorization', `Bearer ${token}`)
+                    .set('Accept', 'application/json, text/event-stream')
+                    .set('Content-Type', 'application/json');
+                if (tags.length) call.set(READER_TAGS_HEADER, tags.join(','));
+                const res = await call
+                    .send({
+                        jsonrpc: '2.0',
+                        id: 1,
+                        method: 'tools/call',
+                        params: {
+                            name: 'content_relations',
+                            arguments: {
+                                typeName: 'test_article',
+                                id: articleId,
+                                field: 'tags'
+                            }
+                        }
+                    })
+                    .expect(200);
+                const result = res.body.result as {
+                    isError?: boolean;
+                    content: { text: string }[];
+                };
+                expect(result.isError).not.toBe(true);
+                return JSON.parse(result.content[0].text) as {
+                    items: { values?: Record<string, unknown> }[];
+                    total: number;
+                };
+            };
+
+            const anonymous = await ask([]);
+            expect(anonymous.items).toHaveLength(1);
+            expect(anonymous.total).toBe(1);
+
+            const member = await ask(['acme']);
+            expect(member.items).toHaveLength(2);
+            expect(member.total).toBe(2);
+        });
+
         it('leaves the admin’s own relation read untouched', async () => {
             // An editor must see the records their entry links to in order to
             // manage them, including ones no reader may fetch.
@@ -330,6 +426,101 @@ describe('Public reads, scoped by segment (/api/v1)', () => {
                 .get(`/api/content/test_article/${articleId}/relations/tags`)
                 .expect(200);
             expect(response.body.total).toBe(2);
+        });
+    });
+
+    /**
+     * **Deleting an audience.**
+     *
+     * The sweep is three statements in one transaction and only the first of
+     * them is visible to a reader, which is exactly why this needs a real
+     * delete rather than a test of the SQL's shape. Two of the three failure
+     * modes change **no** answer the API gives:
+     *
+     * - dropping the `array_remove` on `deny` leaves a dangling id in a deny
+     *   list; no reader resolves to it, so nobody is denied and every read
+     *   still looks right — while the row now says something about an audience
+     *   that does not exist;
+     * - dropping the final "cardinality 0 on both sides" delete leaves a row of
+     *   two empty arrays, which reads as "everyone" and is therefore invisible
+     *   through the API too — and that is precisely the shape the QA pass found
+     *   four of, orphaned, in the development database (§17).
+     *
+     * So the table is read directly. The third mode — dropping the
+     * `array_remove` on `allow` — does change what a reader sees, and the
+     * public reads below catch it: the entry would be closed to everyone
+     * forever, by an audience that no longer exists.
+     */
+    describe('deleting an audience', () => {
+        /** Every `entry_access` row, keyed by entry, as the sweep leaves it. */
+        async function accessRows(): Promise<
+            { entry_id: string; allow: string[]; deny: string[] }[]
+        > {
+            const { rows } = await getPool().query(
+                'SELECT entry_id, allow, deny FROM entry_access ORDER BY entry_id'
+            );
+            return rows;
+        }
+
+        it('sweeps it out of both lists and drops the rows it empties [segments:I-12] [segments:I-13]', async () => {
+            // Three entries, one per shape the sweep has to handle.
+            const onlyAcme = await seedPublished('Allowed to Acme only');
+            const both = await seedPublished('Allowed to Acme and Globex');
+            const deniedAcme = await seedPublished('Denied to Acme');
+            await restrict(onlyAcme, { allow: [acme] });
+            await restrict(both, { allow: [acme, globex] });
+            await restrict(deniedAcme, { deny: [acme] });
+            expect(await accessRows()).toHaveLength(3);
+
+            const token = await mintToken();
+            const textsFor = async (tags: string[]) =>
+                (await readAs(token, tags)).body.items
+                    .map((item: { values: { text: string } }) => item.values.text)
+                    .sort();
+
+            // Before: an anonymous reader sees only the denied-to-Acme one, and
+            // an Acme reader sees the two that name Acme in their allow list.
+            expect(await textsFor([])).toEqual(['Denied to Acme']);
+            expect(await textsFor(['acme'])).toEqual([
+                'Allowed to Acme and Globex',
+                'Allowed to Acme only'
+            ]);
+
+            const agent = await login();
+            await agent.delete(`/api/segments/${acme}`).expect(204);
+
+            // The one row that still means something survives, carrying only
+            // the audience that is left.
+            const rows = await accessRows();
+            expect(rows).toEqual([
+                expect.objectContaining({
+                    entry_id: both,
+                    allow: [globex],
+                    deny: []
+                })
+            ]);
+
+            // Nothing anywhere is a row of two empty arrays — the state I-13
+            // says is never stored, and the one an API read cannot tell from a
+            // missing row.
+            expect(
+                rows.filter(
+                    (row) => row.allow.length === 0 && row.deny.length === 0
+                )
+            ).toEqual([]);
+
+            // And the reads moved the way losing the audience implies: the two
+            // entries that lost their only restriction are open to everyone,
+            // the remaining one is still Globex's.
+            expect(await textsFor([])).toEqual([
+                'Allowed to Acme only',
+                'Denied to Acme'
+            ]);
+            expect(await textsFor(['globex'])).toEqual([
+                'Allowed to Acme and Globex',
+                'Allowed to Acme only',
+                'Denied to Acme'
+            ]);
         });
     });
 

@@ -9,12 +9,14 @@ import {
     seedActiveUser,
     seedAllContentGrants,
     seedMembership,
+    seedUserWithPermissions,
     seedWorkspace,
     type SeededUser
 } from '../../support/seed';
 
 const ADMIN_EMAIL = 'transfer-admin@example.com';
 const VIEWER_EMAIL = 'transfer-viewer@example.com';
+const IMPORTER_EMAIL = 'transfer-importer@example.com';
 const PASSWORD = 'SecurePass123!';
 
 /**
@@ -400,6 +402,75 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             expect(row).toContain('flat');
         });
 
+        it('leaves the inverse side of a two-way relation out of the document [transfer:I-05]', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const tagId = (
+                await agent
+                    .post('/api/content/test_tag')
+                    .send({
+                        values: { name: 'engineering', slug: 'engineering' }
+                    })
+                    .expect(201)
+            ).body.id as string;
+            const articleId = await createArticle(agent, {
+                text: 'tagged',
+                select: 'article',
+                tags: [tagId]
+            });
+
+            // The owning side does carry the link. Without this half the
+            // assertion below would pass just as happily on a graph where the
+            // two were never linked at all.
+            const owning = JSON.parse(
+                (
+                    await agent
+                        .post('/api/content/test_article/export')
+                        .send({
+                            ids: [articleId],
+                            format: 'json',
+                            depth: {
+                                relations: true,
+                                media: false,
+                                locales: false
+                            }
+                        })
+                        .expect(200)
+                ).text
+            );
+            const article = owning.records.find(
+                (record: { $type: string }) => record.$type === 'test_article'
+            );
+            expect(article.relations.tags).toHaveLength(1);
+
+            // The inverse side carries nothing. `test_tag.articles` is the same
+            // link seen from the other end, so a walk that followed it would
+            // put the article into the tag's document and an `articles`
+            // reference onto the tag's record — the owner's order would stop
+            // being the order.
+            const inverse = JSON.parse(
+                (
+                    await agent
+                        .post('/api/content/test_tag/export')
+                        .send({
+                            ids: [tagId],
+                            format: 'json',
+                            depth: {
+                                relations: true,
+                                media: false,
+                                locales: false
+                            }
+                        })
+                        .expect(200)
+                ).text
+            );
+            expect(inverse.records).toHaveLength(1);
+            expect(inverse.records[0].$type).toBe('test_tag');
+            expect(Object.keys(inverse.records[0].relations)).not.toContain(
+                'articles'
+            );
+            expect(inverse.records[0].values).not.toHaveProperty('articles');
+        });
+
         it('offers a blank CSV template for the type', async () => {
             const agent = await login(ADMIN_EMAIL);
             const res = await agent
@@ -425,6 +496,26 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
         ): Promise<string> {
             const res = await agent
                 .post('/api/content/test_article/export')
+                .send({ ids, format: 'json', depth })
+                .expect(200);
+            return res.text;
+        }
+
+        /**
+         * The same, for a type that is not `test_article`.
+         *
+         * The cycle and the natural-key tests below root themselves elsewhere:
+         * an article cannot point at another article, and an author's key is
+         * `email` rather than the first required text field.
+         */
+        async function exportOf(
+            agent: request.Agent,
+            type: string,
+            ids: string[],
+            depth: Record<string, boolean>
+        ): Promise<string> {
+            const res = await agent
+                .post(`/api/content/${type}/export`)
                 .send({ ids, format: 'json', depth })
                 .expect(200);
             return res.text;
@@ -675,6 +766,54 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             expect(rebuilt?.['values']).toMatchObject({ author: authorId });
         });
 
+        it('links a related record without writing a word to it [transfer:I-15]', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const authorId = await createAuthor(agent, 'Ada', 'ada@x.test');
+            const articleId = await createArticle(agent, {
+                text: 'link-do-not-write',
+                select: 'article',
+                author: authorId
+            });
+            const document = await exportJson(agent, [articleId]);
+
+            // The live author now disagrees with the file: the same email, so
+            // the key still matches, but a different name. This is what makes
+            // the test able to fail — export and row are otherwise identical,
+            // and a `link` that quietly wrote the file's values over the row
+            // would leave no trace at all.
+            await agent
+                .patch(`/api/content/test_author/${authorId}`)
+                .send({
+                    values: { name: 'Ada Lovelace', email: 'ada@x.test' }
+                })
+                .expect(200);
+
+            // Only the article leaves, so the import has a link to make.
+            await agent
+                .delete(`/api/content/test_article/${articleId}`)
+                .expect(204);
+            await agent
+                .post('/api/content/test_article/bulk/purge')
+                .send({ ids: [articleId] })
+                .expect(200);
+
+            const applied = await upload(
+                agent,
+                '/api/content/test_article/import',
+                document
+            ).expect(200);
+
+            expect(verdictFor(applied.body, 'test_author')).toMatchObject({
+                action: 'skip',
+                reason: 'relation-linked'
+            });
+            const authors = await listEntries(agent, 'test_author');
+            expect(authors).toHaveLength(1);
+            expect(authors[0].id).toBe(authorId);
+            // The file says 'Ada'. `link` links; it does not write.
+            expect(authors[0].values['name']).toBe('Ada Lovelace');
+        });
+
         it('writes a fresh related record when the relation policy says recreate', async () => {
             const agent = await login(ADMIN_EMAIL);
             const authorId = await createAuthor(agent, 'Ada', 'ada@x.test');
@@ -865,6 +1004,327 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
                 .field('policy', 'skip')
                 .expect(400);
         });
+
+        it('previews the very verdicts the apply then delivers [transfer:I-07]', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const authorId = await createAuthor(agent, 'Ada', 'ada@x.test');
+            const staying = await createArticle(agent, {
+                text: 'already-here',
+                select: 'article',
+                author: authorId
+            });
+            const leaving = await createArticle(agent, {
+                text: 'gone-before-the-import',
+                select: 'article',
+                author: authorId
+            });
+            const document = JSON.parse(
+                await exportJson(agent, [staying, leaving])
+            );
+
+            // A record of a type this installation does not have, so the run
+            // has an error verdict to be consistent about as well. Parity over
+            // a file that only ever skips is parity nothing could break: a
+            // preview hard-coded to one answer would agree with an apply that
+            // gave the same one. This fixture makes the file describe an
+            // update, a create, a relation link and an error at once.
+            document.records.push({
+                ...document.records[0],
+                $type: 'test_nowhere',
+                $id: '6f6bd3fd-2f8e-4c1c-9d8a-1f2b6a3c4d5e'
+            });
+            // One of the two articles leaves before either run, so the same
+            // file now matches one row and not the other.
+            await agent
+                .delete(`/api/content/test_article/${leaving}`)
+                .expect(204);
+            await agent
+                .post('/api/content/test_article/bulk/purge')
+                .send({ ids: [leaving] })
+                .expect(200);
+
+            const body = JSON.stringify(document);
+            const preview = await upload(
+                agent,
+                '/api/content/test_article/import/preview',
+                body,
+                'update'
+            ).expect(200);
+            const applied = await upload(
+                agent,
+                '/api/content/test_article/import',
+                body,
+                'update'
+            ).expect(200);
+
+            // The decisions, minus the row ids only the apply pass can know.
+            const decisions = (result: {
+                verdicts: {
+                    $type: string;
+                    $id: string;
+                    action: string;
+                    reason: string;
+                }[];
+            }) =>
+                result.verdicts.map(({ $type, $id, action, reason }) => ({
+                    $type,
+                    $id,
+                    action,
+                    reason
+                }));
+
+            expect(
+                new Set(decisions(preview.body).map((entry) => entry.action))
+            ).toEqual(new Set(['update', 'create', 'skip', 'error']));
+            expect(decisions(applied.body)).toEqual(decisions(preview.body));
+            expect(applied.body.counts).toEqual(preview.body.counts);
+        });
+
+        it('rebuilds a cycle the file cannot have ordered [transfer:I-10]', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            // `test_page` is the only self-referential fixture, so it is the
+            // only one that can hold a real cycle: alpha.parent = beta and
+            // beta.parent = alpha. No order of two single-pass writes satisfies
+            // both links — whichever row goes first points at a row that does
+            // not exist yet — so this can only pass if the values are written
+            // first and the links second.
+            const alpha = (
+                await agent
+                    .post('/api/content/test_page')
+                    .send({ values: { title: 'Alpha' } })
+                    .expect(201)
+            ).body.id as string;
+            const beta = (
+                await agent
+                    .post('/api/content/test_page')
+                    .send({ values: { title: 'Beta', parent: alpha } })
+                    .expect(201)
+            ).body.id as string;
+            await agent
+                .patch(`/api/content/test_page/${alpha}`)
+                .send({ values: { title: 'Alpha', parent: beta } })
+                .expect(200);
+
+            // Both as roots, so both sit at depth 0 and the depth sort the
+            // importer applies cannot silently re-impose an order — which is
+            // what makes the reversal below mean something.
+            const document = JSON.parse(
+                await exportOf(agent, 'test_page', [alpha, beta], {
+                    relations: true,
+                    media: false,
+                    locales: false
+                })
+            );
+            expect(document.records).toHaveLength(2);
+            expect(
+                document.records.map(
+                    (record: { $depth: number }) => record.$depth
+                )
+            ).toEqual([0, 0]);
+
+            // Both gone. `test_page` is neither publishable nor paranoid, so a
+            // DELETE removes the row outright.
+            await agent.delete(`/api/content/test_page/${alpha}`).expect(204);
+            await agent.delete(`/api/content/test_page/${beta}`).expect(204);
+
+            // Reversed on the way in: the document's own order is now the
+            // opposite of the one the export wrote, and the result must not
+            // notice.
+            document.records.reverse();
+            await upload(
+                agent,
+                '/api/content/test_page/import',
+                JSON.stringify(document)
+            ).expect(200);
+
+            const pages = await listEntries(agent, 'test_page');
+            expect(pages).toHaveLength(2);
+            const rebuiltAlpha = pages.find(
+                (page) => page.values['title'] === 'Alpha'
+            );
+            const rebuiltBeta = pages.find(
+                (page) => page.values['title'] === 'Beta'
+            );
+            expect(rebuiltAlpha).toBeDefined();
+            expect(rebuiltBeta).toBeDefined();
+            // Both halves of the cycle. A one-pass import gets exactly one of
+            // these two and leaves the other null.
+            const alphaRow = await readEntry(
+                agent,
+                'test_page',
+                rebuiltAlpha?.id as string
+            );
+            const betaRow = await readEntry(
+                agent,
+                'test_page',
+                rebuiltBeta?.id as string
+            );
+            expect(alphaRow?.['values']).toMatchObject({
+                parent: rebuiltBeta?.id
+            });
+            expect(betaRow?.['values']).toMatchObject({
+                parent: rebuiltAlpha?.id
+            });
+        });
+
+        it('matches on the natural key before the source row id [transfer:I-12]', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const ada = await createAuthor(agent, 'Ada', 'ada@x.test');
+            const bob = await createAuthor(agent, 'Bob', 'bob@x.test');
+
+            const document = JSON.parse(
+                await exportOf(agent, 'test_author', [ada], {
+                    relations: false,
+                    media: false,
+                    locales: false
+                })
+            );
+            // The forgery that makes the order observable: Ada's record now
+            // claims Bob's row id. Both lookups hit — the natural key names
+            // Ada, the source row id names Bob — and only which one is
+            // consulted first decides who gets written.
+            document.records[0].$id = bob;
+
+            const applied = await upload(
+                agent,
+                '/api/content/test_author/import',
+                JSON.stringify(document),
+                'update'
+            ).expect(200);
+
+            expect(verdictFor(applied.body, 'test_author')).toMatchObject({
+                action: 'update',
+                targetId: ada
+            });
+            // Bob is untouched. An importer that preferred the source row id
+            // would have overwritten him with Ada's name and address.
+            const authors = await listEntries(agent, 'test_author');
+            expect(authors).toHaveLength(2);
+            const bobRow = authors.find((author) => author.id === bob);
+            expect(bobRow?.values['name']).toBe('Bob');
+            expect(bobRow?.values['email']).toBe('bob@x.test');
+        });
+
+        it('keys on the identity the manifest recorded, not one derived here [transfer:I-12]', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const ada = await createAuthor(agent, 'Ada', 'ada@x.test');
+
+            const document = JSON.parse(
+                await exportOf(agent, 'test_author', [ada], {
+                    relations: false,
+                    media: false,
+                    locales: false
+                })
+            );
+            // Derived locally, `test_author` keys on `email` — the slug-like
+            // field wins over the first required text one.
+            expect(document.manifest.identity['test_author']).toEqual([
+                'email'
+            ]);
+            // The file says otherwise, and the file is what both sides of the
+            // match must read. Keyed on `name` this record still names Ada,
+            // even though its address now matches nothing here…
+            document.manifest.identity['test_author'] = ['name'];
+            document.records[0].values['email'] = 'ada@elsewhere.test';
+            // …and its source row id names nothing either, so the fallback
+            // cannot rescue a key that failed.
+            document.records[0].$id = '00000000-0000-4000-8000-000000000000';
+
+            const applied = await upload(
+                agent,
+                '/api/content/test_author/import',
+                JSON.stringify(document),
+                'update'
+            ).expect(200);
+
+            expect(verdictFor(applied.body, 'test_author')).toMatchObject({
+                action: 'update',
+                targetId: ada
+            });
+            // One author, carrying the file's new address. A matcher that
+            // re-derived the identity locally would have keyed on `email`,
+            // found nothing, and written a second Ada beside the first.
+            const authors = await listEntries(agent, 'test_author');
+            expect(authors).toHaveLength(1);
+            expect(authors[0].values['email']).toBe('ada@elsewhere.test');
+        });
+
+        it('lands a record’s locale twins in one translation group [transfer:I-20]', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const en = (
+                await agent
+                    .post('/api/content/test_article')
+                    .send({
+                        locale: 'en',
+                        values: { text: 'twins', select: 'article' }
+                    })
+                    .expect(201)
+            ).body as { id: string; localeGroupId: string };
+            await agent
+                .post('/api/content/test_article')
+                .send({
+                    locale: 'de',
+                    localeGroupId: en.localeGroupId,
+                    values: { text: 'zwillinge', select: 'article' }
+                })
+                .expect(201);
+
+            const document = JSON.parse(
+                await exportOf(agent, 'test_article', [en.id], {
+                    relations: false,
+                    media: false,
+                    locales: true
+                })
+            );
+            // The fixture only discriminates if both language rows are in the
+            // file and they arrive as siblings.
+            expect(
+                document.records
+                    .map((record: { $locale: string }) => record.$locale)
+                    .sort()
+            ).toEqual(['de', 'en']);
+            expect(
+                new Set(
+                    document.records.map(
+                        (record: { $localeGroup: string }) =>
+                            record.$localeGroup
+                    )
+                ).size
+            ).toBe(1);
+
+            // `duplicate` on purpose: both rows are written fresh, so the pair
+            // that comes out is one the importer built rather than one it
+            // matched and left alone.
+            const applied = await upload(
+                agent,
+                '/api/content/test_article/import',
+                JSON.stringify(document),
+                'duplicate'
+            ).expect(200);
+
+            const written = (
+                applied.body.verdicts as {
+                    action: string;
+                    targetId?: string;
+                }[]
+            ).filter((verdict) => verdict.action === 'create');
+            expect(written).toHaveLength(2);
+            const rows = await Promise.all(
+                written.map((verdict) =>
+                    readEntry(agent, 'test_article', verdict.targetId as string)
+                )
+            );
+            const groups = new Set(rows.map((row) => row?.['localeGroupId']));
+            // Both rows were actually read: two 404s would also collapse to a
+            // set of one, and it would be a set of `undefined`.
+            expect(rows.every((row) => row !== undefined)).toBe(true);
+            // One group for the pair — a create that ignored the sibling's
+            // group would give each copy a group of its own…
+            expect(groups.size).toBe(1);
+            // …and a group of their own, since these are copies rather than
+            // the rows they were made from.
+            expect(groups.has(en.localeGroupId)).toBe(false);
+        });
     });
 
     describe('permissions', () => {
@@ -938,6 +1398,125 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
                 .set('X-Workspace-Id', workspaceId)
                 .send({ ids: [], format: 'json' })
                 .expect(401);
+        });
+
+        it('will not create what the caller could not have created by hand [transfer:I-22]', async () => {
+            const admins = await login(ADMIN_EMAIL);
+            const articleId = await createArticle(admins, {
+                text: 'import-me-if-you-can',
+                select: 'article'
+            });
+            const exported = await admins
+                .post('/api/content/test_article/export')
+                .send({
+                    ids: [articleId],
+                    format: 'json',
+                    depth: { relations: false, media: false, locales: false }
+                })
+                .expect(200);
+            // Gone, so the only thing the file can ask for is a create.
+            await admins
+                .delete(`/api/content/test_article/${articleId}`)
+                .expect(204);
+            await admins
+                .post('/api/content/test_article/bulk/purge')
+                .send({ ids: [articleId] })
+                .expect(200);
+
+            // The principal the whole invariant is about: `content:import` is
+            // permission to run an import, not permission to write content, and
+            // no shipped role separates the two. Without the per-record
+            // re-check this caller has just found a way to create entries the
+            // ordinary POST would refuse them.
+            const importer = await seedUserWithPermissions(harness.app, {
+                email: IMPORTER_EMAIL,
+                password: PASSWORD,
+                roleKey: 'transfer-importer',
+                permissions: ['content:read', 'content:import']
+            });
+            await seedMembership(importer.id, workspaceId);
+            const agent = await login(IMPORTER_EMAIL);
+
+            const applied = await agent
+                .post('/api/content/test_article/import')
+                .field('policy', 'skip')
+                .attach(
+                    'file',
+                    Buffer.from(exported.text, 'utf8'),
+                    'export.json'
+                )
+                .expect(200);
+
+            expect(applied.body.counts).toMatchObject({ create: 0, error: 1 });
+            expect(applied.body.verdicts[0]).toMatchObject({
+                action: 'error',
+                reason: 'forbidden'
+            });
+            expect(await listEntries(admins, 'test_article')).toHaveLength(0);
+        });
+
+        it('checks the permission the record’s own action needs [transfer:I-22]', async () => {
+            const admins = await login(ADMIN_EMAIL);
+            const articleId = await createArticle(admins, {
+                text: 'permission-check',
+                select: 'article',
+                number: 7
+            });
+            const exported = await admins
+                .post('/api/content/test_article/export')
+                .send({
+                    ids: [articleId],
+                    format: 'json',
+                    depth: { relations: false, media: false, locales: false }
+                })
+                .expect(200);
+            // The live row now disagrees with the file, so a write that got
+            // through would be plain to see.
+            await admins
+                .patch(`/api/content/test_article/${articleId}`)
+                .send({
+                    values: {
+                        text: 'permission-check',
+                        select: 'article',
+                        number: 99
+                    }
+                })
+                .expect(200);
+
+            // This caller *may* create. What the file asks for is an update,
+            // and that is the key they do not hold — so a check that merely
+            // asked "may this person write at all" would let it through.
+            const importer = await seedUserWithPermissions(harness.app, {
+                email: `u-${IMPORTER_EMAIL}`,
+                password: PASSWORD,
+                roleKey: 'transfer-updater',
+                permissions: [
+                    'content:read',
+                    'content:create',
+                    'content:import'
+                ]
+            });
+            await seedMembership(importer.id, workspaceId);
+            const agent = await login(`u-${IMPORTER_EMAIL}`);
+
+            const applied = await agent
+                .post('/api/content/test_article/import')
+                .field('policy', 'update')
+                .attach(
+                    'file',
+                    Buffer.from(exported.text, 'utf8'),
+                    'export.json'
+                )
+                .expect(200);
+
+            expect(applied.body.counts).toMatchObject({ update: 0, error: 1 });
+            expect(applied.body.verdicts[0]).toMatchObject({
+                action: 'error',
+                reason: 'forbidden'
+            });
+            const entries = await listEntries(admins, 'test_article');
+            expect(entries).toHaveLength(1);
+            expect(entries[0].values['number']).toBe(99);
         });
 
         it('hides a content type the workspace was never granted [transfer:I-24]', async () => {

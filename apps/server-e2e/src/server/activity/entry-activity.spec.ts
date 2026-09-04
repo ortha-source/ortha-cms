@@ -10,6 +10,8 @@ import {
     seedActiveUser,
     seedAllContentGrants,
     seedMembership,
+    seedUserWithEmptyRole,
+    seedUserWithPermissions,
     seedWorkspace,
     type SeededUser,
     type SeededWorkspace
@@ -175,5 +177,73 @@ describe('Entry activity (GET /api/activity/entries/:entryId)', () => {
         await inHome
             .get(`/api/activity/entries/${entryId}?pageSize=100`)
             .expect(200);
+    });
+
+    /**
+     * The two keys this route turns on, neither of which any other case here
+     * exercises: every test above signs in as an administrator who is a member
+     * of both workspaces, so it holds `content:read` and passes
+     * `WorkspaceGuard` without either being asserted.
+     *
+     * They are checked against the **same** entry and the same header, so the
+     * only thing that differs between a 403 and a 200 is the caller — a route
+     * that had lost its `@RequirePermissions`, or the `WorkspaceGuard` off its
+     * `@UseGuards` list, changes exactly one of these answers.
+     */
+    it('takes content:read and membership of the header’s workspace [activity:I-14]', async () => {
+        const inHome = await login(home.id);
+        const entryId = await createArticle(inHome);
+
+        /** A signed-in agent for a seeded principal, with `home` open. */
+        async function agentFor(email: string) {
+            const agent = request.agent(harness.server);
+            await agent
+                .post('/api/auth/login')
+                .send({ email, password: PASSWORD })
+                .expect(201);
+            agent.set('X-Workspace-Id', home.id);
+            return agent;
+        }
+
+        // A member of the workspace holding no permission at all. Membership
+        // is not the bar: an entry's trail says who published it and who
+        // changed who may read it.
+        const noPermission = await seedUserWithEmptyRole(harness.app, {
+            email: 'entry-activity-nothing@example.com',
+            password: PASSWORD,
+            roleKey: 'entry-activity-nothing'
+        });
+        await seedMembership(noPermission.id, home.id);
+        await (
+            await agentFor('entry-activity-nothing@example.com')
+        )
+            .get(`/api/activity/entries/${entryId}`)
+            .expect(403);
+
+        // The mirror image: `content:read`, and no membership of the workspace
+        // it is naming in the header.
+        const outsider = await seedUserWithPermissions(harness.app, {
+            email: 'entry-activity-outsider@example.com',
+            password: PASSWORD,
+            roleKey: 'entry-activity-outsider',
+            permissions: ['content:read']
+        });
+        const outsiderAgent = await agentFor(
+            'entry-activity-outsider@example.com'
+        );
+        await outsiderAgent
+            .get(`/api/activity/entries/${entryId}`)
+            .expect(403);
+
+        // Give that same principal the membership it was missing and the same
+        // request succeeds — so the 403 above was the membership and nothing
+        // else about the fixture.
+        await seedMembership(outsider.id, home.id);
+        const allowed = await outsiderAgent
+            .get(`/api/activity/entries/${entryId}`)
+            .expect(200);
+        expect(allowed.body.items.map((row: TrailRow) => row.kind)).toEqual([
+            'entry.created'
+        ]);
     });
 });

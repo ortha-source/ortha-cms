@@ -340,4 +340,162 @@ describe('OutboxDispatcher (drain, retry ceiling, concurrency)', () => {
             dispatcher.onModuleDestroy();
         }
     }, 25_000);
+
+    it('delivers the rest of a batch around the row that failed [database:I-15]', async () => {
+        // The clause the retry tests cannot see: they seed one row, so
+        // "increments attempts and stays undelivered" and "takes the whole
+        // batch down with it" look identical. A `catch` that re-threw — or one
+        // moved outside the `for` — would roll the claim's transaction back and
+        // strand three perfectly deliverable events behind one bad subscriber.
+        const failing = new AlwaysFails(['qa.mixed.bad']);
+        const healthy = new Collector(['qa.mixed.good']);
+        dispatcher.register(failing);
+        dispatcher.register(healthy);
+
+        // Interleaved by `occurred_at`, so the failure sits in the middle of the
+        // claim rather than at its end: rows both before and after it have to
+        // come through.
+        await seedPending(3, 'qa.mixed.good');
+        await seedPending(1, 'qa.mixed.bad', BASE + 1500);
+
+        await dispatcher.drain();
+
+        expect(healthy.seen).toHaveLength(3);
+        expect(
+            await countWhere('dispatched_at IS NOT NULL', 'qa.mixed.good')
+        ).toBe(3);
+        // …and the bad one is parked for a retry, in the same transaction that
+        // committed the other three.
+        expect(
+            await countWhere(
+                'dispatched_at IS NULL AND attempts = 1',
+                'qa.mixed.bad'
+            )
+        ).toBe(1);
+        expect(failing.calls).toBe(1);
+    });
+
+    it('stamps an event nobody listens to on the first drain, unattempted [database:I-21]', async () => {
+        // Every subscriber in the repository declares a narrow `kinds` list, so
+        // a `qa.` kind genuinely has none — this is the empty-subscriber path,
+        // not a lucky filter. The `attempts = 0` half is pinned by
+        // `unit-of-work.spec.ts`; `dispatched_at` is what nothing read, and it
+        // is the half that distinguishes "delivered immediately" from "left
+        // pending for the poll backstop to look at again, forever".
+        await seedPending(1, 'qa.unheard');
+
+        await dispatcher.drain();
+
+        const { rows } = await getPool().query(
+            `SELECT attempts, dispatched_at, next_attempt_at, last_error
+               FROM outbox_events WHERE kind = 'qa.unheard'`
+        );
+        expect(rows[0].dispatched_at).not.toBeNull();
+        expect(rows[0].attempts).toBe(0);
+        expect(rows[0].next_attempt_at).toBeNull();
+        expect(rows[0].last_error).toBeNull();
+    });
+
+    it('bounds the shutdown wait at one batch [database:I-20]', async () => {
+        // The unit spec pins that `onModuleDestroy` waits for the drain in
+        // flight; what it cannot pin is that the wait *ends*. A drain that
+        // looped until the outbox was empty would still satisfy "waits for the
+        // in-flight drain" while turning every `SIGTERM` over a backlog into a
+        // shutdown that hangs for as long as the queue is long.
+        const collector = new Collector(['qa.shutdown']);
+        dispatcher.register(collector);
+        await seedPending(250, 'qa.shutdown');
+
+        const inFlight = dispatcher.drain();
+        await dispatcher.onModuleDestroy();
+
+        // One batch, then out — and it really did wait for that batch rather
+        // than returning to an empty result, which would read as 0 here.
+        expect(collector.seen).toHaveLength(100);
+        expect(await countWhere('dispatched_at IS NULL', 'qa.shutdown')).toBe(
+            150
+        );
+        await inFlight;
+    });
+
+    it('takes disjoint rows in two processes without either blocking [database:I-19]', async () => {
+        // A second `OutboxDispatcher` over the same database is what a second
+        // *process* is, for everything this invariant is about: its own
+        // `active`/`queued` state (so the in-process collapsing of
+        // `database:I-18` does not apply), its own pool client, its own
+        // transaction. Nothing in the claim is about operating-system
+        // processes; it is about two concurrent claim transactions.
+        const second = new OutboxDispatcher(db, []);
+
+        /**
+         * Neither subscriber may return until *both* have been called.
+         *
+         * This is the whole test. Disjointness alone does not distinguish
+         * `SKIP LOCKED` from a plain `FOR UPDATE`: the second drain would block
+         * until the first committed, then re-evaluate its `WHERE` against rows
+         * now stamped `dispatched_at` and take the next hundred — disjoint, and
+         * serialised. Only a rendezvous can tell the two apart, because it can
+         * only be reached if both transactions are open at once.
+         */
+        const RENDEZVOUS_MS = 5_000;
+        let arrived = 0;
+        let release!: () => void;
+        let timedOut = false;
+        const opened = new Promise<void>((resolve) => (release = resolve));
+        const meet = async () => {
+            arrived += 1;
+            if (arrived >= 2) {
+                release();
+            }
+            await Promise.race([
+                opened,
+                new Promise<void>((resolve) =>
+                    setTimeout(() => {
+                        // Recorded rather than thrown: a throw here would fail
+                        // the drain, and the failure would be reported as a
+                        // subscriber error rather than as the deadlock it is.
+                        timedOut = true;
+                        resolve();
+                    }, RENDEZVOUS_MS)
+                )
+            ]);
+        };
+
+        class MeetsTheOther implements DomainEventSubscriber {
+            readonly kinds = ['qa.disjoint'];
+            readonly seen: string[] = [];
+            async handle(event: DomainEvent): Promise<void> {
+                const first = this.seen.length === 0;
+                this.seen.push(event.eventId);
+                if (first) {
+                    await meet();
+                }
+            }
+        }
+
+        const mine = new MeetsTheOther();
+        const theirs = new MeetsTheOther();
+        dispatcher.register(mine);
+        second.register(theirs);
+
+        // Two full batches' worth, so each drain has a hundred of its own to
+        // take and neither is starved into looking disjoint by accident.
+        await seedPending(200, 'qa.disjoint');
+
+        await Promise.all([dispatcher.drain(), second.drain()]);
+
+        // Both were mid-transaction at the same moment. Without `SKIP LOCKED`
+        // the second `SELECT` waits on the first's row locks, the rendezvous is
+        // never reached, and this is `true`.
+        expect(timedOut).toBe(false);
+
+        // Disjoint: no event was handed to both, and between them they took
+        // exactly the two batches.
+        expect(mine.seen).toHaveLength(100);
+        expect(theirs.seen).toHaveLength(100);
+        expect(new Set([...mine.seen, ...theirs.seen]).size).toBe(200);
+        expect(
+            await countWhere('dispatched_at IS NOT NULL', 'qa.disjoint')
+        ).toBe(200);
+    }, 25_000);
 });

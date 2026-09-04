@@ -410,6 +410,63 @@ describe('activity coverage — which write paths produce an audit row', () => {
         });
     });
 
+    describe('a kind no mapper claims', () => {
+        /**
+         * **The silent half of `FACET_MAPPERS`.**
+         *
+         * Every other case in this file asserts the pair "a mutation raised an
+         * event and a row landed". This is the opposite pair, and it is the one
+         * that decides whether an unmapped kind is *ignored* or *stuck*: the
+         * dispatcher finds no subscriber for it, stamps the row delivered and
+         * moves on. Get that wrong — a subscriber that threw on an unknown
+         * kind, or a `subscribesTo` that claimed everything — and the row is
+         * retried fifteen times and parked instead. Because the claim is
+         * `ORDER BY occurred_at LIMIT 100`, a batch of such rows then sits at
+         * the head of the queue and no *later* event is ever delivered again:
+         * one unmapped kind takes the whole audit trail down behind it.
+         *
+         * A real deployment reaches this state the ordinary way — a plugin
+         * publishing an event kind the activity plugin has never heard of — so
+         * the row is written by hand because that is the only way to have a
+         * kind that is genuinely unmapped today.
+         */
+        it('stamps an unmapped kind delivered and records nothing [activity:I-10]', async () => {
+            const before = await getActivityRows();
+            const eventId = '66666666-6666-4666-8666-666666666666';
+            await getPool().query(
+                `INSERT INTO outbox_events
+                    (id, kind, aggregate_type, aggregate_id, payload,
+                     occurred_at, dispatched_at, attempts)
+                 VALUES ($1, 'sprocket.reticulated', 'sprocket', $2, $3,
+                         now(), NULL, 0)`,
+                [
+                    eventId,
+                    workspace.id,
+                    JSON.stringify({
+                        actor: { id: admin.id, email: ADMIN },
+                        splines: 12
+                    })
+                ]
+            );
+
+            // The real dispatcher, with the real subscriber set behind it —
+            // not a hand-rolled loop, which would be a second implementation
+            // of the very dispatch rule under test.
+            await drainOutbox(harness.app);
+
+            const [row] = (await getOutboxRows(workspace.id)).filter(
+                (each) => each.id === eventId
+            );
+            expect(row.dispatchedAt).not.toBeNull();
+            expect(row.attempts).toBe(0);
+
+            // And nothing reached the log. Not "no row of that kind" — no row
+            // at all beyond what was already there, so a mapper that fell back
+            // to writing the raw kind through would fail here too.
+            expect(await getActivityRows()).toEqual(before);
+        });
+    });
+
     describe('a subject the mapper cannot name', () => {
         it('parks the event instead of writing an empty-string subject [activity:I-06]', async () => {
             const eventId = '77777777-7777-4777-8777-777777777777';

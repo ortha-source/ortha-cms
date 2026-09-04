@@ -4,6 +4,7 @@ import {
     createTestApp,
     type TestApp
 } from '../../support/test-app';
+import { TEST_ALLOWED_ORIGIN } from '../../support/test-config';
 import {
     resetDb,
     seedActiveUser,
@@ -153,6 +154,29 @@ describe('Alarm rules (/api/alarms/rules)', () => {
             await api.post('/api/alarms/rules').send(rulePayload()).expect(409);
         });
 
+        it('lets a different workspace use the same name [alarms:I-14]', async () => {
+            // The other half of the same index. The 409 above is produced just
+            // as well by a uniqueness on `name` alone — and that narrower
+            // index would then refuse a workspace a name because an unrelated
+            // tenant happened to use it first, which surfaces to an editor as
+            // a bug in data they cannot see.
+            const other = await seedWorkspace({
+                name: 'Alarms elsewhere',
+                slug: 'alarms-elsewhere'
+            });
+            await seedMembership(admin.id, other.id);
+            await seedAllContentGrants(other.id);
+
+            const here = await asAdmin();
+            await here.post('/api/alarms/rules').send(rulePayload()).expect(201);
+
+            const there = await login(ADMIN_EMAIL, other.id);
+            await there
+                .post('/api/alarms/rules')
+                .send(rulePayload())
+                .expect(201);
+        });
+
         it('answers 404 for an ungranted type, exactly as for an unknown one [alarms:I-16]', async () => {
             // Re-grant nothing but a single unrelated type, so `test_article`
             // is registered-but-ungranted.
@@ -267,6 +291,45 @@ describe('Alarm rules (/api/alarms/rules)', () => {
             const findings = await api.get('/api/alarms/findings').expect(200);
             expect(findings.body.total).toBe(0);
         });
+
+        it('refuses to delete another workspace’s rule [alarms:I-13]', async () => {
+            // A member of both workspaces, holding `alarms:manage` in each.
+            // The rule id is a uuid, so a caller has to have been told it —
+            // and this is precisely the caller who would have been.
+            const other = await seedWorkspace({
+                name: 'Neighbour',
+                slug: 'neighbour'
+            });
+            await seedMembership(admin.id, other.id);
+            await seedAllContentGrants(other.id);
+            await seedArticles([{ text: null, status: 'published' }], other.id);
+
+            const neighbour = await login(ADMIN_EMAIL, other.id);
+            const created = await neighbour
+                .post('/api/alarms/rules')
+                .send(rulePayload())
+                .expect(201);
+            const foreignRuleId = created.body.rule.id as string;
+            expect(created.body.rule.openCount).toBe(1);
+
+            // The same session, presenting *this* workspace's header.
+            const api = await asAdmin();
+            await api.delete(`/api/alarms/rules/${foreignRuleId}`).expect(404);
+
+            // Nothing was taken with it. Dropping the `workspace_id` clause
+            // from the DELETE's `where` makes this a 204 whose FK cascade then
+            // removes a neighbour's findings as well — the workspace check is
+            // the only thing standing between the two tenants, because the
+            // guards upstream only ever saw this caller's own workspace.
+            const rules = await neighbour.get('/api/alarms/rules').expect(200);
+            expect(rules.body.map((rule: { id: string }) => rule.id)).toEqual([
+                foreignRuleId
+            ]);
+            const surviving = await neighbour
+                .get('/api/alarms/findings')
+                .expect(200);
+            expect(surviving.body.total).toBe(1);
+        });
     });
 
     describe('authorization', () => {
@@ -299,6 +362,101 @@ describe('Alarm rules (/api/alarms/rules)', () => {
                 .get('/api/alarms/rules')
                 .set('X-Workspace-Id', workspaceId)
                 .expect(403);
+        });
+
+        /**
+         * `OriginGuard` on **all five** writing routes.
+         *
+         * These routes are cookie-authenticated, so a page on any other origin
+         * can make a signed-in administrator's browser issue them — and one of
+         * them deletes a rule and every finding under it. The guard is applied
+         * per route rather than to the class, which is exactly the shape that
+         * loses a route silently: adding a sixth write and forgetting the
+         * decorator leaves no trace anywhere else.
+         *
+         * The allowed-origin repeat at the end is the discriminator: without
+         * it, a fixture that had gone wrong somewhere upstream would produce
+         * the same five 403s.
+         */
+        it('refuses every write carrying a foreign Origin [alarms:I-17]', async () => {
+            const api = await asAdmin();
+            const created = await api
+                .post('/api/alarms/rules')
+                .send(rulePayload())
+                .expect(201);
+            const id = created.body.rule.id as string;
+
+            const writes = [
+                {
+                    route: 'POST /alarms/rules',
+                    send: () =>
+                        api
+                            .post('/api/alarms/rules')
+                            .send(rulePayload({ name: 'Second rule' }))
+                },
+                {
+                    route: 'POST /alarms/rules/preview',
+                    send: () =>
+                        api.post('/api/alarms/rules/preview').send({
+                            contentType: 'test_article',
+                            filter: EMPTY_TEXT_FILTER
+                        })
+                },
+                {
+                    route: 'PATCH /alarms/rules/:id',
+                    send: () =>
+                        api
+                            .patch(`/api/alarms/rules/${id}`)
+                            .send({ name: 'Renamed' })
+                },
+                {
+                    route: 'POST /alarms/rules/:id/rescan',
+                    send: () => api.post(`/api/alarms/rules/${id}/rescan`)
+                },
+                {
+                    route: 'DELETE /alarms/rules/:id',
+                    send: () => api.delete(`/api/alarms/rules/${id}`)
+                }
+            ];
+
+            for (const write of writes) {
+                const res = await write
+                    .send()
+                    .set('Origin', 'https://evil.example');
+                // Named, so a regression says *which* route lost its guard.
+                expect([write.route, res.status]).toEqual([write.route, 403]);
+            }
+
+            // The rule is untouched — none of those five ran.
+            const rules = await api.get('/api/alarms/rules').expect(200);
+            expect(rules.body).toHaveLength(1);
+            expect(rules.body[0]).toMatchObject({
+                id,
+                name: 'Published with no body'
+            });
+
+            // And from the app's own origin every one of them works.
+            await api
+                .patch(`/api/alarms/rules/${id}`)
+                .set('Origin', TEST_ALLOWED_ORIGIN)
+                .send({ name: 'Renamed' })
+                .expect(200);
+            await api
+                .post(`/api/alarms/rules/${id}/rescan`)
+                .set('Origin', TEST_ALLOWED_ORIGIN)
+                .expect(200);
+            await api
+                .post('/api/alarms/rules/preview')
+                .set('Origin', TEST_ALLOWED_ORIGIN)
+                .send({
+                    contentType: 'test_article',
+                    filter: EMPTY_TEXT_FILTER
+                })
+                .expect(200);
+            await api
+                .delete(`/api/alarms/rules/${id}`)
+                .set('Origin', TEST_ALLOWED_ORIGIN)
+                .expect(204);
         });
     });
 });
