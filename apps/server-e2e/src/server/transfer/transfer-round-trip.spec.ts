@@ -134,6 +134,24 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
         return res.body.items;
     }
 
+    /**
+     * How many entries an entry's own history holds.
+     *
+     * Every save through `EntryWriterService` appends one, so this counts the
+     * writes an import spent on a row — which is the only place a redundant
+     * second write is visible from outside.
+     */
+    async function revisionCount(
+        agent: request.Agent,
+        type: string,
+        id: string
+    ): Promise<number> {
+        const res = await agent
+            .get(`/api/content/${type}/${id}/revisions`)
+            .expect(200);
+        return res.body.total as number;
+    }
+
     describe('export', () => {
         it('exports a related record in full, and links to it by natural key', async () => {
             const agent = await login(ADMIN_EMAIL);
@@ -607,6 +625,18 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             expect(rebuilt?.['values']).toMatchObject({
                 author: authors[0].id
             });
+
+            // One import, one entry in each history. The author is written
+            // first (it is the deeper record), so the article's link resolves
+            // while its values are being written and the link pass has nothing
+            // left to do — a second revision here would mean the pass re-saved
+            // a row whose links had already landed.
+            expect(
+                await revisionCount(agent, 'test_article', articles[0].id)
+            ).toBe(1);
+            expect(
+                await revisionCount(agent, 'test_author', authors[0].id)
+            ).toBe(1);
         });
 
         it('dry-runs without writing, and says what it would do [transfer:I-08]', async () => {
@@ -1165,6 +1195,100 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             expect(betaRow?.['values']).toMatchObject({
                 parent: rebuiltAlpha?.id
             });
+        });
+
+        it('spends one write per record, and a second only where a link could not resolve on the first [transfer:I-11]', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            // The cycle again, for a different reason. It is the only fixture
+            // where, in one document, one record's link *cannot* resolve on the
+            // first write and the other's *can*: whichever page goes first
+            // points at a row that does not exist yet and genuinely needs the
+            // link pass, while the second one's parent is already in the id map
+            // and travels in with its values. Re-saving that second row would
+            // cost a redundant UPDATE and, worse, put two entries in the history
+            // of a row that was imported once.
+            const alpha = (
+                await agent
+                    .post('/api/content/test_page')
+                    .send({ values: { title: 'Alpha' } })
+                    .expect(201)
+            ).body.id as string;
+            const beta = (
+                await agent
+                    .post('/api/content/test_page')
+                    .send({ values: { title: 'Beta', parent: alpha } })
+                    .expect(201)
+            ).body.id as string;
+            await agent
+                .patch(`/api/content/test_page/${alpha}`)
+                .send({ values: { title: 'Alpha', parent: beta } })
+                .expect(200);
+
+            const document = await exportOf(agent, 'test_page', [alpha, beta], {
+                relations: true,
+                media: false,
+                locales: false
+            });
+            await agent.delete(`/api/content/test_page/${alpha}`).expect(204);
+            await agent.delete(`/api/content/test_page/${beta}`).expect(204);
+
+            const applied = await upload(
+                agent,
+                '/api/content/test_page/import',
+                document
+            ).expect(200);
+            expect(applied.body.counts.error).toBe(0);
+
+            const pages = await listEntries(agent, 'test_page');
+            expect(pages).toHaveLength(2);
+            const rebuiltAlpha = pages.find(
+                (page) => page.values['title'] === 'Alpha'
+            );
+            const rebuiltBeta = pages.find(
+                (page) => page.values['title'] === 'Beta'
+            );
+            expect(rebuiltAlpha).toBeDefined();
+            expect(rebuiltBeta).toBeDefined();
+
+            // Both halves of the cycle, first — an import that skipped the link
+            // pass altogether would satisfy a bare "one revision" count while
+            // leaving a link null, and that is the worse bug of the two.
+            const alphaRow = await readEntry(
+                agent,
+                'test_page',
+                rebuiltAlpha?.id as string
+            );
+            const betaRow = await readEntry(
+                agent,
+                'test_page',
+                rebuiltBeta?.id as string
+            );
+            expect(alphaRow?.['values']).toMatchObject({
+                parent: rebuiltBeta?.id
+            });
+            expect(betaRow?.['values']).toMatchObject({
+                parent: rebuiltAlpha?.id
+            });
+
+            // One import, three writes across two rows: a create each, plus the
+            // single link-pass update the forward reference actually needs. The
+            // record whose parent already resolved is left alone. Sorted rather
+            // than positional, because which page the document happens to order
+            // first is not the thing under test — that exactly one of them
+            // needed a second write is.
+            const counts = [
+                await revisionCount(
+                    agent,
+                    'test_page',
+                    rebuiltAlpha?.id as string
+                ),
+                await revisionCount(
+                    agent,
+                    'test_page',
+                    rebuiltBeta?.id as string
+                )
+            ].sort((a, b) => a - b);
+            expect(counts).toEqual([1, 2]);
         });
 
         it('matches on the natural key before the source row id [transfer:I-12]', async () => {
