@@ -14,6 +14,9 @@ import {
     WYSIWYG_MEDIA_ENTRY_BODY,
     WYSIWYG_INACCESSIBLE_ENTRY_ID,
     WYSIWYG_INACCESSIBLE_BODY,
+    WYSIWYG_WARNING_ENTRY_ID,
+    WYSIWYG_WARNING_BODY,
+    WYSIWYG_SHARED_NOTES,
     WYSIWYG_HOSTILE_ENTRY_ID,
     WYSIWYG_HOSTILE_BODY,
     WYSIWYG_HOSTILE_IMAGE_SRC,
@@ -75,30 +78,42 @@ test.describe('Entry editor — rich text field', () => {
                     title: 'Release 2.0',
                     body: WYSIWYG_ENTRY_BODY,
                     summary: '<p>Short and sweet.</p>',
+                    notes: WYSIWYG_SHARED_NOTES,
                     rawHtml: '<div class="legacy">kept as-is</div>'
                 },
                 [`article/${WYSIWYG_MEDIA_ENTRY_ID}`]: {
                     title: 'With media',
                     body: WYSIWYG_MEDIA_ENTRY_BODY,
                     summary: '<p>Short and sweet.</p>',
+                    notes: WYSIWYG_SHARED_NOTES,
                     rawHtml: ''
                 },
                 [`article/${WYSIWYG_GERMAN_ENTRY_ID}`]: {
                     title: 'Ausgabe 2.0',
                     body: WYSIWYG_GERMAN_BODY,
                     summary: '<p>Kurz und knapp.</p>',
+                    notes: WYSIWYG_SHARED_NOTES,
                     rawHtml: ''
                 },
                 [`article/${WYSIWYG_INACCESSIBLE_ENTRY_ID}`]: {
                     title: 'Needs work',
                     body: WYSIWYG_INACCESSIBLE_BODY,
                     summary: '<p>Short and sweet.</p>',
+                    notes: WYSIWYG_SHARED_NOTES,
+                    rawHtml: ''
+                },
+                [`article/${WYSIWYG_WARNING_ENTRY_ID}`]: {
+                    title: 'Worth a look',
+                    body: WYSIWYG_WARNING_BODY,
+                    summary: '<p>Short and sweet.</p>',
+                    notes: WYSIWYG_SHARED_NOTES,
                     rawHtml: ''
                 },
                 [`article/${WYSIWYG_HOSTILE_ENTRY_ID}`]: {
                     title: 'Submitted copy',
                     body: WYSIWYG_HOSTILE_BODY,
                     summary: '<p>Short and sweet.</p>',
+                    notes: WYSIWYG_SHARED_NOTES,
                     rawHtml: ''
                 }
             },
@@ -292,6 +307,84 @@ test.describe('Entry editor — rich text field', () => {
             ).toBeVisible();
         });
 
+        test('unfolds one field at a time, and only the one that asked [wysiwyg:I-08]', async ({
+            wysiwygFieldPage
+        }) => {
+            // Two rich-text fields on this record, which is what makes "one at
+            // a time" a statement about anything at all.
+            await wysiwygFieldPage.gotoArticle(WS, WYSIWYG_ENTRY_ID);
+            await expect(wysiwygFieldPage.control('Body')).toBeVisible();
+            await expect(wysiwygFieldPage.control('Summary')).toBeVisible();
+
+            await wysiwygFieldPage.open('Body');
+
+            // One panel exists in the whole page — not one *visible* panel. The
+            // state is a single field **name** on `EntryEditor`, which resolves
+            // to a single `FullView`; a control that owned its own expansion
+            // would leave the form (and every other field's control) mounted
+            // underneath, and two of them could be open at once.
+            await expect(wysiwygFieldPage.editorSurfaces).toHaveCount(1);
+            await expect(wysiwygFieldPage.control('Summary')).toHaveCount(0);
+            await expect(
+                wysiwygFieldPage.expandedHeading('Summary')
+            ).toHaveCount(0);
+
+            await wysiwygFieldPage.done();
+            await wysiwygFieldPage.open('Summary');
+
+            // Still one, and it is the field that asked: the view is looked up
+            // from the name, so it carries Summary's value and not Body's.
+            await expect(wysiwygFieldPage.editorSurfaces).toHaveCount(1);
+            await expect(wysiwygFieldPage.surface('Summary')).toContainText(
+                'Short and sweet.'
+            );
+            await expect(wysiwygFieldPage.surface('Summary')).not.toContainText(
+                'Release notes'
+            );
+            await expect(wysiwygFieldPage.control('Body')).toHaveCount(0);
+        });
+
+        test('mounts the editor only while the field is unfolded, and seeds it at mount [wysiwyg:I-09]', async ({
+            wysiwygFieldPage
+        }) => {
+            await wysiwygFieldPage.gotoArticle(WS, WYSIWYG_ENTRY_ID);
+
+            // Collapsed, there is no editor at all — the field is a rendered
+            // preview and a button. Nothing of TipTap is standing by behind a
+            // `hidden` attribute waiting to be shown.
+            await expect(wysiwygFieldPage.editorSurfaces).toHaveCount(0);
+
+            await wysiwygFieldPage.open('Body');
+            await expect(wysiwygFieldPage.editorSurfaces).toHaveCount(1);
+            // Seeded from the value it was handed.
+            await expect(wysiwygFieldPage.surface('Body')).toContainText(
+                'Release notes'
+            );
+
+            // Typed as one run at the caret. Under a controlled `setContent`
+            // sync — the thing this invariant rules out — every keystroke would
+            // write the form's value back over the document and drop the caret
+            // at the top, so a phrase typed at the end arrives reversed and in
+            // the wrong place. A whole phrase, not a keystroke, so that shows.
+            await wysiwygFieldPage.type(' Also this.');
+            await expect(wysiwygFieldPage.surface('Body')).toContainText(
+                'Watch mode Also this.'
+            );
+
+            await wysiwygFieldPage.done();
+            // Unmounted on the way out, which is what makes the seeding safe:
+            // there is no editor left holding a stale copy of the document.
+            await expect(wysiwygFieldPage.editorSurfaces).toHaveCount(0);
+
+            // …and the next unfold seeds a *fresh* editor from the form's
+            // current value, so the edit made in the previous mount is there.
+            await wysiwygFieldPage.open('Body');
+            await expect(wysiwygFieldPage.editorSurfaces).toHaveCount(1);
+            await expect(wysiwygFieldPage.surface('Body')).toContainText(
+                'Watch mode Also this.'
+            );
+        });
+
         test('keeps the toolbar on a single row', async ({
             wysiwygFieldPage
         }) => {
@@ -378,6 +471,81 @@ test.describe('Entry editor — rich text field', () => {
             });
         });
 
+        test('never lets a toolbar press take the selection it is about to act on [wysiwyg:I-29]', async ({
+            wysiwygFieldPage,
+            contentLibraryPage
+        }) => {
+            await wysiwygFieldPage.gotoNewArticle(WS);
+            await contentLibraryPage.fieldTextbox('Title').fill('Draft');
+
+            await wysiwygFieldPage.open('Body');
+            await wysiwygFieldPage.type('Selected words');
+            await wysiwygFieldPage.selectAll();
+            // The control. Without a live selection the two assertions below
+            // would be statements about an empty string.
+            expect(await wysiwygFieldPage.selectedText()).toBe(
+                'Selected words'
+            );
+
+            // Asserted **between mousedown and mouseup**, which is the only
+            // moment the suppression is visible: every command in the bar runs
+            // `chain().focus()`, so by the time the click handler is done it has
+            // put focus and the selection back, and an assertion made after the
+            // press cannot tell the two implementations apart. The press itself
+            // is where a `mousedown` whose default action runs moves focus to
+            // the button and collapses the document's selection into it.
+            await wysiwygFieldPage.pressMouseOn(
+                wysiwygFieldPage.toolbarButton('Bold')
+            );
+            await expect(wysiwygFieldPage.surface('Body')).toBeFocused();
+            expect(await wysiwygFieldPage.selectedText()).toBe(
+                'Selected words'
+            );
+            await wysiwygFieldPage.releaseMouse();
+
+            // The same for a menu trigger — the toolbar's other control shape,
+            // and the one whose menu is *about* the selection. Focus can't be
+            // the assertion here (the dropdown takes it deliberately, so the
+            // arrow keys work), but the selection the menu will act on has to
+            // survive the press that opened it.
+            await wysiwygFieldPage.pressMouseOn(
+                wysiwygFieldPage.toolbarButton('Text color')
+            );
+            expect(await wysiwygFieldPage.selectedText()).toBe(
+                'Selected words'
+            );
+            await wysiwygFieldPage.releaseMouse();
+            await wysiwygFieldPage.menuItem('Amber').click();
+
+            await wysiwygFieldPage.done();
+            await contentLibraryPage.saveDraft();
+            await expect.poll(() => saves.bodies).toHaveLength(1);
+
+            // …and the consequence, in the saved document: both commands landed
+            // on the whole phrase, which is what "the selection the command
+            // works on" means. A colour applied from the palette is also the
+            // half of the paste filter nothing else asserts — the transform
+            // strips a *pasted* colour, and this is a choice.
+            const runs = savedNodesOfType(
+                saves.bodies[0].values?.['body'],
+                'text'
+            );
+            expect(runs).toHaveLength(1);
+            expect(runs[0].text).toBe('Selected words');
+            expect(runs[0].marks?.map((mark) => mark.type)).toEqual(
+                expect.arrayContaining(['bold', 'textStyle'])
+            );
+            // Amber's own value, so this is the swatch that was pressed and not
+            // merely "a colour arrived". A **pasted** colour is stripped by
+            // `transformPastedHTML`; a chosen one is a decision and is kept, and
+            // nothing else in the suite asserted that half positively.
+            // covers: wysiwyg:I-32
+            expect(
+                runs[0].marks?.find((mark) => mark.type === 'textStyle')
+                    ?.attrs?.['color']
+            ).toBe('#b45309');
+        });
+
         test('stores a callout as its own node, carrying its tone', async ({
             wysiwygFieldPage,
             contentLibraryPage
@@ -434,6 +602,45 @@ test.describe('Entry editor — rich text field', () => {
             expect(savedNodesOfType(body, 'table')).toHaveLength(1);
             expect(savedNodesOfType(body, 'tableRow')).toHaveLength(3);
             expect(savedNodesOfType(body, 'tableHeader')).toHaveLength(3);
+        });
+
+        test('grows a table by one row on Tab, then lets go of the keystroke [wysiwyg:I-17]', async ({
+            wysiwygFieldPage,
+            contentLibraryPage
+        }) => {
+            await wysiwygFieldPage.gotoNewArticle(WS);
+            await contentLibraryPage.fieldTextbox('Title').fill('Draft');
+
+            await wysiwygFieldPage.open('Body');
+            await wysiwygFieldPage.openInsertSubmenu('Table');
+            await wysiwygFieldPage.menuItem('Insert table').click();
+            await expect(wysiwygFieldPage.editorTable).toBeVisible();
+            // A header row and two ordinary ones.
+            await expect(wysiwygFieldPage.editorTableRows).toHaveCount(3);
+
+            // Into the very last cell, and write in it: the append only arms
+            // for a row the author has actually used, so this is the state in
+            // which Tab is meant to build.
+            await wysiwygFieldPage.editorTableLastCell.click();
+            await wysiwygFieldPage.type('last');
+
+            // Word's and Google Docs' behaviour, kept: one press, one new row,
+            // caret in it.
+            await wysiwygFieldPage.pressTab();
+            await expect(wysiwygFieldPage.editorTableRows).toHaveCount(4);
+            await expect(wysiwygFieldPage.surface('Body')).toBeFocused();
+
+            // Now the part that was `ORT-165`: an author who is merely trying
+            // to *leave* walks the row that was just made — three cells, three
+            // presses — and the third finds the last cell of a row nobody has
+            // written in. `TableKit`'s own binding appends there too, and would
+            // go on appending one row per three presses with focus never
+            // escaping (measured at 3 rows to 9 over 27 presses). Bounded to a
+            // single row, the keystroke is handed back instead, and the
+            // editor's ordinary Tab handling takes focus out of the document.
+            await wysiwygFieldPage.pressTab(3);
+            await expect(wysiwygFieldPage.editorTableRows).toHaveCount(4);
+            await expect(wysiwygFieldPage.surface('Body')).not.toBeFocused();
         });
 
         test('stores a paragraph’s alignment on the block', async ({
@@ -579,6 +786,39 @@ test.describe('Entry editor — rich text field', () => {
             expect(saves.bodies).toHaveLength(0);
         });
 
+        test('lets a body with only a warning through [wysiwyg:I-13]', async ({
+            wysiwygFieldPage,
+            contentLibraryPage
+        }) => {
+            // The other grade. `inspectRichText` reports two, and only one of
+            // them is a gate — "click here" is poor link text, but it is not
+            // decidable from the string that the body means it badly, so it is
+            // advice. Without this case a regression that promoted every
+            // finding to `error` would leave the whole suite green: every other
+            // fixture body here is either clean or blocking.
+            await wysiwygFieldPage.gotoArticle(WS, WYSIWYG_WARNING_ENTRY_ID);
+            await wysiwygFieldPage.open('Body');
+
+            // Named, and named as advice: same list, different severity.
+            await expect(
+                wysiwygFieldPage.issues.filter({ hasText: 'Worth fixing' })
+            ).toContainText('doesn’t say where it goes');
+            await expect(
+                wysiwygFieldPage.issues.filter({ hasText: 'Blocks saving' })
+            ).toHaveCount(0);
+            await wysiwygFieldPage.done();
+
+            // The same action the blocking case is refused on, so the two are
+            // the same experiment with one variable changed.
+            await contentLibraryPage
+                .fieldTextbox('Title')
+                .fill('Still worth a look');
+            await contentLibraryPage.editorSave.click();
+
+            await expect.poll(() => saves.bodies.length).toBeGreaterThan(0);
+            await expect(wysiwygFieldPage.fieldError('body')).toHaveCount(0);
+        });
+
         test('stores the language a passage is written in', async ({
             wysiwygFieldPage,
             contentLibraryPage
@@ -711,6 +951,14 @@ test.describe('Entry editor — rich text field', () => {
             await wysiwygFieldPage.fillMediaUrl('javascript:alert(1)');
             await expect(wysiwygFieldPage.mediaUrlError).toBeVisible();
             await expect(wysiwygFieldPage.editorImage(/./)).toHaveCount(0);
+
+            // And a **protocol-relative** address, which is the one that looks
+            // ordinary: it inherits whatever scheme the *consumer* is on, and
+            // this editor cannot vouch for that. A scheme allowlist alone lets
+            // it through — there is no scheme in it to check.
+            await wysiwygFieldPage.fillMediaUrl('//evil.host/x.png');
+            await expect(wysiwygFieldPage.mediaUrlError).toBeVisible();
+            await expect(wysiwygFieldPage.editorImage(/./)).toHaveCount(0);
         });
 
         test('places an asset picked from the Media Library [wysiwyg:I-28]', async ({
@@ -765,15 +1013,15 @@ test.describe('Entry editor — rich text field', () => {
             await contentLibraryPage.saveDraft();
             await expect.poll(() => saves.bodies).toHaveLength(1);
 
-            expect(
-                attr(
-                    savedNodesOfType(
-                        saves.bodies[0].values?.['body'],
-                        'image'
-                    )[0],
-                    'width'
-                )
-            ).toEqual(expect.any(Number));
+            const resized = savedNodesOfType(
+                saves.bodies[0].values?.['body'],
+                'image'
+            )[0];
+            expect(attr(resized, 'width')).toEqual(expect.any(Number));
+            // A width and **no height**: the picture keeps its own aspect ratio
+            // wherever this body is rendered, and a stored height is the one
+            // way to distort it.
+            expect(attr(resized, 'height')).toBeUndefined();
         });
 
         test('centres a selected image, and stores where it sits [wysiwyg:I-24]', async ({
@@ -904,7 +1152,6 @@ test.describe('Entry editor — rich text field', () => {
             // The description is *gone*, not merely hidden behind the flag: a
             // non-empty alt beside `data-decorative` cannot exist in the saved
             // HTML, because a screen reader would announce it anyway.
-            console.log('DIAG', JSON.stringify({ alt: attr(images[0], 'alt'), decorative: attr(images[0], 'decorative') }));
             expect(attr(images[0], 'decorative')).toBe(true);
             expect(attr(images[0], 'alt')).toBe('');
         });
@@ -935,6 +1182,28 @@ test.describe('Entry editor — rich text field', () => {
 
             // Nothing reached the write endpoint: the record is saved when the
             // author saves it, and not before.
+            expect(saves.bodies).toHaveLength(0);
+            await expect(contentLibraryPage.savedToast).toHaveCount(0);
+        });
+
+        test('never saves the record from the language dialog either [wysiwyg:I-27]', async ({
+            wysiwygFieldPage,
+            contentLibraryPage
+        }) => {
+            // The fourth popup form, and the one the overlay case above never
+            // reached. Its own test rather than a fifth step there: it needs the
+            // caret in the document to have something to mark, and that is only
+            // guaranteed straight after unfolding.
+            await wysiwygFieldPage.gotoArticle(WS, WYSIWYG_ENTRY_ID);
+            await wysiwygFieldPage.open('Body');
+
+            await wysiwygFieldPage.selectAll();
+            await wysiwygFieldPage.setPassageLanguage('fr');
+
+            // Apply is a `type="submit"` in a dialog that portals out of the DOM
+            // but not out of the entry form's React tree, which is the whole
+            // shape of this bug — React bubbles synthetic events along the tree,
+            // not the DOM.
             expect(saves.bodies).toHaveLength(0);
             await expect(contentLibraryPage.savedToast).toHaveCount(0);
         });
@@ -1037,6 +1306,37 @@ test.describe('Entry editor — rich text field', () => {
             );
             // …and orders its own bidi text from the content, matching the form.
             expect(await wysiwygFieldPage.resolvedDir(surface)).toBe('auto');
+        });
+
+        test('claims no language for a body that is shared across locales [wysiwyg:I-36]', async ({
+            wysiwygFieldPage
+        }) => {
+            // The falsifying half. `notes` is the one rich-text field on this
+            // type that is **not** localized: it holds one value for every
+            // locale, usually still in whatever language it was first written
+            // in, so claiming the row's locale for it would be a worse
+            // assertion than making none. Without this field in the seed, a
+            // view that set `contentLocale` unconditionally would pass the
+            // localized case and nothing would notice.
+            await wysiwygFieldPage.gotoArticle(WS, WYSIWYG_GERMAN_ENTRY_ID);
+            await wysiwygFieldPage.open('Notes');
+
+            const surface = wysiwygFieldPage.surface('Notes');
+            // `'en'` and not `null`: the walk falls back to the admin's own
+            // hardcoded `<html lang="en">`, so this says "inherited the
+            // chrome's language" rather than "claimed nothing anywhere".
+            expect(await wysiwygFieldPage.resolvedLang(surface)).toBe('en');
+
+            // The control, on the same page load: the localized field beside it
+            // does claim `de`, so this is the `localized` branch and not a view
+            // that stopped setting `lang` at all.
+            await wysiwygFieldPage.done();
+            await wysiwygFieldPage.open('Body');
+            expect(
+                await wysiwygFieldPage.resolvedLang(
+                    wysiwygFieldPage.surface('Body')
+                )
+            ).toBe(WYSIWYG_GERMAN_LOCALE);
         });
 
         test('returns focus to the field when the editor closes [wysiwyg:I-37]', async ({

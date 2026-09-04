@@ -38,6 +38,57 @@ test.describe('Agents view — attaching files', () => {
         await mockContentSchema(page);
     });
 
+    /**
+     * The claim that made attachments cheap: the paperclip is not a new
+     * authority, it is the Media Library's own upload behind a different
+     * button.
+     *
+     * Every other test in this file would pass just as well against a
+     * `POST /api/copilot/attachments` that uploaded on the copilot's behalf —
+     * a chip would appear, a turn would carry an id, `spy.runs[0]` would look
+     * identical. The difference is only ever visible on the wire, so this
+     * records **every write the browser makes** while a file is staged and
+     * asserts the list is exactly one ordinary media upload: no copilot route,
+     * no second write, no upload broker.
+     */
+    test('uploads through the ordinary media route and no other [copilot:I-38]', async ({
+        page,
+        agentsPage
+    }) => {
+        await mockMediaApi(page);
+        await mockCopilotApi(page);
+        await agentsPage.goto(WORKSPACE_ID);
+        await agentsPage.welcomeHeading().waitFor();
+
+        // Installed after the view has settled, so the listing GETs the page
+        // makes on load are behind us and only staging is in frame. Reads are
+        // ignored on purpose: the invariant is about a *write* path.
+        const writes: string[] = [];
+        page.on('request', (request) => {
+            const { pathname } = new URL(request.url());
+            if (request.method() !== 'GET' && pathname.startsWith('/api/')) {
+                writes.push(`${request.method()} ${pathname}`);
+            }
+        });
+
+        await agentsPage.attachFiles(BRIEF);
+        // The chip first, so the staging has demonstrably happened before the
+        // enablement below is read — an enabled Send observed in the gap
+        // between `setInputFiles` and React's change handler would mean
+        // nothing.
+        await expect(agentsPage.stagedChips().first()).toContainText(
+            'brief.md'
+        );
+
+        // Then wait for the upload to have *landed*, not merely started: send
+        // stays disabled while bytes are in flight, so an enabled Send with
+        // text in the box is the composer saying the asset exists.
+        await agentsPage.composer().fill('What does this say?');
+        await expect(agentsPage.sendButton()).toBeEnabled();
+
+        expect(writes).toEqual(['POST /api/media/assets']);
+    });
+
     test('stages a picked file and sends its id with the turn', async ({
         page,
         agentsPage
@@ -349,7 +400,7 @@ test.describe('Agents view — who may attach', () => {
         await mockContentSchema(page);
     });
 
-    test('a viewer is not offered a control whose every upload would 403', async ({
+    test('a viewer is not offered a control whose every upload would 403 [copilot:I-38]', async ({
         page,
         agentsPage
     }) => {

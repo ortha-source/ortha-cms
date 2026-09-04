@@ -4,12 +4,16 @@ import { mockWorkspaces } from '../support/api/workspaces';
 import {
     CONTAINS_RULE,
     OPEN_FINDING,
-    mockAlarmsApi
+    mockAlarmsApi,
+    type AlarmFindingSeed,
+    type AlarmRuleSeed
 } from '../support/api/alarms';
 import { expectNoA11yViolations } from '../support/a11y';
 
 /** The workspace the suite opens (from the workspaces mock's default seed). */
 const WORKSPACE_ID = 'ws_marketing';
+/** A second workspace from the same seed, for the cache-key case. */
+const OTHER_WORKSPACE_ID = 'ws_docs';
 
 test.beforeEach(async ({ page }) => {
     await mockSignedIn(page);
@@ -565,5 +569,359 @@ test.describe('Creating an alarm', () => {
         await expect(alarmsPage.conditionHeading()).toBeVisible();
 
         await expectNoA11yViolations(makeAxe());
+    });
+});
+
+/**
+ * A group's heading is about the **alarm**, not about the rows under it.
+ *
+ * The fixture is what makes this checkable: twenty-four flagged records against
+ * a group page of ten. With one finding and an `openCount` of one — the shape
+ * the rest of this suite runs on — a header counting the page and a header
+ * reading the alarm's own number are the same string, and no assertion can
+ * separate them.
+ */
+test.describe('A group’s count', () => {
+    /** One alarm flagging far more records than fit on a page of its group. */
+    const BIG_RULE: AlarmRuleSeed = { ...CONTAINS_RULE, openCount: 24 };
+    /** The twenty-four records it flags; the group asks for ten at a time. */
+    const FLAGGED: AlarmFindingSeed[] = Array.from({ length: 24 }, (_, i) => ({
+        ...OPEN_FINDING,
+        entryId: `entry-${String(i + 1).padStart(2, '0')}`
+    }));
+
+    test('comes from the alarm, not from the page beneath it [alarms:I-29]', async ({
+        page,
+        alarmsPage
+    }) => {
+        await mockAlarmsApi(page, { rules: [BIG_RULE], findings: FLAGGED });
+        await alarmsPage.goto(WORKSPACE_ID);
+
+        // The one group opens on arrival and pages ten at a time, so what is on
+        // screen under the header is ten of twenty-four.
+        await expect(
+            alarmsPage.groupList(BIG_RULE.name).getByRole('listitem')
+        ).toHaveCount(10);
+
+        // A header built by counting those rows would say "10 records" — the
+        // exact misinformation grouping exists to prevent, and it would look
+        // entirely reasonable to anyone who did not know the collection.
+        await expect(alarmsPage.group(BIG_RULE.name)).toHaveAccessibleName(
+            /24 records/
+        );
+    });
+});
+
+/**
+ * Severity is legible without colour.
+ *
+ * The measurement is in `severityLook`: the shipped `destructive` and `warning`
+ * tokens are ΔE 0.9 apart under deuteranopia and ΔE 14.8 apart with full colour
+ * vision — one colour, effectively, to a large minority of readers and hard for
+ * everyone else. So the shape has to carry it, and the word has to be there
+ * too. A build where the three severities differed only by hue would look fine
+ * in a screenshot and be unreadable to the people this is for.
+ */
+test.describe('Severity', () => {
+    const RULES: AlarmRuleSeed[] = [
+        {
+            ...CONTAINS_RULE,
+            id: 'rule-error',
+            name: 'Broken links',
+            severity: 'error',
+            openCount: 1
+        },
+        {
+            ...CONTAINS_RULE,
+            id: 'rule-warn',
+            name: 'Missing summary',
+            severity: 'warn',
+            openCount: 1
+        },
+        {
+            ...CONTAINS_RULE,
+            id: 'rule-info',
+            name: 'Short title',
+            severity: 'info',
+            openCount: 1
+        }
+    ];
+    const FINDINGS: AlarmFindingSeed[] = RULES.map((rule, i) => ({
+        ...OPEN_FINDING,
+        ruleId: rule.id,
+        ruleName: rule.name,
+        severity: rule.severity,
+        entryId: `entry-${i + 1}`
+    }));
+
+    test('is a shape and a word, never a colour on its own [alarms:I-32]', async ({
+        page,
+        alarmsPage
+    }) => {
+        await mockAlarmsApi(page, { rules: RULES, findings: FINDINGS });
+        await alarmsPage.goto(WORKSPACE_ID);
+
+        // The glyphs, compared as markup rather than by icon name: what matters
+        // is that the three are different *shapes*, not which shapes they are.
+        // `severityLook` returning one icon for all three — colour doing the
+        // whole job — collapses this set to one.
+        const shapes = await Promise.all(
+            RULES.map((rule) =>
+                alarmsPage.groupSeverityGlyph(rule.name).innerHTML()
+            )
+        );
+        expect(new Set(shapes).size).toBe(3);
+
+        // And the word, on the surface that has room for it. `SeverityBadge`
+        // renders it beside the glyph, so the same fact is available to a
+        // reader who sees no colour at all.
+        await alarmsPage.tab('Alarms').click();
+        for (const [rule, word] of [
+            [RULES[0], 'Error'],
+            [RULES[1], 'Warning'],
+            [RULES[2], 'Info']
+        ] as const) {
+            await expect(alarmsPage.ruleCard(rule.name)).toContainText(word);
+        }
+    });
+});
+
+/**
+ * Three facts that render as the same blank page unless something separates
+ * them: we are still asking, we could not ask, and the answer is nothing.
+ *
+ * Only the third is reassuring, and it is the one a collapsed state defaults to
+ * looking like — which is how an unwatched workspace comes to read as a clean
+ * one. Each test below walks one surface through all three states in order,
+ * asserting each time that the other two are *not* what is on screen.
+ */
+test.describe('Loading, failed and empty', () => {
+    test('are three different answers in the findings list [alarms:I-33]', async ({
+        page,
+        alarmsPage
+    }) => {
+        // Three states, three page loads, and a `5xx` costs the retry ladder
+        // (~7s) before the query gives up — comfortably past the 30s default.
+        test.setTimeout(90_000);
+        // 1. Still asking. Held open, so the wait is observed rather than
+        //    inferred from a race.
+        await mockAlarmsApi(page, {
+            perWorkspace: { [WORKSPACE_ID]: { delayMs: 3000 } }
+        });
+        await alarmsPage.goto(WORKSPACE_ID);
+        await expect(alarmsPage.loadingRegion()).toBeVisible();
+        await expect(alarmsPage.findingsError()).toHaveCount(0);
+        await expect(alarmsPage.emptyHeading('Nothing is flagged')).toHaveCount(
+            0
+        );
+
+        // 2. Could not ask. A `5xx` is retried three times before the query
+        //    gives up, so this state is ~7s out.
+        await mockAlarmsApi(page, { rulesFailing: true });
+        await page.reload();
+        await expect(alarmsPage.findingsError()).toBeVisible({
+            timeout: 15_000
+        });
+        await expect(alarmsPage.emptyHeading('Nothing is flagged')).toHaveCount(
+            0
+        );
+
+        // 3. Nothing to report — and this one is allowed to be reassuring.
+        await mockAlarmsApi(page, {
+            rules: [{ ...CONTAINS_RULE, openCount: 0 }],
+            findings: []
+        });
+        await page.reload();
+        await expect(
+            alarmsPage.emptyHeading('Nothing is flagged')
+        ).toBeVisible();
+        await expect(alarmsPage.findingsError()).toHaveCount(0);
+    });
+
+    test('are three different answers in the alarm list [alarms:I-33]', async ({
+        page,
+        alarmsPage
+    }) => {
+        // Three states, three page loads, and a `5xx` costs the retry ladder
+        // (~7s) before the query gives up — comfortably past the 30s default.
+        test.setTimeout(90_000);
+        // 1. Still asking. The rule list has no busy state of its own — the
+        //    whole page is the skeleton until the first answer lands, so the
+        //    tab strip that would select this list is not there yet either.
+        await mockAlarmsApi(page, {
+            perWorkspace: { [WORKSPACE_ID]: { delayMs: 3000 } }
+        });
+        await alarmsPage.goto(WORKSPACE_ID);
+        await expect(alarmsPage.loadingRegion()).toBeVisible();
+        await expect(alarmsPage.rulesError()).toHaveCount(0);
+        await expect(alarmsPage.rulesEmpty()).toHaveCount(0);
+
+        // 2. Could not ask — and it says "alarms", not "findings": the two
+        //    tabs fail for the same reason and are answering different
+        //    questions, so they do not share a sentence.
+        await mockAlarmsApi(page, { rulesFailing: true });
+        await page.reload();
+        await alarmsPage.tab('Alarms').click();
+        await expect(alarmsPage.rulesError()).toBeVisible({ timeout: 15_000 });
+        await expect(alarmsPage.rulesEmpty()).toHaveCount(0);
+
+        // 3. Genuinely none. Not reassuring here: a workspace with no alarms is
+        //    not a clean workspace, it is an unwatched one.
+        await mockAlarmsApi(page, { rules: [], findings: [] });
+        await page.reload();
+        await alarmsPage.tab('Alarms').click();
+        await expect(alarmsPage.rulesEmpty()).toBeVisible();
+        await expect(alarmsPage.rulesError()).toHaveCount(0);
+    });
+});
+
+/**
+ * What the admin asks for, and on whose behalf.
+ *
+ * Both halves are invisible on a healthy screen: a query that fires without the
+ * permission behind it renders the same "you cannot view alarms" card once the
+ * `403` comes back, and a cache key missing its workspace id shows the right
+ * data as soon as the refetch lands. They are only observable in the moment
+ * before that — which is what the recorder and the held-open response below are
+ * for.
+ */
+test.describe('The admin’s queries', () => {
+    test('are not sent at all without alarms:read [alarms:I-30]', async ({
+        page,
+        alarmsPage
+    }) => {
+        await mockSignedIn(page, {
+            permissions: ['workspaces:read', 'content:read']
+        });
+        await mockAlarmsApi(page);
+
+        const asked: string[] = [];
+        page.on('request', (request) => {
+            if (request.url().includes('/api/alarms/')) {
+                asked.push(request.url());
+            }
+        });
+
+        await alarmsPage.goto(WORKSPACE_ID);
+
+        // The card, rather than a blank pane or a redirect: someone who typed
+        // the URL is owed the reason.
+        await expect(alarmsPage.noAccessCard()).toBeVisible();
+        // And the section is not offered in the first place.
+        await expect(alarmsPage.navLink()).toHaveCount(0);
+        // The point of the `enabled` flags: a member without the permission
+        // never makes a request the server is obliged to refuse. Dropping them
+        // costs three `403`s per page view and tells the reader nothing new.
+        expect(asked).toEqual([]);
+    });
+
+    test('do not serve one workspace’s alarms on another’s page [alarms:I-30]', async ({
+        page,
+        alarmsPage,
+        workspaceSettingsPage
+    }) => {
+        // A held-open response plus two in-app navigations.
+        test.setTimeout(60_000);
+        const DOCS_RULE: AlarmRuleSeed = {
+            ...CONTAINS_RULE,
+            id: 'rule-docs',
+            name: 'Docs alarm',
+            openCount: 1
+        };
+        await mockAlarmsApi(page, {
+            perWorkspace: {
+                [OTHER_WORKSPACE_ID]: {
+                    rules: [DOCS_RULE],
+                    findings: [
+                        {
+                            ...OPEN_FINDING,
+                            ruleId: DOCS_RULE.id,
+                            ruleName: DOCS_RULE.name,
+                            entryId: 'docs-entry-1'
+                        }
+                    ],
+                    // Held open so the *pending* state is observable. Without
+                    // the workspace id in the key there is no pending state to
+                    // observe: the previous workspace's rules come straight out
+                    // of the cache and are on screen before this responds.
+                    delayMs: 4000
+                }
+            }
+        });
+
+        await alarmsPage.goto(WORKSPACE_ID);
+        await expect(alarmsPage.group(CONTAINS_RULE.name)).toBeVisible();
+
+        // Switched in-app, because a `page.goto` would throw the query cache
+        // away with the JavaScript context and there would be nothing left to
+        // serve the wrong workspace's data out of.
+        await workspaceSettingsPage.openWorkspaceSwitcher();
+        await workspaceSettingsPage.switcherOption('Product docs').click();
+        await alarmsPage.navLink().click();
+
+        // The positive assertion, and it is the one that bites: a shared key
+        // means both queries resolve from cache, the page never reports itself
+        // busy, and this element is never drawn at all.
+        await expect(alarmsPage.loadingRegion()).toBeVisible();
+        await expect(alarmsPage.group(CONTAINS_RULE.name)).toHaveCount(0);
+
+        // Then the real answer arrives, and it is this workspace's.
+        await expect(alarmsPage.group(DOCS_RULE.name)).toBeVisible({
+            timeout: 15_000
+        });
+    });
+});
+
+/**
+ * A relative window stays relative.
+ *
+ * `treeToJsonFilter` freezes "within the last 7 days" into a concrete `gte`
+ * cutoff by default, which is right for a shared link and silently wrong for a
+ * stored rule: it would mean "since the day I was written", for ever, and the
+ * editor would keep rendering it as "within the last 7 days" while it did. The
+ * two spellings are indistinguishable on screen, so the assertion has to be on
+ * what Save sent.
+ *
+ * Driven through the **create** form because the editor seeds its builder from
+ * the rule's stored filter — with conditions already in the tree, the shared
+ * helpers address the first rule row rather than the one just added.
+ */
+test.describe('A “within the last” condition', () => {
+    test('is stored as the window, not as the day it was written [alarms:I-26]', async ({
+        page,
+        alarmsPage
+    }) => {
+        const api = await mockAlarmsApi(page);
+        await alarmsPage.gotoNewRule(WORKSPACE_ID);
+
+        await alarmsPage.chooseContentType('Articles');
+        await alarmsPage.fillAlarmName('Recently touched');
+        await alarmsPage.fillFindingTitle('Changed in the last week');
+
+        await alarmsPage.conditionToggle().click();
+        await alarmsPage.addRule();
+        await alarmsPage.selectField('Updated');
+        await alarmsPage.selectOperatorExact('within the last');
+        await alarmsPage.applyButton().click();
+        await expect(alarmsPage.conditionChip(/Updated/)).toBeVisible();
+
+        await alarmsPage.saveButton().click();
+        await expect
+            .poll(() => api.creates.length, { timeout: 5000 })
+            .toBeGreaterThan(0);
+
+        // The window itself, so the database recomputes the cutoff on every
+        // evaluation. The default serialisation would put
+        // `{ op: 'gte', value: '<today>' }` here instead — same rule on screen,
+        // a different rule for ever after.
+        expect(api.creates[0].filter).toEqual({
+            and: [
+                {
+                    field: 'updatedAt',
+                    op: 'within_last',
+                    value: { n: 7, unit: 'days' }
+                }
+            ]
+        });
     });
 });

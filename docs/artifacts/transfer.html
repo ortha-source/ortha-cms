@@ -1153,7 +1153,7 @@ html{scroll-behavior:smooth}
 
 <section id="qa">
   <h2 class="sec"><span class="num">14</span>Testing checklist</h2>
-  <p class="sub small">Phrased as “action → expected result”. Existing coverage: <code>apps/server-e2e/src/server/transfer/transfer-round-trip.spec.ts</code> (one file, ~30 tests), plus the kernel's unit tests — <code>csv.spec.ts</code>, <code>flatten.spec.ts</code>, <code>keyFingerprint.spec.ts</code>, <code>natural-key.spec.ts</code>, <code>id-map.spec.ts</code> — and <code>archive.spec.ts</code> on the server side. There is <b>no <code>admin-e2e</code> suite at all</b> for this package.</p>
+  <p class="sub small">Phrased as “action → expected result”. Existing coverage: <code>apps/server-e2e/src/server/transfer/transfer-round-trip.spec.ts</code> (one file, ~30 tests), plus the kernel's unit tests — <code>csv.spec.ts</code>, <code>flatten.spec.ts</code>, <code>keyFingerprint.spec.ts</code>, <code>natural-key.spec.ts</code>, <code>id-map.spec.ts</code> — and <code>archive.spec.ts</code> on the server side. The browser side is <code>apps/admin-e2e/src/transfer/</code> — <code>import-dialog.spec.ts</code> (verdict staleness, the refresh pass, the pure-skip run, a refused apply) and <code>export-dialog.spec.ts</code> (the format capability table, the live counts, a failed preflight, the selection). There is still <b>no a11y or keyboard suite</b> for either dialog.</p>
 
   <h3>Export</h3>
   <ul class="check">
@@ -1311,7 +1311,7 @@ html{scroll-behavior:smooth}
     <li><b>Showing the identity source in the interface.</b> <code>IdentityResolution.source</code> is computed and read by nobody — see section 16.</li>
     <li><b>A page or route of its own in the admin UI.</b> Everything lives in the Content Library's seams, and that is a decision rather than a gap.</li>
     <li><b>Exporting by filter.</b> Only an explicitly listed set of ids is exported, at most 1000.</li>
-    <li><b>An <code>admin-e2e</code> suite.</b> For two dialogs, three slot contributions and a verdict table there is not one browser test.</li>
+    <li><b>An a11y and keyboard pass over the two dialogs.</b> <code>apps/admin-e2e/src/transfer/</code> now covers the behaviour — verdict staleness, the format capability table, the refresh pass — but no scan runs over either dialog and no spec drives them from the keyboard.</li>
   </ul>
 </section>
 
@@ -1376,7 +1376,7 @@ html{scroll-behavior:smooth}
       <tr>
         <td class="mono">Test coverage</td>
         <td>The package is described as having both a server and an admin half</td>
-        <td>The server e2e is one file of ~30 tests, and it covers the policies, the permissions and the round trip well. There is <b>no</b> browser suite (<code>apps/admin-e2e/src/transfer</code>): no a11y, no keyboard, no verdict staleness, no overlay-unmount behaviour — that is, exactly the things <code>admin/AGENTS.md</code> calls “this dialog's worst possible mistake”</td>
+        <td>The server e2e is one file of ~30 tests, and it covers the policies, the permissions and the round trip well. The browser suite (<code>apps/admin-e2e/src/transfer</code>) now pins the verdict staleness — what <code>admin/AGENTS.md</code> calls “this dialog’s worst possible mistake” — along with the format capability table, the post-import refresh and the overlay that outlives the menu it was opened from. What is still missing there is a11y and keyboard coverage of the two dialogs</td>
       </tr>
       <tr>
         <td class="mono">The limits in e2e</td>

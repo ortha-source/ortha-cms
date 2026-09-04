@@ -78,6 +78,14 @@ export class WysiwygFieldPage extends BasePage {
     }
 
     /**
+     * The same card in a **read-only** editor, where the button over it is
+     * named "View {label}" rather than "Edit {label}".
+     */
+    viewPreview(label: string): Locator {
+        return this.viewControl(label).locator('..');
+    }
+
+    /**
      * What a link becomes in the collapsed preview: a `<span data-link>`. The
      * preview sits under a full-bleed button, so a live `<a>` inside it would
      * be a tab stop the reader falls into on the way to that button — and
@@ -137,6 +145,84 @@ export class WysiwygFieldPage extends BasePage {
      */
     surface(label: string): Locator {
         return this.page.getByRole('textbox', { name: `${label} content` });
+    }
+
+    /**
+     * The same surface in a **read-only** view, where it is a labelled
+     * `region` and not a `textbox` — a textbox that takes no text misdescribes
+     * what is on screen, and `aria-multiline` / `aria-required` mean nothing on
+     * something a reader cannot fill.
+     */
+    readingSurface(label: string): Locator {
+        return this.page.getByRole('region', { name: `${label} content` });
+    }
+
+    /**
+     * **Every** editing surface currently mounted anywhere on the page, by the
+     * attributes the panel puts on its own document rather than by a name.
+     *
+     * The count is the assertion: the panel is mounted only while its field is
+     * unfolded, and only one field is unfolded at a time — a panel kept alive
+     * behind `display: none`, or a second field's panel mounted beside the
+     * first, both show up here and nowhere else. A role query would not do:
+     * `getByRole('textbox')` also matches the record's own `<input>`s.
+     */
+    get editorSurfaces(): Locator {
+        return this.surfaceRoot;
+    }
+
+    /** The rows of the table in the expanded editor's document. */
+    get editorTableRows(): Locator {
+        return this.editorTable.getByRole('row');
+    }
+
+    /**
+     * The last ordinary (non-header) cell of the table in the document —
+     * where `Tab` stops walking and starts appending.
+     */
+    get editorTableLastCell(): Locator {
+        return this.editorTable.getByRole('cell').last();
+    }
+
+    /** Press `Tab` `times` times, from wherever focus currently is. */
+    async pressTab(times = 1): Promise<void> {
+        for (let i = 0; i < times; i += 1) {
+            await this.page.keyboard.press('Tab');
+        }
+    }
+
+    /**
+     * The text the **browser** currently has selected — not the editor's own
+     * idea of it.
+     *
+     * That distinction is the point wherever a toolbar press is involved: a
+     * `mousedown` whose default action runs moves focus and collapses the
+     * document's selection, and only the live DOM selection shows it. Spelled
+     * out locally because this project's `tsconfig` has no `dom` lib.
+     */
+    async selectedText(): Promise<string> {
+        return this.page.evaluate(() => {
+            type SelectionHost = {
+                getSelection?: () => { toString(): string } | null;
+            };
+            const host = globalThis as unknown as SelectionHost;
+            return host.getSelection?.()?.toString() ?? '';
+        });
+    }
+
+    /**
+     * Press the mouse **down** on a control and hold it — the half of a click
+     * that carries `mousedown`, and the only moment at which suppressing its
+     * default action is observable. Release with {@link releaseMouse}.
+     */
+    async pressMouseOn(target: Locator): Promise<void> {
+        await target.hover();
+        await this.page.mouse.down();
+    }
+
+    /** Release a press started by {@link pressMouseOn}. */
+    async releaseMouse(): Promise<void> {
+        await this.page.mouse.up();
     }
 
     /** Type into the editor at the caret (which opens at the end of the text). */

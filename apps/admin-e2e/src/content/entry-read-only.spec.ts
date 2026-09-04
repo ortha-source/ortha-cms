@@ -185,6 +185,53 @@ test.describe('Entry editor — read-only', () => {
             await expect(wysiwygFieldPage.exitButton('Done')).toHaveCount(0);
         });
 
+        test('opens the body as a passage to read, and takes nothing back from it [wysiwyg:I-31]', async ({
+            page,
+            contentLibraryPage,
+            wysiwygFieldPage
+        }) => {
+            await contentLibraryPage.gotoSingle(WS, TYPE);
+            await wysiwygFieldPage.viewControl('Body').click();
+
+            // A labelled `region`, not a `textbox`: a textbox that takes no
+            // text misdescribes what is on screen, and `aria-multiline` /
+            // `aria-required` say nothing about something a reader cannot fill.
+            await expect(wysiwygFieldPage.readingSurface('Body')).toBeVisible();
+            await expect(wysiwygFieldPage.surface('Body')).toHaveCount(0);
+            await expect(wysiwygFieldPage.editorSurfaces).toHaveCount(0);
+            // And no caret in it — the reader has nothing to type, so the
+            // document is inert rather than merely unsaveable.
+            await expect(
+                wysiwygFieldPage.readingSurface('Body')
+            ).toHaveAttribute('contenteditable', 'false');
+
+            // The whole claim, driven rather than inspected: keystrokes aimed
+            // at the document change neither the document…
+            await wysiwygFieldPage.readingSurface('Body').click();
+            await page.keyboard.type('rewritten by a reader');
+            // The stored body is still all of what is there — so the assertion
+            // below is about the keystrokes, not about a surface that rendered
+            // nothing in the first place.
+            await expect(wysiwygFieldPage.readingSurface('Body')).toContainText(
+                'What we ship'
+            );
+            await expect(
+                wysiwygFieldPage.readingSurface('Body')
+            ).not.toContainText('rewritten by a reader');
+
+            // …nor the form behind it. The collapsed card renders the entry's
+            // own value, so a stray `onUpdate` write would be visible here even
+            // though this reader has no Save to send it with.
+            await wysiwygFieldPage.exitButton('Back to fields').first().click();
+            await expect(wysiwygFieldPage.viewPreview('Body')).toContainText(
+                'What we ship'
+            );
+            await expect(
+                wysiwygFieldPage.viewPreview('Body')
+            ).not.toContainText('rewritten by a reader');
+            expect(saves.bodies).toHaveLength(0);
+        });
+
         test('shows the media field without any way to attach or upload', async ({
             contentLibraryPage,
             mediaFieldPage

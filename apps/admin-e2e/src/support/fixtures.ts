@@ -25,6 +25,7 @@ import { SegmentsPage } from './pages/SegmentsPage';
 import { ApiTokensPage } from './pages/ApiTokensPage';
 import { WebhooksPage } from './pages/WebhooksPage';
 import { HostPage } from './pages/HostPage';
+import { TransferPage } from './pages/TransferPage';
 
 /**
  * The tag whitelist every scan runs under.
@@ -117,6 +118,7 @@ interface Fixtures {
     apiTokensPage: ApiTokensPage;
     webhooksPage: WebhooksPage;
     hostPage: HostPage;
+    transferPage: TransferPage;
     /**
      * Factory for a fresh axe scanner scoped to the current page, tagged
      * {@link AXE_TAGS} and with {@link AXE_KNOWN_GAPS} turned back off. Call it
@@ -204,6 +206,9 @@ export const test = base.extend<Fixtures>({
     },
     hostPage: async ({ page }, use) => {
         await use(new HostPage(page));
+    },
+    transferPage: async ({ page }, use) => {
+        await use(new TransferPage(page));
     },
     makeAxe: async ({ page }, use) => {
         await use(() =>

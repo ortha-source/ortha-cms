@@ -1,4 +1,4 @@
-import { type Page } from '@playwright/test';
+import { type Page, type Route } from '@playwright/test';
 
 /** JSON response helper, mirroring the other mock modules. */
 const json = (body: unknown) => ({
@@ -100,6 +100,13 @@ export const FILTER_FIELDS = {
             group: []
         },
         { path: 'number', label: 'Number', type: 'number', group: [] },
+        // A **date** path, and the only field type that offers "within the
+        // last". Without one in the surface no browser can author a relative
+        // window, and the editor's `relativeDates: true` serialisation is
+        // unreachable from the UI — the two spellings of the same condition
+        // (`within_last {n, unit}` and a frozen `gte <ISO>`) look identical on
+        // screen and differ only in what Save sends.
+        { path: 'updatedAt', label: 'Updated', type: 'date', group: [] },
         {
             path: 'status',
             label: 'Status',
@@ -192,6 +199,40 @@ export interface AlarmsApiOptions {
     previewMatched?: number;
     /** How many records the collection holds, per the preview call. */
     previewTotal?: number;
+    /**
+     * Fail `GET /alarms/rules`, so the page must say the request failed rather
+     * than draw the empty state. "No alarms" and "could not ask" render as the
+     * same blank page unless something tells them apart.
+     */
+    rulesFailing?: boolean;
+    /** Fail `GET /alarms/findings`, for the same reason one group down. */
+    findingsFailing?: boolean;
+    /**
+     * Findings for the entry batch, keyed by entry id — what the entry rail's
+     * Checks block and the records list's Checks column both read.
+     */
+    byEntry?: Record<string, AlarmFindingSeed[]>;
+    /** Fail the batch: "we could not check" must not read as "nothing flagged". */
+    byEntryFailing?: boolean;
+    /** Hold the batch open, so the loading state of both surfaces is observable. */
+    byEntryDelayMs?: number;
+    /**
+     * Per-workspace overrides, selected by the `X-Workspace-Id` header the
+     * shared `apiClient` attaches.
+     *
+     * This is what makes the cache-key rule observable: with the workspace id
+     * missing from the key, opening a second workspace serves the first one's
+     * rules out of cache with no pending state at all, and `delayMs` is what
+     * holds that difference still long enough to assert on.
+     */
+    perWorkspace?: Record<
+        string,
+        {
+            rules?: AlarmRuleSeed[];
+            findings?: AlarmFindingSeed[];
+            delayMs?: number;
+        }
+    >;
 }
 
 /** Every PATCH body the editor sent, in order. Reset per `mockAlarmsApi` call. */
@@ -202,6 +243,16 @@ export interface AlarmsApiRecorder {
     updates: Record<string, unknown>[];
     /** Rule ids passed to `POST /api/alarms/rules/:id/rescan`. */
     rescans: string[];
+    /**
+     * The `entryIds` parameter of every `GET /alarms/findings/by-entry`.
+     *
+     * A count of zero is the assertion the hidden Checks column needs, and it
+     * has to be recorded in the mock rather than by a `page.on('request')`
+     * listener: the listener only sees requests the browser actually makes,
+     * which is the same thing, but a recorder that lives with the route also
+     * survives a spec forgetting to register the listener before navigating.
+     */
+    byEntryRequests: string[];
 }
 
 /**
@@ -212,25 +263,17 @@ export interface AlarmsApiRecorder {
  * what it drew. That distinction is the whole point here: the condition editor
  * looked correct while saving the rule's previous filter, and no assertion
  * about the screen would have caught it.
+ *
+ * A suite that already owns the content mocks — anything driving the Content
+ * Library, where alarms reaches through three slots — wants
+ * {@link mockAlarmsSlots} instead: this one claims `/api/content-schema` too,
+ * and the last route registered wins.
  */
 export async function mockAlarmsApi(
     page: Page,
     options: AlarmsApiOptions = {}
 ): Promise<AlarmsApiRecorder> {
-    const {
-        rules = [CONTAINS_RULE],
-        findings = [OPEN_FINDING],
-        filterFieldsDelayMs = 0,
-        filterFieldsFailing = false,
-        previewMatched = 3,
-        previewTotal = 312
-    } = options;
-
-    const recorder: AlarmsApiRecorder = {
-        creates: [],
-        updates: [],
-        rescans: []
-    };
+    const { filterFieldsDelayMs = 0, filterFieldsFailing = false } = options;
 
     // The type catalogue, for the create form's picker. Anchored so it does not
     // also swallow the detail and filter-fields sub-routes below.
@@ -270,6 +313,75 @@ export async function mockAlarmsApi(
         }
     );
 
+    return mockAlarmsSlots(page, options);
+}
+
+/**
+ * Stub **only** `/api/alarms/**`, leaving every content route to whoever else
+ * registered one.
+ *
+ * This is the half a Content Library suite needs. Alarms reaches editors
+ * through three of content's slots — the entry rail's Checks block, the
+ * optional records column, and "Save as alarm" in the records toolbar — and
+ * all three run against the *content* suite's schemas and rows, not the single
+ * `test_article` {@link mockAlarmsApi} invents.
+ */
+export async function mockAlarmsSlots(
+    page: Page,
+    options: AlarmsApiOptions = {}
+): Promise<AlarmsApiRecorder> {
+    const {
+        rules = [CONTAINS_RULE],
+        findings = [OPEN_FINDING],
+        previewMatched = 3,
+        previewTotal = 312,
+        rulesFailing = false,
+        findingsFailing = false,
+        byEntry = {},
+        byEntryFailing = false,
+        byEntryDelayMs = 0,
+        perWorkspace
+    } = options;
+
+    const recorder: AlarmsApiRecorder = {
+        creates: [],
+        updates: [],
+        rescans: [],
+        byEntryRequests: []
+    };
+
+    /** The 500 every "the request failed" option answers with. */
+    const fail = (route: Route) =>
+        route.fulfill({
+            status: 500,
+            contentType: 'application/json',
+            body: JSON.stringify({ message: 'nope' })
+        });
+
+    /**
+     * The seed for the workspace this request is scoped to.
+     *
+     * `apiClient` attaches `X-Workspace-Id` on every call, which is the same
+     * header the server's `WorkspaceGuard` reads — so keying the mock on it
+     * makes the mock disagree between workspaces exactly where the server
+     * would, and a cache key that dropped the workspace id shows up as one
+     * workspace's rules on the other's page.
+     */
+    const seedFor = (route: Route) => {
+        const id = route.request().headers()['x-workspace-id'] ?? '';
+        const override = perWorkspace?.[id];
+        return {
+            rules: override?.rules ?? rules,
+            findings: override?.findings ?? findings,
+            delayMs: override?.delayMs ?? 0
+        };
+    };
+
+    const wait = (ms: number) =>
+        ms > 0
+            ? new Promise((resolve) => setTimeout(resolve, ms))
+            : Promise.resolve();
+
     // **Registered general-first, specific-last, deliberately.** Playwright
     // checks routes in reverse registration order, so the *last* one
     // registered wins a match. Register `rules/preview` before `rules/*` and
@@ -277,6 +389,7 @@ export async function mockAlarmsApi(
     // off an unrelated body and renders "NaN records match".
     await page.route('**/api/alarms/rules', async (route) => {
         const request = route.request();
+        const seed = seedFor(route);
         if (request.method() === 'POST') {
             const body = (request.postDataJSON() ?? {}) as Record<
                 string,
@@ -288,9 +401,9 @@ export async function mockAlarmsApi(
             // than "created".
             await route.fulfill(
                 json({
-                    rule: { ...rules[0], ...body },
+                    rule: { ...seed.rules[0], ...body },
                     scan: {
-                        ruleId: rules[0].id,
+                        ruleId: seed.rules[0]?.id ?? 'rule-1',
                         scanned: previewTotal,
                         opened: previewMatched,
                         resolved: 0,
@@ -300,7 +413,9 @@ export async function mockAlarmsApi(
             );
             return;
         }
-        await route.fulfill(json(rules));
+        await wait(seed.delayMs);
+        if (rulesFailing) return fail(route);
+        await route.fulfill(json(seed.rules));
     });
 
     // Order-independent, unlike `rules/preview`: a `*` segment does not cross
@@ -342,31 +457,59 @@ export async function mockAlarmsApi(
         );
     });
 
+    // Paged and filtered the way the server pages and filters, because the
+    // group header's count is *not* read from here: a mock that answered every
+    // seeded finding whatever the page asked for could not tell a header built
+    // from the alarm's own `openCount` from one counting the rows below it.
     await page.route('**/api/alarms/findings*', async (route) => {
         const url = new URL(route.request().url());
+        const seed = seedFor(route);
+        await wait(seed.delayMs);
+        if (findingsFailing) return fail(route);
         const state = url.searchParams.get('state');
-        const visible = state
-            ? findings.filter((finding) => finding.state === state)
-            : findings;
+        const ruleId = url.searchParams.get('ruleId');
+        const severity = url.searchParams.get('severity');
+        const pageNum = Number(url.searchParams.get('page') ?? '1');
+        const pageSize = Number(url.searchParams.get('pageSize') ?? '25');
+        const visible = seed.findings.filter(
+            (finding) =>
+                (!state || finding.state === state) &&
+                (!ruleId || finding.ruleId === ruleId) &&
+                (!severity || finding.severity === severity)
+        );
+        const start = (pageNum - 1) * pageSize;
         await route.fulfill(
             json({
-                items: visible,
+                items: visible.slice(start, start + pageSize),
                 total: visible.length,
-                page: 1,
-                pageSize: 25
+                page: pageNum,
+                pageSize
             })
         );
     });
 
     await page.route('**/api/alarms/findings/by-entry*', async (route) => {
-        await route.fulfill(json({ items: {} }));
+        const url = new URL(route.request().url());
+        recorder.byEntryRequests.push(url.searchParams.get('entryIds') ?? '');
+        await wait(byEntryDelayMs);
+        if (byEntryFailing) return fail(route);
+        // `byEntry`, not `items`: `toFindingsByEntry` reads `dto.byEntry` and
+        // falls back to `{}`, so the wrong envelope is an empty batch that
+        // looks exactly like a clean workspace.
+        await route.fulfill(json({ byEntry: byEntry }));
     });
 
     await page.route('**/api/alarms/findings/summary*', async (route) => {
-        const open = findings.filter((f) => f.state === 'open');
+        const seed = seedFor(route);
+        await wait(seed.delayMs);
+        const open = seed.findings.filter((f) => f.state === 'open');
         await route.fulfill(
             json({
-                open: { error: open.length, warn: 0, info: 0 },
+                open: {
+                    error: open.filter((f) => f.severity === 'error').length,
+                    warn: open.filter((f) => f.severity === 'warn').length,
+                    info: open.filter((f) => f.severity === 'info').length
+                },
                 openTotal: open.length
             })
         );
