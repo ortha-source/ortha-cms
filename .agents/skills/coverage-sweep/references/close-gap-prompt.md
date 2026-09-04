@@ -17,14 +17,25 @@ Read the dossier `docs/artifacts/{PKG}.html` for the surrounding argument — th
 Invariants section and the Testing checklist that follows it. It is a large HTML
 file: extract with python/grep, never dump it whole.
 
-## Do NOT run anything
+## What you may run
 
-No tests, no servers, no docker, no `nx test`/`nx e2e`. The whole batch runs once
-at the end of the phase, so a suite start-up is paid once rather than per package.
+**On the unit axis, run your own package's jest** — `nx test @orthacms/<pkg>`.
+It takes seconds, needs no database, no ports and no docker, so there is nothing
+to contend over, and without it the mutation proof below is impossible. That
+proof is the whole point; the no-running rule was written for the e2e harnesses,
+where a start-up costs minutes and is paid once for the batch.
 
-**You may and should run `npx tsc` / lint** on what you write — neither needs a
-port or a database, and without them the phase ends with specs that do not
-compile. If you changed cross-project imports, run `npx nx sync`.
+It earns its keep immediately: on alarms it caught three tests that were wrong as
+written, one of which could not fail — `expect(second).toBe(first)` on a
+coalescing test, where `sweep()` is async and every caller gets its own wrapper
+promise.
+
+**Do not run** `nx e2e` (either app), a server, or docker. Those run once for the
+whole phase, after every package is written.
+
+**Always run `npx tsc` and lint** on what you write — neither needs a port or a
+database, and without them the phase ends with specs that do not compile. If you
+changed cross-project imports, run `npx nx sync`.
 
 ## Before you write a single assertion
 
@@ -47,6 +58,22 @@ a harness that re-implements the bootstrap, an executor carrying an inline copy
 of a guard — the test guards neither. Reach the real one.
 
 ## Prove it can fail — by mutation, not by argument
+
+**Never run `git stash`, `git checkout <branch>`, or anything else that moves the
+whole tree.** Six or seven agents share this checkout, and every one of them has
+uncommitted work in it. A repo-wide stash takes all of it hostage: if the pop
+conflicts, or the agent is killed between the two, a day of other people's work
+is in a dangling stash nobody knows to look for. It has already happened twice in
+this sweep — once leaving the tree empty mid-phase, once round-tripping only by
+luck. Scope every git command to your own paths.
+
+**Namespace every scratch file.** The mutation proof means saving a production
+file, breaking it, and restoring it — and seven agents do that at once. Two of
+them picked `/tmp/ca.bak` in the same batch, and the second restore put an
+unrelated file over `createAdmin/index.tsx`; it was caught only because a
+`git status` happened to run. Put scratch under a path carrying your package
+name, and prefer `git checkout -- <file>` to a hand-rolled backup: git already
+holds the original, and it cannot be clobbered by a neighbour.
 
 Once the test is written, **break the production code and watch your test fail.**
 Delete the guard, drop the `WHERE` clause, make the branch match nothing. Confirm

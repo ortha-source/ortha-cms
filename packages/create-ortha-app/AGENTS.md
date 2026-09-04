@@ -229,7 +229,7 @@ fails to render.
 in one block and an app generated without that feature simply has no such file —
 which is what lets `apps/server/config/` hold one module per optional plugin
 (`mcp.ts`, `sso-oidc.ts`, `copilot-anthropic.ts`) rather than one file of
-markers. The guard is on the *rendered* result being blank while the source was
+markers. The guard is on the _rendered_ result being blank while the source was
 not, so a template file that is deliberately empty still ships.
 
 That shape is not decoration. Split across modules, an import list is narrow
@@ -245,6 +245,18 @@ single choice — exactly one survives.
 how you get a trailing comma and an app that cannot be installed, blaming the
 template rather than the feature that was switched off. Its dependency map is
 assembled in `features.ts` and re-sorted instead.
+
+## The command and the scaffolder
+
+`src/cli.ts` is the `bin` and nothing else: it calls `main()` and turns a thrown
+error into an exit code. Everything the command does — the flags, the wizard,
+the refusals, the summary — lives in `src/lib/run.ts`.
+
+The split is not tidiness. A module that scaffolds the moment it is imported can
+only be tested by spawning a process, so the two promises that matter most
+("never overwrite a directory someone is using", "never block on a prompt")
+were unpinned while they were in the entry file. `run.spec.ts` drives `main()`
+directly, with `--no-install --no-git` as the only concessions.
 
 ## The terminal UI
 
@@ -324,7 +336,22 @@ the tests into`dist/server` and ships them.
 
 `npx nx test create-ortha-app` — the package-coverage guard, the conditional
 processor, and the scaffolded output for several feature combinations (nothing
-optional, one copilot provider, both, and every protocol).
+optional, one copilot provider, both, and every protocol). Four of the nine spec
+files are worth knowing about by name:
+
+- `run.spec.ts` drives `main()` end to end in a temporary directory: the
+  non-empty-directory refusal, the two ways of answering without being asked,
+  and where the generated administrator password is allowed to exist.
+- `composition.spec.ts` compares the plugin list the template _registers_
+  against the one the generated app's own `plugins.spec.ts` _expects_, reading
+  each plugin's name from the package that defines it. Those generated specs
+  never run here, so nothing else notices when they stop describing the app —
+  which is exactly how a scaffolded app shipped with `npm test` already red.
+- `generated-config.spec.ts` **executes** rendered `config/` modules (they
+  import types and env readers only, so this costs nothing) to check that an
+  unset key means no provider rather than one that fails on the first message.
+- `packaging.spec.ts` holds the two facts about the package itself: templates
+  excluded from all four tools, and zero runtime dependencies.
 
 The end-to-end path (publish to a local registry → scaffold → install → migrate
 → build → boot) is not automated yet; see the PR that introduced this package

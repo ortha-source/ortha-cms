@@ -162,4 +162,9 @@ the home slots). Every `<time datetime>` in this plugin therefore goes through
 ## Commands
 
 - `npx nx typecheck @orthacms/activity-admin` / `npx nx lint @orthacms/activity-admin`
+- `npx nx test @orthacms/activity-admin` — the unit suite. `testEnvironment: 'node'`
+  and `testMatch` is `*.spec.ts` only, matching `alarms-admin` / `copilot-admin`:
+  what is tested here is the **pure** part — the mapper's refusal to invent a
+  timestamp, the `<time datetime>` guard, and `ACTION_MESSAGES` against
+  `ACTIVITY_KINDS`. Rendering belongs in `admin-e2e`, which drives a real browser.
 - `npx nx e2e admin-e2e -- --project=chromium` — exercises `/activity` in a browser.

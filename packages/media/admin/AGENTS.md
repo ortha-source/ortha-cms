@@ -25,9 +25,13 @@ shape is unchanged from the original mock so no component had to change:
   invalidate `mediaKeys.all(workspaceId)`.
 
 Folders (with per-folder + root asset counts) and the **open folder's** assets
-are fetched; search/kind/sort are applied client-side over that page (a large
-`pageSize`) — true server-side pagination is a follow-up. Mutations post to the
-API and invalidate the cache; `apiClient` attaches `X-Workspace-Id` automatically
+are fetched. **Search, kind, sort and paging all go to the server** — they are
+one `listParams` object used as both the request and the cache key, so the two
+cannot disagree. They used to be applied in the browser over one fixed page of
+100, which is what made "oldest first" order the *newest* hundred and let a
+search miss a file that plainly existed; neither is fixable client-side, because
+the answer depends on rows the browser was never sent. Mutations post to the API
+and invalidate the cache; `apiClient` attaches `X-Workspace-Id` automatically
 inside the workspace shell.
 
 ## Permissions
@@ -383,10 +387,32 @@ nothing uploads when an existing asset is chosen.
 
 ## Not yet (follow-ups)
 
-Server-side pagination for large folders; a keyboard suite for the field and the
-library; alt/tag editing in the drawer (read-only today).
+A keyboard suite for the field and the library; tag editing in the drawer
+(read-only today — alt text is editable). Server-side pagination **is** done;
+`useMediaLibrary` sends search, kind, sort, page and page size to the API.
+
+## Unit cover
+
+The package has a **vitest target** (`vite.config.mts`, jsdom). Component
+*behaviour* still belongs in `admin-e2e`, which drives a real browser; what
+lives here is the state a browser has no handle on:
+
+- `hooks/useMediaLibrary` — the control → selection → page algebra. A selection
+  that outlives the page it was made on is invisible and still armed, and a
+  pager left past the end of a shrunken result shows an empty grid under a
+  header claiming ninety files. Neither is an error state to look for.
+- `hooks/usePendingMediaUploads` — the two clauses that exist only because the
+  upload step and the write can disagree: a failed upload aborts the save, and
+  the retry does not send the bytes that already landed. Both live across two
+  `commit` calls.
+- `infrastructure/mediaKeys` — every key factory in the plugin, enumerated by
+  reflection rather than listed, so a new one written without a `workspaceId`
+  fails on the day it is written.
+- `components/WysiwygUploadSource` — that a body's file is uploaded *before*
+  anything is inserted, and that a failed upload inserts nothing.
 
 ## Commands
 
 - `npm exec nx typecheck @orthacms/media-admin`
 - `npm exec nx lint @orthacms/media-admin`
+- `npm exec nx test @orthacms/media-admin`

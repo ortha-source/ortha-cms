@@ -73,7 +73,7 @@ code under test is never reached, and the test passes for the wrong reason.
 Both shapes are invisible to a reviewer reading the test name, and both are
 invisible to coverage tooling, which sees the line execute.
 
-## Open: two server-e2e specs fail only in a full run
+## Settled: the full server-e2e suite is unstable, and always was
 
 Not a test that cannot fail — the opposite, and it is recorded here because it
 bears on the same question: whether a green suite means anything.
@@ -94,12 +94,27 @@ What is established:
 - Not `revokePermissionFromRole` (added with the slice): it refuses system roles
   by design, and its only caller uses a disposable role that `resetDb` removes.
 
-What is **not** established: which guard answered the 403, what reset the
-connection, and — the one that matters — whether the slice caused this or the
-full suite has always been unstable. The investigation was stopped before it
-concluded; nothing here is a verdict.
+**The clean-tree run settles it.** A full run on `4bbe57a4` — the commit before
+any coverage work — also ends with **two failures**, and they are *different
+tests*:
 
-It needs settling before the phase-5 CI gate, and for a blunt reason: a gate on
-an intermittently red suite teaches people to ignore the gate. The cheap first
-step is a full run on a clean tree — if it fails there too, this is pre-existing
-and the coverage work is exonerated.
+| Commit | Failures |
+| --- | --- |
+| `4bbe57a4`, before the slice | `content-entries-write` → "merges a link delta onto existing links"; `webhook-endpoints` → "refuses `ftp://…`" |
+| with the slice | `insights/content-insights` → a content write answered 403; `users/origin-guard` → `ECONNRESET` |
+
+Two failures both times, a different pair each time, and all four pass in
+isolation. That is not a regression; it is a suite that drops roughly two tests
+per full run wherever the ordering happens to land. The coverage work is
+exonerated, and the instability is older than it.
+
+Nobody had seen it because nobody ran the suite end to end — the specs are run
+per-directory, and a per-directory run is exactly the shape that hides
+order-dependent leakage.
+
+**This has to be fixed before the phase-5 CI gate, not after.** A gate on a suite
+that reddens at random teaches people to ignore the gate, and then it protects
+nothing. The next step is no longer attribution but diagnosis: the failures are
+consistent with state leaking between spec files in a single in-band process
+(`maxWorkers: 1`), so the suspects are module-level state, an app or pool not
+closed on teardown, and rows a `resetDb` does not clear.

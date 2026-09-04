@@ -120,7 +120,38 @@
             "file": "apps/server-e2e/src/server/transfer/transfer-round-trip.spec.ts",
             "anchor": "rejects an empty selection",
             "why": "POST /export with ids: [] is asserted to answer 400 — an 'empty means everything' reading would answer 200."
+        },
+        {
+            "id": "transfer:I-08",
+            "file": "packages/transfer/server/src/lib/import/infrastructure/import-media.service.spec.ts",
+            "anchor": "counts but does not upload during a dry run",
+            "why": "Pins the clause the e2e citation's own note says it cannot: `dryRun: true` is asserted to leave the fake uploader untouched and the run's rollback list empty, while `assetsNew` still counts the upload it would have made. A dry run that reached UploadAssetUseCase would put bytes in the bucket and fail here."
         }
     ],
-    "judgments": {}
+    "judgments": {
+        "transfer:I-05": {
+            "state": "partial",
+            "missing": "Only the CSV-column clause is pinned (flatten.spec.ts asserts csvColumns omits the inverse side). That the inverse side is left out of the **export document** and is **not written on import** is asserted by no test — a walker that emitted both ends of a two-way relation, or an import that wrote the link from the inverse side too, would pass everything currently green. Both halves need the graph walk, so they belong to server-e2e."
+        },
+        "transfer:I-09": {
+            "state": "partial",
+            "missing": "Only the second clause is pinned. `import-media.service.spec.ts` -> 'deletes only what its own run wrote' proves the rollback list is caller-owned (two runs through one singleton; rolling back the first leaves the second's row), but the first clause — that the apply runs entirely in **one transaction** — is not asserted anywhere: no test drives a mid-apply failure and reads back that the earlier entries were rolled back. That needs a real transaction, so it is server-e2e work."
+        },
+        "transfer:I-11": {
+            "state": "partial",
+            "missing": "Only the first clause is pinned. The round-trip spec asserts the second pass starts from the value bag the first one wrote (text, number and select all survive). The second clause — that the relation pass runs **only when the relations actually changed**, so one import produces one revision rather than two — is not asserted; nothing reads the revision count."
+        },
+        "transfer:I-15": {
+            "state": "partial",
+            "missing": "`link` is pinned by its verdict, its row id and the link that points at it. What is not separately asserted is that the matched related record's **field values are left untouched** — a `link` that quietly also wrote the file's values would keep the same row id and the same skip verdict, and pass. One value read-back on the linked author would close it."
+        },
+        "transfer:I-28": {
+            "state": "partial",
+            "missing": "The invariant is broader than the code. `upload-reader.spec.ts` pins what is true: the ZIP signature beats a `.json` filename, and a name that matches no extension falls through to a byte sniff. Among the three **text** formats the filename still decides — `readUpload` does `formatFromFilename(name) ?? sniffTextFormat(bytes)` — so a JSON document named `.csv` is parsed as CSV. The 'declared format' half is true in the strongest sense (the request's `format` field is never read by the reader at all) and is therefore unobservable rather than untested."
+        },
+        "transfer:I-33": {
+            "state": "partial",
+            "missing": "The server half is pinned: `export-entries.use-case.spec.ts` asserts json/ndjson open no storage stream even with `media: true`, and that `carriesFileBytes` is true for zip alone. The **interface** half — that the export dialog disables its Files toggle from the same table rather than from a format comparison of its own — is pinned by nothing; there is no admin-e2e suite for this package at all."
+        }
+    }
 }

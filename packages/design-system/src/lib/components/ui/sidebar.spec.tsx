@@ -6,7 +6,9 @@ import {
     Sidebar,
     SidebarInset,
     SidebarProvider,
-    SidebarTrigger
+    SidebarTrigger,
+    useOptionalSidebar,
+    useSidebar
 } from './sidebar';
 
 /**
@@ -108,6 +110,24 @@ describe('SidebarProvider', () => {
         const area = screen.getByTestId('body');
         area.focus();
         fireEvent.keyDown(area, { key: 'b', ctrlKey: true, bubbles: true });
+
+        expect(root().getAttribute('data-state')).toBe('expanded');
+    });
+
+    it('leaves Ctrl+B alone inside a select', () => {
+        // The fourth element the invariant names, and the only one with no
+        // case: a native `<select>` uses letter keys to jump between options,
+        // so swallowing the press costs the user a navigation they meant.
+        render(
+            <Shell>
+                <select data-testid="status">
+                    <option>Draft</option>
+                </select>
+            </Shell>
+        );
+        const select = screen.getByTestId('status');
+        select.focus();
+        fireEvent.keyDown(select, { key: 'b', ctrlKey: true, bubbles: true });
 
         expect(root().getAttribute('data-state')).toBe('expanded');
     });
@@ -255,10 +275,77 @@ describe('SidebarInset', () => {
 
         expect(scrollport.getAttribute('tabindex')).toBe('0');
         expect(scrollport.className).toContain('focus-visible:ring-2');
+        // The ring has to be drawn *inside* the box: this element is the
+        // clipping context for the whole page body, so an outset ring is
+        // painted outside its own overflow and simply never seen. A tab stop
+        // with an invisible indicator is 2.4.7 for the one control every
+        // keyboard user passes through.
+        expect(scrollport.className).toContain('focus-visible:ring-inset');
     });
 
     it('exposes exactly one landmark of its own [design-system:I-18]', () => {
         render(<Shell />);
         expect(screen.getAllByRole('main')).toHaveLength(1);
+    });
+});
+
+/**
+ * The two ways to read the sidebar, and why there are two.
+ *
+ * `useSidebar` throwing is a *feature*: a panel primitive rendered outside the
+ * provider would otherwise silently take the collapsed default and a whole
+ * region of the shell would go missing with nothing in the console. But the
+ * same rule made an optional dependency impossible — `TopBar` adapts to the
+ * sidebar when there is one and renders on public pages where there is not, and
+ * with only the throwing hook it could only reach the state by try/catch around
+ * a hook call, which React does not allow. Hence the pair. Deleting the throw
+ * "because the optional one exists" is the regression.
+ */
+describe('reading the sidebar state', () => {
+    function RequiredProbe() {
+        const context = useSidebar();
+        return <span data-testid="probe">{context.state}</span>;
+    }
+
+    function OptionalProbe() {
+        const context = useOptionalSidebar();
+        return (
+            <span data-testid="probe">{context ? context.state : 'null'}</span>
+        );
+    }
+
+    it('refuses to guess outside a SidebarProvider [design-system:I-26]', () => {
+        // React re-throws the render error after logging it; the spy keeps the
+        // expected stack out of the run's output.
+        const logged = vi
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+
+        expect(() => render(<RequiredProbe />)).toThrow(
+            /must be used within a SidebarProvider/
+        );
+
+        logged.mockRestore();
+    });
+
+    it('answers null outside one, for an optional dependency [design-system:I-26]', () => {
+        render(<OptionalProbe />);
+
+        expect(screen.getByTestId('probe').textContent).toBe('null');
+    });
+
+    it('reads the same state as the provider from either hook [design-system:I-26]', () => {
+        // The complement: `useOptionalSidebar` is the *same* context, not a
+        // second source of truth that happens to agree outside a provider.
+        render(
+            <SidebarProvider defaultOpen={false}>
+                <OptionalProbe />
+                <RequiredProbe />
+            </SidebarProvider>
+        );
+
+        expect(
+            screen.getAllByTestId('probe').map((node) => node.textContent)
+        ).toEqual(['collapsed', 'collapsed']);
     });
 });

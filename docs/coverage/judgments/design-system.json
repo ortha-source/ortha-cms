@@ -5,7 +5,7 @@
             "id": "design-system:I-05",
             "file": "packages/design-system/src/lib/utils.spec.ts",
             "anchor": "lets the later Tailwind class win a conflict",
-            "why": "Pins the tailwind-merge half — `cn('px-4','px-8')` resolves to `px-8`, so the argument written last wins a conflict; the other half (that every component actually passes the caller's `className` last into `cn`) is asserted for no component."
+            "why": "Pins the tailwind-merge half — `cn('px-4','px-8')` resolves to `px-8`, so the argument written last wins a conflict. The other half — that every component actually passes the caller's `className` last into `cn` — is now pinned by `library-conventions.spec.ts` → \"passes the caller className last into every cn call\", which parses all 161 `cn(...)` call sites and fails on any that takes a bare `className` anywhere but last."
         },
         {
             "id": "design-system:I-11",
@@ -47,13 +47,13 @@
             "id": "design-system:I-17",
             "file": "packages/design-system/src/lib/components/ui/sidebar.spec.tsx",
             "anchor": "keeps the scrollport a visibly-focusable tab stop",
-            "why": "Asserts `tabindex === '0'` and that the class list carries `focus-visible:ring-2` on `[data-slot=\"sidebar-inset-scroll\"]`; the third clause — that the ring is `inset` (`focus-visible:ring-inset`) — is not asserted by this or any other test."
+            "why": "Asserts `tabindex === '0'` and that the class list carries `focus-visible:ring-2` and `focus-visible:ring-inset` on `[data-slot=\"sidebar-inset-scroll\"]` — all three clauses. The `inset` assertion was added in the coverage sweep; the scrollport is the page body's clipping context, so an outset ring is painted outside its own overflow and never seen."
         },
         {
             "id": "design-system:I-18",
             "file": "packages/design-system/src/lib/components/ui/sidebar.spec.tsx",
             "anchor": "exposes exactly one landmark of its own",
-            "why": "`getAllByRole('main')` has length 1 for a mounted `SidebarInset`, pinning the `<main>` clause; the enumeration of the other landmarks (complementary panel, breadcrumb/link-tab/pagination `<nav>`) is not pinned here."
+            "why": "`getAllByRole('main')` has length 1 for a mounted `SidebarInset`, pinning the `<main>` clause. The enumeration of the rest is now pinned library-wide by `library-conventions.spec.ts` → \"adds no landmark beyond the four it documents\" (the only landmark *roles* declared anywhere in `src/` are `complementary` and `navigation` — `region` in particular is used nowhere) and \"creates its landmark elements in four files and no others\" (`<main>` only in `sidebar.tsx`/`app-loader.tsx`, `<nav>` only in breadcrumb/pagination/tab-nav)."
         },
         {
             "id": "design-system:I-18",
@@ -71,7 +71,7 @@
             "id": "design-system:I-20",
             "file": "packages/design-system/src/lib/components/ui/sidebar.spec.tsx",
             "anchor": "leaves Ctrl+B alone inside a text field",
-            "why": "Asserts the sidebar stays expanded and `fireEvent.keyDown` returns true (no `preventDefault`) with focus in an `Input`; sibling cases cover `textarea` and `contenteditable`. `select` — the fourth element the invariant names — has no case."
+            "why": "Asserts the sidebar stays expanded and `fireEvent.keyDown` returns true (no `preventDefault`) with focus in an `Input`; sibling cases cover `textarea`, `select` and `contenteditable` — all four elements the invariant names. The `select` case was added in the coverage sweep."
         },
         {
             "id": "design-system:I-21",
@@ -131,7 +131,7 @@
             "id": "design-system:I-28",
             "file": "packages/design-system/src/lib/components/ui/sonner.spec.tsx",
             "anchor": "lets the close button own its own click",
-            "why": "Clicking `[data-close-button]` removes exactly one toast rather than being swallowed by the wrapper handler; the action/cancel buttons and inner links named in the invariant have no case."
+            "why": "Clicking `[data-close-button]` removes exactly one toast rather than being swallowed by the wrapper handler. The link clause has its own case — \"leaves a link inside the toast to navigate\" — which clicks an `<a>` inside a toast body and asserts the toast survives; dropping `a` from `toastBodyOf`'s escape list fails it. The action/cancel clause is recorded `partial`: sonner dismisses on both anyway, so the wrapper intercepting and standing aside are indistinguishable through any observable this harness has."
         },
         {
             "id": "design-system:I-32",
@@ -168,6 +168,34 @@
         "design-system:I-04": {
             "state": "not-mechanically-checkable",
             "reason": "As written the statement cannot fail: the disjunct 'either overridden or deliberately inherited' admits every token that has no `.dark` counterpart (packages/design-system/src/styles.css and apps/admin/src/styles.css), so any assertion over the two token sets passes by construction. Only a different, hand-maintained statement — an explicit allowlist of the tokens permitted to inherit — would be testable, and no such list exists in the repo."
+        },
+        "design-system:I-06": {
+            "state": "partial",
+            "missing": "Only the first clause is pinned. `library-conventions.spec.ts` scans every source file for a `react-intl` import, a `defineMessages` call and a catalogue module and finds none, and `package-manifest.spec.ts` proves no intl runtime is a dependency. The second clause — that *every visible string* either arrives as a prop or has an English default a host can override — is asserted for the one string that has a context default (`close`, in `labels/index.spec.tsx`) and for the props with English defaults that `localizable-copy.spec.tsx` covers; nothing enumerates the library's JSX text nodes, so a newly hard-coded, un-overridable literal would pass."
+        },
+        "design-system:I-10": {
+            "state": "partial",
+            "missing": "The library half is pinned: each shipped loading surface (`SkeletonRegion` over six placeholders, `AppLoader`, `WizardPageSkeleton` over ~29) exposes exactly one `role=\"status\"`, counted with `{ hidden: true }` so a role that crept back onto a placeholder inside the region's `aria-hidden` wrapper is still seen. The second clause — \"two mounted at once is a defect\" — is about a *page* mounting two of them, which no unit test can see; it needs an admin-e2e assertion counting live regions on a route in its loading state."
+        },
+        "design-system:I-14": {
+            "state": "partial",
+            "missing": "\"Not headings by default\" is pinned for all three, and \"the rank is set by the page through `asChild`\" for `CardTitle` and `EmptyTitle`. `AlertTitle` has **no `asChild` prop** (packages/design-system/src/lib/components/ui/alert.tsx): it stays the element the banner points `aria-labelledby` at, and a page that wants a heading nests one as a child — pinned by \"lets the page choose the alert title rank by nesting one\", but by a different mechanism than the dossier describes."
+        },
+        "design-system:I-27": {
+            "state": "partial",
+            "missing": "The portal clause is pinned (`top-bar.spec.tsx` asserts the bar's `parentElement` is the `sidebar-inset-bar` strip, and the no-inset case renders in place). The second clause — that while the host is `null` the bar is drawn *not at all*, so it does not flash in the page flow — has no case: `null` is the one-commit window before `SidebarInset` publishes its strip, `InsetTopBarContext` is not exported, and nothing in the harness can hold a render at that frame."
+        },
+        "design-system:I-28": {
+            "state": "partial",
+            "missing": "Body-click, close button and inner links are each pinned. The action/cancel clause is not, and not for want of a fixture: sonner dismisses the toast itself on both, so `toastBodyOf` standing aside and `toastBodyOf` intercepting produce the same DOM. Distinguishing them needs an observable this harness does not have — the wrapper's dismissal path is `closeButton.click()`, which sonner routes through the same `deleteToast` the buttons use."
+        },
+        "design-system:I-30": {
+            "state": "partial",
+            "missing": "`Spinner`'s `animate-spin` (packages/design-system/src/lib/components/ui/spinner.tsx:27) is the one animation in the library that keeps running under `prefers-reduced-motion: reduce`, and it is the exception the scan in `library-conventions.spec.ts` names. Everything else is pinned: both stylesheet animations have a `prefers-reduced-motion` twin (checked by parsing `styles.css`, so a *new* keyframed class without one fails), `Skeleton`'s pulse carries `motion-reduce:animate-none`, and the shadcn `animate-in`/`animate-out` classes on dialog/sheet/tooltip are dead — the premise that neither tailwindcss-animate nor tw-animate-css is installed, and that the admin stylesheet loads no `@plugin`, is itself asserted. Whether the spinner should stop, slow, or stay is a design decision, not a scan gap; the dossier's \"every\" is currently false."
+        },
+        "design-system:I-33": {
+            "state": "partial",
+            "missing": "The two clauses about this library are pinned: the selected `SegmentedControlItem` pairs `data-[state=on]:bg-primary` with `data-[state=on]:font-semibold`, and the active `SidebarMenuButton` pairs `data-[active=true]:bg-sidebar-accent` with `data-[active=true]:font-medium`. \"Status dots are always accompanied by text\" is about no component here — the design system ships no status-dot primitive; the dots are drawn by consuming plugins, so that clause belongs to an admin-e2e scan over rendered pages."
         }
     }
 }

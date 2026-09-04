@@ -3,9 +3,10 @@ import {
     resolveInsightsLayout,
     type ResolveInsightsLayoutInput
 } from './index';
-import type {
-    InsightsSection,
-    InsightsWidget
+import {
+    DEFAULT_INSIGHTS_ORDER,
+    type InsightsSection,
+    type InsightsWidget
 } from '../../presentation/slots/insightsSlots';
 
 /**
@@ -91,6 +92,25 @@ describe('resolveInsightsLayout', () => {
             expect(band.widgets.map((w) => w.id)).toEqual(['alpha', 'beta']);
         });
 
+        it('keeps registration order for sections sharing an order [insights:I-06]', () => {
+            // The same rule on the other axis. Sections go through a second
+            // sort after a Map fold, and a Map preserves insertion order only
+            // as long as nothing re-keys it — so the section side can break
+            // while the widget side above still passes.
+            const bands = resolve({
+                sections: [section({ id: 'first' }), section({ id: 'second' })],
+                widgets: [
+                    widget({ id: 'a', section: 'first' }),
+                    widget({ id: 'b', section: 'second' })
+                ]
+            });
+
+            expect(bands.map((band) => band.section.id)).toEqual([
+                'first',
+                'second'
+            ]);
+        });
+
         it('sorts an order-less section after the built-ins [insights:I-07]', () => {
             const bands = resolve({
                 sections: [
@@ -111,6 +131,32 @@ describe('resolveInsightsLayout', () => {
     });
 
     describe('section contributions', () => {
+        it('gives an order-less widget the shared default too [insights:I-07]', () => {
+            // `DEFAULT_INSIGHTS_ORDER` is 100, past the built-in bands at
+            // 10/20/30/40: a contributor with no opinion lands after the
+            // standard ones rather than in the middle of them. Asserted through
+            // an explicit neighbour at 99 and one at 101, so a default of 0 or
+            // of Infinity both fail.
+            const [band] = resolve({
+                sections: [section({ id: 'content' })],
+                widgets: [
+                    widget({ id: 'after', order: DEFAULT_INSIGHTS_ORDER + 1 }),
+                    widget({ id: 'unopinionated' }),
+                    widget({ id: 'before', order: DEFAULT_INSIGHTS_ORDER - 1 })
+                ]
+            });
+
+            expect(band.widgets.map((w) => w.id)).toEqual([
+                'before',
+                'unopinionated',
+                'after'
+            ]);
+            // Past every built-in band (10/20/30/40), which is what "after the
+            // standard ones" means and the only part of the number that is a
+            // rule rather than a value.
+            expect(DEFAULT_INSIGHTS_ORDER).toBeGreaterThan(40);
+        });
+
         it('lets a plugin open a brand-new band', () => {
             const bands = resolve({
                 sections: [

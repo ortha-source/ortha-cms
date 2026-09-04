@@ -175,9 +175,29 @@
             "state": "not-mechanically-checkable",
             "reason": "The operative clause — 'adding a capability never requires editing a file in packages/bootstrap' — is a claim about future changes, which no harness can evaluate. The 'no guards/tables/routes/screens' half is a judgment about what the source means rather than an observable behaviour; the closest mechanical proxy (a grep for decorators) would pass on a host that had grown domain logic under a different shape."
         },
+        "bootstrap:I-08": {
+            "state": "partial",
+            "missing": "The 'outside the ValidationPipe' clause. The 'outside the global prefix' and 'outside the guards' clauses are both pinned by production-parity.spec.ts through real requests; the pipe clause has no observable of its own, because a global pipe only ever runs for a Nest route handler and the reference routes are registered on the http adapter, so there is no request that would be rejected if the clause broke. Closing it would mean a route whose query the pipe would refuse — which the reference does not have."
+        },
         "bootstrap:I-12": {
             "state": "not-mechanically-checkable",
             "reason": "tagByResource is module-private in packages/bootstrap/server/src/lib/utils/setup-api-docs.ts:64 and its only input is SwaggerModule.createDocument's output, which emits no path-level `parameters`/`$ref` today; a plugin's decorate runs after tagging, so nothing can inject such a key. The dossier's own testing checklist says the same ('no reachable reproduction'). Reaching the branch would require exporting the function purely to test it."
+        },
+        "bootstrap:I-16": {
+            "state": "partial",
+            "missing": "The 'SIGTERM drains requests rather than tearing connections' clause. create-server.spec.ts asserts only that the listeners are installed. The dossier records the drain as measured by hand (six concurrent logins, all reset before enableShutdownHooks, all 401 after) because a jest worker cannot signal itself without ending the run; it belongs to the live-stack pass, not to a harness."
+        },
+        "bootstrap:I-18": {
+            "state": "partial",
+            "missing": "The 'never at load time' clause. migrate.spec.ts pins that the thunk is invoked at migration time and its result used, but nothing asserts that merely importing a plugin leaves `dir` uncalled — which is the half that matters for a plugin installed from npm, where resolving the path early can throw before the process has a reason to touch migrations at all."
+        },
+        "bootstrap:I-32": {
+            "state": "partial",
+            "missing": "The 'if nothing changes within 5 seconds, no announcement happens at all' clause. Discriminating it needs a fixture whose heading arrives *after* POLL_TIMEOUT_MS — with a heading that never arrives, an announcer with the timeout removed is silent too, so the obvious test cannot fail. RouteAnnouncer's spec has the module-reset harness this would build on."
+        },
+        "bootstrap:I-34": {
+            "state": "partial",
+            "missing": "The 'when the locale matches the default it is not reported at all' clause is asserted (createAdmin/index.spec.tsx), but the assertion cannot fail on a host change: react-intl suppresses MISSING_TRANSLATION itself when locale.toLowerCase() === defaultLocale.toLowerCase() (node_modules/@formatjs/intl/lib/src/message.js:60), so the host's own `if (locale === defaultLocale) return` is unreachable through IntlProvider — deleting it leaves the suite green (verified by mutation). The behaviour is pinned against a react-intl upgrade; the host's guard is not pinned by anything."
         }
     }
 }

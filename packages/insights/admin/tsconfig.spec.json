@@ -1,7 +1,7 @@
 {
     "extends": "../../../tsconfig.base.json",
     "compilerOptions": {
-        "outDir": "./out-tsc/jest",
+        "outDir": "./out-tsc/vitest",
         "lib": [
             "es2022",
             "dom",
@@ -10,13 +10,17 @@
         "jsx": "react-jsx",
         "module": "esnext",
         "moduleResolution": "bundler",
-        "tsBuildInfoFile": "./out-tsc/jest/tsconfig.spec.tsbuildinfo",
+        "tsBuildInfoFile": "./out-tsc/vitest/tsconfig.spec.tsbuildinfo",
         "types": [
-            "jest",
-            "node"
+            "vitest/globals",
+            "vitest/importMeta",
+            "vite/client",
+            "node",
+            "vitest"
         ]
     },
     "include": [
+        "vite.config.mts",
         "src/**/*.spec.ts",
         "src/**/*.test.ts",
         "src/**/*.spec.tsx",

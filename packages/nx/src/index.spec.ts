@@ -1,4 +1,10 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+    mkdirSync,
+    mkdtempSync,
+    readFileSync,
+    rmSync,
+    writeFileSync
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { CreateNodesContextV2 } from '@nx/devkit';
@@ -152,6 +158,43 @@ describe('packages/* build, pack and publish inference', () => {
             executor: '@orthacms/nx:release-publish',
             options: { packageRoot: 'dist/pack/packages/utils/admin' }
         });
+    });
+
+    it('names the same executor nx.json’s targetDefaults does [nx:I-18]', async () => {
+        // The clause the test above cannot reach. `nx-release-publish` is
+        // declared **twice** — here and in `nx.json`'s `targetDefaults` — and
+        // Nx adds an implicit one of its own to every non-private package,
+        // applied *after* inference. When the two declarations disagree, Nx's
+        // wins outright and takes `packageRoot` with it, so the release quietly
+        // publishes the source-pointing project root instead of what `pack`
+        // staged: a tarball whose `exports` point at `./src/index.ts`, which
+        // installs and then fails to resolve for every consumer.
+        //
+        // Nothing about that is visible from inside either declaration, so this
+        // reads the real `nx.json` rather than a fixture — the disagreement is
+        // between two files, and only one of them is this package's.
+        const nxJson = JSON.parse(
+            readFileSync(join(__dirname, '../../../nx.json'), 'utf8')
+        ) as { targetDefaults: Record<string, { executor?: string }> };
+
+        const file = stagePackage('packages/utils/admin', {
+            name: '@orthacms/utils-admin'
+        });
+        const inferred = (await infer(file))[file]['nx-release-publish'];
+
+        expect(nxJson.targetDefaults['nx-release-publish'].executor).toBe(
+            '@orthacms/nx:release-publish'
+        );
+        expect(inferred['executor']).toBe(
+            nxJson.targetDefaults['nx-release-publish'].executor
+        );
+        // `dependsOn` lives in `targetDefaults` alone, for the same reason:
+        // Nx would overwrite an inferred one. Declaring it here too is how the
+        // two drift apart.
+        expect(inferred).not.toHaveProperty('dependsOn');
+        expect(
+            nxJson.targetDefaults['nx-release-publish']
+        ).toHaveProperty('dependsOn', ['pack']);
     });
 
     it('gives a private package build only — workspace tooling is not a distributable [nx:I-17]', async () => {

@@ -76,8 +76,8 @@ install without `media-admin` simply has no "Localisation & media" band.
 
 `utils/resolveInsightsLayout` owns every rule that could quietly lose a
 contributed card — the permission filter, the section merge, the ordering, the
-catch-all — and takes plain data, so all of it is unit-tested (`jest`, node
-environment) without a browser, a slot registry or an auth session.
+catch-all — and takes plain data, so all of it is unit-tested without a browser,
+a slot registry or an auth session.
 `useInsightsLayout` is a thin adapter that reads the two slots and the auth
 state and calls it. Ordering is stable, so two plugins contributing at the same
 `order` produce a deterministic page rather than one that depends on iteration
@@ -111,7 +111,8 @@ could not be shared, bookmarked, or survive a click into an entry and back out �
 the link sent a colleague to a different view than the one being described,
 silently.
 
-Three rules, all pinned by `utils/insightsRange`'s spec:
+Three rules, the first two pinned by `utils/insightsRange`'s spec and the third
+by `hooks/useInsightsRange`'s:
 
 - **The default is absent from the URL.** A bare `/insights` link keeps meaning
   "the current default window"; writing `?range=30d` on every visit would pin
@@ -254,6 +255,29 @@ There is no saved layout; `InsightsWidget.id` is the handle one would key on.
 component per file; co-located `react-intl` messages namespaced
 `insights.<area>.<key>`; UI from `@orthacms/design-system` only.
 
+## Unit cover — vitest + jsdom
+
+The package runs **vitest in the `jsdom` environment** (`vite.config.mts`,
+mirroring `workspaces-admin` and `shell-admin`), not the node-environment jest it
+started with. Page *behaviour* still belongs in `admin-e2e`, and nothing here
+re-tests what a browser can see; what lives here is the set of claims a browser
+cannot reach:
+
+- **A widget that throws.** The e2e seed shapes HTTP responses, and a failing
+  response takes `WidgetCard`'s error branch — a different code path that never
+  reaches `WidgetBoundary`. Making a *component* throw means supplying the
+  component, which is what a slot item is, so the boundary's isolation and its
+  `resetKey={range}` recovery are pinned in `InsightsSectionBand`'s spec.
+- **The width a typo'd `size` resolves to**, including the `Object.hasOwn` guard
+  against an `Object.prototype` member.
+- **The fallback `useInsightsRange` gives outside its provider**, and the
+  `replace` / merge-with-existing-params half of the URL contract.
+- **Whole literal class names**, checked as *source text* — the rendered markup
+  is identical whether the table is literal or interpolated; only the file tells
+  Tailwind's two outcomes apart.
+- **The package's own shape**: no feature package in the manifest or the import
+  graph, no server half, no migrations.
+
 ## End-to-end cover
 
 `apps/admin-e2e/src/insights/{insights,a11y}.spec.ts`, driven by `InsightsPage`
@@ -267,4 +291,4 @@ partially-failed states.
 
 - `npm exec nx typecheck @orthacms/insights-admin`
 - `npm exec nx lint @orthacms/insights-admin`
-- `npm exec nx test @orthacms/insights-admin` — the layout fold's unit tests
+- `npm exec nx test @orthacms/insights-admin` — the unit tests (vitest, jsdom)

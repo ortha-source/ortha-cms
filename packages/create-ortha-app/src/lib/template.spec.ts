@@ -1,7 +1,18 @@
-import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import {
+    mkdirSync,
+    mkdtempSync,
+    readFileSync,
+    readdirSync,
+    rmSync,
+    writeFileSync
+} from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { COPILOT_PROVIDERS, type FeatureSelection } from './features';
+import { join, relative } from 'node:path';
+import {
+    COPILOT_PROVIDERS,
+    MEDIA_PROVIDERS,
+    type FeatureSelection
+} from './features';
 import { render, renderTemplate } from './template';
 import type { TemplateValues } from './template';
 
@@ -38,6 +49,26 @@ function scaffold(...ids: string[]): void {
 /** Reads a rendered file out of the scaffolded app. */
 function rendered(path: string): string {
     return readFileSync(join(target, path), 'utf8');
+}
+
+/** Every file in the template, as paths relative to its root. */
+function templateFiles(dir = TEMPLATE): string[] {
+    return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+        const path = join(dir, entry.name);
+        return entry.isDirectory()
+            ? templateFiles(path)
+            : [relative(TEMPLATE, path)];
+    });
+}
+
+/** Every file in the scaffolded app, as paths relative to its root. */
+function generatedFiles(dir = target): string[] {
+    return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+        const path = join(dir, entry.name);
+        return entry.isDirectory()
+            ? generatedFiles(path)
+            : [relative(target, path)];
+    });
 }
 
 /** The generated manifest. */
@@ -125,21 +156,26 @@ describe('the scaffolded app, whatever the features', () => {
         expect(env).not.toContain('TOKEN_SECRET');
     });
 
-    it('leaves no placeholder or directive in any rendered file [create-ortha-app:I-05]', () => {
-        for (const file of [
-            'package.json',
-            '.env',
-            'README.md',
-            'apps/admin/index.html',
-            'docker-compose.yml',
-            'apps/server/ortha.config.ts',
-            'apps/server/src/plugins.ts',
-            'apps/admin/src/plugins.ts',
-            'apps/admin/src/styles.css'
-        ]) {
+    /**
+     * Every file, not a list of the interesting ones — the conditional-only
+     * modules under `apps/server/config/` and the four generated specs are
+     * exactly where an unclosed block or a forgotten placeholder would sit
+     * unnoticed, since nobody opens them until something is already wrong.
+     */
+    it('leaves no placeholder or directive anywhere in the app [create-ortha-app:I-05]', () => {
+        const files = generatedFiles();
+
+        expect(files.length).toBeGreaterThan(30);
+        for (const file of files) {
             expect(rendered(file)).not.toMatch(/__[A-Z_]+__/);
             expect(rendered(file)).not.toMatch(/ortha:(if|ifnot|end)/);
         }
+    });
+
+    it('renames every .tmpl file, at any depth [create-ortha-app:I-22]', () => {
+        expect(
+            generatedFiles().filter((file) => file.endsWith('.tmpl'))
+        ).toEqual([]);
     });
 
     it('ships a runnable test setup', () => {
@@ -198,7 +234,7 @@ describe('the scaffolded app, whatever the features', () => {
      * editor opening one has no project to resolve `describe` in. The second
      * project is what covers them.
      */
-    it('lays the four apps out like the monorepo', () => {
+    it('lays the four apps out like the monorepo [create-ortha-app:I-23]', () => {
         const root = JSON.parse(rendered('tsconfig.json')) as {
             references: { path: string }[];
         };
@@ -435,5 +471,184 @@ describe('with every protocol', () => {
 
         expect(plugins).toContain('const content = ContentPlugin(');
         expect(plugins).toContain('content,');
+    });
+});
+
+/**
+ * The properties that have to hold for *any* answer to the wizard, checked
+ * against several answers rather than the one whose files happen to be open.
+ */
+describe('every combination', () => {
+    const SELECTIONS: readonly (readonly [string, string[]])[] = [
+        ['nothing optional', ['media-local', 'rest']],
+        ['every protocol', ['media-local', 'rest', 'graphql', 'mcp']],
+        ['single sign-on', ['media-local', 'rest', 'sso-oidc']],
+        [
+            'everything at once',
+            [
+                'media-s3',
+                'rest',
+                'graphql',
+                'mcp',
+                'copilot-anthropic',
+                'copilot-openai',
+                'sso-oidc'
+            ]
+        ]
+    ];
+
+    it.each(SELECTIONS)(
+        'leaves no placeholder or directive behind — %s [create-ortha-app:I-05]',
+        (_label, ids) => {
+            scaffold(...ids);
+
+            for (const file of generatedFiles()) {
+                expect(rendered(file)).not.toMatch(/__[A-Z_]+__/);
+                expect(rendered(file)).not.toMatch(/ortha:(if|ifnot|end)/);
+            }
+        }
+    );
+
+    /**
+     * Dropping lines from JSON is how you get a trailing comma and an app that
+     * cannot be installed — blaming the template rather than the feature that
+     * was switched off. So the manifest is the one file the conditional
+     * processor never touches: its dependency set is assembled in
+     * `features.ts` and re-sorted, and the template it starts from declares no
+     * `@orthacms` package at all.
+     */
+    it('assembles package.json in code rather than through blocks [create-ortha-app:I-06]', () => {
+        const source = readFileSync(
+            join(TEMPLATE, 'package.json.tmpl'),
+            'utf8'
+        );
+
+        expect(source).not.toMatch(/ortha:(if|ifnot|end)/);
+        expect(source).not.toContain('@orthacms/');
+    });
+
+    it.each(SELECTIONS)(
+        'still writes an installable manifest — %s [create-ortha-app:I-06]',
+        (_label, ids) => {
+            scaffold(...ids);
+
+            const parsed = JSON.parse(rendered('package.json')) as {
+                dependencies: Record<string, string>;
+            };
+            expect(Object.keys(parsed.dependencies)).toEqual(
+                expect.arrayContaining(['@orthacms/content-server', 'react'])
+            );
+        }
+    );
+
+    /**
+     * The scaffolder's own version *is* the matching set, stamped in at render
+     * time — so a release bumps every generated app with no template edit, and
+     * `npx create-ortha-app@0.3.0` still generates a 0.3.0 app. A version
+     * written down beside an `@orthacms` name anywhere in here is a pin that
+     * will be wrong by the next release and correct-looking forever.
+     */
+    it('writes no @orthacms version down anywhere [create-ortha-app:I-04]', () => {
+        const sources = [
+            [
+                'src/lib/features.ts',
+                readFileSync(join(__dirname, 'features.ts'), 'utf8')
+            ] as const,
+            ...templateFiles().map(
+                (file) =>
+                    [file, readFileSync(join(TEMPLATE, file), 'utf8')] as const
+            )
+        ];
+
+        for (const [name, source] of sources) {
+            const pinned = source
+                .split('\n')
+                .filter(
+                    (line) =>
+                        line.includes('@orthacms') && /\d+\.\d+\.\d+/.test(line)
+                );
+
+            expect([name, pinned]).toEqual([name, []]);
+        }
+    });
+
+    it('lists no versions in features.ts at all [create-ortha-app:I-04]', () => {
+        expect(
+            readFileSync(join(__dirname, 'features.ts'), 'utf8')
+        ).not.toMatch(/\d+\.\d+\.\d+/);
+    });
+
+    /**
+     * Storage is a single choice, and it has to stay single all the way down:
+     * one package installed, one provider constructed, one type on
+     * `plugins.media.storage`. Two would not compile; none leaves
+     * `mediaStorage()` undefined and the app dead at boot — and both are the
+     * kind of mistake a stray `ortha:end` makes in a file nobody reads.
+     */
+    it.each(
+        MEDIA_PROVIDERS.map(
+            (provider) => [provider.id, provider.packages[0]] as const
+        )
+    )(
+        'installs and constructs exactly one storage adapter — %s [create-ortha-app:I-11]',
+        (id, pkg) => {
+            scaffold(id, 'rest');
+
+            const adapters = Object.keys(manifest().dependencies).filter(
+                (name) => name.startsWith('@orthacms/media-provider-')
+            );
+            expect(adapters).toEqual([pkg]);
+
+            expect(
+                rendered('apps/server/src/plugins.ts').match(
+                    /provider: create\w+StorageProvider\(/g
+                )
+            ).toHaveLength(1);
+            expect(
+                rendered('apps/server/config/media-storage.ts').match(
+                    /export function mediaStorage\(/g
+                )
+            ).toHaveLength(1);
+            expect(
+                rendered('apps/server/config/media.ts').match(
+                    /^\s+storage: \w+;$/gm
+                )
+            ).toHaveLength(1);
+        }
+    );
+});
+
+describe('a file the template ships as data', () => {
+    /**
+     * Today's template is all text, so this is the one property with no fixture
+     * in the template itself — hence a template built here, with a byte
+     * sequence a substitution pass would eat. Running a favicon through a
+     * string replace corrupts it in a way that only shows up in a browser.
+     */
+    it('is copied byte for byte, with no substitutions [create-ortha-app:I-30]', () => {
+        const source = mkdtempSync(join(tmpdir(), 'create-ortha-src-'));
+        const bytes = Buffer.concat([
+            Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+            Buffer.from('__APP_NAME__'),
+            Buffer.from([0x00, 0xff, 0xfe])
+        ]);
+
+        try {
+            writeFileSync(join(source, 'favicon.png'), bytes);
+            mkdirSync(join(source, 'apps'));
+            writeFileSync(
+                join(source, 'apps/index.html'),
+                '<h1>__APP_TITLE__</h1>'
+            );
+
+            renderTemplate(source, target, valuesWith());
+
+            expect(
+                readFileSync(join(target, 'favicon.png')).equals(bytes)
+            ).toBe(true);
+            expect(rendered('apps/index.html')).toBe('<h1>My CMS</h1>');
+        } finally {
+            rmSync(source, { recursive: true, force: true });
+        }
     });
 });

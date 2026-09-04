@@ -42,6 +42,13 @@ const article = pgTable('content_article', {
 const author = pgTable('content_author', {
     id: uuid('id').primaryKey(),
     name: varchar('name', { length: 255 }),
+    company: uuid('company_id'),
+    workspaceId: uuid('workspace_id'),
+    deletedAt: timestamp('deleted_at')
+});
+const company = pgTable('content_company', {
+    id: uuid('id').primaryKey(),
+    name: varchar('name', { length: 255 }),
     workspaceId: uuid('workspace_id'),
     deletedAt: timestamp('deleted_at')
 });
@@ -84,6 +91,21 @@ const schema: FilterSchema = {
             fields: {
                 id: { type: ScalarFieldType.Uuid },
                 name: { type: ScalarFieldType.String }
+            },
+            // A second hop, so a negated path has an outermost EXISTS that is
+            // distinguishable from its inner one.
+            relations: {
+                company: {
+                    kind: RelationKind.ManyToOne,
+                    table: company,
+                    fk: author.company,
+                    targetKey: company.id,
+                    scope,
+                    fields: {
+                        id: { type: ScalarFieldType.Uuid },
+                        name: { type: ScalarFieldType.String }
+                    }
+                }
             }
         },
         tags: {
@@ -179,6 +201,29 @@ describe('negation on a relation path → NOT EXISTS', () => {
         });
         expect(out).toContain('"content_tag"."workspace_id" =');
         expect(out).toContain('"content_tag"."deleted_at" is null');
+    });
+
+    it('wraps the OUTERMOST hop of a multi-hop path [utils:I-25]', async () => {
+        // "no article whose author works for Acme" — the NOT belongs on the
+        // first hop. `EXISTS(author … NOT EXISTS(company …))` reads "has an
+        // author who does not work for Acme", which is a different question the
+        // moment an article has two authors; and pushing the negation onto the
+        // leaf (`EXISTS(… company.name <> 'Acme')`) is wrong for the same
+        // reason one hop down. Both alternatives emit valid SQL.
+        const out = await translate({
+            field: 'author.company.name',
+            op: 'ne',
+            value: 'Acme'
+        });
+
+        expect(out.startsWith('not exists')).toBe(true);
+        // Exactly one negation, and it is the outer one: the nested hop and the
+        // leaf are both positive.
+        expect(out.match(/not exists/g)).toHaveLength(1);
+        expect(out).toContain('"content_company"."name" =');
+        expect(out).not.toContain('"content_company"."name" <>');
+        // …and both hops keep their scope inside the negation.
+        expect(out).toContain('"content_company"."workspace_id" =');
     });
 
     it('leaves positive relation operators as EXISTS', async () => {

@@ -95,6 +95,13 @@ describe('runDrizzleKitStudio', () => {
             expect(warning).toContain('0.0.0.0:4983');
             expect(warning).toContain('no authentication');
             expect(warning).toContain('Drop --host');
+            // *Before* startup, which is the half of the invariant a message
+            // printed afterwards would not satisfy: Studio is reachable from
+            // the moment drizzle-kit binds, so a warning that arrives after it
+            // is a note about something already happening.
+            expect(
+                (console.warn as jest.Mock).mock.invocationCallOrder[0]
+            ).toBeLessThan(execFileSync.mock.invocationCallOrder[0]);
         });
 
         it('names the port it was actually given', () => {

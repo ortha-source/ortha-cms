@@ -128,5 +128,26 @@
             "why": "After opening from the keyboard and pressing Done, focus is asserted on the field's own control rather than on <body> — the deferred getElementById(id) restore."
         }
     ],
-    "judgments": {}
+    "judgments": {
+        "wysiwyg:I-13": {
+            "state": "partial",
+            "missing": "Only the error half is pinned. `wysiwyg-fields.spec.ts` -> 'refuses to save a body a screen reader could not follow' shows an error-severity finding blocking the save, and 'names the structural problems in a body it is handed' shows the list is inspectRichText's. The complementary clause -- a *warning* is exactly what will NOT refuse the save -- is asserted nowhere: no test writes a link whose text says nothing (the checklist's 'click here' case) and then saves. A regression that promoted every finding to error would leave both citations green."
+        },
+        "wysiwyg:I-31": {
+            "state": "partial",
+            "missing": "Only the toolbar clause is pinned (`offers the rich-text body to view, not to edit`: the read-only expanded view has no Formatting group at all). Three clauses have no test: that `onUpdate` writes nothing into the form while read-only, that focus is not set on open, and that the surface's role is `region` rather than `textbox`. Each needs the editor panel rendered with `readOnly`, which the unit pass reaches only by mounting a full React editor -- admin-e2e is the honest home for them."
+        },
+        "wysiwyg:I-32": {
+            "state": "partial",
+            "missing": "The paste half is pinned directly (`transformPastedHTML`'s spec strips colour, font-size and background-color and keeps everything else). The second clause -- a colour applied by a *toolbar command* survives -- is pinned only **structurally**: the spec asserts the transform's single caller is `WysiwygEditorPanel`'s `editorProps.transformPastedHTML`, so an edit cannot be routed through it. Nothing asserts positively that a swatch-applied colour reaches the saved document; the e2e 'stores the formatting the toolbar applied' case exercises bold only."
+        },
+        "wysiwyg:I-34": {
+            "state": "partial",
+            "missing": "The scoping half is pinned: `package-structure.spec.ts` parses `styles.css` and fails on any selector outside `.ortha-wysiwyg`, and asserts both surfaces take the class from `WYSIWYG_PROSE_CLASS`. The second clause -- 'the editor surface and the preview render the same markup identically' -- is not mechanically checked: sharing one scope and one schema makes it structural rather than proven, and comparing the two rendered surfaces needs a browser with the editor open beside a preview of the same value."
+        },
+        "wysiwyg:I-36": {
+            "state": "partial",
+            "missing": "Only the localized half is pinned. `a translated body claims its own language, expanded or not` asserts the unfolded view resolves `lang='de'` for a localized field. The 'never for a shared one' half is not exercised -- every richtext field in the admin-e2e seed is localized, so a control that put `contentLocale` on every field regardless would pass. It needs a shared richtext field in the seed."
+        }
+    }
 }

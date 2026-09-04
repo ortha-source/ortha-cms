@@ -1,0 +1,424 @@
+import { readFileSync, readdirSync } from 'node:fs';
+import { join, relative, sep } from 'node:path';
+import { describe, expect, it } from 'vitest';
+
+/**
+ * The rules that hold across *every* file in the library rather than inside any
+ * one of them — the ones a reviewer is supposed to notice in a diff and, on the
+ * evidence, does not.
+ *
+ * All four are silent locally and loud somewhere else. An `@/` import
+ * typechecks (`tsconfig` still declares the alias) and only fails when the
+ * admin's Vite dev server tries to resolve it out of another package's source.
+ * A component missing from `src/index.ts` is invisible until a consumer reaches
+ * for it. A literal colour looks right until the theme is switched. An
+ * unguarded animation looks right until someone who asked for less motion opens
+ * the page. A per-file spot check catches none of them the moment a *new* file
+ * is added, which is the case that matters — so these scan the set.
+ */
+// `vite.config.mts` sets `root: __dirname`, so this is the package directory.
+// A wrong answer is not silent — see the first case below.
+const packageRoot = process.cwd();
+const srcRoot = join(packageRoot, 'src');
+const repoRoot = join(packageRoot, '..', '..');
+
+/** Every shipped `.ts`/`.tsx` in `src/` — specs and the vitest shim excluded. */
+function sourceFiles(dir: string): string[] {
+    return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) return sourceFiles(full);
+        if (!/\.tsx?$/.test(entry.name)) return [];
+        if (entry.name.includes('.spec.')) return [];
+        if (entry.name === 'test-setup.ts') return [];
+        return [full];
+    });
+}
+
+/**
+ * Comments stripped, so a JSDoc paragraph *about* a colour or an alias is not
+ * mistaken for one. Block comments go wholesale; line comments only when the
+ * `//` opens the line, which cannot swallow a `https://` inside a string.
+ */
+function stripComments(text: string): string {
+    return text
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .split('\n')
+        .filter((line) => !/^\s*\/\//.test(line))
+        .join('\n');
+}
+
+/**
+ * The top-level argument lists of every `name(...)` call in a file, split on
+ * commas that are not nested inside a bracket of any kind.
+ */
+function callsTo(name: string, code: string): string[][] {
+    const calls: string[][] = [];
+    for (const match of code.matchAll(new RegExp(`\\b${name}\\(`, 'g'))) {
+        let depth = 1;
+        let index = match.index + match[0].length;
+        const start = index;
+        while (index < code.length && depth > 0) {
+            if ('([{'.includes(code[index])) depth += 1;
+            else if (')]}'.includes(code[index])) depth -= 1;
+            index += 1;
+        }
+        const args: string[] = [];
+        let current = '';
+        let nesting = 0;
+        for (const character of code.slice(start, index - 1)) {
+            if ('([{'.includes(character)) nesting += 1;
+            else if (')]}'.includes(character)) nesting -= 1;
+            if (character === ',' && nesting === 0) {
+                args.push(current.trim());
+                current = '';
+            } else current += character;
+        }
+        if (current.trim()) args.push(current.trim());
+        calls.push(args.filter(Boolean));
+    }
+    return calls;
+}
+
+/** Every single-quoted string literal in a file — i.e. every class list. */
+function stringLiterals(code: string): string[] {
+    return (code.match(/'(?:[^'\\\n]|\\.)*'/g) ?? []).map((raw) =>
+        raw.slice(1, -1)
+    );
+}
+
+const files = sourceFiles(srcRoot).map((path) => {
+    const text = readFileSync(path, 'utf8');
+    return {
+        /** Repo-relative, so a failure names the file a reviewer has to open. */
+        path: relative(repoRoot, path),
+        module: relative(srcRoot, path).split(sep).join('/'),
+        text,
+        code: stripComments(text)
+    };
+});
+
+describe('library-wide source conventions', () => {
+    it('finds the files it is meant to scan', () => {
+        // Guards the scans below from the failure mode that would make every
+        // one of them vacuous: a walker that returned nothing.
+        expect(files.length).toBeGreaterThan(40);
+        expect(files.map((file) => file.module)).toContain(
+            'lib/components/ui/button.tsx'
+        );
+    });
+
+    it('imports only through relative paths, never the @/ alias [design-system:I-01]', () => {
+        // `tsconfig.json` still declares `@/*`, so this compiles. It is Vite
+        // that cannot resolve it when the admin app consumes this package's
+        // source, and the symptom is the dev server failing to come up — a
+        // long way from the diff that caused it.
+        const offenders = files.filter((file) =>
+            /(?:from|import|require)\s*\(?\s*'@\//.test(file.code)
+        );
+        expect(offenders.map((file) => file.path)).toEqual([]);
+    });
+
+    it('re-exports every shipped module from src/index.ts [design-system:I-02]', () => {
+        const barrel = readFileSync(join(srcRoot, 'index.ts'), 'utf8');
+        const exported = new Set(
+            (barrel.match(/from '(\.\/[^']+)'/g) ?? []).map((match) =>
+                match.slice(6, -1)
+            )
+        );
+
+        const orphans = files
+            .filter((file) => file.module !== 'index.ts')
+            .map((file) => ({
+                path: file.path,
+                specifier:
+                    './' +
+                    file.module.replace(/\.tsx?$/, '').replace(/\/index$/, '')
+            }))
+            .filter(({ specifier }) => !exported.has(specifier));
+
+        expect(orphans.map((orphan) => orphan.path)).toEqual([]);
+    });
+
+    it('holds no literal colour, only semantic tokens [design-system:I-03]', () => {
+        // The theme is two sets of CSS variables and the components are
+        // supposed to know only the role. One `#fff` survives the switch and
+        // sits on the dark canvas as a light patch.
+        const literal = /#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(|\boklch\(/;
+        const offenders = files.filter((file) => literal.test(file.code));
+        expect(offenders.map((file) => file.path)).toEqual([]);
+    });
+
+    it('never puts white text on the brand fill [design-system:I-34]', () => {
+        // `bg-brand` is the saturated orange: it clears 3:1 against white as a
+        // graphical object and does *not* clear 4.5:1 as text, so the pairing
+        // is a 1.4.3 failure wherever it appears. `bg-brand-soft` (the tinted
+        // surface) is a different token and is deliberately not matched here.
+        const brandFill = /(^|:)bg-brand(\/|$)/;
+        const whiteText = /(^|:)text-(white|primary-foreground)(\/|$)/;
+
+        const offenders = files.flatMap((file) =>
+            stringLiterals(file.code)
+                .filter((literal) => {
+                    const tokens = literal.split(/\s+/);
+                    return (
+                        tokens.some((token) => brandFill.test(token)) &&
+                        tokens.some((token) => whiteText.test(token))
+                    );
+                })
+                .map((literal) => `${file.path}: ${literal}`)
+        );
+
+        expect(offenders).toEqual([]);
+    });
+
+    it('reaches link orange through its own brand-text token [design-system:I-34]', () => {
+        // The reason the pairing above never comes up: orange type has a token
+        // of its own, darkened to clear AA. Deleting it and falling back to
+        // `text-brand` would read as a cosmetic tidy-up.
+        const button = files.find(
+            (file) => file.module === 'lib/components/ui/button.tsx'
+        );
+        expect(button?.code).toContain('text-brand-text');
+    });
+
+    it('carries no react-intl and no message catalogue [design-system:I-06]', () => {
+        // The library stays intl-agnostic so a host can own the one
+        // `IntlProvider`; the chrome it has to name itself goes through
+        // `DesignSystemLabelsProvider` instead.
+        expect(
+            files
+                .filter((file) => /react-intl|defineMessages/.test(file.code))
+                .map((file) => file.path)
+        ).toEqual([]);
+        expect(
+            files
+                .filter((file) =>
+                    /(^|\/)(messages|locales?)\b/.test(file.module)
+                )
+                .map((file) => file.path)
+        ).toEqual([]);
+    });
+
+    it('passes the caller className last into every cn call [design-system:I-05]', () => {
+        // `cn` is `twMerge(clsx(...))`, so "the caller wins" is not a property
+        // of `cn` at all — it is a property of the *argument order* at 161 call
+        // sites. `utils.spec.ts` pins the merge; this pins the order, which is
+        // the half a component author can get wrong. `cn(className, 'px-4')`
+        // reads identically and silently ignores every override a page passes.
+        const offenders = files.flatMap((file) =>
+            callsTo('cn', file.code)
+                .filter(
+                    (args) =>
+                        args.includes('className') &&
+                        args[args.length - 1] !== 'className'
+                )
+                .map((args) => `${file.path}: cn(${args.join(', ')})`)
+        );
+
+        expect(offenders).toEqual([]);
+    });
+
+    it('adds no landmark beyond the four it documents [design-system:I-18]', () => {
+        // A landmark is a jump target: every one the library invents lands in
+        // every screen-reader user's rotor on every page, unnamed and
+        // unexplained. `region` is the one shadcn reaches for on a scroll
+        // container, and it is why `Table` and the sidebar scrollport both take
+        // `group` instead.
+        const landmarks = new Set([
+            'banner',
+            'complementary',
+            'contentinfo',
+            'form',
+            'main',
+            'navigation',
+            'region',
+            'search'
+        ]);
+
+        const declared = new Set(
+            files.flatMap((file) =>
+                [
+                    ...file.code.matchAll(/role=(?:"([a-z]+)"|\{([^}]*)\})/g)
+                ].flatMap(([, literal, expression]) =>
+                    literal
+                        ? [literal]
+                        : [...(expression ?? '').matchAll(/'([a-z]+)'/g)].map(
+                              ([, role]) => role
+                          )
+                )
+            )
+        );
+
+        expect(
+            [...declared].filter((role) => landmarks.has(role)).sort()
+        ).toEqual(['complementary', 'navigation']);
+    });
+
+    it('creates its landmark elements in four files and no others [design-system:I-18]', () => {
+        // The other half of the enumeration: `<main>` and `<nav>` are landmarks
+        // by tag, so an allowlist of roles alone would miss them.
+        const holders = (tag: string) =>
+            files
+                .filter((file) => new RegExp(`<${tag}[\\s>]`).test(file.code))
+                .map((file) => file.module)
+                .sort();
+
+        expect(holders('main')).toEqual([
+            'lib/components/ui/app-loader.tsx',
+            'lib/components/ui/sidebar.tsx'
+        ]);
+        expect(holders('nav')).toEqual([
+            'lib/components/ui/breadcrumb.tsx',
+            'lib/components/ui/pagination.tsx',
+            'lib/components/ui/tab-nav.tsx'
+        ]);
+    });
+
+    it('carries no server side at all [design-system:I-37]', () => {
+        // Not a plugin: no module to import, no controller to mount, no table
+        // to migrate, no permission key to grant.
+        const serverShaped =
+            /@(?:Injectable|Controller|Module|Get|Post|Patch|Delete)\(|\bpgTable\(|from '@nestjs\/|from 'drizzle-orm/;
+        const offenders = files.filter((file) => serverShaped.test(file.code));
+        expect(offenders.map((file) => file.path)).toEqual([]);
+    });
+});
+
+/**
+ * Reduced motion, checked over the component set rather than at one call site.
+ *
+ * The suppression here is per-component opt-in — a `motion-reduce:` variant on
+ * the class list, or a `prefers-reduced-motion` block in the stylesheet — so
+ * the failure is never a broken rule, it is a *new* animation that simply never
+ * got one. That is invisible to any test naming a component, and it is why this
+ * enumerates every animation the library actually ships.
+ */
+describe('motion', () => {
+    // Comments out: this file is mostly prose, and an unstripped `/* … */`
+    // above a rule would be swallowed into that rule's selector.
+    const styles = readFileSync(join(srcRoot, 'styles.css'), 'utf8').replace(
+        /\/\*[\s\S]*?\*\//g,
+        ''
+    );
+
+    const reducedMotionBlock =
+        /@media \(prefers-reduced-motion: reduce\)\s*\{[\s\S]*?\n\}/g;
+
+    /**
+     * The innermost rules of a stylesheet fragment, each with the value of its
+     * `animation` shorthand. `[^{}]` never crosses a brace, so an at-rule's own
+     * header is skipped and only the rules inside it come back.
+     */
+    function rulesIn(css: string) {
+        return [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(
+            ([, selectorList, body]) => ({
+                selectors: selectorList
+                    .split(',')
+                    .map((selector) => selector.trim())
+                    .filter(Boolean),
+                animation:
+                    body.match(/animation:\s*([^;]+)/)?.[1].trim() ?? null
+            })
+        );
+    }
+
+    /** Selectors turned off inside a reduced-motion block. */
+    const suppressed = new Set(
+        [...styles.matchAll(reducedMotionBlock)].flatMap(([block]) =>
+            rulesIn(block)
+                .filter((rule) => rule.animation === 'none')
+                .flatMap((rule) => rule.selectors)
+        )
+    );
+
+    it('finds the stylesheet it is meant to parse', () => {
+        expect(suppressed.size).toBeGreaterThan(0);
+    });
+
+    it('suppresses every animation the stylesheet declares [design-system:I-30]', () => {
+        // Every rule that starts an animation, matched against the set above.
+        // Add a keyframed class to `styles.css` without a reduced-motion twin
+        // and it lands here.
+        const animated = rulesIn(styles.replace(reducedMotionBlock, ''))
+            .filter((rule) => rule.animation && rule.animation !== 'none')
+            .flatMap((rule) => rule.selectors);
+
+        expect(animated.length).toBeGreaterThan(0);
+        expect(
+            animated.filter((selector) => !suppressed.has(selector))
+        ).toEqual([]);
+    });
+
+    it('is not quietly relying on a Tailwind animation plugin [design-system:I-30]', () => {
+        // `animate-in` / `fade-in-0` / `zoom-in-95` are all over `dialog`,
+        // `sheet` and `tooltip`, and they are **dead**: neither
+        // tailwindcss-animate nor tw-animate-css is installed, and the admin's
+        // stylesheet loads no `@plugin`, so those classes generate no CSS. The
+        // scan below leans on that, so the premise is checked rather than
+        // assumed — installing the plugin turns a dozen unguarded animations on
+        // at once and fails here first.
+        const rootManifest = readFileSync(
+            join(repoRoot, 'package.json'),
+            'utf8'
+        );
+        expect(rootManifest).not.toMatch(
+            /"(tailwindcss-animate|tw-animate-css)"/
+        );
+        expect(
+            readFileSync(join(repoRoot, 'apps/admin/src/styles.css'), 'utf8')
+        ).not.toContain('@plugin');
+    });
+
+    it('pairs every live animate-* utility with a motion-reduce escape [design-system:I-30]', () => {
+        // One documented exception, and it is a real one rather than an
+        // oversight in the scan: `Spinner`'s `animate-spin` is the only
+        // animation in the library that keeps running under
+        // `prefers-reduced-motion: reduce`. Recorded as `partial` against
+        // I-30 in docs/coverage/judgments/design-system.json.
+        const exempt = new Set(['lib/components/ui/spinner.tsx']);
+        const live = /(^|:)animate-(?!in\b|out\b|none\b)[a-z-]+$/;
+
+        const offenders = files
+            .filter((file) => !exempt.has(file.module))
+            .flatMap((file) =>
+                stringLiterals(file.code)
+                    .filter((literal) => {
+                        const tokens = literal.split(/\s+/);
+                        return (
+                            tokens.some((token) => live.test(token)) &&
+                            !tokens.includes('motion-reduce:animate-none')
+                        );
+                    })
+                    .map((literal) => `${file.path}: ${literal}`)
+            );
+
+        expect(offenders).toEqual([]);
+    });
+
+    it('animates the wizard step by transform alone, never opacity [design-system:I-31]', () => {
+        // The point of the constraint: a paused motion clock — a background
+        // tab, a print, a reduced-motion user landing on the `animation: none`
+        // rule above — freezes the step on its `from` frame. If that frame
+        // carried `opacity: 0` the step's content would simply not be there.
+        const keyframes = styles.match(
+            /@keyframes wizard-step-in \{([\s\S]*?)\n\}/
+        );
+        expect(keyframes).not.toBeNull();
+
+        const properties = [
+            ...(keyframes?.[1] ?? '').matchAll(/([a-z-]+)\s*:/g)
+        ].map(([, property]) => property);
+
+        expect(properties.length).toBeGreaterThan(0);
+        expect([...new Set(properties)]).toEqual(['transform']);
+    });
+
+    it('is the class WizardStepCard actually applies [design-system:I-31]', () => {
+        // Ties the stylesheet above to the component, so the keyframes under
+        // test are the ones that run rather than a same-named leftover.
+        const wizard = files.find(
+            (file) => file.module === 'lib/components/ui/wizard.tsx'
+        );
+        expect(wizard?.code).toContain("'wizard-step-in'");
+    });
+});

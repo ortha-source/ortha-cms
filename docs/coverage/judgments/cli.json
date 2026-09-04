@@ -5,7 +5,7 @@
             "id": "cli:I-01",
             "file": "packages/nx/src/executors/db-migrate/executor.spec.ts",
             "anchor": "applies the plugins the host built, against the configured URL",
-            "why": "The spec mocks the `@orthacms/cli` module and asserts the Nx db-migrate executor calls `applyPluginMigrations(plugins, url)`; a second migration implementation inside @orthacms/nx would leave the mock uncalled and fail it. (The generated-app half — migrateCommand calling the same export — is not itself pinned by a test.)"
+            "why": "The spec mocks the `@orthacms/cli` module and asserts the Nx db-migrate executor calls `applyPluginMigrations(plugins, url)`; a second migration implementation inside @orthacms/nx would leave the mock uncalled and fail it. The generated-app half is now pinned too — packages/cli/src/lib/commands/commands.spec.ts → \"applies the host's plugins through the shared implementation\" asserts migrateCommand reaches the same export with loadHost's own plugin list and URL."
         },
         {
             "id": "cli:I-04",
@@ -95,13 +95,13 @@
             "id": "cli:I-11",
             "file": "packages/cli/src/lib/studio.spec.ts",
             "anchor": "warns, naming the exposure and how to undo it",
-            "why": "Asserts a console.warn for --host 0.0.0.0 containing the bound address '0.0.0.0:4983'; a sibling case asserts no warning for each loopback spelling. Only the 'prints a warning with the address' half is pinned — nothing asserts the warning precedes the drizzle-kit spawn, since execFileSync is a mock whose call order is not checked."
+            "why": "Asserts a console.warn for --host 0.0.0.0 containing the bound address '0.0.0.0:4983'; a sibling case asserts no warning for each loopback spelling. The 'before startup' clause is pinned by the same case comparing `console.warn`'s `invocationCallOrder` against `execFileSync`'s, so a warning moved after the spawn fails it."
         },
         {
             "id": "cli:I-18",
             "file": "packages/cli/src/lib/studio.spec.ts",
             "anchor": "exits cleanly when stopped with %s",
-            "why": "Asserts runDrizzleKitStudio does not throw when the child dies on SIGINT or SIGTERM, so studio's interrupt is a success. Pins only the studio third: dev and start settle through run.ts / superviseUntilExit, which have no test."
+            "why": "Asserts runDrizzleKitStudio does not throw when the child dies on SIGINT or SIGTERM, so studio's interrupt is a success. The dev and start thirds are pinned by packages/cli/src/lib/run.spec.ts — run() resolving on an exit carrying SIGINT/SIGTERM, and superviseUntilExit taking every child down when the registered signal handler fires."
         },
         {
             "id": "cli:I-21",
@@ -114,6 +114,14 @@
         "cli:I-22": {
             "state": "not-mechanically-checkable",
             "reason": "An absence claim about the whole package — 'the CLI reads no settings file of its own'. A test can assert what LAYOUT contains (packages/cli/src/lib/project.ts:25), but no harness can assert that nothing anywhere in the package ever reads a config file of its own; that is a review/grep property, not an assertion."
+        },
+        "cli:I-12": {
+            "state": "partial",
+            "missing": "The pin is that the server half of a build is exactly one child process — the app's own `tsc -p apps/server/tsconfig.json` — with no bundler in any spawned argv (packages/cli/src/lib/commands/build.spec.ts). What no test reaches is the consequence the invariant is stated for: nothing runs a real build and then resolves a plugin's `join(__dirname, '../../../migrations')` out of node_modules, so a bundling step introduced anywhere else in the pipeline would not be caught here. That needs a built app, not a unit test."
+        },
+        "cli:I-20": {
+            "state": "partial",
+            "missing": "The 'never connects' clause is pinned (packages/cli/src/lib/commands/commands.spec.ts → 'never reaches for a database': generateCommand calls neither loadHost nor requireDatabaseUrl, and the argv handed to drizzle-kit carries no URL) together with generate.spec.ts asserting the execFileSync options are exactly `{cwd, stdio}` — no env injection. The corollary clause, that the committed drizzle configs therefore hold no secrets, is pinned by nothing: no test reads the workspace's `drizzle.config.ts` files and asserts none declares `dbCredentials`."
         }
     }
 }

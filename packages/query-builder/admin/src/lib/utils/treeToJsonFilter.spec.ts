@@ -5,7 +5,8 @@ import {
     type FilterGroup,
     type FilterRule,
     type OpId,
-    type RuleValue
+    type RuleValue,
+    type WithinUnit
 } from '../types/filter-tree.type';
 import { treeToJsonNode } from './treeToJsonFilter';
 
@@ -89,6 +90,48 @@ describe('treeToJsonNode', () => {
         expect(() => treeToJsonNode(unmapped, NOW)).toThrow(
             /no wire op for starts_with/
         );
+    });
+
+    describe('every dictionary is read through Object.hasOwn', () => {
+        it('throws rather than shipping an inherited member as the wire op [query-builder:I-08]', () => {
+            // `UI_TO_WIRE` is a plain object literal and the op reaches it from
+            // a tree that may have been lifted out of a hand-edited `?filter=`
+            // or a stored alarm rule. A bare `UI_TO_WIRE[op]` answers
+            // `'toString'` with a *function* — truthy, so the throw below never
+            // fires and `JSON.stringify` drops the key, quietly widening the
+            // filter to everything.
+            const inherited = group(
+                rule('title', 'toString' as OpId, 'Ada')
+            );
+
+            expect(() => treeToJsonNode(inherited, NOW)).toThrow(
+                /no wire op for toString/
+            );
+        });
+
+        it('falls back to days for a unit named after a prototype member [query-builder:I-08]', () => {
+            // The same lookup, in the window table. `MS_PER_UNIT['constructor']`
+            // reads back `Object` under a bare lookup; multiplying it by `n`
+            // gives `NaN`, and the clamp then answers with the *earliest
+            // representable instant* — a `within_last 7` rule that silently
+            // matches every row ever written. The declared fallback is days.
+            const bogusUnit = group(
+                rule('updatedAt', OP.WithinLast, {
+                    n: 7,
+                    unit: 'constructor' as WithinUnit
+                })
+            );
+
+            expect(treeToJsonNode(bogusUnit, NOW)).toEqual({
+                and: [
+                    {
+                        field: 'updatedAt',
+                        op: 'gte',
+                        value: '2026-01-08T12:00:00.000Z'
+                    }
+                ]
+            });
+        });
     });
 
     describe('what never reaches the wire', () => {

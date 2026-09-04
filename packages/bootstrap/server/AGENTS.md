@@ -216,8 +216,10 @@ createServer({
 
 ## Tests
 
-The package has no test target of its own — a host is only meaningful with an
-app around it, so its coverage lives in `apps/server-e2e`:
+Coverage is split by what can observe the defect.
+
+**`apps/server-e2e`** — everything a request can see. A host is only meaningful
+with an app around it, so this is where most of it lives:
 
 - **`src/harness/create-server.spec.ts`** drives `createServer` itself: it boots
   the real host on an ephemeral port and closes it again. This is the file that
@@ -232,6 +234,27 @@ app around it, so its coverage lives in `apps/server-e2e`:
 - **`src/server/auth/login-throttle-proxy.spec.ts`** is what makes `trustProxy`
   observable: distinct forwarded clients get distinct rate-limit buckets, and
   the forwarded address — not the proxy's — lands on the session row.
+
+**The package's own unit specs** (jest; `npm exec nx test @orthacms/bootstrap-server`)
+— the composition root's _ordering_, which no request can see. `NestFactory.create` is
+mocked and the application it returns is a recording object, so the sequence of
+calls the host makes on it is the observable: every `onPluginInit` awaited in
+array order before the app exists (I-02), `trust proxy` applied when configured
+and untouched when not (I-04), the document generated after the prefix and the
+pipe and before `listen` (I-07), the admin bundle mounted after the controllers
+and both reference routes (I-15). The global `ValidationPipe` is pulled off
+`useGlobalPipes` and **exercised** rather than introspected, which is what pins
+all three of its flags (I-06). `setup-api-docs.spec.ts` does the same for the
+document's security schemes: the case that matters is the one with no
+contributing plugin, because "the host invents none" is only visible against a
+document nobody contributed to (I-21).
+
+They exist because two of those — `trust proxy` and the pipe's flags — used to be
+asserted only against `createTestApp`, which _re-implements_ the bootstrap.
+Deleting either line from the real `create-server.ts` left the whole suite green.
+`src/host-boundaries.spec.ts` covers the other shape a request cannot show: that
+the package does not depend on `express` and declares its request/response types
+structurally (I-36).
 
 Two things are deliberately uncovered. `tagByResource`'s non-operation-key guard
 has no reachable repro: `@nestjs/swagger` emits no path-level `parameters`, and

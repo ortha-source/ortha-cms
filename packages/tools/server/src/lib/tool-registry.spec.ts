@@ -306,8 +306,14 @@ describe('ToolRegistry', () => {
     // shipped declares one yet, which is exactly why it had to be centralized
     // before the first resource needs it.
     describe('resource authorization', () => {
-        /** A provider serving one gated resource. */
-        function gated(requires: readonly string[]): ToolProvider {
+        /**
+         * A provider serving one gated resource, recording whether it was
+         * ever asked for the bytes.
+         */
+        function gated(
+            requires: readonly string[],
+            read: { value: boolean } = { value: false }
+        ): ToolProvider {
             const definition = {
                 uri: 'ortha://secret',
                 name: 'secret',
@@ -318,14 +324,17 @@ describe('ToolRegistry', () => {
             return {
                 tools: () => [],
                 resources: async () => [definition],
-                readResource: async (uri) =>
-                    uri === definition.uri
-                        ? {
-                              uri,
-                              mimeType: 'application/json',
-                              text: '{"secret":true}'
-                          }
-                        : undefined
+                readResource: async (uri) => {
+                    if (uri !== definition.uri) {
+                        return undefined;
+                    }
+                    read.value = true;
+                    return {
+                        uri,
+                        mimeType: 'application/json',
+                        text: '{"secret":true}'
+                    };
+                }
             };
         }
 
@@ -346,6 +355,35 @@ describe('ToolRegistry', () => {
                     contextWith(PERMISSIONS.CONTENT_READ)
                 )
             ).rejects.toBeInstanceOf(ForbiddenException);
+        });
+
+        it('never asks the provider for the bytes it is about to refuse [mcp:I-23] [tools:I-14]', async () => {
+            // The clause the refusal above cannot show. A gate applied *after*
+            // `readResource` returned would throw the same ForbiddenException
+            // from the same call, so the test next door passes either way —
+            // while the provider has already done the work, gone to the
+            // database, and materialized bytes for someone who may not have
+            // them. Ordering is the whole content of "checked before"; the
+            // only observable is whether the provider ran.
+            const read = { value: false };
+            registry.register(gated([PERMISSIONS.USERS_READ], read));
+
+            await expect(
+                registry.readResource(
+                    'ortha://secret',
+                    contextWith(PERMISSIONS.CONTENT_READ)
+                )
+            ).rejects.toBeInstanceOf(ForbiddenException);
+            expect(read.value).toBe(false);
+
+            // And the recorder is not stuck at `false`: the same provider does
+            // run for an actor who holds the permission, so the assertion above
+            // is about the gate rather than about a spy nothing ever trips.
+            await registry.readResource(
+                'ortha://secret',
+                contextWith(PERMISSIONS.USERS_READ)
+            );
+            expect(read.value).toBe(true);
         });
 
         it('lists and reads it for an actor who holds the permission', async () => {

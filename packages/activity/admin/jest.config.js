@@ -6,13 +6,14 @@ const swcJestConfig = JSON.parse(
 );
 swcJestConfig.swcrc = false;
 
-// `testEnvironment: 'node'` on purpose: the only unit-tested code here is the
-// pure layout fold (`resolveInsightsLayout`) — the rules that decide which
-// contributed cards survive. Component tests belong in `admin-e2e`, which
+// `testEnvironment: 'node'`, matching `alarms-admin` and `copilot-admin`: what
+// is unit tested here is the pure part — the wire→view mapper's refusal to
+// invent a timestamp, the `<time datetime>` guard, and the label catalogue's
+// agreement with the kind catalogue. Rendering belongs in `admin-e2e`, which
 // drives the real browser; a jsdom layer in between would be a third place for
 // the UI to be almost-right.
 module.exports = {
-    displayName: 'insights-admin',
+    displayName: 'activity-admin',
     preset: '../../../jest.preset.js',
     testEnvironment: 'node',
     transform: {

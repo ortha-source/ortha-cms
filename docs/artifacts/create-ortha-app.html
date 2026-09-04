@@ -688,7 +688,7 @@ npm create ortha-app my-cms</code></pre></div>
   <h3>The structure</h3>
   <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>my-cms/
 ├── package.json            one package, NOT npm workspaces
-├── tsconfig.json           references to the four projects
+├── tsconfig.json           references to the five projects (the server twice: build, specs)
 ├── docker-compose.yml      Postgres 17-alpine with the right database name
 ├── .env                    the only file with secrets, and it is in .gitignore
 ├── .gitignore
@@ -932,7 +932,7 @@ import { createAnthropicProvider } from '@orthacms/copilot-provider-anthropic';
     <li><span class="id">I-01</span><span>Every publishable <code>@orthacms/*</code> package under <code>packages/</code> is classified in <code>features.ts</code> <b>exactly once</b>: core, dev core, a capability's packages, or transitive. An unclassified package fails a test.</span></li>
     <li><span class="id">I-02</span><span>The classification holds no name absent from the disk (the one allowed exception is <code>@orthacms/cli</code>).</span></li>
     <li><span class="id">I-03</span><span>Every <code>@orthacms/*</code> dependency of a generated application is pinned to the scaffolder's <b>exact</b> version — no caret, no range, no <code>latest</code>.</span></li>
-    <li><span class="id">I-04</span><span>Neither <code>features.ts</code> nor any template file contains a hardcoded version number.</span></li>
+    <li><span class="id">I-04</span><span>No <code>@orthacms/*</code> version is written down in <code>features.ts</code> or in any template file — every one is stamped at render time from the scaffolder's own manifest. <code>features.ts</code> holds no version number at all; a template's own third-party dependency ranges are its business.</span></li>
     <li><span class="id">I-05</span><span>A rendered application contains not one <code>__PLACEHOLDER__</code> token and not one <code>ortha:if|ifnot|end</code> directive.</span></li>
     <li><span class="id">I-06</span><span><code>package.json</code> never passes through the conditional blocks: its dependency set is assembled in code.</span></li>
     <li><span class="id">I-07</span><span>An unclosed <code>ortha:if</code> and an unpaired <code>ortha:end</code> <b>throw</b>, naming the file, rather than returning a truncated file.</span></li>
@@ -951,7 +951,7 @@ import { createAnthropicProvider } from '@orthacms/copilot-provider-anthropic';
     <li><span class="id">I-20</span><span>The scaffolder never blocks on a prompt: no TTY or <code>--yes</code> means the defaults, and every question has a flag.</span></li>
     <li><span class="id">I-21</span><span>stdin is returned from raw mode to its original state on any outcome — an answer, a cancellation, an exception.</span></li>
     <li><span class="id">I-22</span><span><code>_gitignore</code> arrives as <code>.gitignore</code>, and no <code>*.tmpl</code> file remains in the generated application.</span></li>
-    <li><span class="id">I-23</span><span>The root <code>tsconfig.json</code> references exactly four projects, in the order <code>server</code>, <code>admin</code>, <code>server-e2e</code>, <code>admin-e2e</code>.</span></li>
+    <li><span class="id">I-23</span><span>The root <code>tsconfig.json</code> references exactly five projects, in the order <code>server</code>, the server's spec project (<code>apps/server/tsconfig.spec.json</code>), <code>admin</code>, <code>server-e2e</code>, <code>admin-e2e</code>. The server contributes two because the build project excludes the specs, so without a project of their own nothing typechecks them.</span></li>
     <li><span class="id">I-24</span><span><code>apps/server/tsconfig.json</code> excludes <code>**/*.spec.ts</code>, or the tests end up in <code>dist/server</code>.</span></li>
     <li><span class="id">I-25</span><span><code>styles.css</code> contains the exact line <code>@source "../../../node_modules/@orthacms";</code> and <b>contains no</b> <code>@source</code> with a glob inside a <code>node_modules</code> path.</span></li>
     <li><span class="id">I-26</span><span>The Vite config is named <code>vite.config.mts</code>, not <code>.ts</code>.</span></li>
@@ -966,7 +966,7 @@ import { createAnthropicProvider } from '@orthacms/copilot-provider-anthropic';
 
 <section id="qa">
   <h2 class="sec"><span class="num">09</span>Testing checklist</h2>
-  <p>The scaffolder is tested in two layers: the package's unit tests (five spec files — classification coverage, the conditional-block processor, the template render, the terminal interface, the validators) and a manual end-to-end run that is not yet automated.</p>
+  <p>The scaffolder is tested in two layers: the package's unit tests (nine spec files — classification coverage, the conditional-block processor, the template render, the terminal interface, the validators, the command itself end to end, the composition of the generated application, its executed <code>config/</code> modules, and the packaging) and a manual end-to-end run that is not yet automated.</p>
 
   <h3>9.1 Classification and coverage</h3>
   <ul class="check">
@@ -1107,7 +1107,7 @@ import { createAnthropicProvider } from '@orthacms/copilot-provider-anthropic';
         <td class="mono">D-07</td>
         <td class="mono">templates/default/apps/server/src/plugins.spec.ts</td>
         <td><code>EXPECTED_PLUGINS</code> = <code>database, identity, workspaces, activity, users, content, [content-graphql], i18n, alarms, media, copilot, [mcp]</code></td>
-        <td><b><code>content-views</code> is missing.</b> The template's <code>plugins.ts</code> registers <code>ContentViewsPlugin({ content })</code> right after <code>content</code>, and its <code>name</code> is <code>'content-views'</code>. So the generated application's very first test — "registers exactly the plugins this app ships" — <b>fails</b>, and <code>npm test</code> in a freshly created application is red. The scaffolder's own tests do not catch it: <code>template.spec.ts</code> checks that the factory names are present in the file's text but never executes the template's specs</td>
+        <td><b><code>content-views</code> is missing.</b> The template's <code>plugins.ts</code> registers <code>ContentViewsPlugin({ content })</code> right after <code>content</code>, and its <code>name</code> is <code>'content-views'</code>. So the generated application's very first test — "registers exactly the plugins this app ships" — <b>fails</b>, and <code>npm test</code> in a freshly created application is red. The scaffolder's own tests did not catch it: <code>template.spec.ts</code> checks that the factory names are present in the file's text but never executes the template's specs. The admin half was the same defect — <code>apps/admin/src/plugins.spec.ts</code> omitted <code>webhooks</code>, so <code>npm run test:admin</code> was red too. <b>Both are now fixed</b>, and <code>src/lib/composition.spec.ts</code> compares the two lists for every combination, reading each plugin's name from the package that defines it</td>
       </tr>
       <tr>
         <td class="mono">D-08</td>

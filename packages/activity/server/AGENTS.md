@@ -206,5 +206,13 @@ The fence is what makes that safe; omission would only make the tool less useful
 
 ## Commands
 
+- `npx nx test @orthacms/activity-server` — the unit suite, DB-free and a couple
+  of seconds. Beyond the mapping parity net it holds three checks made of
+  *absences*, which no e2e run can see: `package-shape.spec.ts` reads the source
+  tree for a second writer, a connection opened here, a second table, or an
+  UPDATE/DELETE against the log; `audit-event.subscriber.spec.ts` pins that the
+  subscriber's `kinds` **is** `AUDITED_EVENT_KINDS` rather than `'*'`;
+  `activity-list-order.spec.ts` and `activity-filter.spec.ts` render the built
+  predicate and order clause with Drizzle's own dialect.
 - `npx nx run "@orthacms/activity-server:db:generate" --name=<change>` (commit the SQL)
 - `npx nx typecheck @orthacms/activity-server` / `npx nx lint @orthacms/activity-server`
