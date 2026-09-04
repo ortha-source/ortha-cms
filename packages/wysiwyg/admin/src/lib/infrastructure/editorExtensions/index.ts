@@ -14,7 +14,7 @@ import { TableKit } from '@tiptap/extension-table';
 import { Callout } from '../extensions/callout';
 import { Language } from '../extensions/language';
 import { Column, ColumnBlock } from '../extensions/columns';
-import { TableTab } from '../extensions/tableTab';
+import { TableTab, TableWithoutTab } from '../extensions/tableTab';
 import { ResizableImage, ResizableVideo } from '../extensions/media';
 
 /** Heading levels the editor offers. Deeper than h4 has no place in a CMS body. */
@@ -65,13 +65,20 @@ export function editorExtensions(placeholder: string): AnyExtension[] {
         // preview (`renderRichText` re-serializes through this same schema) and
         // the published body both carry it.
         TableKit.configure({
-            table: { resizable: true },
+            // The kit's `Table` is switched off and registered separately below,
+            // because the one thing that has to change about it — dropping its
+            // `Tab` binding — is not reachable through the kit's options.
+            table: false,
             tableHeader: { HTMLAttributes: { scope: 'col' } }
         }),
+        // `Table` with its own Tab surrendered, so `TableTab` below is the only
+        // binding that answers the key inside a table. The two are a pair: the
+        // bound is only real because nothing underneath re-appends the row.
+        TableWithoutTab.configure({ resizable: true }),
         // Bounds Tab at the end of a table so it adds **one** row rather than
-        // one per press — see `TableTab`. Listed after `TableKit` for reading
-        // order only; which binding is offered the key first is decided by
-        // `priority`, not by position here.
+        // one per press — see `TableTab`. Listed after the table nodes for
+        // reading order only; which binding is offered the key first is decided
+        // by `priority`, not by position here.
         TableTab,
         Callout,
         // Language of parts (WCAG 3.1.2) — a run of text in another language
