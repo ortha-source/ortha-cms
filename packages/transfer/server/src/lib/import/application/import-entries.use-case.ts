@@ -164,14 +164,21 @@ export class ImportEntriesUseCase {
         // Records whose values were written, paired with the target row and the
         // exact bag that was written, so the second pass can apply their links.
         //
-        // Carrying `values` is not an optimisation. `toColumns` writes a field
+        // Carrying `written` is not an optimisation. `toColumns` writes a field
         // absent from the bag as `null` — a save replaces the whole document —
         // so a second update carrying only the relation fields would blank
         // every scalar the first pass just wrote.
+        //
+        // It is `withLinks`, not the pre-link bag, and the difference is the
+        // whole point: the second pass decides whether to write at all by
+        // comparing what it resolved against what is already on the row. Handed
+        // the bag *before* the links went in, every non-null relation compares
+        // `undefined` against a real id, the guard never holds, and one import
+        // costs every record a second UPDATE and a second revision.
         const linkPass: {
             record: TransferRecord;
             targetId: string;
-            values: Record<string, unknown>;
+            written: Record<string, unknown>;
         }[] = [];
 
         const matches = await this.matchAll(document, workspaceId);
@@ -328,7 +335,7 @@ export class ImportEntriesUseCase {
                     targetId,
                     record.$locale
                 );
-                linkPass.push({ record, targetId, values });
+                linkPass.push({ record, targetId, written: withLinks });
                 verdicts.push(
                     this.verdict(
                         record,
@@ -698,7 +705,7 @@ export class ImportEntriesUseCase {
         pass: readonly {
             record: TransferRecord;
             targetId: string;
-            values: Record<string, unknown>;
+            written: Record<string, unknown>;
         }[],
         ids: TransferIdMap,
         verdicts: ImportVerdict[],
@@ -706,7 +713,7 @@ export class ImportEntriesUseCase {
     ): Promise<void> {
         if (command.dryRun) return;
 
-        for (const { record, targetId, values: written } of pass) {
+        for (const { record, targetId, written } of pass) {
             const type = this.registry.get(record.$type);
             if (!type) continue;
 
