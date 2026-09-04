@@ -134,5 +134,26 @@
             "why": "Pins the bySeverity clause: a payload with no tally yields zeroes for all three rather than undefined reaching the strip."
         }
     ],
-    "judgments": {}
+    "judgments": {
+        "alarms:I-05": {
+            "state": "partial",
+            "missing": "Only the row count is pinned. `alarm-findings.spec.ts` -> 'is idempotent under a re-delivered event' drains the outbox twice and asserts one finding; nothing asserts the second delivery changed *nothing but* `last_seen_at`. An ON CONFLICT that also reset `first_seen_at`, or cleared `detail`, would pass it — and `first_seen_at` is the history the whole 'open for three months' reading rests on. Needs a server-e2e read of the row before and after the second drain (the file already has `findingFirstSeen` for exactly that shape)."
+        },
+        "alarms:I-13": {
+            "state": "partial",
+            "missing": "The FK cascade is pinned ('takes the rule and its findings with it'); the workspace clause in the DELETE's `where` is not. Dropping `eq(alarmRules.workspaceId, workspaceId)` from `AlarmRuleRepository.remove` leaves every alarms test green — the rule id is a uuid, so a caller has to know it, but a member of workspace A holding `alarms:manage` could then delete workspace B's rule and its findings. Needs a server-e2e case: a second workspace's rule id, DELETEd from the first, expecting 404 and the row still there."
+        },
+        "alarms:I-14": {
+            "state": "partial",
+            "missing": "The 409 is pinned; the composite half of the uniqueness is not. The index is `(workspace_id, name)`, and a migration that narrowed it to `name` alone would fail no test — it would instead refuse a second workspace the alarm name its neighbour happened to use first, which reads as a bug in someone else's tenant. The dossier's own checklist names it ('The same name in a different workspace -> 201')."
+        },
+        "alarms:I-17": {
+            "state": "partial",
+            "missing": "Two of the three clauses are pinned on the *rules* controller: the read/write permission split and workspace membership. Not pinned: (a) `OriginGuard` on the five writing routes, `preview` included — a browser-mounted CSRF against a signed-in admin is exactly what it is there for, and no alarms test sends a foreign `Origin`; (b) the findings controller's own permission — every citation for this row is on `/alarms/rules`, so a findings route that had lost its `@RequirePermissions` decorator would be caught by nothing."
+        },
+        "alarms:I-18": {
+            "state": "partial",
+            "missing": "The list half is pinned (a resolved finding leaves the default `GET /alarms/findings`). The per-entry batch is not: 'serves findings for a batch of entries in one request' only ever asks about entries whose findings are open, so `byEntryIds` dropping its `ne(state, 'resolved')` would still pass. That clause is what keeps a closed finding off the entry editor's Checks block and out of the records list's column — the two places an editor actually reads findings."
+        }
+    }
 }

@@ -195,3 +195,11 @@ order, Component }`) — the home dashboard's tiles + panels.
 
 - `npm exec nx typecheck @orthacms/shell-admin`
 - `npm exec nx lint @orthacms/shell-admin`
+- `npm exec nx test @orthacms/shell-admin` — vitest + jsdom (`vite.config.mts`,
+  `src/test-setup.ts`). What lives here is the handful of rules a browser cannot
+  attribute: the contextual area's ownership token and the `useSidebarContent`
+  factory+deps contract, the portal hosts staying mounted across a collapse, the
+  focus handoff expiring unclaimed, the empty-nav-group guard (unreachable in a
+  browser — the shipped Directory group always has an ungated row), and the
+  floating toggle's DOM position, which exists only to satisfy a `~` selector.
+  Page *behaviour* stays in `apps/admin-e2e`.

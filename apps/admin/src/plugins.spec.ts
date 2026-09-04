@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { SIDEBAR_NAV_SLOT, type SidebarItem } from '@orthacms/shell-admin';
 import { buildPlugins } from './plugins';
 
 /**
@@ -97,6 +98,28 @@ describe('buildPlugins()', () => {
         );
 
         expect([...new Set(paths)].sort()).toEqual([...paths].sort());
+    });
+
+    it('marks only the root route as an exact nav match [shell:I-28]', () => {
+        // `end` decides what `SidebarNavButton` matches: with it, only the exact
+        // path is current; without it, the path and everything under it. `/` is
+        // a prefix of every route in the product, so a Home row that lost `end`
+        // announces itself as the current page on all of them — two current rows
+        // everywhere, which is worse than none. Any *other* row that gained it
+        // stops marking itself current on its own sub-pages.
+        //
+        // The rule spans plugins, so it can only be asserted here, over the
+        // assembled nav. The shell's own contribution is pinned in
+        // `packages/shell/admin/src/lib/utils/shellPlugin/index.spec.tsx`.
+        const items = buildPlugins()
+            .flatMap((plugin) => plugin.slots ?? [])
+            .filter((contribution) => contribution.slot === SIDEBAR_NAV_SLOT)
+            .flatMap((contribution) => contribution.items as SidebarItem[]);
+
+        expect(items.length).toBeGreaterThan(1);
+        expect(items.filter((item) => item.end).map((item) => item.to)).toEqual(
+            ['/']
+        );
     });
 
     it('names each plugin once', () => {

@@ -12,7 +12,15 @@
         "types": ["node"]
     },
     "include": ["src/**/*.ts", "src/**/*.tsx"],
-    "exclude": ["dist", "**/*.spec.tsx", "**/*.test.tsx"],
+    "exclude": [
+        "dist",
+        "out-tsc",
+        "**/*.spec.ts",
+        "**/*.test.ts",
+        "**/*.spec.tsx",
+        "**/*.test.tsx",
+        "vite.config.mts"
+    ],
     "references": [
         {
             "path": "../../identity/admin/tsconfig.lib.json"

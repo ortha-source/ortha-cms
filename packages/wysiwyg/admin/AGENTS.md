@@ -15,7 +15,7 @@ tab and inside a localized type's Translated/Shared groups — without knowing
 about any of them.
 
 There is **no server counterpart**. `richtext` is an existing content field type
-(`@orthacms/content-server`); this plugin changes the *control*, not the
+(`@orthacms/content-server`); this plugin changes the _control_, not the
 schema, the wire format, or the API.
 
 What it stores is the **document** — `editor.getJSON()`, the ProseMirror node
@@ -43,7 +43,7 @@ raw: field.richtext({ admin: { widget: 'textarea' } }) // → content-admin's te
 ```
 
 `widget: 'textarea'` is for a body that isn't authored prose — a hand-maintained
-snippet, an email template, anything the author edits *as markup* on purpose,
+snippet, an email template, anything the author edits _as markup_ on purpose,
 which a WYSIWYG would reformat the moment it opened. `widget: 'wysiwyg'` is
 accepted too, so a schema can state the intent rather than rely on the default.
 Both live in `WYSIWYG_WIDGET` (the plugin's only other export).
@@ -88,10 +88,10 @@ schema** — a document rebuilt from its JSON, a legacy HTML string parsed out o
 an inert `DOMParser` document — and re-serializes from the resulting nodes. (A
 document carrying a node type this install has no extension for cannot be
 rebuilt; it falls back to the kernel's `richTextToHtml` and takes the string
-path, so the parts this editor *does* understand still render instead of a blank
+path, so the parts this editor _does_ understand still render instead of a blank
 card.) Only what the schema declares survives; event handlers are
 dropped, and the Link extension blanks any href outside its protocol allowlist
-(`javascript:`). The allowlist is therefore the *same definition* as "what this
+(`javascript:`). The allowlist is therefore the _same definition_ as "what this
 editor can write", so the preview is exactly what the author sees once the
 field is expanded. A hand-kept tag list would be a second definition, free to
 drift.
@@ -100,7 +100,7 @@ drift.
 same day.** If you ever render rich text somewhere else, go through
 `renderRichText` — never `innerHTML` on a raw value.
 
-### 2. The control is a button *beside* the preview, not around it
+### 2. The control is a button _beside_ the preview, not around it
 
 Wrapping formatted content in a `<button>` puts headings, lists, and tables
 inside a control — invalid HTML, and it flattens the whole body into the
@@ -170,7 +170,7 @@ form through the slot's `onChange`, exactly like typing in any other field, and
 the record's own Save (plus the unsaved-changes guard) stays the only commit
 boundary. So leaving the view — by either exit — can never lose work.
 
-### 5. "Empty" is defined as what empty *is*
+### 5. "Empty" is defined as what empty _is_
 
 `isEmptyRichText` (the kernel's — `richTextValue` re-exports it, since the
 server's `required` and the publish gate ask the same question) matches the
@@ -194,7 +194,7 @@ whose text says nothing, a `lang` no user agent can parse. The rules are the
 will refuse the save, and a warning is exactly what will not.
 
 Both are shown, and that is the point. Section 508's 504.2 asks whether an
-authoring tool *enables* the production of conformant content; a rule an author
+authoring tool _enables_ the production of conformant content; a rule an author
 only meets as a rejected save enables nothing.
 
 **Language of parts** (WCAG 3.1.2) is the writing half of the same criterion:
@@ -242,7 +242,7 @@ published elsewhere. And the editor and preview **must** render identically;
 sharing one scope makes that structural instead of a thing to keep in sync.
 
 Colors come from the app's `--color-*` theme tokens, so the editor follows
-light/dark. Colors the *author* picked (text color, highlight) are inline on the
+light/dark. Colors the _author_ picked (text color, highlight) are inline on the
 content and stay put — those are content, not chrome. Same principle in the
 custom nodes: a callout serializes to `<aside data-callout data-tone="warning">`
 and a layout to `<div data-columns="3">`, so the consuming site styles the
@@ -280,7 +280,7 @@ Two things to keep in mind if you add a source:
 - **`src` is vetted twice.** `domain/mediaSrc` allows `http(s)` and same-origin
   paths and refuses everything else — including protocol-relative `//host/…`,
   which inherits a scheme this editor can't vouch for. The dialogs check it to
-  explain *why* nothing happened; the node checks it on insert and on parse,
+  explain _why_ nothing happened; the node checks it on insert and on parse,
   which is the pass that protects stored content.
 
 Sizing rides the **`width` attribute**, never an inline style or a stored
@@ -294,7 +294,7 @@ reach of keyboard users.
 
 `@tiptap/extension-text-align` is configured for `heading` and `paragraph` only,
 and adding the media nodes to that list would **not** work: `text-align`
-positions a block's inline *children*, and an image **is** the block. The
+positions a block's inline _children_, and an image **is** the block. The
 property lands on the `<img>` and moves nothing — which is exactly what "align
 centre does nothing to a selected image" looked like.
 
@@ -320,7 +320,7 @@ Alt is published content and the difference between an image that works for a
 screen-reader user and one that doesn't, so it can't only be a field on the way
 in. An **upload** arrives with no alt at all; a **library pick** arrives with
 whatever alt the library happened to hold. Either way, the moment an author
-knows what a picture is *for* is in the body, with the surrounding text on
+knows what a picture is _for_ is in the body, with the surrounding text on
 screen — so every image carries its own alt control (`MediaNodeView`'s
 `AltTextPopover`).
 
@@ -337,7 +337,7 @@ ignores it) and the prompt keys off it. Ticking it also empties the alt, because
 a screen reader would otherwise announce text sitting behind a ticked box.
 
 One deliberate asymmetry: inside the editor an un-alt'd image still renders a
-fallback accessible name, or it reads as an unlabelled graphic to the *author's*
+fallback accessible name, or it reads as an unlabelled graphic to the _author's_
 own screen reader while they work. The stored HTML gets the real value — empty
 if that is what it is. Inventing alt for published content would be worse than
 none.
@@ -351,8 +351,8 @@ one's submit reached the entry editor's `<form>` and saved-and-**published** the
 record.
 
 All three now `stopPropagation()` on their own submit, and content-admin's form
-ignores submits it didn't raise. Pinned by the *"never saves the record from an
-overlay's own form"* e2e case, which fired **three** saves before the fix — one
+ignores submits it didn't raise. Pinned by the _"never saves the record from an
+overlay's own form"_ e2e case, which fired **three** saves before the fix — one
 per overlay. Any new overlay in this package that wants a `<form>` needs the
 same call.
 
@@ -366,7 +366,7 @@ makes whatever landed on row two read as an afterthought.
 
 So the bar keeps out front only what is reached mid-sentence — undo/redo, block
 type, size, bold/italic, the two colors, the two lists, links — and folds the
-rest into three menus grouped by *what the action is*:
+rest into three menus grouped by _what the action is_:
 
 - **More formatting** — underline, strikethrough, inline code, quote, clear
   formatting. Its toggles are checkbox items, so the menu still says what is
@@ -381,7 +381,7 @@ rest into three menus grouped by *what the action is*:
 bad, clipping the last controls off the edge is worse.
 
 **The budget is about 40px.** Adding a control to the bar means taking one off,
-or it wraps again. `admin-e2e`'s *"keeps the toolbar on a single row"* case
+or it wraps again. `admin-e2e`'s _"keeps the toolbar on a single row"_ case
 measures this — it groups children by vertical **centre**, not `top`, because
 the bar is `items-center` and a 32px button beside a 20px separator otherwise
 reads as two rows. Watch for the width that isn't in the obvious sum: the
@@ -405,7 +405,7 @@ they now have none and lean on the bar's `gap`.
    exists because the admin renders under `StrictMode`: every `useEditor` mounts,
    tears down, and remounts, and the dead instance's subscription fires one last
    selector run. `can().undo()` or `storage.characterCount.words()` on a
-   destroyed editor throws *during render*, and React unwinds the whole editor
+   destroyed editor throws _during render_, and React unwinds the whole editor
    subtree — the toolbar just vanishes. `useLiveEditorState` returns your
    `whenGone` value for that one frame instead.
 4. Both must `preventDefault` on `mousedown`. Otherwise pressing the control
@@ -423,6 +423,15 @@ is an ordinary tab stop.
 
 - `npx nx typecheck @orthacms/wysiwyg-admin`
 - `npx nx lint @orthacms/wysiwyg-admin`
+- `npx nx test @orthacms/wysiwyg-admin` — the unit suite (vitest + jsdom). It is
+  deliberately **not** a second editor: what lives here is the pure rules
+  (`domain/`), what the schema serializes into stored content, the document
+  commands driven headlessly (clear-formatting, callout tones, column
+  reshaping, media insertion — each a transform whose failure is invisible on
+  screen and only shows in the stored document), and the structural claims a
+  browser cannot see: the lazy boundary, the layering, and the single
+  `.ortha-wysiwyg` style scope. Anything about pointers, focus or the caret
+  belongs in `admin-e2e`.
 - `npx nx e2e admin-e2e -- --project=chromium wysiwyg-fields` — the suite that
   covers this plugin (`apps/admin-e2e/src/content/wysiwyg-fields.spec.ts`),
   including two axe scans and the saved-HTML assertions. The visible editor is

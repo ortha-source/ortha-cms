@@ -135,9 +135,33 @@
         }
     ],
     "judgments": {
+        "shell:I-02": {
+            "state": "partial",
+            "missing": "Only the ordering of the two identity pieces is pinned. `private-routes.spec.ts` fails when RequireAuth sits outside AuthProvider (the gate goes blind and never redirects), but nothing asserts that AppShell is at the centre of the composition — a layout that rendered the shell beside the gate rather than inside it would still redirect a signed-out visitor, and would render the chrome for one frame first."
+        },
+        "shell:I-05": {
+            "state": "partial",
+            "missing": "Only the idempotence half is pinned, and it is pinned against `wireSlotContributions` in isolation. That the host runs the wiring *before the first render* is bootstrap-admin's ordering; its own `createAdmin` spec asserts nothing about slots, so a host that wired after mounting the router would leave the first paint of the sidebar empty and no test would notice."
+        },
+        "shell:I-08": {
+            "state": "partial",
+            "missing": "The palette half. `SidebarCommandItem` applies the same `useHasPermission` gate as `SidebarNavButton`, and nothing asserts it: a user without `users:read` searching \"Members\" would get a result that leads to the page's no-access state. Left uncovered deliberately in the unit pass — the control renders a cmdk `CommandItem`, which needs a `Command` context, and no spec in the repo exercises cmdk under jsdom yet, so the control case could not be written blind in a phase where nothing runs."
+        },
         "shell:I-09": {
             "state": "not-mechanically-checkable",
             "reason": "Calling useHasPermission unconditionally is an implementation-shape rule (react-hooks/rules-of-hooks), not observable behaviour. Each nav row is its own component instance and `item.permission` is fixed for that instance's whole life, so a conditional call would never change the hook order within any single component and produces no difference a test harness could see — only lint can catch it."
+        },
+        "shell:I-14": {
+            "state": "partial",
+            "missing": "The caller's side: \"deps must list every field the node renders\". The hook's own contract (a factory rebuilt only on a deps change) is pinned in `sidebarContent/index.spec.tsx`, but nothing can check that a given caller's deps array is complete — `workspaces-admin`'s `WorkspaceNav` listing `[workspace.id]` while rendering `workspace.name` would show a stale name after a rename, and only that package's own test could catch it."
+        },
+        "shell:I-26": {
+            "state": "partial",
+            "missing": "Two things. (1) The copilot dock's ⌘J is pinned nowhere; ⌘B is pinned, but in design-system's own suite (`design-system:I-20`) rather than here. (2) The \"single shared function\" clause is not what the code does, and cannot be: ⌘K (`SidebarSearch`) and ⌘J (`CopilotLauncher`) share `isComposingText` from utils-admin, while ⌘B uses design-system's own `ownsBoldShortcut` — the design system carries no dependency on utils-admin, and its check is deliberately wider (contenteditable and textual inputs, because the chord means *bold* there). Two implementations by necessity, not by drift."
+        },
+        "shell:I-29": {
+            "state": "partial",
+            "missing": "`mobileTitle` and `mobileDescription` — the sidebar's Sheet on a narrow viewport, which is the case `ORT-159` was filed for (it announced the design system's English default in every locale). `label` is pinned by host.spec.ts and `scrollLabel` by `AppShell/index.spec.tsx`; the two mobile strings need a viewport under the breakpoint, so they belong to admin-e2e's mobile projects rather than to a jsdom render."
         }
     }
 }

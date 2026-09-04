@@ -79,4 +79,26 @@ describe('Toaster', () => {
             ).toHaveLength(1)
         );
     });
+
+    it('leaves a link inside the toast to navigate [design-system:I-28]', async () => {
+        // The clause with no case until now. A toast that offers "Saved.
+        // View entry" is one the reader is meant to click *through*, and the
+        // wrapper's press-to-dismiss sits on the same element — so without the
+        // `a` in `toastBodyOf`'s escape list the toast is torn down under the
+        // pointer and the navigation is the last thing that happens, if it
+        // happens at all.
+        render(<Toaster />);
+        act(() => {
+            toast(
+                <span>
+                    Saved. <a href="#entry">View entry</a>
+                </span>
+            );
+        });
+        await waitFor(() => expect(toasts()).toHaveLength(1));
+
+        fireEvent.click(screen.getByRole('link', { name: 'View entry' }));
+
+        expect(toasts()[0].getAttribute('data-removed')).not.toBe('true');
+    });
 });

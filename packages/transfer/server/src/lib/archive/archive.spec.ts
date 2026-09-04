@@ -263,3 +263,142 @@ describe('hostile archives', () => {
         );
     });
 });
+
+describe('a deterministic archive', () => {
+    /**
+     * Two exports of identical content have to be identical files, and three
+     * separate decisions in `zip-writer.ts` are what make that true: a fixed
+     * DOS timestamp instead of the clock, deflate for the text members, and
+     * store for the streamed asset bytes.
+     *
+     * Byte-equality on its own would **not** pin the timestamp — a DOS stamp
+     * has two-second resolution, so two archives built from a real clock inside
+     * one test run would usually match anyway. The clock is therefore moved a
+     * year forward between the two builds, and the date/time fields are read
+     * out of the headers besides.
+     *
+     * Only `Date` is faked: Node's streams schedule on `process.nextTick` and
+     * `setImmediate`, and faking those makes the writer's own `for await` hang
+     * forever rather than fail.
+     */
+    const FAKE_DATE_ONLY: Parameters<typeof jest.useFakeTimers>[0] = {
+        doNotFake: [
+            'nextTick',
+            'setImmediate',
+            'clearImmediate',
+            'queueMicrotask',
+            'performance',
+            'hrtime'
+        ]
+    };
+
+    /** 1980-01-01 00:00, the earliest a DOS timestamp can express. */
+    const DOS_TIME = 0;
+    const DOS_DATE = 0x0021;
+
+    /**
+     * Bytes that do not compress — an already-compressed asset, in effect.
+     * Generated from a fixed seed so both builds get the same input.
+     */
+    function incompressible(size: number): Buffer {
+        const out = Buffer.alloc(size);
+        let state = 0x2545f491;
+        for (let i = 0; i < size; i += 1) {
+            state ^= state << 13;
+            state ^= state >>> 17;
+            state ^= state << 5;
+            out[i] = state & 0xff;
+        }
+        return out;
+    }
+
+    const ASSET = incompressible(60_000);
+
+    /** A record file: repetitive, so deflate is a real win on it. */
+    const RECORDS = Buffer.from(
+        '{"$type":"post","$id":"row","values":{"title":"Hello"}}\n'.repeat(200)
+    );
+
+    const MANIFEST = Buffer.from(
+        JSON.stringify({
+            version: 1,
+            exportedAt: '1970-01-01T00:00:00.000Z',
+            rootType: 'post',
+            counts: {
+                roots: 1,
+                related: 0,
+                assets: 1,
+                assetBytes: ASSET.length
+            }
+        })
+    );
+
+    function members(): ZipMember[] {
+        return [
+            { path: 'manifest.json', body: MANIFEST },
+            { path: 'entries/post.ndjson', body: RECORDS },
+            {
+                path: 'assets/asset-1/photo.jpg',
+                // A stream, the way the export opens an asset out of storage.
+                body: Readable.from([
+                    ASSET.subarray(0, 20_000),
+                    ASSET.subarray(20_000)
+                ])
+            }
+        ];
+    }
+
+    afterEach(() => {
+        jest.useRealTimers();
+    });
+
+    it('stores the asset bytes and deflates the text members [transfer:I-36]', async () => {
+        const zip = await build(members());
+        const byPath = Object.fromEntries(
+            readZipDirectory(zip, limits).map((entry) => [entry.path, entry])
+        );
+
+        // Store, method 0: those bytes are already compressed, and deflating a
+        // streamed asset would undo the streaming the writer exists for.
+        expect(byPath['assets/asset-1/photo.jpg'].method).toBe(0);
+        expect(byPath['assets/asset-1/photo.jpg'].compressedSize).toBe(
+            ASSET.length
+        );
+        // Stored really does mean verbatim: the payload is findable in the
+        // archive as it stands, which a deflated member never would be.
+        expect(zip.includes(ASSET)).toBe(true);
+
+        // Deflate, method 8, and it earned its place.
+        expect(byPath['entries/post.ndjson'].method).toBe(8);
+        expect(byPath['entries/post.ndjson'].compressedSize).toBeLessThan(
+            RECORDS.length / 2
+        );
+    });
+
+    it('stamps a fixed timestamp rather than the clock [transfer:I-36]', async () => {
+        jest.useFakeTimers(FAKE_DATE_ONLY).setSystemTime(
+            new Date('2026-09-04T11:22:33Z')
+        );
+
+        const zip = await build(members());
+
+        for (const entry of readZipDirectory(zip, limits)) {
+            expect(zip.readUInt16LE(entry.localOffset + 10)).toBe(DOS_TIME);
+            expect(zip.readUInt16LE(entry.localOffset + 12)).toBe(DOS_DATE);
+        }
+    });
+
+    it('writes the same bytes for the same content a year later [transfer:I-36]', async () => {
+        jest.useFakeTimers(FAKE_DATE_ONLY).setSystemTime(
+            new Date('2026-09-04T11:22:33Z')
+        );
+        const first = await build(members());
+        jest.setSystemTime(new Date('2027-05-17T04:05:06Z'));
+        const second = await build(members());
+
+        // Not `toEqual` on the buffers: a diff of 60 KB is unreadable, and the
+        // length is the useful first thing to see when this breaks.
+        expect(second.length).toBe(first.length);
+        expect(second.equals(first)).toBe(true);
+    });
+});

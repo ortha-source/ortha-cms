@@ -99,13 +99,14 @@ identity's `AuthProvider` + `RequireAuth` inside the `layout` it contributes.
   (e.g. the shell owns the sidebar's `SIDEBAR_NAV_SLOT` and reads it in its
   `layout`).
 
-  It wires **from empty**, not by appending, and that matters in dev: a slot
-  closes over one array that lives as long as its module, so a Vite hot update —
-  which re-executes `main.tsx` rather than reloading the page — ran the wiring a
-  second time against those same closures and doubled every contribution,
-  compounding with each save until a hard reload. A production build never
-  re-executes the entry, so this was never a shipped-app bug; it cost dev time
-  because the symptom looks like a bug in whatever you were editing.
+    It wires **from empty**, not by appending, and that matters in dev: a slot
+    closes over one array that lives as long as its module, so a Vite hot update —
+    which re-executes `main.tsx` rather than reloading the page — ran the wiring a
+    second time against those same closures and doubled every contribution,
+    compounding with each save until a hard reload. A production build never
+    re-executes the entry, so this was never a shipped-app bug; it cost dev time
+    because the symptom looks like a bug in whatever you were editing.
+
 - **i18n.** The host owns the single `react-intl` `IntlProvider` (`locale`
   defaults to `en`; messages resolve from each descriptor's `defaultMessage`).
   Plugins author strings with `defineMessages` + `useIntl` and **co-locate
@@ -143,6 +144,38 @@ createAdmin({
   system's `Toaster`, and the host passes no `position` (it used to, and the two
   disagreed)
 - Actual pages — those live in feature plugins
+
+## Tests
+
+Coverage is split by what can observe the defect.
+
+**`apps/admin-e2e/src/host/*`** drives the assembled app in a browser: the error
+boundary's card, the live region, the announcement on a second navigation.
+**`apps/admin/src/plugins.spec.ts`** pins the shipped composition — one layout
+contributor, and it is the shell.
+
+**The package's own unit specs** (vitest + jsdom;
+`npm exec nx test @orthacms/bootstrap-admin`) cover what neither can. Both of the
+above run in the direction where nothing is wrong, so between them every
+diagnostic in `createAdmin` could be deleted unnoticed — and the diagnostics
+exist for the composition nobody has assembled yet:
+
+- `src/lib/createAdmin/index.spec.tsx` — the layout-collision and duplicate-path
+  warnings (I-27), the named exception for a missing mount element (I-28),
+  `<html lang>`/`dir` set before the root is created (I-29), slot contributions
+  wired before the render (I-22), the public/private split and its single
+  pathless parent (I-25), the `*` redirect living inside that parent (I-26), and
+  the once-per-id missing-translation report (I-34). The collision, mount and
+  `lang`/`dir` cases boot **without** a mount element on purpose: the host warns,
+  then throws on the missing container before `createRoot`, so one call exercises
+  the diagnostics with no tree to tear down and the throw doubles as proof of
+  what ran before the render.
+- `src/lib/RouteAnnouncer/index.spec.tsx` — the announcer names the arriving page
+  and does **not** move focus (I-33). Each case re-imports the module, because
+  the announcer keeps its "what did I last see" state at module level.
+- `src/host-boundaries.spec.ts` — the two claims about what is _absent_, which no
+  rendered page can show: the host wires slots without defining or reading one
+  (I-24), and imports no authorization package at all (I-35).
 
 ## Commands
 
