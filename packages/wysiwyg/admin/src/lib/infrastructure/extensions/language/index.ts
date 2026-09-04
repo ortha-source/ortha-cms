@@ -42,6 +42,22 @@ declare module '@tiptap/core' {
 export const Language = Mark.create({
     name: RICH_TEXT_MARK.Language,
 
+    /**
+     * **Clear formatting leaves it alone.**
+     *
+     * Being its own mark rather than a `textStyle` attribute is necessary for
+     * that and not sufficient: `unsetAllMarks()` — what the toolbar's "Clear
+     * formatting" runs — removes *every* mark in the schema unless the mark
+     * says otherwise, so `language` was being stripped along with the bold the
+     * author actually meant to clear. A language is not formatting. It is a
+     * fact about the text (WCAG 3.1.2), invisible on screen, and losing it is
+     * silent: the passage looks identical and is simply announced in the wrong
+     * language from then on.
+     *
+     * Removing it deliberately is what `unsetLanguage` is for.
+     */
+    clearable: false,
+
     addAttributes() {
         return {
             lang: {
