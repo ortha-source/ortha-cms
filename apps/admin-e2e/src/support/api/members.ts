@@ -413,13 +413,18 @@ export async function spyRevokeInvite(
 export async function spySetMemberStatus(
     page: Page,
     member: MemberSeed,
-    { status = 200 }: { status?: number } = {}
+    // 201, not 200: neither controller carries an `@HttpCode`, so Nest answers
+    // a `@Post` with `Created`. Nothing in the admin branches on which 2xx it
+    // is, so this is a truthfulness fix rather than a bug fix — but a seed that
+    // states the wrong status is the same class of claim as one that states the
+    // wrong body, and this one was never checked against a server until now.
+    { status = 201 }: { status?: number } = {}
 ): Promise<{ readonly disabled: number; readonly enabled: number }> {
     let disabled = 0;
     let enabled = 0;
     /** The body for whichever direction was asked for — or the refusal. */
     const answer = (next: 'disabled' | 'active') =>
-        status === 200
+        status < 400
             ? JSON.stringify({ ...member, status: next })
             : JSON.stringify({
                   statusCode: status,
