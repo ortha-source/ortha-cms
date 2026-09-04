@@ -32,8 +32,17 @@ http/            # thin controllers (one per use case) + to-http error mapper
 
 **`domain/` imports NOTHING from `@nestjs/*`, `drizzle-orm`, `class-validator`,
 or `infrastructure/`.** Only `@orthacms/database`'s framework-free
-`createDomainEvent`/`DomainEvent` and node built-ins. Self-enforce it (the
-layer-boundary lint isn't wired yet).
+`createDomainEvent`/`DomainEvent` and node built-ins.
+
+The layer-boundary lint still isn't wired, but this is **no longer
+self-enforced**: `domain/imports.spec.ts` reads the specifiers off the files,
+the same check `workspaces`, `users`, `alarms` and `transfer` carry. It was
+added because the rule was already broken — `domain/asset.ts` took
+`StoredMediaTrack` out of `infrastructure/schema/media-asset.ts`. Type-only, so
+nothing failed and nothing would have; the types now live in
+`domain/value-objects/media-track.ts` and the schema re-exports them, which is
+the dependency the right way round. **A type-only import is not an exception to
+the rule** — it is how the rule erodes without anything going red.
 
 ## The storage seam (the whole point)
 
@@ -521,6 +530,13 @@ variant serving, and the admin side has `media-library.spec.ts` +
 ## Commands
 
 - `npx nx typecheck @orthacms/media-server` / `npx nx lint @orthacms/media-server`
+- `npx nx test @orthacms/media-server` — the package's own jest suite. Besides
+  the value objects and the framework-free helpers it now carries the checks a
+  running server cannot show you: the layer rule above, that `media_asset` has
+  no column (and no migration) that could hold a blob, that `STORAGE_PROVIDER`
+  is bound to the very object the host passed, that every optional registration
+  resolves through Nest's container with neither registry present, and that the
+  workspace purge is one `delete` per table with the blobs freed post-commit.
 
 ## Insights read-model (`/api/insights/media/*`)
 

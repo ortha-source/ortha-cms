@@ -1,4 +1,8 @@
-import type { StorageProvider } from '../domain/storage-provider';
+import type { DynamicModule, ValueProvider } from '@nestjs/common';
+import {
+    STORAGE_PROVIDER,
+    type StorageProvider
+} from '../domain/storage-provider';
 import type { MediaPluginConfig } from '../types/media-config';
 import { MediaServerPlugin, type MediaPluginOptions } from './media-plugin';
 
@@ -148,5 +152,52 @@ describe('MediaServerPlugin()', () => {
         expect(MediaServerPlugin(options()).migrations?.table).toBe(
             '__drizzle_migrations_media'
         );
+    });
+
+    /**
+     * "One object, not a list." Read off the assembled module rather than off
+     * the option type, because the option type is erased: what has to hold at
+     * runtime is that `STORAGE_PROVIDER` resolves to the very object the
+     * composition root constructed, with nothing in between that could consult
+     * a name, a config key or a default.
+     */
+    describe('the one storage backend', () => {
+        /** Every binding of `STORAGE_PROVIDER` in the assembled module. */
+        const storageBindings = (backend: StorageProvider) => {
+            const module = MediaServerPlugin(options({ provider: backend }))
+                .module as DynamicModule;
+            return (module.providers ?? []).filter(
+                (binding): binding is ValueProvider =>
+                    typeof binding === 'object' &&
+                    'provide' in binding &&
+                    binding.provide === STORAGE_PROVIDER
+            );
+        };
+
+        // covers: media:I-02
+        it('is bound by identity — there is no name to look up', () => {
+            const backend = provider({ id: 'local' });
+            const bindings = storageBindings(backend);
+
+            // Exactly one, and a `useValue`: a registry or a resolver would
+            // have to appear here as a second binding or as a `useFactory`
+            // that picks between candidates.
+            expect(bindings).toHaveLength(1);
+            expect(bindings[0].useValue).toBe(backend);
+            expect(bindings[0]).not.toHaveProperty('useFactory');
+            expect(bindings[0]).not.toHaveProperty('useClass');
+        });
+
+        // covers: media:I-02
+        it('holds no default to fall back to when two are assembled', () => {
+            // Two plugins in one process must not share a module-level
+            // backend, and neither may substitute a built-in default: each
+            // gets exactly what its own caller passed.
+            const first = provider({ id: 'local' });
+            const second = provider({ id: 's3' });
+
+            expect(storageBindings(first)[0].useValue).toBe(first);
+            expect(storageBindings(second)[0].useValue).toBe(second);
+        });
     });
 });

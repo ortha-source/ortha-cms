@@ -57,5 +57,22 @@ remote provider ends up failing for the wrong reason.
   `npx nx lint @orthacms/media-provider-testkit`
 - `npx nx test @orthacms/media-provider-testkit` — the kit against its own
   reference in-memory provider, so a suite no correct implementation passes
-  cannot ship unnoticed. Its real consumers are `@orthacms/media-provider-local`
-  and `@orthacms/media-provider-memory`.
+  cannot ship unnoticed. All six adapters call it: local, memory, s3, gcs,
+  azure and vercel-blob.
+
+## The structural half: `adapter-packages.spec.ts`
+
+Beside the runnable contract sits the claim the contract cannot make — that an
+application picking one backend does not pay for the other five. It reads every
+`packages/media/provider-*` manifest and source and asserts that none declares
+or imports `@nestjs/*`, `react`, `drizzle-orm`, `class-validator`, `express` or
+`@orthacms/database`; that every non-relative import is a node built-in or a
+package that manifest declares (a denylist only bans what someone thought of);
+and that the one Ortha package an adapter reaches for is `@orthacms/media-server`.
+
+It lives here rather than in `server` because it is a statement about the
+adapters as a set, which is this package's whole subject. **Read its docblock
+before quoting the invariant it cites**: `media:I-34`'s "the port's type, erased
+at compile time" is not true as written — `ObjectNotFoundError` is a value
+import through a barrel that re-exports `MediaModule` — and the ledger records
+that clause as `partial`.
