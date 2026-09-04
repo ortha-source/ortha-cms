@@ -1,7 +1,7 @@
 /* Global stylesheet shipped by @orthacms/design-system. Import it once from the
    host (after `@import 'tailwindcss'`). Holds the few rules that can't be plain
    Tailwind utilities — the wizard step entrance used by `WizardStepCard`, and
-   the dropdown open/close motion below. */
+   the dropdown entrance motion below. */
 
 /* ---------------------------------------------------------------------------
    Dropdown motion — `Popover`, `DropdownMenu`, `Select`.
@@ -9,15 +9,39 @@
    Deliberately hand-authored rather than pulled from tailwindcss-animate /
    tw-animate-css: those utilities are not installed, so the `animate-in` /
    `fade-in-0` / `zoom-in-95` classes shadcn ships on the overlay components
-   generate no CSS at all. This is one class covering both directions, applied
-   ONLY to the three dropdown components — modals (`Dialog`, `Sheet`) and
-   `Tooltip` stay static, so this is not an app-wide motion pass.
+   generate no CSS at all. This is one class, applied ONLY to the three dropdown
+   components — modals (`Dialog`, `Sheet`) and `Tooltip` stay static, so this is
+   not an app-wide motion pass.
 
-   Radix keeps the node mounted while a CSS animation runs on `[data-state=
-   closed]` (its Presence component waits for it), which is what makes the exit
-   animation possible at all. `--ds-drop-x/y` give the content a small offset
-   away from its trigger, so it appears to come *from* the trigger on whichever
-   side Radix ended up placing it (`data-side`).
+   **Entrance only — there is deliberately no exit animation.** Radix keeps the
+   node mounted for as long as a CSS animation runs on `[data-state='closed']`
+   (its `Presence` waits for `animationend`), and a mounted-but-closed Radix
+   overlay is *not* inert. For the ~90ms such an animation lasted:
+
+   - every menu item still fired `pointerleave`, and Radix answers that by
+     focusing the menu (`onItemLeave` → `content.focus()`, unconditional — it
+     never checks that the menu is still open). The focus a dialog or the app
+     had just restored was yanked onto a node that was about to be removed, and
+     landed on `<body>` when it was (WCAG 2.4.3);
+   - the content's `DismissableLayer` still treated the next pointerdown as an
+     interaction *outside*, so it called `onDismiss()` — cancelling the click
+     that had just re-opened the menu (the trigger looked dead) — and set
+     Radix's `hasInteractedOutsideRef`, which makes `DropdownMenu`'s own
+     close-autofocus `preventDefault()` **without** restoring the trigger;
+   - `Select` goes further: its layer is always `disableOutsidePointerEvents`,
+     which pins `body { pointer-events: none }` while mounted, so the whole page
+     was unclickable for the length of the fade-out.
+
+   Readers with `prefers-reduced-motion` never had an exit animation and so
+   never had any of this — which is the clearest sign it was the animation and
+   not the interaction that was wrong. The focus half is pinned by
+   `apps/admin-e2e/src/content/saved-views.spec.ts` ("returns focus to the
+   switcher"), the swallowed-click half by the same file's default-view case,
+   which re-opens the menu immediately after acting on it.
+
+   `--ds-drop-x/y` give the content a small offset away from its trigger, so it
+   appears to come *from* the trigger on whichever side Radix ended up placing
+   it (`data-side`).
 --------------------------------------------------------------------------- */
 .ds-dropdown-motion {
     --ds-drop-x: 0px;
@@ -49,31 +73,16 @@
     }
 }
 
-@keyframes ds-dropdown-out {
-    from {
-        opacity: 1;
-        transform: none;
-    }
-    to {
-        opacity: 0;
-        transform: translate3d(var(--ds-drop-x), var(--ds-drop-y), 0)
-            scale(0.97);
-    }
-}
-
-/* Out is quicker than in: a dismissal should feel immediate, an entrance
-   should feel placed. */
+/* An entrance should feel placed; a dismissal should feel immediate — and here
+   "immediate" has to mean *gone*, not faded, for the reasons above. Leaving
+   `[data-state='closed']` unstyled is what lets Radix unmount the overlay in
+   the same commit that closes it. */
 .ds-dropdown-motion[data-state='open'] {
     animation: ds-dropdown-in 140ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.ds-dropdown-motion[data-state='closed'] {
-    animation: ds-dropdown-out 90ms ease-in forwards;
-}
-
 @media (prefers-reduced-motion: reduce) {
-    .ds-dropdown-motion[data-state='open'],
-    .ds-dropdown-motion[data-state='closed'] {
+    .ds-dropdown-motion[data-state='open'] {
         animation: none;
     }
 }
