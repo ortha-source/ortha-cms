@@ -1,11 +1,13 @@
+import {
+    DEFAULT_MAX_DEPTH,
+    DEFAULT_MAX_GROUP_DEPTH,
+    DEFAULT_MAX_IN_LIST,
+    DEFAULT_MAX_NODES,
+    DEFAULT_MAX_VALUE_LENGTH
+} from './budgets';
 import { FilterErrorCode, FilterException } from './filter-exceptions';
 import { resolveLeaf } from './resolve-leaf';
 import type { FilterSchema, ParsedFilter, ParsedNode } from './types';
-
-const DEFAULT_MAX_DEPTH = 3;
-const DEFAULT_MAX_NODES = 50;
-const DEFAULT_MAX_GROUP_DEPTH = 5;
-const DEFAULT_MAX_IN_LIST = 100;
 
 /**
  * Parse a `filter` payload into a tree the translator can walk. Two
@@ -57,7 +59,8 @@ export function parseFilterTree(
         maxNodes: schema.maxNodes ?? DEFAULT_MAX_NODES,
         maxGroupDepth: schema.maxGroupDepth ?? DEFAULT_MAX_GROUP_DEPTH,
         maxDepth: schema.maxDepth ?? DEFAULT_MAX_DEPTH,
-        maxInListLength: schema.maxInListLength ?? DEFAULT_MAX_IN_LIST
+        maxInListLength: schema.maxInListLength ?? DEFAULT_MAX_IN_LIST,
+        maxValueLength: schema.maxValueLength ?? DEFAULT_MAX_VALUE_LENGTH
     };
     return walkNode(obj, schema, 0, ctx);
 }
@@ -68,6 +71,7 @@ interface WalkContext {
     maxGroupDepth: number;
     maxDepth: number;
     maxInListLength: number;
+    maxValueLength: number;
 }
 
 function walkNode(
@@ -151,14 +155,7 @@ function walkNode(
             );
         }
         const path = field.split('.');
-        const leaf = resolveLeaf(
-            path,
-            op,
-            node.value,
-            schema,
-            ctx.maxDepth,
-            ctx.maxInListLength
-        );
+        const leaf = resolveLeaf(path, op, node.value, schema, ctx);
         return toRule(leaf);
     }
 

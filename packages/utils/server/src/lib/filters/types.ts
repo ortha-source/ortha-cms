@@ -219,6 +219,16 @@ export interface FilterSchema {
      * elements inside one rule's value list).
      */
     maxInListLength?: number;
+    /**
+     * Longest string one clause's value may be — applied to each element of an
+     * `in` list as well as to a bare scalar. Defaults to 4096.
+     *
+     * The engine's only ceiling over **text**. Every other budget here bounds
+     * the tree's *structure*, and a caller that never passes a DTO (an alarm
+     * rule replayed out of storage, the copilot's search tool) can carry a
+     * megabyte-long `LIKE` pattern through all of them.
+     */
+    maxValueLength?: number;
 }
 
 /** Time units a {@link FilterOperator.WithinLast} window may be measured in. */

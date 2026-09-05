@@ -1,4 +1,5 @@
 export { parseFilterTree } from './lib/filters/parse-filter-tree';
+export { FILTER_MAX_LENGTH } from './lib/filters/budgets';
 export {
     applyFilterTree,
     type ApplyFilterTreeOptions,

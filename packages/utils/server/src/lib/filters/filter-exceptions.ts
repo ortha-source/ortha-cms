@@ -42,7 +42,14 @@ export const FilterErrorCode = {
      */
     EmptyInList: 'FILTER_EMPTY_IN_LIST',
     /** `in`/`nin` value list exceeded `schema.maxInListLength` (default 100). */
-    MaxInListExceeded: 'FILTER_MAX_IN_LIST_EXCEEDED'
+    MaxInListExceeded: 'FILTER_MAX_IN_LIST_EXCEEDED',
+    /**
+     * A single clause's string value exceeded `schema.maxValueLength`
+     * (default 4096) — the engine's only budget over *text* rather than over
+     * the tree's structure. Reported per clause, naming the offending path, so
+     * a client can point at the rule rather than at the whole filter.
+     */
+    ValueTooLong: 'FILTER_VALUE_TOO_LONG'
 } as const;
 
 /** One of the {@link FilterErrorCode} values. */

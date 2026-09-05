@@ -20,6 +20,20 @@ const UUID_CANONICAL =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
+ * The per-leaf budgets, passed as one object rather than as a growing tail of
+ * positional numbers — three `number` parameters in a row is a call site where
+ * transposing two of them typechecks.
+ */
+export interface LeafLimits {
+    /** How many dotted relation hops the path may walk. */
+    maxDepth: number;
+    /** How many values one `in`/`nin` may name. */
+    maxInListLength: number;
+    /** How long one string value may be — see `budgets.ts`. */
+    maxValueLength: number;
+}
+
+/**
  * Walk a single dotted path against the schema, validate the operator,
  * and coerce the value to the declared type. Produces the `ParsedFilter`
  * leaf shape the tree parser tags with `kind: 'rule'`.
@@ -29,9 +43,9 @@ export function resolveLeaf(
     op: string,
     value: unknown,
     schema: FilterSchema,
-    maxDepth: number,
-    maxInListLength: number
+    limits: LeafLimits
 ): ParsedFilter {
+    const { maxDepth } = limits;
     if (path.length === 0) {
         throw new FilterException(
             FilterErrorCode.EmptyPath,
@@ -72,13 +86,7 @@ export function resolveLeaf(
             return {
                 path,
                 op: op as FilterOperator,
-                value: coerce(
-                    value,
-                    field,
-                    op as FilterOperator,
-                    path,
-                    maxInListLength
-                )
+                value: coerce(value, field, op as FilterOperator, path, limits)
             };
         }
         const rel = own(relations, seg);
@@ -133,8 +141,9 @@ function coerce(
     field: ScalarFieldSchema,
     op: FilterOperator,
     path: string[],
-    maxInListLength: number
+    limits: LeafLimits
 ): unknown {
+    const { maxInListLength } = limits;
     const pathStr = path.join('.');
     if (op === FilterOperator.WithinLast) {
         return withinLastValue(raw, pathStr);
@@ -174,9 +183,9 @@ function coerce(
                 { path: pathStr, op, maxInListLength, length: items.length }
             );
         }
-        return items.map((v) => scalarOf(v, field, pathStr));
+        return items.map((v) => scalarOf(v, field, pathStr, limits));
     }
-    return scalarOf(raw, field, pathStr);
+    return scalarOf(raw, field, pathStr, limits);
 }
 
 /** Units a `within_last` window may name, as a set for membership checks. */
@@ -225,7 +234,8 @@ function withinLastValue(raw: unknown, pathStr: string): WithinLastValue {
 function scalarOf(
     v: unknown,
     field: ScalarFieldSchema,
-    pathStr: string
+    pathStr: string,
+    limits: LeafLimits
 ): unknown {
     // A filter value has to be a scalar. `String(v)` on anything else produces
     // a plausible-looking string that is then MATCHED AGAINST rather than
@@ -249,7 +259,28 @@ function scalarOf(
             { path: pathStr, expectedType: field.type }
         );
     }
+    // The only budget that counts *text*. Every other ceiling in this engine
+    // bounds the tree's structure — nodes, hops, group nesting, `in` list
+    // length — and a single clause can carry an arbitrarily long string through
+    // all of them. On the endpoints that own a DTO the `@MaxLength` on the
+    // whole serialised filter caps this first; on the paths that never meet one
+    // (an alarm rule replayed out of its `jsonb` column, the copilot's search
+    // tool, an internally-built tree) this check is the only bound there is,
+    // and the alternative was the 1 MB body limit. Applied to a `number` or
+    // `boolean` too, which is free: their `String(v)` is a handful of
+    // characters and can never trip it.
     const s = typeof v === 'string' ? v : String(v);
+    if (s.length > limits.maxValueLength) {
+        throw new FilterException(
+            FilterErrorCode.ValueTooLong,
+            `value exceeds max length ${limits.maxValueLength}`,
+            {
+                path: pathStr,
+                maxValueLength: limits.maxValueLength,
+                length: s.length
+            }
+        );
+    }
     switch (field.type) {
         case ScalarFieldType.String:
             return s;
