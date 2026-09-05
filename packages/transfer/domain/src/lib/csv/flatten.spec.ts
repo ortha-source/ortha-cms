@@ -178,6 +178,39 @@ describe('recordToRow / rowToRecord', () => {
         );
     });
 
+    /**
+     * **`transfer:I-05`, the import clause.** "The inverse side ... is not
+     * written on import" was pinned nowhere: `csvColumns` proves an export
+     * emits no such column, but a document is not always one this system wrote.
+     * A hand-edited sheet, or one produced by another tool, can carry a
+     * `backlinks` column — and the header is what `rowToRecord` reads by name.
+     *
+     * Writing it would mean writing the *same* link from the wrong end, with
+     * its own ordering: the owner's order is the order, and a two-way relation
+     * assembled from both directions has two.
+     */
+    it('ignores an inverse column a hand-made sheet carries [transfer:I-05]', () => {
+        const columns = [...csvColumns(post), 'backlinks'];
+        // The owning sides carry real tokens, and the inverse column carries
+        // one spelled exactly the same way — so this is the field being
+        // refused, not the value being unparseable.
+        const row = [
+            ...recordToRow(record, post, identityFieldsOf),
+            'post:Fourth'
+        ];
+
+        const parsed = rowToRecord(row, columns, post, identityFieldsOf);
+
+        expect(parsed.relations).not.toHaveProperty('backlinks');
+        // The control, from the same row: the owning sides were read, so
+        // "absent" is the inverse rule and not a row the parser gave up on.
+        expect(parsed.relations['author']).toEqual({
+            $type: 'author',
+            $key: { email: 'jane@example.com' }
+        });
+        expect(parsed.relations['related']).toHaveLength(2);
+    });
+
     it('keeps an emptied single relation as an explicit null', () => {
         const columns = csvColumns(post);
         const row = recordToRow(

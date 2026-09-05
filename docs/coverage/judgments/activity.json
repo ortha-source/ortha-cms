@@ -235,19 +235,5 @@
             "anchor": "writes a second row once the throttle window has passed",
             "why": "The complement: back-dating `last_used_at` past `LAST_USED_TOUCH_INTERVAL_MS` produces a second row, so the throttle is what bounds the count rather than the row being dropped altogether."
         }
-    ],
-    "judgments": {
-        "activity:I-10": {
-            "state": "partial",
-            "missing": "The 'never reaches the log' and 'raises no error' clauses are pinned by audit-event.subscriber.spec.ts (handle resolves and the recording db sees no insert). The 'it is stamped delivered' clause is not: that stamping is OutboxDispatcher's, in @orthacms/database, and no test drives an outbox row of an invented kind through a real dispatcher to see dispatched_at set. outbox-dispatcher.spec.ts does not cover it either."
-        },
-        "activity:I-14": {
-            "state": "partial",
-            "missing": "Only GET /api/activity is pinned, for the session (401) and activity:read (403) clauses. Nothing pins /dead-letters under the same permission, /entries/:id under content:read plus membership of the X-Workspace-Id workspace, or the refusal of an external API bearer token on any of the three. All three are server-e2e work."
-        },
-        "activity:I-35": {
-            "state": "partial",
-            "missing": "The 'same error after the same single bcrypt comparison and the same one insert' clauses are pinned in identity's login.use-case.spec.ts. The 'a failure to record is swallowed rather than turned into a 500' clause is not: no test makes the append fail and asserts the caller still gets InvalidCredentialsError."
-        }
-    }
+    ]
 }

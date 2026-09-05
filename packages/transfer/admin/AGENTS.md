@@ -63,3 +63,15 @@ soon as the selection is empty, so `onDone` is called on success, never on open.
 The overlay is rendered outside the ⋯ menu for the same reason the entry menu's
 is — the menu content unmounts the instant the menu closes, which is exactly
 when the export dialog is meant to appear.
+
+## Unit cover — vitest + jsdom
+
+The package gained a **vitest target** (`vite.config.mts`, jsdom) during the
+invariant sweep. Dialog behaviour stays in `apps/admin-e2e`; what lives here is
+the one claim a browser cannot make. `invalidateQueries` refetches only
+*mounted* queries, the import dialog is reachable only from the collection you
+are already looking at, and the entry list's `staleTime` is 0 — so the second
+type's list and the media library are always unmounted, and navigating to either
+afterwards refetches whether or not it was invalidated. A browser test therefore
+passes with `useImportApply`'s whole `touched` set deleted; `index.spec.tsx`
+does not.

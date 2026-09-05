@@ -122,3 +122,106 @@ describe('a match is answered by whichever policy governs the record', () => {
         );
     });
 });
+
+/**
+ * **`transfer:I-09`, the first clause** — "the apply runs entirely in one
+ * transaction".
+ *
+ * The second clause is pinned in `import-media.service.spec.ts`: the rollback
+ * list belongs to the caller's run, not to the singleton. The first was pinned
+ * by nothing, and it is the one the invariant leads with — a half-imported
+ * graph is worse than no import, because nobody can tell which half is real.
+ *
+ * The observable is `execute` itself, driven on the real prototype with the
+ * body stubbed. `UnitOfWork.run` is what a transaction *is* here — a nested
+ * `run` joins the outer one and every repository takes its executor from
+ * `current()` — so "the whole apply happens inside exactly one `uow.run`" is
+ * the claim, stated where it is decided. What is *not* reachable this way is
+ * Postgres actually undoing the earlier rows; that is `UnitOfWork`'s own
+ * guarantee, held in `apps/server-e2e/src/server/database/`.
+ */
+describe('the apply is one transaction', () => {
+    /** An `execute` on the real prototype, with the run body swapped out. */
+    function useCase(options: { fails?: Error } = {}) {
+        const calls: string[] = [];
+        const rolledBack: unknown[] = [];
+
+        // Typed as a bare shape rather than the class: `uow`, `media` and
+        // `run` are `private`, so intersecting the class with an object type
+        // naming them collapses to `never`.
+        const instance = Object.create(
+            ImportEntriesUseCase.prototype
+        ) as unknown as {
+            uow: unknown;
+            media: unknown;
+            run: () => Promise<unknown>;
+            execute: (command: unknown) => Promise<unknown>;
+        };
+
+        instance.uow = {
+            run: async (fn: () => Promise<unknown>) => {
+                calls.push('uow.run:enter');
+                try {
+                    return await fn();
+                } finally {
+                    calls.push('uow.run:exit');
+                }
+            }
+        };
+        instance.media = {
+            rollbackRun: async (run: unknown) => {
+                calls.push('media.rollbackRun');
+                rolledBack.push(run);
+            }
+        };
+        // Shadows the prototype's private `run`, so `execute` is the only
+        // production code under test here.
+        instance.run = async () => {
+            calls.push('run');
+            if (options.fails) throw options.fails;
+            return { ok: true };
+        };
+
+        return { instance, calls, rolledBack };
+    }
+
+    const command = { dryRun: false };
+
+    it('opens exactly one transaction, and runs inside it [transfer:I-09]', async () => {
+        const { instance, calls } = useCase();
+
+        await instance.execute(command);
+
+        expect(calls).toEqual(['uow.run:enter', 'run', 'uow.run:exit']);
+    });
+
+    it('opens none at all for a dry run [transfer:I-09]', async () => {
+        // The control: without it, a `uow.run` that had become unconditional —
+        // or an `execute` that opened one per record — would still show a
+        // transaction around the case above and prove nothing about *one*.
+        const { instance, calls } = useCase();
+
+        await instance.execute({ dryRun: true });
+
+        expect(calls).toEqual(['run']);
+    });
+
+    it('deletes the blobs the transaction cannot roll back [transfer:I-09]', async () => {
+        // Asset bytes are the one thing outside the transaction, so a failed
+        // apply has to remove them by hand or they are orphaned forever.
+        const failure = new Error('a record would not write');
+        const { instance, calls, rolledBack } = useCase({ fails: failure });
+
+        await expect(instance.execute(command)).rejects.toBe(failure);
+
+        expect(calls).toEqual([
+            'uow.run:enter',
+            'run',
+            'uow.run:exit',
+            'media.rollbackRun'
+        ]);
+        // The run handed to the rollback is the one this apply began — the
+        // caller-owned handle the second clause is about.
+        expect(rolledBack).toHaveLength(1);
+    });
+});

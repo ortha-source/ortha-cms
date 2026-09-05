@@ -19,17 +19,40 @@ import { RampLegend } from './index';
  * feature package on this one's dependency list.
  */
 
-/** Words that assert a direction of brightness. */
+/**
+ * Words that assert a direction of brightness.
+ *
+ * **Stems, not only comparatives.** The list used to be the nine comparative
+ * forms, which left "the deep end means older" and "shaded by age" passing —
+ * the same claim, phrased without a `-er`. `light` is deliberately absent as a
+ * bare stem (it is half of "highlight" and of "lighten the load"); its
+ * comparatives are listed instead.
+ */
 const BRIGHTNESS = [
+    'dark',
     'darker',
     'darkest',
+    'darkness',
     'lighter',
     'lightest',
+    'bright',
     'brighter',
     'brightest',
+    'brightness',
+    'dim',
     'dimmer',
+    'dimmest',
+    'pale',
     'paler',
-    'deeper'
+    'palest',
+    'faint',
+    'fainter',
+    'deep',
+    'deeper',
+    'deepest',
+    'shade',
+    'shaded',
+    'shading'
 ];
 
 const ADMIN_PACKAGES = join(process.cwd(), '../..');
@@ -49,7 +72,8 @@ function rampCallSites(): { file: string; source: string }[] {
                 continue;
             }
             const source = readFileSync(path, 'utf8');
-            if (source.includes('<RampLegend')) sites.push({ file: path, source });
+            if (source.includes('<RampLegend'))
+                sites.push({ file: path, source });
         }
     };
 
@@ -89,6 +113,40 @@ describe('RampLegend', () => {
             'bg-chart-q4',
             'bg-chart-q5'
         ]);
+    });
+
+    it('takes its captions whole, so the scan below can see them [insights:I-23]', () => {
+        // The premise the source scan rests on, and the one limb of the
+        // judgment's "cannot see" that turned out to be enumerable: a caption
+        // built at runtime — a template literal, a concatenation, a ternary
+        // over the theme — is not a `defaultMessage` anywhere, so the scan
+        // would read a file full of innocent copy and pass.
+        //
+        // It cannot be built at runtime if the props are only ever a bare
+        // `formatMessage(<descriptor>)`, which is what this asserts. A caption
+        // that needs assembling has to change this line first.
+        const sites = rampCallSites();
+        expect(sites.length).toBeGreaterThan(0);
+
+        for (const { file, source } of sites) {
+            const props = [
+                ...source.matchAll(/(lowLabel|highLabel)=\{([^}]*)\}/g)
+            ].map(([, name, expression]) => ({
+                name,
+                expression: expression.replace(/\s+/g, ' ').trim()
+            }));
+
+            expect({ file, count: props.length }).toEqual({ file, count: 2 });
+            for (const { name, expression } of props) {
+                expect({ file, name, expression }).toEqual({
+                    file,
+                    name,
+                    expression: expect.stringMatching(
+                        /^intl\.formatMessage\(messages\.[A-Za-z0-9_]+\)$/
+                    )
+                });
+            }
+        }
     });
 
     it('is captioned by magnitude, never by brightness [insights:I-23]', () => {

@@ -314,8 +314,20 @@ pass-through in every branch of `EntryFieldInput` and is tracked separately.
 - Consumed from source (`exports` → `./src/index.ts`); no build step.
 - Register **after** `ContentPlugin()` in `apps/admin/src/main.tsx`.
 
+## Unit cover — vitest + jsdom
+
+The package gained a **vitest target** (`vite.config.mts`, jsdom) during the
+invariant sweep; before it there was no test target at all, which is why
+reverting `useLocalizationCoverage`'s `retry: 1` to TanStack's default broke
+nothing anywhere. Widget *behaviour* still belongs in `admin-e2e`; what lives
+here is what a browser cannot see — how many requests a failing card spent
+(`insights:I-16`) and that the coverage key carries the workspace, so opening a
+second one refetches instead of serving the first one's numbers
+(`insights:I-17`).
+
 ## Commands
 
 - `npx nx typecheck @orthacms/i18n-admin` / `npx nx lint @orthacms/i18n-admin`
+- `npx nx test @orthacms/i18n-admin` — the unit tests (vitest, jsdom)
 - E2E: `apps/admin-e2e/src/content/i18n.spec.ts` (mocked API, no backend), plus
   the coverage card in `apps/admin-e2e/src/insights/insights.spec.ts`.

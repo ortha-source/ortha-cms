@@ -43,8 +43,11 @@ vi.mock('../../infrastructure/httpContentInsightsGateway', () => ({
     httpContentInsightsGateway: gateway
 }));
 
+/** The open workspace, swapped between renders by the cache-key cases. */
+const open = vi.hoisted(() => ({ id: 'workspace-1' }));
+
 vi.mock('@orthacms/workspaces-admin', () => ({
-    useCurrentWorkspace: () => ({ id: 'workspace-1', name: 'Docs' })
+    useCurrentWorkspace: () => ({ id: open.id, name: 'Docs' })
 }));
 
 const permission = vi.hoisted(() => ({ granted: true }));
@@ -84,6 +87,7 @@ const hooks = [
 
 beforeEach(() => {
     permission.granted = true;
+    open.id = 'workspace-1';
     for (const fn of Object.values(gateway)) {
         fn.mockReset();
         fn.mockRejectedValue(new Error('insights endpoint is down'));
@@ -130,6 +134,59 @@ describe('content Insights queries', () => {
             expect(request).not.toHaveBeenCalled();
             expect(result.current.fetchStatus).toBe('idle');
             expect(result.current.isPending).toBe(true);
+        }
+    );
+
+    /**
+     * **`insights:I-17`, the workspace clause.**
+     *
+     * Only the `days` half was pinned — `apps/admin-e2e` sees a fresh
+     * `days=90` request after picking 90d. The workspace half was pinned by
+     * nothing, because the browser suite drives one workspace at a time.
+     *
+     * The reason it matters is not that the wrong workspace would be fetched.
+     * The workspace reaches the server **only** as an ambient `X-Workspace-Id`
+     * header, and a cache hit sends no request at all — so a key missing the id
+     * does not fetch the wrong numbers, it keeps showing the previous
+     * workspace's and never refetches.
+     */
+    it.each(hooks)(
+        '%s refetches when a different workspace is opened [insights:I-17]',
+        async (_name, hook, request) => {
+            request.mockReset();
+            request.mockResolvedValue({});
+            // One client across all three renders — a fresh one per workspace
+            // would refetch whatever the key said, which is the mistake this
+            // case exists to catch.
+            const queryClient = client();
+
+            const first = renderHook(() => hook(), {
+                wrapper: wrapper(queryClient)
+            });
+            await waitFor(() =>
+                expect(first.result.current.isSuccess).toBe(true)
+            );
+            expect(request).toHaveBeenCalledTimes(1);
+
+            // The control: the same workspace again is a cache hit, so the
+            // third render's request is the workspace and not remounting.
+            const same = renderHook(() => hook(), {
+                wrapper: wrapper(queryClient)
+            });
+            await waitFor(() =>
+                expect(same.result.current.isSuccess).toBe(true)
+            );
+            expect(request).toHaveBeenCalledTimes(1);
+
+            open.id = 'workspace-2';
+            const second = renderHook(() => hook(), {
+                wrapper: wrapper(queryClient)
+            });
+            await waitFor(() =>
+                expect(second.result.current.isSuccess).toBe(true)
+            );
+
+            expect(request).toHaveBeenCalledTimes(2);
         }
     );
 
