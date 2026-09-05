@@ -24,12 +24,17 @@ point: it holds almost no logic. It assembles the product by handing a list of
   `@orthacms/cli` looks for exactly `dist/server/ortha.config.js`, `@orthacms/nx`
   infers the migration targets onto the project that has an `ortha.config.ts`,
   and `src/plugins.ts` and `apps/server-e2e` import its types.
-- `config/` — the single place that reads `process.env`. **How** a value is
-  parsed is not decided here: the readers (`readEnv`, `requireEnv`,
-  `readPositiveInt`, `readList`, `readFlag`, `readTrustProxy`, `readNodeEnv`)
-  live in `@orthacms/utils-server`, shared with the scaffolder's template so a
+- `config/` — the single place that reads the environment, and it does so
+  **only** through the readers (`readEnv`, `requireEnv`, `readPositiveInt`,
+  `readList`, `readFlag`, `readTrustProxy`, `readNodeEnv`) in
+  `@orthacms/utils-server`, shared with the scaffolder's template so a
   generated app validates its environment the same way. These modules name the
-  variables and the defaults.
+  variables and the defaults; the readers decide what a value has to look like.
+  **No module here writes `process.env[…]`** — a test asserts it. `readEnv` is
+  where "empty means absent" is decided, and `.env.example` ships forty-two keys
+  with nothing on the right-hand side, so a raw `process.env['X'] ?? default`
+  hands the blank line the win: `SSO_OIDC_NAME=` produced a provider named `''`
+  and a callback path of `/api/auth/sso//callback`, at boot, in silence.
   Nothing conditional is spread into a config object — `when(…)` yields a block
   or `undefined`, `defined(…)` drops the keys that were never set, because
   plugins merge as `{ ...DEFAULTS, ...config }` and an explicit `undefined`

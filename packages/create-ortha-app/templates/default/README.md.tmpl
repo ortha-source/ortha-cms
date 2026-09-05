@@ -109,7 +109,7 @@ source lands in the same place here.
 | --- | --- |
 | `apps/server/src/plugins.ts` | Which plugins the API runs, and **in what order** |
 | `apps/admin/src/plugins.ts` | Which plugins the admin UI runs |
-| `apps/server/ortha.config.ts` | Every setting, typed — the only reader of `process.env` |
+| `apps/server/ortha.config.ts` | Every setting, typed — with `config/`, the only reader of the environment |
 | `apps/admin/src/styles.css` | The theme tokens: this app's whole visual identity |
 
 Upgrading is a version bump. Keep the `@orthacms/*` versions **in step with each

@@ -1,7 +1,12 @@
 /**
  * Typed configuration for this app.
  *
- * **`config/` is the single place that reads `process.env`.** Everything
+ * **`config/` is the single place that reads the environment**, and it reads it
+ * only through the readers in `@orthacms/utils-server` — never `process.env`
+ * directly. `readEnv` is where "an empty value means the setting is absent" is
+ * decided, and `.env` ships keys with nothing on the right-hand side; a raw
+ * `process.env['X'] ?? default` skips that decision and lets a blank line win
+ * over the default. Everything
  * downstream — the host, every plugin — receives typed values, so "where does
  * this setting come from" has exactly one answer. Deploy-specific values come
  * from the environment; stable product tuning lives in the builders as literals.

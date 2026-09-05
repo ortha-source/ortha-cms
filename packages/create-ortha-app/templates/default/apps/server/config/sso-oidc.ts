@@ -16,7 +16,7 @@ export function oidcProvider(): (OidcProviderConfig & { name: string }) | undefi
         return undefined;
     }
     return defined({
-        name: process.env['SSO_OIDC_NAME'] ?? 'oidc',
+        name: readEnv('SSO_OIDC_NAME') ?? 'oidc',
         issuer,
         clientId,
         clientSecret: readEnv('SSO_OIDC_CLIENT_SECRET'),

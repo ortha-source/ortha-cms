@@ -14,7 +14,7 @@ export function openAiProvider(): OpenAiProviderConfig | undefined {
     }
     return {
         baseUrl,
-        apiKey: process.env['COPILOT_OPENAI_API_KEY'] ?? '',
+        apiKey: readEnv('COPILOT_OPENAI_API_KEY') ?? '',
         models: readList('COPILOT_OPENAI_MODELS', 'llama3.1')
     };
 }

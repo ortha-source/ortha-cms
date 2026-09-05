@@ -134,7 +134,7 @@ function copilotProviders(): OrthaCopilotConfig['providers'] {
             // running on this laptop".
             baseUrl: openAiBaseUrl as string,
             models: readList('COPILOT_OPENAI_MODELS', 'llama3.1'),
-            apiKey: process.env['COPILOT_OPENAI_API_KEY'] ?? ''
+            apiKey: readEnv('COPILOT_OPENAI_API_KEY') ?? ''
         }))
     });
 }

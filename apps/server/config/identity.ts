@@ -104,10 +104,15 @@ export function identityConfig(): OrthaIdentityConfig {
             ttlSeconds: readPositiveInt('LOGIN_RATE_LIMIT_TTL_SECONDS', 60),
             limit: readPositiveInt('LOGIN_RATE_LIMIT', 10)
         },
+        // Read through `readEnv`, so all three are trimmed and a whitespace-only
+        // value is nothing rather than a value. That matters most for the
+        // password: `ORTHA_ROOT_ADMIN_PASSWORD='   '` used to provision an
+        // administrator whose password was three spaces, silently. Blank, it
+        // now trips `MissingRootAdminPasswordError`, which names the account.
         rootAdmin: {
-            email: process.env['ORTHA_ROOT_ADMIN_EMAIL'] ?? '',
-            password: process.env['ORTHA_ROOT_ADMIN_PASSWORD'] ?? '',
-            name: process.env['ORTHA_ROOT_ADMIN_NAME'] ?? ''
+            email: readEnv('ORTHA_ROOT_ADMIN_EMAIL') ?? '',
+            password: readEnv('ORTHA_ROOT_ADMIN_PASSWORD') ?? '',
+            name: readEnv('ORTHA_ROOT_ADMIN_NAME') ?? ''
         },
         sso: ssoConfig(),
         ssoProviders: defined({
@@ -147,14 +152,14 @@ function ssoConfig(): NonNullable<IdentityPluginConfig['sso']> {
         // breaks to say so, the user list simply grows.
         provisioning: when(readEnv('SSO_PROVISION_DOMAINS'), () => ({
             domains: readList('SSO_PROVISION_DOMAINS', ''),
-            defaultRole: process.env['SSO_PROVISION_ROLE'] ?? 'viewer'
+            defaultRole: readEnv('SSO_PROVISION_ROLE') ?? 'viewer'
         })),
         // Passwords stay on unless a deployment turns them off. The root
         // administrator keeps one regardless — see the note on
         // `IdentitySsoConfig.allowPasswordLogin`; without that exemption a
         // mis-scoped provider locks an operator out of their own CMS with no
         // way back short of a database client.
-        allowPasswordLogin: process.env['SSO_ALLOW_PASSWORD_LOGIN'] !== 'false',
+        allowPasswordLogin: readEnv('SSO_ALLOW_PASSWORD_LOGIN') !== 'false',
         // Shorter than the ordinary session lifetime for a provider with no
         // back-channel logout: without one, a session's own expiry is the only
         // thing that eventually ends access after somebody is offboarded.
@@ -175,7 +180,7 @@ function oidcProvider(): (OidcProviderConfig & { name: string }) | undefined {
         defined({
             // What the route and every link row call this provider. Stable by
             // necessity: renaming it orphans the links that name it.
-            name: process.env['SSO_OIDC_NAME'] ?? 'oidc',
+            name: readEnv('SSO_OIDC_NAME') ?? 'oidc',
             issuer: issuer as string,
             clientId: clientId as string,
             clientSecret: readEnv('SSO_OIDC_CLIENT_SECRET'),
@@ -201,7 +206,7 @@ function githubProvider():
     const clientSecret = readEnv('SSO_GITHUB_CLIENT_SECRET');
     return when(clientId && clientSecret, () =>
         defined({
-            name: process.env['SSO_GITHUB_NAME'] ?? 'github',
+            name: readEnv('SSO_GITHUB_NAME') ?? 'github',
             clientId: clientId as string,
             clientSecret: clientSecret as string,
             label: readEnv('SSO_GITHUB_LABEL'),
@@ -221,15 +226,15 @@ function samlProvider(): (SamlProviderConfig & { name: string }) | undefined {
     const idpCert = readEnv('SSO_SAML_IDP_CERT');
     return when(entryPoint && idpCert, () =>
         defined({
-            name: process.env['SSO_SAML_NAME'] ?? 'saml',
+            name: readEnv('SSO_SAML_NAME') ?? 'saml',
             entryPoint: entryPoint as string,
             idpCert: idpCert as string,
             // The entity id the identity provider has registered for this
             // application. Defaults to the CMS's own origin, which is what most
             // administrators enter when nobody tells them otherwise.
             issuer:
-                process.env['SSO_SAML_ISSUER'] ??
-                process.env['SSO_PUBLIC_BASE_URL'] ??
+                readEnv('SSO_SAML_ISSUER') ??
+                readEnv('SSO_PUBLIC_BASE_URL') ??
                 '',
             label: readEnv('SSO_SAML_LABEL'),
             subjectAttribute: readEnv('SSO_SAML_SUBJECT_ATTRIBUTE'),

@@ -8,13 +8,14 @@
  */
 // ortha:if media-local
 import type { LocalStorageConfig } from '@orthacms/media-provider-local';
+import { readEnv } from '@orthacms/utils-server';
 
 /** Local-filesystem blobs. */
 export function mediaStorage(): LocalStorageConfig {
     return {
         // Point MEDIA_LOCAL_ROOT at a persistent volume in production: a
         // container's own disk is wiped on every deploy.
-        rootDir: process.env['MEDIA_LOCAL_ROOT'] ?? './.storage/media'
+        rootDir: readEnv('MEDIA_LOCAL_ROOT') ?? './.storage/media'
     };
 }
 // ortha:end
@@ -67,7 +68,7 @@ export function mediaStorage(): S3StorageConfig {
     return defined({
         bucket: requireEnv('MEDIA_S3_BUCKET'),
         // `auto` is what R2 expects; AWS needs its real region.
-        region: process.env['MEDIA_S3_REGION'] ?? 'auto',
+        region: readEnv('MEDIA_S3_REGION') ?? 'auto',
         // Omit for AWS S3 itself; set it for R2, MinIO, Spaces, B2…
         endpoint: readEnv('MEDIA_S3_ENDPOINT'),
         forcePathStyle: readFlag('MEDIA_S3_FORCE_PATH_STYLE', false),

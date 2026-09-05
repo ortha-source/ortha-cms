@@ -33,7 +33,7 @@ export function mediaConfig(): OrthaMediaConfig {
         storage: {
             // Blobs live under a git-ignored project dir by default; point
             // MEDIA_LOCAL_ROOT at a persistent volume for real deployments.
-            rootDir: process.env['MEDIA_LOCAL_ROOT'] ?? './.storage/media'
+            rootDir: readEnv('MEDIA_LOCAL_ROOT') ?? './.storage/media'
         },
         // Off unless asked for, and only meaningful on a backend that can sign
         // a URL — the plugin refuses the combination at boot rather than
