@@ -21,9 +21,12 @@ Commands:
 
 Options:
   --server               build/dev: the server only, skipping the admin
-  --admin                build: the admin bundle only
+  --admin                build/dev: the admin only, skipping the server
   -h, --help             Show this message
   -v, --version          Show the installed version
+
+--server and --admin are alternatives; passing both narrows the command to
+nothing at all, so it is refused rather than obeyed.
 `;
 
 /** Reads `--flag=value`, or `--flag value`, from argv. */
@@ -43,6 +46,62 @@ export function option(
 /** Whether a bare `--flag` is present. */
 export function flag(argv: readonly string[], name: string): boolean {
     return argv.includes(`--${name}`);
+}
+
+/** Which half of the app a command was narrowed to. */
+export interface Halves {
+    /** Skip the admin. */
+    serverOnly: boolean;
+    /** Skip the server. */
+    adminOnly: boolean;
+}
+
+/**
+ * Reads `--server` / `--admin` for the two commands that run both halves.
+ *
+ * Both at once is refused rather than obeyed. `--server` means "skip the admin"
+ * and `--admin` means "skip the server", so together they narrow the command to
+ * nothing: `ortha build --server --admin` used to compile nothing, build
+ * nothing and exit 0, which reads as a build that succeeded.
+ */
+export function halves(argv: readonly string[], command: string): Halves {
+    const serverOnly = flag(argv, 'server');
+    const adminOnly = flag(argv, 'admin');
+
+    if (serverOnly && adminOnly) {
+        throw new Error(
+            `\`ortha ${command} --server --admin\` asks for neither half — ` +
+                `--server skips the admin and --admin skips the server. Pass ` +
+                `one, or neither for both.`
+        );
+    }
+
+    return { serverOnly, adminOnly };
+}
+
+/**
+ * Reads a `--<name>` option that must be a whole number.
+ *
+ * `Number()` alone is not enough, and the difference is not academic: it maps
+ * `--port=abc` to `NaN` and `--port=` to `0`, and both of those then reached a
+ * truthiness guard that dropped them without a word — so a typo in a port
+ * silently became the default port.
+ */
+export function numberOption(
+    argv: readonly string[],
+    name: string
+): number | undefined {
+    const raw = option(argv, name);
+    if (raw === undefined) return undefined;
+
+    if (!/^\d+$/.test(raw)) {
+        throw new Error(
+            `--${name} must be a whole number — got "${raw}". Drop the flag to ` +
+                `use the default.`
+        );
+    }
+
+    return Number(raw);
 }
 
 /**

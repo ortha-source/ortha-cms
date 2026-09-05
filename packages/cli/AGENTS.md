@@ -31,12 +31,12 @@ get the most destructive operation in the system wrong.
 
 | Command | Notes |
 | --- | --- |
-| `ortha dev` | `tsc --watch`, `node --watch`, and Vite in one terminal |
+| `ortha dev` | `tsc --watch`, `node --watch`, and Vite in one terminal. `--server` / `--admin` run one half |
 | `ortha build` | `tsc` for the server, Vite for the admin. `--server` / `--admin` narrow it |
 | `ortha start` | Runs `dist/server/main.js` |
 | `ortha migrate` | Builds the server, then applies every plugin's migrations |
 | `ortha generate --name=<n>` | drizzle-kit against the app's own `drizzle.config.ts` |
-| `ortha studio` | Drizzle Studio on the app's database |
+| `ortha studio` | Drizzle Studio on the app's database. `--port=0` is refused, not dropped — drizzle-kit prints the port it was asked for, never the one it bound |
 | `ortha --help` | Usage — also `-h` and a bare `help`. Answered before `findProjectRoot`, so it works outside an app |
 | `ortha --version` | The installed version, read from the package manifest at runtime. Also `-v`, and checked before `--help` |
 

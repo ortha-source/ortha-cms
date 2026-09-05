@@ -1,4 +1,5 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 
 const execFileSync = jest.fn();
 
@@ -79,6 +80,75 @@ describe('runDrizzleKitStudio', () => {
         expect(execFileSync.mock.calls[0][1]).toEqual(
             expect.arrayContaining(['--host=0.0.0.0', '--port=4990'])
         );
+    });
+
+    /**
+     * The port that used to disappear.
+     *
+     * `if (options.port)` treated `0` as "not given", so `--port=0` started
+     * Studio on 4983 and said nothing — while `@orthacms/nx`'s `db:studio`
+     * executor refused the same input with an explanation, so one flag on one
+     * tool meant two different things depending on which half of the workspace
+     * you were standing in.
+     *
+     * The refusal is the right half of that pair, and the reason is in
+     * drizzle-kit: its listen callback is handed the bound address and ignores
+     * it, printing the port it was *asked* for. Forwarded, `--port=0` would put
+     * an unauthenticated read/write console on the database at an ephemeral
+     * port and announce a URL naming port 0.
+     */
+    describe('a port drizzle-kit could bind but could not report', () => {
+        it('refuses --port=0 instead of silently using the default', () => {
+            expect(() => runDrizzleKitStudio(URL, { port: 0 })).toThrow(
+                /port 0 is not supported/
+            );
+
+            expect(execFileSync).not.toHaveBeenCalled();
+        });
+
+        /**
+         * The other values a mistyped flag produces. All of them were falsy or
+         * merely nonsensical, and all of them were dropped by the same guard —
+         * `--port=abc` arrives as `NaN`, and `--port=70000` as a number no
+         * socket can bind.
+         */
+        it.each([
+            ['NaN, from a non-numeric --port', Number.NaN],
+            ['a fractional port', 4983.5],
+            ['a negative port', -1],
+            ['a port past the 16-bit ceiling', 70000]
+        ])('refuses %s', (_label, port) => {
+            expect(() => runDrizzleKitStudio(URL, { port })).toThrow(
+                /is not a port/
+            );
+
+            expect(execFileSync).not.toHaveBeenCalled();
+        });
+
+        it('refuses before it writes the ephemeral config, so nothing is left behind', () => {
+            const before = readdirSync(tmpdir()).filter((entry) =>
+                entry.startsWith('ortha-studio-')
+            );
+
+            expect(() => runDrizzleKitStudio(URL, { port: 0 })).toThrow();
+
+            expect(
+                readdirSync(tmpdir()).filter((entry) =>
+                    entry.startsWith('ortha-studio-')
+                )
+            ).toEqual(before);
+        });
+
+        it('still forwards every port that can be reported', () => {
+            for (const port of [1, 4983, 65535]) {
+                jest.clearAllMocks();
+                runDrizzleKitStudio(URL, { port });
+
+                expect(execFileSync.mock.calls[0][1]).toContain(
+                    `--port=${port}`
+                );
+            }
+        });
     });
 
     /**
