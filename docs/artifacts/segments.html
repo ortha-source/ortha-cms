@@ -1179,7 +1179,7 @@ html{scroll-behavior:smooth}
     <li><span class="id">I-35</span><span>The reader resolver never rejects a request: an exception is caught, logged as a warning, and yields an anonymous reader.</span></li>
     <li><span class="id">I-36</span><span>The catalogue is loaded in <code>onApplicationBootstrap</code>; an unreadable catalogue <b>aborts the start</b>. Every write to the directory reloads the catalogue in full.</span></li>
     <li><span class="id">I-37</span><span>All three virtual filter fields' subqueries are workspace-scoped, and there is no negation among their operators.</span></li>
-    <li><span class="id">I-38</span><span><code>@orthacms/segments-domain</code> has no dependencies at all, and the audience-field validation rules are read from it by both the admin form and the server DTO.</span></li>
+    <li><span class="id">I-38</span><span><code>@orthacms/segments-domain</code> declares no dependencies at all, and the audience-field validation rules are read from it by both the admin form and the server DTO.</span></li>
     <li><span class="id">I-39</span><span>A content type with no <code>id</code> column makes <code>SegmentReadScope</code> <b>throw</b> rather than silently omit the fragment.</span></li>
     <li><span class="id">I-40</span><span>The middlewares are registered on <code>{*splat}</code> (Express 5 / path-to-regexp 8), and <code>PrincipalMiddleware</code> never short-circuits.</span></li>
   </ul>
@@ -1463,9 +1463,9 @@ html{scroll-behavior:smooth}
 
   <h3>Still open</h3>
   <ul>
-    <li><b>The title chip</b> has no browser test.</li>
+    <li><b>The title chip</b> still has no browser test. It is no longer untested — <code>EntryAccessChip/index.spec.tsx</code> pins <b>I-30</b>: nothing rendered while the workspace has no audiences, nothing rendered before there is an entry to describe, and the open and restricted readings — but that is a component in isolation, not the chip beside a real entry's title.</li>
     <li><b>The admin package keeps its own copies</b> of <code>sameAccess</code>, <code>isOpen</code> and <code>EntryAccess</code> while depending on <code>@orthacms/segments-domain</code> and importing <code>validateSegment</code> from it. They agree today; the domain's own documentation is the argument against it. A decision, not a bug.</li>
-    <li><b>Three admin checklist rows</b> remain undriven: switching locale after a save, the bulk control past 200 matches, and resetting the pager when a search is typed on page four.</li>
+    <li><b>Two admin checklist rows</b> remain undriven: switching locale after a save, and resetting the pager when a search is typed on page four. The third — the bulk control past 200 matches — is now driven by <code>entry-access.spec.ts</code> → “refuses the bulk set when more matched than an entry can name”, which asserts all three buttons disabled and the reason on screen. The locale row's <em>mechanism</em> is pinned by <code>useEntryAccessPresave.spec.tsx</code> (<b>I-29</b>: the saved row is seeded and every other cached entry invalidated); what no test drives is the editor actually switching locale afterwards.</li>
   </ul>
 
   <div class="note">

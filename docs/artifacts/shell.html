@@ -1007,7 +1007,7 @@ html{scroll-behavior:smooth}
   <ul class="check">
     <li><b>Sign in as an administrator</b> → <span class="exp">Overview: Home, Activity. Directory: Workspaces, Members, API Tokens, Segments — in exactly that order.</span></li>
     <li><b>Sign in as a user without <code>users:read</code>, <code>tokens:read</code>, <code>segments:read</code>, <code>activity:read</code></b> → <span class="exp">the Overview group contains only Home, the Directory group only Workspaces; no headings over empty bodies.</span></li>
-    <li><b>Take away every permission that yields a Directory row</b> → <span class="exp">the “Directory” heading is not rendered at all.</span></li>
+    <li><b>Try to empty a group by taking permissions away</b> → <span class="exp">you cannot, and that is not a bug: <code>workspaces-admin</code> contributes “Workspaces” to Directory with no <code>permission</code>, and the shell contributes “Home” to Overview the same way, so every account keeps one row in each group. The rule (I-10) is real but unobservable against the shipped nav — it is pinned in <code>GlobalSidebar/index.spec.tsx</code>, on a fixture whose Directory rows are all gated.</span></li>
     <li><b>Click “Members”</b> → <span class="exp">the row gets <code>aria-current="page"</code>; “Home” does not (it has <code>end: true</code>).</span></li>
     <li><b>Remove every item from <code>SIDEBAR_FOOTER_SLOT</code></b> → <span class="exp">the footer and its top border are not rendered.</span></li>
     <li><b>Save a file in dev mode (Vite hot update)</b> → <span class="exp">navigation rows and workspaces are <b>not</b> duplicated.</span></li>

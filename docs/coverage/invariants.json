@@ -711,7 +711,7 @@
                 "server-e2e",
                 "unit"
             ],
-            "text": "Muting a finding exists nowhere: no state, no columns, no route, no tab, no row action. Its absence is pinned down by a server test and a browser test."
+            "text": "Muting a finding exists nowhere: no state, no columns, no route, no tab, no row action."
         },
         {
             "id": "alarms:I-21",
@@ -2033,7 +2033,7 @@
                 "server-e2e",
                 "unit"
             ],
-            "text": "The @orthacms/content-domain kernel has no dependencies; the entries/domain/ layer imports neither NestJS, nor Drizzle, nor class-validator, nor its own infrastructure (checked by grep)."
+            "text": "The @orthacms/content-domain kernel declares no dependencies; the entries/domain/ layer imports neither NestJS, nor Drizzle, nor class-validator, nor its own infrastructure (checked by grep)."
         },
         {
             "id": "content:I-38",
@@ -3749,7 +3749,7 @@
                 "server-e2e",
                 "unit"
             ],
-            "text": "The API-token management routes are reachable only with an administrator's session and never with a bearer token."
+            "text": "The API-token management routes are gated on the tokens:read / tokens:create / tokens:delete permissions rather than on the admin role, and answer only to a session — never to a bearer token, not even one of the tokens they mint."
         },
         {
             "id": "identity:I-20",
@@ -3829,7 +3829,7 @@
                 "server-e2e",
                 "unit"
             ],
-            "text": "The identity-domain package has no dependencies; the domain/ layer in identity-server imports neither NestJS, nor Drizzle, nor class-validator."
+            "text": "The identity-domain package declares no dependencies; the domain/ layer in identity-server imports neither NestJS, nor Drizzle, nor class-validator."
         },
         {
             "id": "identity:I-28",
@@ -4665,7 +4665,7 @@
                 "server-e2e",
                 "unit"
             ],
-            "text": "A provider depends only on @orthacms/media-domain — the port's types, plus ObjectNotFoundError, which is a value — and its own vendor SDK. The port package declares no dependencies of any kind, so no adapter reaches NestJS, Drizzle or Express by any route: not in its manifest, not in its imports, and not transitively."
+            "text": "A provider depends only on @orthacms/media-domain — the port's types, plus ObjectNotFoundError, which is a value — and its own vendor SDK. The port declares no dependency of its own beyond the tslib helper runtime the release stamps into every manifest, so no adapter reaches NestJS, Drizzle or Express by any route: not in its manifest, not in its imports, and not transitively."
         },
         {
             "id": "media:I-35",
@@ -5586,7 +5586,7 @@
                 "server-e2e",
                 "unit"
             ],
-            "text": "@orthacms/segments-domain has no dependencies at all, and the audience-field validation rules are read from it by both the admin form and the server DTO."
+            "text": "@orthacms/segments-domain declares no dependencies at all, and the audience-field validation rules are read from it by both the admin form and the server DTO."
         },
         {
             "id": "segments:I-39",
@@ -6159,7 +6159,7 @@
                 "server-e2e",
                 "unit"
             ],
-            "text": "A depth-1 entry's reference carries a resolvable $key, fetched by a projection over the identity columns, rather than somebody else's id alone."
+            "text": "Every reference in the document carries a resolvable $key rather than somebody else's row id alone — including a reference held by a depth-1 record and pointing outward at depth 2, and a reference whose target was not exported at all. The keys of targets the walk did not fetch come from a projection over their identity columns."
         },
         {
             "id": "transfer:I-05",
@@ -6399,7 +6399,7 @@
                 "server-e2e",
                 "unit"
             ],
-            "text": "The bytes decide an uploaded file's format; the file name and the declared format are a hint."
+            "text": "The bytes decide whether an upload is an archive — the ZIP signature is tested before anything else, so a ZIP named .json is read as one — and they decide which text format it is when the file name names none."
         },
         {
             "id": "transfer:I-29",
@@ -7684,7 +7684,7 @@
                 "admin-e2e",
                 "unit"
             ],
-            "text": "The language mark is not a textStyle: \"Clear formatting\" does not remove it."
+            "text": "The language mark declares clearable: false, so \"Clear formatting\" leaves it alone. Being its own mark rather than a textStyle attribute is necessary for that and not sufficient: \"Clear formatting\" runs unsetAllMarks(), which strips every mark in the schema that has not opted out — which is how a WCAG 3.1.2 language marker was once cleared along with a bold."
         },
         {
             "id": "wysiwyg:I-16",

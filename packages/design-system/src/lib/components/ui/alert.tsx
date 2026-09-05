@@ -72,9 +72,11 @@ const Alert = React.forwardRef<
                 ref={ref}
                 role="alert"
                 // Only once a title exists to point at — see the context above.
-                // A caller that names the banner itself wins either way:
-                // `{...props}` is spread after, so an explicit
-                // `aria-label`/`aria-labelledby` overrides this one.
+                // A caller that names the banner itself wins, but only through
+                // `aria-labelledby`: `{...props}` is spread after, so an
+                // explicit one replaces this. An `aria-label` does *not* win —
+                // the generated `aria-labelledby` is still on the element, and
+                // it outranks a label in the accessible-name algorithm.
                 aria-labelledby={hasTitle ? titleId : undefined}
                 className={cn(alertVariants({ variant }), className)}
                 {...props}

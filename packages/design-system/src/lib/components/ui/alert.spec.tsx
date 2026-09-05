@@ -80,7 +80,8 @@ describe('Alert', () => {
         // `aria-labelledby`. An `aria-label` passed here does **not** win:
         // `aria-labelledby` outranks it in the accessible-name algorithm and
         // the generated one is still on the element. The component's own
-        // comment claims either overrides; only this one does.
+        // comment used to claim either overrides; it now says only this one
+        // does, and this test is what settles it.
         render(
             <div>
                 <span id="banner-name">Import summary</span>

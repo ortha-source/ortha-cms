@@ -741,8 +741,8 @@ html{scroll-behavior:smooth}
       </tr>
       <tr>
         <td><b>A workspace</b></td>
-        <td class="no">Nothing. The <code>alarm_rules</code> and <code>alarm_findings</code> rows remain</td>
-        <td>Alarms <b>registers no <code>WorkspacePurger</code></b> and has no FK to <code>workspaces</code>. The collateral damage is limited in itself: deleting a workspace refuses to proceed while it holds content entries, so by that point there are practically no findings left — but <b>the rules are orphaned</b>. See section 14</td>
+        <td>Its <code>alarm_findings</code> rows are deleted, then its <code>alarm_rules</code> rows</td>
+        <td><code>AlarmsWorkspacePurger</code> (<code>infrastructure/purge/</code>), registered with <code>workspaces-server</code>'s <code>WorkspacePurgeRegistry</code> from <code>onModuleInit</code>. Neither table carries an FK to <code>workspaces</code>, so nothing else would remove them — and an orphaned rule is <b>not inert</b>: the sweep reads <code>allActive()</code> without asking whether the workspace still exists, so it would be re-evaluated on every pass, forever, while being unreachable from an editor that no longer opens. The findings are deleted explicitly rather than left to the <code>rule_id</code> cascade, because the cascade removes them without counting them, and “removed 12 rules” reads very differently from “removed 12 rules and 4 000 findings”</td>
       </tr>
     </tbody>
   </table>
@@ -1050,7 +1050,7 @@ html{scroll-behavior:smooth}
     <li><span class="id">I-17</span><span>Every route requires a session, workspace membership and one of the two permissions; reads take <code>alarms:read</code>, every write takes <code>alarms:manage</code>; every write additionally carries <code>OriginGuard</code>.</span></li>
     <li><span class="id">I-18</span><span>The findings list with no explicit <code>?state=</code> excludes <code>resolved</code>; the per-entry batch always excludes <code>resolved</code>.</span></li>
     <li><span class="id">I-19</span><span>The severity breakdown and the list's page are built from <b>one</b> predicate (<code>findingsWhere</code>) and cannot describe different sets.</span></li>
-    <li><span class="id">I-20</span><span>Muting a finding exists nowhere: no state, no columns, no route, no tab, no row action. Its absence is pinned down by a server test and a browser test.</span></li>
+    <li><span class="id">I-20</span><span>Muting a finding exists nowhere: no state, no columns, no route, no tab, no row action.</span></li>
     <li><span class="id">I-21</span><span>A configuration with a zero or negative limit is rejected when the plugin is constructed; <code>sweepIntervalMinutes: 0</code> is a legitimate “do not sweep”.</span></li>
     <li><span class="id">I-22</span><span>The reverse pass considers only rules whose filter tree mentions a relation pointing at the changed type, and is bounded by <code>maxDependentsPerEvent</code> on both sides.</span></li>
     <li><span class="id">I-23</span><span>The sweep is sequential, coalesces parallel calls onto the one already running, and waits for completion when the module shuts down.</span></li>
@@ -1237,7 +1237,7 @@ html{scroll-behavior:smooth}
       <tr><td>The entry list, the entry editor, the toolbar</td><td><code>content-admin</code></td><td>Contributes into three of its slots; <b>not one line of change in content-admin was required</b></td></tr>
       <tr><td>The query builder and its serialisation</td><td><code>query-builder-admin</code></td><td>Uses <code>QueryBuilderPanel</code>, <code>QueryBuilderSummary</code>, <code>treeToJsonFilter</code>, <code>jsonFilterToTree</code>; it is the admin UI's only caller that asks for <code>relativeDates</code></td></tr>
       <tr><td>The activity log</td><td><code>activity</code></td><td class="no">Nothing. Creating, editing and deleting a rule <b>do not reach</b> the activity log</td></tr>
-      <tr><td>Cleanup when a workspace is deleted</td><td><code>workspaces-server</code> (<code>WorkspacePurgeRegistry</code>)</td><td class="no">It does not register. The workspace's rules stay in the database</td></tr>
+      <tr><td>Cleanup when a workspace is deleted</td><td><code>workspaces-server</code> (<code>WorkspacePurgeRegistry</code>)</td><td>Registers <code>AlarmsWorkspacePurger</code>, which removes the workspace's findings and then its rules. The registry decides when: every purger runs serially inside the delete's own transaction, and one that throws aborts the whole delete rather than leaving a half-deleted workspace</td></tr>
     </tbody>
   </table>
   </div>
@@ -1327,11 +1327,6 @@ html{scroll-behavior:smooth}
         <td class="mono">packages/alarms/admin/AGENTS.md</td>
         <td>The layout is described as “utils/alarmsPlugin — the AdminPlugin factory — <b>routes + five slots</b>”</td>
         <td>There are <b>six</b> slot contributions (including <code>WORKSPACE_ROUTE_SLOT</code> itself); “five” only works if the routes are not counted as a slot, which they are. A trifle, but it throws the count off during a review</td>
-      </tr>
-      <tr>
-        <td class="mono">The plugin as a whole</td>
-        <td>No document discusses workspace deletion</td>
-        <td>Alarms registers no <code>WorkspacePurger</code> and has no FK to <code>workspaces</code>. A deleted workspace's <code>alarm_rules</code> rows <b>stay orphaned</b> forever. The practical damage is small (the sweep will rescan them into nothing and the findings will close), but this differs from what <code>media</code> and the copilot do, and it is nowhere noted as a choice</td>
       </tr>
       <tr>
         <td class="mono">The plugin as a whole</td>
