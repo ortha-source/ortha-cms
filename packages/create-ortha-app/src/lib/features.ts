@@ -375,7 +375,26 @@ export function resolveDevPackages(): string[] {
     return [...CORE_DEV_PACKAGES].sort();
 }
 
-/** The feature ids in force for a selection — what `ortha:if` tests against. */
+/**
+ * The feature ids in force for a selection — what `ortha:if` tests against.
+ *
+ * The picked ids, plus **one** derived group flag: `sso`, set when any
+ * `sso-*` provider was chosen.
+ *
+ * It exists because `ortha:if` is deliberately line-based with no expression
+ * language, so a block cannot say "any of these three". Three providers share
+ * one `ssoProviders` key in the config, one builder function in `plugins.ts`
+ * and one extra argument to `IdentityPlugin` — each of which has to appear if
+ * *any* of them was picked, and none of which may be left behind as an empty
+ * husk when none was. `sso` is that condition, and it is derived here rather
+ * than added to the picker so it can never be selected on its own.
+ */
 export function resolveFlags(selection: FeatureSelection): Set<string> {
-    return new Set(selection.enabled);
+    const flags = new Set(selection.enabled);
+
+    if (SSO_PROVIDERS.some((provider) => flags.has(provider.id))) {
+        flags.add('sso');
+    }
+
+    return flags;
 }

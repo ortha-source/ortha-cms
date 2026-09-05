@@ -156,8 +156,8 @@ describe('answering without being asked', () => {
     /**
      * The other half of the same promise: a run that cannot ask still has to be
      * able to answer, so every question the wizard asks has a flag that answers
-     * it. `--sso` is in that set and in `USAGE`, and is described in no
-     * `AGENTS.md` — the flags are the contract, so they are checked here.
+     * it. The flags are the contract, so they are checked here rather than
+     * against the prose that describes them.
      */
     it.each([
         ['--media', 'media-gcs', 'media-gcs'],

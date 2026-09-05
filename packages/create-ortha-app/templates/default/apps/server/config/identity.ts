@@ -3,6 +3,12 @@ import type { IdentityPluginConfig } from '@orthacms/identity-server';
 // ortha:if sso-oidc
 import type { OidcProviderConfig } from '@orthacms/identity-provider-oidc';
 // ortha:end
+// ortha:if sso-github
+import type { GithubProviderConfig } from '@orthacms/identity-provider-github';
+// ortha:end
+// ortha:if sso-saml
+import type { SamlProviderConfig } from '@orthacms/identity-provider-saml';
+// ortha:end
 import {
     defined,
     isProduction,
@@ -13,6 +19,12 @@ import {
 
 // ortha:if sso-oidc
 import { oidcProvider } from './sso-oidc';
+// ortha:end
+// ortha:if sso-github
+import { githubProvider } from './sso-github';
+// ortha:end
+// ortha:if sso-saml
+import { samlProvider } from './sso-saml';
 // ortha:end
 
 /**
@@ -35,6 +47,14 @@ export interface AppIdentityConfig extends IdentityPluginConfig {
         // ortha:if sso-oidc
         /** A generic OpenID Connect provider. Present when both env vars are set. */
         oidc?: OidcProviderConfig & { name: string };
+        // ortha:end
+        // ortha:if sso-github
+        /** GitHub or GitHub Enterprise Server. Present when both env vars are set. */
+        github?: GithubProviderConfig & { name: string };
+        // ortha:end
+        // ortha:if sso-saml
+        /** A SAML 2.0 identity provider. Present when all three env vars are set. */
+        saml?: SamlProviderConfig & { name: string };
         // ortha:end
     };
 }
@@ -67,8 +87,18 @@ export function identityConfig(): AppIdentityConfig {
             limit: readPositiveInt('LOGIN_RATE_LIMIT', 10)
         },
         sso: ssoConfig(),
-        // ortha:if sso-oidc
-        ssoProviders: defined({ oidc: oidcProvider() }),
+        // ortha:if sso
+        ssoProviders: defined({
+            // ortha:if sso-oidc
+            oidc: oidcProvider(),
+            // ortha:end
+            // ortha:if sso-github
+            github: githubProvider(),
+            // ortha:end
+            // ortha:if sso-saml
+            saml: samlProvider()
+            // ortha:end
+        }),
         // ortha:end
         // With an email set, an admin is provisioned on boot — idempotent and
         // non-destructive. This is how you get your first login.

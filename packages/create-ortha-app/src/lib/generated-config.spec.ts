@@ -132,6 +132,172 @@ describe('an SSO provider', () => {
 });
 
 /**
+ * The two providers whose whole wiring was missing.
+ *
+ * The wizard offered GitHub and SAML from the start, and choosing either added
+ * a package to `package.json` and nothing else — no config module, no keys in
+ * `.env`, no registration. So the rule these share with OIDC ("present only
+ * when its settings are") had never been true of them in either direction, and
+ * a test that only covered OIDC could not say so.
+ */
+describe('the GitHub provider', () => {
+    /** Renders with GitHub selected and reads its builder back. */
+    function githubProvider(): () => unknown {
+        return load<{ githubProvider: () => unknown }>(
+            ['media-local', 'rest', 'sso-github'],
+            'apps/server/config/sso-github'
+        ).githubProvider;
+    }
+
+    beforeEach(() => {
+        delete process.env['SSO_GITHUB_CLIENT_ID'];
+        delete process.env['SSO_GITHUB_CLIENT_SECRET'];
+        delete process.env['SSO_GITHUB_SCOPES'];
+    });
+
+    /**
+     * The secret is not optional the way an OIDC one is: GitHub's code
+     * exchange has no PKCE, so the secret is the only thing proving the code
+     * is being redeemed by this application. Half-configured, the adapter
+     * throws at construction — which is a boot failure rather than a sign-in
+     * button that fails silently, and either way not what the operator wanted.
+     */
+    it.each([
+        ['neither value', {}],
+        ['a client id with no secret', { SSO_GITHUB_CLIENT_ID: 'abc' }],
+        ['a secret with no client id', { SSO_GITHUB_CLIENT_SECRET: 'shh' }]
+    ])(
+        'is absent from the config with %s [create-ortha-app:I-16]',
+        (_label, settings) => {
+            Object.assign(process.env, settings);
+
+            expect(githubProvider()()).toBeUndefined();
+        }
+    );
+
+    it('is present once both are set [create-ortha-app:I-16]', () => {
+        process.env['SSO_GITHUB_CLIENT_ID'] = 'abc';
+        process.env['SSO_GITHUB_CLIENT_SECRET'] = 'shh';
+
+        expect(githubProvider()()).toMatchObject({
+            name: 'github',
+            clientId: 'abc',
+            clientSecret: 'shh'
+        });
+    });
+
+    /**
+     * `readList` answers a blank line with `[]`, and `[]` is a value: passed
+     * through, the adapter's `scopes ?? DEFAULT_SCOPES` keeps it and the app
+     * requests *no* scopes — so the token comes back unable to read the
+     * profile the sign-in exists to read. The `.env` ships this key blank, so
+     * that is the default state of a fresh app rather than a mistake.
+     */
+    it('leaves the scopes at the adapter’s default rather than requesting none', () => {
+        process.env['SSO_GITHUB_CLIENT_ID'] = 'abc';
+        process.env['SSO_GITHUB_CLIENT_SECRET'] = 'shh';
+        process.env['SSO_GITHUB_SCOPES'] = '';
+
+        expect(githubProvider()()).not.toHaveProperty('scopes');
+    });
+
+    it('passes the scopes through when the operator names some', () => {
+        process.env['SSO_GITHUB_CLIENT_ID'] = 'abc';
+        process.env['SSO_GITHUB_CLIENT_SECRET'] = 'shh';
+        process.env['SSO_GITHUB_SCOPES'] = 'read:user, user:email';
+
+        expect(githubProvider()()).toMatchObject({
+            scopes: ['read:user', 'user:email']
+        });
+    });
+});
+
+describe('the SAML provider', () => {
+    /** Renders with SAML selected and reads its builder back. */
+    function samlProvider(): () => unknown {
+        return load<{ samlProvider: () => unknown }>(
+            ['media-local', 'rest', 'sso-saml'],
+            'apps/server/config/sso-saml'
+        ).samlProvider;
+    }
+
+    const CONFIGURED = {
+        SSO_SAML_ENTRY_POINT: 'https://idp.test/sso',
+        SSO_SAML_IDP_CERT: 'MIICertificate',
+        SSO_SAML_ISSUER: 'urn:my-cms'
+    };
+
+    beforeEach(() => {
+        for (const key of Object.keys(CONFIGURED)) delete process.env[key];
+    });
+
+    /**
+     * All three are required and none has a fallback: SAML has no discovery
+     * document and no key endpoint, so the certificate is the whole of the
+     * trust relationship.
+     */
+    it.each(Object.keys(CONFIGURED))(
+        'is absent from the config without %s [create-ortha-app:I-16]',
+        (missing) => {
+            Object.assign(process.env, CONFIGURED);
+            delete process.env[missing];
+
+            expect(samlProvider()()).toBeUndefined();
+        }
+    );
+
+    it('is present once all three are set [create-ortha-app:I-16]', () => {
+        Object.assign(process.env, CONFIGURED);
+
+        expect(samlProvider()()).toMatchObject({
+            name: 'saml',
+            entryPoint: 'https://idp.test/sso',
+            issuer: 'urn:my-cms'
+        });
+    });
+
+    /**
+     * An environment variable cannot hold a real newline, so a PEM pasted into
+     * `.env` arrives as one line of `\n` escapes. Left as they are, the XML
+     * signature check fails on a certificate that looks correct in the file.
+     */
+    it('puts the certificate’s newlines back', () => {
+        Object.assign(process.env, CONFIGURED);
+        process.env['SSO_SAML_IDP_CERT'] =
+            '-----BEGIN CERTIFICATE-----\\nMIIC\\n-----END CERTIFICATE-----';
+
+        expect(samlProvider()()).toMatchObject({
+            idpCert:
+                '-----BEGIN CERTIFICATE-----\nMIIC\n-----END CERTIFICATE-----'
+        });
+    });
+
+    /**
+     * SAML carries no verification claim at all, so this can only ever be an
+     * operator's assertion — and it is the only gate on a first sign-in
+     * claiming an existing account. It must not default to true, and a blank
+     * line in `.env` must not read as one.
+     */
+    it.each([
+        ['unset', undefined],
+        ['blank', ''],
+        ['false', 'false']
+    ])(
+        'treats an email-verified flag that is %s as not verified',
+        (_label, value) => {
+            Object.assign(process.env, CONFIGURED);
+            if (value === undefined) {
+                delete process.env['SSO_SAML_EMAIL_VERIFIED'];
+            } else {
+                process.env['SSO_SAML_EMAIL_VERIFIED'] = value;
+            }
+
+            expect(samlProvider()()).toMatchObject({ emailVerified: false });
+        }
+    );
+});
+
+/**
  * A key the generated `.env` ships blank.
  *
  * `env.tmpl` writes twenty-odd keys with nothing on the right-hand side —

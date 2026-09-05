@@ -4,9 +4,17 @@ import { ContentPlugin, ContentViewsPlugin } from '@orthacms/content-server';
 import { DatabasePlugin } from '@orthacms/database';
 import { I18nServerPlugin } from '@orthacms/i18n-server';
 import { IdentityPlugin } from '@orthacms/identity-server';
-// ortha:if sso-oidc
+// ortha:if sso
 import type { SsoRegistration } from '@orthacms/identity-domain';
+// ortha:end
+// ortha:if sso-oidc
 import { createOidcProvider } from '@orthacms/identity-provider-oidc';
+// ortha:end
+// ortha:if sso-github
+import { createGithubProvider } from '@orthacms/identity-provider-github';
+// ortha:end
+// ortha:if sso-saml
+import { createSamlProvider } from '@orthacms/identity-provider-saml';
 // ortha:end
 import { MediaServerPlugin } from '@orthacms/media-server';
 // ortha:if media-local
@@ -26,6 +34,8 @@ import { createVercelBlobStorageProvider } from '@orthacms/media-provider-vercel
 // ortha:end
 import { UsersPlugin } from '@orthacms/users-server';
 import { AlarmsPlugin } from '@orthacms/alarms-server';
+import { SegmentsPlugin } from '@orthacms/segments-server';
+import { TransferPlugin } from '@orthacms/transfer-server';
 import { WebhooksPlugin } from '@orthacms/webhooks-server';
 // ortha:if graphql
 import { ContentGraphqlPlugin } from '@orthacms/content-graphql';
@@ -60,13 +70,14 @@ import type { OrthaConfig } from '../ortha.config';
  * must stay `false` until a backend is configured — enabling it with an empty
  * list fails at boot rather than shipping a chat that cannot answer.
  */
-// ortha:if sso-oidc
+// ortha:if sso
 /**
  * The identity providers this app can actually reach.
  *
  * **Only what is configured is registered.** `ortha.config.ts` omits a provider
- * whose issuer or client id is missing, and an unconfigured one is skipped here
- * too — it would appear on the sign-in page as a button that can only fail.
+ * whose connection settings are missing, and an unconfigured one is skipped
+ * here too — it would appear on the sign-in page as a button that can only
+ * fail.
  *
  * Running two directories at once is another entry. The name is what
  * `/api/auth/sso/<name>/start` and every `sso_identities` row refer to the
@@ -76,12 +87,28 @@ import type { OrthaConfig } from '../ortha.config';
  * string, which matters because most providers match it byte for byte.
  */
 export function ssoProviders(config: OrthaConfig): SsoRegistration[] {
-    const oidc = config.plugins.identity.ssoProviders?.oidc;
-    if (!oidc) {
-        return [];
+    const configured = config.plugins.identity.ssoProviders;
+    const providers: SsoRegistration[] = [];
+    // ortha:if sso-oidc
+    if (configured?.oidc) {
+        const { name, ...settings } = configured.oidc;
+        providers.push({ name, provider: createOidcProvider(settings) });
     }
-    const { name, ...settings } = oidc;
-    return [{ name, provider: createOidcProvider(settings) }];
+    // ortha:end
+    // ortha:if sso-github
+    if (configured?.github) {
+        const { name, ...settings } = configured.github;
+        providers.push({ name, provider: createGithubProvider(settings) });
+    }
+    // ortha:end
+    // ortha:if sso-saml
+    if (configured?.saml) {
+        const { name, ...settings } = configured.saml;
+        providers.push({ name, provider: createSamlProvider(settings) });
+    }
+    // ortha:end
+
+    return providers;
 }
 // ortha:end
 
@@ -139,7 +166,7 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
     return [
         // First: the only plugin that opens a resource in `onPluginInit`.
         DatabasePlugin({ connectionString: config.database.url }),
-        // ortha:if sso-oidc
+        // ortha:if sso
         // Identity, plus the identity providers this app offers. The second
         // argument is where constructed adapters go: `ortha.config.ts` holds
         // the typed view of the environment, and an adapter instance is not an
@@ -148,7 +175,7 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
             sso: { providers: ssoProviders(config) }
         }),
         // ortha:end
-        // ortha:ifnot sso-oidc
+        // ortha:ifnot sso
         IdentityPlugin(config.plugins.identity),
         // ortha:end
         WorkspacesPlugin(),
@@ -222,6 +249,29 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
             // ortha:end
             config: config.plugins.media
         }),
+        // Content export and import, one hop deep: relations, files and
+        // locales travel with a record, relations-of-relations stay as
+        // references. After content (every write goes through its writer, so
+        // an import cannot outrun validation or your own permissions) and
+        // after media (files travel with the records that use them). Owns no
+        // tables.
+        //
+        // The setting worth filling in per install is `identity`: it says
+        // which field identifies a record of each type, which is what lets an
+        // import recognise "this is that record" instead of adding a
+        // duplicate. Without it the natural key is a heuristic —
+        // `TransferPlugin({ identity: { post: ['slug'] } })`.
+        TransferPlugin(),
+        // Reader entitlements — who may *read* published content, as against
+        // who may touch it. After content, whose read-scope port it binds, so
+        // one decision covers REST, GraphQL and MCP at once.
+        //
+        // Registering it changes nothing on its own: with no audience created
+        // in the admin no predicate is emitted and every read costs what it
+        // did before. The line to fill in per install is `resolver` — it says
+        // where a reader's tags come from, and its absence means every reader
+        // is anonymous, which serves unrestricted content and nothing else.
+        SegmentsPlugin(),
         // Registered after workspaces (runs are workspace-scoped) and identity
         // (runs execute as the calling user, gated on `copilot:use`). The
         // composition root is the single place that selects a backend: the
