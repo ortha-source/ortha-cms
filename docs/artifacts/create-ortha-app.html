@@ -342,8 +342,8 @@ npm create ortha-app my-cms</code></pre></div>
 }</code></pre></div>
   <p><code>projectsRelationship: "fixed"</code> is the lockstep: every listed project shares one version and one tag. <code>@orthacms/nx</code> (the internal Nx plugin) and <code>@orthacms/copilot-provider-fake</code> (a private test fixture) are excluded explicitly.</p>
 
-  <h3>The only package with no runtime dependencies</h3>
-  <p>In its <code>package.json</code> the <code>dependencies</code> field is empty, deliberately: <code>npx</code> downloads this package <em>before anything else</em>, and every dependency is seconds of waiting in the very first command a person types. So the terminal interface — the frames, the colour, the arrow-key and checkbox pickers — is written by hand in <code>src/lib/ui.ts</code> rather than with <code>prompts</code>/<code>clack</code>/<code>chalk</code>.</p>
+  <h3>The only package that declares no runtime dependencies</h3>
+  <p>In its <code>package.json</code> the <code>dependencies</code> field is empty, deliberately: <code>npx</code> downloads this package <em>before anything else</em>, and every dependency is seconds of waiting in the very first command a person types. So the terminal interface — the frames, the colour, the arrow-key and checkbox pickers — is written by hand in <code>src/lib/ui.ts</code> rather than with <code>prompts</code>/<code>clack</code>/<code>chalk</code>. The published tarball is not quite the manifest, though: <code>tools/release/pack.mjs</code> stamps <code>tslib</code> into every staged manifest, because <code>importHelpers</code> is on workspace-wide — so <code>npx</code> fetches two packages, not one.</p>
 
   <h3>How the package relates to the rest of the monorepo</h3>
   <div class="tablewrap">

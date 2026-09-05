@@ -945,7 +945,7 @@ html{scroll-behavior:smooth}
     <li><span class="id">I-24</span><span>JIT creation is impossible without a non-empty domain list; the match is exact on the domain, not on a suffix.</span></li>
     <li><span class="id">I-25</span><span>Back-channel logout is idempotent, always carries <code>cache-control: no-store</code>, and answers <code>404</code> for a provider that cannot verify a logout token.</span></li>
     <li><span class="id">I-26</span><span>The application refuses to start with SSO providers registered and <code>cookieSameSite: 'strict'</code>.</span></li>
-    <li><span class="id">I-27</span><span>The <code>identity-domain</code> package has no dependencies; the <code>domain/</code> layer in <code>identity-server</code> imports neither NestJS, nor Drizzle, nor class-validator.</span></li>
+    <li><span class="id">I-27</span><span>The <code>identity-domain</code> package declares no dependencies; the <code>domain/</code> layer in <code>identity-server</code> imports neither NestJS, nor Drizzle, nor class-validator.</span></li>
     <li><span class="id">I-28</span><span>In the admin UI, a "who am I" probe failing for any reason other than <code>401</code> gives the <code>unavailable</code> state rather than a redirect to sign-in.</span></li>
     <li><span class="id">I-29</span><span><code>useHasPermission</code> is fail-closed: <code>false</code> in every state except <code>authenticated</code>.</span></li>
     <li><span class="id">I-30</span><span>A change of identity in a tab clears the whole query cache except the <code>auth</code> namespace.</span></li>

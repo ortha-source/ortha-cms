@@ -2033,7 +2033,7 @@
                 "server-e2e",
                 "unit"
             ],
-            "text": "The @orthacms/content-domain kernel has no dependencies; the entries/domain/ layer imports neither NestJS, nor Drizzle, nor class-validator, nor its own infrastructure (checked by grep)."
+            "text": "The @orthacms/content-domain kernel declares no dependencies; the entries/domain/ layer imports neither NestJS, nor Drizzle, nor class-validator, nor its own infrastructure (checked by grep)."
         },
         {
             "id": "content:I-38",
@@ -3829,7 +3829,7 @@
                 "server-e2e",
                 "unit"
             ],
-            "text": "The identity-domain package has no dependencies; the domain/ layer in identity-server imports neither NestJS, nor Drizzle, nor class-validator."
+            "text": "The identity-domain package declares no dependencies; the domain/ layer in identity-server imports neither NestJS, nor Drizzle, nor class-validator."
         },
         {
             "id": "identity:I-28",
@@ -5586,7 +5586,7 @@
                 "server-e2e",
                 "unit"
             ],
-            "text": "@orthacms/segments-domain has no dependencies at all, and the audience-field validation rules are read from it by both the admin form and the server DTO."
+            "text": "@orthacms/segments-domain declares no dependencies at all, and the audience-field validation rules are read from it by both the admin form and the server DTO."
         },
         {
             "id": "segments:I-39",
