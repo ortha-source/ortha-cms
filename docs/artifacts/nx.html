@@ -247,10 +247,10 @@ html{scroll-behavior:smooth}
     <ul class="facts">
       <li><b>4</b> executors</li>
       <li><b>6</b> inferred targets</li>
-      <li><b>11</b> projects with <code>db:generate</code></li>
+      <li><b>12</b> projects with <code>db:generate</code></li>
       <li><b>1</b> host project</li>
-      <li><b>56</b> publishable packages</li>
-      <li><b>79</b> unit tests</li>
+      <li><b>60</b> publishable packages</li>
+      <li><b>127</b> unit tests</li>
       <li><b>3</b> publish-tuning variables</li>
       <li><b>0</b> database tables owned</li>
     </ul>
@@ -285,7 +285,7 @@ html{scroll-behavior:smooth}
 
   <h3>The problem it solves</h3>
   <ul>
-    <li><b>Zero per-project configuration.</b> The monorepo has 11 projects with their own database schema and 56 publishable packages. If each described its own targets, those descriptions would drift apart — one mistyped path per ten packages. Instead targets are <b>inferred from the presence of a file</b>: a new plugin gets migration generation, a build and publishing simply because it exists.</li>
+    <li><b>Zero per-project configuration.</b> The monorepo has 12 projects with their own database schema and 60 publishable packages. If each described its own targets, those descriptions would drift apart — one mistyped path per ten packages. Instead targets are <b>inferred from the presence of a file</b>: a new plugin gets migration generation, a build and publishing simply because it exists.</li>
     <li><b>One migration implementation for the monorepo and for a generated app.</b> The database executors are thin adapters over <code>@orthacms/cli</code>. Applying migrations is the most destructive operation in the system; having two implementations of it that drift apart over time costs more than tolerating one layer of indirection.</li>
     <li><b>A release that does not fall apart halfway through.</b> npm rate-limits a single account's writes, and a lockstep release asks it to accept several dozen tarballs back to back. Nx's stock executor does not survive that: the version is already committed, tagged and pushed while the registry holds half the set. Here publishing is serialised behind a file lock, spaced out by a delay, and retried with exponential backoff.</li>
     <li><b>Refusal instead of quiet trouble.</b> Three places where the tool had better stop: a migration without <code>DATABASE_URL</code>, Studio on port 0, publishing a name npm refused to create. In each case what used to happen was a "green" result with nothing useful behind it.</li>
@@ -382,7 +382,7 @@ html{scroll-behavior:smooth}
     <tbody>
       <tr>
         <td class="mono">db:generate</td>
-        <td>Any project with a <code>drizzle.config.ts</code> at its root. Today there are <b>11</b>: <code>apps/server</code>, <code>apps/server-e2e</code>, and the activity, alarms, content, copilot, database, identity, media, segments and workspaces plugins</td>
+        <td>Any project with a <code>drizzle.config.ts</code> at its root. Today there are <b>12</b>: <code>apps/server</code>, <code>apps/server-e2e</code>, and the activity, alarms, content, copilot, database, identity, media, segments, webhooks and workspaces plugins</td>
         <td>Runs <code>drizzle-kit generate</code> at the project root. Diffs the schema against the <code>migrations/meta/*_snapshot.json</code> snapshot and writes a new SQL file</td>
         <td><span class="pill pill-ses">no</span></td>
       </tr>
@@ -902,7 +902,7 @@ ORTHA_PUBLISH_DELAY=10000 ORTHA_PUBLISH_RETRIES=8 npm run release</code></pre></
 
 <section id="qa">
   <h2 class="sec"><span class="num">10</span>Testing checklist</h2>
-  <p class="sub small">Phrased as "action → expected result", so they can go into a test case without rewriting. The existing suite is <b>79</b> jest cases across eight files next to the code (<code>npx nx test nx</code>); they mock at the process boundary — <code>node:child_process</code>, <code>pg</code>, <code>fetch</code>, jiti — so the whole package is covered with no database, no registry and no Nx graph. Target inference is exercised against a throwaway workspace root on disk: that is what makes the manifest safety catches testable at all.</p>
+  <p class="sub small">Phrased as "action → expected result", so they can go into a test case without rewriting. The existing suite is <b>127</b> jest cases across eleven files next to the code (<code>npx nx test nx</code>); they mock at the process boundary — <code>node:child_process</code>, <code>pg</code>, <code>fetch</code>, jiti — so the whole package is covered with no database, no registry and no Nx graph. Target inference is exercised against a throwaway workspace root on disk: that is what makes the manifest safety catches testable at all.</p>
 
   <h3>Target inference</h3>
   <ul class="check">
@@ -1039,12 +1039,12 @@ ORTHA_PUBLISH_DELAY=10000 ORTHA_PUBLISH_RETRIES=8 npm run release</code></pre></
       <tr>
         <td class="mono">packages/nx/AGENTS.md</td>
         <td>"five of this workspace&#39;s <b>eight</b> [drizzle configs] point outside <code>src/lib/schema/</code>". The same count of "eight" is repeated in the <code>src/index.ts</code> comment</td>
-        <td>There are now <b>eleven</b> configs, and <b>seven</b> of them point outside <code>src/lib/schema/</code>: <code>apps/server</code>, <code>apps/server-e2e</code>, alarms, content, copilot, media, workspaces. Four point inside: activity, database, identity, segments. The argument only gets stronger, but the numbers are stale</td>
+        <td>There are now <b>twelve</b> configs, and <b>eight</b> of them point outside <code>src/lib/schema/</code>: <code>apps/server</code>, <code>apps/server-e2e</code>, alarms, content, copilot, media, webhooks, workspaces. Four point inside: activity, database, identity, segments. The argument only gets stronger, but the numbers are stale — and have gone stale again since, which is the point</td>
       </tr>
       <tr>
         <td class="mono">docs/releasing.md · packages/nx/AGENTS.md · comments in the code</td>
         <td>"one lockstep release: one version, one tag, one GitHub Release, <b>37 tarballs</b>" — and the same figure five more times: "~37 of them", "37 packages in one release", "12 writes, not 37"</td>
-        <td>There are now <b>56</b> publishable packages (every non-private manifest under <code>packages/*</code> and <code>packages/*/*</code>, <code>create-ortha-app</code> included). Two are private — <code>@orthacms/nx</code> and <code>@orthacms/copilot-provider-fake</code>. The figure 37 reflects an earlier state of the repository; the arithmetic of the "resume with 12 packages instead of 37" example rests on it too</td>
+        <td>There are now <b>60</b> publishable packages (every non-private manifest under <code>packages/*</code> and <code>packages/*/*</code>, <code>create-ortha-app</code> included, out of 62 manifests). Two are private — <code>@orthacms/nx</code> and <code>@orthacms/copilot-provider-fake</code>. The figure 37 reflects an earlier state of the repository; the arithmetic of the "resume with 12 packages instead of 37" example rests on it too</td>
       </tr>
       <tr>
         <td class="mono">packages/nx/src/executors/<br>db-migrate/executor.ts</td>
@@ -1082,7 +1082,7 @@ ORTHA_PUBLISH_DELAY=10000 ORTHA_PUBLISH_RETRIES=8 npm run release</code></pre></
 
   <details>
     <summary>Why the numbers in this artifact were counted rather than copied</summary>
-    <p class="small">Every quantitative claim above comes from enumerating the working tree at the time of writing: 11 <code>drizzle.config.ts</code> files outside <code>node_modules</code>; 1 <code>ortha.config.ts</code> outside the ignored templates; 56 manifests under <code>packages/*</code> and <code>packages/*/*</code> without <code>private: true</code>; 4 entries in <code>executors.json</code>; 6 targets in <code>createNodesV2</code>; 79 <code>it(...)</code> cases across the package's eight spec files. Where the documentation claimed otherwise, the discrepancy went into the table above rather than being bent to fit the document.</p>
+    <p class="small">Every quantitative claim above comes from enumerating the working tree at the time of writing: 12 <code>drizzle.config.ts</code> files outside <code>node_modules</code>; 1 <code>ortha.config.ts</code> outside the ignored templates; 60 manifests under <code>packages/*</code> and <code>packages/*/*</code> without <code>private: true</code>; 4 entries in <code>executors.json</code>; 6 targets in <code>createNodesV2</code>; 127 <code>it(...)</code> cases across the package's eleven spec files. Re-counted 2026-09-05: every figure in this paragraph had drifted, which is the argument for counting them rather than quoting them. Where the documentation claimed otherwise, the discrepancy went into the table above rather than being bent to fit the document.</p>
   </details>
 </section>
 

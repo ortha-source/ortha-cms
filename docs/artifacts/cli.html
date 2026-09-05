@@ -250,7 +250,7 @@ html{scroll-behavior:smooth}
       <li><b>9</b> paths in LAYOUT</li>
       <li><b>9</b> public exports</li>
       <li><b>4</b> dependencies</li>
-      <li><b>31</b> unit tests</li>
+      <li><b>130</b> unit tests</li>
       <li><b>1</b> required environment variable</li>
     </ul>
   </div>
@@ -934,13 +934,13 @@ Migrations complete.</code></pre></div>
 <section id="qa">
   <h2 class="sec"><span class="num">09</span>Testing checklist</h2>
 
-  <p class="sub small">The wording is “action → expected result”, so items can go into a test case without rewriting. Existing automated coverage: <b>31</b> unit tests in three files next to the code (<code>migrate.spec.ts</code> — 13, <code>studio.spec.ts</code> — 12, <code>generate.spec.ts</code> — 6), mocking at the process boundary (<code>node:child_process</code>, <code>pg</code>), so the package is tested without a database. Run them with <code>npx nx test @orthacms/cli</code>. <b>Not covered by unit tests at all:</b> <code>cli.ts</code>, <code>project.ts</code>, <code>env.ts</code>, <code>run.ts</code> and all six commands — they are checked manually against the items below.</p>
+  <p class="sub small">The wording is “action → expected result”, so items can go into a test case without rewriting. Existing automated coverage: <b>130</b> unit tests in fourteen files next to the code, mocking at the process boundary (<code>node:child_process</code>, <code>pg</code>), so the package is tested without a database. Run them with <code>npx nx test @orthacms/cli</code>. The gap this dossier first recorded — <code>cli.ts</code>, <code>project.ts</code>, <code>env.ts</code>, <code>run.ts</code> and all six commands untested — <b>is closed</b>: the dispatcher, the argv readers, the root walk, the <code>.env</code> load, the child-process helper and every command now have a spec beside them. What is still checked only by hand is this list against a real application.</p>
 
   <h3>Argument parsing and help</h3>
   <ul class="check">
     <li><b><code>ortha</code> with no arguments</b> → <span class="exp">prints help, exit code 0.</span></li>
     <li><b><code>ortha build --help</code></b> → <span class="exp">prints help and builds <b>nothing</b>, code 0.</span></li>
-    <li><b><code>ortha --help</code> and <code>ortha -h</code></b> → <span class="exp">today: <code>Unknown command "--help"</code> + help, code 1. See section 11.</span></li>
+    <li><b><code>ortha --help</code>, <code>ortha -h</code> and <code>ortha help</code></b> → <span class="exp">prints help, exit code 0, and without going looking for an application first. <code>wantsHelp</code> reads the <b>whole</b> argv rather than the arguments after the command, which is what keeps the flag out of the command position; the three forms and the precedence against <code>--version</code> are pinned by <code>args.spec.ts</code>.</span></li>
     <li><b><code>ortha buld</code></b> → <span class="exp"><code>Unknown command "buld".</code>, help, code 1.</span></li>
     <li><b><code>ortha generate --name add_x</code> (a space instead of <code>=</code>)</b> → <span class="exp">the name is recognised exactly as in the <code>--name=add_x</code> form.</span></li>
     <li><b><code>ortha generate --name --other</code></b> → <span class="exp">the name is not picked up (the value starts with <code>-</code>), drizzle-kit chooses a name itself.</span></li>
@@ -1111,7 +1111,7 @@ Migrations complete.</code></pre></div>
       <tr>
         <td class="mono">packages/cli/src/cli.ts, the Options block</td>
         <td>“<code>-h, --help</code> — Show this message”</td>
-        <td>The first argv element is always treated as a command, so <code>ortha --help</code> and <code>ortha -h</code> give <code>Unknown command</code> and exit code 1. Help is available only as <code>ortha</code> with no arguments or <code>ortha &lt;command&gt; --help</code></td>
+        <td><b>Fixed.</b> It used to be true — the first argv element was always treated as a command, so <code>ortha --help</code> and <code>ortha -h</code> answered <code>Unknown command</code> with exit code 1, and help was reachable only as <code>ortha</code> with no arguments or <code>ortha &lt;command&gt; --help</code>. <code>wantsHelp</code> now reads the whole argv, accepts a bare <code>help</code> as well, and is checked before the project root is looked for; <code>args.spec.ts</code> carries the regression</td>
       </tr>
       <tr>
         <td class="mono">packages/cli/src/lib/studio.ts</td>
@@ -1165,7 +1165,7 @@ Migrations complete.</code></pre></div>
 
 <footer class="end">
   <p><b>Dossier for the <code>packages/cli</code> package.</b> The skeleton is the same as in the <code>identity</code> dossier: business description → composition → command catalogue → scenarios → internals → configuration → diagnostics → invariants → checklist → boundaries → discrepancies. Sections the package does not have (data model, HTTP API, admin screens, permissions) have dropped out — the CLI has neither tables nor routes nor a UI.</p>
-  <p>The source is the package's own code: <code>src/cli.ts</code>, <code>src/index.ts</code>, six commands in <code>src/lib/commands/</code>, six core modules in <code>src/lib/</code> and three spec files. Cross-checked against the <code>@orthacms/nx</code> executors (<code>db-migrate</code>, <code>db-generate</code>, <code>db-studio</code>, <code>lib/jiti.ts</code>), against the <code>create-ortha-app</code> template (<code>package.json.tmpl</code>, <code>env.tmpl</code>, <code>README.md.tmpl</code>, <code>apps/server/{tsconfig.json,src/plugins.ts}</code>) and against the <code>ServerPlugin</code> type from <code>@orthacms/bootstrap-server</code>. The <code>AGENTS.md</code> files were used as a skeleton, but every statement was verified against the implementation — the divergences are collected in section 11.</p>
+  <p>The source is the package's own code: <code>src/cli.ts</code>, <code>src/index.ts</code>, six commands in <code>src/lib/commands/</code>, six core modules in <code>src/lib/</code> and the fourteen spec files beside them. Cross-checked against the <code>@orthacms/nx</code> executors (<code>db-migrate</code>, <code>db-generate</code>, <code>db-studio</code>, <code>lib/jiti.ts</code>), against the <code>create-ortha-app</code> template (<code>package.json.tmpl</code>, <code>env.tmpl</code>, <code>README.md.tmpl</code>, <code>apps/server/{tsconfig.json,src/plugins.ts}</code>) and against the <code>ServerPlugin</code> type from <code>@orthacms/bootstrap-server</code>. The <code>AGENTS.md</code> files were used as a skeleton, but every statement was verified against the implementation — the divergences are collected in section 11.</p>
 </footer>
 
 </main>

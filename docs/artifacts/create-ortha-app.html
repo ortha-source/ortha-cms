@@ -245,11 +245,11 @@ html{scroll-behavior:smooth}
     </h1>
     <p class="lede">The scaffolder is <strong>the single entry point into the product for a new user</strong>. <code>npx create-ortha-app my-cms</code> asks a few questions and leaves an application on disk that builds, migrates and runs without a single edit. Technically it is a generator with one template; as a product it is a shop window: it decides how OrthaCMS is seen the first time, and what a person gets by default, choosing nothing.</p>
     <ul class="facts">
-      <li><b>55</b> packages classified</li>
-      <li><b>40</b> in the application core</li>
+      <li><b>59</b> packages classified</li>
+      <li><b>44</b> in the application core</li>
       <li><b>4</b> choices in the wizard</li>
-      <li><b>31</b> files in the template</li>
-      <li><b>42</b> packages in the default application</li>
+      <li><b>42</b> files in the template</li>
+      <li><b>46</b> packages in the default application</li>
       <li><b>4</b> applications produced</li>
       <li><b>0</b> runtime dependencies</li>
     </ul>
@@ -323,7 +323,7 @@ html{scroll-behavior:smooth}
 <section id="place">
   <h2 class="sec"><span class="num">02</span>Its place in the system, and why the package is unscoped</h2>
 
-  <p>The monorepo has <b>56</b> publishable packages. Fifty-five of them are <code>@orthacms/*</code>. The fifty-sixth is <code>create-ortha-app</code>, the only unscoped one.</p>
+  <p>The monorepo has <b>60</b> publishable packages. Fifty-nine of them are <code>@orthacms/*</code>. The sixtieth is <code>create-ortha-app</code>, the only unscoped one.</p>
 
   <h3>Why the name has no scope</h3>
   <p>That is not a matter of style but a requirement of two npm entry points. Both forms work only with this name:</p>
@@ -559,14 +559,14 @@ npm create ortha-app my-cms</code></pre></div>
   <table>
     <thead><tr><th>Bucket</th><th>Meaning</th><th>How many now</th></tr></thead>
     <tbody>
-      <tr><td class="mono">CORE_PACKAGES</td><td>Every application gets it, whatever it chose</td><td class="num-col">40</td></tr>
+      <tr><td class="mono">CORE_PACKAGES</td><td>Every application gets it, whatever it chose</td><td class="num-col">44</td></tr>
       <tr><td class="mono">CORE_DEV_PACKAGES</td><td>Needed for the application to build and run; goes into <code>devDependencies</code></td><td class="num-col">1</td></tr>
       <tr><td class="mono">Feature.packages</td><td>Installed when the corresponding capability is chosen</td><td class="num-col">12</td></tr>
       <tr><td class="mono">TRANSITIVE_PACKAGES</td><td>An internal detail of another package; deliberately not declared</td><td class="num-col">2</td></tr>
     </tbody>
   </table>
   </div>
-  <p>That is <b>55</b> in total — exactly the number of <code>@orthacms/*</code> packages the monorepo publishes. The fifty-sixth publishable package is <code>create-ortha-app</code> itself, and it does not classify itself.</p>
+  <p>That is <b>59</b> in total — exactly the number of <code>@orthacms/*</code> packages the monorepo publishes. The sixtieth publishable package is <code>create-ortha-app</code> itself, and it does not classify itself.</p>
 
   <h3>The mechanism that forces a decision</h3>
   <p>There are two rules for maintaining the template, and both are held by tests rather than by memory.</p>
@@ -599,7 +599,7 @@ npm create ortha-app my-cms</code></pre></div>
     <p>The extension points (<code>content-domain</code>, <code>copilot-domain</code>, <code>tools-server</code>, <code>query-builder-admin</code>, <code>identity-domain</code>) and the shared tooling (<code>design-system</code>, <code>utils-admin</code>, <code>utils-server</code>) are in the core even though they arrive transitively and undeclared. Declaring them is what makes the import's resolution <b>the application's property</b> rather than a favour: an undeclared import works exactly until the first version conflict nests a second copy, and never works under pnpm. That is what a phantom dependency means.</p>
   </div>
 
-  <h3>The full classification — 55 packages</h3>
+  <h3>The full classification — 59 packages</h3>
   <p class="sub small">Built from <code>features.ts</code> verbatim. The "in the default application" column is the answer for <code>npx create-ortha-app my-cms --yes</code>.</p>
   <div class="tablewrap">
   <table>
@@ -636,6 +636,7 @@ npm create ortha-app my-cms</code></pre></div>
       <tr><td class="mono">insights-admin</td><td class="mono">CORE_PACKAGES</td><td>The dashboard and its default sections</td><td><span class="yes">yes</span></td></tr>
       <tr><td class="mono">mcp-server</td><td class="mono">PROTOCOLS · mcp</td><td>The Model Context Protocol endpoint</td><td><span class="no">no</span></td></tr>
       <tr><td class="mono">media-admin</td><td class="mono">CORE_PACKAGES</td><td>The media library and file picking from the editor</td><td><span class="yes">yes</span></td></tr>
+      <tr><td class="mono">media-domain</td><td class="mono">CORE_PACKAGES</td><td>An extension point: the storage port and its errors, declaring no dependencies of its own — which is what makes installing an adapter cost an adapter</td><td><span class="yes">yes</span></td></tr>
       <tr><td class="mono">media-provider-azure</td><td class="mono">MEDIA_PROVIDERS · media-azure</td><td>Azure Blob Storage</td><td><span class="no">no</span></td></tr>
       <tr><td class="mono">media-provider-gcs</td><td class="mono">MEDIA_PROVIDERS · media-gcs</td><td>Google Cloud Storage</td><td><span class="no">no</span></td></tr>
       <tr><td class="mono">media-provider-local</td><td class="mono">MEDIA_PROVIDERS · media-local</td><td>The local filesystem</td><td><span class="yes">yes</span>, unless the adapter was changed</td></tr>
@@ -657,6 +658,9 @@ npm create ortha-app my-cms</code></pre></div>
       <tr><td class="mono">users-server</td><td class="mono">CORE_PACKAGES</td><td>The server side of member management</td><td><span class="yes">yes</span></td></tr>
       <tr><td class="mono">utils-admin</td><td class="mono">CORE_PACKAGES</td><td>Shared admin tooling: apiClient, slots, table state in the URL</td><td><span class="yes">yes</span></td></tr>
       <tr><td class="mono">utils-server</td><td class="mono">CORE_PACKAGES</td><td>Shared server tooling: filter parsing and the rest</td><td><span class="yes">yes</span></td></tr>
+      <tr><td class="mono">webhooks-admin</td><td class="mono">CORE_PACKAGES</td><td>The global webhooks pages in the directory group</td><td><span class="yes">yes</span></td></tr>
+      <tr><td class="mono">webhooks-domain</td><td class="mono">CORE_PACKAGES</td><td>The webhooks core: the event catalogue, the subscription filter, the signed envelope, the URL policy</td><td><span class="yes">yes</span></td></tr>
+      <tr><td class="mono">webhooks-server</td><td class="mono">CORE_PACKAGES</td><td>Webhooks: three tables, the outbox subscriber, the delivery worker</td><td><span class="yes">yes</span></td></tr>
       <tr><td class="mono">workspaces-admin</td><td class="mono">CORE_PACKAGES</td><td>Workspaces and the sidebar switcher</td><td><span class="yes">yes</span></td></tr>
       <tr><td class="mono">workspaces-server</td><td class="mono">CORE_PACKAGES</td><td>Workspaces and membership</td><td><span class="yes">yes</span></td></tr>
       <tr><td class="mono">wysiwyg-admin</td><td class="mono">CORE_PACKAGES</td><td>The rich-text editor and its styles</td><td><span class="yes">yes</span></td></tr>
@@ -674,16 +678,16 @@ npm create ortha-app my-cms</code></pre></div>
 
   <h3>What the manifest is made of</h3>
   <p><code>resolvePackages(selection)</code> is the <code>CORE_PACKAGES</code> set plus each enabled capability's packages, sorted. <code>resolveFlags(selection)</code> is simply the set of chosen ids, with no derived values: what the <code>ortha:if</code> blocks are checked against.</p>
-  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>--yes  →  40 (core) + 1 (media-provider-local)  = 41 in dependencies
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>--yes  →  44 (core) + 1 (media-provider-local)  = 45 in dependencies
        →  1 (@orthacms/cli)                      =  1 in devDependencies
-42 @orthacms packages in total — exactly the number the wizard's closing frame prints</code></pre></div>
+46 @orthacms packages in total — exactly the number the wizard's closing frame prints</code></pre></div>
   <p>It matters that the dependencies are assembled <b>in code</b> rather than by conditional blocks inside <code>package.json.tmpl</code>. Dropping lines out of JSON is a way to get a trailing comma and an application that cannot even be installed, with the error blaming the template rather than the capability that was switched off.</p>
 </section>
 
 <section id="output">
   <h2 class="sec"><span class="num">05</span>What comes out</h2>
 
-  <p>There is one template — <code>templates/default</code>, <b>31</b> files. It is a working CMS <b>with not one content type</b>: the user describes their own. <code>ContentPlugin({ types: [] })</code> is valid and owns no tables, so the application migrates and starts before the first type exists.</p>
+  <p>There is one template — <code>templates/default</code>, <b>42</b> files. It is a working CMS <b>with not one content type</b>: the user describes their own. <code>ContentPlugin({ types: [] })</code> is valid and owns no tables, so the application migrates and starts before the first type exists.</p>
 
   <h3>The structure</h3>
   <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>my-cms/
@@ -694,8 +698,9 @@ npm create ortha-app my-cms</code></pre></div>
 ├── .gitignore
 ├── README.md
 └── apps/
-    ├── server/             ortha.config.ts, src/{main,plugins}.ts,
-    │                       plugins.spec.ts, jest.config.js, jest.setup.js
+    ├── server/             ortha.config.ts, config/ (one module per plugin),
+    │                       src/{main,plugins}.ts, plugins.spec.ts,
+    │                       jest.config.js, jest.setup.js, tsconfig.spec.json
     ├── admin/              index.html, vite.config.mts,
     │                       src/{main.tsx,plugins.ts,plugins.spec.ts,styles.css}
     ├── server-e2e/         jest.config.js, src/{api.spec,global-setup,
@@ -761,14 +766,16 @@ npm create ortha-app my-cms</code></pre></div>
   <p>In <code>apps/admin/src/plugins.ts</code> exactly two positions matter. <code>IdentityPlugin</code> is first — it brings the only <b>public</b> routes (sign-in and accepting an invitation), which must render outside the closed layout. <code>ShellPlugin</code> is second — it is the only one that supplies a <code>layout</code>, and the host mounts the <b>first one it finds</b>; the shell's layout is what composes identity's auth gate. A plugin that registered its own layout earlier would render every private route <b>unguarded</b>, and an authorisation bug would look like broken markup.</p>
   <p>The rest is ordering for readability: the slots are module-level singletons and are filled before the first render.</p>
 
-  <h3>Configuration: the only reader of <code>process.env</code></h3>
-  <p><code>apps/server/ortha.config.ts</code> is the only place that reads the environment. Everything downstream receives typed values, so "where did this setting come from" has exactly one answer. The file introduces three careful readers:</p>
+  <h3>Configuration: where the application reads its environment</h3>
+  <p><code>apps/server/config/</code> is that place — one module per plugin, each exporting a builder, with <code>apps/server/ortha.config.ts</code> assembling them into the typed literal the host is handed. So the file at the top is the table of contents (what this application runs, in one screen), and the one module that owns a setting is where its derivation is read. Everything downstream receives typed values, so "where did this setting come from" still has exactly one answer.</p>
+  <p>The readers themselves are <b>not</b> written there: <code>config/</code> touches <code>process.env</code> nowhere and goes through <code>@orthacms/utils-server</code> instead, so <em>how</em> a value is parsed is decided once for the monorepo and for every generated application at the same time. Four of them carry the reasoning:</p>
   <ul>
     <li><code>requireEnv(name)</code> — fails at load time rather than a few seconds after startup. A missing <code>DATABASE_URL</code> resolved to <code>''</code> would reach <code>pg</code> as "use libpq's defaults", and the first request would fail with a message naming not one unset variable.</li>
     <li><code>readPositiveInt(name, fallback)</code> — deliberately <b>not</b> <code>Number(x) || fallback</code>, which is wrong in three directions at once and silent in all of them: <code>0</code> is falsy and is replaced by the default, a negative number is truthy and accepted (a negative session TTL issues sessions already expired), and <code>1e9</code> parses.</li>
     <li><code>readTrustProxy()</code> — a hop count (the recommended form, which a client cannot forge), a boolean, or a preset string.</li>
+    <li><code>readEnv(name)</code> — where "an empty value means the setting is absent" is decided, and the reason that rule holds everywhere. The generated <code>.env</code> ships keys with nothing to the right of the <code>=</code>, so a raw <code>process.env['X'] ?? fallback</code> would let a blank line beat the default. It is what a copilot backend and an SSO provider are configured through: an unset key yields no settings object, and therefore no registered provider, rather than one that fails on the first message.</li>
   </ul>
-  <p><code>NODE_ENV</code> is checked separately: that one comparison governs two protections at once — whether the API reference is published and whether the session cookie carries the <code>Secure</code> flag — so a typo would silently switch both off and be indistinguishable from a correct setting. A value outside the <code>development / test / production</code> list fails the start.</p>
+  <p><code>NODE_ENV</code> is checked separately, through <code>isProduction()</code> over <code>readNodeEnv()</code>: that one comparison governs two protections at once — whether the API reference is published and whether the session cookie carries the <code>Secure</code> flag — so a typo would silently switch both off and be indistinguishable from a correct setting. A value outside the <code>development / test / production</code> list fails the start; unset is legitimate — the common local state — and reads as "not production".</p>
 
   <h3>The tests that ship with the application</h3>
   <p>A starter set that cannot be tested teaches people not to test. So the application carries four suites and <b>two</b> runners — an honest answer rather than a compromise: each half has its own toolchain, and no single transform serves both.</p>
@@ -966,7 +973,7 @@ import { createAnthropicProvider } from '@orthacms/copilot-provider-anthropic';
 
 <section id="qa">
   <h2 class="sec"><span class="num">09</span>Testing checklist</h2>
-  <p>The scaffolder is tested in two layers: the package's unit tests (nine spec files — classification coverage, the conditional-block processor, the template render, the terminal interface, the validators, the command itself end to end, the composition of the generated application, its executed <code>config/</code> modules, and the packaging) and a manual end-to-end run that is not yet automated.</p>
+  <p>The scaffolder is tested in two layers: the package's unit tests (ten spec files — classification coverage, the conditional-block processor, the template render, the terminal interface, the validators, the command itself end to end, the composition of the generated application, its executed <code>config/</code> modules, its executed composition root, and the packaging) and a manual end-to-end run that is not yet automated.</p>
 
   <h3>9.1 Classification and coverage</h3>
   <ul class="check">
@@ -1007,7 +1014,7 @@ import { createAnthropicProvider } from '@orthacms/copilot-provider-anthropic';
     <li><b>No whitespace scars</b> → <span class="exp">files where blocks were removed contain no triple blank lines.</span></li>
     <li><b><code>npm install</code> in the generated directory</b> → <span class="exp">succeeds; <code>node_modules</code> holds one copy of <code>@orthacms/design-system</code>.</span></li>
     <li><b><code>npm run typecheck</code></b> → <span class="exp">both projects are clean for every combination, the two extremes included (nothing optional / everything optional).</span></li>
-    <li><b><code>npm test</code></b> → <span class="exp">both halves green with no <code>.env</code>; see discrepancy D-07 in section 11.</span></li>
+    <li><b><code>npm test</code></b> → <span class="exp">both halves green with no <code>.env</code>. They were not until D-07 was fixed (section 11), and what keeps them green now is <code>composition.spec.ts</code> rather than this item.</span></li>
     <li><b><code>npm run migrate</code> on a clean database</b> → <span class="exp">succeeds; a re-run is idempotent.</span></li>
     <li><b><code>npm run build &amp;&amp; npm start</code></b> → <span class="exp">one process serves the API and the admin UI; <code>dist/server</code> contains no compiled <code>*.spec.js</code>.</span></li>
     <li><b>The admin UI in a browser after <code>npm start</code></b> → <span class="exp">the styles are there (the <code>@source</code> check): the CSS is noticeably larger than ~15 kB and the components carry utility classes.</span></li>
@@ -1061,7 +1068,7 @@ import { createAnthropicProvider } from '@orthacms/copilot-provider-anthropic';
 
 <section id="gaps">
   <h2 class="sec"><span class="num">11</span>Discrepancies between code and documentation</h2>
-  <p>Found while checking this dossier against the source. None of it is a product bug in itself — except D-07 — but it misleads developer and tester alike.</p>
+  <p>Found while checking this dossier against the source. None of it is a product bug in itself — except D-07, which was one and has since been fixed — but it misleads developer and tester alike.</p>
 
   <div class="tablewrap">
   <table>
@@ -1151,7 +1158,7 @@ import { createAnthropicProvider } from '@orthacms/copilot-provider-anthropic';
 
   <h3>What is worth fixing first</h3>
   <ol>
-    <li><b>D-07</b> — the only one that breaks the product: <code>npm test</code> in a freshly created application is red, and the first thing a new user learns about the shipped tests is that they do not pass.</li>
+    <li><b>D-07</b> — the only one that broke the product: <code>npm test</code> in a freshly created application was red on <em>both</em> halves, and the first thing a new user learned about the shipped tests was that they do not pass. <b>Fixed.</b> The two expected lists name <code>content-views</code> and <code>webhooks</code>, and <code>composition.spec.ts</code> compares them against the plugins the template actually registers, for every combination of capabilities — so the next omission fails the scaffolder's own suite instead of a stranger's first run.</li>
     <li><b>D-06</b> and <b>D-08</b> — a choice and a declaration that lead to nothing: the user gets an installed package and absent functionality.</li>
     <li><b>D-01…D-05</b> — documentation that has fallen behind the code; cured by one edit of <code>AGENTS.md</code> at both levels.</li>
   </ol>
@@ -1159,7 +1166,7 @@ import { createAnthropicProvider } from '@orthacms/copilot-provider-anthropic';
 
 <footer class="end">
   <p><b>An artifact in the series.</b> Written from the <code>packages/create-ortha-app</code> package in the same frame as the <code>identity</code> group's dossier: business description → place in the system → the wizard and its choices → package classification → the output → flows → versions and the release → invariants → checklist → boundaries → discrepancies.</p>
-  <p>The source is the source code: <code>src/cli.ts</code>, <code>src/lib/{features,template,conditionals,ui,validate}.ts</code> and the five corresponding spec files, all 31 files of <code>templates/default</code>, plus <code>nx.json</code>, <code>.nxignore</code>, <code>.prettierignore</code>, <code>eslint.config.mjs</code>, <code>tsconfig.lib.json</code> and <code>tools/release/pack.mjs</code>. The package counts in the classification were checked by enumerating the manifests on disk. The <code>AGENTS.md</code> files were used as a skeleton, but every claim was checked against the implementation — discrepancies went into section 11.</p>
+  <p>The source is the source code: <code>src/cli.ts</code>, <code>src/lib/{features,template,conditionals,ui,validate,run}.ts</code> and the ten spec files beside them, all 42 files of <code>templates/default</code>, plus <code>nx.json</code>, <code>.nxignore</code>, <code>.prettierignore</code>, <code>eslint.config.mjs</code>, <code>tsconfig.lib.json</code> and <code>tools/release/pack.mjs</code>. The package counts in the classification were checked by enumerating the manifests on disk. The <code>AGENTS.md</code> files were used as a skeleton, but every claim was checked against the implementation — discrepancies went into section 11.</p>
 </footer>
 
 </main>
