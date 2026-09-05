@@ -1,5 +1,6 @@
 import {
     abortedEvent,
+    type AttachmentResolver,
     type CopilotRunEvent,
     type RunLimits,
     type ModelProvider,
@@ -33,6 +34,38 @@ import type { ToolPermissionBroker } from './tool-permission.broker';
  * the **persist-on-abort** branch needs a run that ends badly, which no e2e in
  * the suite drives: nothing there cancels a run or makes a provider throw.
  */
+
+/** A `propose` tool: its return value IS the change the engine records. */
+const PROPOSE_TOOL = {
+    name: 'fixture_propose',
+    title: 'Propose a fixture change',
+    description: 'Drafts something.',
+    inputSchema: { type: 'object', properties: {} },
+    requires: [],
+    readOnly: false,
+    effect: 'propose',
+    handler: async () => DRAFT
+} as unknown as ToolDefinition;
+
+/** An `apply` tool: it does its own writing and hands back a result. */
+const APPLY_TOOL = {
+    name: 'fixture_apply',
+    title: 'Apply a fixture change',
+    description: 'Writes something.',
+    inputSchema: { type: 'object', properties: {} },
+    requires: [],
+    readOnly: false,
+    effect: 'apply',
+    handler: async () => ({ ok: true })
+} as unknown as ToolDefinition;
+
+/** What a `propose` tool returns — the shape `isProposalDraft` accepts. */
+const DRAFT = {
+    kind: 'fixture.thing.update',
+    summary: 'Change the thing',
+    target: { id: 'thing-1' },
+    patch: { text: 'New' }
+};
 
 /** A read-only tool, the only thing the profile offers in these runs. */
 const READ_TOOL = {
@@ -134,6 +167,9 @@ interface Harness {
     seen: Seen;
     /** The shared tool registry, so a test can see whether a call ran. */
     tools: { call: jest.Mock };
+    /** The `copilot_proposals` writer, so a test can read what it was handed. */
+    proposals: { create: jest.Mock; decide: jest.Mock };
+    decisions: { apply: jest.Mock };
 }
 
 /**
@@ -164,23 +200,47 @@ function harness(
         skillsInForce?: Skill[];
         skillsFail?: Error;
         limits?: Partial<RunLimits>;
+        /** What the tool registry answers when the engine dispatches a call. */
+        toolCall?: (
+            name: string,
+            input: Record<string, unknown>
+        ) => Promise<unknown>;
+        /**
+         * The tool set the *n*-th capability resolution offers, 1-based.
+         *
+         * Resolution happens once for the run's offer and again before every
+         * tool call (ADR-0005 §3), so this is how a grant is revoked between
+         * two calls of one turn — which is the only way to observe an ordering
+         * inside `executeTool`.
+         */
+        profileTools?: (nth: number) => ToolDefinition[];
+        /** The media plugin's resolver, or none at all when omitted. */
+        attachments?: AttachmentResolver;
+        /** How the user answers a parked write. Defaults to allowing it once. */
+        decide?: () => Promise<{ decision: string; timedOut: boolean }>;
     } = {}
 ): Harness {
     const { provider, seen } = fakeProvider(script);
     const conversations = fakeConversations();
-    const profile = {
-        tools: options.tools ?? [READ_TOOL],
-        withheld: []
-    };
+    const offered = options.tools ?? [READ_TOOL];
+    let resolutions = 0;
     const profiles = {
-        resolve: async () => ({
-            profile,
-            context: {
-                userId: 'user-1',
-                workspaceId: 'workspace-1',
-                surface: 'copilot'
-            }
-        })
+        resolve: async () => {
+            resolutions += 1;
+            return {
+                profile: {
+                    tools: options.profileTools
+                        ? options.profileTools(resolutions)
+                        : offered,
+                    withheld: []
+                },
+                context: {
+                    userId: 'user-1',
+                    workspaceId: 'workspace-1',
+                    surface: 'copilot'
+                }
+            };
+        }
     };
     const skills = {
         resolveRunSkills: async () => {
@@ -193,7 +253,44 @@ function harness(
             };
         }
     };
-    const tools = { call: jest.fn(async () => ({ ok: true })) };
+    const tools = {
+        call: jest.fn(
+            options.toolCall ?? (async () => ({ ok: true }) as unknown)
+        )
+    };
+    const proposals = {
+        create: jest.fn(async (input: Record<string, unknown>) => ({
+            ...input,
+            id: 'proposal-1',
+            status: 'pending',
+            changes: null,
+            result: null,
+            error: null,
+            decidedBy: null,
+            decidedAt: null,
+            createdAt: new Date()
+        })),
+        decide: jest.fn(async (id: string) => ({
+            id,
+            kind: 'fixture.thing.update',
+            summary: 'Change the thing',
+            target: { id: 'thing-1' },
+            status: 'accepted'
+        }))
+    };
+    const decisions = {
+        apply: jest.fn(async (proposal: Record<string, unknown>) => ({
+            ok: true,
+            proposal: { ...proposal, status: 'accepted' }
+        }))
+    };
+    const permissions = {
+        budgetRemaining: jest.fn(() => 300_000),
+        ask: jest.fn(
+            options.decide ??
+                (async () => ({ decision: 'once', timedOut: false }))
+        )
+    };
     const config: CopilotPluginConfig = {
         enabled: true,
         maxOutputTokens: 1024
@@ -206,11 +303,11 @@ function harness(
         profiles as unknown as CapabilityProfileService,
         tools as unknown as ToolRegistry,
         conversations as unknown as ConversationRepository,
-        {} as ProposalRepository,
-        {} as DecideProposalService,
-        {} as ToolPermissionBroker,
+        proposals as unknown as ProposalRepository,
+        decisions as unknown as DecideProposalService,
+        permissions as unknown as ToolPermissionBroker,
         skills as unknown as SkillCatalogService,
-        null,
+        options.attachments ?? null,
         {
             maxSteps: 5,
             wallClockMs: 60_000,
@@ -219,11 +316,14 @@ function harness(
         }
     );
 
-    return { engine, conversations, seen, tools };
+    return { engine, conversations, seen, tools, proposals, decisions };
 }
 
 /** What the controller hands the engine. */
-function startInput(signal: AbortSignal): StartRunInput {
+function startInput(
+    signal: AbortSignal,
+    extra: Partial<StartRunInput> = {}
+): StartRunInput {
     return {
         userId: 'user-1',
         userEmail: 'editor@example.com',
@@ -233,9 +333,32 @@ function startInput(signal: AbortSignal): StartRunInput {
         context: {},
         uiLocale: 'en',
         typeSummaries: [],
-        signal
+        signal,
+        ...extra
     };
 }
+
+/** A turn that asks for `calls` and then stops. */
+function asksFor(
+    ...calls: { id: string; name: string; input: Record<string, unknown> }[]
+) {
+    return async function* (): AsyncIterable<ModelStreamEvent> {
+        for (const call of calls) {
+            yield { type: 'tool-call', ...call };
+        }
+        yield {
+            type: 'done',
+            stopReason: 'tool_use',
+            usage: { inputTokens: 1, outputTokens: 1 }
+        };
+    };
+}
+
+/** The `tool-result` frame for one call id. */
+const resultFor = (frames: CopilotRunEvent[], id: string) =>
+    frames.find(
+        (frame) => frame.type === 'tool-result' && frame.id === id
+    ) as Extract<CopilotRunEvent, { type: 'tool-result' }>;
 
 /** Drains a run to the end, collecting every frame. */
 async function drain(
@@ -656,4 +779,282 @@ describe('RunEngine ordering', () => {
         expect(conversations.create).not.toHaveBeenCalled();
         expect(conversations.appendMessage).not.toHaveBeenCalled();
     });
+});
+
+describe('RunEngine attribution', () => {
+    /**
+     * There is no copilot identity, and `copilot_proposals.created_by` is where
+     * that either holds or quietly stops holding.
+     *
+     * The e2e that covers this invariant reads `decidedBy` off the proposal
+     * route, which stands in for `created_by` only while both are written from
+     * the same caller — and they are written by different lines, in different
+     * methods, one of them (`recordApplied`) reached by no shipped tool at all.
+     * Here the engine is handed the row it wrote, before any of that collapses:
+     * a service account, a synthetic "copilot" id, or an actor read off the
+     * conversation rather than the request would each fail.
+     */
+    it.each([
+        ['a propose tool, whose change the engine applies', PROPOSE_TOOL],
+        ['an apply tool, which wrote for itself', APPLY_TOOL]
+    ])(
+        'records the caller as the author of %s [copilot:I-01]',
+        async (_label, tool: ToolDefinition) => {
+            const { engine, proposals } = harness(
+                asksFor({ id: 'call-1', name: tool.name, input: {} }),
+                { tools: [tool], toolCall: async () => DRAFT }
+            );
+            const controller = new AbortController();
+
+            await drain(engine.run(startInput(controller.signal)));
+
+            expect(proposals.create).toHaveBeenCalledTimes(1);
+            expect(proposals.create).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    createdBy: 'user-1',
+                    workspaceId: 'workspace-1'
+                })
+            );
+        }
+    );
+});
+
+describe('RunEngine auditing a refused call', () => {
+    /**
+     * The fourth category of `copilot_tool_calls` row, and the last one nothing
+     * asserted: **the user said no**.
+     *
+     * Succeeded and failed are covered by the e2e suite, and refused-on-a-
+     * timeout by the wall-clock case above — all three go through
+     * `executeTool` or `toolFailure`. A refusal at the permission prompt does
+     * not: it is written from inside `mayRun`'s `settle`, a branch reached only
+     * when a parked run is answered `deny`, and dropping the `audit` call there
+     * would leave the reviewer's own filter — `ok = false` — with no trace of
+     * the one refusal a person actually made.
+     */
+    it('writes a row for a call the user refused [copilot:I-17]', async () => {
+        const { engine, conversations, tools } = harness(
+            asksFor({ id: 'call-1', name: 'fixture_propose', input: {} }),
+            {
+                tools: [PROPOSE_TOOL],
+                decide: async () => ({ decision: 'deny', timedOut: false })
+            }
+        );
+        const controller = new AbortController();
+
+        const frames = await drain(engine.run(startInput(controller.signal)));
+
+        // Nothing ran: the prompt is what stops an injected call before it
+        // happens, not after.
+        expect(tools.call).not.toHaveBeenCalled();
+        expect(conversations.recordToolCall).toHaveBeenCalledWith(
+            expect.objectContaining({
+                callId: 'call-1',
+                name: 'fixture_propose',
+                ok: false,
+                error: expect.stringContaining('the user did not allow it')
+            })
+        );
+        // And it is a refusal rather than a timeout — the two are audited with
+        // different messages because a reviewer wants to tell them apart.
+        expect(resultFor(frames, 'call-1')).toMatchObject({
+            ok: false,
+            summary: 'not allowed'
+        });
+    });
+});
+
+describe('RunEngine refusing a repeated call', () => {
+    /**
+     * The signature is `name` + arguments **with keys sorted**, and the sort is
+     * the whole of what makes the guard work on a real model: nothing obliges a
+     * provider to emit an object's keys in any particular order, and a
+     * re-request is exactly the case where it is likely to differ.
+     *
+     * Without the sort this passes as two different calls, the engine obliges,
+     * and the loop the guard exists to break runs to `maxSteps` — which is what
+     * it did before, with a stop reason that explained nothing.
+     */
+    it('sees through a different key order [copilot:I-19]', async () => {
+        const { engine, tools } = harness(
+            asksFor(
+                { id: 'call-1', name: 'fixture_read', input: { a: 1, b: 2 } },
+                { id: 'call-2', name: 'fixture_read', input: { b: 2, a: 1 } }
+            ),
+            { tools: [READ_TOOL] }
+        );
+        const controller = new AbortController();
+
+        const frames = await drain(engine.run(startInput(controller.signal)));
+
+        expect(tools.call).toHaveBeenCalledTimes(1);
+        expect(resultFor(frames, 'call-1')).toMatchObject({ ok: true });
+        expect(resultFor(frames, 'call-2')).toMatchObject({
+            ok: false,
+            error: expect.stringContaining('You already called')
+        });
+    });
+
+    /**
+     * And the guard runs **after** authorization, so a repeat can never reveal
+     * more than a first call would.
+     *
+     * The two orders are told apart by a grant that disappears between the two
+     * calls of one turn — which the engine allows for by re-resolving the
+     * profile before every call. Check the repeat first and the second call is
+     * answered "you already called this", which confirms to the caller that the
+     * earlier call was made and accepted; check authorization first and they get
+     * the same refusal anyone who never held the grant would.
+     */
+    it('answers a repeat of a revoked tool as a refusal, not as a repeat [copilot:I-19]', async () => {
+        const { engine, tools } = harness(
+            asksFor(
+                { id: 'call-1', name: 'fixture_read', input: { a: 1 } },
+                { id: 'call-2', name: 'fixture_read', input: { a: 1 } }
+            ),
+            {
+                tools: [READ_TOOL],
+                // 1 is the run's offer, 2 authorizes call-1, and by 3 — the
+                // authorization for call-2 — the role has lost the tool.
+                profileTools: (nth) => (nth >= 3 ? [] : [READ_TOOL])
+            }
+        );
+        const controller = new AbortController();
+
+        const frames = await drain(engine.run(startInput(controller.signal)));
+
+        expect(tools.call).toHaveBeenCalledTimes(1);
+        expect(resultFor(frames, 'call-2')).toMatchObject({
+            ok: false,
+            error: 'You are not permitted to use "fixture_read".'
+        });
+    });
+});
+
+describe('RunEngine wall clock between steps', () => {
+    afterEach(() => {
+        jest.restoreAllMocks();
+    });
+
+    /**
+     * The third place the wall clock is read, and the one the per-call case
+     * above cannot reach: the **top of a step**.
+     *
+     * The per-call check fires while a turn is still being served, and returns
+     * through `ranOutOfTime` without the loop ever coming round again — so
+     * deleting the check at the top of the loop leaves every existing ceiling
+     * test green while a run that spent its time *inside a tool* goes on to
+     * take another model call. Here the clock is advanced by the tool itself,
+     * which is where a slow write or a parked prompt actually spends it.
+     */
+    it('takes no further model call once the run is out of time [copilot:I-21]', async () => {
+        const clock = fakeClock();
+        let turn = 0;
+        const { engine, tools, seen } = harness(
+            async function* () {
+                turn += 1;
+                if (turn === 1) {
+                    yield {
+                        type: 'tool-call',
+                        id: 'call-1',
+                        name: 'fixture_read',
+                        input: {}
+                    };
+                    yield {
+                        type: 'done',
+                        stopReason: 'tool_use',
+                        usage: { inputTokens: 1, outputTokens: 1 }
+                    };
+                    return;
+                }
+                yield { type: 'text-delta', text: 'Here you go.' };
+                yield {
+                    type: 'done',
+                    stopReason: 'end',
+                    usage: { inputTokens: 1, outputTokens: 1 }
+                };
+            },
+            {
+                limits: { wallClockMs: 60_000 },
+                // The tool is what took the time — it ran, and it took four
+                // minutes doing it.
+                toolCall: async () => {
+                    clock.advance(240_000);
+                    return { ok: true };
+                }
+            }
+        );
+        const controller = new AbortController();
+
+        const frames = await drain(engine.run(startInput(controller.signal)));
+
+        expect(tools.call).toHaveBeenCalledTimes(1);
+        expect(seen).toHaveLength(1);
+        expect(frames.at(-1)).toEqual(
+            expect.objectContaining({ type: 'done', stopReason: 'timeout' })
+        );
+    });
+});
+
+describe('RunEngine resolving attachments', () => {
+    /** A media plugin that has never heard of any of these ids. */
+    const resolvesNothing: AttachmentResolver = { resolve: async () => [] };
+
+    /**
+     * An attachment shortfall reports a **count**, and the reason it must is
+     * that the caller chose the ids.
+     *
+     * The resolver is workspace-scoped and omits what it cannot see, so "this
+     * id belongs to another workspace" and "this file was deleted" arrive here
+     * identically — but a message naming the id that failed turns that into an
+     * oracle anyway, one probe at a time: attach two ids, see which one comes
+     * back, learn which of them exists somewhere you cannot read.
+     *
+     * The suite that covers this asserts the message says "no longer
+     * available", which an id oracle also says. This asserts what it must *not*
+     * contain.
+     */
+    it.each([
+        [
+            ['aaaaaaaa-0000-4000-8000-000000000001'],
+            'One of the attached files is no longer available.'
+        ],
+        [
+            [
+                'aaaaaaaa-0000-4000-8000-000000000001',
+                'bbbbbbbb-0000-4000-8000-000000000002'
+            ],
+            '2 of the attached files are no longer available.'
+        ]
+    ])(
+        'names how many failed and never which [copilot:I-26]',
+        async (attachments: string[], message: string) => {
+            const { engine, conversations } = harness(
+                async function* () {
+                    yield {
+                        type: 'done',
+                        stopReason: 'end',
+                        usage: { inputTokens: 1, outputTokens: 1 }
+                    };
+                },
+                { attachments: resolvesNothing }
+            );
+            const controller = new AbortController();
+
+            const failure = await drain(
+                engine.run(startInput(controller.signal, { attachments }))
+            ).then(
+                () => null,
+                (error: Error) => error
+            );
+
+            expect(failure?.message).toBe(message);
+            for (const id of attachments) {
+                expect(failure?.message).not.toContain(id);
+            }
+            // …and it failed before the thread was touched, so there is no turn
+            // left behind referencing a file the model was never told about.
+            expect(conversations.create).not.toHaveBeenCalled();
+        }
+    );
 });
