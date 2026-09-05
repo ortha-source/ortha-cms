@@ -524,11 +524,11 @@ Options:
       <tr><td class="mono">ortha build</td><td class="yes">yes</td><td class="yes">yes, if <code>apps/admin/index.html</code> exists</td></tr>
       <tr><td class="mono">ortha build --server</td><td class="yes">yes</td><td class="no">no</td></tr>
       <tr><td class="mono">ortha build --admin</td><td class="no">no</td><td class="yes">yes</td></tr>
-      <tr><td class="mono">ortha build --server --admin</td><td class="no">no</td><td class="no">no</td></tr>
+      <tr><td class="mono">ortha build --server --admin</td><td colspan="2">refused: it asks for neither half</td></tr>
     </tbody>
   </table>
   </div>
-  <p>The last row is a consequence of the check order rather than a design: <code>adminOnly</code> skips <code>tsc</code>, then <code>serverOnly</code> returns early before Vite. Both flags together give a command that does nothing and exits zero.</p>
+  <p>The last row used to be a consequence of the check order rather than a design — <code>adminOnly</code> skipped <code>tsc</code>, then <code>serverOnly</code> returned early before Vite, so both flags together gave a command that did nothing and exited zero. <code>halves()</code> now refuses the pair for <code>dev</code> and <code>build</code> alike. The same two flags narrow <code>ortha dev</code> to one half.</p>
   <p>A missing <code>apps/admin/index.html</code> is <b>not an error</b> but a sign that "this application has no UI": the command prints <code>No apps/admin/index.html — skipping the admin build.</code> and exits successfully. Vite is invoked with an explicit <code>--config</code>, because the config sits inside the application being built: Vite looks for a config in the working directory and would otherwise build a bundle with defaults from the wrong root — silently.</p>
 
   <h3>3.4 <code>ortha start</code></h3>
@@ -577,13 +577,13 @@ Migrations complete.</code></pre></div>
       <tr><td class="mono">--name --port 1</td><td>The value is <b>not</b> picked up: the next element starts with <code>-</code></td><td>The option counts as unset, with no warning</td></tr>
       <tr><td class="mono">--name</td><td>At the end of argv there is no value</td><td>The same: silently unset</td></tr>
       <tr><td class="mono">--server</td><td><code>flag()</code> — a plain string membership test on argv</td><td>Any value after it is ignored</td></tr>
-      <tr><td class="mono">--port=abc</td><td><code>Number('abc')</code> → <code>NaN</code> → the condition is false</td><td>The option is silently lost</td></tr>
-      <tr><td class="mono">--port=0</td><td><code>0</code> is falsy → the flag is not added</td><td>Studio takes 4983; the Nx executor refuses on the same input</td></tr>
+      <tr><td class="mono">--port=abc</td><td><code>numberOption()</code> — a whole-number test on the raw string</td><td>A message naming the value; nothing runs</td></tr>
+      <tr><td class="mono">--port=0</td><td>Carried through the parse, refused by <code>runDrizzleKitStudio</code></td><td>A message naming the reason, from the CLI and the Nx executor alike</td></tr>
       <tr><td class="mono">extra arguments</td><td>Ignored entirely</td><td>A typo in a flag is never diagnosed</td></tr>
     </tbody>
   </table>
   </div>
-  <p>The trade-off is deliberate: six commands with six options do not justify a dependency on an argv parser, and a word that is not understood means, at worst, "did something other than what was asked" — never "did something destructive". The one place where that stings is <code>studio --port</code>, and that is exactly where <code>@orthacms/nx</code> added the missing check.</p>
+  <p>The trade-off is deliberate: six commands with six options do not justify a dependency on an argv parser, and a word that is not understood means, at worst, "did something other than what was asked" — never "did something destructive". The one place where that stung was <code>studio --port</code>, where a mistyped or zero port became the default in silence; that check now lives in <code>runDrizzleKitStudio</code>, which <code>@orthacms/nx</code> calls too. An unknown <em>word</em> is still ignored.</p>
 
 </section>
 
@@ -1008,7 +1008,7 @@ Migrations complete.</code></pre></div>
     <li><b><code>--host 0.0.0.0</code></b> → <span class="exp">the multi-line warning about the absence of authentication is printed <b>before</b> startup; the command carries on.</span></li>
     <li><b><code>--host localhost</code></b> → <span class="exp">no warning.</span></li>
     <li><b><code>--port 4990</code></b> → <span class="exp">Studio listens on 4990.</span></li>
-    <li><b><code>--port 0</code></b> → <span class="exp">today: the flag is silently dropped and Studio comes up on 4983, whereas the Nx executor refuses on it. See section 11.</span></li>
+    <li><b><code>--port 0</code></b> → <span class="exp">a refusal naming the reason (drizzle-kit prints the port it was asked for, not the one it bound), from the CLI and the Nx executor alike. So is <code>--port=abc</code> and anything past 65535.</span></li>
     <li><b><code>DATABASE_URL</code> unset</b> → <span class="exp">a refusal before drizzle-kit is started.</span></li>
   </ul>
 
@@ -1045,7 +1045,7 @@ Migrations complete.</code></pre></div>
       <tr><td>Who builds and runs the application</td><td>it does (<code>build</code>, <code>dev</code>, <code>start</code>)</td><td>the <code>@nx/*</code> targets and webpack; not its business</td></tr>
       <tr><td>Caching</td><td>none, and none intended</td><td><code>build</code>/<code>pack</code> have it; <code>db-*</code> has it deliberately off</td></tr>
       <tr><td>Publishing to npm</td><td class="no">no</td><td>yes — the <code>release-publish</code> executor with throttling and retries</td></tr>
-      <tr><td>Validating <code>--port=0</code> for Studio</td><td class="no">no</td><td>yes, a refusal with an explanation</td></tr>
+      <tr><td>Validating <code>--port=0</code> for Studio</td><td>yes — the refusal lives in <code>runDrizzleKitStudio</code>, which both call</td><td>yes, and now the same refusal</td></tr>
     </tbody>
   </table>
   </div>
@@ -1106,7 +1106,7 @@ Migrations complete.</code></pre></div>
       <tr>
         <td class="mono">packages/cli/src/cli.ts, the Options block</td>
         <td>“<code>--server</code> — build/<b>dev</b>: the server only, skipping the admin”</td>
-        <td><code>devCommand(root)</code> takes no options at all and does not read argv: <code>ortha dev --server</code> will still bring Vite up if <code>apps/admin/index.html</code> exists. The flag only works for <code>build</code></td>
+        <td><b>Fixed.</b> <code>devCommand(root)</code> took no options at all and did not read argv, so <code>ortha dev --server</code> still brought Vite up. Both flags now work for <code>dev</code> as well — <code>--admin</code> runs the Vite dev server alone against an API already up, the way the monorepo offers <code>start:server</code> / <code>start:admin</code> — and <code>--admin</code> asked of an application with no <code>apps/admin/index.html</code> is a refusal rather than a supervised empty set exiting 0. <code>cli.spec.ts</code> and <code>commands.spec.ts</code> carry the regression</td>
       </tr>
       <tr>
         <td class="mono">packages/cli/src/cli.ts, the Options block</td>
@@ -1116,17 +1116,17 @@ Migrations complete.</code></pre></div>
       <tr>
         <td class="mono">packages/cli/src/lib/studio.ts</td>
         <td>The <code>--host</code>/<code>--port</code> options are described as passed straight through to drizzle-kit</td>
-        <td><code>--port=0</code> is <b>silently dropped</b> (<code>0</code> is falsy in <code>if (options.port)</code>), and Studio comes up on 4983. The <code>db-studio</code> executor from <code>@orthacms/nx</code> refuses the very same input with an explanation — <b>two branches of one tool behave differently</b>. A non-numeric <code>--port=abc</code> becomes <code>NaN</code> and is lost the same way</td>
+        <td><b>Fixed.</b> <code>--port=0</code> was <b>silently dropped</b> (<code>0</code> is falsy in <code>if (options.port)</code>) and Studio came up on 4983, while <code>@orthacms/nx</code>'s <code>db-studio</code> executor refused the same input with an explanation — <b>two branches of one tool behaving differently</b>. The refusal now lives in <code>runDrizzleKitStudio</code>, the implementation both worlds call, and it is a refusal rather than a pass-through for the reason that executor gave: drizzle-kit's listen callback is handed the bound address and ignores it, printing the port it was <em>asked</em> for, so <code>--port=0</code> would leave an unauthenticated read/write console on the database at an address nothing reports. <code>--port=abc</code> is reported by the argv reader instead of becoming <code>NaN</code> and vanishing</td>
       </tr>
       <tr>
         <td class="mono">create-ortha-app · README.md.tmpl, “Adding content types”, step 3</td>
         <td>“Add <code>apps/server/drizzle.config.ts</code> pointing <code>schema</code> at your <code>src/content/index.ts</code> and <code>out</code> at <code>../../migrations</code>”</td>
-        <td>The paths are written as if they resolved relative to the config file. But <code>generateCommand</code> starts drizzle-kit with <code>cwd</code> = <b>the application root</b>, and drizzle-kit resolves <code>schema</code>/<code>out</code> relative to the working directory (this is stated outright in the comment in <code>src/lib/generate.ts</code>). Following the instruction literally sends <code>out</code> two levels <b>above</b> the application root, and <code>schema</code> is not found</td>
+        <td>The paths are written as if they resolved relative to the config file. But <code>generateCommand</code> starts drizzle-kit with <code>cwd</code> = <b>the application root</b>, and drizzle-kit resolves <code>schema</code>/<code>out</code> relative to the working directory (this is stated outright in the comment in <code>src/lib/generate.ts</code>). Following the instruction literally sent <code>out</code> two levels <b>above</b> the application root, and <code>schema</code> was not found. <b>Fixed:</b> the step is now the config itself, with <code>out: 'migrations'</code> and the full <code>apps/server/src/content/index.ts</code>, plus the sentence saying both are relative to the application root and why. <code>generated-readme.spec.ts</code> resolves <code>out</code> from the root the CLI runs drizzle-kit in and compares it with the directory the plugin's own migrations descriptor names</td>
       </tr>
       <tr>
         <td class="mono">create-ortha-app · templates/default/apps/server/src/plugins.ts, comment</td>
         <td>“Define some in <code>src/server/content/</code>”</td>
-        <td>No such path exists in the template: the server side lives in <code>apps/server/src/</code>. The same template's README names the correct path — <code>apps/server/src/content/</code></td>
+        <td><b>Fixed.</b> No such path existed in the template — the server side lives in <code>apps/server/src/</code> — while the same template's README named the correct one</td>
       </tr>
       <tr>
         <td class="mono">create-ortha-app · templates/default/apps/server/src/plugins.ts, example</td>
@@ -1135,7 +1135,7 @@ Migrations complete.</code></pre></div>
       </tr>
       <tr>
         <td class="mono">create-ortha-app · README.md.tmpl, the command table</td>
-        <td><code>npm run generate -- --name=&lt;name&gt;</code> is listed alongside the rest as ready to use</td>
+        <td><code>npm run generate -- --name=&lt;name&gt;</code> was listed alongside the rest as ready to use</td>
         <td>A freshly created application has no <code>apps/server/drizzle.config.ts</code> (the template does not contain that file), so the very first run is a refusal. This is intended and explained in “Adding content types”, but nothing marks it in the table</td>
       </tr>
       <tr>
@@ -1151,7 +1151,7 @@ Migrations complete.</code></pre></div>
       <tr>
         <td class="mono">packages/cli/src/lib/commands/build.ts</td>
         <td>The flags are described as “<code>--server</code>/<code>--admin</code> narrow the build”</td>
-        <td>The <code>--server --admin</code> combination is not rejected; it yields a command that does nothing and exits with code 0</td>
+        <td><b>Fixed.</b> The combination was not rejected and yielded a command that compiled nothing, built nothing and exited 0. <code>halves()</code> in <code>src/lib/args.ts</code> now refuses it, for <code>dev</code> and <code>build</code> alike, naming what each flag skips</td>
       </tr>
     </tbody>
   </table>
@@ -1159,7 +1159,7 @@ Migrations complete.</code></pre></div>
 
   <div class="note warn">
     <span class="label">What is worth checking first</span>
-    <p>Of everything listed, three items have a practical effect on the user: the <code>drizzle.config.ts</code> instruction in the generated application's README (a person follows it literally and gets an unintelligible refusal), the <code>process.cwd()</code> example in <code>plugins.ts</code> (it only breaks when running from a subdirectory, so it does not show up straight away), and the <code>--port=0</code> divergence between the CLI and the Nx executor.</p>
+    <p>Three items had a practical effect on the user, and two are now fixed: the <code>drizzle.config.ts</code> instruction in the generated application's README (a person followed it literally and got an unintelligible refusal) and the <code>--port=0</code> divergence between the CLI and the Nx executor. What remains is the <code>process.cwd()</code> example in <code>plugins.ts</code> — it only breaks when the command is run from a subdirectory, which is exactly the case <code>findProjectRoot</code> exists to support, so it does not show up straight away.</p>
   </div>
 </section>
 
