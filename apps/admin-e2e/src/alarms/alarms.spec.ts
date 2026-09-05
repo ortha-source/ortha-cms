@@ -672,9 +672,24 @@ test.describe('Severity', () => {
         );
         expect(new Set(shapes).size).toBe(3);
 
-        // And the word, on the surface that has room for it. `SeverityBadge`
-        // renders it beside the glyph, so the same fact is available to a
-        // reader who sees no colour at all.
+        // And the word. On the group header it has to be part of the
+        // trigger's own `aria-label`: that attribute **replaces** descendant
+        // text in the accessible name, so an `sr-only` word inside the button
+        // is never read at all — the failure this assertion exists for, and
+        // one that is invisible both on screen and to an axe scan.
+        for (const [rule, word] of [
+            [RULES[0], 'Error'],
+            [RULES[1], 'Warning'],
+            [RULES[2], 'Info']
+        ] as const) {
+            await expect(alarmsPage.group(rule.name)).toHaveAccessibleName(
+                new RegExp(`^${word}: ${rule.name} — `)
+            );
+        }
+
+        // The other surface with room for it. `SeverityBadge` renders it
+        // beside the glyph, so the same fact is available to a reader who sees
+        // no colour at all.
         await alarmsPage.tab('Alarms').click();
         for (const [rule, word] of [
             [RULES[0], 'Error'],
@@ -736,6 +751,48 @@ test.describe('Loading, failed and empty', () => {
             alarmsPage.emptyHeading('Nothing is flagged')
         ).toBeVisible();
         await expect(alarmsPage.findingsError()).toHaveCount(0);
+    });
+
+    test('are three different answers inside an expanded group [alarms:I-33]', async ({
+        page,
+        alarmsPage
+    }) => {
+        // The fourth reading surface's *inside*. The group header is drawn
+        // from the alarm's own `openCount`, so it looks identical in all three
+        // states; everything that distinguishes them is behind the chevron,
+        // and it loads only once somebody opens it.
+        test.setTimeout(90_000);
+        const RULE = { ...CONTAINS_RULE, openCount: 1 };
+
+        // 1. Still asking. Without a `SkeletonRegion` this state is two grey
+        //    bars — no words, nothing announced — which is indistinguishable
+        //    from "nothing here any more" to anyone not looking at it.
+        await mockAlarmsApi(page, {
+            rules: [RULE],
+            findings: [OPEN_FINDING],
+            perWorkspace: { [WORKSPACE_ID]: { delayMs: 3000 } }
+        });
+        await alarmsPage.goto(WORKSPACE_ID);
+        await expect(
+            page.getByText(`Loading the records ${RULE.name} has flagged…`)
+        ).toBeVisible({ timeout: 15_000 });
+
+        // 2. Could not ask — and it says so, rather than reporting a group
+        //    that has been cleared.
+        await mockAlarmsApi(page, { rules: [RULE], findingsFailing: true });
+        await page.reload();
+        const failed = page
+            .getByRole('alert')
+            .filter({ hasText: 'could not be loaded' });
+        await expect(failed).toBeVisible({ timeout: 15_000 });
+        await expect(page.getByText('Nothing here any more')).toHaveCount(0);
+
+        // 3. Genuinely cleared: the alarm still says one record, and the page
+        //    of findings behind it is empty. Different words from both above.
+        await mockAlarmsApi(page, { rules: [RULE], findings: [] });
+        await page.reload();
+        await expect(page.getByText('Nothing here any more')).toBeVisible();
+        await expect(failed).toHaveCount(0);
     });
 
     test('are three different answers in the alarm list [alarms:I-33]', async ({

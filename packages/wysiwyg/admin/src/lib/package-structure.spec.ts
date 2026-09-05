@@ -174,6 +174,32 @@ function selectors(css: string): string[] {
     return out;
 }
 
+/** One top-level CSS rule: what it selects, and what it declares. */
+interface DeclarationBlock {
+    prelude: string;
+    block: string;
+}
+
+/**
+ * The top-level rules of a stylesheet, comments stripped. Unlike
+ * {@link selectors} this keeps the **declarations**, which is what a claim
+ * about *how* something is styled has to read.
+ */
+function declarationBlocks(css: string): DeclarationBlock[] {
+    const text = css.replace(/\/\*[\s\S]*?\*\//g, '');
+    const out: DeclarationBlock[] = [];
+
+    for (const match of text.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        const prelude = match[1].trim();
+        // An at-rule's prelude is not a selector and its body holds rules
+        // rather than declarations; this file has none around the media rules,
+        // and skipping them keeps the pairs honest.
+        if (prelude.startsWith('@')) continue;
+        out.push({ prelude, block: match[2] });
+    }
+    return out;
+}
+
 describe('the lazy boundary', () => {
     const entry = join(SRC, 'index.ts');
 
@@ -381,6 +407,29 @@ describe('the style scope', () => {
 
         expect(rules.length).toBeGreaterThan(50);
         expect(rules.filter((one) => !one.includes(scope))).toEqual([]);
+    });
+
+    it('moves media by its margins, never by text-align [wysiwyg:I-24]', () => {
+        // The rule and its reason are the same fact. An image is a block in
+        // the flow, and `text-align` positions a block's inline *children* —
+        // so the property the text-alignment extension writes lands on the
+        // image and moves nothing. Someone tidying `data-align` into the
+        // text extension's own mechanism would produce a stylesheet that
+        // looks equivalent and a picture that stays where it was.
+        const aligned = declarationBlocks(css).filter((rule) =>
+            rule.prelude.includes('data-align')
+        );
+
+        // Not vacuous: centre and right, each on figure/img/video.
+        expect(aligned).toHaveLength(2);
+
+        for (const rule of aligned) {
+            expect(rule.block).toMatch(/margin-inline/);
+            expect(rule.block).not.toMatch(/text-align/);
+            // And `left` gets no rule at all, because it is where a block
+            // already sits — the styling half of "left is never written".
+            expect(rule.prelude).not.toMatch(/data-align=.left./);
+        }
     });
 
     it('is the same scope the two surfaces carry [wysiwyg:I-34]', () => {

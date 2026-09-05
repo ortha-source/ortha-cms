@@ -48,6 +48,17 @@ function nodesOfType(document: JSONContent, type: string): JSONContent[] {
     return found;
 }
 
+/** Puts the selection on the first node of `type`, the way clicking it would. */
+function selectNode(instance: Editor, type: string): void {
+    let at: number | null = null;
+    instance.state.doc.descendants((node, pos) => {
+        if (at === null && node.type.name === type) at = pos;
+        return at === null;
+    });
+    if (at === null) throw new Error(`no ${type} in the document`);
+    instance.commands.setNodeSelection(at);
+}
+
 /** The text of a node and everything under it. */
 function textOf(node: JSONContent): string {
     if (node.type === 'text') return node.text ?? '';
@@ -206,5 +217,104 @@ describe('column layouts', () => {
 
         const [block] = nodesOfType(open_.getJSON(), 'columnBlock');
         expect(block.attrs?.['count']).toBe(2);
+    });
+});
+
+describe('the size media carries', () => {
+    it('reads an embed narrower than the floor as no width chosen [wysiwyg:I-23]', () => {
+        // Not clamped up to 64. A source that reports a tiny intrinsic width —
+        // an icon, a spacer, a thumbnail whose metadata is wrong — has not
+        // *chosen* a width, and storing 64 would publish a number the author
+        // never picked and cannot tell apart from one they did. `null` means
+        // "the media's own size", which is what a bare `<img>` does everywhere.
+        //
+        // The live drag handle does clamp, and that is a different rule: it
+        // bounds a gesture in progress so the handle stays larger than the thing
+        // it is dragging. This clause is about what a *width value* means.
+        const open_ = open('<p>Before</p>');
+        open_.commands.insertMedia([
+            { kind: 'image', src: '/api/media/assets/a1/raw', width: 20 },
+            { kind: 'image', src: '/api/media/assets/a2/raw', width: 320 }
+        ]);
+
+        expect(
+            nodesOfType(open_.getJSON(), 'image').map(
+                (node) => node.attrs?.['width']
+            )
+            // The second is the discriminator: a build that dropped every width
+            // would satisfy the first on its own.
+        ).toEqual([null, 320]);
+    });
+});
+
+describe('where media sits across the measure', () => {
+    it('stops writing data-align once the picture goes back to left [wysiwyg:I-24]', () => {
+        // `left` is where a block already is, so the attribute would say
+        // nothing — and an attribute that says nothing is one every consumer of
+        // this HTML has to decide what to do about. The failure this guards is
+        // subtle: choosing Alignment > Left on a centred picture *looks* right
+        // in the editor (the stylesheet only reacts to center/right) while
+        // leaving `data-align="left"` in the stored body forever.
+        const open_ = open('<p>Before</p>');
+        open_.commands.insertMedia([
+            { kind: 'image', src: '/api/media/assets/a1/raw' }
+        ]);
+        selectNode(open_, 'image');
+
+        open_.commands.setMediaAlign('center');
+        expect(open_.getHTML()).toContain('data-align="center"');
+
+        open_.commands.setMediaAlign('left');
+
+        // The attribute is gone, not set to "left"…
+        expect(open_.getHTML()).not.toContain('data-align');
+        // …and the node still knows where it sits, so nothing was lost — the
+        // default simply isn't serialized.
+        expect(
+            nodesOfType(open_.getJSON(), 'image')[0].attrs?.['align']
+        ).toBe('left');
+    });
+
+    it('reads a stored left back without writing it out again [wysiwyg:I-24]', () => {
+        // The parse side of the same rule: a body that already carries
+        // `data-align="left"` (written by an older build, or by hand) is
+        // understood and then normalized away on the next save.
+        const open_ = open(
+            '<img src="/api/media/assets/a1/raw" data-align="left">'
+        );
+
+        expect(
+            nodesOfType(open_.getJSON(), 'image')[0].attrs?.['align']
+        ).toBe('left');
+        expect(open_.getHTML()).not.toContain('data-align');
+    });
+});
+
+describe('media a document tries to arrive with', () => {
+    it('is refused by the node, not only by the dialog [wysiwyg:I-21]', () => {
+        // The dialog explains a bad URL to the author; it cannot be the check,
+        // because a body can be written straight through the API, pasted from
+        // another page, or seeded from a legacy HTML column. This is the same
+        // `parseHTML` the editor runs when it opens such a body, so what it
+        // refuses here never reaches the stored document either.
+        const open_ = open(
+            '<p>Before</p>' +
+                '<img src="javascript:alert(1)">' +
+                '<img src="//evil.example.com/a.png">' +
+                '<img src="/api/media/assets/a1/raw">' +
+                '<p>After</p>'
+        );
+
+        // Only the admissible one survives — and it does survive, so this is
+        // not a parser that drops every image.
+        expect(
+            nodesOfType(open_.getJSON(), 'image').map(
+                (node) => node.attrs?.['src']
+            )
+        ).toEqual(['/api/media/assets/a1/raw']);
+        // Refused outright rather than imported with a blanked `src`: an
+        // `<img src="">` is a broken-image icon in the body, which reads as
+        // data loss to whoever opens the record next.
+        expect(open_.getHTML()).not.toContain('src=""');
     });
 });

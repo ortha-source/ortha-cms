@@ -111,21 +111,9 @@
         }
     ],
     "judgments": {
-        "insights:I-15": {
-            "state": "partial",
-            "missing": "Only the positive half is pinned — every widget's own route is seen in the admin-e2e request spy. The negative clause, that the page itself opens no request, is asserted nowhere: no test enumerates the spy and finds nothing beyond the widgets' routes, so a fetch added to InsightsPage or InsightsSectionBand would pass every suite."
-        },
-        "insights:I-16": {
-            "state": "partial",
-            "missing": "Pinned for content-admin's six Insights queries (packages/content/admin/src/lib/application/useContentInsights/index.spec.tsx counts two attempts against a client that would otherwise make four). media-admin's three (useMediaInsights) and i18n-admin's one (useLocalizationCoverage) are unpinned: neither package has a test target, so reverting their retry: 1 to the default still breaks nothing."
-        },
-        "insights:I-17": {
-            "state": "partial",
-            "missing": "Only the `days` clause is pinned (admin-e2e sees a fresh days=90 request after selecting 90d). The workspace-id-in-the-key clause is unpinned — no test switches workspace and re-reads the numbers — and so is the reason it matters: that the workspace reaches the server only as an X-Workspace-Id header, which a cache hit never sends."
-        },
         "insights:I-23": {
             "state": "partial",
-            "missing": "The scan in RampLegend/index.spec.tsx reads the English `defaultMessage` literals of every admin source that renders a RampLegend, against a fixed list of brightness comparatives (darker/lighter/brighter/…). It cannot see a caption that arrives from a translation catalogue, one assembled at runtime, or one that names a direction some other way ('the deep end means older')."
+            "missing": "Narrowed twice, and what is left is genuinely unreachable. The scan now reads brightness **stems** rather than the nine comparatives it started with, so \"the deep end means older\" and \"shaded by age\" — the exact phrasings the note called invisible — now fail; and a second case pins that both `RampLegend` captions are a bare `intl.formatMessage(messages.x)`, so a caption assembled at runtime (a template literal, a concatenation, a ternary over the theme) cannot slip past a scan that reads `defaultMessage` literals. Two limbs remain, both outside any harness: a caption written in a language other than the source English (no translation catalogue ships today, so there is nothing to scan — this becomes real the moment one does), and a caption that implies a direction of brightness without naming one, which is a judgment about prose."
         }
     }
 }

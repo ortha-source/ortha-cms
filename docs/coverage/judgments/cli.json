@@ -111,17 +111,9 @@
         }
     ],
     "judgments": {
-        "cli:I-22": {
-            "state": "partial",
-            "missing": "The second clause — \"the CLI reads no settings file of its own\". It is an unbounded absence over the package with no single channel to enumerate: a settings read need not be a literal, so `readFileSync(join(root, name))` would satisfy any scan written for one. The first clause is pinned by `layout-is-convention.spec.ts`, which is enumerable for the opposite reason — a path has to be spelled out to be used, so a second opinion about where the server compiles to is necessarily a string literal, and the spec asserts no literal beginning `apps` or `dist` exists outside the `LAYOUT` table (plus that the table is live and its entries relative). Worth noting for whoever closes the rest: the CLI does read `.env` (`src/lib/env.ts`), which is environment rather than layout, and `package.json` in three places — root discovery, its own version, and locating a dependency's bin."
-        },
         "cli:I-12": {
             "state": "partial",
-            "missing": "The pin is that the server half of a build is exactly one child process — the app's own `tsc -p apps/server/tsconfig.json` — with no bundler in any spawned argv (packages/cli/src/lib/commands/build.spec.ts). What no test reaches is the consequence the invariant is stated for: nothing runs a real build and then resolves a plugin's `join(__dirname, '../../../migrations')` out of node_modules, so a bundling step introduced anywhere else in the pipeline would not be caught here. That needs a built app, not a unit test."
-        },
-        "cli:I-20": {
-            "state": "partial",
-            "missing": "The 'never connects' clause is pinned (packages/cli/src/lib/commands/commands.spec.ts → 'never reaches for a database': generateCommand calls neither loadHost nor requireDatabaseUrl, and the argv handed to drizzle-kit carries no URL) together with generate.spec.ts asserting the execFileSync options are exactly `{cwd, stdio}` — no env injection. The corollary clause, that the committed drizzle configs therefore hold no secrets, is pinned by nothing: no test reads the workspace's `drizzle.config.ts` files and asserts none declares `dbCredentials`."
+            "missing": "Narrowed to the one link that needs a compiler. Two of the three now hold: `packages/nx/src/lib/release/pack.spec.ts` reads every real plugin's `dir: () => join(__dirname, …)` descriptor and asserts three levels up from `<pkg>/dist/lib/utils/` is the package root (so a plugin that moved its descriptor breaks, rather than shipping a `dir()` pointing outside its own package), and it runs `pack.mjs` for real, installs what it staged into a `node_modules` tree, and calls that descriptor's `dir()` from there — the resolution the invariant describes, performed rather than described. What no test reaches is the **compile**: nothing runs `tsc` against a real plugin, so a bundling step introduced elsewhere in the pipeline — collapsing `dist/` to one file and taking the `lib/utils/` depth with it — would still pass. `build.spec.ts` pins the argv shape only. That needs a built app installed from a tarball, i.e. `create-ortha-app`'s own e2e."
         }
     }
 }

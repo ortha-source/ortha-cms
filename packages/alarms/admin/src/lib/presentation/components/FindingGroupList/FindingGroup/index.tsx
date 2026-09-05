@@ -8,6 +8,7 @@ import {
     CollapsibleContent,
     CollapsibleTrigger,
     Skeleton,
+    SkeletonRegion,
     Spinner
 } from '@orthacms/design-system';
 import { ChevronRight, RefreshCw } from 'lucide-react';
@@ -25,7 +26,7 @@ const messages = defineMessages({
     toggle: {
         id: 'alarms.group.toggle',
         defaultMessage:
-            '{name} — {count, plural, one {# record} other {# records}}'
+            '{severity}: {name} — {count, plural, one {# record} other {# records}}'
     },
     listLabel: {
         id: 'alarms.group.listLabel',
@@ -44,6 +45,10 @@ const messages = defineMessages({
     gone: {
         id: 'alarms.group.gone',
         defaultMessage: 'Nothing here any more — these records were fixed.'
+    },
+    loading: {
+        id: 'alarms.group.loading',
+        defaultMessage: 'Loading the records {name} has flagged…'
     }
 });
 
@@ -136,7 +141,13 @@ export function FindingGroup({
             <div className="flex items-center gap-3 px-4 py-3 sm:px-5">
                 <CollapsibleTrigger
                     className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                    // The severity leads the name because `aria-label` on a
+                    // button **replaces** its descendant text in the accessible
+                    // name: an `sr-only` word inside the trigger is not read at
+                    // all, so the severity has to be part of the label itself
+                    // or a screen-reader user never hears it (WCAG 1.4.1).
                     aria-label={intl.formatMessage(messages.toggle, {
+                        severity: intl.formatMessage(label),
                         name: rule.name,
                         count
                     })}
@@ -151,10 +162,6 @@ export function FindingGroup({
                         aria-hidden="true"
                         className={`size-4 shrink-0 ${ink}`}
                     />
-                    {/* The severity in words, for anyone the glyph and its
-                        colour do not reach. */}
-                    <span className="sr-only">{intl.formatMessage(label)}</span>
-
                     <span className="flex min-w-0 flex-1 flex-col">
                         <span className="truncate text-sm font-medium">
                             {rule.name}
@@ -207,10 +214,22 @@ export function FindingGroup({
                             </AlertDescription>
                         </Alert>
                     ) : findings.isPending ? (
-                        <div className="flex flex-col gap-2 p-4">
-                            <Skeleton className="h-10 w-full" />
-                            <Skeleton className="h-10 w-full" />
-                        </div>
+                        // Named and announced, not two grey bars. This is the
+                        // group's own wait — the page-level skeleton is long
+                        // gone by the time anyone expands one — and without a
+                        // `SkeletonRegion` it is the one state here with no
+                        // words at all, which makes it indistinguishable from
+                        // "nothing flagged" to anyone not looking at it.
+                        <SkeletonRegion
+                            label={intl.formatMessage(messages.loading, {
+                                name: rule.name
+                            })}
+                        >
+                            <div className="flex flex-col gap-2 p-4">
+                                <Skeleton className="h-10 w-full" />
+                                <Skeleton className="h-10 w-full" />
+                            </div>
+                        </SkeletonRegion>
                     ) : items.length === 0 ? (
                         <p className="px-4 py-6 text-center text-sm text-muted-foreground">
                             {intl.formatMessage(messages.gone)}

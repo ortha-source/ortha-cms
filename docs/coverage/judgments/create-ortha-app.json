@@ -121,11 +121,5 @@
             "anchor": "names the Vite config .mts",
             "why": "Asserts readdir of the rendered apps/admin contains 'vite.config.mts'."
         }
-    ],
-    "judgments": {
-        "create-ortha-app:I-16": {
-            "state": "partial",
-            "missing": "The config half is pinned by execution — src/lib/generated-config.spec.ts loads the rendered apps/server/config/{copilot-anthropic,sso-oidc}.ts and calls the builders with the key unset, empty, half-set and set. The registration half is not: `copilotProviders(config)` and `ssoProviders(config)` in the rendered apps/server/src/plugins.ts are the code that turns an absent config key into an absent entry, and no test executes them — importing that module pulls in every plugin package and a vendor SDK. So an inverted guard there (registering the provider the config omitted) would be caught by nothing here; it would surface in the generated app's own server-e2e run."
-        }
-    }
+    ]
 }

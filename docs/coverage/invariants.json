@@ -3047,7 +3047,7 @@
             "axes": [
                 "unit"
             ],
-            "text": "AlertTitle, CardTitle and EmptyTitle are not headings by default; the rank is set by the page through asChild."
+            "text": "AlertTitle, CardTitle and EmptyTitle are not headings by default; the page sets the rank — through asChild on CardTitle and EmptyTitle, and by nesting a heading inside AlertTitle, which takes no asChild because it stays the element the banner’s aria-labelledby points at."
         },
         {
             "id": "design-system:I-15",
@@ -5840,7 +5840,7 @@
                 "admin-e2e",
                 "unit"
             ],
-            "text": "The global chords (⌘K, ⌘B, ⌘J) do not fire in an input field or in contenteditable; a single shared function performs the check."
+            "text": "The global chords (⌘K, ⌘B, ⌘J) do not fire in an input field or in contenteditable. ⌘K and ⌘J share isComposingText from utils-admin; ⌘B uses the design system’s own ownsBoldShortcut, because the library carries no dependency on utils-admin and the chord means bold there, so its check is deliberately wider."
         },
         {
             "id": "shell:I-27",

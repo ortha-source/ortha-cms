@@ -1,3 +1,5 @@
+import { RequestMethod, type Type } from '@nestjs/common';
+import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
 import {
     MODEL_RESOLVER,
     type ModelRegistry,
@@ -153,5 +155,71 @@ describe('CopilotModule kill switch', () => {
                     entry.provide === MODEL_RESOLVER
             )
         ).toBe(true);
+    });
+});
+
+/**
+ * Every route the module registers, as `METHOD path`.
+ *
+ * Read off the decorators rather than off a booted app, because the claim is
+ * about what exists at all — and a route that exists is a route somebody can
+ * reach, whatever a running instance happens to have mounted.
+ */
+function routesOf(controllers: readonly unknown[]): string[] {
+    return controllers.flatMap((entry) => {
+        const controller = entry as Type<object>;
+        const base = Reflect.getMetadata(PATH_METADATA, controller) ?? '';
+        const proto = controller.prototype as object;
+        return Object.getOwnPropertyNames(proto)
+            .filter((name) => name !== 'constructor')
+            .flatMap((name) => {
+                const handler = Object.getOwnPropertyDescriptor(proto, name)
+                    ?.value as object | undefined;
+                if (!handler) return [];
+                const verb = Reflect.getMetadata(METHOD_METADATA, handler) as
+                    | number
+                    | undefined;
+                if (verb === undefined) return [];
+                const path = Reflect.getMetadata(PATH_METADATA, handler) ?? '';
+                return [`${RequestMethod[verb]} ${base}/${path}`];
+            });
+    });
+}
+
+/**
+ * **A conversation is archived, never deleted, and a skill is deleted.**
+ *
+ * The disjointness half of the invariant is pinned by the e2e suite, which
+ * archives a thread and watches it move between two lists. The other half is
+ * made of an *absence*, and no test that drives the API can see one: a suite
+ * exercising the routes that exist says nothing about a route that does not,
+ * and the day somebody adds `DELETE /conversations/:id` — the obvious companion
+ * to the archive toggle — every existing case stays green while the receipts
+ * for changes already made to somebody's content acquire a delete button.
+ *
+ * So the assertion is over the router itself, and it is exhaustive rather than
+ * a `not.toContain`: the skills delete is named, which is what stops this from
+ * passing for the trivial reason that the copilot registers no DELETE at all.
+ */
+describe('CopilotModule routes', () => {
+    const routes = routesOf(
+        CopilotModule.forRoot({ providers: registrations, config })
+            .controllers ?? []
+    );
+
+    it('reads the routes at all', () => {
+        // The guard on the guard: reflection that found nothing would make
+        // every claim below vacuous.
+        expect(routes).toContain('GET copilot/conversations');
+        expect(routes).toContain('GET copilot/conversations/:id');
+        expect(routes.length).toBeGreaterThan(8);
+    });
+
+    it('deletes a skill and never a conversation [copilot:I-33]', () => {
+        expect(routes.filter((route) => route.startsWith('DELETE'))).toEqual([
+            'DELETE copilot/skills/:id'
+        ]);
+        // Archiving is the removal, and it is the PATCH.
+        expect(routes).toContain('PATCH copilot/conversations/:id');
     });
 });

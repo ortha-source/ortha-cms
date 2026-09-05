@@ -5,7 +5,7 @@
             "id": "copilot:I-01",
             "file": "apps/server-e2e/src/server/copilot/copilot-proposals.spec.ts",
             "anchor": "writes the change and records who made it",
-            "why": "Asserts the applied proposal's `decidedBy` equals the signed-in user's id, so a run carrying an identity of its own rather than the caller's would fail (the `created_by` column itself is read by no test)."
+            "why": "Asserts the applied proposal's `decidedBy` equals the signed-in user's id, so a run carrying an identity of its own rather than the caller's would fail. The `created_by` column it stands in for is pinned separately, in `run-engine.service.spec.ts`."
         },
         {
             "id": "copilot:I-03",
@@ -47,13 +47,13 @@
             "id": "copilot:I-08",
             "file": "apps/server-e2e/src/server/copilot/copilot-proposals.spec.ts",
             "anchor": "stops asking for the rest of the chat once allowed for it",
-            "why": "Two propose calls in one turn with `chat` answered on the first assert exactly one permission frame, which only holds if `allowed_tools` is re-read per call rather than snapshotted per run; the 'appended to in SQL' clause is an implementation detail with no observable difference and stays unpinned."
+            "why": "Two propose calls in one turn with `chat` answered on the first assert exactly one permission frame, which only holds if `allowed_tools` is re-read per call rather than snapshotted per run."
         },
         {
             "id": "copilot:I-09",
             "file": "apps/server-e2e/src/server/copilot/copilot-run-authority.spec.ts",
             "anchor": "refuses another member of the same workspace",
-            "why": "Asserts the answering statuses are [404, 204] — a same-workspace colleague gets the same 404 as 'nothing is waiting' while the owner settles the run; the `permission/extend` half of the invariant has no test anywhere."
+            "why": "Asserts the answering statuses are [404, 204] — a same-workspace colleague gets the same 404 as 'nothing is waiting' while the owner settles the run. The `permission/extend` half is pinned at the broker, in `tool-permission.broker.spec.ts`."
         },
         {
             "id": "copilot:I-09",
@@ -83,7 +83,7 @@
             "id": "copilot:I-11",
             "file": "packages/copilot/server/src/lib/chat/application/tool-permission.broker.spec.ts",
             "anchor": "rejects on abort, so the generator unwinds instead of leaking",
-            "why": "The abort exit: asserts the promise rejects and that a later `decide` finds nothing waiting; the timeout exit is pinned only indirectly (through the shared budget charge) and no test asserts a post-timeout `decide` returns false."
+            "why": "The abort exit: asserts the promise rejects and that a later `decide` finds nothing waiting. The timeout exit has its own case beside it."
         },
         {
             "id": "copilot:I-12",
@@ -101,7 +101,7 @@
             "id": "copilot:I-13",
             "file": "apps/server-e2e/src/server/copilot/copilot-proposals.spec.ts",
             "anchor": "appends a revision, because it went through the ordinary write",
-            "why": "Asserts the entry gained a revision after a copilot edit, which fails if the applier wrote around the ordinary use case; the 'same activity row' clause is not separately asserted."
+            "why": "Asserts the entry gained a revision after a copilot edit, which fails if the applier wrote around the ordinary use case. The activity row and its actor are asserted by the sibling case and by `proposal-event-actor.spec.ts`."
         },
         {
             "id": "copilot:I-15",
@@ -119,7 +119,7 @@
             "id": "copilot:I-17",
             "file": "apps/server-e2e/src/server/copilot/copilot-chat.spec.ts",
             "anchor": "audits every attempted call, successful or not",
-            "why": "Asserts `copilot_tool_calls` holds exactly one row per attempt with the right ok/summary/error columns for both a succeeding and a throwing tool; the refused-by-user and timed-out categories are not asserted by any test."
+            "why": "Asserts `copilot_tool_calls` holds exactly one row per attempt with the right ok/summary/error columns for both a succeeding and a throwing tool; the timed-out and refused-by-the-user categories are pinned in `run-engine.service.spec.ts`."
         },
         {
             "id": "copilot:I-18",
@@ -143,7 +143,7 @@
             "id": "copilot:I-19",
             "file": "apps/server-e2e/src/server/copilot/copilot-chat.spec.ts",
             "anchor": "refuses an identical repeated call instead of re-running the tool",
-            "why": "Asserts the second identical call comes back `ok: false` with an explanation and that the tool ran once; neither the sorted-key normalisation nor the after-authorization ordering is separately pinned."
+            "why": "Asserts the second identical call comes back `ok: false` with an explanation and that the tool ran once. The sorted-key normalisation and the after-authorization ordering have their own cases in `run-engine.service.spec.ts`."
         },
         {
             "id": "copilot:I-20",
@@ -173,7 +173,7 @@
             "id": "copilot:I-21",
             "file": "apps/server-e2e/src/server/copilot/copilot-chat.spec.ts",
             "anchor": "stops with max-steps when the model never stops calling tools",
-            "why": "Pins only the steps ceiling (`stopReason === 'max-steps'` at maxSteps+1 scripted turns); the wall-clock and token ceilings, the per-tool-call clock check, and the 'a refused call still returns a tool_result' clause have no assertions anywhere."
+            "why": "Pins the steps ceiling (`stopReason === 'max-steps'` at maxSteps+1 scripted turns); the wall clock, the token ceiling, the per-call and top-of-step clock checks and the 'a refused call still returns a tool_result' clause are pinned by `run-engine.service.spec.ts`."
         },
         {
             "id": "copilot:I-22",
@@ -197,13 +197,13 @@
             "id": "copilot:I-24",
             "file": "apps/server-e2e/src/server/copilot/copilot-media-files.spec.ts",
             "anchor": "refuses an asset from another workspace",
-            "why": "Asserts the conversation list is still empty after a run whose attachment failed to resolve, so resolving attachments after touching the conversation would fail; the skills half and 'the user's message is stored before the model call' are not pinned."
+            "why": "Asserts the conversation list is still empty after a run whose attachment failed to resolve, so resolving attachments after touching the conversation would fail; the skills ordering and 'the user's message is stored before the model call' are pinned by `run-engine.service.spec.ts`."
         },
         {
             "id": "copilot:I-26",
             "file": "apps/server-e2e/src/server/copilot/copilot-skills.spec.ts",
             "anchor": "ends the run with a readable error when a skill does not resolve",
-            "why": "The skills clause: asserts the error frame does not contain the requested skill name; the attachment clause is unpinned because the media specs only assert the message contains 'no longer available', never that it omits the asset id."
+            "why": "The skills clause: asserts the error frame does not contain the requested skill name. The attachment clause is pinned in `run-engine.service.spec.ts`, which asserts the message names a count and neither of the two ids."
         },
         {
             "id": "copilot:I-27",
@@ -233,7 +233,7 @@
             "id": "copilot:I-30",
             "file": "apps/server-e2e/src/server/copilot/copilot-conversations.spec.ts",
             "anchor": "404s a thread from another workspace",
-            "why": "Same user and session with only the workspace header changed must 404, so dropping the workspaceId predicate from the repository read would fail; no test compares that 404 against a well-formed but nonexistent id."
+            "why": "Same user and session with only the workspace header changed must 404, so dropping the workspaceId predicate from the repository read would fail."
         },
         {
             "id": "copilot:I-31",
@@ -251,7 +251,7 @@
             "id": "copilot:I-33",
             "file": "apps/server-e2e/src/server/copilot/copilot-conversations.spec.ts",
             "anchor": "moves the thread between two disjoint lists, reversibly",
-            "why": "The disjointness clause: asserts the archived id is absent from the active list and present in the archived one, and back again; no test issues a DELETE, so 'cannot be deleted' is unpinned."
+            "why": "The disjointness clause: asserts the archived id is absent from the active list and present in the archived one, and back again. 'Cannot be deleted' is pinned by the route reflection in `copilot.module.spec.ts`."
         },
         {
             "id": "copilot:I-33",
@@ -324,56 +324,97 @@
             "file": "apps/server-e2e/src/server/copilot/copilot-run-authority.spec.ts",
             "anchor": "refuses a tool it had already offered",
             "why": "The revoked-permission clause, which the copilot-chat citations leave to the unknown-tool branch: the tool is in the offer, the grant is deleted while the run is parked, and the answered call comes back `You are not permitted to use \"fixture.proposeThing\"` with the handler never invoked and the run carrying on."
+        },
+        {
+            "id": "copilot:I-01",
+            "file": "packages/copilot/server/src/lib/chat/application/run-engine.service.spec.ts",
+            "anchor": "records the caller as the author of",
+            "why": "The `created_by` column itself, at both places the engine writes one: a table over a `propose` tool (the engine records the draft) and an `apply` tool (the tool wrote for itself), each asserting `proposals.create` was handed the calling user's id. A service account, a synthetic copilot id, or an actor read off the thread rather than the request each fail."
+        },
+        {
+            "id": "copilot:I-08",
+            "file": "packages/copilot/server/src/lib/chat/infrastructure/persistence/conversation.repository.spec.ts",
+            "anchor": "appends to the allow list in SQL, without reading it first",
+            "why": "The append clause. Renders the real `UPDATE` and asserts the new value is a Drizzle expression naming `allowed_tools` on its own right-hand side, and that no `SELECT` preceded it — the one statement a read-modify-write cannot do without, and the only observable difference between the two."
+        },
+        {
+            "id": "copilot:I-09",
+            "file": "packages/copilot/server/src/lib/chat/application/tool-permission.broker.spec.ts",
+            "anchor": "refuses %s the same way it refuses nothing-is-waiting",
+            "why": "The `permission/extend` half. `extend` re-implements the ownership comparison rather than sharing `decide`'s, so deleting either check leaves the other's tests green; the table covers a colleague in the same workspace, the same user naming another, and a stranger, each answered the `null` the route turns into 404 — beside a case where the owner really does get a fresh allowance."
+        },
+        {
+            "id": "copilot:I-11",
+            "file": "packages/copilot/server/src/lib/chat/application/tool-permission.broker.spec.ts",
+            "anchor": "clears the entry when the deadline passes, so a late answer finds nothing",
+            "why": "The timeout exit. A timer that resolved without running `cleanup` is invisible from the run — it has already been told the refusal — but leaves a settled waiter a late `decide` reports success against, so the user is told their answer landed and the tool never runs."
+        },
+        {
+            "id": "copilot:I-13",
+            "file": "packages/copilot/server/src/lib/chat/application/proposal-event-actor.spec.ts",
+            "anchor": "puts the person in the actor position, never the copilot",
+            "why": "The actor half of 'the same activity row': the shared helper names the human and confines the copilot to `via`. The accompanying source scan asserts all nine write sites across the five applier files stamp it rather than assembling one, which is the failure with no other observable."
+        },
+        {
+            "id": "copilot:I-13",
+            "file": "apps/server-e2e/src/server/copilot/copilot-proposals.spec.ts",
+            "anchor": "journals the change under the person who asked for it",
+            "why": "The row itself: after the outbox drains, every `activity_events` row for the edited entry names the signed-in user as actor, and one carries `meta.via.kind === 'copilot'`."
+        },
+        {
+            "id": "copilot:I-17",
+            "file": "packages/copilot/server/src/lib/chat/application/run-engine.service.spec.ts",
+            "anchor": "writes a row for a call the user refused",
+            "why": "The refused-by-the-user category, audited from inside `mayRun`'s `settle` rather than from `executeTool` — a branch the other three never reach. Asserts the row carries `ok: false` with the refusal message and that the handler never ran."
+        },
+        {
+            "id": "copilot:I-19",
+            "file": "packages/copilot/server/src/lib/chat/application/run-engine.service.spec.ts",
+            "anchor": "sees through a different key order",
+            "why": "The stable-serialisation half: `{a,b}` then `{b,a}` in one turn must be one call and one refusal. Without the sort the engine obliges and the loop the guard exists to break runs to `maxSteps`."
+        },
+        {
+            "id": "copilot:I-19",
+            "file": "packages/copilot/server/src/lib/chat/application/run-engine.service.spec.ts",
+            "anchor": "answers a repeat of a revoked tool as a refusal, not as a repeat",
+            "why": "The ordering half. The grant disappears between the two calls of one turn, so checking the repeat first answers 'you already called this' — confirming the earlier call was accepted — while checking authorization first gives the same refusal a caller who never held the grant would get."
+        },
+        {
+            "id": "copilot:I-21",
+            "file": "packages/copilot/server/src/lib/chat/application/run-engine.service.spec.ts",
+            "anchor": "takes no further model call once the run is out of time",
+            "why": "The top-of-step wall clock — the third place it is read, and the one the per-call case cannot reach: that one returns through `ranOutOfTime` without the loop coming round again. Here the tool itself spends the time, and the run must not take a second model call."
+        },
+        {
+            "id": "copilot:I-24",
+            "file": "packages/copilot/server/src/lib/chat/application/run-engine.service.spec.ts",
+            "anchor": "stores the question before the model is called",
+            "why": "Read from inside the provider's own script — the one moment that can tell 'stored before the call' from 'stored around it'. The sibling case pins the skills ordering by making resolution fail and asserting the conversation was never created."
+        },
+        {
+            "id": "copilot:I-26",
+            "file": "packages/copilot/server/src/lib/chat/application/run-engine.service.spec.ts",
+            "anchor": "names how many failed and never which",
+            "why": "The attachment half: a resolver that resolves nothing, over one id and over two, and the message must be the count sentence with neither id in it. The nearest existing assertion is that it contains 'no longer available' — which an id oracle also says."
+        },
+        {
+            "id": "copilot:I-30",
+            "file": "packages/copilot/server/src/lib/chat/infrastructure/persistence/conversation.repository.spec.ts",
+            "anchor": "filters on the caller and the workspace, in one statement",
+            "why": "The repository half, rendered through the real dialect: `find`, `findOrFail` and `update` each bind the conversation id, the caller and the workspace, in exactly one statement — so 'no such thing' and 'not yours' are the same empty result reached by the same line, and the way that stops being true is a second read added to give a better error."
+        },
+        {
+            "id": "copilot:I-30",
+            "file": "apps/server-e2e/src/server/copilot/copilot-conversations.spec.ts",
+            "anchor": "answers a thread that does not exist exactly as it answers one that is not yours",
+            "why": "The 'same 404' half over HTTP: a thread that exists but is not the caller's and a well-formed id that exists nowhere must answer with the same status and the same body."
+        },
+        {
+            "id": "copilot:I-33",
+            "file": "packages/copilot/server/src/lib/copilot.module.spec.ts",
+            "anchor": "deletes a skill and never a conversation",
+            "why": "The 'cannot be deleted' clause, made of an absence and therefore invisible to any test that drives the API. Reflects over every route the module registers and asserts the DELETE set is exactly the skills one — named rather than negated, so it cannot pass because the copilot registers no DELETE at all."
         }
     ],
-    "judgments": {
-        "copilot:I-01": {
-            "state": "partial",
-            "missing": "The `copilot_proposals.created_by` column itself is read by no test; `decidedBy` standing in for it holds only while the engine writes both from the same caller."
-        },
-        "copilot:I-08": {
-            "state": "partial",
-            "missing": "The 'appended to in SQL' half. `allowTool`'s append is asserted only by its effect (a second call in the same run is not asked again), so a read-modify-write that lost a concurrent append would pass."
-        },
-        "copilot:I-09": {
-            "state": "partial",
-            "missing": "The `permission/extend` half: no test extends someone else's parked run, so only the answer route's ownership check is pinned."
-        },
-        "copilot:I-11": {
-            "state": "partial",
-            "missing": "The timeout exit. The abort exit is pinned (the promise rejects and a later `decide` finds nothing waiting); the timeout is reached only indirectly through the shared budget charge, and no test asserts that a `decide` arriving after the deadline returns false rather than settling a run that has already given up."
-        },
-        "copilot:I-13": {
-            "state": "partial",
-            "missing": "The 'same activity row' clause. The revision half is asserted; nothing checks that an applied proposal leaves an activity-journal row attributed to the person rather than to the copilot."
-        },
-        "copilot:I-17": {
-            "state": "partial",
-            "missing": "The refused-by-the-user category. Succeeded, failed and refused-on-a-timeout are pinned (the last by `run-engine.service.spec.ts`); a call the user denied at the permission prompt is audited by no test."
-        },
-        "copilot:I-19": {
-            "state": "partial",
-            "missing": "Both qualifiers: nothing calls the same tool twice with the arguments in a different key order (the stable-serialisation half), and nothing shows the repeat check running after authorization rather than before it."
-        },
-        "copilot:I-21": {
-            "state": "partial",
-            "missing": "Three of the four ceilings. Only the step ceiling is pinned (`stopReason === 'max-steps'` at maxSteps+1 scripted turns); the wall-clock ceiling, the token ceiling, the per-tool-call clock check, and the 'a refused call still returns a tool_result so the model is not left waiting' clause have no assertions anywhere."
-        },
-        "copilot:I-24": {
-            "state": "partial",
-            "missing": "Two of the three orderings. The attachment clause is pinned (a run whose attachment failed to resolve leaves the conversation list empty, so resolving attachments after touching the conversation would fail); the same ordering for skills, and 'the user's message is stored before the model call', are not."
-        },
-        "copilot:I-26": {
-            "state": "partial",
-            "missing": "The attachment half. The skills message is asserted not to name the skill; the media specs assert only that the message contains 'no longer available', never that it omits the asset id — so an id oracle would pass."
-        },
-        "copilot:I-30": {
-            "state": "partial",
-            "missing": "The 'same 404 for both' half: every test compares a thread that exists but is not the caller's against a 404, and none compares that against a well-formed id that exists nowhere."
-        },
-        "copilot:I-33": {
-            "state": "partial",
-            "missing": "The 'cannot be deleted' half. Disjointness is pinned in both directions (an archived id leaves the active list and appears in the archived one, and back); no test issues a DELETE against a conversation, so a route that grew one would not be caught here."
-        }
-    }
+    "judgments": {}
 }

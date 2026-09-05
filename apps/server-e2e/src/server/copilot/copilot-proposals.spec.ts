@@ -6,6 +6,7 @@ import {
     type TestApp
 } from '../../support/test-app';
 import {
+    getActivityRows,
     resetDb,
     seedActiveUser,
     seedArticles,
@@ -14,6 +15,7 @@ import {
     seedWorkspace,
     type SeededWorkspace
 } from '../../support/seed';
+import { drainOutbox } from '../../support/outbox';
 import { copilotCalls, scriptCopilot } from '../../support/copilot';
 import { framesOfType, parseSse, streamSse } from '../../support/sse';
 import { TEST_ALLOWED_ORIGIN } from '../../support/test-config';
@@ -729,6 +731,52 @@ describe('Copilot changes', () => {
                 .set('X-Workspace-Id', workspace.id)
                 .expect(200);
             expect(revisions.body.total).toBeGreaterThan(0);
+        });
+
+        /**
+         * The third of the invariant's three claims, and the one that decides
+         * whether the audit log can be read at all: **the same activity row**.
+         *
+         * The revision case above proves the write went through the ordinary
+         * use-case. It says nothing about who the journal names for it, and
+         * that is the half worth asserting — an applier stamping a machine
+         * identity leaves every other assertion in this file green while the
+         * question an audit trail exists to answer stops having an answer.
+         *
+         * `via` is the counterpart: with a change applying the moment it is
+         * drafted (ADR-0009), a row attributed to Ada with nothing else on it
+         * cannot distinguish "Ada edited this" from "Ada asked the agent to".
+         */
+        it('journals the change under the person who asked for it [copilot:I-13]', async () => {
+            const [id] = await seedArticles(
+                [{ text: 'Old headline', select: 'article' }],
+                workspace.id
+            );
+            const { user, agent } = await signIn(ADMIN_EMAIL, 'admin');
+
+            await edit(agent, id);
+            // The audit row is raised through the outbox, so it exists only
+            // once the dispatcher has run.
+            await drainOutbox(harness.app);
+
+            const rows = (await getActivityRows()).filter(
+                (row) => row.subjectId === id
+            );
+            expect(rows.length).toBeGreaterThan(0);
+            for (const row of rows) {
+                expect(row.actorId).toBe(user.id);
+                expect(row.actorEmail).toBe(ADMIN_EMAIL);
+            }
+            expect(
+                rows.some(
+                    (row) =>
+                        (
+                            row.meta as {
+                                via?: { kind?: string };
+                            } | null
+                        )?.via?.kind === 'copilot'
+                )
+            ).toBe(true);
         });
 
         it('merges rather than replacing the untouched fields', async () => {

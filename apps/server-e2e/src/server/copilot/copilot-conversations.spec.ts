@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import {
     closeTestApp,
@@ -380,6 +381,33 @@ describe('Copilot conversations (PATCH /api/copilot/conversations/:id)', () => {
             // Same user, same session — but the header names the workspace the
             // thread does not belong to.
             await patch(agent, id).send({ title: 'moved' }).expect(404);
+        });
+
+        /**
+         * The other half of "not probeable", and the half no other case here
+         * reaches: a 404 only hides an id if it is the **same** 404 a thread
+         * that exists nowhere gets. Compare only "not yours" against a success
+         * and a route that answered 403 for one and 404 for the other would
+         * still look right — while telling any member of the workspace which
+         * ids are real, one request at a time.
+         */
+        it('answers a thread that does not exist exactly as it answers one that is not yours [copilot:I-30]', async () => {
+            const owner = await signIn(OWNER_EMAIL);
+            const mine = await startThread(owner.agent, 'private');
+            const other = await signIn(OTHER_EMAIL);
+
+            const notYours = await patch(other.agent, mine).send({
+                title: 'mine now'
+            });
+            const noSuchThing = await patch(other.agent, randomUUID()).send({
+                title: 'mine now'
+            });
+
+            expect(notYours.status).toBe(404);
+            expect(noSuchThing.status).toBe(notYours.status);
+            // Same body, not merely the same code: a message naming the thread
+            // in one case and not the other is the same oracle in prose.
+            expect(noSuchThing.body.message).toBe(notYours.body.message);
         });
 
         it('403s a role without copilot:use', async () => {

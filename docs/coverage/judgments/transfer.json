@@ -219,21 +219,9 @@
         }
     ],
     "judgments": {
-        "transfer:I-05": {
-            "state": "partial",
-            "missing": "Two of the three clauses are now pinned: flatten.spec.ts pins the CSV columns, and the round-trip spec's 'leaves the inverse side of a two-way relation out of the document' pins that the inverse side is not exported. What remains unpinned is 'is not written on import' — no test feeds a document that carries an inverse-side reference and asserts the importer ignores it rather than trying to write the link from the wrong end."
-        },
-        "transfer:I-09": {
-            "state": "partial",
-            "missing": "Only the second clause is pinned. `import-media.service.spec.ts` -> 'deletes only what its own run wrote' proves the rollback list is caller-owned (two runs through one singleton; rolling back the first leaves the second's row), but the first clause — that the apply runs entirely in **one transaction** — is not asserted anywhere: no test drives a mid-apply failure and reads back that the earlier entries were rolled back. That needs a real transaction, so it is server-e2e work."
-        },
         "transfer:I-28": {
             "state": "partial",
-            "missing": "The invariant is broader than the code. `upload-reader.spec.ts` pins what is true: the ZIP signature beats a `.json` filename, and a name that matches no extension falls through to a byte sniff. Among the three **text** formats the filename still decides — `readUpload` does `formatFromFilename(name) ?? sniffTextFormat(bytes)` — so a JSON document named `.csv` is parsed as CSV. The 'declared format' half is true in the strongest sense (the request's `format` field is never read by the reader at all) and is therefore unobservable rather than untested."
-        },
-        "transfer:I-41": {
-            "state": "partial",
-            "missing": "Only 'the collection's type' clause is pinned (import-dialog.spec.ts -> 'an import re-reads the collection it wrote into'). The other two — that **every** type named in the verdicts is refreshed, and that the media library is re-read — are not observable in a browser: `invalidateQueries` refetches only *active* queries, the import dialog is reachable only from the collection you are already looking at (so the second type's list and the media library are always unmounted), and the entry list's `staleTime` is 0, so navigating to them afterwards refetches whether or not they were invalidated. Reaching this needs a unit test over `useImportApply` with its own `QueryClient` — asserting the refresh pass ran for each `$type` in the verdicts and for the `['media']` prefix — and `packages/transfer/admin` currently has no test setup at all."
+            "missing": "**This clause is stale, not untested — the dossier overstates the code, and the fix belongs in `docs/artifacts/transfer.html`.** `readUpload` does `looksLikeZip(bytes)` first, then `formatFromFilename(name) ?? sniffTextFormat(bytes)`. So the bytes decide exactly two things: whether an upload is an **archive** (pinned — a ZIP named `.json` is read as the archive it is), and which text format it is when the filename names none (pinned). Among the three text formats a filename that does name one is **authoritative**, so a JSON document named `.csv` is parsed as CSV and fails; \"the file name ... is a hint\" is false there. The `declared format` half is true in the strongest sense — the request's `format` field is never read by the reader at all — and is therefore unobservable rather than untested. No defect: the consequence is a 400 on a mislabelled upload, and the byte-first rule holds where it carries risk (a zip bomb disguised as `.json`). Suggested wording: \"The bytes decide whether an upload is an archive, and decide the text format when the file name names none; the declared format is never read.\""
         }
     }
 }

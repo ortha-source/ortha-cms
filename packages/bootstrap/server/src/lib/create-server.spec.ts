@@ -302,6 +302,108 @@ describe('createServer (the composition root)', () => {
         });
     });
 
+    describe('the reference routes bypass Nest’s router', () => {
+        it('mounts them on the http adapter, outside the prefix, the guards and the pipe [bootstrap:I-08]', async () => {
+            await createServer({
+                plugins: [plugin()],
+                port: 0,
+                globalPrefix: 'api',
+                docs: { enabled: true }
+            });
+
+            // `production-parity.spec.ts` pins two of the three clauses through
+            // real requests: the paths answer without the `/api` prefix, and an
+            // unauthenticated request reaches them. The pipe clause has no
+            // request that can show it — a global pipe runs per *parameter* of a
+            // Nest handler, and a route with nothing to validate looks identical
+            // whichever router it is on — so what is pinned here is the single
+            // fact all three follow from: these are handlers on the Express
+            // adapter, and Nest's router has never heard of them.
+            //
+            // Move `setupApiDocs` to an `@Controller('reference')` — the tidy
+            // refactor this rules out — and all three clauses break at once:
+            // the paths acquire the prefix, every global guard runs on them, and
+            // the pipe joins their pipeline. Here, `adapter.get` simply stops
+            // being called.
+            expect(
+                recording.all('adapter.get').map((call) => call.args[0])
+            ).toEqual(['/reference/json', '/reference']);
+
+            // Both are installed, and installed *first*: the point is not that
+            // the host forgot to configure them, it is that configuring them
+            // cannot reach a route registered this way.
+            expect(recording.all('setGlobalPrefix')).toEqual([
+                { name: 'setGlobalPrefix', args: ['api'] }
+            ]);
+            expect(recording.all('useGlobalPipes')).toHaveLength(1);
+            expect(recording.at('setGlobalPrefix')).toBeLessThan(
+                recording.at('adapter.get')
+            );
+            expect(recording.at('useGlobalPipes')).toBeLessThan(
+                recording.at('adapter.get')
+            );
+        });
+    });
+
+    describe('shutdown hooks are installed while the port is still closed', () => {
+        it('calls enableShutdownHooks exactly once, before listen [bootstrap:I-16]', async () => {
+            await createServer({
+                plugins: [plugin()],
+                port: 0,
+                docs: { enabled: false }
+            });
+
+            // The ordering half of the invariant, which
+            // `apps/server-e2e/src/harness/create-server.spec.ts` cannot see: it
+            // counts `SIGTERM` listeners on an app that has already listened, so
+            // a host that installed the hooks *after* `listen` would look the
+            // same to it — and the window it opens is exactly the one that
+            // matters, a pod signalled during roll-out before the first request
+            // has finished.
+            expect(recording.all('enableShutdownHooks')).toHaveLength(1);
+            expect(recording.at('enableShutdownHooks')).toBeLessThan(
+                recording.at('listen')
+            );
+        });
+    });
+
+    describe('a plugin’s migrations folder is resolved lazily', () => {
+        it('never calls migrations.dir while booting [bootstrap:I-18]', async () => {
+            // A thunk that would take the process down if the host touched it.
+            // `packages/cli/src/lib/migrate.spec.ts` pins the other half — that
+            // `migrate` calls it and passes the result as `migrationsFolder` —
+            // so between them the thunk is called at migration time and at no
+            // other time.
+            const dir = jest.fn(() => {
+                throw new Error(
+                    'migrations.dir was resolved at boot; it must only be called by `migrate`'
+                );
+            });
+
+            await expect(
+                createServer({
+                    plugins: [
+                        plugin({
+                            name: 'identity',
+                            migrations: {
+                                dir,
+                                table: '__drizzle_migrations_identity'
+                            }
+                        })
+                    ],
+                    port: 0,
+                    docs: { enabled: false }
+                })
+            ).resolves.toBeDefined();
+
+            // The count, not merely the absence of a throw: a host that called
+            // the thunk inside a `try` would still boot, and would still have
+            // resolved a path that, for a plugin installed from npm, may not
+            // exist in the deployed tarball at all.
+            expect(dir).not.toHaveBeenCalled();
+        });
+    });
+
     describe('the admin bundle is mounted last', () => {
         let staticDir: string;
 

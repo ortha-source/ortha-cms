@@ -95,7 +95,7 @@
             "id": "media:I-12",
             "file": "packages/media/server/src/lib/application/reclaim-asset-blobs.spec.ts",
             "anchor": "removes the original and every derivative",
-            "why": "reclaimAssetBlobs walks Asset.storageKeys, so a derivative left behind fails. The 'a rolled-back deletion destroys no bytes' half is not pinned anywhere."
+            "why": "reclaimAssetBlobs walks Asset.storageKeys, so a derivative left behind fails."
         },
         {
             "id": "media:I-12",
@@ -348,12 +348,13 @@
             "file": "apps/admin-e2e/src/content/media-fields.spec.ts",
             "anchor": "stages an upload and sends it only when the record is saved",
             "why": "The upload spy stays at 0 until Save, then goes to 1 and the saved value holds the real id. The 'a failed upload aborts the whole save' and 'no second upload on retry' clauses are not pinned."
+        },
+        {
+            "id": "media:I-12",
+            "file": "packages/media/server/src/lib/application/use-cases/deletion-frees-bytes-post-commit.spec.ts",
+            "anchor": "describe('DeleteAssetsUseCase — a rolled-back deletion destroys no bytes",
+            "why": "The ordering clause, for both delete paths. A UnitOfWork that records how many blobs had been freed at the moment the transaction ended asserts zero, and a rollback variant asserts the provider was never called while the aggregates really were walked. Moving reclaimManyAssetBlobs inside uow.run fails all four."
         }
     ],
-    "judgments": {
-        "media:I-12": {
-            "state": "partial",
-            "missing": "The 'a rolled-back deletion destroys no bytes' clause. `reclaimAssetBlobs` is pinned by its own unit spec and the blob store's emptiness after a successful DELETE by `blob-store-isolation.spec.ts`, but nothing drives a delete that rolls back *after* the reclaim would have run — so a use case that freed the blobs inside the transaction would pass every test here and destroy the bytes behind a surviving row. `MediaWorkspacePurger` has the same ordering and now has it pinned (media:I-35, via the `reclaim` thunk not having fired at return time); `DeleteAssetsUseCase` and `DeleteFolderUseCase` do not."
-        }
-    }
+    "judgments": {}
 }

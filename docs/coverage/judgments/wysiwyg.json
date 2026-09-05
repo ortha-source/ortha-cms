@@ -35,7 +35,7 @@
             "id": "wysiwyg:I-11",
             "file": "apps/admin-e2e/src/content/wysiwyg-fields.spec.ts",
             "anchor": "stores the formatting the toolbar applied",
-            "why": "The saved body is compared with toEqual against the exact expected document, so a meaningful document is handed to the form verbatim. The other half — an empty document stored as null — is NOT pinned: the emptied-field test only asserts the required error, and content-admin's required check calls isEmptyRichText, which an empty-paragraph document also satisfies."
+            "why": "The saved body is compared with toEqual against the exact expected document, so a meaningful document is handed to the form verbatim."
         },
         {
             "id": "wysiwyg:I-12",
@@ -71,25 +71,25 @@
             "id": "wysiwyg:I-21",
             "file": "apps/admin-e2e/src/content/wysiwyg-fields.spec.ts",
             "anchor": "refuses a URL the editor would not publish",
-            "why": "Pins the dialog on both refusals: `javascript:alert(1)` and the protocol-relative `//evil.host/x.png` each show the error and insert no image. The node's own check — `insertMedia`'s filter and `parseHTML`'s `getAttrs` — is still unexercised (see the `partial` for I-21)."
+            "why": "Pins the dialog on both refusals: `javascript:alert(1)` and the protocol-relative `//evil.host/x.png` each show the error and insert no image."
         },
         {
             "id": "wysiwyg:I-23",
             "file": "apps/admin-e2e/src/content/wysiwyg-fields.spec.ts",
             "anchor": "resizes an image from the keyboard, and stores the width",
-            "why": "Pins two clauses: a keyboard resize lands in the saved node's `width`, and no `height` is ever stored. The 'below 64px reads as no width chosen' clause is not asserted (see the `partial` for I-23)."
+            "why": "Pins two clauses: a keyboard resize lands in the saved node's `width`, and no `height` is ever stored."
         },
         {
             "id": "wysiwyg:I-24",
             "file": "apps/admin-e2e/src/content/wysiwyg-fields.spec.ts",
             "anchor": "centres a selected image, and stores where it sits",
-            "why": "The figure carries data-align=\"center\", the saved image node's align is 'center', and the Alignment menu has no 'Justify' item while media is selected. Not pinned: that `left` is never written, and that the alignment is applied with margins."
+            "why": "The figure carries data-align=\"center\", the saved image node's align is 'center', and the Alignment menu has no 'Justify' item while media is selected."
         },
         {
             "id": "wysiwyg:I-26",
             "file": "apps/admin-e2e/src/content/wysiwyg-fields.spec.ts",
             "anchor": "clears the alt when the image is marked decorative",
-            "why": "Pins the second clause: the saved image carries the real alt value, empty included (alt === '' alongside decorative). The editor-side fallback accessible name ('Embedded image') is asserted nowhere."
+            "why": "Pins the stored half: the saved image carries the real alt value, empty included (alt === '' alongside decorative)."
         },
         {
             "id": "wysiwyg:I-27",
@@ -180,36 +180,67 @@
             "file": "apps/admin-e2e/src/content/entry-read-only.spec.ts",
             "anchor": "opens the body as a passage to read, and takes nothing back from it",
             "why": "The remaining clauses, less one: the expanded read-only surface is a labelled `region` (with no `textbox` anywhere on the page), it is `contenteditable=\"false\"`, and keystrokes aimed at it change neither the document nor the collapsed card the form renders from."
+        },
+        {
+            "id": "wysiwyg:I-11",
+            "file": "packages/wysiwyg/admin/src/lib/domain/richTextValue/index.spec.ts",
+            "anchor": "it('stores an emptied editor as null, not as an empty paragraph'",
+            "why": "The other half, and the one the browser cannot see: content-admin's required check calls isEmptyRichText, which an empty-paragraph document also satisfies, so only the stored shape tells null from a doc with one empty paragraph."
+        },
+        {
+            "id": "wysiwyg:I-21",
+            "file": "packages/wysiwyg/admin/src/lib/infrastructure/extensions/commands.spec.ts",
+            "anchor": "it('places the admissible ones out of a mixed list'",
+            "why": "The node's own check on the insert side: insertMedia filters per embed on isSafeMediaSrc, so a picker returning one unusable asset still places the other three and stores no broken node."
+        },
+        {
+            "id": "wysiwyg:I-21",
+            "file": "packages/wysiwyg/admin/src/lib/infrastructure/extensions/commands.spec.ts",
+            "anchor": "it('is refused by the node, not only by the dialog'",
+            "why": "The parse side: an editor opened on markup carrying a javascript: and a protocol-relative img keeps only the admissible one and emits no src=\"\" — the parseHTML getAttrs a body written straight through the API meets. Mutating getAttrs to () => null fails it."
+        },
+        {
+            "id": "wysiwyg:I-23",
+            "file": "packages/wysiwyg/admin/src/lib/infrastructure/renderRichText/index.spec.ts",
+            "anchor": "it('reads a width below the floor as no width at all'",
+            "why": "The parse side of the floor: a stored width=\"20\" reads back as no width rather than being clamped to 64. (The live drag handle does clamp, which is a bound on a gesture rather than on what a width value means.)"
+        },
+        {
+            "id": "wysiwyg:I-23",
+            "file": "packages/wysiwyg/admin/src/lib/infrastructure/extensions/commands.spec.ts",
+            "anchor": "it('reads an embed narrower than the floor as no width chosen'",
+            "why": "The write side: insertMedia stores null for a below-floor width and 320 for a real one, so a Math.max clamp in its place fails here."
+        },
+        {
+            "id": "wysiwyg:I-24",
+            "file": "packages/wysiwyg/admin/src/lib/infrastructure/extensions/commands.spec.ts",
+            "anchor": "it('stops writing data-align once the picture goes back to left'",
+            "why": "Pins that `left` is never written: centring then re-aligning left removes the attribute from the serialized body while the node still knows its alignment. The sibling case pins the parse side (a stored data-align=\"left\" is understood and normalized away)."
+        },
+        {
+            "id": "wysiwyg:I-24",
+            "file": "packages/wysiwyg/admin/src/lib/package-structure.spec.ts",
+            "anchor": "it('moves media by its margins, never by text-align'",
+            "why": "Pins the mechanism: every [data-align] rule in styles.css declares margin-inline and none declares text-align, and no rule exists for left at all. text-align positions a block's inline children, so a stylesheet tidied onto it would move nothing."
+        },
+        {
+            "id": "wysiwyg:I-26",
+            "file": "packages/wysiwyg/admin/src/lib/presentation/components/WysiwygEditorPanel/index.spec.tsx",
+            "anchor": "it('is named for the author without inventing one for the reader'",
+            "why": "The editor-side half, asserted together with the one it must not break: a described image keeps its alt, an un-alt'd one renders 'Embedded image', and the editor's own getHTML still carries alt=\"\" and never the fallback."
+        },
+        {
+            "id": "wysiwyg:I-31",
+            "file": "packages/wysiwyg/admin/src/lib/presentation/components/WysiwygEditorPanel/index.spec.tsx",
+            "anchor": "describe('where the caret starts",
+            "why": "The autofocus clause, reached through the selection rather than through DOM focus: the panel's own editor (via .tiptap's editor back-reference) puts the caret at doc.content.size - 1 when editable and leaves it at 1 when read-only. Flipping the guard to a constant 'end' fails the read-only case."
+        },
+        {
+            "id": "wysiwyg:I-34",
+            "file": "packages/wysiwyg/admin/src/lib/infrastructure/renderRichText/index.spec.ts",
+            "anchor": "it('serializes one document to the same markup'",
+            "why": "The second clause: a document holding headings, lists, a table, columns, an aligned image and a video serializes byte-for-byte identically through the editor's getHTML and through the preview's renderRichText, with the fixture's own contents asserted so the comparison cannot be vacuous. The sibling case pins the one deliberate difference (links flattened to spans)."
         }
     ],
-    "judgments": {
-        "wysiwyg:I-31": {
-            "state": "partial",
-            "missing": "One clause of four is left, and it is not mechanically checkable: that focus is **not** set when a read-only panel opens. `autofocus: readOnly ? false : 'end'` cannot be observed, because a ProseMirror view with `editable: false` renders `contenteditable=\"false\"` and no `tabindex`, so `view.focus()` is a no-op — flipping the guard changes nothing a browser can see. The other three (role `region`, an inert document, nothing written back into the form) are pinned by `entry-read-only.spec.ts` -> 'opens the body as a passage to read, and takes nothing back from it'."
-        },
-        "wysiwyg:I-34": {
-            "state": "partial",
-            "missing": "The scoping half is pinned: `package-structure.spec.ts` parses `styles.css` and fails on any selector outside `.ortha-wysiwyg`, and asserts both surfaces take the class from `WYSIWYG_PROSE_CLASS`. The second clause -- 'the editor surface and the preview render the same markup identically' -- is not mechanically checked: sharing one scope and one schema makes it structural rather than proven, and comparing the two rendered surfaces needs a browser with the editor open beside a preview of the same value."
-        },
-        "wysiwyg:I-11": {
-            "state": "partial",
-            "missing": "Only the 'handed to the form verbatim' half is pinned ('stores the formatting the toolbar applied' compares the saved body with `toEqual` against the exact document). The other half -- an **empty** document stored as `null` rather than as a doc with one empty paragraph -- is asserted nowhere: 'stores an emptied field as empty' empties a *required* field and only checks the resulting `Required` error, and content-admin's required check calls `isEmptyRichText`, which an empty-paragraph document also satisfies. It needs an emptied **optional** body saved, with `values.body` read back as `null`."
-        },
-        "wysiwyg:I-21": {
-            "state": "partial",
-            "missing": "The dialog is now pinned on both refusals ('refuses a URL the editor would not publish' covers `javascript:` and the protocol-relative `//evil.host/x.png`). What is still unpinned is that the **node itself** re-checks: `insertMedia` filters on `isSafeMediaSrc` and `parseHTML` refuses an `img[src]` that fails it, so a body written straight through the API cannot carry one. That is the check a dialog cannot stand in for, and no test reaches it."
-        },
-        "wysiwyg:I-23": {
-            "state": "partial",
-            "missing": "Two of three clauses are pinned by 'resizes an image from the keyboard, and stores the width': the keyboard resize lands in `width`, and no `height` is ever stored (the media node declares no such attribute). The third -- a width below `MEDIA_MIN_WIDTH` (64px) reads as *no width chosen* rather than being clamped up -- is not asserted: it needs the handle nudged far enough down to cross the floor, and the `parseHTML` side of the same rule (a stored `width=\"12\"` reading back as `null`) has no test at all."
-        },
-        "wysiwyg:I-24": {
-            "state": "partial",
-            "missing": "'centres a selected image, and stores where it sits' pins centre: `data-align=\"center\"` on the figure, `align: 'center'` in the saved node, and no 'Justify' item while media is selected. Two clauses are left: that `left` is **never written** (it is the default, and `renderHTML` deliberately emits nothing for it -- so choosing Alignment > Left on an aligned picture must make the attribute disappear from the saved body), and that the alignment is applied with margins rather than `text-align`, which is a computed-style question no assertion asks."
-        },
-        "wysiwyg:I-26": {
-            "state": "partial",
-            "missing": "The stored half is pinned ('records a decorative image as answered, not as missing': the saved image carries the real alt, empty included, alongside `decorative`). The editor-side clause is not: an image with no alt still gets a fallback accessible name ('Embedded image') so it does not read as an unnamed graphic to the **author's own** screen reader while they work. Nothing asserts that name, and the two are opposite requirements -- inventing an alt for published content is worse than having none -- so a fix that satisfied one by breaking the other would pass."
-        }
-    }
+    "judgments": {}
 }

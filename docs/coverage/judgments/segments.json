@@ -181,11 +181,5 @@
             "anchor": "refuses more audiences on one side than an entry may hold",
             "why": "201 ids in extensions.access.allow 400s and leaves total 0 — the cap is applied on the DTO-less entry-save path."
         }
-    ],
-    "judgments": {
-        "segments:I-07": {
-            "state": "partial",
-            "missing": "Only the REST expansion is pinned. The invariant claims the both-fields rule holds \"across all three protocols\", and no test drives a restricted target through GraphQL's nested resolvers or the MCP content_relations tool — apps/server-e2e/src/server/segments/ mentions neither, and the reader header is set in no GraphQL or MCP suite. The citation's own `why` already said \"REST only\"; this makes it visible to the ledger. It matters because the three protocols reach RelationLinkService.targetVisibleWhere by different call sites: a resolver that assembled items without the count, or an MCP handler that passed no visibility, would leak the cardinality of what is hidden while the REST test stayed green."
-        }
-    }
+    ]
 }

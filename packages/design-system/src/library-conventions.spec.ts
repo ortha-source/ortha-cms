@@ -1,4 +1,5 @@
 import { readFileSync, readdirSync } from 'node:fs';
+import ts from 'typescript';
 import { join, relative, sep } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -199,6 +200,134 @@ describe('library-wide source conventions', () => {
         ).toEqual([]);
     });
 
+    /**
+     * The second clause of `design-system:I-06`, which the react-intl scan above
+     * cannot reach: **every visible string either arrives as a prop or has an
+     * English default a host can override**.
+     *
+     * A hard-coded `<span>Retry</span>` needs no i18n library at all, so it
+     * passes every check in this file and every check in
+     * `package-manifest.spec.ts`. `labels/index.spec.tsx` covers the one string
+     * that has a context default and `localizable-copy.spec.tsx` the props that
+     * carry English defaults; nothing enumerated the library's own text.
+     *
+     * Read with TypeScript's own parser rather than a regex — `>` opens a
+     * generic and closes a comparison at least as often as it closes a tag —
+     * the technique `packages/utils/admin/src/leaf-hygiene.spec.ts` uses for the
+     * same rule in the other leaf.
+     */
+    /** Every non-blank JSX text node in the library, with the file it is in. */
+    function jsxTextNodes(): { module: string; text: string }[] {
+        const found: { module: string; text: string }[] = [];
+        for (const file of files) {
+            if (!file.path.endsWith('.tsx')) continue;
+            const parsed = ts.createSourceFile(
+                file.module,
+                file.text,
+                ts.ScriptTarget.Latest,
+                true,
+                ts.ScriptKind.TSX
+            );
+            const visit = (node: ts.Node) => {
+                if (ts.isJsxText(node)) {
+                    const text = node.getText().trim();
+                    if (text) found.push({ module: file.module, text });
+                }
+                ts.forEachChild(node, visit);
+            };
+            visit(parsed);
+        }
+        return found;
+    }
+
+    /**
+     * The literals that are allowed to stay, and why each one is not a string a
+     * host would ever want to translate. Extending this list is the deliberate
+     * act the scan exists to force.
+     */
+    const ALLOWED_LITERALS = [
+        // A proper noun. Translating a product name is not localization.
+        { module: 'lib/components/ui/logo.tsx', text: 'Ortha CMS' },
+        // Inside a `role="presentation" aria-hidden="true"` span, so it is read
+        // by nobody and displayed to nobody — the ellipsis glyph beside it is
+        // what the sighted user sees. Not a visible string in any sense the
+        // invariant means.
+        { module: 'lib/components/ui/breadcrumb.tsx', text: 'More' }
+    ];
+
+    it('hard-codes no visible string of its own [design-system:I-06]', () => {
+        const offenders = jsxTextNodes()
+            .filter(
+                (node) =>
+                    !ALLOWED_LITERALS.some(
+                        (allowed) =>
+                            allowed.module === node.module &&
+                            allowed.text === node.text
+                    )
+            )
+            .map((node) => `${node.module}: ${node.text}`);
+
+        expect(offenders).toEqual([]);
+    });
+
+    it('leaves every hard-coded accessible name overridable by the caller [design-system:I-06]', () => {
+        // The other half of "arrives as a prop". `Breadcrumb` and `Pagination`
+        // each write an English `aria-label` — announced text, not decoration —
+        // and both are acceptable for one reason only: `{...props}` is spread
+        // *after* it, so a consumer passing `aria-label` wins. Written before
+        // the spread instead, the same line becomes a name no host can change,
+        // and it reads identically in a diff.
+        const offenders: string[] = [];
+        const NAMING = new Set([
+            'aria-label',
+            'aria-roledescription',
+            'aria-valuetext',
+            'alt',
+            'placeholder',
+            'title'
+        ]);
+
+        for (const file of files) {
+            if (!file.path.endsWith('.tsx')) continue;
+            const parsed = ts.createSourceFile(
+                file.module,
+                file.text,
+                ts.ScriptTarget.Latest,
+                true,
+                ts.ScriptKind.TSX
+            );
+            const visit = (node: ts.Node) => {
+                if (ts.isJsxAttributes(node)) {
+                    node.properties.forEach((property, index) => {
+                        if (!ts.isJsxAttribute(property)) return;
+                        if (!NAMING.has(property.name.getText())) return;
+                        const value = property.initializer;
+                        const literal =
+                            value &&
+                            (ts.isStringLiteral(value) ||
+                                (ts.isJsxExpression(value) &&
+                                    value.expression &&
+                                    ts.isStringLiteral(value.expression)));
+                        if (!literal) return;
+                        // Overridable iff some later attribute is a spread.
+                        const overridable = node.properties
+                            .slice(index + 1)
+                            .some((later) => ts.isJsxSpreadAttribute(later));
+                        if (!overridable) {
+                            offenders.push(
+                                `${file.module}: ${property.getText()}`
+                            );
+                        }
+                    });
+                }
+                ts.forEachChild(node, visit);
+            };
+            visit(parsed);
+        }
+
+        expect(offenders).toEqual([]);
+    });
+
     it('passes the caller className last into every cn call [design-system:I-05]', () => {
         // `cn` is `twMerge(clsx(...))`, so "the caller wins" is not a property
         // of `cn` at all — it is a property of the *argument order* at 161 call
@@ -374,9 +503,7 @@ describe('motion', () => {
                     const properties = keyframeProperties(name);
                     return (
                         properties.length > 0 &&
-                        properties.every((property) =>
-                            MOTIONLESS.has(property)
-                        )
+                        properties.every((property) => MOTIONLESS.has(property))
                     );
                 })
                 .flatMap((rule) => rule.selectors)
@@ -482,18 +609,17 @@ describe('motion', () => {
         // branches in the stylesheet and is checked by the case above.
         const live = /(^|:)animate-(?!in\b|out\b|none\b)[a-z-]+$/;
 
-        const offenders = files
-            .flatMap((file) =>
-                stringLiterals(file.code)
-                    .filter((literal) => {
-                        const tokens = literal.split(/\s+/);
-                        return (
-                            tokens.some((token) => live.test(token)) &&
-                            !tokens.includes('motion-reduce:animate-none')
-                        );
-                    })
-                    .map((literal) => `${file.path}: ${literal}`)
-            );
+        const offenders = files.flatMap((file) =>
+            stringLiterals(file.code)
+                .filter((literal) => {
+                    const tokens = literal.split(/\s+/);
+                    return (
+                        tokens.some((token) => live.test(token)) &&
+                        !tokens.includes('motion-reduce:animate-none')
+                    );
+                })
+                .map((literal) => `${file.path}: ${literal}`)
+        );
 
         expect(offenders).toEqual([]);
     });
