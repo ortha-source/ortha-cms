@@ -1403,6 +1403,37 @@ The rule when adding a public route: add it to `PUBLIC_ENTRY_ROUTES`, never to
 has no schema at all, which the document is otherwise mostly made of — see
 [`bootstrap-server`](../../bootstrap/server/AGENTS.md#the-response-schema-gap).
 
+### Routes other plugins mount under `{typeName}`
+
+Both tables carry a few `FOREIGN` entries — transfer's `/export*` and
+`/import*`, segments' `/{id}/access`. Those routes belong to other plugins,
+which describe their **bodies** themselves; what this pass writes onto them is
+the `typeName` **parameter**, because which names are valid there is this
+plugin's contract and the registry is the only thing that knows them.
+
+It writes nothing else, and that restraint is the point: the failure codes
+differ per owner — transfer 404s an unknown type, segments' public `/access`
+answers **400** — so stamping this plugin's usual 404 on them would publish
+something the API does not do.
+
+### The saved-views pass
+
+`ContentViewsPlugin` carries a **second** `decorate`
+(`docs/describe-views-api.ts` + `docs/views-schemas.ts`), because saved views
+ship as their own `ServerPlugin` entry and a plugin describes what it registers.
+Keeping the two apart also keeps the route tables honest: neither can
+accidentally claim the other's paths. `SavedView.scope` is `content:<typeName>`,
+so it is generated from the registry the same way the entry schemas are — an
+enum of the real lists, falling back to a plain string when nothing is
+registered (an empty `enum` is a schema nothing can satisfy, the same class of
+defect as a `nullable` that does not widen one).
+
+Both passes write through `docs/openapi-writer.ts`, whose rule is that a schema
+goes onto **whichever 2xx key the scanner already emitted** and a `204` gets
+none. That guard is unreachable from either pass's own tests — a `204` route is
+never in a route table — so it is pinned by `openapi-writer.spec.ts` directly;
+verified by mutation, since deleting it left every pass-level assertion green.
+
 **Nullability is not one flag.** `nullable: true` in OpenAPI 3.0 modifies a
 schema's `type`, so it is inert on a bare `oneOf` (a `richtext` body) and does
 not widen an enumeration (a `select`). `fieldSchema`'s `nullable()` helper adds

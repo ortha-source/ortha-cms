@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 import type { ServerPlugin } from '@orthacms/bootstrap-server';
 import { SegmentsModule } from '../segments.module';
+import { describeSegmentsApi } from '../docs/describe-segments-api';
 import type { SegmentsPluginConfig } from '../types/segments-config';
 
 /**
@@ -36,6 +37,12 @@ export function SegmentsPlugin(
         migrations: {
             dir: () => join(__dirname, '..', '..', '..', 'migrations'),
             table: '__drizzle_migrations_segments'
+        },
+        // Every route here answers a framework-free `interface`, which the
+        // swagger scanner cannot see and ADR-0003 forbids decorating — so the
+        // shapes are written onto the finished document instead.
+        docs: {
+            decorate: (document) => describeSegmentsApi(document)
         }
     };
 }

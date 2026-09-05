@@ -1,5 +1,6 @@
 import type { ServerPlugin } from '@orthacms/bootstrap-server';
 import { TransferModule } from '../transfer.module';
+import { describeTransferApi } from '../docs/describe-transfer-api';
 import type { TransferPluginConfig } from '../types/transfer-config';
 
 /** The transfer plugin, carrying its config alongside the standard shape. */
@@ -67,6 +68,12 @@ export function TransferPlugin(
     return {
         name: 'transfer',
         module: TransferModule.forRoot(config),
-        transferConfig: config
+        transferConfig: config,
+        // Nothing here is visible to `@nestjs/swagger`: three routes answer
+        // framework-free `interface`s from `@orthacms/transfer-domain`, and the
+        // two downloads write through `@Res()`, which erases the return type.
+        docs: {
+            decorate: (document) => describeTransferApi(document)
+        }
     };
 }

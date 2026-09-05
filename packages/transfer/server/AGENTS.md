@@ -67,3 +67,30 @@ other's files.
 **Nothing in an uploaded file names a workspace.** The manifest carries the
 source workspace and the importer never reads it; the request's workspace is
 stamped on every write.
+
+## OpenAPI (`src/lib/docs/`)
+
+`TransferPlugin` contributes a `docs.decorate` pass. The scanner could describe
+none of these five operations: three answer framework-free `interface`s from
+`@orthacms/transfer-domain`, and the two downloads write through `@Res()`, which
+erases the return type entirely.
+
+Three things about it are worth knowing before changing it:
+
+- **The export offers four content types, `application/zip` among them.** The
+  response's type is chosen from the request body's `format`, and `csv` is
+  additionally promoted to a ZIP of one CSV per type whenever the export reaches
+  more than one — which any `depth.relations` export does. Measured against a
+  live server: the same `format: "csv"` request answers `text/csv` with
+  relations off and `application/zip` with them on. The set comes from
+  `TRANSFER_FORMAT_CAPABILITIES`, so a new format lands in the document with no
+  edit here.
+- **The apply route is described with the preview's shape.** Its declared return
+  type is the narrower `ImportResult`, but both routes return whatever the one
+  pipeline produced, so `version` and `hasChanges` are on the wire either way —
+  verified live. Describing the type instead of the API would drop two fields a
+  consumer can rely on.
+- **The `typeName` parameter is not touched here.** These routes are mounted
+  under content's `/content/{typeName}` namespace and content's own pass writes
+  the registered-name enum onto them; this plugin cannot see the registry at
+  decorate time, and a second writer would be a second thing to keep in step.

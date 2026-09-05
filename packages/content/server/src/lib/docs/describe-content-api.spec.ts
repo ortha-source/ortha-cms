@@ -132,6 +132,34 @@ function scannedDocument(): OpenApiDocument {
             '/api/v1/content-types/{name}': {
                 get: { responses: { '200': { description: '' } } }
             },
+            // Two routes other plugins mount under this plugin's `{typeName}`
+            // namespaces — transfer's export, segments' access. They are here
+            // because the `typeName` enum is content's to write and the
+            // response is not.
+            '/api/content/{typeName}/export': {
+                post: {
+                    parameters: [
+                        {
+                            name: 'typeName',
+                            in: 'path',
+                            schema: { type: 'string' }
+                        }
+                    ],
+                    responses: { '200': { description: '' } }
+                }
+            },
+            '/api/v1/content/{typeName}/{id}/access': {
+                put: {
+                    parameters: [
+                        {
+                            name: 'typeName',
+                            in: 'path',
+                            schema: { type: 'string' }
+                        }
+                    ],
+                    responses: { '200': { description: '' } }
+                }
+            },
             '/api/media/assets': {
                 get: { responses: { '200': { description: '' } } }
             }
@@ -510,6 +538,49 @@ describe('describeContentApi', () => {
             expect(flat['properties']['translations']).toBeUndefined();
             expect(localized['properties']['translations']).toBeDefined();
             expect(localized['properties']['localeGroupId']).toBeDefined();
+        });
+    });
+
+    describe('routes another plugin mounts under a `{typeName}` prefix', () => {
+        it('constrains the parameter, because only the registry knows the names', () => {
+            const document = scannedDocument();
+            describeContentApi(document, [article, settings]);
+
+            for (const [route, method] of [
+                ['/api/content/{typeName}/export', 'post'],
+                ['/api/v1/content/{typeName}/{id}/access', 'put']
+            ] as const) {
+                const operation = document.paths[route][method] as {
+                    parameters: { name: string; schema: { enum?: string[] } }[];
+                };
+                const parameter = operation.parameters.find(
+                    (candidate) => candidate.name === 'typeName'
+                );
+                expect(parameter?.schema.enum).toEqual([
+                    'article',
+                    'site_settings'
+                ]);
+            }
+        });
+
+        it('describes neither their bodies nor their failures', () => {
+            const document = scannedDocument();
+            describeContentApi(document, [article, settings]);
+
+            // The bodies belong to the plugins that serve the routes. So do the
+            // failures, and they do not agree: transfer 404s an unknown type,
+            // the public access route answers 400 — so writing this plugin's
+            // 404 onto both would publish something the API does not do.
+            for (const [route, method] of [
+                ['/api/content/{typeName}/export', 'post'],
+                ['/api/v1/content/{typeName}/{id}/access', 'put']
+            ] as const) {
+                expect(successSchema(document, route, method)).toBeUndefined();
+                const operation = document.paths[route][method] as {
+                    responses: Record<string, unknown>;
+                };
+                expect(Object.keys(operation.responses)).toEqual(['200']);
+            }
         });
     });
 });
