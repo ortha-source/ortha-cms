@@ -1,5 +1,5 @@
 import { Readable } from 'node:stream';
-import { ObjectNotFoundError } from '@orthacms/media-server';
+import { ObjectNotFoundError } from '@orthacms/media-domain';
 import { describeStorageProvider } from '@orthacms/media-provider-testkit';
 import { FakeS3Client } from './fake-s3-client';
 import { createS3StorageProvider } from './s3-storage-provider';

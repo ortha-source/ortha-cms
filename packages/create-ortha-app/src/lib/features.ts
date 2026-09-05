@@ -73,6 +73,13 @@ export interface Feature {
  * does something once the composition root registers it, and the template
  * registers none.
  *
+ * `media-domain` is the storage port, on the same reasoning again: it is what
+ * an operator implements to write a `StorageProvider` for a backend we ship no
+ * adapter for, and it arrives transitively through both `media-server` and
+ * whichever `media-provider-*` the app chose. It is also the package that makes
+ * that choice cheap — the port lives away from the server precisely so
+ * installing an adapter installs an adapter.
+ *
  * `design-system`, `utils-admin` and `utils-server` are here even though the
  * template's own files barely touch them: they are the first things anyone
  * reaches for when writing a page or a plugin of their own, and relying on
@@ -104,6 +111,7 @@ export const CORE_PACKAGES: readonly string[] = [
     '@orthacms/identity-server',
     '@orthacms/insights-admin',
     '@orthacms/media-admin',
+    '@orthacms/media-domain',
     '@orthacms/media-server',
     '@orthacms/query-builder-admin',
     '@orthacms/segments-admin',

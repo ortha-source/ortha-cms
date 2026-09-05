@@ -24,7 +24,7 @@ import {
 import {
     STORAGE_PROVIDER,
     type StorageProvider
-} from '../../domain/storage-provider';
+} from '@orthacms/media-domain';
 
 /** Inputs for one upload — the file stream plus its metadata. */
 export interface UploadAssetCommand {

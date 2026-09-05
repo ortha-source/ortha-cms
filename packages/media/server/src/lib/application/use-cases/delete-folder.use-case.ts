@@ -15,7 +15,7 @@ import {
 import {
     STORAGE_PROVIDER,
     type StorageProvider
-} from '../../domain/storage-provider';
+} from '@orthacms/media-domain';
 import { reclaimManyAssetBlobs } from '../reclaim-asset-blobs';
 
 /** What a cascading folder delete removed. */

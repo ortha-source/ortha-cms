@@ -69,9 +69,10 @@ describe('domain layer imports', () => {
         // pass without reading a line of code.
         expect(FILES.length).toBeGreaterThan(10);
         expect(FILES.some((path) => path.endsWith('asset.ts'))).toBe(true);
-        expect(FILES.some((path) => path.endsWith('storage-provider.ts'))).toBe(
-            true
-        );
+        // The storage port itself no longer lives here — it moved to
+        // `@orthacms/media-domain` so an adapter can speak it without
+        // installing NestJS. The aggregates it serves stayed.
+        expect(FILES.some((path) => path.endsWith('folder.ts'))).toBe(true);
         expect(
             FILES.some((path) => path.endsWith('value-objects/file-name.ts'))
         ).toBe(true);

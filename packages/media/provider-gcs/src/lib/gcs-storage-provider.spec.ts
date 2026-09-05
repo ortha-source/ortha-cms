@@ -1,5 +1,5 @@
 import { Readable } from 'node:stream';
-import { ObjectNotFoundError } from '@orthacms/media-server';
+import { ObjectNotFoundError } from '@orthacms/media-domain';
 import { describeStorageProvider } from '@orthacms/media-provider-testkit';
 import { FakeBucket } from './fake-bucket';
 import { createGcsStorageProvider } from './gcs-storage-provider';

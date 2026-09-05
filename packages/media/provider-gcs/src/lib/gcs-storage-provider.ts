@@ -2,13 +2,13 @@ import { createHash } from 'node:crypto';
 import { PassThrough, Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { Storage, type Bucket } from '@google-cloud/storage';
-import { ObjectNotFoundError } from '@orthacms/media-server';
+import { ObjectNotFoundError } from '@orthacms/media-domain';
 import type {
     DirectUrlOptions,
     PutObject,
     StorageProvider,
     StoredObject
-} from '@orthacms/media-server';
+} from '@orthacms/media-domain';
 
 /**
  * Settings for Google Cloud Storage.

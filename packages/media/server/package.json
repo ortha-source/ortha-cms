@@ -26,6 +26,7 @@
         "@orthacms/copilot-server": "*",
         "@orthacms/database": "*",
         "@orthacms/identity-server": "*",
+        "@orthacms/media-domain": "*",
         "@orthacms/tools-server": "*",
         "@orthacms/workspaces-server": "*",
         "class-transformer": "^0.5.1",

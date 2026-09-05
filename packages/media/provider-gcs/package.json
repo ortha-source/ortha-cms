@@ -16,7 +16,7 @@
     ],
     "dependencies": {
         "@google-cloud/storage": "^7.14.0",
-        "@orthacms/media-server": "*"
+        "@orthacms/media-domain": "*"
     },
     "devDependencies": {
         "@orthacms/media-provider-testkit": "*"

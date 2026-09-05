@@ -15,6 +15,6 @@
         "src"
     ],
     "dependencies": {
-        "@orthacms/media-server": "*"
+        "@orthacms/media-domain": "*"
     }
 }

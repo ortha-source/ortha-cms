@@ -1,5 +1,5 @@
 {
-    "name": "@orthacms/media-provider-memory",
+    "name": "@orthacms/media-domain",
     "version": "0.4.3",
     "main": "./src/index.ts",
     "types": "./src/index.ts",
@@ -13,11 +13,5 @@
     },
     "files": [
         "src"
-    ],
-    "dependencies": {
-        "@orthacms/media-domain": "*"
-    },
-    "devDependencies": {
-        "@orthacms/media-provider-testkit": "*"
-    }
+    ]
 }

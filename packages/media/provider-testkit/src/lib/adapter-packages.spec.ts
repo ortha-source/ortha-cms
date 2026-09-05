@@ -160,7 +160,7 @@ describe('the storage adapter packages', () => {
                     )
             );
 
-            expect([...new Set(ortha)]).toEqual(['@orthacms/media-server']);
+            expect([...new Set(ortha)]).toEqual(['@orthacms/media-domain']);
         }
     );
 });

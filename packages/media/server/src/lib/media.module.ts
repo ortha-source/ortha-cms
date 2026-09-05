@@ -4,7 +4,7 @@ import { MEDIA_ASSET_RESOLVER } from '@orthacms/content-server';
 import {
     STORAGE_PROVIDER,
     type StorageProvider
-} from './domain/storage-provider';
+} from '@orthacms/media-domain';
 import { MediaAssetResolverQuery } from './infrastructure/queries/media-asset-resolver.query';
 import { ASSET_REPOSITORY } from './domain/asset.repository';
 import { FOLDER_REPOSITORY } from './domain/folder.repository';

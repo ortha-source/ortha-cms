@@ -197,6 +197,9 @@
         },
         {
             "path": "./packages/webhooks/admin"
+        },
+        {
+            "path": "./packages/media/domain"
         }
     ]
 }
