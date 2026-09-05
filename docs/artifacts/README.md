@@ -85,15 +85,22 @@ the cookie correctly forty lines earlier); §8 denies that a content model and a
 integration exist, and also denies the queue/worker and the media library. Found by the
 `bootstrap`, `database` and `workspaces` dossiers.
 
-**Workspace deletion is now swept, with one real remainder.** Five packages implement
-`WorkspacePurger`: `media`, the local `ApiTokenGrantsPurger`, `alarms`
-(`alarm_rules` + `alarm_findings`), `segments` (`entry_access`) and `content`
-(`content_entry_revisions`). `workspace-delete-residue.spec.ts` asserts all thirteen tables —
-six cascading, seven purged — count zero after a delete. Two things survive a deletion, and
-only one is a defect: `webhook_endpoint_workspaces` has no foreign key, registers no purger,
-and is not in the sweep; `segments.workspace_ids` keeps the dead id **deliberately**, because
-an empty `workspace_ids` means "every workspace" and pruning the last id would widen who may
-read. Found by the `workspaces`, `alarms` and `webhooks` dossiers.
+**Workspace deletion is swept, and what survives now survives on purpose.** Six packages
+implement `WorkspacePurger`: `media`, the local `ApiTokenGrantsPurger`, `alarms`
+(`alarm_rules` + `alarm_findings`), `segments` (`entry_access`), `content`
+(`content_entry_revisions`) and `webhooks` (`webhook_endpoint_workspaces`).
+`workspace-delete-residue.spec.ts` asserts all fourteen tables — six cascading, eight purged —
+count zero after a delete. The last defect closed 2026-09-05: webhooks kept its subscription
+rows, and fan-out re-read them on every content write. Its own dossier had called the stale id
+"harmless — no event will ever carry it again", which is true of correctness and false of
+everything else; that sentence is why it outlived two rounds of the same finding.
+
+One thing still survives a deletion, and it is **correct**: `segments.workspace_ids` keeps the
+dead id, because an empty `workspace_ids` means "every workspace" and pruning the last id would
+widen who may read. Webhooks looks identical and gets the opposite treatment for a reason that
+is in the schema rather than in taste — `all_workspaces` is a separate boolean, so an empty set
+there means "none" and a prune can only narrow. Both readings are pinned by a test that names
+the other. Found by the `workspaces`, `alarms` and `webhooks` dossiers.
 
 **The filter grammar is duplicated, though the copies no longer disagree.** The operator
 dictionary still exists in two copies that nothing keeps in sync (`utils-server`'s

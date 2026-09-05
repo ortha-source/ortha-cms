@@ -6,6 +6,7 @@ import { WebhookDeliveryWorker } from './infrastructure/webhook-delivery.worker'
 import { WebhookEndpointRepository } from './infrastructure/webhook-endpoint.repository';
 import { WebhookFanoutSubscriber } from './infrastructure/webhook-fanout.subscriber';
 import { WebhookHttpClient } from './infrastructure/webhook-http.client';
+import { WebhookWorkspacesPurger } from './infrastructure/purge/webhook-workspaces.purger';
 import { WebhookDeliveriesController } from './http/controllers/webhook-deliveries.controller';
 import { WebhookEndpointsController } from './http/controllers/webhook-endpoints.controller';
 import { WebhookEventsController } from './http/controllers/webhook-events.controller';
@@ -51,7 +52,10 @@ export class WebhooksModule {
                 WebhookFanoutSubscriber,
                 // Arms the sender. The only place this plugin touches the
                 // network, and it never holds a transaction while it does.
-                WebhookDeliveryWorker
+                WebhookDeliveryWorker,
+                // Registers itself with the workspace-delete registry, if the
+                // host mounted workspaces at all.
+                WebhookWorkspacesPurger
             ],
             exports: [
                 WEBHOOKS_CONFIG,
