@@ -177,9 +177,12 @@ describe('describeIdentityApi', () => {
         expect(
             successSchema(document, '/api/users/{id}', 'get')
         ).toBeUndefined();
-        expect(successSchema(document, '/api/users/{id}/sessions', 'get')).toEqual(
-            { type: 'array', items: { $ref: '#/components/schemas/UserSession' } }
-        );
+        expect(
+            successSchema(document, '/api/users/{id}/sessions', 'get')
+        ).toEqual({
+            type: 'array',
+            items: { $ref: '#/components/schemas/UserSession' }
+        });
     });
 
     it('does not claim a deeper-prefixed spelling of its own routes', () => {
@@ -195,7 +198,9 @@ describe('describeIdentityApi', () => {
         };
         describeIdentityApi(document);
 
-        expect(successSchema(document, '/api/v1/auth/me', 'get')).toBeUndefined();
+        expect(
+            successSchema(document, '/api/v1/auth/me', 'get')
+        ).toBeUndefined();
         expect(
             successSchema(document, '/api/v1/users/{id}/sessions', 'get')
         ).toBeUndefined();
@@ -210,7 +215,9 @@ describe('describeIdentityApi', () => {
         };
         describeIdentityApi(document);
 
-        expect(successSchema(document, '/api/workspaces', 'get')).toBeUndefined();
+        expect(
+            successSchema(document, '/api/workspaces', 'get')
+        ).toBeUndefined();
         expect(
             successSchema(document, '/api/media/assets', 'get')
         ).toBeUndefined();

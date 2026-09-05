@@ -1,7 +1,9 @@
 import type { ServerPlugin } from '@orthacms/bootstrap-server';
 import type { I18nPluginConfig } from '../types/locale';
 import { LocaleSet } from '../domain/value-objects/locale-set';
+import { describeI18nApi } from '../docs/describe-i18n-api';
 import { I18nModule } from '../i18n.module';
+import { describeI18nInsightsApi } from '../insights/docs/describe-i18n-insights-api';
 
 /**
  * Server plugin for content localization, carrying its config alongside the
@@ -60,6 +62,24 @@ export function I18nServerPlugin(
     return {
         name: 'i18n',
         module: I18nModule.forRoot(config),
-        i18nConfig: config
+        i18nConfig: config,
+        // The three read routes answer plain `interface`s, which the OpenAPI
+        // scanner cannot see and ADR-0003 would not let us decorate anyway.
+        // The configured slugs go in with them: which locales exist is runtime
+        // data held right here, and it is the one thing that makes the
+        // described `locale` fields exact rather than "some string".
+        docs: {
+            decorate: (document) => {
+                describeI18nApi(
+                    document,
+                    config.locales.map((locale) => locale.slug)
+                );
+                // `/insights/i18n/coverage` is this plugin's route too, but it
+                // belongs to the Insights surface — a different tag, a
+                // different audience — so it is described from its own module
+                // rather than folded into the locale/content pass above.
+                describeI18nInsightsApi(document);
+            }
+        }
     };
 }

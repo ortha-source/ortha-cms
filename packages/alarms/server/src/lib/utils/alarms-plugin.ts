@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 import type { ServerPlugin } from '@orthacms/bootstrap-server';
 import { AlarmsModule } from '../alarms.module';
+import { describeAlarmsApi } from '../docs/describe-alarms-api';
 import type { AlarmsPluginConfig } from '../types/alarms-config';
 
 /** The alarms plugin, carrying its config alongside the standard shape. */
@@ -76,6 +77,10 @@ export function AlarmsPlugin(
         migrations: {
             dir: () => join(__dirname, '../../../migrations'),
             table: '__drizzle_migrations_alarms'
-        }
+        },
+        // The response views are `interface`s and the stored filter is a
+        // recursive tree, neither of which `@nestjs/swagger` can see. This hook
+        // is where the reference learns both.
+        docs: { decorate: describeAlarmsApi }
     };
 }

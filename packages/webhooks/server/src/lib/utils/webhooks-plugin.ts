@@ -1,5 +1,6 @@
 import { join } from 'node:path';
 import type { ServerPlugin } from '@orthacms/bootstrap-server';
+import { describeWebhooksApi } from '../docs/describe-webhooks-api';
 import { WebhooksModule } from '../webhooks.module';
 import type { WebhooksPluginConfig } from '../types/webhooks-config';
 
@@ -97,6 +98,11 @@ export function WebhooksPlugin(
         migrations: {
             dir: () => join(__dirname, '../../../migrations'),
             table: '__drizzle_migrations_webhooks'
-        }
+        },
+        // Every response view here is an `interface`, which `@nestjs/swagger`
+        // cannot see — so the scanner emits an empty 200 for each route. This
+        // hook is where the reference learns what a delivery, an endpoint and
+        // a test result actually look like.
+        docs: { decorate: describeWebhooksApi }
     };
 }
