@@ -271,7 +271,7 @@ test.describe('Workspace settings page', () => {
     });
 
     /**
-     * И-32. The gate on both destructive buttons is
+     * workspaces:I-32. The gate on both destructive buttons is
      * `open && !isError && !isChecking && count === 0` — enabled only on a
      * count that is *known* to be zero. The two known-non-zero cases are
      * covered above; these are the two halves where the count is unknown, and
@@ -457,7 +457,7 @@ test.describe('Workspace settings page', () => {
             await expect(workspaceSettingsPage.addPagesButton).toBeHidden();
         });
 
-        // И-34 — hiding a tab is not a gate. A bookmark, a shared link or the
+        // workspaces:I-34 — hiding a tab is not a gate. A bookmark, a shared link or the
         // back button all walk straight past the tab bar, so the route itself
         // has to refuse; and since the page then swaps under the user, the
         // refusal has to be said out loud and focus has to go somewhere.

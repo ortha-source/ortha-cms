@@ -69,12 +69,20 @@ describe('UserAccount aggregate', () => {
     });
 
     /**
-     * The SSO acceptance path (И-22). An identity provider vouched for the
+     * The SSO acceptance path. An identity provider vouched for the
      * address, so there is no password to set — and the missing hash is the
      * point, not an omission: it is what makes the password path refuse the
      * account exactly as it refuses an unaccepted invite, leaving the provider
      * as the only way in. A `credentialChanged` here would have the repository
      * write a credential nobody chose.
+     *
+     * Not a test of the identity dossier's I-22, though it was once labelled
+     * one: I-22 governs a first SSO sign-in *claiming an existing account*
+     * (only with `emailVerified`, `pending` and `disabled` refused), and this
+     * aggregate never sees `emailVerified` — `pending` is the accepted case
+     * here, not a refused one. I-22 is pinned in
+     * `application/use-cases/complete-sso.use-case.spec.ts` and
+     * `apps/server-e2e/src/server/auth/sso.spec.ts`.
      */
     describe('activateWithoutCredential', () => {
         it('activates a pending account and leaves it without a credential', () => {

@@ -9,15 +9,20 @@ const USER_ID = '11111111-1111-4111-8111-111111111111';
 const TOKEN = 'f'.repeat(64);
 
 /**
- * `RefreshSessionUseCase` — the authenticated-request hot path. Two invariants
- * meet here: a token that resolves to nothing yields nothing (И-02, the status
- * check that repeats on every request lives behind `resolveActive`), and a read
+ * `RefreshSessionUseCase` — the authenticated-request hot path. Two things meet
+ * here: a token that resolves to nothing yields nothing, and a read
  * must not silently become a write on every hit — `lastUsedAt` is refreshed at
  * most once per throttle window, and the {@link SessionPolicy} is the one place
  * that decides.
  *
  * Driven over a test double for the repository and the *real* policy: the
  * throttle is pure domain arithmetic, so stubbing it would test the stub.
+ *
+ * That double is why nothing here cites the identity dossier's I-02 ("the
+ * status check is repeated on every request"): the account-status filter lives
+ * inside `resolveActive`, which this file stubs, so an implementation that
+ * stopped checking status would still pass. I-02 is pinned against a real
+ * database in `apps/server-e2e/src/server/auth/me.spec.ts`.
  */
 describe('RefreshSessionUseCase', () => {
     interface Harness {

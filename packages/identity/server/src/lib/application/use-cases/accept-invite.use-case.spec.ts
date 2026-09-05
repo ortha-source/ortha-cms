@@ -21,10 +21,10 @@ const HASH = `$2b$12$${'a'.repeat(53)}`;
 
 /**
  * `AcceptInviteUseCase` — redeeming a one-time invite link. Three invariants
- * meet here: the link burns exactly once even under a concurrent accept (И-05),
- * every reason it can fail collapses into one indistinguishable error (И-04),
- * and the raw token never reaches the repository — only its SHA-256 does
- * (И-09).
+ * meet here: the link burns exactly once even under a concurrent accept
+ * (identity:I-05), every reason it can fail collapses into one
+ * indistinguishable error (identity:I-04), and the raw token never reaches
+ * the repository — only its SHA-256 does (identity:I-09).
  *
  * The tests are about **call ordering and call absence** as much as results: a
  * bogus link must cost no bcrypt, and a lost race must not save an account.
@@ -159,8 +159,8 @@ describe('AcceptInviteUseCase', () => {
         };
     }
 
-    it('rejects the loser of a concurrent accept without saving the account', async () => {
-        // И-05: `consume` is the conditional write that makes the link
+    it('rejects the loser of a concurrent accept without saving the account [identity:I-05]', async () => {
+        // identity:I-05: `consume` is the conditional write that makes the link
         // one-time. The call that gets `false` lost the race, and must leave
         // the account exactly as it found it.
         const { useCase, calls, saved, issued, events } = harness({
@@ -201,8 +201,8 @@ describe('AcceptInviteUseCase', () => {
         expect(issued).toEqual([]);
     });
 
-    it('rejects a live token whose account is already active, indistinguishably', async () => {
-        // И-04: "already accepted" and "never existed" are the same 404. An
+    it('rejects a live token whose account is already active, indistinguishably [identity:I-04]', async () => {
+        // identity:I-04: "already accepted" and "never existed" are the same 404. An
         // account that is not `pending` cannot be activated a second time.
         const { useCase, saved, issued } = harness({
             account: account('active')
@@ -216,8 +216,8 @@ describe('AcceptInviteUseCase', () => {
         expect(issued).toEqual([]);
     });
 
-    it('looks the invite up by digest, never by the raw token', async () => {
-        // И-09: the token in the emailed link is a bearer credential; only its
+    it('looks the invite up by digest, never by the raw token [identity:I-09]', async () => {
+        // identity:I-09: the token in the emailed link is a bearer credential; only its
         // SHA-256 is ever stored or matched.
         const { useCase, lookups } = harness();
 

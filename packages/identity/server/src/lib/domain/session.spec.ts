@@ -14,11 +14,15 @@ function rehydrated(overrides: Partial<SessionState> = {}): Session {
 }
 
 /**
- * `isActiveAt` is the domain half of И-02: a session is usable only while it is
- * neither revoked nor expired, re-decided on every request rather than at
- * sign-in. It mirrors the adapter's `revoked_at IS NULL AND expires_at > now`
+ * `isActiveAt`: a session is usable only while it is neither revoked nor
+ * expired, re-decided on every request rather than at sign-in. It mirrors the adapter's `revoked_at IS NULL AND expires_at > now`
  * predicate, so the two must agree on the edges — revocation beating a future
  * expiry, and an expiry that has exactly arrived.
+ *
+ * Read once as the domain half of the identity dossier's I-02 and left uncited:
+ * I-02 is about the *account* status being re-checked on every request, and
+ * this class never sees a status. It is pinned in
+ * `apps/server-e2e/src/server/auth/me.spec.ts`.
  */
 describe('Session', () => {
     describe('isActiveAt', () => {

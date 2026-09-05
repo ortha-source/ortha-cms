@@ -25,7 +25,7 @@ const INVITE_TOKEN = 'raw-invite-token-1a2b3c4d5e6f';
  *
  * - an unregistered provider name is refused **before** anything is written,
  *   so a typo or a stale bookmark cannot litter the attempts table;
- * - an invite token reaches the repository only as its SHA-256 (И-09) — the
+ * - an invite token reaches the repository only as its SHA-256 (identity:I-09) — the
  *   raw value is what an attacker would need, and it never leaves this method;
  * - the adapter is handed the `state` / `nonce` / `codeVerifier` the *core*
  *   minted on the attempt row, rather than minting its own. CSRF and replay
@@ -125,7 +125,7 @@ describe('StartSsoUseCase', () => {
         expect(calls).toEqual(['registry.get']);
     });
 
-    it('carries an invite only as its hash, never the raw token', async () => {
+    it('carries an invite only as its hash, never the raw token [identity:I-09]', async () => {
         const { useCase, opened } = harness();
 
         await useCase.execute(PROVIDER, '/content', INVITE_TOKEN);

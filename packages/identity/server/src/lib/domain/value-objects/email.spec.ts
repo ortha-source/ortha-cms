@@ -2,10 +2,13 @@ import { InvalidEmailError } from '../errors';
 import { Email } from './email';
 
 /**
- * И-12: the login email is unique case-insensitively at the database level, and
- * the value object is what makes that index agree with domain equality — it
- * normalizes on construction, so `ADA@Ortha.DEV` and `ada@ortha.dev` are one
- * address everywhere above the SQL. The shape check is deliberately lenient
+ * The domain side of the identity dossier's I-12 — the login email is unique
+ * case-insensitively at the database level, and the value object is what makes
+ * that index agree with domain equality: it normalizes on construction, so
+ * `ADA@Ortha.DEV` and `ada@ortha.dev` are one address everywhere above the SQL.
+ * Uncited on purpose — drop the unique index and every test below still passes,
+ * so I-12 is pinned against a real schema in
+ * `apps/server-e2e/src/server/auth/email-uniqueness.spec.ts`. The shape check is deliberately lenient
  * (delivery is the authoritative test), but it still has to reject an address
  * with no domain, since that is a typo rather than an exotic address.
  */

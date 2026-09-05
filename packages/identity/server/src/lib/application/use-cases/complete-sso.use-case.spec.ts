@@ -66,13 +66,16 @@ const SESSION_TOKEN = 'session-token';
  *
  * - nothing is exchanged with the identity provider until the attempt has been
  *   found by the browser's cookie, matched on provider and `state`, and burned
- *   (И-20, И-21) — a replayed callback must find nothing left to spend;
+ *   (identity:I-21) — a replayed callback must find nothing left to spend;
+ * - every refusal on every one of those paths is the same `SsoLoginFailedError`,
+ *   which is what leaves the caller one indistinguishable `?error=sso`
+ *   (identity:I-20);
  * - an unverified address never claims an account, and a `pending` or
- *   `disabled` account never receives a session (И-22);
+ *   `disabled` account never receives a session (identity:I-22);
  * - a role-mapping handler can neither demote an administrator nor fail a
- *   sign-in with a typo (И-23);
+ *   sign-in with a typo (identity:I-23);
  * - just-in-time provisioning is off until a deployment says otherwise, and
- *   then only inside its domain list (И-24).
+ *   then only inside its domain list (identity:I-24).
  *
  * Every port is a test double that appends its name to one `calls` array, so
  * the ordering assertions read as the sequence the class documents.
@@ -537,7 +540,7 @@ describe('CompleteSsoUseCase', () => {
     // --- what the adapter throws ----------------------------------------
 
     describe('when the adapter rejects the response', () => {
-        it('collapses a verification failure into the one generic error', async () => {
+        it('collapses a verification failure into the one generic error [identity:I-20]', async () => {
             const { useCase, calls } = harness({
                 completeError: new SsoVerificationError('the nonce is stale')
             });
@@ -789,7 +792,7 @@ describe('CompleteSsoUseCase', () => {
     // --- just-in-time provisioning ---------------------------------------
 
     describe('just-in-time provisioning', () => {
-        it('is off by default: an unknown address simply cannot sign in', async () => {
+        it('is off by default: an unknown address simply cannot sign in [identity:I-24]', async () => {
             const { useCase, calls } = harness({ existing: null });
 
             await expect(useCase.execute(input())).rejects.toBeInstanceOf(
@@ -799,7 +802,7 @@ describe('CompleteSsoUseCase', () => {
             expect(calls).not.toContain('sessions.issue');
         });
 
-        it('refuses an address outside the deployment’s domain list', async () => {
+        it('refuses an address outside the deployment’s domain list [identity:I-24]', async () => {
             const { useCase, calls } = harness({
                 existing: null,
                 profile: ssoProfile({ email: 'ada@evil-acme.test' }),
