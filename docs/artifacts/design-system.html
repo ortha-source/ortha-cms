@@ -477,7 +477,8 @@ html{scroll-behavior:smooth}
       <tr><td class="mono">.wizard-step-in</td><td>A wizard step appearing. <b>Only the transform</b> is animated, opacity is always 1 — so the content is not invisible when animation clocks are stopped (a background tab, printing)</td></tr>
       <tr><td class="mono">@layer base — the cursor</td><td>Tailwind v4 no longer puts <code>cursor: pointer</code> on buttons. Restored here for every operable control; disabled ones explicitly get <code>not-allowed</code> (all three ways of disabling are covered: <code>:disabled</code>, <code>aria-disabled</code>, <code>data-disabled</code>)</td></tr>
       <tr><td class="mono">@media (forced-colors: active)</td><td>The most important one. See the box below</td></tr>
-      <tr><td class="mono">@media (prefers-reduced-motion)</td><td>Both animations are switched off. Duplicated on <code>Skeleton</code> through the <code>motion-reduce:animate-none</code> utility</td></tr>
+      <tr><td class="mono">.ds-spinner</td><td><code>Spinner</code>'s rotation. Owns <b>both</b> branches — a 1&nbsp;s rotation normally, and under <code>prefers-reduced-motion</code> a 1.6&nbsp;s opacity breath with no <code>transform</code> at all. Not <code>animate-spin</code> + <code>motion-reduce:animate-none</code>, because a stopped loader reads as a frozen app and there is no Tailwind utility for the replacement</td></tr>
+      <tr><td class="mono">@media (prefers-reduced-motion)</td><td>The dropdown and wizard animations are switched off; the spinner's is <b>replaced</b> rather than removed (see above). Duplicated on <code>Skeleton</code> through the <code>motion-reduce:animate-none</code> utility</td></tr>
     </tbody>
   </table>
   </div>
@@ -698,7 +699,7 @@ html{scroll-behavior:smooth}
         <td class="mono">Spinner</td>
         <td>An indeterminate loading indicator</td>
         <td><code>&lt;svg&gt;</code> props; size and colour through <code>className</code> and <code>currentColor</code></td>
-        <td><b>Decorative by default (<code>aria-hidden</code>)</b> — a deliberate reversal. It used to carry <code>role="status"</code> on the <code>&lt;svg&gt;</code> itself with no text inside: a live region with no content announces nothing, while four spinners on a page created four competing regions. Announcing busyness should be done by something that has words</td>
+        <td><b>Decorative by default (<code>aria-hidden</code>)</b> — a deliberate reversal. It used to carry <code>role="status"</code> on the <code>&lt;svg&gt;</code> itself with no text inside: a live region with no content announces nothing, while four spinners on a page created four competing regions. Announcing busyness should be done by something that has words. Under <code>prefers-reduced-motion</code> it stops rotating and breathes instead — opacity only, never stopped outright</td>
         <td class="center">51</td>
       </tr>
       <tr>
@@ -1276,7 +1277,7 @@ html{scroll-behavior:smooth}
     <li><span class="id">I-27</span><span><code>TopBar</code> inside an inset renders only through a portal into the bar; while the bar's host is <code>null</code> the bar is not drawn at all, so it does not flash in the page flow.</span></li>
     <li><span class="id">I-28</span><span>Clicking a toast's body dismisses that toast; clicks on the close button, the action/cancel buttons and links inside the toast are not intercepted.</span></li>
     <li><span class="id">I-29</span><span>Toasts are positioned in the bottom right corner, and that is decided in <code>Toaster</code> rather than at the call site: <code>copilot-admin</code> relies on it when suppressing a toast while the dock is open.</span></li>
-    <li><span class="id">I-30</span><span>Every non-operable animation is suppressed under <code>prefers-reduced-motion: reduce</code>.</span></li>
+    <li><span class="id">I-30</span><span>Every non-operable animation is suppressed under <code>prefers-reduced-motion: reduce</code> — with one deliberate exception, the loading spinner, which is <b>stripped of movement rather than stopped</b>: opacity only, no <code>transform</code>, a cycle no faster than 1&nbsp;s. A stopped indeterminate loader is indistinguishable from a hung request, and WCAG 2.3.3 is about non-essential <em>motion</em>, not about withholding essential feedback.</span></li>
     <li><span class="id">I-31</span><span>The wizard step's animation changes only the transform; opacity stays at 1, so the content is visible even with animation clocks stopped.</span></li>
     <li><span class="id">I-32</span><span>Under <code>forced-colors: active</code>, every <code>:focus-visible</code> has a real <code>outline</code>; <code>forced-color-adjust: none</code> is used nowhere.</span></li>
     <li><span class="id">I-33</span><span>No state is carried by colour alone: a selected segment and an active panel item additionally thicken the font, and status dots are always accompanied by text.</span></li>
@@ -1363,7 +1364,7 @@ html{scroll-behavior:smooth}
 
   <h3>System settings</h3>
   <ul class="check">
-    <li><b>Turn on <code>prefers-reduced-motion: reduce</code></b> → <span class="exp">placeholders do not pulse, a wizard step does not slide, dropdowns appear without animation; the content is visible throughout.</span></li>
+    <li><b>Turn on <code>prefers-reduced-motion: reduce</code></b> → <span class="exp">placeholders do not pulse, a wizard step does not slide, dropdowns appear without animation; a spinner stops turning but keeps fading gently, so a pending request still looks pending; the content is visible throughout.</span></li>
     <li><b>Turn on Windows high-contrast mode</b> → <span class="exp">an outline is visible on every focusable element; on scrollable regions it is inset; a selected panel item and a selected option get a border; disabled controls are grey.</span></li>
     <li><b>Run axe in the dark theme</b> → <span class="exp">no contrast violations (checked only in <code>platform-preferences.spec.ts</code>).</span></li>
     <li><b>A 320px window width</b> → <span class="exp">no horizontal document scroll; the skip link stays reachable; the panel becomes a sheet.</span></li>

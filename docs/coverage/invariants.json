@@ -3175,7 +3175,7 @@
             "axes": [
                 "unit"
             ],
-            "text": "Every non-operable animation is suppressed under prefers-reduced-motion: reduce."
+            "text": "Every non-operable animation is suppressed under prefers-reduced-motion: reduce \u2014 with one deliberate exception, the loading spinner, which is stripped of movement rather than stopped: opacity only, no transform, a cycle no faster than 1 s. A stopped indeterminate loader is indistinguishable from a hung request, and WCAG 2.3.3 is about non-essential motion, not about withholding essential feedback."
         },
         {
             "id": "design-system:I-31",
