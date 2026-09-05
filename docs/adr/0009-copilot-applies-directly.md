@@ -1,6 +1,6 @@
 # 0009 — The copilot asks in the moment, then applies directly
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-08-09
 - **Deciders:** Engineering
 

@@ -1,6 +1,6 @@
 # 0003 — Tactical DDD inside plugins
 
-- **Status:** Proposed <!-- flips to Accepted once the workspaces pilot (Wave 1) merges and the pattern is validated -->
+- **Status:** Accepted <!-- the workspaces pilot (Wave 1) merged: packages/workspaces/{server,admin} are the reference layout -->
 - **Date:** 2026-07-17
 - **Deciders:** Engineering
 

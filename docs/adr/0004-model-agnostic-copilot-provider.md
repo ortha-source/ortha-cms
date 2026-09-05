@@ -1,6 +1,6 @@
 # 0004 — Model-agnostic copilot provider
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-08-01
 - **Deciders:** Engineering
 

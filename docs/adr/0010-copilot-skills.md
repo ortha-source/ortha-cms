@@ -1,6 +1,6 @@
 # 0010 — Skills are prompt configuration, authored in two places and delivered in one
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-08-11
 - **Deciders:** Engineering
 

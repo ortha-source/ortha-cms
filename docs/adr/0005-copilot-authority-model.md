@@ -1,6 +1,6 @@
 # 0005 — The copilot acts as its user, never as itself
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-08-01
 - **Deciders:** Engineering
 

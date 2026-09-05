@@ -1,6 +1,6 @@
 # 0007 — One tool registry, two surfaces
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-08-09
 - **Deciders:** Engineering
 
