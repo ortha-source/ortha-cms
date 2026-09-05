@@ -218,10 +218,5 @@
             "why": "Closes the interface half the export-entries citation could not reach. The Files toggle is asserted enabled and checked on ZIP, then disabled *and reading as unchecked* on JSON, JSON Lines and CSV in turn, and enabled again on the way back to ZIP — all four formats, so a dialog that special-cased the lossy one would leave Files live for JSON. Every preflight request the dialog sent is then asserted to carry `depth.media === (format === 'zip')`, which is the difference between disabling the toggle and greying it out while still asking the server for bytes."
         }
     ],
-    "judgments": {
-        "transfer:I-28": {
-            "state": "partial",
-            "missing": "**This clause is stale, not untested — the dossier overstates the code, and the fix belongs in `docs/artifacts/transfer.html`.** `readUpload` does `looksLikeZip(bytes)` first, then `formatFromFilename(name) ?? sniffTextFormat(bytes)`. So the bytes decide exactly two things: whether an upload is an **archive** (pinned — a ZIP named `.json` is read as the archive it is), and which text format it is when the filename names none (pinned). Among the three text formats a filename that does name one is **authoritative**, so a JSON document named `.csv` is parsed as CSV and fails; \"the file name ... is a hint\" is false there. The `declared format` half is true in the strongest sense — the request's `format` field is never read by the reader at all — and is therefore unobservable rather than untested. No defect: the consequence is a 400 on a mislabelled upload, and the byte-first rule holds where it carries risk (a zip bomb disguised as `.json`). Suggested wording: \"The bytes decide whether an upload is an archive, and decide the text format when the file name names none; the declared format is never read.\""
-        }
-    }
+    "judgments": {}
 }
