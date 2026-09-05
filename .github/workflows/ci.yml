@@ -34,6 +34,11 @@ jobs:
               with:
                   node-version: 22
                   cache: npm
+            # The lock file is written by npm 11, and the npm bundled with Node
+            # 22 computes a different tree from it — `npm ci` then refuses with
+            # "Missing: …@x.y.z from lock file" for packages that are present.
+            # Pin the major so the runner resolves what the lock was made with.
+            - run: npm i -g npm@11
             - run: npm ci
 
             # TypeScript project references have to be in step with the
@@ -64,6 +69,11 @@ jobs:
               with:
                   node-version: 22
                   cache: npm
+            # The lock file is written by npm 11, and the npm bundled with Node
+            # 22 computes a different tree from it — `npm ci` then refuses with
+            # "Missing: …@x.y.z from lock file" for packages that are present.
+            # Pin the major so the runner resolves what the lock was made with.
+            - run: npm i -g npm@11
             - run: npm ci
 
             # Docker is present on the runner; testcontainers brings up Postgres
@@ -80,6 +90,11 @@ jobs:
               with:
                   node-version: 22
                   cache: npm
+            # The lock file is written by npm 11, and the npm bundled with Node
+            # 22 computes a different tree from it — `npm ci` then refuses with
+            # "Missing: …@x.y.z from lock file" for packages that are present.
+            # Pin the major so the runner resolves what the lock was made with.
+            - run: npm i -g npm@11
             - run: npm ci
 
             - name: Install the browser
