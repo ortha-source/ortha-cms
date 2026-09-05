@@ -41,7 +41,7 @@ import { AssetViewQuery } from '../../infrastructure/queries/asset-view.query';
 import {
     STORAGE_PROVIDER,
     type StorageProvider
-} from '../../domain/storage-provider';
+} from '@orthacms/media-domain';
 import { DownloadAssetQuery } from '../../infrastructure/queries/download-asset.query';
 import {
     DIRECT_SERVE,

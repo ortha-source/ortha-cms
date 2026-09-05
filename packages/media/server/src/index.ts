@@ -12,13 +12,14 @@ export type {
     StoredObject,
     PutObject,
     DirectUrlOptions
-} from './lib/domain/storage-provider';
-export { STORAGE_PROVIDER } from './lib/domain/storage-provider';
+} from '@orthacms/media-domain';
+export { STORAGE_PROVIDER } from '@orthacms/media-domain';
 export type { DirectServeMode } from './lib/http/direct-serve';
-// Exported for the provider packages: `get` promises to reject when the key is
-// gone, and the *kind* of rejection is part of that promise rather than an
-// implementation detail of a filesystem or a bucket.
-export { ObjectNotFoundError } from './lib/domain/errors/object-not-found.error';
+// Re-exported for the plugins that already depend on this package. The provider
+// packages take it from `@orthacms/media-domain` instead: it is a *value*, and
+// importing it from here dragged this barrel — and with it `MediaModule` and
+// NestJS — into every adapter's require graph.
+export { ObjectNotFoundError } from '@orthacms/media-domain';
 // The upload use case, exported for the plugins that write assets on someone's
 // behalf — `@orthacms/transfer-server` recreates an archive's files on import.
 // Deliberately the *same* use case the upload controller calls, for the reason

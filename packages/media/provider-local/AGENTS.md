@@ -2,8 +2,10 @@
 
 The **default** storage provider for the Media Library — a filesystem
 `StorageProvider` that streams blobs to a directory on disk. Depends only on
-`@orthacms/media-server` (for the port **type**, erased at runtime) and node
-built-ins; it imports no framework.
+`@orthacms/media-domain` — the port package, which itself declares nothing — and
+node built-ins; it imports no framework, and reaches none transitively either.
+(It used to take the port from `@orthacms/media-server`, whose barrel re-exports
+`MediaModule`, so installing this package installed NestJS.)
 
 ## What it exports
 

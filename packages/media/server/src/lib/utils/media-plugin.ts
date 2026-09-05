@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import type { ServerPlugin } from '@orthacms/bootstrap-server';
-import type { StorageProvider } from '../domain/storage-provider';
+import type { StorageProvider } from '@orthacms/media-domain';
 import { MediaModule } from '../media.module';
 import type { MediaPluginConfig } from '../types/media-config';
 

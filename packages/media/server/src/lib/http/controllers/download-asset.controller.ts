@@ -22,7 +22,7 @@ import { MembershipCheckQuery } from '@orthacms/workspaces-server';
 import {
     STORAGE_PROVIDER,
     type StorageProvider
-} from '../../domain/storage-provider';
+} from '@orthacms/media-domain';
 import { DownloadAssetQuery } from '../../infrastructure/queries/download-asset.query';
 import { downloadHeadersFor } from '../download-headers';
 import {

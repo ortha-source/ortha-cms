@@ -183,10 +183,6 @@
         }
     ],
     "judgments": {
-        "segments:I-09": {
-            "state": "not-mechanically-checkable",
-            "reason": "canRead(access, readerSegmentIds) is handed neither a workspace nor the catalogue (packages/segments/domain/src/lib/entry-access.ts:50), so there is no input a harness could vary to observe it consulting isOfferedIn. The absence is enforced by the signature, not by an assertion."
-        },
         "segments:I-07": {
             "state": "partial",
             "missing": "Only the REST expansion is pinned. The invariant claims the both-fields rule holds \"across all three protocols\", and no test drives a restricted target through GraphQL's nested resolvers or the MCP content_relations tool — apps/server-e2e/src/server/segments/ mentions neither, and the reader header is set in no GraphQL or MCP suite. The citation's own `why` already said \"REST only\"; this makes it visible to the ledger. It matters because the three protocols reach RelationLinkService.targetVisibleWhere by different call sites: a resolver that assembled items without the count, or an MCP handler that passed no visibility, would leak the cardinality of what is hidden while the REST test stayed green."

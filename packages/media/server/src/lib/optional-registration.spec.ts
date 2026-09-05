@@ -2,7 +2,7 @@ import { Test } from '@nestjs/testing';
 import { UnitOfWork } from '@orthacms/database';
 import { ToolRegistry } from '@orthacms/tools-server';
 import { WorkspacePurgeRegistry } from '@orthacms/workspaces-server';
-import { STORAGE_PROVIDER } from './domain/storage-provider';
+import { STORAGE_PROVIDER } from '@orthacms/media-domain';
 import { AltTextProposalToolProvider } from './copilot/alt-text-proposal.provider';
 import { CreateFileProposalToolProvider } from './copilot/create-file-proposal.provider';
 import { MediaCopilotToolProvider } from './copilot/media-tool.provider';

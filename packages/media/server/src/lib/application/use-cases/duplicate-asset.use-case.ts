@@ -13,7 +13,7 @@ import {
 import {
     STORAGE_PROVIDER,
     type StorageProvider
-} from '../../domain/storage-provider';
+} from '@orthacms/media-domain';
 
 /** Inserts " copy" before the extension (or appends it when there is none). */
 function duplicateName(name: string): string {

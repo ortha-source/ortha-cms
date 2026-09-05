@@ -15,7 +15,7 @@ import {
 import {
     STORAGE_PROVIDER,
     type StorageProvider
-} from '../../domain/storage-provider';
+} from '@orthacms/media-domain';
 import { mediaAsset } from '../schema/media-asset';
 import { mediaFolder } from '../schema/media-folder';
 

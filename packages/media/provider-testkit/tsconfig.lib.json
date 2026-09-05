@@ -11,5 +11,9 @@
     },
     "include": ["src/**/*.ts"],
     "exclude": ["dist"],
-    "references": [{ "path": "../server/tsconfig.lib.json" }]
+    "references": [
+        {
+            "path": "../domain/tsconfig.lib.json"
+        }
+    ]
 }

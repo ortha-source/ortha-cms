@@ -294,6 +294,20 @@ describe('library-wide source conventions', () => {
  * enumerates every animation the library actually ships.
  */
 describe('motion', () => {
+    /**
+     * Properties a reduced-motion replacement animation may touch: ones that
+     * cannot displace, rotate or resize anything. `transform` is the whole
+     * point of the list being a list.
+     */
+    const MOTIONLESS = new Set([
+        'opacity',
+        'color',
+        'background-color',
+        'border-color',
+        'fill',
+        'stroke'
+    ]);
+
     // Comments out: this file is mostly prose, and an unstripped `/* … */`
     // above a rule would be swallowed into that rule's selector.
     const styles = readFileSync(join(srcRoot, 'styles.css'), 'utf8').replace(
@@ -322,6 +336,16 @@ describe('motion', () => {
         );
     }
 
+    /** The property names one `@keyframes` block declares. */
+    function keyframeProperties(name: string): string[] {
+        const block = styles.match(
+            new RegExp(`@keyframes ${name} \\{([\\s\\S]*?)\\n\\}`)
+        );
+        return [...(block?.[1] ?? '').matchAll(/([a-z-]+)\s*:/g)].map(
+            ([, property]) => property
+        );
+    }
+
     /** Selectors turned off inside a reduced-motion block. */
     const suppressed = new Set(
         [...styles.matchAll(reducedMotionBlock)].flatMap(([block]) =>
@@ -331,21 +355,52 @@ describe('motion', () => {
         )
     );
 
+    /**
+     * Selectors a reduced-motion block gives a *different* animation to, one
+     * that declares no property capable of moving anything.
+     *
+     * `animation: none` is the usual answer and the safe default, but it is not
+     * the only correct one. An indeterminate loading spinner that stops reads
+     * as a frozen app, and the rule being enforced is about **motion**, not
+     * about withholding feedback — so a replacement is allowed here exactly
+     * when it cannot move the element: opacity and colour, never `transform`.
+     */
+    const motionFree = new Set(
+        [...styles.matchAll(reducedMotionBlock)].flatMap(([block]) =>
+            rulesIn(block)
+                .filter((rule) => rule.animation && rule.animation !== 'none')
+                .filter((rule) => {
+                    const name = (rule.animation as string).split(/\s+/)[0];
+                    const properties = keyframeProperties(name);
+                    return (
+                        properties.length > 0 &&
+                        properties.every((property) =>
+                            MOTIONLESS.has(property)
+                        )
+                    );
+                })
+                .flatMap((rule) => rule.selectors)
+        )
+    );
+
     it('finds the stylesheet it is meant to parse', () => {
         expect(suppressed.size).toBeGreaterThan(0);
     });
 
     it('suppresses every animation the stylesheet declares [design-system:I-30]', () => {
-        // Every rule that starts an animation, matched against the set above.
-        // Add a keyframed class to `styles.css` without a reduced-motion twin
-        // and it lands here.
+        // Every rule that starts an animation, matched against the two sets
+        // above. Add a keyframed class to `styles.css` without a reduced-motion
+        // twin — of either kind — and it lands here.
         const animated = rulesIn(styles.replace(reducedMotionBlock, ''))
             .filter((rule) => rule.animation && rule.animation !== 'none')
             .flatMap((rule) => rule.selectors);
 
         expect(animated.length).toBeGreaterThan(0);
         expect(
-            animated.filter((selector) => !suppressed.has(selector))
+            animated.filter(
+                (selector) =>
+                    !suppressed.has(selector) && !motionFree.has(selector)
+            )
         ).toEqual([]);
     });
 
@@ -369,17 +424,65 @@ describe('motion', () => {
         ).not.toContain('@plugin');
     });
 
+    /**
+     * The spinner is the one animation here that must survive reduced motion,
+     * and the case exists because the obvious fix is the wrong one.
+     *
+     * A stopped indeterminate loader reads as a frozen app: its only job is to
+     * say "still working", and someone who asked for less motion did not ask to
+     * be told less. So the rule is *no movement*, not *no feedback* — and a
+     * later change that closes this the easy way, with
+     * `.ds-spinner { animation: none }` in the reduced-motion block, fails here
+     * instead of shipping a dead glyph that looks exactly like a hung request.
+     */
+    it('replaces the spinner rotation rather than stopping it [design-system:I-30]', () => {
+        const reduced = [...styles.matchAll(reducedMotionBlock)]
+            .flatMap(([block]) => rulesIn(block))
+            .filter((rule) => rule.selectors.includes('.ds-spinner'));
+
+        expect(reduced).toHaveLength(1);
+
+        const animation = reduced[0].animation as string;
+        expect(animation).not.toBe('none');
+
+        // It still animates, and it animates nothing that can move.
+        const [name, duration] = animation.split(/\s+/);
+        const properties = keyframeProperties(name);
+        expect(properties.length).toBeGreaterThan(0);
+        expect(
+            properties.filter((property) => !MOTIONLESS.has(property))
+        ).toEqual([]);
+
+        // Slow enough never to read as a flash — WCAG 2.3.1's threshold is
+        // 3 Hz, and one cycle here is a second or more.
+        expect(duration).toMatch(/^\d+(\.\d+)?s$/);
+        expect(Number.parseFloat(duration)).toBeGreaterThanOrEqual(1);
+
+        // The control: the animation this replaces really is a movement, so
+        // the case cannot pass over a component that never moved to begin with.
+        const base = rulesIn(styles.replace(reducedMotionBlock, '')).find(
+            (rule) => rule.selectors.includes('.ds-spinner')
+        );
+        expect(base?.animation).toBeTruthy();
+        expect(
+            keyframeProperties((base?.animation as string).split(/\s+/)[0])
+        ).toContain('transform');
+
+        // And the component wears the class, or the two rules above are about
+        // a selector nothing renders.
+        const spinner = files.find(
+            (file) => file.module === 'lib/components/ui/spinner.tsx'
+        );
+        expect(spinner?.code).toContain('ds-spinner');
+    });
+
     it('pairs every live animate-* utility with a motion-reduce escape [design-system:I-30]', () => {
-        // One documented exception, and it is a real one rather than an
-        // oversight in the scan: `Spinner`'s `animate-spin` is the only
-        // animation in the library that keeps running under
-        // `prefers-reduced-motion: reduce`. Recorded as `partial` against
-        // I-30 in docs/coverage/judgments/design-system.json.
-        const exempt = new Set(['lib/components/ui/spinner.tsx']);
+        // No exemptions. `Spinner` used to be one — `animate-spin` with no
+        // `motion-reduce:` twin — and it is now `.ds-spinner`, which owns both
+        // branches in the stylesheet and is checked by the case above.
         const live = /(^|:)animate-(?!in\b|out\b|none\b)[a-z-]+$/;
 
         const offenders = files
-            .filter((file) => !exempt.has(file.module))
             .flatMap((file) =>
                 stringLiterals(file.code)
                     .filter((literal) => {
@@ -420,5 +523,148 @@ describe('motion', () => {
             (file) => file.module === 'lib/components/ui/wizard.tsx'
         );
         expect(wizard?.code).toContain("'wizard-step-in'");
+    });
+});
+
+/**
+ * The palette's light/dark pairing.
+ *
+ * Every component in the library resolves its colours through `--color-*` at
+ * runtime, which is what lets `.dark` re-declare them without a rebuild — and
+ * what makes a token declared in only one of the two blocks a component that
+ * renders the light value on the dark canvas. The failure is silent in review
+ * (the diff shows one perfectly reasonable new token) and silent in the light
+ * theme, which is where it is looked at.
+ *
+ * ## Why this needs a list rather than a set comparison
+ *
+ * The invariant reads "either overridden or deliberately inherited", and a
+ * judgment once retired it as unfalsifiable on exactly that wording: a
+ * disjunction ending in "or deliberately" is satisfied by every token, so an
+ * assertion over the two sets passes by construction. That is a wording
+ * problem, not an unobservable one. What makes it testable is naming the
+ * inheritors — three families that are the same colour in both themes on
+ * purpose — so that everything *else* must be paired, and a new unpaired token
+ * has to be argued for here instead of merely appearing.
+ *
+ * The list is short and each family has a reason:
+ *
+ * - `--color-sidebar-*` — the panel's chrome is authored dark in both themes,
+ *   so the shell keeps one identity while the content canvas flips.
+ * - `--color-nav-*` — the nav-icon accents are tuned for contrast against that
+ *   permanently dark chrome, so a dark-mode variant would be the same colour.
+ * - `--color-avatar-*` — identity anchors. An avatar that changed hue with the
+ *   theme would stop being recognisable, which is the one job it has.
+ *
+ * `--radius` is excluded rather than allow-listed: it is not a palette token.
+ */
+describe('the admin palette', () => {
+    /** Both copies of the palette: the workspace's admin and the one shipped. */
+    const PALETTES = {
+        'apps/admin': 'apps/admin/src/styles.css',
+        'the scaffolder template':
+            'packages/create-ortha-app/templates/default/apps/admin/src/styles.css'
+    };
+
+    /** Token prefixes that are the same colour in both themes, on purpose. */
+    const INHERITED = ['--color-sidebar', '--color-nav-', '--color-avatar-'];
+
+    /** Declarations that are not colours and so are outside the rule. */
+    const NOT_A_COLOUR = ['--radius'];
+
+    /** The top-level blocks of a stylesheet, by selector, comments stripped. */
+    function blocks(css: string): { selector: string; body: string }[] {
+        const out: { selector: string; body: string }[] = [];
+        const text = css.replace(/\/\*[\s\S]*?\*\//g, '');
+        let index = 0;
+        while (index < text.length) {
+            const open = text.indexOf('{', index);
+            if (open < 0) break;
+            const selector = text.slice(index, open).trim().split('\n').pop();
+            let depth = 1;
+            let cursor = open + 1;
+            while (cursor < text.length && depth > 0) {
+                if (text[cursor] === '{') depth += 1;
+                else if (text[cursor] === '}') depth -= 1;
+                cursor += 1;
+            }
+            out.push({
+                selector: (selector ?? '').trim(),
+                body: text.slice(open + 1, cursor - 1)
+            });
+            index = cursor;
+        }
+        return out;
+    }
+
+    /** The custom properties declared directly in the named blocks. */
+    function declared(css: string, selectors: string[]): string[] {
+        return blocks(css)
+            .filter((block) => selectors.includes(block.selector))
+            .flatMap((block) =>
+                [...block.body.matchAll(/(--[a-z0-9-]+)\s*:/g)].map(
+                    ([, token]) => token
+                )
+            );
+    }
+
+    it.each(Object.entries(PALETTES))(
+        '%s overrides every light token in .dark, bar the three inherited families [design-system:I-04]',
+        (_name, path) => {
+            const css = readFileSync(join(repoRoot, path), 'utf8');
+            const light = declared(css, ['@theme', ':root']);
+            const dark = new Set(declared(css, ['.dark']));
+
+            // The premise: this is parsing a real palette, not an empty match.
+            expect(light.length).toBeGreaterThan(50);
+            expect(dark.size).toBeGreaterThan(40);
+
+            const unpaired = light.filter(
+                (token) =>
+                    !dark.has(token) &&
+                    !NOT_A_COLOUR.includes(token) &&
+                    !INHERITED.some((prefix) => token.startsWith(prefix))
+            );
+
+            // Delete any `.dark` override above and the token it belonged to
+            // lands here — which is the defect: a component asking for it on
+            // the dark canvas gets the light value.
+            expect(unpaired).toEqual([]);
+        }
+    );
+
+    it.each(Object.entries(PALETTES))(
+        '%s does not re-declare an inherited family in .dark [design-system:I-04]',
+        (_name, path) => {
+            // The other direction, and the reason the allow-list is by prefix
+            // rather than a bare exclusion: an inherited family that acquired a
+            // `.dark` override is no longer inherited, and the list above has
+            // gone stale rather than the stylesheet being wrong. Failing here
+            // is how that gets noticed.
+            const css = readFileSync(join(repoRoot, path), 'utf8');
+            const overridden = declared(css, ['.dark']).filter((token) =>
+                INHERITED.some((prefix) => token.startsWith(prefix))
+            );
+
+            expect(overridden).toEqual([]);
+        }
+    );
+
+    it('declares the same tokens in both copies [design-system:I-04]', () => {
+        // The scaffolder ships its own copy of the palette, so the rule above
+        // is only as good as the two files agreeing on what the palette *is*.
+        // Comments differ deliberately (the template's are written for someone
+        // who has just scaffolded); the token names must not.
+        const tokensOf = (path: string) => {
+            const css = readFileSync(join(repoRoot, path), 'utf8');
+            return {
+                light: declared(css, ['@theme', ':root']).sort(),
+                dark: declared(css, ['.dark']).sort()
+            };
+        };
+
+        expect(tokensOf(PALETTES['the scaffolder template'])).toEqual(
+            tokensOf(PALETTES['apps/admin'])
+        );
     });
 });

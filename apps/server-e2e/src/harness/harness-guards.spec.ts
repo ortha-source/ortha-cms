@@ -4,6 +4,7 @@ import {
     assertSerialExecution,
     availableMemoryBytes,
     heapCeilingBytes,
+    parseVmStat,
     warnOnLowHeapCeiling,
     warnOnLowMemory
 } from '../support/preflight';
@@ -92,13 +93,97 @@ describe('harness guards', () => {
             expect(warn).toHaveBeenCalled();
         });
 
+        it('says nothing at all when the platform cannot be measured', () => {
+            // The whole point of the darwin work below. An advisory that fires
+            // on every run of every developer machine is worse than no
+            // advisory: it teaches the reader to skip the line on the run where
+            // it is true. Where we cannot get an honest number we print
+            // nothing.
+            expect(warnOnLowMemory(undefined)).toBeUndefined();
+            expect(warn).not.toHaveBeenCalled();
+        });
+
         it('reports a plausible amount for this machine', () => {
-            // Guards the Linux reading specifically: `os.freemem()` reports
-            // MemFree, which excludes reclaimable page cache and can read an
-            // order of magnitude low. A number below 32 MiB means we are reading
-            // the wrong field, not that the box is out of memory — it is running
-            // this test.
+            // Guards both readings. On Linux `os.freemem()` reports MemFree,
+            // which excludes reclaimable page cache; on macOS it reports
+            // `free_count` alone, which the kernel deliberately keeps near zero
+            // — a 32 GiB Mac read as 0.2 GiB and warned on every single run. A
+            // number below 32 MiB means we are reading the wrong field, not
+            // that the box is out of memory: it is running this test.
+            const platforms = ['linux', 'darwin'];
+            if (!platforms.includes(process.platform)) {
+                // Anywhere else, silence is the correct answer and asserting a
+                // number would be asserting the bug back in.
+                expect(availableMemoryBytes()).toBeUndefined();
+                return;
+            }
             expect(availableMemoryBytes()).toBeGreaterThan(32 * 1024 * 1024);
+        });
+    });
+
+    describe('macOS reclaimable memory (parseVmStat)', () => {
+        const GIB = 1024 ** 3;
+
+        // Captured from `vm_stat` on a 32 GiB Apple-silicon machine — the exact
+        // case that used to print "only 0.2 GiB of memory is available".
+        const VM_STAT = [
+            'Mach Virtual Memory Statistics: (page size of 16384 bytes)',
+            'Pages free:                                    19076.',
+            'Pages active:                                 704462.',
+            'Pages inactive:                               701695.',
+            'Pages speculative:                              1465.',
+            'Pages throttled:                                   0.',
+            'Pages wired down:                             181273.',
+            'Pages purgeable:                               13072.',
+            '"Translation faults":                     2688361400.'
+        ].join('\n');
+
+        const never = () => {
+            throw new Error('page-size fallback should not be reached');
+        };
+
+        it('sums free, inactive and speculative at the header page size', () => {
+            // 19076 + 701695 + 1465 = 722236 pages × 16 KiB.
+            expect(parseVmStat(VM_STAT, never)).toBe(722236 * 16384);
+        });
+
+        it('reads far above what `os.freemem()` would have said', () => {
+            // freemem() on this machine returns the 19076 free pages alone —
+            // 0.3 GiB, under the 2.5 GiB threshold, hence the warning on every
+            // run. The honest figure clears it comfortably.
+            const bytes = parseVmStat(VM_STAT, never) as number;
+            expect(bytes).toBeGreaterThan(10 * GIB);
+            expect(warnOnLowMemory(bytes)).toBeUndefined();
+        });
+
+        it('excludes active and wired pages, which are not reclaimable', () => {
+            // Counting them would turn the false alarm into a false all-clear,
+            // which is the same defect pointing the other way.
+            const bytes = parseVmStat(VM_STAT, never) as number;
+            expect(bytes).toBeLessThan(34359738368);
+            expect(bytes / 16384).toBe(722236);
+        });
+
+        it('falls back to the supplied page size when the header is missing', () => {
+            const headerless = VM_STAT.split('\n').slice(1).join('\n');
+            expect(parseVmStat(headerless, () => 4096)).toBe(722236 * 4096);
+        });
+
+        it('returns nothing rather than a partial sum', () => {
+            // A missing queue would under-report, which is precisely the
+            // failure mode being removed. Silence, not a smaller number.
+            const missingInactive = VM_STAT.split('\n')
+                .filter((line) => !line.startsWith('Pages inactive:'))
+                .join('\n');
+            expect(parseVmStat(missingInactive, never)).toBeUndefined();
+        });
+
+        it('returns nothing when no page size can be established', () => {
+            // Guessing 4 KiB where the machine pages at 16 would under-report
+            // fourfold — in the direction of the false alarm.
+            const headerless = VM_STAT.split('\n').slice(1).join('\n');
+            expect(parseVmStat(headerless, () => Number.NaN)).toBeUndefined();
+            expect(parseVmStat(headerless, () => 0)).toBeUndefined();
         });
     });
 
@@ -283,7 +368,9 @@ describe('harness guards', () => {
             expect(
                 isDatabaseUnreachable(
                     Object.assign(
-                        new Error('terminating connection due to administrator command'),
+                        new Error(
+                            'terminating connection due to administrator command'
+                        ),
                         { code: '57P01' }
                     )
                 )
@@ -293,9 +380,9 @@ describe('harness guards', () => {
         it('does NOT claim an assertion failure is infrastructure', () => {
             // The property that matters most. If this ever returns true, the
             // helper starts hiding the bugs it exists to expose.
-            expect(isDatabaseUnreachable(new Error('expected 200, got 403'))).toBe(
-                false
-            );
+            expect(
+                isDatabaseUnreachable(new Error('expected 200, got 403'))
+            ).toBe(false);
         });
 
         it('does NOT claim a constraint violation is infrastructure', () => {
@@ -367,13 +454,17 @@ describe('harness guards', () => {
         it('reads a frame written the way the server writes it', () => {
             const body =
                 ': open\n\nevent: text-delta\ndata: {"type":"text-delta","text":"hi"}\n\n';
-            expect(parseSse(body)).toEqual([{ type: 'text-delta', text: 'hi' }]);
+            expect(parseSse(body)).toEqual([
+                { type: 'text-delta', text: 'hi' }
+            ]);
         });
 
         it('reads a frame written without the optional space', () => {
             const body =
                 'event: text-delta\ndata:{"type":"text-delta","text":"hi"}\n\n';
-            expect(parseSse(body)).toEqual([{ type: 'text-delta', text: 'hi' }]);
+            expect(parseSse(body)).toEqual([
+                { type: 'text-delta', text: 'hi' }
+            ]);
         });
 
         it('still skips comment frames', () => {

@@ -1,11 +1,17 @@
 /**
  * Typed application configuration for the Ortha CMS server.
  *
- * `config/` is the single place that reads `process.env` — and `config/env.ts`
- * the only file in it that touches `process.env` directly. Everything
- * downstream (`createServer`, plugins) receives typed config; nothing else
- * should reach for environment variables. Deploy-specific values come from the
- * environment; stable tuning lives in the builders as literals.
+ * `config/` is the single place that reads the environment, and it reads it
+ * **only** through the readers in `@orthacms/utils-server` — no module in the
+ * folder touches `process.env` itself, which `src/ortha.config.spec.ts`
+ * enforces. That is not style: `readEnv` is where "an empty value means the
+ * setting is absent" is decided, and `.env.example` ships forty-odd keys with
+ * nothing on the right-hand side. A raw `process.env['X'] ?? default` skips
+ * that decision, so a key left blank from the example wins over the default it
+ * was supposed to fall back to. Everything downstream (`createServer`,
+ * plugins) receives typed config; nothing else should reach for environment
+ * variables. Deploy-specific values come from the environment; stable tuning
+ * lives in the builders as literals.
  *
  * **Shape:** one module per plugin under `config/`, each exporting a builder,
  * and this file assembling them into one object. So the literal below is the

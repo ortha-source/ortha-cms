@@ -173,7 +173,7 @@ export function BulkPublishDialog({
                         <RefreshCw
                             className={cn(
                                 'size-4',
-                                flow.isPreviewing && 'animate-spin'
+                                flow.isPreviewing && 'ds-spinner'
                             )}
                             aria-hidden
                         />

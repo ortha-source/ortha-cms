@@ -1,12 +1,12 @@
 import { createHash } from 'node:crypto';
 import { PassThrough, Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { ObjectNotFoundError } from '@orthacms/media-server';
+import { ObjectNotFoundError } from '@orthacms/media-domain';
 import type {
     PutObject,
     StorageProvider,
     StoredObject
-} from '@orthacms/media-server';
+} from '@orthacms/media-domain';
 
 /** One blob, as this provider holds it. */
 interface StoredBlob {

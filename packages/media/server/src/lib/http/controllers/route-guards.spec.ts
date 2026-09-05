@@ -14,7 +14,7 @@ import {
 } from '@orthacms/content-server';
 import { WorkspaceGuard } from '@orthacms/workspaces-server';
 import { MediaModule } from '../../media.module';
-import type { StorageProvider } from '../../domain/storage-provider';
+import type { StorageProvider } from '@orthacms/media-domain';
 
 /** Nest's own metadata keys — string literals in `@nestjs/common/constants`. */
 const GUARDS_METADATA = '__guards__';

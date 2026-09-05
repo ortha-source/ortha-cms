@@ -72,10 +72,13 @@ export function identityConfig(): AppIdentityConfig {
         // ortha:end
         // With an email set, an admin is provisioned on boot — idempotent and
         // non-destructive. This is how you get your first login.
+        // Read through `readEnv`, so all three are trimmed and a whitespace-only
+        // value is nothing rather than a value — a password of three spaces
+        // would otherwise be provisioned as the administrator's, silently.
         rootAdmin: {
-            email: process.env['ORTHA_ROOT_ADMIN_EMAIL'] ?? '',
-            password: process.env['ORTHA_ROOT_ADMIN_PASSWORD'] ?? '',
-            name: process.env['ORTHA_ROOT_ADMIN_NAME'] ?? ''
+            email: readEnv('ORTHA_ROOT_ADMIN_EMAIL') ?? '',
+            password: readEnv('ORTHA_ROOT_ADMIN_PASSWORD') ?? '',
+            name: readEnv('ORTHA_ROOT_ADMIN_NAME') ?? ''
         }
     };
 }

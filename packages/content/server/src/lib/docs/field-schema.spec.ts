@@ -58,10 +58,33 @@ describe('fieldSchema', () => {
         });
     });
 
-    it('carries a select’s options as an enum', () => {
+    it('carries a select’s options as an enum, `null` among them', () => {
+        // `nullable: true` does NOT widen an enum — OAS 3.0 wants `null`
+        // listed. Without it the document rejected an entry with an unset
+        // select, which is every draft: measured against a live server, an
+        // `article` with `layout: null` failed its own `ArticleValues`.
         expect(
             fieldSchema(field({ type: 'select', options: ['a', 'b'] }))
-        ).toMatchObject({ type: 'string', enum: ['a', 'b'] });
+        ).toMatchObject({
+            type: 'string',
+            enum: ['a', 'b', null],
+            nullable: true
+        });
+    });
+
+    it('makes a richtext body nullable through its `oneOf`, not beside it', () => {
+        // Same defect, other shape: `nullable` modifies a schema's `type`, and
+        // a bare `oneOf` has none for it to modify.
+        const schema = fieldSchema(field({ type: 'richtext' }));
+        expect(schema['oneOf']).toContainEqual({ type: 'null' });
+        expect(schema['nullable']).toBe(true);
+    });
+
+    it('leaves a plainly-typed field to `nullable` alone', () => {
+        const schema = fieldSchema(field({ type: 'text' }));
+        expect(schema).toMatchObject({ type: 'string', nullable: true });
+        expect(schema['enum']).toBeUndefined();
+        expect(schema['oneOf']).toBeUndefined();
     });
 
     it('maps multiselect to an array of the enum', () => {

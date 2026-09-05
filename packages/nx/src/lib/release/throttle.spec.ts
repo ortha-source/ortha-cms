@@ -77,13 +77,46 @@ describe('withPublishSlot', () => {
         ).toBeGreaterThanOrEqual(before);
     });
 
+    /**
+     * The gap runs from the previous publish's recorded finish, so the
+     * assertion is anchored to that stamp as well. Anchoring it to a
+     * `Date.now()` taken *after* the stamp was written measured the wrong
+     * interval: the implementation subtracts the age of the stamp from the
+     * gap, so every millisecond spent writing the stamp came off the observed
+     * wait while the publish still ran a full gap after the stamp. On a loaded
+     * machine that write took tens of milliseconds and the test failed while
+     * the rule held (a 120ms gap seen as 79ms of waiting). Anchored here,
+     * `sleep` never returning early makes the bound exact — no tolerance, and
+     * load can only overshoot it.
+     */
     it('waits out the gap since the previous publish', async () => {
-        writeFileSync(join(dir, 'last-publish'), `${Date.now()}`);
-        const started = Date.now();
+        const previousPublish = Date.now();
+        writeFileSync(join(dir, 'last-publish'), `${previousPublish}`);
+        let publishedAt = 0;
 
-        await withPublishSlot({ dir, spacing: 120 }, async () => undefined);
+        await withPublishSlot({ dir, spacing: 120 }, async () => {
+            publishedAt = Date.now();
+        });
 
-        expect(Date.now() - started).toBeGreaterThanOrEqual(100);
+        expect(publishedAt - previousPublish).toBeGreaterThanOrEqual(120);
+    });
+
+    /**
+     * ...and only the gap *since* that publish. A stamp already older than the
+     * gap is a gap that has been served, so there is nothing left to wait out.
+     * Read from `onWait` rather than from the clock, so this says what it means
+     * on a machine of any speed.
+     */
+    it('does not wait when the previous publish is already older than the gap', async () => {
+        writeFileSync(join(dir, 'last-publish'), `${Date.now() - 5_000}`);
+        const waits: string[] = [];
+
+        await withPublishSlot(
+            { dir, spacing: 120, onWait: (r) => waits.push(r) },
+            async () => undefined
+        );
+
+        expect(waits).toEqual([]);
     });
 
     /**

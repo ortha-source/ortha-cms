@@ -2583,7 +2583,7 @@
             "axes": [
                 "unit"
             ],
-            "text": "COPILOT_ENABLED=false and MCP_ENABLED=false are always written into .env, whatever was chosen."
+            "text": "COPILOT_ENABLED=false is always written into .env, whatever was chosen — the copilot is installed unconditionally, so the kill switch must be there to be turned on. MCP_ENABLED=false is written only when mcp was chosen: it sits inside that feature’s ortha:if block, so an app scaffolded without MCP has no such line, no McpPlugin, and nothing the setting could switch."
         },
         {
             "id": "create-ortha-app:I-16",
@@ -2967,7 +2967,7 @@
             "axes": [
                 "unit"
             ],
-            "text": "Every light-palette token has a counterpart in .dark — either overridden or deliberately inherited (the panel's chrome and the navigation accents)."
+            "text": "Every light-palette token is overridden in .dark, except three families that are the same colour in both themes on purpose: the panel’s chrome (--color-sidebar-*), the navigation accents (--color-nav-*) and the avatar palette (--color-avatar-*). Nothing else may inherit, and an inherited family that acquires a .dark override has left the list."
         },
         {
             "id": "design-system:I-05",
@@ -3175,7 +3175,7 @@
             "axes": [
                 "unit"
             ],
-            "text": "Every non-operable animation is suppressed under prefers-reduced-motion: reduce."
+            "text": "Every non-operable animation is suppressed under prefers-reduced-motion: reduce — with one deliberate exception, the loading spinner, which is stripped of movement rather than stopped: opacity only, no transform, a cycle no faster than 1 s. A stopped indeterminate loader is indistinguishable from a hung request, and WCAG 2.3.3 is about non-essential motion, not about withholding essential feedback."
         },
         {
             "id": "design-system:I-31",
@@ -4665,7 +4665,7 @@
                 "server-e2e",
                 "unit"
             ],
-            "text": "A provider depends only on the port's type (erased at compile time) and its own vendor SDK; no adapter pulls in NestJS."
+            "text": "A provider depends only on @orthacms/media-domain — the port's types, plus ObjectNotFoundError, which is a value — and its own vendor SDK. The port package declares no dependencies of any kind, so no adapter reaches NestJS, Drizzle or Express by any route: not in its manifest, not in its imports, and not transitively."
         },
         {
             "id": "media:I-35",
@@ -6119,7 +6119,7 @@
                 "server-e2e",
                 "unit"
             ],
-            "text": "No type and no function in the package mentions HTTP, JSON-RPC or MCP."
+            "text": "No JSON-RPC vocabulary appears anywhere in the package, and no transport object crosses the tool contract — a handler is handed a ToolContext and a plain argument bag, never a request, a response, or a protocol envelope. HTTP and MCP do appear, and only in these two shapes: refusals are Nest HttpExceptions flattened to a numeric ToolError.status, and mcp is one of the two ToolSurface labels alongside the readOnly/destructive client hints. See I-24 for the dependency rule."
         },
         {
             "id": "transfer:I-01",

@@ -9,7 +9,7 @@ import { InjectDatabase, type Database } from '@orthacms/database';
 import {
     STORAGE_PROVIDER,
     type StorageProvider
-} from '../domain/storage-provider';
+} from '@orthacms/media-domain';
 import { mediaAsset } from './schema/media-asset';
 
 /**

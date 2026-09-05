@@ -2,7 +2,7 @@ import type { DynamicModule, ValueProvider } from '@nestjs/common';
 import {
     STORAGE_PROVIDER,
     type StorageProvider
-} from '../domain/storage-provider';
+} from '@orthacms/media-domain';
 import type { MediaPluginConfig } from '../types/media-config';
 import { MediaServerPlugin, type MediaPluginOptions } from './media-plugin';
 

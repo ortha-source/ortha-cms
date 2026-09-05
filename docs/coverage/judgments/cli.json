@@ -112,8 +112,8 @@
     ],
     "judgments": {
         "cli:I-22": {
-            "state": "not-mechanically-checkable",
-            "reason": "An absence claim about the whole package — 'the CLI reads no settings file of its own'. A test can assert what LAYOUT contains (packages/cli/src/lib/project.ts:25), but no harness can assert that nothing anywhere in the package ever reads a config file of its own; that is a review/grep property, not an assertion."
+            "state": "partial",
+            "missing": "The second clause — \"the CLI reads no settings file of its own\". It is an unbounded absence over the package with no single channel to enumerate: a settings read need not be a literal, so `readFileSync(join(root, name))` would satisfy any scan written for one. The first clause is pinned by `layout-is-convention.spec.ts`, which is enumerable for the opposite reason — a path has to be spelled out to be used, so a second opinion about where the server compiles to is necessarily a string literal, and the spec asserts no literal beginning `apps` or `dist` exists outside the `LAYOUT` table (plus that the table is live and its entries relative). Worth noting for whoever closes the rest: the CLI does read `.env` (`src/lib/env.ts`), which is environment rather than layout, and `package.json` in three places — root discovery, its own version, and locating a dependency's bin."
         },
         "cli:I-12": {
             "state": "partial",

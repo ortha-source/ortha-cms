@@ -171,7 +171,8 @@ registered **first**, so it still wins when it lives under the UI mount.
   server builds with webpack + `tsc`), so nothing is inferred: every DTO
   property carries an explicit `@ApiProperty`/`@ApiPropertyOptional`. A new
   property without one is silently absent from the docs — see the
-  `server-plugin` skill.
+  `server-plugin` skill. That covers **request** bodies; responses are the gap
+  below.
 - **Auth is plugin-described.** The host has no guards, so it doesn't invent
   security schemes: a plugin declares its own through `ServerPlugin.docs`
   (`securitySchemes` + `defaultSecurity`), and `setupApiDocs` merges every
@@ -184,6 +185,60 @@ registered **first**, so it still wins when it lives under the UI mount.
   through one generic controller set, so it uses this hook to add a schema per
   registered type and attach them to its own routes — see that package's
   `AGENTS.md`. A plugin amends only what it owns; the document is shared.
+
+### The response-schema gap
+
+**Most operations still describe no response payload.** Measured against a live
+server (`GET /reference/json`, 10 content types registered): **45 of 162**
+operations carry a 2xx JSON schema. Of the 117 that do not, 16 answer `204` and
+so correctly have no body; the rest — 75 `200`s and 26 `201`s — are a real hole.
+A consumer reaching for the document to learn what comes back cannot, and has to
+curl the live API instead.
+
+**The cause is three things, and only the third is the one that matters:**
+
+1. Almost no handler carries `@ApiOkResponse` / `@ApiCreatedResponse`. Five files
+   in the whole repo use any response decorator, so the scanner emits a bare
+   `{ '200': { description: '' } }`.
+2. The `@nestjs/swagger` CLI plugin is not enabled (no `nest-cli.json`, no
+   `transformers` entry in `apps/server/webpack.config.js`), so nothing is
+   inferred from the return types either.
+3. **Turning it on would not help.** The plugin's controller transformer emits
+   `@ApiResponse({ type: X })` only when `X` is a value it can reference at
+   runtime — a class. Every response view type in this repo is a TypeScript
+   `interface` (`PublicEntry`, `WorkspaceView`, `AssetView`, `SegmentView`,
+   `WebhookEndpointView`, …), which is erased at compile time and carries no
+   metadata. And several of them live in `domain/`, where ADR-0003 forbids the
+   `@nestjs/swagger` import a decorated class would need. So this is **not** one
+   configuration switch away.
+
+**How to close it, per package.** Not with 100 hand-written decorators, and not
+by converting the view interfaces to decorated classes. Use the mechanism the
+document already runs on: `ServerPlugin.docs.decorate`. It writes plain OpenAPI
+schema objects onto the finished document, needs no decorator and no class, and
+so sidesteps the domain-purity rule entirely.
+`@orthacms/content-server`'s `src/lib/docs/` is the worked example — a schema
+module, a route table keyed by what follows the plugin's prefix, and a pass that
+writes the schema onto whichever 2xx key the scanner already emitted (never
+inventing a status code). A plugin with a fixed contract needs perhaps 100 lines
+of it.
+
+**What is done.** The public content API (`/api/v1/content*`,
+`/api/v1/content-types*`) — 22 of its 30 operations, the other 8 being two `204`
+deletes, the binary `/v1/media/assets/{id}/raw`, and five operations owned by
+other plugins. It went first because it is the document's real audience, and
+because 13 of its operations were not merely undescribed but **wrong**: the
+content pass's route pattern matched the `/v1/` spelling too, so the published
+contract was reported with the admin's schemas.
+
+**What remains**, by owning plugin, largest first: `workspaces` 13, `media` 12,
+`identity` (auth 12 + users 11 + api-tokens 3), `content` 11 (the admin
+`/content-types` list, the deletes, and transfer's import/export routes),
+`webhooks` 10, `insights` 10, `alarms` 9, `segments` 8 (including
+`/api/v1/content/{typeName}/{id}/access`, the last two public-API gaps),
+`content-server`'s views 6, `i18n` 3, `activity` 3, `preferences` 2,
+`content-graphql` 2. A `docs.decorate` pass per plugin, in that order, finishes
+it.
 
 ## Configuration
 
@@ -210,7 +265,8 @@ createServer({
 
 - Auth guards / sessions, a plugin registry, nav/permission concerns
 - Per-operation API docs (summaries, response schemas): the host generates the
-  document, but `@ApiOperation`/`@ApiResponse` belong on the plugins' controllers
+  document, but `@ApiOperation`/`@ApiResponse` belong on the plugins'
+  controllers — see [the response-schema gap](#the-response-schema-gap)
 - Lifecycle beyond `onPluginInit` and `enableShutdownHooks`. The host turns
   shutdown hooks **on**, so a plugin gets `onModuleDestroy` on `SIGTERM`; what
   it does with it is the plugin's business. Note `@orthacms/database` binds
@@ -261,13 +317,26 @@ Deleting either line from the real `create-server.ts` left the whole suite green
 the package does not depend on `express` and declares its request/response types
 structurally (I-36).
 
-Two things are deliberately uncovered. `tagByResource`'s non-operation-key guard
-has no reachable repro: `@nestjs/swagger` emits no path-level `parameters`, and
-`decorate` runs _after_ tagging, so nothing can stage one. And SIGTERM's effect
-on in-flight requests is asserted only as "the listeners are installed" — the
-drain itself was measured by hand against the built bundle (six concurrent
-logins, all reset before, all `401` after) because a jest worker cannot signal
-itself without ending the run.
+`tagByResource`'s non-operation-key guard **is** covered, and how it got there
+is worth keeping: it was written off as having "no reachable repro" on the
+grounds that `@nestjs/swagger` emits no path-level `parameters` and `decorate`
+runs _after_ tagging, so nothing can stage one. That is a fact about the
+scanner, not about the harness — `setup-api-docs.spec.ts` already stubs
+`SwaggerModule.createDocument`, so the document is whatever a test says it is,
+and a path item carrying `parameters`, `$ref`, `summary` and `servers` goes
+straight in (I-12). Nothing had to be exported to reach the branch.
+
+The same file also pins the host's own emptiness (I-01, first sentence): no
+`CanActivate`, no `@Controller` or method decorator — the reference routes are
+registered on the http adapter and deliberately are not these — no `pgTable`,
+and a manifest declaring no `@orthacms/*` at all. Its second sentence ("adding a
+capability never requires editing a file in `packages/bootstrap`") is a claim
+about future diffs and stays uncovered by design.
+
+One thing is deliberately uncovered. SIGTERM's effect on in-flight requests is
+asserted only as "the listeners are installed" — the drain itself was measured
+by hand against the built bundle (six concurrent logins, all reset before, all
+`401` after) because a jest worker cannot signal itself without ending the run.
 
 ## Commands
 

@@ -1370,11 +1370,45 @@ owns:
   `article` → `ArticleValues` / `ArticleEntry` / `ArticleListPage`.
 - **`typeName` becomes an enum** of the registered names, so the reference
   offers a picker instead of a free-text box.
-- **Response schemas** on every content route — `oneOf` the per-type schemas for
+- **Response schemas** on every content route — `anyOf` the per-type schemas for
   the entry/list reads (the shape depends on `typeName`, which OpenAPI can't
   express as a dependency), the fixed shared shapes elsewhere
   (`EntryRelations`, `RevisionDetail`, `BulkPublishPreview`, `ContentTypeSchema`,
   …), plus the documented `404` and, on the validated writes, `422`.
+  `anyOf` and not `oneOf`: the alternatives are not mutually exclusive — an
+  empty `items` array satisfies every list schema there is — and `oneOf` means
+  _exactly one_, so it rejected responses the API really returns.
+
+### Two surfaces, described separately
+
+`/api/content/...` and `/api/v1/content/...` are two surfaces over the same
+content types and they **do not answer in the same shapes**. A public relation
+page carries whole `PublicEntry` objects where the admin's carries `RelationRef`s
+(id + title); a public media read is `Record<string, { items, total }>` where the
+admin's is `Record<string, MediaRef[]>`; the public `values` bag drops every
+reference field including the owning single relation's FK, which the admin's
+keeps.
+
+So `docs/public-api-schemas.ts` builds a second set — `Public<Type>Values` /
+`Public<Type>Entry` / `Public<Type>ListPage` plus the public fixed shapes
+(`PublicEntryMedia`, `PublicRelationFieldPage`, `PublicEntryTranslations`,
+`PublicContentTypeList`, `PublicBulkSaveResult`, …) — and
+`describe-content-api.ts` holds a route table per surface, matching the `/v1/`
+patterns **first**. The order is load-bearing: `ENTRY_ROUTE_RE` also matches the
+`/v1/` spelling, and letting it win is exactly how the published contract came
+to be documented with the admin's schemas.
+
+The rule when adding a public route: add it to `PUBLIC_ENTRY_ROUTES`, never to
+`ENTRY_ROUTES`. Adding it to neither leaves the operation with a response that
+has no schema at all, which the document is otherwise mostly made of — see
+[`bootstrap-server`](../../bootstrap/server/AGENTS.md#the-response-schema-gap).
+
+**Nullability is not one flag.** `nullable: true` in OpenAPI 3.0 modifies a
+schema's `type`, so it is inert on a bare `oneOf` (a `richtext` body) and does
+not widen an enumeration (a `select`). `fieldSchema`'s `nullable()` helper adds
+`{ type: 'null' }` to the union and `null` to the enum for exactly that reason —
+without it an entry with an unset `select` failed its own `Values` schema, which
+is every draft.
 
 Three rules the mapping follows, each mirroring real behavior:
 

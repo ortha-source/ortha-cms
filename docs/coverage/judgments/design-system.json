@@ -165,10 +165,6 @@
         }
     ],
     "judgments": {
-        "design-system:I-04": {
-            "state": "not-mechanically-checkable",
-            "reason": "As written the statement cannot fail: the disjunct 'either overridden or deliberately inherited' admits every token that has no `.dark` counterpart (packages/design-system/src/styles.css and apps/admin/src/styles.css), so any assertion over the two token sets passes by construction. Only a different, hand-maintained statement — an explicit allowlist of the tokens permitted to inherit — would be testable, and no such list exists in the repo."
-        },
         "design-system:I-06": {
             "state": "partial",
             "missing": "Only the first clause is pinned. `library-conventions.spec.ts` scans every source file for a `react-intl` import, a `defineMessages` call and a catalogue module and finds none, and `package-manifest.spec.ts` proves no intl runtime is a dependency. The second clause — that *every visible string* either arrives as a prop or has an English default a host can override — is asserted for the one string that has a context default (`close`, in `labels/index.spec.tsx`) and for the props with English defaults that `localizable-copy.spec.tsx` covers; nothing enumerates the library's JSX text nodes, so a newly hard-coded, un-overridable literal would pass."
@@ -188,10 +184,6 @@
         "design-system:I-28": {
             "state": "partial",
             "missing": "Body-click, close button and inner links are each pinned. The action/cancel clause is not, and not for want of a fixture: sonner dismisses the toast itself on both, so `toastBodyOf` standing aside and `toastBodyOf` intercepting produce the same DOM. Distinguishing them needs an observable this harness does not have — the wrapper's dismissal path is `closeButton.click()`, which sonner routes through the same `deleteToast` the buttons use."
-        },
-        "design-system:I-30": {
-            "state": "partial",
-            "missing": "`Spinner`'s `animate-spin` (packages/design-system/src/lib/components/ui/spinner.tsx:27) is the one animation in the library that keeps running under `prefers-reduced-motion: reduce`, and it is the exception the scan in `library-conventions.spec.ts` names. Everything else is pinned: both stylesheet animations have a `prefers-reduced-motion` twin (checked by parsing `styles.css`, so a *new* keyframed class without one fails), `Skeleton`'s pulse carries `motion-reduce:animate-none`, and the shadcn `animate-in`/`animate-out` classes on dialog/sheet/tooltip are dead — the premise that neither tailwindcss-animate nor tw-animate-css is installed, and that the admin stylesheet loads no `@plugin`, is itself asserted. Whether the spinner should stop, slow, or stay is a design decision, not a scan gap; the dossier's \"every\" is currently false."
         },
         "design-system:I-33": {
             "state": "partial",

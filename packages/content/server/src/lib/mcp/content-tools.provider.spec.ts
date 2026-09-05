@@ -226,3 +226,195 @@ describe('ContentToolProvider resource reads', () => {
         ).resolves.toBeUndefined();
     });
 });
+
+/**
+ * That the handlers **delegate** rather than re-implement.
+ *
+ * The claim (`mcp:I-19`) is "no content rule is rewritten here: the handlers
+ * call the same `resolveGrantedType`, `PublicEntriesQuery` and
+ * `PublicEntryWritesService` the HTTP controllers do, and validate with the
+ * real DTOs." It reads like a statement about the call graph, and a judgment
+ * once retired it as one — no harness can assert that two call sites reached
+ * the same collaborator.
+ *
+ * They can, though, when the collaborator is injected. This provider takes both
+ * entry services through its constructor, so a recording pair says exactly what
+ * each tool reached for, and a handler that grew its own query would touch
+ * neither. That is the whole observable: not "which module was imported", but
+ * "was the injected object called, and did its answer come back unchanged".
+ *
+ * What this file cannot see is that the injected class is the one the
+ * controllers get — that is DI wiring, pinned by `apps/server-e2e`'s MCP suite
+ * answering identically to the `/v1` routes.
+ */
+
+/** The value a recorded collaborator hands back, so a re-shape is visible. */
+const ANSWER = Symbol('the collaborator’s answer');
+
+/** One recorded call: which injected service, which method, which arguments. */
+interface Recorded {
+    target: 'entries' | 'writes';
+    method: string;
+    args: unknown[];
+}
+
+/** A recording stand-in for one of the two entry services. */
+function recorder(target: Recorded['target'], log: Recorded[]) {
+    return new Proxy(
+        {},
+        {
+            get:
+                (_unused, method: string) =>
+                (...args: unknown[]) => {
+                    log.push({ target, method, args });
+                    return ANSWER;
+                }
+        }
+    );
+}
+
+/** A provider whose entry services record instead of running. */
+function delegating() {
+    const log: Recorded[] = [];
+    const registry = {
+        get: (name: string) => (name === 'article' ? { name } : undefined),
+        summaries: () => [serialized('article')],
+        serialize: (name: string) =>
+            name === 'article' ? serialized('article') : undefined
+    } as unknown as ContentTypeRegistry;
+    const grants = {
+        grantedSlugs: async () => new Set(['article'])
+    } as unknown as WorkspaceGrantsQuery;
+
+    return {
+        log,
+        provider: new ContentToolProvider(
+            registry,
+            grants,
+            recorder('entries', log) as PublicEntriesQuery,
+            recorder('writes', log) as PublicEntryWritesService
+        )
+    };
+}
+
+/** The tool of that name, or a failure that names it. */
+function toolNamed(provider: ContentToolProvider, name: string) {
+    const tool = provider
+        .tools()
+        .find((candidate: ToolDefinition) => candidate.name === name);
+    if (!tool) throw new Error(`no tool named ${name}`);
+    return tool;
+}
+
+describe('ContentToolProvider delegates to the public API’s own services', () => {
+    /**
+     * One row per tool: the arguments a caller sends, and the single method on
+     * a single injected service it must resolve to.
+     *
+     * A read that paged itself, a write that inserted its own row, or a tool
+     * that called the right method and then post-processed the answer all fail
+     * here — the first two because nothing was recorded, the last because the
+     * sentinel did not come back.
+     */
+    const cases: [string, Recorded['target'], string, Record<string, unknown>][] =
+        [
+            ['content_list', 'entries', 'list', { typeName: 'article' }],
+            [
+                'content_get',
+                'entries',
+                'getOne',
+                { typeName: 'article', id: 'entry-1' }
+            ],
+            [
+                'content_relations',
+                'entries',
+                'relationField',
+                { typeName: 'article', id: 'entry-1', field: 'authors' }
+            ],
+            [
+                'content_create',
+                'writes',
+                'create',
+                { typeName: 'article', values: { title: 'Hello' } }
+            ],
+            [
+                'content_update',
+                'writes',
+                'update',
+                { typeName: 'article', id: 'entry-1', values: { title: 'Hi' } }
+            ],
+            [
+                'content_publish',
+                'writes',
+                'publish',
+                { typeName: 'article', id: 'entry-1' }
+            ],
+            [
+                'content_bulk_publish',
+                'writes',
+                'bulkPublish',
+                {
+                    typeName: 'article',
+                    ids: [
+                        '3f1a7c1e-9d2b-4a6f-8c11-5b8e2f0d7a91',
+                        '9c2e5b40-1a77-4f3d-b0e6-2d1c4a8f6b03'
+                    ]
+                }
+            ]
+        ];
+
+    it.each(cases)(
+        '%s runs through %s.%s [mcp:I-19]',
+        async (name, target, method, input) => {
+            const { provider, log } = delegating();
+
+            const result = await toolNamed(provider, name).handler(
+                input,
+                context()
+            );
+
+            expect(log).toEqual([
+                { target, method, args: expect.any(Array) }
+            ]);
+            // Verbatim: the tool maps arguments onto a call and returns what it
+            // gets. Anything else here is a second implementation of a rule the
+            // public API already owns.
+            expect(result).toBe(ANSWER);
+        }
+    );
+
+    it('carries the workspace and the resolved grant set into the call [mcp:I-19]', async () => {
+        // The two arguments the grant gate exists to produce. A handler that
+        // resolved the type itself — or passed the raw name through — would
+        // reach the query with a different shape here even though it reached it.
+        const { provider, log } = delegating();
+
+        await toolNamed(provider, 'content_list').handler(
+            { typeName: 'article' },
+            context()
+        );
+
+        const [type, , workspaceId, granted] = log[0].args;
+        expect(type).toEqual({ name: 'article' });
+        expect(workspaceId).toBe('workspace-1');
+        expect(granted).toEqual(new Set(['article']));
+    });
+
+    it('validates arguments with the route’s own DTO [mcp:I-19]', async () => {
+        // `forbidNonWhitelisted`, which is the host's `ValidationPipe` setting
+        // and not class-validator's default. A hand-rolled check over the
+        // arguments would let an unknown key through — the failure mode the
+        // rule is stated for, because a silently dropped argument produces a
+        // plausible wrong answer rather than an error.
+        const { provider, log } = delegating();
+
+        await expect(
+            toolNamed(provider, 'content_list').handler(
+                { typeName: 'article', pageSizze: 25 },
+                context()
+            )
+        ).rejects.toMatchObject({ status: 400 });
+        // …and it refused *before* reaching the query, not after.
+        expect(log).toEqual([]);
+    });
+});

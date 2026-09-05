@@ -1,5 +1,6 @@
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { freemem } from 'node:os';
+import { platform } from 'node:os';
 import { getHeapStatistics } from 'node:v8';
 
 /**
@@ -57,23 +58,113 @@ export function assertSerialExecution(maxWorkers: number | undefined): void {
 const RECOMMENDED_FREE_BYTES = 2.5 * 1024 * 1024 * 1024;
 
 /**
- * Memory a process could actually get, in bytes.
+ * Bytes of memory available on Linux, or `undefined` off Linux.
  *
- * `os.freemem()` is the wrong number on Linux: it reports `MemFree`, which
- * excludes reclaimable page cache, so a perfectly healthy box reads as nearly
- * out of memory (measured here: 204 MB "free" against 1.5 GB available). Prefer
- * `MemAvailable` from `/proc/meminfo`, which is the kernel's own estimate, and
- * fall back to `os.freemem()` where that file does not exist.
+ * `os.freemem()` is the wrong number here: it reports `MemFree`, which excludes
+ * reclaimable page cache, so a perfectly healthy box reads as nearly out of
+ * memory (measured: 204 MB "free" against 1.5 GB available). `MemAvailable` is
+ * the kernel's own estimate of what a new allocation could actually get, which
+ * is the question being asked.
  */
-export function availableMemoryBytes(): number {
+function linuxAvailableBytes(): number | undefined {
     try {
         const meminfo = readFileSync('/proc/meminfo', 'utf8');
         const match = /^MemAvailable:\s+(\d+) kB$/m.exec(meminfo);
         if (match) return Number(match[1]) * 1024;
     } catch {
-        // Not Linux, or /proc is not mounted — fall through.
+        // /proc is not mounted, or this is not Linux.
     }
-    return freemem();
+    return undefined;
+}
+
+/**
+ * Bytes of memory available on macOS, or `undefined` if `vm_stat` cannot be
+ * read.
+ *
+ * `os.freemem()` on Darwin returns `vm_statistics.free_count` alone — pages the
+ * kernel is holding for nobody. macOS deliberately keeps that number near zero
+ * and parks everything else in the **inactive** and **speculative** queues,
+ * which are reclaimable on demand. So a 32 GiB machine with 11 GiB genuinely
+ * available reports 0.2 GiB, and the low-memory advisory fires on every single
+ * run — which is worse than no advisory, because it teaches the reader to skip
+ * the line on the one run where it is true.
+ *
+ * `free + inactive + speculative` is the honest figure: it is what Activity
+ * Monitor and `vm_stat`-based tooling treat as reclaimable. Wired and active
+ * pages are excluded because they are not. Purgeable pages sit *inside* the
+ * active/inactive counts and are deliberately not added again.
+ *
+ * The page size comes from `vm_stat`'s own header so the two always agree;
+ * `sysctl hw.pagesize` is the fallback, and a machine that yields neither gets
+ * `undefined` rather than a guess (Apple silicon pages at 16 KiB, Intel at 4 —
+ * assuming either one is a 4× error in the direction of a false alarm).
+ */
+function darwinAvailableBytes(): number | undefined {
+    try {
+        return parseVmStat(execFileSync('vm_stat', { encoding: 'utf8' }), () =>
+            Number(
+                execFileSync('sysctl', ['-n', 'hw.pagesize'], {
+                    encoding: 'utf8'
+                }).trim()
+            )
+        );
+    } catch {
+        return undefined;
+    }
+}
+
+/**
+ * The reclaimable-memory total in `vm_stat` output, or `undefined` if the
+ * output does not carry every field the sum needs.
+ *
+ * Split out from {@link darwinAvailableBytes} so the parsing can be tested
+ * against captured output rather than against whatever this machine happens to
+ * have free — the number is only trustworthy if the parse is.
+ *
+ * `pageSizeFallback` is consulted only when the header is missing; it may
+ * throw, and a throw is an answer (`undefined`).
+ */
+export function parseVmStat(
+    output: string,
+    pageSizeFallback: () => number
+): number | undefined {
+    const header = /page size of (\d+) bytes/.exec(output);
+    const pageSize = header ? Number(header[1]) : pageSizeFallback();
+    if (!Number.isFinite(pageSize) || pageSize <= 0) return undefined;
+
+    // Every queue must be present. A partial sum would silently under-report,
+    // which is the failure this whole function exists to remove.
+    let pages = 0;
+    for (const queue of ['free', 'inactive', 'speculative']) {
+        const match = new RegExp(`^Pages ${queue}:\\s+(\\d+)\\.`, 'm').exec(
+            output
+        );
+        if (!match) return undefined;
+        pages += Number(match[1]);
+    }
+
+    return pages * pageSize;
+}
+
+/**
+ * Memory a process could actually get, in bytes — or `undefined` where this
+ * platform cannot be asked honestly.
+ *
+ * `undefined` is a real answer, not a failure: {@link warnOnLowMemory} says
+ * nothing when it gets one. A warning that is always wrong on the platform the
+ * suite is actually run on costs more than no warning at all, because it trains
+ * the reader to skip the line on the run where it is right. Silence beats a
+ * guess.
+ */
+export function availableMemoryBytes(): number | undefined {
+    switch (platform()) {
+        case 'linux':
+            return linuxAvailableBytes();
+        case 'darwin':
+            return darwinAvailableBytes();
+        default:
+            return undefined;
+    }
 }
 
 /**
@@ -84,8 +175,15 @@ export function availableMemoryBytes(): number {
  * line of a starved run says memory, so the ~650 failures that follow are read
  * as one cause rather than 650 regressions. Returns the message it printed, or
  * `undefined`, so a test can assert the boundary.
+ *
+ * `undefined` in means `undefined` out: on a platform we cannot measure
+ * honestly the run gets no line at all. That is the deliberate trade — this
+ * advisory is only worth anything while it is believed.
  */
-export function warnOnLowMemory(availableBytes: number): string | undefined {
+export function warnOnLowMemory(
+    availableBytes: number | undefined
+): string | undefined {
+    if (availableBytes === undefined) return undefined;
     if (availableBytes >= RECOMMENDED_FREE_BYTES) return undefined;
     const gib = (bytes: number) => `${(bytes / 1024 ** 3).toFixed(1)} GiB`;
     const message =
