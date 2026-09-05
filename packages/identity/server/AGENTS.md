@@ -7,8 +7,11 @@ public registration; the only route into an account is an admin's invite,
 redeemed through the accept pair below.
 
 It currently defines its **persistence model** — the Drizzle schema in
-`src/lib/schema` (workspaces, workspace_content, users, roles, permissions, memberships, sessions,
-tokens) — and **ships its migrations** (`drizzle.config.ts` + committed
+`src/lib/schema` — eleven tables: users, roles, permissions, role_permissions,
+sessions, tokens, api_tokens, api_token_workspaces, user_preferences,
+sso_identities, sso_auth_requests. `api_token_workspaces` is owned here but
+**purged** by `workspaces-server`'s local `ApiTokenGrantsPurger`, because that
+package depends on this one and so cannot be depended on back) — and **ships its migrations** (`drizzle.config.ts` + committed
 `migrations/`, applied by `@orthacms/nx`'s `db:migrate`). It also **seeds the
 system roles** (`admin`/`contributor`/`viewer`) idempotently on boot and
 protects them from deletion (RBAC, FR-6). It also handles **email/password
@@ -216,40 +219,12 @@ error, and type the barrel exports keeps its path, so no consumer import moved.
       role/permission matrix at the feature root (non-class data).
     - `root-admin/` — `services/` (`RootAdminService`), `seeders/`
       (`RootAdminSeeder`), `errors/`.
-    - `workspaces/` — `controllers/` (`create`/`list`/`check-slug`/`update`/
-      `set-status` (archive+unarchive)/`delete`/`add-member`/`remove-member`/
-      `add-content`/`remove-content`, all on `/api/workspaces`), `services/`
-      (`WorkspaceService` + granular `SlugService`/`MembershipService`/
-      `ContentGrantService`), `guards/` (`WorkspaceGuard`), `decorators/`
-      (`@CurrentWorkspace()`), `dto/`, `errors/`. Backs the admin create-wizard
-      **and the settings page**: creates a workspace + memberships + content
-      grants, lists workspaces with members, checks slug availability, and edits
-      an existing workspace — `PATCH /:id` (name/description/color,
-      `workspaces:update`), `POST /:id/archive` + `/unarchive` (status,
-      `workspaces:update`), `DELETE /:id` (permanent, `workspaces:delete`;
-      **409s while the workspace still holds any content entries**, so a delete
-      never orphans records — the emptiness check and the delete run in one
-      transaction under an **exclusive per-workspace advisory lock** that entry
-      creates take in shared mode, closing the count-then-write race),
-      `POST`/`DELETE /:id/members[/:userId]`, and
-      `POST /:id/content` + `DELETE /:id/content/:slug` (grant/revoke a content
-      type; revoke **409s unless the type is empty in the workspace**, checked
-      via the `CONTENT_ENTRY_COUNTER` port). Two read-only pre-check endpoints
-      back the admin's block-before-you-act dialogs:
-      `GET /:id/content/:slug/entry-count` (per-type, `workspaces:update`) and
-      `GET /:id/entry-count` (whole-workspace total, `workspaces:delete`). Each
-      mutation records its own
-      `workspace.*` audit event. There is **no per-workspace owner** — access is
-      purely the global role's permissions, and membership is a pure link with
-      no role (the creator is just the first member; any member is removable with
-      `workspaces:update`). It also
-      provides the **workspace-scoping** primitives other plugins reuse:
-      `WorkspaceGuard` reads the `X-Workspace-Id` header, 400s a missing/malformed
-      id and 403s a non-member (`MembershipService.isMember`), then exposes the id
-      via `@CurrentWorkspace()`. Both are exported from the barrel and the guard
-      is provided in the global module (like `PermissionsGuard`), so a feature
-      plugin (e.g. content) guards its workspace-owned routes with
-      `@UseGuards(WorkspaceGuard)` + `@CurrentWorkspace()`.
+    - `workspaces/` — **moved out.** Workspaces, memberships and content
+      grants now live in `@orthacms/workspaces-server`, in the tactical-DDD
+      layout, with their own tables and migrations. `WorkspaceGuard`,
+      `@CurrentWorkspace()` and the `WorkspacePurger` port are exported from
+      there, not from here. See
+      [`packages/workspaces/server/AGENTS.md`](../../workspaces/server/AGENTS.md).
     - `api-tokens/` — the **external-API bearer tokens** (layered, not
       feature-then-kind): `domain/` (the `read`/`full` scope → permission-set
       map), `application/` (`ApiTokenService` — mint/verify/list/revoke),

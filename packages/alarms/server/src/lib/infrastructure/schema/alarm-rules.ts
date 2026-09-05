@@ -27,8 +27,10 @@ import {
  * - **`createdBy`** is a uuid with **no FK**, like `activity_events.actorId` —
  *   the author may be deleted and the rule must outlive them.
  *
- * `workspaceId` carries no FK either: the `workspaces` table is identity-owned
- * and cross-plugin foreign keys are not how this codebase scopes rows.
+ * `workspaceId` carries no FK either: the `workspaces` table belongs to
+ * `workspaces-server` and cross-plugin foreign keys are not how this codebase
+ * scopes rows. What removes these rows instead is `AlarmsWorkspacePurger`,
+ * registered with that package's purge registry.
  */
 export const alarmRules = pgTable(
     'alarm_rules',
