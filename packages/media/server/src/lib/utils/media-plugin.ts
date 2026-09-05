@@ -2,6 +2,8 @@ import { join } from 'node:path';
 import type { ServerPlugin } from '@orthacms/bootstrap-server';
 import type { StorageProvider } from '@orthacms/media-domain';
 import { MediaModule } from '../media.module';
+import { describeMediaApi } from '../docs/describe-media-api';
+import { describeMediaInsightsApi } from '../docs/describe-media-insights-api';
 import type { MediaPluginConfig } from '../types/media-config';
 
 /** The media plugin shape, with its config attached. */
@@ -131,6 +133,20 @@ export function MediaServerPlugin(
             // → ../../../migrations = <pkg>/migrations.
             dir: () => join(__dirname, '../../../migrations'),
             table: '__drizzle_migrations_media'
+        },
+        // `AssetView` and friends are `interface`s, and `StoredMediaTrack`
+        // lives in `domain/` where the swagger import is forbidden — so the
+        // response shapes are written onto the document here rather than
+        // through decorators the scanner has nothing to reflect.
+        docs: {
+            decorate: (document) => {
+                describeMediaApi(document);
+                // `/insights/media/*` are this plugin's routes too, but they
+                // belong to the Insights surface — a different tag and a
+                // different audience — so they are described from their own
+                // module rather than folded into the media-resource pass.
+                describeMediaInsightsApi(document);
+            }
         }
     };
 }

@@ -332,6 +332,31 @@ the workspace scope is what keeps it from being an enumeration oracle: an id fro
 another workspace answers as an unrestricted entry, exactly as an unknown one
 does.
 
+## OpenAPI (`src/lib/docs/`)
+
+`SegmentsPlugin` contributes a `docs.decorate` pass — every route here answers a
+framework-free `interface`, which the swagger scanner cannot see and ADR-0003
+forbids decorating.
+
+**Two surfaces, two tables**, for the reason content's pass learned the hard way:
+`PUT /api/segments/entries/:entryId` and
+`PUT /api/v1/content/:typeName/:id/access` are the same decision and do **not**
+answer in the same shape — the public one carries the entry id and the derived
+`restricted` flag. One table matching both spellings is how thirteen public
+content operations came to be published with the admin's schemas.
+
+**Nothing here is content-type-dependent**, which is worth stating because the
+`/access` routes sit on a `{typeName}` path and the neighbouring content pass
+generates a schema per registered type. What varies with the type there is the
+**parameter**, not the payload: an entry's audiences are two lists of segment ids
+whatever the entry is. Content's pass writes that parameter's enum; this one
+writes the public route's **400** — the answer an ungranted type gets here, and
+deliberately not the 404 the content routes give.
+
+The schema descriptions carry the two sentences that are easiest to misread and
+have nowhere else to live in a generated document: an empty `allow` list means
+**everyone**, and an empty `workspaceIds` means **every workspace**.
+
 ## What is not here yet
 
 - **Deletes are not hooked.** A hard-deleted entry leaves its `entry_access` row

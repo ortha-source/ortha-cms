@@ -31,6 +31,13 @@ describe('UsersPlugin', () => {
     });
 
     it('carries no config', () => {
-        expect(Object.keys(UsersPlugin()).sort()).toEqual(['module', 'name']);
+        // The whole descriptor, so a config field cannot be added unnoticed:
+        // `docs` is the OpenAPI response-schema pass, which is a description of
+        // the routes rather than a knob a deployment sets.
+        expect(Object.keys(UsersPlugin()).sort()).toEqual([
+            'docs',
+            'module',
+            'name'
+        ]);
     });
 });

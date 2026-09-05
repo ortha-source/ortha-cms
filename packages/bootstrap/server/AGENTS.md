@@ -231,14 +231,35 @@ because 13 of its operations were not merely undescribed but **wrong**: the
 content pass's route pattern matched the `/v1/` spelling too, so the published
 contract was reported with the admin's schemas.
 
-**What remains**, by owning plugin, largest first: `workspaces` 13, `media` 12,
-`identity` (auth 12 + users 11 + api-tokens 3), `content` 11 (the admin
-`/content-types` list, the deletes, and transfer's import/export routes),
-`webhooks` 10, `insights` 10, `alarms` 9, `segments` 8 (including
-`/api/v1/content/{typeName}/{id}/access`, the last two public-API gaps),
-`content-server`'s views 6, `i18n` 3, `activity` 3, `preferences` 2,
-`content-graphql` 2. A `docs.decorate` pass per plugin, in that order, finishes
-it.
+Since then, **`transfer` (5), `segments` (9) and `content-server`'s saved views
+(3)** as well — each a `docs.decorate` on its own plugin, each verified by
+replaying the live responses through `ajv` against the published document.
+Two things that pass found are worth carrying forward:
+
+- **A route's owner is not always the plugin whose prefix it sits under.**
+  Transfer's `/api/content/{typeName}/export*` and segments'
+  `/api/v1/content/{typeName}/{id}/access` are mounted inside content's
+  `{typeName}` namespaces. Content's pass lists them as `FOREIGN` and writes
+  **only** the registered-name enum onto the parameter — the bodies and the
+  failure codes belong to the owners, and the owners disagree (transfer 404s an
+  unknown type; the public `/access` route answers 400), so a blanket 404 from
+  the neighbouring pass would have published something the API does not do.
+- **Anchor a route pattern at both ends.** `/\/views(…)$/` also matches
+  `/api/insights/views`; `/^\/[^/]+\/views(…)$/` does not. The looser spelling
+  is the same shape that once put the admin's schemas on the public content API,
+  and it was caught here only because the fixture carried a foreign route that
+  ended in the same word.
+
+**What remains**, by owning plugin, largest first: `workspaces` 13 (including
+the admin `GET /api/content-types` — a workspaces controller over its own
+`CONTENT_CATALOG` port, despite the content-shaped path), `media` 12,
+`identity` (auth 12 + users 11 + api-tokens 3), `webhooks` 10, `insights` 10,
+`alarms` 9, `i18n` 3, `activity` 3, `preferences` 2, `content-graphql` 2. A
+`docs.decorate` pass per plugin, in that order, finishes it.
+
+The three counts at the top of this section are the **pre-pass** measurement and
+will be stale until the last plugin lands; re-measure against
+`GET /reference/json` rather than trusting them.
 
 ## Configuration
 

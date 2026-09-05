@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 import type { ServerPlugin } from '@orthacms/bootstrap-server';
 import { ActivityModule } from '../activity.module';
+import { describeActivityApi } from '../docs/describe-activity-api';
 
 /**
  * Server plugin for the audit log. A plain {@link ServerPlugin} — the feature
@@ -32,6 +33,9 @@ export function ActivityPlugin(): ServerPlugin {
         migrations: {
             dir: () => join(__dirname, '../../../migrations'),
             table: '__drizzle_migrations_activity'
-        }
+        },
+        // The three read routes answer plain `interface`s, which the OpenAPI
+        // scanner cannot see and no configuration switch can infer.
+        docs: { decorate: describeActivityApi }
     };
 }

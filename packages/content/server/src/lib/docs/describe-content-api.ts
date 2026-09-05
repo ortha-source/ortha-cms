@@ -29,17 +29,11 @@ import {
     publicSchemaNamesOf,
     publicUnionOf
 } from './public-api-schemas';
-
-/** An operation object, as far as this pass needs to see one. */
-interface Operation {
-    parameters?: {
-        name: string;
-        in: string;
-        schema?: OpenApiSchema;
-        description?: string;
-    }[];
-    responses?: Record<string, { description?: string; content?: unknown }>;
-}
+import {
+    addErrorResponse,
+    setSuccessResponse,
+    type Operation
+} from './openapi-writer';
 
 /** Which schema a content route's success response carries. */
 type ResponseKind =
@@ -57,6 +51,11 @@ interface OperationSpec {
      * `GET` on the same path validates nothing.
      */
     validated?: boolean;
+    /**
+     * The route is mounted under this plugin's `{typeName}` namespace by
+     * **another** plugin. See {@link FOREIGN}.
+     */
+    ownedElsewhere?: boolean;
 }
 
 /** The entry read/write shorthands, since most operations return one. */
@@ -66,6 +65,26 @@ const VALIDATED_ENTRY: OperationSpec = {
     validated: true
 };
 const EMPTY: OperationSpec = { response: { kind: 'empty' } };
+
+/**
+ * A route another plugin mounts under one of this plugin's `{typeName}`
+ * prefixes — transfer's export/import, segments' `/access`.
+ *
+ * Listed so the `typeName` parameter still gets the registered-name enum: which
+ * names are valid there is *this* plugin's contract, and the registry is the
+ * only thing that knows them, so leaving the parameter an opaque string would
+ * be leaving a gap nothing else can fill.
+ *
+ * Nothing else is touched. The response body and the failure codes belong to
+ * whichever plugin serves the route, and they genuinely differ — transfer 404s
+ * an unknown type, the public `/access` route answers 400 — so writing this
+ * plugin's usual 404 onto them from here would publish something the API does
+ * not do.
+ */
+const FOREIGN: OperationSpec = {
+    response: { kind: 'empty' },
+    ownedElsewhere: true
+};
 
 /** An operation returning one of the fixed shared schemas. */
 function shared(name: string): OperationSpec {
@@ -95,7 +114,14 @@ const ENTRY_ROUTES: Record<string, Record<string, OperationSpec>> = {
     '/bulk/unpublish': { post: shared('BulkActionResult') },
     '/bulk/delete': { post: shared('BulkActionResult') },
     '/bulk/restore': { post: shared('BulkActionResult') },
-    '/bulk/purge': { post: shared('BulkActionResult') }
+    '/bulk/purge': { post: shared('BulkActionResult') },
+    // Mounted here by `@orthacms/transfer-server`, which describes their
+    // bodies; see {@link FOREIGN}.
+    '/export': { post: FOREIGN },
+    '/export/preview': { post: FOREIGN },
+    '/import': { post: FOREIGN },
+    '/import/preview': { post: FOREIGN },
+    '/import/template': { get: FOREIGN }
 };
 
 /** Schema routes, keyed by what follows `/content-schema`. */
@@ -149,7 +175,10 @@ const PUBLIC_ENTRY_ROUTES: Record<string, Record<string, OperationSpec>> = {
     // documented as such in `types/public-bulk.ts`.
     '/bulk/publish': { post: shared('BulkPublishResult') },
     '/bulk/unpublish': { post: shared('BulkActionResult') },
-    '/bulk/delete': { post: shared('BulkActionResult') }
+    '/bulk/delete': { post: shared('BulkActionResult') },
+    // Mounted here by `@orthacms/segments-server`, which describes its bodies;
+    // see {@link FOREIGN}.
+    '/{id}/access': { get: FOREIGN, put: FOREIGN }
 };
 
 /** Public discovery routes, keyed by what follows `/v1/content-types`. */
@@ -196,49 +225,16 @@ const ENTRY_ROUTE_RE = /\/content\/\{typeName\}(.*)$/;
 const SCHEMA_ROUTE_RE = /\/content-schema(.*)$/;
 
 /**
- * Writes a success response's schema onto whichever 2xx key the scanner already
- * emitted (Nest's default is 201 for `@Post`, 200 elsewhere, and a `@HttpCode`
- * moves it), so this never invents a status code the API doesn't return.
+ * Constrains the `typeName` path param to the registered type names.
+ *
+ * The note about what an unknown name answers is only added for this plugin's
+ * own routes: on a {@link FOREIGN} one the owning plugin decides, and two of
+ * them do not agree with each other, let alone with this one.
  */
-function setSuccessResponse(
-    operation: Operation,
-    schema: OpenApiSchema,
-    description: string
-): void {
-    const responses = operation.responses ?? {};
-    const key = Object.keys(responses).find((code) => /^2\d\d$/.test(code));
-    if (!key || key === '204') {
-        return;
-    }
-    responses[key] = {
-        description,
-        content: { 'application/json': { schema } }
-    };
-    operation.responses = responses;
-}
-
-/** Adds a documented failure response, leaving any existing one alone. */
-function addErrorResponse(
-    operation: Operation,
-    code: string,
-    description: string,
-    schema?: OpenApiSchema
-): void {
-    const responses = operation.responses ?? {};
-    if (responses[code]) {
-        return;
-    }
-    responses[code] = {
-        description,
-        ...(schema ? { content: { 'application/json': { schema } } } : {})
-    };
-    operation.responses = responses;
-}
-
-/** Constrains the `typeName` path param to the registered type names. */
 function describeTypeNameParam(
     operation: Operation,
-    typeNames: string[]
+    typeNames: string[],
+    ownedElsewhere = false
 ): void {
     const parameter = operation.parameters?.find(
         (candidate) => candidate.name === 'typeName' && candidate.in === 'path'
@@ -247,8 +243,9 @@ function describeTypeNameParam(
         return;
     }
     parameter.schema = { type: 'string', enum: typeNames };
-    parameter.description =
-        'Machine name of the content type. Unknown (or not granted to the workspace) is a 404.';
+    parameter.description = ownedElsewhere
+        ? 'Machine name of the content type, resolved through the same registry the content routes use.'
+        : 'Machine name of the content type. Unknown (or not granted to the workspace) is a 404.';
 }
 
 /**
@@ -344,7 +341,17 @@ export function describeContentApi(
             }
 
             if (surface.typed) {
-                describeTypeNameParam(operation, typeNames);
+                describeTypeNameParam(
+                    operation,
+                    typeNames,
+                    spec.ownedElsewhere
+                );
+            }
+            if (spec.ownedElsewhere) {
+                continue;
+            }
+
+            if (surface.typed) {
                 addErrorResponse(
                     operation,
                     '404',

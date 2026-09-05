@@ -45,6 +45,14 @@ end-to-end. Each group owns an AND/OR toggle and an Add group action.
   toggle (used by **members**, the **activity log**, the **content records**
   page, and the alarms rule editor). No portal container is needed — an inline
   panel isn't scroll-locked.
+  On open it moves focus to the first condition's field cell — with
+  **`preventScroll`**, which is not optional. That focus lands while the height
+  is still animating, so a plain `focus()` makes the browser scroll the
+  `overflow-hidden` wrapper (to ~85px) to reveal a control that was about to be
+  visible anyway; the scroll is then clamped back to 0 as the row grows, sliding
+  every control in the panel for a few hundred milliseconds _after_ the
+  transition ends. A press during that slide is dropped in silence — `mousedown`
+  on the button, `mouseup` elsewhere, `click` on their common ancestor.
   Takes `fieldsPending` / `fieldsError` / `onRetryFields` for a consumer whose
   `fields` are **fetched**: it renders a loading or error state in place of the
   builder and disables Apply. Required, not optional polish — the Apply gate

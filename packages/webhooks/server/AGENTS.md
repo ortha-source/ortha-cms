@@ -98,8 +98,34 @@ src/lib/
     webhook-http.client.ts           undici + the address check
     event-mapping.ts            the one file that knows both vocabularies
   http/controllers/             three thin controllers
+  docs/                         the OpenAPI response schemas (see below)
   utils/webhooks-plugin.ts      the factory
 ```
+
+## The reference describes what comes back
+
+`docs/` is this plugin's `ServerPlugin.docs.decorate` pass. It exists because
+every response view here is an `interface`, which `@nestjs/swagger` cannot see —
+so without it each route is published with a bare `200` and no body. The pass
+writes plain schema objects onto the operations this plugin owns and nothing
+else, always onto whichever 2xx key the scanner already emitted (the `204`
+delete keeps its empty body).
+
+Two things in it are load-bearing:
+
+- **Create and rotate get their own schema.** `WebhookEndpointWithSecret` is a
+  separate component from `WebhookEndpoint`, not the same one with an optional
+  `secret` — decision 3 above is only readable in the document if the two
+  responses are two shapes. No read route references it.
+- **`POST /webhooks/:id/deliveries/:deliveryId/redeliver` is documented as the
+  detail shape**, because that is what it returns: it is _typed_
+  `WebhookDeliveryView` and implemented as `findDetail(...)`, so `payload` and
+  `responseSnippet` come back with it. If that method is ever narrowed to match
+  its type, narrow the route table with it.
+
+The delivery vocabularies come from `@orthacms/webhooks-domain` rather than
+being restated, so an enum in the reference cannot drift from the one the server
+enforces.
 
 ## Route order
 

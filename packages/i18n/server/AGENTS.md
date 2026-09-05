@@ -277,6 +277,35 @@ and permission-gated; a `:typeName` that isn't localized is a **400**
     `[]` and the rows are workspace-scoped, so a foreign group id and one that
     names nothing come back identical.
 
+## The plugin describes its own responses (`src/lib/docs/`)
+
+All three routes answer a hand-written `interface` (`LocalesView`,
+`EntryLocalesView`, `LocaleSummaryView`), which `@nestjs/swagger` cannot see —
+so the scanner emitted a bare `200` with no payload for every one of them. The
+`docs.decorate` hook writes the schemas on instead (the mechanism and the
+reasoning are in
+[`bootstrap/server`](../../bootstrap/server/AGENTS.md#the-response-schema-gap)):
+`i18n-schemas.ts` builds the shapes, `describe-i18n-api.ts` matches the routes.
+
+Three things it does that are decisions:
+
+- **The configured slugs go in as an `enum`.** Which locales exist is runtime
+  data held right here, and every one of the three routes is constrained by it —
+  the locales route maps the registry, the panel iterates the configured set,
+  and the batch summary drops a row whose slug the host no longer declares. So
+  `locale` is exactly the configured set, not "some string".
+- **`status` / `publishedAt` are in no `required` list.** They are spread in
+  only for a publishable type, so on the rest the keys are **absent**, not null.
+- **The locales pattern is anchored on `/i18n/locales`, not on `/i18n`.** The
+  insights coverage route is `/api/insights/i18n/coverage`, which a bare-segment
+  pattern also matches. It would fall out of the route table and describe
+  nothing — by luck, and the next route either plugin adds is where luck runs
+  out.
+
+The two content routes also gain their documented failures, because
+`resolveI18nType` draws the line unambiguously: an unregistered name is a
+**404**, a registered type that is not localized is a **400**.
+
 ## Insights read-model (`/api/insights/i18n/coverage`, `src/lib/insights/`)
 
 The aggregate behind the **Translation coverage** card on the Insights page:

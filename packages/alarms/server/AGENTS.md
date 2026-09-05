@@ -108,6 +108,7 @@ src/lib/
     entry-event.subscriber.ts # outbox → evaluation
     alarm-sweep.service.ts    # the periodic rescan
   http/controllers/           # thin, permission-gated
+  docs/                       # the OpenAPI response schemas (see below)
 ```
 
 `domain/` imports nothing from `@nestjs/*`, `drizzle-orm` or `class-validator`.
@@ -198,6 +199,27 @@ so the model's natural next call is `admin_content_get`.
 
 `@orthacms/alarms-admin` renders the result rather than leaving it as JSON —
 see its AGENTS.md.
+
+## The reference describes the filter tree
+
+`docs/` is this plugin's `ServerPlugin.docs.decorate` pass — the response
+schemas, written as plain objects because the views are `interface`s the OpenAPI
+scanner cannot see. It writes onto whichever 2xx key the scanner already emitted
+and leaves the `204` delete alone.
+
+The part worth keeping is `AlarmFilterNode`. Decision 2 says a rule stores the
+records-list filter **verbatim**, and that tree is recursive — groups holding
+rules and groups — so it is described as three named components that reference
+each other (`AlarmFilterNode` → `AlarmFilterGroup` → `AlarmFilterNode`) rather
+than flattened or left as a bare `object`. The operator list comes from
+`@orthacms/utils-server`'s `FilterOperator`, so extending the engine extends the
+published grammar in the same edit, and `within_last` is in it for the reason
+decision 2 gives: a stored filter keeps the operator where a shared link
+resolves it.
+
+`AlarmFilterNode` uses `anyOf`, not `oneOf`. `oneOf` means _exactly one_, and
+the group and rule alternatives are not disjoint enough for that to be safe —
+the honest-looking operator turns a valid tree into a validation failure.
 
 ## Schema
 

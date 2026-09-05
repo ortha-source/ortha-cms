@@ -119,11 +119,11 @@ A workspace's rows live in many plugins, and only some can carry a foreign key
 back to `workspaces`. Which mechanism clears a table is a property of what its
 rows mean, not of where they live:
 
-| Mechanism        | Tables                                                                                 | Why                                                                                                                                                             |
-| ---------------- | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Cascade**      | `memberships`, `workspace_content`, `saved_views` (+ `saved_view_defaults` via `view_id`), `copilot_conversations` / `_proposals` / `_skills` | They already have an FK; the database does it.                                                                                                                  |
-| **Refuse** (409) | every `content_*` table                                                                | Entries are **authored records**. A user deletes their content deliberately — we never do it for them, so `assertDeletable` blocks the delete while any remain. |
-| **Purge**        | `media_asset`, `media_folder`, `api_token_workspaces`, `alarm_rules` + `alarm_findings`, `entry_access`, `content_entry_revisions` | Pure **scoping** rows with no independent meaning once the workspace is gone: a folder tree, a token's workspace bucket, a rule about content that no longer exists. |
+| Mechanism        | Tables                                                                                                                                        | Why                                                                                                                                                                  |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Cascade**      | `memberships`, `workspace_content`, `saved_views` (+ `saved_view_defaults` via `view_id`), `copilot_conversations` / `_proposals` / `_skills` | They already have an FK; the database does it.                                                                                                                       |
+| **Refuse** (409) | every `content_*` table                                                                                                                       | Entries are **authored records**. A user deletes their content deliberately — we never do it for them, so `assertDeletable` blocks the delete while any remain.      |
+| **Purge**        | `media_asset`, `media_folder`, `api_token_workspaces`, `alarm_rules` + `alarm_findings`, `entry_access`, `content_entry_revisions`            | Pure **scoping** rows with no independent meaning once the workspace is gone: a folder tree, a token's workspace bucket, a rule about content that no longer exists. |
 
 The purge closes a real gap: those tables have no FK by design (a cross-plugin
 FK would couple their schemas to this one), and nothing removed them, so a
@@ -138,7 +138,7 @@ were all deleted counts as empty and strands its whole version timeline.
 
 **One table is deliberately left dangling: `segments.workspace_ids`.** It is an
 array, so it can carry no FK, and its own docblock records the reasoning — an id
-that matches nothing *narrows* the audience, while removing it would silently
+that matches nothing _narrows_ the audience, while removing it would silently
 widen who may read an entry. Fail-safe beats tidy here.
 
 Adding a workspace-scoped table means choosing one of these three. If it is
@@ -220,3 +220,40 @@ generate` bundles a pure-Drizzle graph (importing identity's runtime barrel woul
 pull its NestJS providers into drizzle-kit's esbuild, which has no
 `experimentalDecorators`). Runtime queries use identity's real table via the
 services. Identity owns and migrates the physical `users` table (applied first).
+
+## OpenAPI response schemas (`src/lib/docs/`)
+
+The plugin describes its own responses through `ServerPlugin.docs.decorate`.
+`@nestjs/swagger` reads the request side from the DTOs' `@ApiProperty`, but
+every response here is a plain `interface` — `WorkspaceView`,
+`{ count: number }`, `{ available: boolean }` — which is erased at compile time
+and carries no metadata, so the scanner published `{ '200': { description: '' } }`
+for all thirteen operations and a client author had to curl the API to learn
+the shape. Rather than turn the view types into decorated classes, the pass
+writes plain OpenAPI schema objects straight onto the finished document (the
+mechanism is documented in
+[`packages/bootstrap/server/AGENTS.md`](../../bootstrap/server/AGENTS.md#the-response-schema-gap)).
+
+- `workspace-schemas.ts` — the schemas as data. `color` and `status` are
+  enumerated **from the value objects that already constrain them**
+  (`WORKSPACE_COLORS`, `WORKSPACE_STATUSES`), so the document cannot claim a
+  value `WorkspaceColor.create` would reject.
+- `describe-workspaces-api.ts` — the route table, keyed by what follows
+  `/workspaces`, and the pass itself.
+
+Two rules the content plugin learned the hard way and this one inherits:
+
+- **Never invent a status code.** The schema goes onto whichever 2xx key the
+  scanner already emitted (`201` for a `@Post`, `200` elsewhere). The two
+  `DELETE`s answer `204` and are deliberately absent from the table — there is
+  nothing to say about a response that has no body.
+- **Match routes precisely.** One regex, anchored so only a segment boundary or
+  the end of the path may follow `/workspaces`. Content's pattern once matched
+  two surfaces at once and published the admin's shapes on the public API.
+
+The documented failure on the `{id}`-scoped routes is **403, not 404** — and
+that is the interesting line. `WorkspaceMemberGuard` answers a flat 403 both for
+a workspace the caller is not a member of and for one that does not exist,
+precisely so the two cannot be told apart; a documented 404 would describe an
+existence probe this API refuses to offer. Verified against a running server,
+not read off the controller.

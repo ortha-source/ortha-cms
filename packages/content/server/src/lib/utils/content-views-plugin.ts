@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 import type { ServerPlugin } from '@orthacms/bootstrap-server';
 import { ContentViewsModule } from '../views/content-views.module';
+import { describeViewsApi } from '../docs/describe-views-api';
 import type { ContentServerPlugin } from './content-plugin';
 
 /** Options for {@link ContentViewsPlugin}. */
@@ -38,6 +39,17 @@ export function ContentViewsPlugin(
         migrations: {
             dir: () => join(__dirname, '../../../migrations'),
             table: '__drizzle_migrations_content_views'
+        },
+        // `SavedView` is a framework-free `interface` (ADR-0003 forbids
+        // decorating it) and its `scope` is `content:<typeName>`, which only
+        // the registry knows — so the swagger scanner sees neither the shape
+        // nor the values, and this hook is where both become visible.
+        docs: {
+            decorate: (document) =>
+                describeViewsApi(
+                    document,
+                    options.content.registry.serializeAll()
+                )
         }
     };
 }

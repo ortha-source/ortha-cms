@@ -97,9 +97,27 @@ export abstract class BasePage {
         return this.page.getByRole('region', { name: /Filters/ });
     }
 
-    /** Open the filter surface (drawer or inline panel). */
+    /**
+     * Open the filter surface (drawer or inline panel).
+     *
+     * The wait that means anything is on the toggle's own `aria-expanded`, not
+     * on the surface. The inline panel collapses by animating an ancestor's
+     * `grid-template-rows` to `0fr` under `overflow-hidden`, so a closed panel
+     * is **clipped, not hidden**: the `region` keeps its full-size box and
+     * Playwright calls it visible either way. `waitFor()` on it alone therefore
+     * asserted nothing — it returned on the closed panel just as happily — and
+     * every `openFilters()` + `applyFilters()` pair went on to race the
+     * opening. That matters because a click whose `mouseup` lands after the
+     * contents have shifted fires on the common ancestor instead of the button,
+     * and Playwright reports it as a successful click, so the action is lost in
+     * silence rather than failing.
+     */
     async openFilters() {
         await this.filterTrigger().click();
+        await expect(this.filterTrigger()).toHaveAttribute(
+            'aria-expanded',
+            'true'
+        );
         await this.filterSurface().waitFor();
     }
 

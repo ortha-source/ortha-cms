@@ -54,10 +54,18 @@ describe('ActivityPlugin', () => {
     it('carries no config-shaped surface for a host to fill in [activity:I-24]', () => {
         // The complement of the arity checks: an options bag smuggled onto the
         // returned descriptor would leave both signatures empty.
+        //
+        // `docs` is on the list because the plugin describes its own responses
+        // — a fixed contribution to the OpenAPI document, decided here and not
+        // by whoever registers the plugin. The check is "nothing a host has to
+        // fill in", so the list grows only for keys of that kind; anything
+        // resembling an options bag still fails.
         expect(Object.keys(ActivityPlugin()).sort()).toEqual([
+            'docs',
             'migrations',
             'module',
             'name'
         ]);
+        expect(Object.keys(ActivityPlugin().docs ?? {})).toEqual(['decorate']);
     });
 });

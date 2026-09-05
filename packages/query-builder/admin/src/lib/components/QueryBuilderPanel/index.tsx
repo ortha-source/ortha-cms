@@ -129,11 +129,27 @@ export function QueryBuilderPanel({
     // Move focus into the first condition's field cell when the panel opens.
     // Re-runs once the fields resolve, since until then the builder — and so
     // the field cell — isn't rendered at all.
+    //
+    // `preventScroll`, because this focus lands *mid-animation*. The panel
+    // opens by growing `grid-template-rows` from `0fr`, so at the instant the
+    // effect runs the clipping `overflow-hidden` wrapper is still a few pixels
+    // tall — and a plain `focus()` makes the browser scroll that wrapper (to
+    // ~85px) to reveal the control. Nothing needed revealing: the wrapper is
+    // about to be tall enough to show the whole panel. The scroll is then
+    // clamped back to 0 as the row grows, which slides every control inside the
+    // panel — the Apply button included — by tens of pixels for a few hundred
+    // milliseconds *after* the 150ms transition has ended. A user who presses
+    // Apply during that slide can have the press dropped outright: `mousedown`
+    // lands on the button, the contents shift under the cursor, `mouseup` lands
+    // on something else, and the browser fires `click` on their common
+    // ancestor rather than on the button. Focusing without scrolling keeps the
+    // behaviour this effect exists for (2.4.3, `ORT-157`) and leaves the layout
+    // still.
     useEffect(() => {
         if (!open || fieldsPending || fieldsError) return;
         regionRef.current
             ?.querySelector<HTMLElement>('[role="combobox"]')
-            ?.focus();
+            ?.focus({ preventScroll: true });
     }, [open, fieldsPending, fieldsError]);
 
     // Without the field definitions every rule fails the Apply gate (a rule
