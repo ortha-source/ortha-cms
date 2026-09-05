@@ -112,12 +112,18 @@ duplicated across four packages (4096/4096/4096/8192), while the engine itself s
 string-length limit at all — it budgets nodes, depth, group depth and IN-list length, and
 nothing else. Found by the `query-builder` and `utils` dossiers.
 
-**Nine ADRs are implemented but still sit in status `Proposed`** — 0003, 0004, 0005, 0006,
-0007, 0009, 0010, 0011 and 0013; the copilot ones despite two shipped providers. Separately,
-`packages/identity/provider-oidc/AGENTS.md` and `provider-saml/AGENTS.md` reference
-`0012-sso-provider-port.md`, which does not exist: 0012 is the storage-provider ADR, and the
-SSO port is described in ADR-0013. (Those two are package `AGENTS.md` files, not ADRs — an
-earlier version of this section counted them as such and arrived at "five".)
+**ADR statuses. Fixed 2026-09-05.** Nine records — 0003, 0004, 0005, 0006, 0007, 0009, 0010,
+0011 and 0013 — sat in status `Proposed` while the code had been built on them for months, which
+tells a reader the opposite of the truth. Each was checked against the implementation before
+being moved to `Accepted`; none had to be left. The broken `0012-sso-provider-port.md` link in
+`provider-oidc/AGENTS.md` and `provider-saml/AGENTS.md` now points at ADR-0013, and a sweep of
+every ADR reference in the repo found no other dangling filename.
+
+Two smaller things surfaced and are **still open**, both in accepted records rather than in
+their statuses: ADR-0004 §5's second tier (`copilot_model_configs`, runtime model registration)
+was never built, and ADR-0005's `Update (2026-08-24)` argues from the composition root ordering
+"the offline `fake` adapter last", which stopped being true when the fake provider became a
+private test fixture. Each wants an amending record, not an edit to an accepted one.
 
 **The first-run experience breaks in one place, not three.** The generated app's README still
 does not work literally: drizzle-kit resolves `schema` and `out` from the cwd rather than from
