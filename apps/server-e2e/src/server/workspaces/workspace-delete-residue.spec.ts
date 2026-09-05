@@ -29,7 +29,7 @@ const ADMIN_EMAIL = 'wsd-admin@example.com';
  * means a new workspace-scoped table has exactly one place to be classified.
  */
 const CASCADE_TABLES = [
-    // These five carry a real foreign key to `workspaces`, so Postgres removes
+    // These six carry a real foreign key to `workspaces`, so Postgres removes
     // them and no code has to.
     'memberships',
     'workspace_content',
@@ -40,7 +40,7 @@ const CASCADE_TABLES = [
 ] as const;
 
 const PURGED_TABLES = [
-    // These seven carry a plain `workspace_id` with no FK — a cross-plugin
+    // These eight carry a plain `workspace_id` with no FK — a cross-plugin
     // foreign key is exactly what the plugin split exists to avoid — so a
     // registered `WorkspacePurger` deletes them inside the delete transaction.
     'media_asset',
@@ -49,7 +49,8 @@ const PURGED_TABLES = [
     'alarm_rules',
     'alarm_findings',
     'entry_access',
-    'content_entry_revisions'
+    'content_entry_revisions',
+    'webhook_endpoint_workspaces'
 ] as const;
 
 const ALL_TABLES = [...CASCADE_TABLES, ...PURGED_TABLES];
@@ -249,6 +250,20 @@ describe('Deleting a workspace leaves no residue', () => {
              values ($1, 'test_article', $2, 1, 'draft', '{}'::jsonb)`,
             [workspaceId, randomUUID()]
         );
+        // An endpoint subscribed to this workspace *and* another one, so a
+        // purge that deleted by endpoint rather than by workspace would take
+        // the sibling row with it and the sweep would still read zero here.
+        const { rows: endpoints } = await pool.query<{ id: string }>(
+            `insert into webhook_endpoints (name, url, secret, secret_hint)
+             values ('Rebuild the storefront', 'https://example.test/hook',
+                     'whsec_seed', '_seed')
+             returning id`
+        );
+        await pool.query(
+            `insert into webhook_endpoint_workspaces (endpoint_id, workspace_id)
+             values ($1, $2), ($1, $3)`,
+            [endpoints[0].id, workspaceId, randomUUID()]
+        );
     }
 
     it('clears every workspace-scoped table, by cascade or by purge', async () => {
@@ -337,5 +352,65 @@ describe('Deleting a workspace leaves no residue', () => {
         expect(rows[0].workspaceIds).toEqual([doomedId, keeperId]);
         // The per-entry rows, which have no such reading, are gone.
         expect(await countRows('entry_access', doomedId)).toBe(0);
+    });
+
+    it('narrows a webhook endpoint to its surviving workspaces, and keeps it [webhooks:I-19]', async () => {
+        const { user, agent } = await loginAs(ADMIN_EMAIL);
+        const doomed = await agent
+            .post('/api/workspaces')
+            .send(validBody({ slug: 'webhook-residue' }))
+            .expect(201);
+        const keeper = await agent
+            .post('/api/workspaces')
+            .send(validBody({ name: 'Keeper', slug: 'keeper-webhook' }))
+            .expect(201);
+        const doomedId = doomed.body.id as string;
+        const keeperId = keeper.body.id as string;
+
+        const pool = getPool();
+        // One endpoint across both workspaces, and one that named only the
+        // doomed workspace — the case where the purge empties the set.
+        const { rows: both } = await pool.query<{ id: string }>(
+            `insert into webhook_endpoints (name, url, secret, secret_hint)
+             values ('Both', 'https://example.test/both', 'whsec_both', 'both')
+             returning id`
+        );
+        const { rows: only } = await pool.query<{ id: string }>(
+            `insert into webhook_endpoints (name, url, secret, secret_hint)
+             values ('Only', 'https://example.test/only', 'whsec_only', 'only')
+             returning id`
+        );
+        await pool.query(
+            `insert into webhook_endpoint_workspaces (endpoint_id, workspace_id)
+             values ($1, $2), ($1, $3), ($4, $2)`,
+            [both[0].id, doomedId, keeperId, only[0].id]
+        );
+
+        await agent.delete(`/api/workspaces/${doomedId}`).expect(204);
+
+        // The opposite treatment from `segments.workspace_ids` above, and for
+        // a reason that is in the schema rather than in taste: an endpoint's
+        // `all_workspaces` is a separate boolean, so an empty set means "none"
+        // and pruning can only narrow. An audience has no such flag, so the
+        // same prune would widen.
+        const subscribed = async (endpointId: string): Promise<string[]> => {
+            const { rows } = await pool.query<{ workspaceId: string }>(
+                `select workspace_id as "workspaceId"
+                   from webhook_endpoint_workspaces where endpoint_id = $1`,
+                [endpointId]
+            );
+            return rows.map((row) => row.workspaceId);
+        };
+        expect(await subscribed(both[0].id)).toEqual([keeperId]);
+        expect(await subscribed(only[0].id)).toEqual([]);
+
+        // Both endpoints survive: they hold a URL and a signing secret a
+        // person configured, and neither is about the deleted workspace.
+        const { rows: surviving } = await pool.query<{ count: string }>(
+            `select count(*)::text as count from webhook_endpoints
+              where id in ($1, $2) and enabled`,
+            [both[0].id, only[0].id]
+        );
+        expect(surviving[0].count).toBe('2');
     });
 });
