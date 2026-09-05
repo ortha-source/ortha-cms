@@ -238,9 +238,44 @@ export function fieldSchema(field: SerializedField): OpenApiSchema {
             : undefined;
 
     return {
-        ...valueSchema(field),
-        nullable: true,
+        ...nullable(valueSchema(field)),
         ...(label ? { title: label } : {}),
         ...(notes.length ? { description: notes.join(' ') } : {})
     };
+}
+
+/**
+ * Marks a value schema nullable — and does the two things `nullable: true`
+ * alone does **not** do.
+ *
+ * OpenAPI 3.0's `nullable` is a modifier on the schema's `type`, so it is inert
+ * wherever there is no single type to modify, and it does not widen an
+ * enumeration. Both cases occur here and both produced a document that rejected
+ * responses the API really returns:
+ *
+ * - a `select` read back as `{ type: 'string', enum: [...], nullable: true }`,
+ *   which every validator refuses `null` against, because OAS 3.0 requires a
+ *   nullable enum to list `null` among its values;
+ * - a `richtext` read back as a bare `oneOf` (document or legacy HTML string)
+ *   with `nullable` attached to nothing at all.
+ *
+ * Measured against a live server: an `article` with an unset `layout` did not
+ * validate against its own `ArticleValues` schema until this existed.
+ */
+function nullable(schema: OpenApiSchema): OpenApiSchema {
+    if (Array.isArray(schema['oneOf'])) {
+        return {
+            ...schema,
+            oneOf: [...(schema['oneOf'] as OpenApiSchema[]), { type: 'null' }],
+            nullable: true
+        };
+    }
+    if (Array.isArray(schema['enum'])) {
+        return {
+            ...schema,
+            enum: [...(schema['enum'] as unknown[]), null],
+            nullable: true
+        };
+    }
+    return { ...schema, nullable: true };
 }

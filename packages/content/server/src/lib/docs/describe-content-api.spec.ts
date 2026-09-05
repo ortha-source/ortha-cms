@@ -91,6 +91,47 @@ function scannedDocument(): OpenApiDocument {
             '/api/content-schema/{name}': {
                 get: { responses: { '200': { description: '' } } }
             },
+            '/api/v1/content/{typeName}': {
+                get: {
+                    parameters: [
+                        {
+                            name: 'typeName',
+                            in: 'path',
+                            schema: { type: 'string' }
+                        }
+                    ],
+                    responses: { '200': { description: '' } }
+                }
+            },
+            '/api/v1/content/{typeName}/{id}': {
+                get: { responses: { '200': { description: '' } } }
+            },
+            '/api/v1/content/{typeName}/{id}/media': {
+                get: { responses: { '200': { description: '' } } }
+            },
+            '/api/v1/content/{typeName}/{id}/relations/{field}': {
+                get: { responses: { '200': { description: '' } } }
+            },
+            '/api/v1/content/{typeName}/{id}/translations': {
+                get: { responses: { '200': { description: '' } } }
+            },
+            '/api/v1/content/{typeName}/group/{localeGroupId}': {
+                get: { responses: { '200': { description: '' } } },
+                patch: { responses: { '200': { description: '' } } },
+                delete: { responses: { '204': { description: '' } } }
+            },
+            '/api/v1/content/{typeName}/group/{localeGroupId}/media': {
+                get: { responses: { '200': { description: '' } } }
+            },
+            '/api/v1/content/{typeName}/group/{localeGroupId}/publish': {
+                post: { responses: { '201': { description: '' } } }
+            },
+            '/api/v1/content-types': {
+                get: { responses: { '200': { description: '' } } }
+            },
+            '/api/v1/content-types/{name}': {
+                get: { responses: { '200': { description: '' } } }
+            },
             '/api/media/assets': {
                 get: { responses: { '200': { description: '' } } }
             }
@@ -198,10 +239,14 @@ describe('describeContentApi', () => {
         const document = scannedDocument();
         describeContentApi(document, [article, settings]);
 
+        // `anyOf`, not `oneOf`. The alternatives overlap — an empty `items`
+        // array satisfies every list schema there is — and `oneOf` means
+        // exactly one, so it rejected responses the API really returns
+        // (measured live on `GET /api/v1/content/home_page`).
         expect(
             successSchema(document, '/api/content/{typeName}', 'get')
         ).toEqual({
-            oneOf: [
+            anyOf: [
                 { $ref: '#/components/schemas/ArticleListPage' },
                 { $ref: '#/components/schemas/SiteSettingsListPage' }
             ]
@@ -209,7 +254,7 @@ describe('describeContentApi', () => {
         expect(
             successSchema(document, '/api/content/{typeName}/{id}', 'get')
         ).toEqual({
-            oneOf: [
+            anyOf: [
                 { $ref: '#/components/schemas/ArticleEntry' },
                 { $ref: '#/components/schemas/SiteSettingsEntry' }
             ]
@@ -288,5 +333,183 @@ describe('describeContentApi', () => {
             successSchema(document, '/api/content/{typeName}', 'get')
         ).toBeUndefined();
         expect(document.components?.schemas?.['RelationRef']).toBeDefined();
+    });
+
+    // The published contract. Everything here failed before the public schemas
+    // existed — most of it silently, by being described with the ADMIN's
+    // shapes, which is worse than being undescribed: an absent schema sends a
+    // reader to curl, a wrong one does not.
+    describe('the public API (/api/v1) is described as itself', () => {
+        it('does NOT describe a public read with the admin entry schema', () => {
+            const document = scannedDocument();
+            describeContentApi(document, [article, settings]);
+
+            expect(
+                successSchema(
+                    document,
+                    '/api/v1/content/{typeName}/{id}',
+                    'get'
+                )
+            ).toEqual({
+                anyOf: [
+                    { $ref: '#/components/schemas/PublicArticleEntry' },
+                    { $ref: '#/components/schemas/PublicSiteSettingsEntry' }
+                ]
+            });
+            // The admin route keeps the admin's, so this is a split and not a
+            // rename.
+            expect(
+                successSchema(document, '/api/content/{typeName}/{id}', 'get')
+            ).toEqual({
+                anyOf: [
+                    { $ref: '#/components/schemas/ArticleEntry' },
+                    { $ref: '#/components/schemas/SiteSettingsEntry' }
+                ]
+            });
+        });
+
+        it('gives the media and relation reads the shapes they actually return', () => {
+            const document = scannedDocument();
+            describeContentApi(document, [article]);
+
+            // The public media read is keyed to `{ items, total }` per field;
+            // the admin's is keyed to a bare array. They were both reported as
+            // the admin's.
+            expect(
+                successSchema(
+                    document,
+                    '/api/v1/content/{typeName}/{id}/media',
+                    'get'
+                )
+            ).toEqual({ $ref: '#/components/schemas/PublicEntryMedia' });
+            expect(
+                successSchema(
+                    document,
+                    '/api/v1/content/{typeName}/{id}/relations/{field}',
+                    'get'
+                )
+            ).toEqual({
+                $ref: '#/components/schemas/PublicRelationFieldPage'
+            });
+
+            const media = document.components?.schemas?.[
+                'PublicEntryMedia'
+            ] as {
+                properties: { media: { additionalProperties: unknown } };
+            };
+            expect(media.properties.media.additionalProperties).toEqual({
+                $ref: '#/components/schemas/PublicMediaFieldPage'
+            });
+        });
+
+        it('describes a relation page as whole entries, not refs', () => {
+            const document = scannedDocument();
+            describeContentApi(document, [article]);
+
+            const page = document.components?.schemas?.[
+                'PublicRelationFieldPage'
+            ] as { properties: { items: { items: unknown } } };
+            expect(page.properties.items.items).toEqual({
+                $ref: '#/components/schemas/PublicArticleEntry'
+            });
+        });
+
+        it('describes the group-addressed twin of every id-addressed read', () => {
+            const document = scannedDocument();
+            describeContentApi(document, [article]);
+
+            // The two spellings funnel into one handler, so a difference here
+            // would be a documentation-only fork.
+            for (const [group, byId] of [
+                [
+                    '/api/v1/content/{typeName}/group/{localeGroupId}',
+                    '/api/v1/content/{typeName}/{id}'
+                ],
+                [
+                    '/api/v1/content/{typeName}/group/{localeGroupId}/media',
+                    '/api/v1/content/{typeName}/{id}/media'
+                ]
+            ]) {
+                expect(successSchema(document, group, 'get')).toEqual(
+                    successSchema(document, byId, 'get')
+                );
+            }
+            expect(
+                successSchema(
+                    document,
+                    '/api/v1/content/{typeName}/group/{localeGroupId}',
+                    'patch'
+                )
+            ).toEqual({ $ref: '#/components/schemas/PublicArticleEntry' });
+            expect(
+                successSchema(
+                    document,
+                    '/api/v1/content/{typeName}/group/{localeGroupId}/publish',
+                    'post'
+                )
+            ).toEqual({ $ref: '#/components/schemas/PublicArticleEntry' });
+        });
+
+        it('leaves the group DELETE bodiless — it answers 204', () => {
+            const document = scannedDocument();
+            describeContentApi(document, [article]);
+
+            expect(
+                successSchema(
+                    document,
+                    '/api/v1/content/{typeName}/group/{localeGroupId}',
+                    'delete'
+                )
+            ).toBeUndefined();
+        });
+
+        it('describes the discovery routes', () => {
+            const document = scannedDocument();
+            describeContentApi(document, [article]);
+
+            expect(
+                successSchema(document, '/api/v1/content-types', 'get')
+            ).toEqual({
+                $ref: '#/components/schemas/PublicContentTypeList'
+            });
+            expect(
+                successSchema(document, '/api/v1/content-types/{name}', 'get')
+            ).toEqual({ $ref: '#/components/schemas/ContentTypeSchema' });
+        });
+
+        it('drops every reference field from the public values bag', () => {
+            const document = scannedDocument();
+            describeContentApi(document, [article]);
+
+            // The admin's bag keeps the owning single relation's FK; the public
+            // read omits it, because nothing here resolves it and a bare uuid
+            // is an identifier with no route to follow.
+            const admin = document.components?.schemas?.['ArticleValues'] as {
+                properties: Record<string, unknown>;
+            };
+            const published = document.components?.schemas?.[
+                'PublicArticleValues'
+            ] as { properties: Record<string, unknown> };
+            expect(Object.keys(admin.properties)).toEqual(['title', 'author']);
+            expect(Object.keys(published.properties)).toEqual(['title']);
+        });
+
+        it('carries `translations` only on a localized type', () => {
+            const document = scannedDocument();
+            describeContentApi(document, [
+                article,
+                { ...article, name: 'story', label: 'Stories', i18n: true }
+            ]);
+
+            const flat = document.components?.schemas?.[
+                'PublicArticleEntry'
+            ] as { properties: Record<string, unknown> };
+            const localized = document.components?.schemas?.[
+                'PublicStoryEntry'
+            ] as { properties: Record<string, unknown> };
+            expect(flat['properties']['translations']).toBeUndefined();
+            expect(localized['properties']['translations']).toBeDefined();
+            expect(localized['properties']['localeGroupId']).toBeDefined();
+        });
     });
 });
