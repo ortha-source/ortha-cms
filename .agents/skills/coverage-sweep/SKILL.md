@@ -1,6 +1,6 @@
 ---
 name: coverage-sweep
-description: Running the invariant qualification pass — establishing, for the first time, that the system does what its dossiers say, by connecting each of the 817 numbered invariants in docs/artifacts/ to a test that would fail if it broke. Tracked in the ledger at docs/coverage/. Covers the ledger contract and its states, the citation bar, batching by harness rather than by package, the two anti-patterns that produce tests which cannot fail, where the combinatorics belong versus what the live-stack pass is for, the fan-out mechanics for one agent per package, and the operational traps in the three harnesses. Use when triaging a package's invariants, closing coverage gaps, verifying against a live stack, or continuing the pass in a later session.
+description: Running the invariant qualification pass — establishing, for the first time, that the system does what its dossiers say, by connecting each of the 817 numbered invariants in docs/artifacts/ to a test that would fail if it broke. Tracked in the ledger at docs/coverage/. Covers the ledger contract and its states, the citation bar, batching by harness rather than by package, the three anti-patterns that produce tests which cannot fail, where the combinatorics belong versus what the live-stack pass is for, the fan-out mechanics for one agent per package, and the operational traps in the three harnesses. Use when triaging a package's invariants, closing coverage gaps, verifying against a live stack, or continuing the pass in a later session.
 user-invocable: true
 allowed-tools: Read, Edit, Write, Glob, Grep, Bash, Agent
 ---
@@ -100,7 +100,7 @@ claim rather than a feeling. Mark those rows `needs-live-stack` as they surface
 during phases 1-3 — phase 0's triage had no such category, so nothing carries it
 yet, and inventing the list before those phases run would be guesswork.
 
-## The two anti-patterns
+## The three anti-patterns
 
 Phase 0 found eight tests that cannot fail. They are catalogued in
 [`docs/coverage/tests-that-cannot-fail.md`](../../../docs/coverage/tests-that-cannot-fail.md).
@@ -131,8 +131,22 @@ tested against itself, with nothing comparing them.
 path and the test path are two implementations of one rule, the test guards
 neither.
 
-Both shapes are invisible to a reviewer reading the test name, and invisible to
-coverage tooling, which sees the line execute.
+**3. The observable cannot show the difference.** The one that cost the most
+time, because it looks like an unobservable rule rather than a badly chosen
+observable. `autofocus` was written off as untestable — it resolves to a
+*selection*, not to DOM focus, so `toHaveFocus` was asking the wrong question of
+a rule that holds. A flaky server suite was diagnosed as state leaking between
+spec files; the real cause was supertest's wildcard bind colliding with another
+process on a loopback port, which no amount of test isolation would have fixed.
+
+*Guard:* when a statement looks unobservable, the next question is **"am I
+looking at the right thing?"**, not "is this checkable?". Name the observable
+you would need, then check whether the one you reached for is it. Seven of the
+nine verdicts of "unreachable" from this pass were wrong, and every one of them
+was this.
+
+All three shapes are invisible to a reviewer reading the test name, and
+invisible to coverage tooling, which sees the line execute.
 
 ## Documentation is a hypothesis, not a fact
 
@@ -154,11 +168,44 @@ When a *numbered invariant* contradicts the code, that is a `stale` judgment and
 the dossier gets fixed. When the surrounding prose is wrong, record it in
 `docs/coverage/dossier-corrections.md` — the ledger has no state for it.
 
+### Our own records lie the same way, in three directions
+
+The uncomfortable half of this pass: the notes it produced were wrong at about
+the same rate as the documents it was auditing. Budget for it.
+
+- **A verdict of "unreachable" is usually a badly chosen observable.** Seven of
+  nine. See anti-pattern 3.
+- **A note saying "nothing pins this" is often wrong about the repo, not about
+  the rule.** Fifteen of sixty-one. The test existed, under a name the note's
+  author did not grep for — `readSnippet`'s cap was called unpinned while
+  `webhook-delivery.spec.ts:353` had been pinning it all along.
+- **A recorded correction goes stale between recording and applying.** By the
+  time 33 dossier corrections were applied, five described defects that had
+  since been fixed, one rested on a premise that a recount disproved, and one
+  named a permission — `tokens:manage` — that does not exist. Applying that
+  batch verbatim would have put *fresh* errors into the passports.
+
+So: **re-verify a correction against the code at the moment you apply it**, not
+at the moment you wrote it. And prefer applying a correction the same day it is
+recorded; a backlog of corrections becomes a third layer of drift on top of the
+two you are already fixing.
+
+### Adding an invariant is allowed, and costs four edits
+
+A qualification pass usually only *cites* invariants, but a rule can turn out to
+be real and unnumbered — `webhooks:I-19` was added when the purge it describes
+was written. The total is quoted in prose in `docs/coverage/README.md`,
+`tools/coverage/ledger.mjs`'s docstring and this file, so it moves in all of
+them. Leave historical counts alone (`569/816 cited` was true when written);
+change the ones that claim a present total.
+
 ## Fan-out mechanics
 
-One agent per package, and **agents never edit spec files**. Each writes exactly
-one file, `docs/coverage/judgments/<pkg>.json`, and `ledger.mjs apply` inserts
-the citations serially afterwards.
+**In phase 0 only**, one agent per package and **agents never edit spec files**.
+Each writes exactly one file, `docs/coverage/judgments/<pkg>.json`, and
+`ledger.mjs apply` inserts the citations serially afterwards. Phases 1–3 are the
+opposite — closing a gap *is* writing a spec — so there the batching has to keep
+agents off each other's files by hand, and the git-index trap below applies.
 
 This is not fussiness. Packages share spec files — a credential's story is told
 in both identity's suites and api-tokens', query-builder's invariants are pinned
@@ -204,6 +251,31 @@ Salvaged from the retired `qa-pass-ticket` skill and still true:
 - **Raise `LOGIN_RATE_LIMIT`** for functional runs (10/min otherwise poisons
   later steps with spurious 429s), and restore it after.
 - **Mutations pass `OriginGuard`** — send `-H 'Origin: http://localhost:4200'`.
+
+Learned since, and each one produced a false report before it was understood:
+
+- **Never pipe a test run through `tail` or `grep`.** The pipeline's exit code
+  is the *last* stage's, so a run with four failures reports success. Redirect to
+  a file, echo `$?` on the next line, then read the file. In zsh the array is
+  `$pipestatus`, not `$PIPESTATUS` — reaching for the bash name silently yields
+  an empty string, which reads as a pass.
+- **`--skip-nx-cache` for any mutation proof that crosses a package boundary.**
+  Break the production code, and Nx serves the *cached* result for the
+  downstream project: the test passes and you conclude it cannot fail. The
+  mutation is real and the run was not.
+- **Agents in one checkout share one git index.** A `git add -A` — or `git add`
+  on a directory another agent is writing — stages that agent's half-finished
+  work into your commit. This happened three times in one week. Stage explicit
+  paths you own, never `-A` and never a shared directory, and expect files to
+  change under you mid-task. `git hash-object` + `update-index` is the escape
+  hatch when you must stage something without disturbing the index.
+- **Generated ledger files are shared state.** `invariants.json` is rebuilt from
+  every dossier, so rebuilding it picks up other agents' in-flight edits.
+  Either commit it knowing that, and say so, or leave it and let the pass owner
+  rebuild once at the end.
+- **`docs/artifacts/` is outside the formatting regime.** Every dossier fails
+  `prettier --check`; a `prettier --write .` rewrites all 26 hand-authored files.
+  It is in `.prettierignore` now — do not take it back out.
 
 ## Definition of done — for a phase
 
