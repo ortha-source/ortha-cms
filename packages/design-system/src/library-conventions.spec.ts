@@ -424,17 +424,65 @@ describe('motion', () => {
         ).not.toContain('@plugin');
     });
 
+    /**
+     * The spinner is the one animation here that must survive reduced motion,
+     * and the case exists because the obvious fix is the wrong one.
+     *
+     * A stopped indeterminate loader reads as a frozen app: its only job is to
+     * say "still working", and someone who asked for less motion did not ask to
+     * be told less. So the rule is *no movement*, not *no feedback* — and a
+     * later change that closes this the easy way, with
+     * `.ds-spinner { animation: none }` in the reduced-motion block, fails here
+     * instead of shipping a dead glyph that looks exactly like a hung request.
+     */
+    it('replaces the spinner rotation rather than stopping it [design-system:I-30]', () => {
+        const reduced = [...styles.matchAll(reducedMotionBlock)]
+            .flatMap(([block]) => rulesIn(block))
+            .filter((rule) => rule.selectors.includes('.ds-spinner'));
+
+        expect(reduced).toHaveLength(1);
+
+        const animation = reduced[0].animation as string;
+        expect(animation).not.toBe('none');
+
+        // It still animates, and it animates nothing that can move.
+        const [name, duration] = animation.split(/\s+/);
+        const properties = keyframeProperties(name);
+        expect(properties.length).toBeGreaterThan(0);
+        expect(
+            properties.filter((property) => !MOTIONLESS.has(property))
+        ).toEqual([]);
+
+        // Slow enough never to read as a flash — WCAG 2.3.1's threshold is
+        // 3 Hz, and one cycle here is a second or more.
+        expect(duration).toMatch(/^\d+(\.\d+)?s$/);
+        expect(Number.parseFloat(duration)).toBeGreaterThanOrEqual(1);
+
+        // The control: the animation this replaces really is a movement, so
+        // the case cannot pass over a component that never moved to begin with.
+        const base = rulesIn(styles.replace(reducedMotionBlock, '')).find(
+            (rule) => rule.selectors.includes('.ds-spinner')
+        );
+        expect(base?.animation).toBeTruthy();
+        expect(
+            keyframeProperties((base?.animation as string).split(/\s+/)[0])
+        ).toContain('transform');
+
+        // And the component wears the class, or the two rules above are about
+        // a selector nothing renders.
+        const spinner = files.find(
+            (file) => file.module === 'lib/components/ui/spinner.tsx'
+        );
+        expect(spinner?.code).toContain('ds-spinner');
+    });
+
     it('pairs every live animate-* utility with a motion-reduce escape [design-system:I-30]', () => {
-        // One documented exception, and it is a real one rather than an
-        // oversight in the scan: `Spinner`'s `animate-spin` is the only
-        // animation in the library that keeps running under
-        // `prefers-reduced-motion: reduce`. Recorded as `partial` against
-        // I-30 in docs/coverage/judgments/design-system.json.
-        const exempt = new Set(['lib/components/ui/spinner.tsx']);
+        // No exemptions. `Spinner` used to be one — `animate-spin` with no
+        // `motion-reduce:` twin — and it is now `.ds-spinner`, which owns both
+        // branches in the stylesheet and is checked by the case above.
         const live = /(^|:)animate-(?!in\b|out\b|none\b)[a-z-]+$/;
 
         const offenders = files
-            .filter((file) => !exempt.has(file.module))
             .flatMap((file) =>
                 stringLiterals(file.code)
                     .filter((literal) => {
