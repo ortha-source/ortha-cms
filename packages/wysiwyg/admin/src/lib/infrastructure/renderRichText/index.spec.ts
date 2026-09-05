@@ -1,3 +1,8 @@
+import { Editor } from '@tiptap/core';
+import { editorExtensions } from '../editorExtensions';
+// The column commands are declared by the extension's own module augmentation,
+// which importing `editorExtensions` alone elides.
+import '../extensions/columns';
 import { renderRichText } from '.';
 
 /** The rendered output, as a DOM to query rather than a string to match. */
@@ -84,5 +89,88 @@ describe('renderRichText', () => {
 
             expect(image?.hasAttribute('width')).toBe(false);
         });
+    });
+});
+
+/**
+ * The preview's other promise: it is not merely *safe*, it is the **same**
+ * markup the editor surface renders. That is what makes a collapsed field an
+ * honest picture of what pressing it will open, and what lets one stylesheet
+ * scope dress both.
+ *
+ * It holds structurally today — one schema, serialized by one `DOMSerializer` —
+ * and that is exactly why it is worth an assertion: nothing about the code says
+ * so out loud, and a preview that grew a tidying pass (dropping an attribute a
+ * consumer "doesn't need", unwrapping a figure, adding a class) would still
+ * render, still be safe, and quietly stop matching.
+ */
+describe('the preview beside the editor surface [wysiwyg:I-34]', () => {
+    /** A document with one of everything the schema can hold. */
+    function written(): Editor {
+        const editor = new Editor({
+            element: document.createElement('div'),
+            extensions: editorExtensions(''),
+            content: [
+                '<h2>Heading</h2>',
+                '<p>Text with <strong>bold</strong>, <em>italic</em> and a ',
+                '<span lang="fr">French</span> run.</p>',
+                '<ul><li><p>One</p></li><li><p>Two</p></li></ul>',
+                '<blockquote><p>Quoted</p></blockquote>',
+                '<pre><code>code()</code></pre>',
+                '<img src="/api/media/assets/a1/raw" alt="A chart" ',
+                'width="320" data-align="center">',
+                '<video src="https://cdn.example.com/clip.mp4" width="200">',
+                '</video>',
+                '<table><tbody><tr><th><p>H</p></th><td><p>C</p></td></tr>',
+                '</tbody></table>'
+            ].join('')
+        });
+        editor.commands.setColumns(2);
+        return editor;
+    }
+
+    it('serializes one document to the same markup', () => {
+        const editor = written();
+        try {
+            const surface = editor.getHTML();
+
+            // Not "contains the same tags" — byte for byte. Anything softer
+            // would pass for a preview that had started rewriting the document
+            // on its way to the screen.
+            expect(renderRichText(editor.getJSON())).toBe(surface);
+            // The fixture is only as good as what it holds: a document that had
+            // silently lost its media or its table would make the comparison
+            // above true and meaningless.
+            expect(surface).toContain('data-align="center"');
+            expect(surface).toContain('<video');
+            expect(surface).toContain('<th');
+            expect(surface).toContain('data-columns');
+        } finally {
+            editor.destroy();
+        }
+    });
+
+    it('differs in exactly one place, and says why', () => {
+        // Links are flattened to spans: a preview sits under a full-bleed
+        // "edit" button, and a live `<a>` inside it would be a tab stop that
+        // navigates the admin away from the record. Asserting the one
+        // difference is what keeps the test above from being read as "these
+        // two are the same function".
+        const editor = new Editor({
+            element: document.createElement('div'),
+            extensions: editorExtensions(''),
+            content: '<p><a href="https://example.com">A link</a></p>'
+        });
+        try {
+            expect(editor.getHTML()).toContain('href="https://example.com"');
+            expect(editor.getHTML()).toContain('<a ');
+
+            const preview = renderRichText(editor.getJSON());
+            expect(preview).not.toContain('<a ');
+            expect(preview).toContain('<span data-link=""');
+            expect(preview).toContain('A link');
+        } finally {
+            editor.destroy();
+        }
     });
 });

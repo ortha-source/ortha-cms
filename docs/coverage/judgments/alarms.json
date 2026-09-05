@@ -17,7 +17,7 @@
             "id": "alarms:I-05",
             "file": "apps/server-e2e/src/server/alarms/alarm-findings.spec.ts",
             "anchor": "it('is idempotent under a re-delivered event'",
-            "why": "Drains the outbox twice over one publish and asserts exactly one finding row, pinning the ON CONFLICT upsert on (rule_id, entry_id); the 'nothing but last_seen_at changed' half is not asserted."
+            "why": "Puts the outbox row back the way a process that died mid-drain leaves it, drains again, and asserts one finding row — the ON CONFLICT upsert on (rule_id, entry_id). It then reads the row before and after and compares them with last_seen_at masked, so the 'nothing but last_seen_at changed' half is pinned too: a SET list that reached first_seen_at fails here with the row count unchanged."
         },
         {
             "id": "alarms:I-07",
@@ -41,13 +41,13 @@
             "id": "alarms:I-13",
             "file": "apps/server-e2e/src/server/alarms/alarm-rules.spec.ts",
             "anchor": "it('takes the rule and its findings with it'",
-            "why": "Deletes a rule that has an open finding and expects 204 plus zero findings — without the FK cascade the DELETE would fail the 204. The cross-workspace clause (workspace_id in the DELETE's where) is not covered."
+            "why": "Deletes a rule that has an open finding and expects 204 plus zero findings — without the FK cascade the DELETE would fail the 204."
         },
         {
             "id": "alarms:I-14",
             "file": "apps/server-e2e/src/server/alarms/alarm-rules.spec.ts",
             "anchor": "it('refuses a second rule with the same name in the workspace'",
-            "why": "A duplicate name answers 409 rather than a 500 from the raw unique-violation; the 'same name in another workspace is accepted' half is not covered."
+            "why": "A duplicate name answers 409 rather than a 500 from the raw unique-violation."
         },
         {
             "id": "alarms:I-16",
@@ -59,7 +59,7 @@
             "id": "alarms:I-17",
             "file": "apps/server-e2e/src/server/alarms/alarm-rules.spec.ts",
             "anchor": "it('lets a viewer read rules but not write them'",
-            "why": "Pins the permission split on the rules routes: a viewer gets 200 on GET and 403 on POST, so a read permission on a write route fails here. OriginGuard on the five write routes and the findings controller's permission are not covered."
+            "why": "Pins the permission split on the rules routes: a viewer gets 200 on GET and 403 on POST, so a read permission on a write route fails here."
         },
         {
             "id": "alarms:I-17",
@@ -71,7 +71,7 @@
             "id": "alarms:I-18",
             "file": "apps/server-e2e/src/server/alarms/alarm-findings.spec.ts",
             "anchor": "expect(after.body.total).toBe(0);",
-            "why": "The finding is resolved rather than deleted (resolveForEntry/reconcile only set state), so a default list that did not exclude resolved would report 1 here. The per-entry batch half is not covered."
+            "why": "The finding is resolved rather than deleted (resolveForEntry/reconcile only set state), so a default list that did not exclude resolved would report 1 here."
         },
         {
             "id": "alarms:I-19",
@@ -132,36 +132,46 @@
             "file": "packages/alarms/admin/src/lib/presentation/components/FindingsToolResult/toolOutput.spec.ts",
             "anchor": "it('defaults a missing severity tally to zeroes'",
             "why": "Pins the bySeverity clause: a payload with no tally yields zeroes for all three rather than undefined reaching the strip."
+        },
+        {
+            "id": "alarms:I-13",
+            "file": "apps/server-e2e/src/server/alarms/alarm-rules.spec.ts",
+            "anchor": "it('refuses to delete another workspace’s rule'",
+            "why": "Pins the workspace clause in the DELETE's where: a member of both workspaces DELETEs a neighbour's rule id under this workspace's header, gets 404, and the neighbour's rule and its findings are both still there. Dropping eq(workspaceId) makes this a 204 whose cascade takes the other tenant's findings."
+        },
+        {
+            "id": "alarms:I-14",
+            "file": "apps/server-e2e/src/server/alarms/alarm-rules.spec.ts",
+            "anchor": "it('lets a different workspace use the same name'",
+            "why": "Pins the composite half of the index: the same payload is accepted (201) in a second workspace, so a uniqueness narrowed to `name` alone — which produces the 409 above just as well — fails here."
+        },
+        {
+            "id": "alarms:I-17",
+            "file": "apps/server-e2e/src/server/alarms/alarm-rules.spec.ts",
+            "anchor": "it('refuses every write carrying a foreign Origin'",
+            "why": "Pins OriginGuard on all five writing routes, preview included, naming the route in each assertion; the allowed-origin repeat afterwards is the discriminator, so five 403s from a broken fixture would not pass."
+        },
+        {
+            "id": "alarms:I-17",
+            "file": "apps/server-e2e/src/server/alarms/alarm-findings.spec.ts",
+            "anchor": "it('refuses a member holding no alarms:read on every findings route'",
+            "why": "Pins the findings controller's own permission — a workspace member with no alarms:read gets 403 on all three findings routes, so a handler that lost its @RequirePermissions fails here rather than answering everyone."
+        },
+        {
+            "id": "alarms:I-18",
+            "file": "apps/server-e2e/src/server/alarms/alarm-findings.spec.ts",
+            "anchor": "it('keeps a resolved finding out of the per-entry batch'",
+            "why": "Pins the byEntryIds half: the batch reports the finding while it is open, the entry is then fixed, the row is asserted still present with state 'resolved', and the batch comes back empty — so dropping ne(state,'resolved') fails here and nowhere else."
         }
     ],
     "judgments": {
-        "alarms:I-05": {
-            "state": "partial",
-            "missing": "Only the row count is pinned. `alarm-findings.spec.ts` -> 'is idempotent under a re-delivered event' drains the outbox twice and asserts one finding; nothing asserts the second delivery changed *nothing but* `last_seen_at`. An ON CONFLICT that also reset `first_seen_at`, or cleared `detail`, would pass it — and `first_seen_at` is the history the whole 'open for three months' reading rests on. Needs a server-e2e read of the row before and after the second drain (the file already has `findingFirstSeen` for exactly that shape)."
-        },
-        "alarms:I-13": {
-            "state": "partial",
-            "missing": "The FK cascade is pinned ('takes the rule and its findings with it'); the workspace clause in the DELETE's `where` is not. Dropping `eq(alarmRules.workspaceId, workspaceId)` from `AlarmRuleRepository.remove` leaves every alarms test green — the rule id is a uuid, so a caller has to know it, but a member of workspace A holding `alarms:manage` could then delete workspace B's rule and its findings. Needs a server-e2e case: a second workspace's rule id, DELETEd from the first, expecting 404 and the row still there."
-        },
-        "alarms:I-14": {
-            "state": "partial",
-            "missing": "The 409 is pinned; the composite half of the uniqueness is not. The index is `(workspace_id, name)`, and a migration that narrowed it to `name` alone would fail no test — it would instead refuse a second workspace the alarm name its neighbour happened to use first, which reads as a bug in someone else's tenant. The dossier's own checklist names it ('The same name in a different workspace -> 201')."
-        },
-        "alarms:I-17": {
-            "state": "partial",
-            "missing": "Two of the three clauses are pinned on the *rules* controller: the read/write permission split and workspace membership. Not pinned: (a) `OriginGuard` on the five writing routes, `preview` included — a browser-mounted CSRF against a signed-in admin is exactly what it is there for, and no alarms test sends a foreign `Origin`; (b) the findings controller's own permission — every citation for this row is on `/alarms/rules`, so a findings route that had lost its `@RequirePermissions` decorator would be caught by nothing."
-        },
-        "alarms:I-18": {
-            "state": "partial",
-            "missing": "The list half is pinned (a resolved finding leaves the default `GET /alarms/findings`). The per-entry batch is not: 'serves findings for a batch of entries in one request' only ever asks about entries whose findings are open, so `byEntryIds` dropping its `ne(state, 'resolved')` would still pass. That clause is what keeps a closed finding off the entry editor's Checks block and out of the records list's column — the two places an editor actually reads findings."
-        },
         "alarms:I-32": {
             "state": "partial",
-            "missing": "The 'no surface encodes it by colour alone' clause is pinned in the browser (`alarms.spec.ts` -> 'is a shape and a word, never a colour on its own', `content/alarms-slots.spec.ts` -> 'a flagged row carries a shape and a count'): the glyphs are compared as markup, so one icon for all three severities fails. The **word** clause holds on only two of the four surfaces. `SeverityBadge` renders it (the rule card, the entry rail); the findings group header does not — its `sr-only` severity word sits inside a `CollapsibleTrigger` carrying an `aria-label`, which replaces descendant text in the accessible name, so a screen reader is told '{name} - N records' and never the severity. The records column cell has no severity word at all: `messages.summary` names the count and the finding titles only. Both are shape+colour surfaces in practice. Fixing either is a one-line message change, not a test."
+            "missing": "Down to one clause, and it is a **defect fixed here rather than a gap**. The note was right about the code: `FindingGroup`'s severity word sat in an `sr-only` span inside a `CollapsibleTrigger` carrying an `aria-label`, which replaces descendant text in the accessible name, so a screen reader heard \"{name} — N records\" and never the severity; and `AlarmsColumnCell`'s `messages.summary` named the count and the finding titles only. Both surfaces therefore carried severity by shape and colour alone. The severity is now part of the trigger's own `aria-label` and part of the column cell's summary, and `alarms.spec.ts` -> 'is a shape and a word, never a colour on its own' now asserts the group header's accessible name for all three severities while `content/alarms-slots.spec.ts` -> 'a flagged row carries a shape and a count' asserts 'Error, Warning' in the cell's summary. Both assertions are admin-e2e and have not been run yet (phase 3); the row stays `partial` until that suite goes green."
         },
         "alarms:I-33": {
             "state": "partial",
-            "missing": "All four named surfaces are pinned at the level a reader meets them (`content/alarms-slots.spec.ts` for the column cell and the entry rail, `alarms.spec.ts` for the findings list and the rule list — each walks loading, failed and empty in one test and asserts the other two states are not on screen). Not pinned: the **inside** of an expanded group, which has its own three states from `useAlarmFindings` — a destructive alert, two `Skeleton` blocks, and 'Nothing here any more'. The skeleton there is a bare `Skeleton` pair with no `SkeletonRegion` around it, so that state has no words and no announcement at all; it is distinguishable by eye and by nothing else."
+            "missing": "Down to the same shape as I-32: the note was right, and the fix is code. The inside of an expanded group had three states from `useAlarmFindings`, and its busy one was a bare `Skeleton` pair with no `SkeletonRegion` — no words, nothing announced, indistinguishable from 'Nothing here any more' to anyone not looking at it. It is now a labelled `SkeletonRegion` ('Loading the records {name} has flagged…'), and `alarms.spec.ts` -> 'are three different answers inside an expanded group' walks all three. The assertion is admin-e2e and has not been run yet (phase 3); the row stays `partial` until that suite goes green."
         }
     }
 }

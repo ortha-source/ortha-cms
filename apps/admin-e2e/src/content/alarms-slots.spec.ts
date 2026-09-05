@@ -186,7 +186,11 @@ test.describe('Alarms in the Content Library', () => {
         ]);
         expect(new Set(shapes).size).toBe(2);
         // And the sentence a screen reader gets, since the glyphs are
-        // deliberately `aria-hidden`.
+        // deliberately `aria-hidden`. The severities are in it **as words**:
+        // without them this cell would say how many checks are flagged and
+        // never how badly, leaving severity carried by shape and hue alone —
+        // which is exactly what the glyphs being `aria-hidden` costs.
+        await expect(flagged).toContainText('Error, Warning');
         await expect(flagged).toContainText(ENTRY_FINDING.title);
     });
 

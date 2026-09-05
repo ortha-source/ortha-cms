@@ -146,7 +146,7 @@ describe('createAdmin — what it says before it renders', () => {
     });
 
     describe('slot contributions', () => {
-        it('wires every plugin’s items before the render [bootstrap:I-22]', () => {
+        it('wires every plugin’s items before the render [bootstrap:I-22, shell:I-05]', () => {
             const slot = createSlot<{ id: string }>('spec.host.slot');
 
             bootUnmounted({
@@ -165,7 +165,9 @@ describe('createAdmin — what it says before it renders', () => {
             // `packages/utils/admin` pins that the wiring is idempotent; what it
             // cannot show is *when* the host runs it — and a consumer reads its
             // slot during the first render, so wiring after `root.render` gives
-            // the shell an empty sidebar on the first paint.
+            // the shell an empty sidebar on the first paint. That ordering is
+            // also the second half of `shell:I-05`, which is a statement about
+            // the shell's sidebar but a decision only the host can make.
             expect(slot.getItems().map((item) => item.id)).toEqual([
                 'shell-1',
                 'content-1'

@@ -1,8 +1,8 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { IntlProvider } from 'react-intl';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { SidebarProvider } from '@orthacms/design-system';
+import { SidebarProvider, useSidebar } from '@orthacms/design-system';
 import { wireSlotContributions } from '@orthacms/utils-admin';
 import {
     SIDEBAR_FOOTER_SLOT,
@@ -156,5 +156,97 @@ describe('AppSidebar', () => {
         // the footer with it would sign the user out of every affordance they
         // have the moment they opened a workspace.
         expect(screen.getByRole('button', { name: 'Ada' })).toBeTruthy();
+    });
+});
+
+/**
+ * **The two mobile strings** — the half of `shell:I-29` that had no case.
+ *
+ * Under the breakpoint the sidebar *is* a Radix dialog, and its accessible name
+ * and description come from `mobileTitle` / `mobileDescription`. Left unpassed
+ * they fall back to the design system's own English literals ("Sidebar",
+ * "Displays the mobile sidebar."), which is exactly what `ORT-159` was filed
+ * for: the drawer announced English in every locale and no consumer could
+ * translate it. `host.spec.ts` reads the desktop `label` and
+ * `AppShell/index.spec.tsx` the `scrollLabel`; neither ever crosses the
+ * breakpoint, because a Playwright project's viewport is fixed by the config.
+ *
+ * jsdom will, though — `useIsMobile` decides from `matchMedia` on the first
+ * frame (`design-system:I-21`), so overriding it is the whole fixture.
+ */
+describe('AppSidebar on a narrow viewport', () => {
+    let realMatchMedia: typeof window.matchMedia;
+
+    /** Reports every media query as matching, i.e. under the breakpoint. */
+    function setMobile() {
+        window.matchMedia = ((query: string) => ({
+            matches: true,
+            media: query,
+            onchange: null,
+            addEventListener: () => undefined,
+            removeEventListener: () => undefined,
+            addListener: () => undefined,
+            removeListener: () => undefined,
+            dispatchEvent: () => false
+        })) as typeof window.matchMedia;
+    }
+
+    /** Opens the drawer, which is closed on arrival. */
+    function OpenDrawer() {
+        const { setOpenMobile } = useSidebar();
+        return (
+            <button type="button" onClick={() => setOpenMobile(true)}>
+                Open the drawer
+            </button>
+        );
+    }
+
+    beforeEach(() => {
+        realMatchMedia = window.matchMedia;
+        setMobile();
+    });
+
+    afterEach(() => {
+        window.matchMedia = realMatchMedia;
+    });
+
+    it('names and describes the drawer with translated strings [shell:I-29]', () => {
+        wireSlotContributions([{ slot: SIDEBAR_NAV_SLOT, items: NAV }]);
+
+        render(
+            <IntlProvider
+                locale="de"
+                messages={{
+                    'shell.sidebar.mobileTitle': 'Navigation (de)',
+                    'shell.sidebar.mobileDescription':
+                        'Die Hauptnavigation (de)'
+                }}
+                // Every other descriptor in the chrome is deliberately absent
+                // from this catalogue; react-intl reports each fallback, and the
+                // noise is not what is under test.
+                onError={() => undefined}
+            >
+                <MemoryRouter initialEntries={['/']}>
+                    <SidebarContentProvider>
+                        <SidebarProvider>
+                            <AppSidebar />
+                            <OpenDrawer />
+                        </SidebarProvider>
+                    </SidebarContentProvider>
+                </MemoryRouter>
+            </IntlProvider>
+        );
+
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Open the drawer' })
+        );
+
+        // A German catalogue, so an unpassed prop is not merely untranslated —
+        // it is visibly the design system's English default, which is the
+        // failure `ORT-159` describes and the one a `locale="en"` fixture could
+        // never tell apart.
+        const drawer = screen.getByRole('dialog', { name: 'Navigation (de)' });
+        expect(drawer.textContent).toContain('Die Hauptnavigation (de)');
+        expect(drawer.textContent).not.toContain('Displays the mobile sidebar');
     });
 });

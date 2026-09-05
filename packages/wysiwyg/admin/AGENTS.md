@@ -430,8 +430,12 @@ is an ordinary tab stop.
   reshaping, media insertion — each a transform whose failure is invisible on
   screen and only shows in the stored document), and the structural claims a
   browser cannot see: the lazy boundary, the layering, and the single
-  `.ortha-wysiwyg` style scope. Anything about pointers, focus or the caret
-  belongs in `admin-e2e`.
+  `.ortha-wysiwyg` style scope. Anything about **pointers** belongs in
+  `admin-e2e`; so does anything about focus that a browser can actually be
+  asked about. Where the caret *starts* is the exception, and it is here
+  (`WysiwygEditorPanel/index.spec.tsx`): `autofocus` is resolved to a
+  **selection** in the editor's state before it is a DOM focus, so a read-only
+  surface — which takes no focus at all — still says whether the guard fired.
 - `npx nx e2e admin-e2e -- --project=chromium wysiwyg-fields` — the suite that
   covers this plugin (`apps/admin-e2e/src/content/wysiwyg-fields.spec.ts`),
   including two axe scans and the saved-HTML assertions. The visible editor is
