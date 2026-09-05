@@ -170,6 +170,21 @@ admin-e2e && npx nx lint admin-e2e` plus a full run is the entire gate.
   checked (the relation picker's "Select all N", which pages the rest in) passes
   on an idle machine and fails on a busy one. Use `click()` and assert the end
   state. That was the whole of the `relations.spec.ts` load-flake.
+- **A clipped element is not a hidden one, and a lost click is silent.**
+  Playwright's visibility test is "has a non-empty box and is not
+  `visibility:hidden`" — it says nothing about an ancestor's `overflow`. The
+  collapsed filter panel animates a wrapper's `grid-template-rows` to `0fr`
+  under `overflow-hidden`, so the closed `region` keeps its full 976×265 box and
+  `waitFor()` returns on it just as happily as on an open one. `openFilters()`
+  therefore verified nothing for a while, and the pair `openFilters()` +
+  `applyFilters()` raced the opening. What makes that _dangerous_ rather than
+  merely slow is the second half: Playwright checks the hit target before
+  `mousedown` and never again, so if the layout shifts before `mouseup` the
+  browser fires `click` on the two targets' **common ancestor** — the handler
+  never runs, and the call is **reported as a successful click**. The action
+  simply does not happen, and the failure surfaces several assertions later as
+  "element(s) not found". Wait on a state the app itself publishes
+  (`aria-expanded` on the toggle), not on the presence of a box.
 - **Assert against a number the product states, not one you snapshotted.** A
   count taken from a lazily-paged list is a moving target; the same list's
   "Select all 32" label is not. The failure mode is a test that measures two
