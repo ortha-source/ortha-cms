@@ -8,6 +8,14 @@ ledger has no state for but which mislead the next reader just as much.
 
 Nothing here is a code defect. Code defects belong in the gap list.
 
+**The table is empty as of 2026-09-05.** All 33 recorded rows were worked through
+against the code as it stood that day, not transcribed — which mattered: several
+had gone stale (the correction described a defect since fixed), and one was simply
+wrong, naming a `tokens:manage` permission that does not exist. Recording a
+correction and applying it are far enough apart in time that the correction needs
+re-checking too. A row added here should be applied soon or it becomes a third
+layer of drift.
+
 | Package          | Where                                    | What is wrong                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | ---------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 
