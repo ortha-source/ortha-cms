@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 import type { ServerPlugin } from '@orthacms/bootstrap-server';
 import { WorkspacesModule } from '../workspaces.module';
+import { describeWorkspacesApi } from '../docs/describe-workspaces-api';
 
 /**
  * Server plugin for workspaces (the tenancy bounded context). Carries no config
@@ -39,6 +40,12 @@ export function WorkspacesPlugin(): WorkspacesServerPlugin {
             // layout: src/lib/utils → ../../../migrations = <pkg>/migrations.
             dir: () => join(__dirname, '../../../migrations'),
             table: '__drizzle_migrations_workspaces'
+        },
+        // Every response here is a plain `interface`, which the swagger scanner
+        // cannot see — so the workspace shapes are written onto the document
+        // directly rather than through decorators it has nothing to reflect.
+        docs: {
+            decorate: (document) => describeWorkspacesApi(document)
         }
     };
 }

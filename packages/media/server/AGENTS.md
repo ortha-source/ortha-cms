@@ -35,7 +35,7 @@ or `infrastructure/`.** Only `@orthacms/database`'s framework-free
 node built-ins.
 
 That `@orthacms/database` edge is why the aggregates stayed here when the port
-left: they are framework-free, but they are not *dependency*-free, and an
+left: they are framework-free, but they are not _dependency_-free, and an
 adapter that inherited the shared kernel would inherit Drizzle with it.
 
 The layer-boundary lint still isn't wired, but this is **no longer
@@ -55,7 +55,7 @@ the rule** — it is how the rule erodes without anything going red.
 - **`StorageProvider`** lives in **`@orthacms/media-domain`**, not here: a
   NestJS-free port — `put` / `get` / `remove`, plus optional `directUrl()` and
   `verify()` — in a package that declares no dependencies of any kind. It moved
-  out because an adapter needs one *value* from it (`ObjectNotFoundError`, since
+  out because an adapter needs one _value_ from it (`ObjectNotFoundError`, since
   `get` promises a particular rejection), that value came through this package's
   root barrel, and the barrel re-exports `MediaModule` — so `npm i` of any
   adapter installed NestJS, Drizzle, Express and Sharp. This package re-exports
@@ -81,7 +81,7 @@ the rule** — it is how the rule erodes without anything going red.
 - **`StorageProviderCheck`** (`infrastructure/storage-provider.check.ts`) runs
   `verify()` and that comparison at boot, and refuses to start when the table
   holds a foreign `storage_provider` — naming it and its row count. A missing
-  `media_asset` table is *not* a failure: migrations are a separate step, so a
+  `media_asset` table is _not_ a failure: migrations are a separate step, so a
   fresh database must still boot.
 - **Writing a provider** is one factory function plus one
   `describeStorageProvider` call from `@orthacms/media-provider-testkit`, which
@@ -582,7 +582,7 @@ carried onto a duplicate. Both upload routes accept it at creation —
 `UploadAssetDto.alt` on the session route, `?alt=` on `/api/v1/media/assets` —
 because the only other way to set it was a second `PATCH`, which an unattended
 import never makes, and 508 504.3 asks an authoring tool to prompt when the
-non-text content is *created*. `Asset` normalizes it identically on both paths
+non-text content is _created_. `Asset` normalizes it identically on both paths
 (trim, blank → `null`), so whitespace can never masquerade as coverage.
 
 What the model still does **not** have: a `caption`, a `long_description`, or
@@ -590,3 +590,45 @@ any **per-usage** override — a `field.media` value is a bare uuid, so the same
 asset reused decoratively in one entry and as a hero in another carries one
 description in both. That is ORT-83 / ORT-91, a cross-package model change.
 Video captions have no representation at all: ORT-92.
+
+## OpenAPI response schemas (`src/lib/docs/`)
+
+The plugin describes its own responses through `ServerPlugin.docs.decorate`.
+The request side was already covered — the DTOs carry `@ApiProperty` and the two
+`/v1` routes carry `@ApiOperation` — but `AssetView`, `AssetListView`,
+`FolderView` and `FoldersView` are plain `interface`s the swagger scanner cannot
+see, and `StoredMediaTrack` lives in `domain/`, where
+[ADR-0003](../../../docs/adr/0003-tactical-ddd-inside-plugins.md) forbids the
+`@nestjs/swagger` import a decorated class would need. So all twelve operations
+published a bare `{ '200': { description: '' } }`. The pass writes plain OpenAPI
+schema objects onto the finished document instead — see
+[`packages/bootstrap/server/AGENTS.md`](../../bootstrap/server/AGENTS.md#the-response-schema-gap).
+
+- `media-schemas.ts` — the schemas as data (`MediaAsset`, `MediaAssetPage`,
+  `MediaFolder`, `MediaFolderTree`, `MediaFolderRef`, `MediaTrack`,
+  `MediaDeleteResult`). Every name is `Media`-prefixed on purpose: the document
+  is shared with every other plugin, and `Asset` is not this plugin's word to
+  claim.
+- `describe-media-api.ts` — two route tables (session and token) and the pass.
+
+Three things worth keeping in mind if you touch it:
+
+- **The folders listing is `{ folders, rootAssetCount }`, not `{ items }`.**
+  Every other listing here uses the `{ items, total, page, pageSize }` envelope;
+  this one does not, because `rootAssetCount` has no folder row to hang off. The
+  admin's own e2e mock had it as `{ items }` for months and nobody noticed, so
+  the schema was written from a live response rather than from the type name.
+- **`GET /media/assets/:id/raw` returns bytes**, and is described as a wildcard
+  media type carrying `{ type: 'string', format: 'binary' }` — not skipped, and
+  not given an invented JSON body. The `Content-Type` is the asset's own stored
+  MIME type, which is per-row and cannot be enumerated in a document.
+- **The `/v1` surface gets its own table**, and the session pattern refuses a
+  `/v1/` prefix outright rather than merely losing a race to it. The two answer
+  in the same shapes _today_, which is exactly the reasoning that let content's
+  one-table pass publish the admin's schemas on thirteen public operations. The
+  session pattern is also narrowed to `/media/(folders|assets)`, so it cannot
+  claim `/insights/media/*` (a different page, mounted under a path that merely
+  contains the word) or content's `/content/{typeName}/{id}/media`.
+
+Neither `/api/insights/media/*` nor `/api/content/.../media` is described here;
+they belong to the plugins that own those contracts.
