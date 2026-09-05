@@ -7,6 +7,8 @@ import type {
 import { assertProvisionableDomains } from '../domain/sso-provisioning-policy';
 import type { IdentityPluginConfig } from '../types';
 import { IdentityModule } from '../identity.module';
+import { describeIdentityApi } from '../docs/describe-identity-api';
+import { describePreferencesApi } from '../docs/describe-preferences-api';
 import { SESSION_COOKIE } from '../auth/services/cookie.service';
 
 /**
@@ -163,7 +165,20 @@ export function IdentityPlugin(
                         'External API token minted by `POST /api/api-tokens`, shown once at mint time. Scoped to one or more workspaces; a request picks which one it targets with the `X-Workspace-Id` header (optional when the token covers exactly one). Authenticates the public content API (`/api/v1/...`).'
                 }
             },
-            defaultSecurity: ['session', 'apiToken']
+            defaultSecurity: ['session', 'apiToken'],
+            // Every one of identity's handlers returns a TypeScript
+            // `interface`, which is erased before `@nestjs/swagger` runs — so
+            // the scanner emits a status code and no payload at all. This hook
+            // writes the response schemas back on. See
+            // `packages/bootstrap/server/AGENTS.md` → "The response-schema gap".
+            decorate: (document) => {
+                describeIdentityApi(document);
+                // `/api/preferences` is identity's too, and its own pass
+                // because it is a different kind of route: self-service, gated
+                // by nothing but the session, and answering a `Pick<>` over a
+                // Drizzle row rather than one of identity's view interfaces.
+                describePreferencesApi(document);
+            }
         }
     };
 }

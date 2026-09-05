@@ -1,5 +1,6 @@
 import type { ServerPlugin } from '@orthacms/bootstrap-server';
 import { UsersModule } from '../users.module';
+import { describeUsersApi } from '../docs/describe-users-api';
 
 /**
  * Server plugin for member management. A plain {@link ServerPlugin} — the
@@ -36,6 +37,11 @@ export type UsersServerPlugin = ServerPlugin;
 export function UsersPlugin(): UsersServerPlugin {
     return {
         name: 'users',
-        module: UsersModule.forRoot()
+        module: UsersModule.forRoot(),
+        // The member views are TypeScript `interface`s, so `@nestjs/swagger`
+        // emits a status code and no payload for every route here. This hook
+        // writes the response schemas back on. See
+        // `packages/bootstrap/server/AGENTS.md` → "The response-schema gap".
+        docs: { decorate: (document) => describeUsersApi(document) }
     };
 }

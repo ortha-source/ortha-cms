@@ -373,6 +373,23 @@ error, and type the barrel exports keeps its path, so no consumer import moved.
   same pattern (FR-10), declared **after** `SystemRolesSeeder` so the `admin`
   role exists when it runs. (`onPluginInit` is intentionally unused by identity
   now — it predates the DI graph.)
+- **The plugin describes its own responses** (`src/lib/docs/`). `docs.decorate`
+  writes plain OpenAPI schema objects onto the finished document:
+  `identity-schemas.ts` holds the shapes, `describe-identity-api.ts` the route
+  tables and the pass. It exists because every response view here is a
+  TypeScript `interface` — erased before `@nestjs/swagger` reflects the
+  controllers, and `SsoProviderSummary` lives in `identity/domain`, where
+  ADR-0003 forbids the decorator import a described class would need. Two rules
+  the pass keeps, both learned from the content plugin's version of it: it
+  writes onto whichever 2xx key the scanner already emitted (never inventing a
+  status code, never touching a `204`), and it matches routes precisely —
+  `tailAfter` accepts one prefix segment or none, so `/api/v1/auth/me` is a
+  non-match rather than a silent alias. The three redirecting SSO routes are
+  deliberately left undescribed: they answer `302` with no body, and the
+  `200`/`201` the scanner emitted for their `Promise<void>` handlers is an
+  artefact. `/api/users/{id}/sessions` is described here, not by
+  `@orthacms/users-server`, because identity serves it — the two plugins share
+  the `/api/users` prefix and each names only its own tails.
 - **RBAC seeding.** `seedSystemRoles` writes the permission catalogue, the three
   roles, and their grants in one transaction, each via `ON CONFLICT DO NOTHING`
   — so it is idempotent and concurrency-safe across simultaneously booting

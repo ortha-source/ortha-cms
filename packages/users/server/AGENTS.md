@@ -249,6 +249,19 @@ same permission. No invite tokens, no session data.
 
 ## Architecture notes
 
+- **The plugin describes its own responses** (`src/lib/docs/describe-users-api.ts`).
+  `docs.decorate` writes plain OpenAPI schema objects onto the finished
+  document, because every member view is a TypeScript `interface` and is erased
+  before `@nestjs/swagger` reflects the controllers — the scanner emits a status
+  code and no payload. The pass writes onto whichever 2xx key it already emitted
+  (so `POST /users/:id/enable` stays the `201` it really answers, and the `204`
+  revoke keeps no body), and `memberRouteTail` accepts one prefix segment or
+  none so `/api/v1/users/:id` cannot be silently claimed. `InvitedMember` and
+  `PasswordResetMember` are separate schemas rather than `Member` with an
+  optional token field: a one-time token is returned by exactly those routes and
+  is never readable again, and an "optional" field would suggest the list might
+  carry one. `/users/:id/sessions` is absent from the table — identity mounts it
+  on the same prefix and describes it itself.
 - Plain `ServerPlugin` factory (`UsersPlugin()`), no config, **no migrations**
   — every table it touches (`users`, `roles`, `memberships`, `workspaces`,
   `sessions`, `tokens`) is owned and migrated by `@orthacms/identity-server`
