@@ -1259,7 +1259,7 @@ npx nx e2e server-e2e --testPathPatterns=mcp</code></pre></div>
     <li><span class="id">I-22</span><span>The copilot's capability profile is <b>not cached</b> between runs, and permissions are re-checked once more before every call inside a run.</span></li>
     <li><span class="id">I-23</span><span>The first declaration of a name wins; a repeat lands in <code>withheld</code> rather than shadowing the earlier one.</span></li>
     <li><span class="id">I-24</span><span>The package owns no table, ships no migrations, and imports neither Drizzle, nor any vendor SDK, nor <code>@modelcontextprotocol/sdk</code>.</span></li>
-    <li><span class="id">I-25</span><span>No type and no function in the package mentions HTTP, JSON-RPC or MCP.</span></li>
+    <li><span class="id">I-25</span><span>No JSON-RPC vocabulary appears anywhere in the package, and no transport object crosses the tool contract — a handler is handed a <code>ToolContext</code> and a plain argument bag, never a request, a response, or a protocol envelope. HTTP and MCP do appear, and only in these two shapes: refusals are Nest <code>HttpException</code>s flattened to a numeric <code>ToolError.status</code>, and <code>mcp</code> is one of the two <code>ToolSurface</code> labels alongside the <code>readOnly</code>/<code>destructive</code> client hints. See I-24 for the dependency rule.</span></li>
   </ul>
 </section>
 

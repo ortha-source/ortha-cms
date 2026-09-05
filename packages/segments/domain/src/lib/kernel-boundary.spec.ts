@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { canRead } from './entry-access';
 import { SEGMENT_KEY_PATTERN } from './validation';
 
 /** This package's root — `packages/segments/domain`. */
@@ -109,4 +110,47 @@ describe('the audience field rules have one home', () => {
             );
         }
     );
+});
+
+/**
+ * That the **reader** decision never asks where an audience is offered.
+ *
+ * `isOfferedIn(segment, workspaceId)` answers an editor's question: may this
+ * workspace put this audience on an entry. Folding it into `canRead` would make
+ * a published page's visibility depend on the workspace scoping of the audience
+ * that gated it — so scoping an audience away from a workspace, an editorial
+ * housekeeping act, would silently republish every entry that audience was
+ * keeping private.
+ *
+ * A judgment once retired this as unreachable, on the grounds that `canRead` is
+ * handed neither a workspace nor the catalogue so nothing a test can vary would
+ * show it. That is the right observation and the wrong conclusion: it makes the
+ * statement *structural*, not unobservable, and this package already asserts
+ * structure — the import scan above is the same shape. Both halves are checked
+ * here, because they defend each other: the signature is what makes an inlined
+ * offering check impossible, and the absent import is what makes a delegated
+ * one impossible.
+ */
+describe('the reader decision is not the editor’s', () => {
+    /** Where `canRead` lives, and where `isOfferedIn` lives. */
+    const READER = join(PACKAGE, 'src/lib/entry-access.ts');
+
+    it('takes the entry’s lists and the reader’s segments, and nothing else [segments:I-09]', () => {
+        // Two parameters, both about the reader and the row. There is no third
+        // to smuggle a workspace or a segment catalogue in through, which is
+        // what makes the rule hold by construction rather than by discipline.
+        expect(canRead.length).toBe(2);
+        expect(canRead({ allow: ['acme'], deny: [] }, new Set(['acme']))).toBe(
+            true
+        );
+    });
+
+    it('is written in a module that imports nothing at all [segments:I-09]', () => {
+        // `isOfferedIn` lives in `./segment`. An import here is the only way
+        // `canRead` could reach it, so an empty import list is the assertion —
+        // and it fails on the natural way to break the rule, which is to reach
+        // for the helper rather than to re-derive it.
+        expect(imports(READER)).toEqual([]);
+        expect(readFileSync(READER, 'utf-8')).not.toContain('isOfferedIn');
+    });
 });

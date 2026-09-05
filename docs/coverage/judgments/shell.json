@@ -147,10 +147,6 @@
             "state": "partial",
             "missing": "The palette half. `SidebarCommandItem` applies the same `useHasPermission` gate as `SidebarNavButton`, and nothing asserts it: a user without `users:read` searching \"Members\" would get a result that leads to the page's no-access state. Left uncovered deliberately in the unit pass — the control renders a cmdk `CommandItem`, which needs a `Command` context, and no spec in the repo exercises cmdk under jsdom yet, so the control case could not be written blind in a phase where nothing runs."
         },
-        "shell:I-09": {
-            "state": "not-mechanically-checkable",
-            "reason": "Calling useHasPermission unconditionally is an implementation-shape rule (react-hooks/rules-of-hooks), not observable behaviour. Each nav row is its own component instance and `item.permission` is fixed for that instance's whole life, so a conditional call would never change the hook order within any single component and produces no difference a test harness could see — only lint can catch it."
-        },
         "shell:I-14": {
             "state": "partial",
             "missing": "The caller's side: \"deps must list every field the node renders\". The hook's own contract (a factory rebuilt only on a deps change) is pinned in `sidebarContent/index.spec.tsx`, but nothing can check that a given caller's deps array is complete — `workspaces-admin`'s `WorkspaceNav` listing `[workspace.id]` while rendering `workspace.name` would show a stale name after a rename, and only that package's own test could catch it."

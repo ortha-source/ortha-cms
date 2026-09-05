@@ -525,3 +525,146 @@ describe('motion', () => {
         expect(wizard?.code).toContain("'wizard-step-in'");
     });
 });
+
+/**
+ * The palette's light/dark pairing.
+ *
+ * Every component in the library resolves its colours through `--color-*` at
+ * runtime, which is what lets `.dark` re-declare them without a rebuild — and
+ * what makes a token declared in only one of the two blocks a component that
+ * renders the light value on the dark canvas. The failure is silent in review
+ * (the diff shows one perfectly reasonable new token) and silent in the light
+ * theme, which is where it is looked at.
+ *
+ * ## Why this needs a list rather than a set comparison
+ *
+ * The invariant reads "either overridden or deliberately inherited", and a
+ * judgment once retired it as unfalsifiable on exactly that wording: a
+ * disjunction ending in "or deliberately" is satisfied by every token, so an
+ * assertion over the two sets passes by construction. That is a wording
+ * problem, not an unobservable one. What makes it testable is naming the
+ * inheritors — three families that are the same colour in both themes on
+ * purpose — so that everything *else* must be paired, and a new unpaired token
+ * has to be argued for here instead of merely appearing.
+ *
+ * The list is short and each family has a reason:
+ *
+ * - `--color-sidebar-*` — the panel's chrome is authored dark in both themes,
+ *   so the shell keeps one identity while the content canvas flips.
+ * - `--color-nav-*` — the nav-icon accents are tuned for contrast against that
+ *   permanently dark chrome, so a dark-mode variant would be the same colour.
+ * - `--color-avatar-*` — identity anchors. An avatar that changed hue with the
+ *   theme would stop being recognisable, which is the one job it has.
+ *
+ * `--radius` is excluded rather than allow-listed: it is not a palette token.
+ */
+describe('the admin palette', () => {
+    /** Both copies of the palette: the workspace's admin and the one shipped. */
+    const PALETTES = {
+        'apps/admin': 'apps/admin/src/styles.css',
+        'the scaffolder template':
+            'packages/create-ortha-app/templates/default/apps/admin/src/styles.css'
+    };
+
+    /** Token prefixes that are the same colour in both themes, on purpose. */
+    const INHERITED = ['--color-sidebar', '--color-nav-', '--color-avatar-'];
+
+    /** Declarations that are not colours and so are outside the rule. */
+    const NOT_A_COLOUR = ['--radius'];
+
+    /** The top-level blocks of a stylesheet, by selector, comments stripped. */
+    function blocks(css: string): { selector: string; body: string }[] {
+        const out: { selector: string; body: string }[] = [];
+        const text = css.replace(/\/\*[\s\S]*?\*\//g, '');
+        let index = 0;
+        while (index < text.length) {
+            const open = text.indexOf('{', index);
+            if (open < 0) break;
+            const selector = text.slice(index, open).trim().split('\n').pop();
+            let depth = 1;
+            let cursor = open + 1;
+            while (cursor < text.length && depth > 0) {
+                if (text[cursor] === '{') depth += 1;
+                else if (text[cursor] === '}') depth -= 1;
+                cursor += 1;
+            }
+            out.push({
+                selector: (selector ?? '').trim(),
+                body: text.slice(open + 1, cursor - 1)
+            });
+            index = cursor;
+        }
+        return out;
+    }
+
+    /** The custom properties declared directly in the named blocks. */
+    function declared(css: string, selectors: string[]): string[] {
+        return blocks(css)
+            .filter((block) => selectors.includes(block.selector))
+            .flatMap((block) =>
+                [...block.body.matchAll(/(--[a-z0-9-]+)\s*:/g)].map(
+                    ([, token]) => token
+                )
+            );
+    }
+
+    it.each(Object.entries(PALETTES))(
+        '%s overrides every light token in .dark, bar the three inherited families [design-system:I-04]',
+        (_name, path) => {
+            const css = readFileSync(join(repoRoot, path), 'utf8');
+            const light = declared(css, ['@theme', ':root']);
+            const dark = new Set(declared(css, ['.dark']));
+
+            // The premise: this is parsing a real palette, not an empty match.
+            expect(light.length).toBeGreaterThan(50);
+            expect(dark.size).toBeGreaterThan(40);
+
+            const unpaired = light.filter(
+                (token) =>
+                    !dark.has(token) &&
+                    !NOT_A_COLOUR.includes(token) &&
+                    !INHERITED.some((prefix) => token.startsWith(prefix))
+            );
+
+            // Delete any `.dark` override above and the token it belonged to
+            // lands here — which is the defect: a component asking for it on
+            // the dark canvas gets the light value.
+            expect(unpaired).toEqual([]);
+        }
+    );
+
+    it.each(Object.entries(PALETTES))(
+        '%s does not re-declare an inherited family in .dark [design-system:I-04]',
+        (_name, path) => {
+            // The other direction, and the reason the allow-list is by prefix
+            // rather than a bare exclusion: an inherited family that acquired a
+            // `.dark` override is no longer inherited, and the list above has
+            // gone stale rather than the stylesheet being wrong. Failing here
+            // is how that gets noticed.
+            const css = readFileSync(join(repoRoot, path), 'utf8');
+            const overridden = declared(css, ['.dark']).filter((token) =>
+                INHERITED.some((prefix) => token.startsWith(prefix))
+            );
+
+            expect(overridden).toEqual([]);
+        }
+    );
+
+    it('declares the same tokens in both copies [design-system:I-04]', () => {
+        // The scaffolder ships its own copy of the palette, so the rule above
+        // is only as good as the two files agreeing on what the palette *is*.
+        // Comments differ deliberately (the template's are written for someone
+        // who has just scaffolded); the token names must not.
+        const tokensOf = (path: string) => {
+            const css = readFileSync(join(repoRoot, path), 'utf8');
+            return {
+                light: declared(css, ['@theme', ':root']).sort(),
+                dark: declared(css, ['.dark']).sort()
+            };
+        };
+
+        expect(tokensOf(PALETTES['the scaffolder template'])).toEqual(
+            tokensOf(PALETTES['apps/admin'])
+        );
+    });
+});

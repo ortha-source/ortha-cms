@@ -510,6 +510,38 @@ describe('every combination', () => {
     );
 
     /**
+     * The two kill switches, and why they are not written the same way.
+     *
+     * The copilot is installed unconditionally, so its switch has to be in
+     * every `.env` — an operator who decides to turn Ortha AI on should find
+     * the line, off, rather than have to learn its name. MCP is a *chosen*
+     * protocol: unchosen, the plugin is not installed and the endpoint does not
+     * exist, so an `MCP_ENABLED` line would name a setting nothing reads.
+     *
+     * The dossier used to claim both were always written. `env.tmpl` puts
+     * `MCP_ENABLED=false` inside the `ortha:if mcp` block, and the block is
+     * right — this is the assertion that keeps the two from being conflated
+     * again in either direction.
+     */
+    it.each(SELECTIONS)(
+        'writes the copilot switch always and the MCP switch only when chosen — %s [create-ortha-app:I-15]',
+        (_label, ids) => {
+            scaffold(...ids);
+            const env = rendered('.env');
+
+            expect(env).toContain('COPILOT_ENABLED=false');
+            // `toContain`/`not.toContain` on the same string across four
+            // selections, two of which include `mcp` and two of which do not —
+            // so neither half can pass by the fixture never exercising it.
+            if (ids.includes('mcp')) {
+                expect(env).toContain('MCP_ENABLED=false');
+            } else {
+                expect(env).not.toContain('MCP_ENABLED');
+            }
+        }
+    );
+
+    /**
      * Dropping lines from JSON is how you get a trailing comma and an app that
      * cannot be installed — blaming the template rather than the feature that
      * was switched off. So the manifest is the one file the conditional

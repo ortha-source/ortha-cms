@@ -317,13 +317,26 @@ Deleting either line from the real `create-server.ts` left the whole suite green
 the package does not depend on `express` and declares its request/response types
 structurally (I-36).
 
-Two things are deliberately uncovered. `tagByResource`'s non-operation-key guard
-has no reachable repro: `@nestjs/swagger` emits no path-level `parameters`, and
-`decorate` runs _after_ tagging, so nothing can stage one. And SIGTERM's effect
-on in-flight requests is asserted only as "the listeners are installed" — the
-drain itself was measured by hand against the built bundle (six concurrent
-logins, all reset before, all `401` after) because a jest worker cannot signal
-itself without ending the run.
+`tagByResource`'s non-operation-key guard **is** covered, and how it got there
+is worth keeping: it was written off as having "no reachable repro" on the
+grounds that `@nestjs/swagger` emits no path-level `parameters` and `decorate`
+runs _after_ tagging, so nothing can stage one. That is a fact about the
+scanner, not about the harness — `setup-api-docs.spec.ts` already stubs
+`SwaggerModule.createDocument`, so the document is whatever a test says it is,
+and a path item carrying `parameters`, `$ref`, `summary` and `servers` goes
+straight in (I-12). Nothing had to be exported to reach the branch.
+
+The same file also pins the host's own emptiness (I-01, first sentence): no
+`CanActivate`, no `@Controller` or method decorator — the reference routes are
+registered on the http adapter and deliberately are not these — no `pgTable`,
+and a manifest declaring no `@orthacms/*` at all. Its second sentence ("adding a
+capability never requires editing a file in `packages/bootstrap`") is a claim
+about future diffs and stays uncovered by design.
+
+One thing is deliberately uncovered. SIGTERM's effect on in-flight requests is
+asserted only as "the listeners are installed" — the drain itself was measured
+by hand against the built bundle (six concurrent logins, all reset before, all
+`401` after) because a jest worker cannot signal itself without ending the run.
 
 ## Commands
 

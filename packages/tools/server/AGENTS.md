@@ -13,9 +13,15 @@ CMS — and the **single place a tool call is authorized**.
 - **`mcp/server`** exposes it to external agents over `POST /api/v1/mcp`.
 - **`copilot/server`**'s run loop injects the same instance in-process.
 
-That is the whole reason nothing here mentions HTTP, JSON-RPC or MCP. A tool
-added for either consumer is reachable by the other unless it says otherwise,
-and neither can end up with a private set of rules.
+That is the whole reason **no transport crosses the tool contract**. A handler is
+handed a `ToolContext` and a plain argument bag — never a request, a response, or
+a protocol envelope — and no JSON-RPC vocabulary appears anywhere in the package
+(`transport-neutrality.spec.ts`). HTTP and MCP do appear, in two places and only
+two: refusals are Nest `HttpException`s flattened to a numeric
+`ToolError.status`, and `mcp` is one of the two `ToolSurface` labels beside the
+`readOnly`/`destructive` client hints. A tool added for either consumer is
+reachable by the other unless it says otherwise, and neither can end up with a
+private set of rules.
 
 **`ToolsModule` is imported by both, provided by neither.** If `McpModule`
 provided the registry, a deployment running the copilot without MCP would have
@@ -170,6 +176,15 @@ downloadPath: surface === 'mcp'
 Never for **authority**. A tool that wants `if (surface === 'copilot')` around a
 permission check, a filter, or a field it withholds is two tools — split it, and
 let `requires` and `can()` mean one thing for everybody.
+
+This is enforced rather than reviewed. `surface-is-presentation.spec.ts` scans
+every `ToolProvider` in the workspace and asserts the set that reads
+`.surface` is exactly one file — the media provider, for the link above — so a
+second reader fails the suite and has to be argued for in that list. The media
+provider's own spec then pins what the one permitted read may do: the same
+query arguments, the same field set, and a difference of exactly
+`downloadPath`. A handler learns its surface only from the context the registry
+stamps, which is what makes that pair complete rather than a sample.
 
 ### The rest of the checklist
 

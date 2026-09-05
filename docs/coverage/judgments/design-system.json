@@ -165,10 +165,6 @@
         }
     ],
     "judgments": {
-        "design-system:I-04": {
-            "state": "not-mechanically-checkable",
-            "reason": "As written the statement cannot fail: the disjunct 'either overridden or deliberately inherited' admits every token that has no `.dark` counterpart (packages/design-system/src/styles.css and apps/admin/src/styles.css), so any assertion over the two token sets passes by construction. Only a different, hand-maintained statement — an explicit allowlist of the tokens permitted to inherit — would be testable, and no such list exists in the repo."
-        },
         "design-system:I-06": {
             "state": "partial",
             "missing": "Only the first clause is pinned. `library-conventions.spec.ts` scans every source file for a `react-intl` import, a `defineMessages` call and a catalogue module and finds none, and `package-manifest.spec.ts` proves no intl runtime is a dependency. The second clause — that *every visible string* either arrives as a prop or has an English default a host can override — is asserted for the one string that has a context default (`close`, in `labels/index.spec.tsx`) and for the props with English defaults that `localizable-copy.spec.tsx` covers; nothing enumerates the library's JSX text nodes, so a newly hard-coded, un-overridable literal would pass."

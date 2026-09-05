@@ -86,3 +86,59 @@ describe('the admin host’s boundaries', () => {
         ).toEqual([]);
     });
 });
+
+/**
+ * The admin half of "the hosts contain no domain logic … no screens".
+ *
+ * A screen is not a shape a regex can name — a React component is a React
+ * component — but it is not a thing the host can invent from nothing either.
+ * Every page in this admin is contributed by a plugin through
+ * `AdminPlugin.routes`, so a screen appearing here would arrive one of two
+ * ways: imported from a plugin package, or hard-coded against a plugin's data.
+ * The first is a dependency, and the second needs one too, because there is no
+ * API client in this package to reach the data with.
+ *
+ * So the enumerable channel is the import list, and the assertion is that it
+ * contains only the two packages that carry no domain: the design system (the
+ * primitives) and `utils-admin` (the slot mechanism).
+ */
+describe('the admin host holds no domain logic', () => {
+    /** The `@orthacms/*` packages the host is allowed to know about. */
+    const CHROME = ['@orthacms/design-system', '@orthacms/utils-admin'];
+
+    it('imports only the two domain-free packages [bootstrap:I-01]', () => {
+        const imported = new Set(
+            sourceFiles().flatMap((file) =>
+                [
+                    ...readFileSync(file, 'utf8').matchAll(
+                        /from '(@orthacms\/[a-z0-9-]+)'/g
+                    )
+                ].map(([, specifier]) => specifier)
+            )
+        );
+
+        // Both halves matter. The subset check is the rule; the non-empty check
+        // is what stops it passing on a host that imported nothing at all —
+        // which would mean the scan had silently stopped finding files.
+        expect([...imported].sort()).toEqual(CHROME);
+    });
+
+    it('declares no plugin package as a dependency [bootstrap:I-01]', () => {
+        // The same rule at the manifest, so an import added under a path alias
+        // or a dynamic `import()` still has to show up somewhere. A generated
+        // app installs every plugin it wants and hands them to `createAdmin`;
+        // the host's own tree is the two above and React.
+        const manifest = JSON.parse(
+            readFileSync(join(PACKAGE_ROOT, 'package.json'), 'utf8')
+        ) as Record<string, Record<string, string> | undefined>;
+        const declared = Object.keys({
+            ...manifest['dependencies'],
+            ...manifest['peerDependencies'],
+            ...manifest['devDependencies']
+        });
+
+        expect(declared.filter((name) => name.startsWith('@orthacms/'))).toEqual(
+            CHROME
+        );
+    });
+});

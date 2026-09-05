@@ -188,14 +188,5 @@
             "why": "`resolveCapabilityProfile` — the only place in the repo that implements this rule — is asserted to offer the first declaration and to report the repeat in `withheld` with reason 'duplicate-name'."
         }
     ],
-    "judgments": {
-        "tools:I-09": {
-            "state": "not-mechanically-checkable",
-            "reason": "A universal coding rule over every tool handler in seven other packages ('never a check, a filter, or a disclosed field keyed on surface'). No harness can assert the absence of such a branch; a test can only sample individual tools, and the one shared tool that does render per surface is already exercised for its presentation difference (apps/server-e2e/src/server/mcp/mcp.spec.ts 'gives an MCP caller the bearer-fetchable download path' and apps/server-e2e/src/server/copilot/copilot-read-catalogue.spec.ts 'carries a download path the asking user's browser can follow'). Enforcement is review + the ToolContext.surface JSDoc (packages/tools/server/src/lib/tool.ts:66-85)."
-        },
-        "tools:I-25": {
-            "state": "stale",
-            "reason": "Contradicted as written. packages/tools/server/src/lib/tool.ts:132 declares `export type ToolSurface = 'mcp' | 'copilot'` — a type that names MCP; packages/tools/server/src/lib/tool-error.ts:25 is `const logger = new Logger('McpTools')` (the dossier's own §17 divergence table flags this line); and packages/tools/server/src/lib/tool-registry.ts:205-225 signals refusals with Nest HTTP exceptions (NotFoundException / ForbiddenException / UnprocessableEntityException) while packages/tools/server/src/lib/tool-error.ts:6 documents ToolError.status as an 'HTTP-ish status'. The intended, defensible statement — no JSON-RPC or transport type crosses the contract, and no dependency on @modelcontextprotocol/sdk — is the separate I-24."
-        }
-    }
+    "judgments": {}
 }

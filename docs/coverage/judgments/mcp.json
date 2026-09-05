@@ -212,10 +212,5 @@
             "why": "`status: 'any'` on a read-scope token (no content:update) is refused with `forbidden`, pinning that only the write permission widens the read."
         }
     ],
-    "judgments": {
-        "mcp:I-19": {
-            "state": "not-mechanically-checkable",
-            "reason": "A statement about the call graph — that the MCP handlers reach for content's own resolveGrantedType / PublicEntriesQuery / PublicEntryWritesService and the real DTOs rather than re-implementing them. No harness can assert 'the same collaborator was used'; a test can only observe the consequences, which are separately stated as I-23 (grant gate) and I-24 (published-only default) and as the argument-validation invariants. Enforcing it is a review/lint concern (packages/mcp/server owns no content code at all: packages/mcp/server/src/lib has http/, protocol/, types/, utils/ and nothing else)."
-        }
-    }
+    "judgments": {}
 }

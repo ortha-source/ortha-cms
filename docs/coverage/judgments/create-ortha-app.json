@@ -123,10 +123,6 @@
         }
     ],
     "judgments": {
-        "create-ortha-app:I-15": {
-            "state": "stale",
-            "reason": "The COPILOT_ENABLED=false half holds (packages/create-ortha-app/templates/default/env.tmpl:85 sits outside every block), but MCP_ENABLED=false does not: env.tmpl:111 is inside the `# ortha:if mcp` block opened at env.tmpl:106 and closed at env.tmpl:116, so an app scaffolded without the mcp feature has no MCP_ENABLED line in .env at all. The dossier's \"always written into .env, whatever was chosen\" is contradicted. The half that does hold is pinned by packages/create-ortha-app/src/lib/template.spec.ts → 'leaves it switched off until an operator opts in' (COPILOT_ENABLED) and 'keeps MCP off until an operator opts in' (MCP_ENABLED, under a selection that includes mcp)."
-        },
         "create-ortha-app:I-16": {
             "state": "partial",
             "missing": "The config half is pinned by execution — src/lib/generated-config.spec.ts loads the rendered apps/server/config/{copilot-anthropic,sso-oidc}.ts and calls the builders with the key unset, empty, half-set and set. The registration half is not: `copilotProviders(config)` and `ssoProviders(config)` in the rendered apps/server/src/plugins.ts are the code that turns an absent config key into an absent entry, and no test executes them — importing that module pulls in every plugin package and a vendor SDK. So an inverted guard there (registering the provider the config omitted) would be caught by nothing here; it would surface in the generated app's own server-e2e run."

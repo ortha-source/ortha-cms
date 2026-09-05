@@ -172,16 +172,12 @@
     ],
     "judgments": {
         "bootstrap:I-01": {
-            "state": "not-mechanically-checkable",
-            "reason": "The operative clause — 'adding a capability never requires editing a file in packages/bootstrap' — is a claim about future changes, which no harness can evaluate. The 'no guards/tables/routes/screens' half is a judgment about what the source means rather than an observable behaviour; the closest mechanical proxy (a grep for decorators) would pass on a host that had grown domain logic under a different shape."
+            "state": "partial",
+            "missing": "The second sentence — \"adding a capability never requires editing a file in packages/bootstrap\" — which is a claim about future diffs and so has no observable in any harness. The first sentence is now pinned, and the reason it could be is that it is not a vague statement about domain logic but a list of four shapes with one spelling each: `host-boundaries.spec.ts` in bootstrap/server asserts no `CanActivate`, no `@Controller`/method decorator (the reference routes go on the http adapter and are deliberately neither), and no `pgTable`/`drizzle-orm`, backed by a manifest that declares no `@orthacms/*` at all; the admin's own `host-boundaries.spec.ts` asserts the host imports exactly `@orthacms/design-system` and `@orthacms/utils-admin`, which is the only channel a screen could arrive through since the package holds no API client to build one against. What remains unpinned is genuinely unpinnable: whether a future capability *could* be added without touching these files."
         },
         "bootstrap:I-08": {
             "state": "partial",
             "missing": "The 'outside the ValidationPipe' clause. The 'outside the global prefix' and 'outside the guards' clauses are both pinned by production-parity.spec.ts through real requests; the pipe clause has no observable of its own, because a global pipe only ever runs for a Nest route handler and the reference routes are registered on the http adapter, so there is no request that would be rejected if the clause broke. Closing it would mean a route whose query the pipe would refuse — which the reference does not have."
-        },
-        "bootstrap:I-12": {
-            "state": "not-mechanically-checkable",
-            "reason": "tagByResource is module-private in packages/bootstrap/server/src/lib/utils/setup-api-docs.ts:64 and its only input is SwaggerModule.createDocument's output, which emits no path-level `parameters`/`$ref` today; a plugin's decorate runs after tagging, so nothing can inject such a key. The dossier's own testing checklist says the same ('no reachable reproduction'). Reaching the branch would require exporting the function purely to test it."
         },
         "bootstrap:I-16": {
             "state": "partial",

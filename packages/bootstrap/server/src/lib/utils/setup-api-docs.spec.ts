@@ -17,21 +17,33 @@ import type { ServerPlugin } from '../types/server-plugin';
  */
 
 /**
- * The scanner, stubbed to hand back the `DocumentBuilder` config plus an empty
- * `paths`. It walks a live Nest container, which no unit test has — and the
- * scanned half (paths, DTO schemas) is not what this file is about. The
- * builder's output *is*, because that is the only place a security scheme is
- * written.
+ * The scanner, stubbed to hand back the `DocumentBuilder` config plus whatever
+ * `paths` the test asked for. It walks a live Nest container, which no unit
+ * test has — so stubbing it is what makes both halves of this file reachable:
+ * the builder's output, which is the only place a security scheme is written,
+ * and the scanned paths, which are the only thing the tagging pass touches.
+ *
+ * A `mock`-prefixed name so jest's factory hoisting allows the reference; reset
+ * to empty before each test by the hook below.
  */
+const mockPaths: { current: Record<string, unknown> } = { current: {} };
+
 jest.mock('@nestjs/swagger', () => ({
     ...jest.requireActual('@nestjs/swagger'),
     SwaggerModule: {
         createDocument: jest.fn((_app: unknown, config: object) => ({
             ...config,
-            paths: {}
+            paths: mockPaths.current
         }))
     }
 }));
+
+/** Sets the paths the next `setupApiDocs` call will tag. */
+function scanned(paths: Record<string, unknown>): void {
+    mockPaths.current = paths;
+}
+
+beforeEach(() => scanned({}));
 
 @Module({})
 class NoopModule {}
@@ -175,5 +187,87 @@ describe('setupApiDocs — the document’s authentication', () => {
             expect.stringContaining('"faulty"'),
             expect.any(String)
         );
+    });
+});
+
+/**
+ * Where the operation tags go — and, more to the point, where they do not.
+ *
+ * A path item is not a map of operations. Alongside the eight HTTP methods it
+ * may carry `parameters` (an **array**), `$ref`, `summary`, `description` and
+ * `servers`, none of which take a `tags` property. The natural way to write
+ * the grouping pass — walk `Object.values(item)` and set `.tags` on everything
+ * object-shaped — writes one onto that array, and the document stops
+ * validating.
+ *
+ * The judgment this block retires said no harness could get such a key into the
+ * document, because its only source is `SwaggerModule.createDocument` and Nest
+ * emits none today. That is a fact about the *scanner*, not about the harness:
+ * the scanner has been stubbed at the top of this file since the security-scheme
+ * cases were written, so the document is whatever a test says it is. Nothing had
+ * to be exported to reach the branch.
+ */
+describe('setupApiDocs — where operation tags are written', () => {
+    beforeAll(() => Logger.overrideLogger(false));
+
+    /** A path item shaped like the ones the spec permits but Nest never emits. */
+    const pathItem = () => ({
+        // Shared across every operation on the path — an array, so `.tags` on
+        // it is not merely useless, it is invalid.
+        parameters: [
+            { name: 'workspaceId', in: 'header', required: true }
+        ] as unknown[],
+        $ref: '#/components/pathItems/shared',
+        summary: 'Entries',
+        servers: [{ url: 'https://api.example.com' }] as unknown[],
+        get: { operationId: 'listEntries' } as Record<string, unknown>,
+        post: { operationId: 'createEntry' } as Record<string, unknown>
+    });
+
+    it('tags the operations and nothing else on the path item [bootstrap:I-12]', () => {
+        const harness = docsHarness();
+        const item = pathItem();
+        scanned({ '/api/content/entries': item });
+
+        setupApiDocs(harness.app, [], { enabled: true });
+
+        const served = harness.served()['paths'] as Record<
+            string,
+            ReturnType<typeof pathItem>
+        >;
+        const tagged = served['/api/content/entries'];
+
+        // The operations are grouped by resource, which is the point of the
+        // pass at all.
+        expect(tagged.get['tags']).toEqual(['content']);
+        expect(tagged.post['tags']).toEqual(['content']);
+
+        // …and the non-operation keys came through byte for byte. `toEqual`
+        // against a freshly built copy rather than `not.toHaveProperty('tags')`
+        // on each: the failure mode is *any* mutation of these, and an array
+        // that grew a `tags` property compares unequal.
+        const untouched = pathItem();
+        expect(tagged.parameters).toEqual(untouched.parameters);
+        expect(tagged.$ref).toEqual(untouched.$ref);
+        expect(tagged.summary).toEqual(untouched.summary);
+        expect(tagged.servers).toEqual(untouched.servers);
+    });
+
+    it('leaves a path item that is only a $ref alone [bootstrap:I-12]', () => {
+        // The degenerate case the allow-list also has to survive: no method key
+        // at all. A pass that assumed every value under a path was an operation
+        // would tag the string, or throw on it.
+        const harness = docsHarness();
+        scanned({ '/api/media/assets': { $ref: '#/components/pathItems/m' } });
+
+        setupApiDocs(harness.app, [], { enabled: true });
+
+        const served = harness.served()['paths'] as Record<string, unknown>;
+        expect(served['/api/media/assets']).toEqual({
+            $ref: '#/components/pathItems/m'
+        });
+        // The resource is still declared at the document level — the tag list
+        // is derived from the route, not from the operations found under it.
+        expect(harness.served()['tags']).toEqual([{ name: 'media' }]);
     });
 });
