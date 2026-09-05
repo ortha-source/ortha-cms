@@ -152,4 +152,58 @@ describe('describeWorkspacesApi', () => {
             successSchema(document, '/api/workspaces', 'put')
         ).toBeUndefined();
     });
+
+    /**
+     * `GET /content-types` is this plugin's — `ListContentTypesController` over
+     * its own catalogue port — but it lives outside the `/workspaces` namespace,
+     * so it needs its own anchor rather than riding the main one.
+     */
+    describe('the content-type catalogue', () => {
+        it('describes the catalogue it answers with', () => {
+            const document: OpenApiDocument = {
+                paths: { '/api/content-types': { get: scanned('200') } }
+            };
+
+            describeWorkspacesApi(document);
+
+            expect(
+                successSchema(document, '/api/content-types', 'get')
+            ).toEqual({ $ref: '#/components/schemas/ContentTypeCatalogue' });
+        });
+
+        it('leaves a route that merely ends in the word alone', () => {
+            // The decoy: an anchored single segment is what stops this pass
+            // claiming somebody else's `…/settings/content-types`.
+            const document: OpenApiDocument = {
+                paths: {
+                    '/api/workspaces/{id}/content-types': { get: scanned('200') }
+                }
+            };
+
+            describeWorkspacesApi(document);
+
+            expect(
+                successSchema(
+                    document,
+                    '/api/workspaces/{id}/content-types',
+                    'get'
+                )
+            ).toBeUndefined();
+        });
+
+        it('documents the three registry booleans without requiring them', () => {
+            // A deployment with no content plugin answers from the built-in
+            // fallback, which carries only the port's own five properties.
+            const document = scannedDocument();
+            describeWorkspacesApi(document);
+            const schema = document.components?.schemas?.[
+                'ContentTypeDescriptor'
+            ] as { properties: Record<string, unknown>; required: string[] };
+
+            expect(Object.keys(schema.properties)).toEqual(
+                expect.arrayContaining(['publishable', 'paranoid', 'i18n'])
+            );
+            expect(schema.required).toEqual(['name', 'kind']);
+        });
+    });
 });

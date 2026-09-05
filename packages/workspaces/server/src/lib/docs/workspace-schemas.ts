@@ -127,6 +127,58 @@ export function buildWorkspaceSchemas(): Record<string, OpenApiSchema> {
             },
             required: ['available']
         },
+        ContentTypeDescriptor: {
+            type: 'object',
+            title: 'ContentTypeDescriptor',
+            description:
+                'One content type a workspace can be granted access to. ' +
+                'The first five properties are what this plugin\u2019s own port declares and are always present. ' +
+                'The three booleans come from the content plugin\u2019s registry, which is what a deployment with content installed binds to the catalogue port; ' +
+                'a deployment without it falls back to this plugin\u2019s built-in list and answers with the five alone. ' +
+                'They are therefore documented but not required.',
+            properties: {
+                name: {
+                    type: 'string',
+                    description: 'Stable machine name, and the slug in every content route.'
+                },
+                kind: {
+                    type: 'string',
+                    enum: ['collection', 'single'],
+                    description: 'A multi-entry collection, or a standalone page.'
+                },
+                label: {
+                    type: 'string',
+                    description: 'Human label. Falls back to the name when the type declares none.'
+                },
+                description: {
+                    type: 'string',
+                    description: 'Short line shown under the label.'
+                },
+                path: {
+                    type: 'string',
+                    description: 'Route path. Pages only \u2014 absent on a collection.'
+                },
+                publishable: {
+                    type: 'boolean',
+                    description: 'Tracks publish time through a `publishedAt` envelope column.'
+                },
+                paranoid: {
+                    type: 'boolean',
+                    description: 'Soft-deletes through a `deletedAt` envelope column.'
+                },
+                i18n: {
+                    type: 'boolean',
+                    description: 'One row per locale, through `locale` and `localeGroupId` envelope columns.'
+                }
+            },
+            required: ['name', 'kind']
+        },
+        ContentTypeCatalogue: {
+            type: 'array',
+            title: 'ContentTypeCatalogue',
+            items: ref('ContentTypeDescriptor'),
+            description: 'Every content type, in registration order.'
+        },
         WorkspaceEntryCount: {
             type: 'object',
             title: 'WorkspaceEntryCount',

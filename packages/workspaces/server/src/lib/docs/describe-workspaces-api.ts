@@ -107,6 +107,16 @@ const ROUTES: Record<string, Record<string, OperationSpec>> = {
  */
 const WORKSPACES_ROUTE_RE = /\/workspaces(\/.*)?$/;
 
+/**
+ * `GET /content-types`, which is this plugin's too — `ListContentTypesController`
+ * reads its own `CONTENT_CATALOG` port, which the content plugin binds to its
+ * registry and which falls back to a built-in list when no content plugin is
+ * installed. It sits outside the `/workspaces` namespace, so it needs its own
+ * anchor; a single trailing segment, so a route merely *ending* in the word
+ * cannot claim it.
+ */
+const CONTENT_TYPES_ROUTE_RE = /^\/[^/]+\/content-types$/;
+
 /** Which `{id}`-scoped routes sit behind `WorkspaceMemberGuard`. */
 function isMemberScoped(rest: string): boolean {
     return rest.startsWith('/{id}');
@@ -157,6 +167,18 @@ export function describeWorkspacesApi(document: OpenApiDocument): void {
     Object.assign(document.components.schemas, buildWorkspaceSchemas());
 
     for (const [route, item] of Object.entries(document.paths)) {
+        if (CONTENT_TYPES_ROUTE_RE.test(route)) {
+            const get = (item as Record<string, Operation>)['get'];
+            if (get && typeof get === 'object') {
+                setSuccessResponse(
+                    get,
+                    ref('ContentTypeCatalogue'),
+                    'Every content type a workspace can be granted, in registration order.'
+                );
+            }
+            continue;
+        }
+
         const match = WORKSPACES_ROUTE_RE.exec(route);
         if (!match) {
             continue;
