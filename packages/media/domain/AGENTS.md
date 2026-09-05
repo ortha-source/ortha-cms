@@ -31,7 +31,10 @@ manifest alone, and the manifest is what `npm i` reads.
 **No dependencies, ever — `dependencies`, `peerDependencies`, anything.** Seven
 adapters and the server inherit whatever is added here, which is exactly how a
 "framework-free kernel" stops being one without a single line of it changing.
-`package-manifest.spec.ts` fails on the manifest, and
+The one entry in the *published* manifest is `tslib`, which
+`tools/release/pack.mjs` adds to every package because the workspace compiles
+with `externalHelpers`; it is not something this package asked for.
+`package-manifest.spec.ts` fails on the checked-in manifest, and
 `provider-testkit/src/lib/adapter-packages.spec.ts` loads an adapter in a child
 process with a `Module._load` hook and fails if the framework reappears in the
 require graph by any route at all.

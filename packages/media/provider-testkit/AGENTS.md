@@ -68,11 +68,17 @@ application picking one backend does not pay for the other five. It reads every
 or imports `@nestjs/*`, `react`, `drizzle-orm`, `class-validator`, `express` or
 `@orthacms/database`; that every non-relative import is a node built-in or a
 package that manifest declares (a denylist only bans what someone thought of);
-and that the one Ortha package an adapter reaches for is `@orthacms/media-server`.
+and that the one Ortha package an adapter reaches for is `@orthacms/media-domain`.
+
+Then it walks the **whole import graph** out of each adapter's entry point,
+through the workspace packages it reaches, and fails if a forbidden package
+turns up anywhere in the closure. That half exists because the manifest scan
+missed the real breach: every adapter imported `ObjectNotFoundError` — a *value*
+— from `@orthacms/media-server`, whose barrel re-exports `MediaModule`, so
+`require('@orthacms/media-provider-local')` loaded `@nestjs/common` three hops
+away while declaring and importing no framework at all. The port moved to
+`@orthacms/media-domain`; the walk is what stops it coming back by some other
+route.
 
 It lives here rather than in `server` because it is a statement about the
-adapters as a set, which is this package's whole subject. **Read its docblock
-before quoting the invariant it cites**: `media:I-34`'s "the port's type, erased
-at compile time" is not true as written — `ObjectNotFoundError` is a value
-import through a barrel that re-exports `MediaModule` — and the ledger records
-that clause as `partial`.
+adapters as a set, which is this package's whole subject.

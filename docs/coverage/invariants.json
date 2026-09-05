@@ -4665,7 +4665,7 @@
                 "server-e2e",
                 "unit"
             ],
-            "text": "A provider depends only on the port's type (erased at compile time) and its own vendor SDK; no adapter pulls in NestJS."
+            "text": "A provider depends only on @orthacms/media-domain — the port's types, plus ObjectNotFoundError, which is a value — and its own vendor SDK. The port package declares no dependencies of any kind, so no adapter reaches NestJS, Drizzle or Express by any route: not in its manifest, not in its imports, and not transitively."
         },
         {
             "id": "media:I-35",

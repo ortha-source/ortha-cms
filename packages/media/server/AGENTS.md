@@ -16,7 +16,6 @@ composition root.
 domain/          # framework-free core — the one hard rule below
   asset.ts / folder.ts             # aggregate roots (+ pullEvents)
   value-objects/                   # AssetId, FolderId, FileName, MediaKind, StorageKey
-  storage-provider.ts              # StorageProvider PORT + capabilities + STORAGE_PROVIDER
   asset.repository.ts / folder.repository.ts  # repo PORTs + symbols
   events/media-events.ts           # media.* domain-event factory + kinds
   errors/                          # transport-agnostic domain errors
@@ -32,7 +31,12 @@ http/            # thin controllers (one per use case) + to-http error mapper
 
 **`domain/` imports NOTHING from `@nestjs/*`, `drizzle-orm`, `class-validator`,
 or `infrastructure/`.** Only `@orthacms/database`'s framework-free
-`createDomainEvent`/`DomainEvent` and node built-ins.
+`createDomainEvent`/`DomainEvent`, `@orthacms/media-domain`'s storage port, and
+node built-ins.
+
+That `@orthacms/database` edge is why the aggregates stayed here when the port
+left: they are framework-free, but they are not *dependency*-free, and an
+adapter that inherited the shared kernel would inherit Drizzle with it.
 
 The layer-boundary lint still isn't wired, but this is **no longer
 self-enforced**: `domain/imports.spec.ts` reads the specifiers off the files,
@@ -48,8 +52,14 @@ the rule** — it is how the rule erodes without anything going red.
 
 **One provider per deployment, passed as one object** ([ADR-0012](../../../docs/adr/0012-one-storage-provider-per-deployment.md)).
 
-- **`StorageProvider`** (`domain/storage-provider.ts`) is a NestJS-free port:
-  `put` / `get` / `remove`, plus optional `directUrl()` and `verify()`.
+- **`StorageProvider`** lives in **`@orthacms/media-domain`**, not here: a
+  NestJS-free port — `put` / `get` / `remove`, plus optional `directUrl()` and
+  `verify()` — in a package that declares no dependencies of any kind. It moved
+  out because an adapter needs one *value* from it (`ObjectNotFoundError`, since
+  `get` promises a particular rejection), that value came through this package's
+  root barrel, and the barrel re-exports `MediaModule` — so `npm i` of any
+  adapter installed NestJS, Drizzle, Express and Sharp. This package re-exports
+  every one of those names, so nothing downstream changed.
   Implementations ship as **separate packages**
   (`@orthacms/media-provider-local`, `-s3`) and are constructed at the host's
   composition root (`apps/server/src/plugins.ts`) — this package never imports a
