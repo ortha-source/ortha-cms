@@ -40,6 +40,15 @@ describe('nothing in the workspace imports transfer [transfer:I-38]', () => {
     // `src/lib` → `src` → `server` → `transfer` → `packages`.
     const PACKAGES = join(__dirname, '..', '..', '..', '..');
     const TRANSFER = join(PACKAGES, 'transfer');
+    /**
+     * The scaffolder's templates are a **host**, not a package.
+     * `templates/default/apps/server/src/plugins.ts` is rendered into a new
+     * app's own composition root, which is the exception this rule already
+     * makes for `apps/`; it only lands under `packages/` because that is where
+     * the scaffolder lives. Excluding it by path keeps the rule about the
+     * package graph, which is what it is for.
+     */
+    const TEMPLATES = join(PACKAGES, 'create-ortha-app', 'templates');
 
     /** Every non-spec `.ts`/`.tsx` source under `packages/`, less transfer's own. */
     function sourceFiles(dir: string): string[] {
@@ -55,7 +64,7 @@ describe('nothing in the workspace imports transfer [transfer:I-38]', () => {
                 ) {
                     return [];
                 }
-                if (path === TRANSFER) return [];
+                if (path === TRANSFER || path === TEMPLATES) return [];
                 return sourceFiles(path);
             }
             if (
@@ -81,9 +90,10 @@ describe('nothing in the workspace imports transfer [transfer:I-38]', () => {
 
     it('has no importer outside its own group', () => {
         // Apps are the exception by design — a host composes the plugin list,
-        // and `apps/server/src/plugins.ts` names it. What must stay empty is
-        // the package graph: an arrow back from a sibling package is a cycle,
-        // and it is the reason this module exports nothing to make one with.
+        // and `apps/server/src/plugins.ts` names it, as does the scaffolder
+        // template that becomes one. What must stay empty is the package
+        // graph: an arrow back from a sibling package is a cycle, and it is
+        // the reason this module exports nothing to make one with.
         const importers = FILES.filter((path) =>
             /from\s+'@orthacms\/transfer-/.test(readFileSync(path, 'utf8'))
         ).map((path) => path.slice(PACKAGES.length + 1));
