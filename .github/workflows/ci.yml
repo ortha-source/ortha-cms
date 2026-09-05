@@ -1,0 +1,115 @@
+name: CI
+
+# Runs the suites on every pull request and on `main`.
+#
+# Until this file existed the only workflow here was `Release`, run by hand,
+# and every suite was executed on developer machines when someone remembered.
+# That is how ten defects survived to be found in one week of sweeping — among
+# them a full `server-e2e` run that quietly lost two tests every time, because
+# `supertest` binds the wildcard and desktop software holding a loopback port
+# answered instead. It never reproduced anywhere it was checked, because it was
+# never checked anywhere.
+#
+# The jobs are split so the cheap signal arrives first: `check` finishes in a
+# couple of minutes and catches most of what a review would, while the two e2e
+# jobs take their time in parallel.
+
+on:
+    pull_request:
+    push:
+        branches: [main]
+
+# A second push to the same branch makes the first run pointless.
+concurrency:
+    group: ci-${{ github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    check:
+        name: types, lint, unit, coverage gate
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  cache: npm
+            # The lock file is written by npm 11, and the npm bundled with Node
+            # 22 computes a different tree from it — `npm ci` then refuses with
+            # "Missing: …@x.y.z from lock file" for packages that are present.
+            # Pin the major so the runner resolves what the lock was made with.
+            - run: npm i -g npm@11
+            - run: npm ci
+
+            # TypeScript project references have to be in step with the
+            # dependency graph, and a stale `tsconfig` fails in ways that read
+            # like a code error.
+            - name: Project references are in step
+              run: npx nx sync:check
+
+            - run: npx nx run-many -t typecheck
+            - run: npx nx run-many -t lint
+            - run: npx nx run-many -t test
+
+            # Every numbered invariant in docs/artifacts/ is either named by a
+            # test or carries a written reason why no harness can reach it.
+            # Silence is the one thing this refuses — see docs/coverage/README.md.
+            - name: Invariant coverage gate
+              run: node tools/coverage/ledger.mjs check --strict
+
+    server-e2e:
+        name: server-e2e
+        runs-on: ubuntu-latest
+        # The suite boots one Postgres testcontainer and runs in band; it is the
+        # long pole, so it starts alongside `check` rather than after it.
+        timeout-minutes: 60
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  cache: npm
+            # The lock file is written by npm 11, and the npm bundled with Node
+            # 22 computes a different tree from it — `npm ci` then refuses with
+            # "Missing: …@x.y.z from lock file" for packages that are present.
+            # Pin the major so the runner resolves what the lock was made with.
+            - run: npm i -g npm@11
+            - run: npm ci
+
+            # Docker is present on the runner; testcontainers brings up Postgres
+            # itself and publishes the connection string, so no .env is needed.
+            - run: npx nx e2e server-e2e
+
+    admin-e2e:
+        name: admin-e2e
+        runs-on: ubuntu-latest
+        timeout-minutes: 30
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  cache: npm
+            # The lock file is written by npm 11, and the npm bundled with Node
+            # 22 computes a different tree from it — `npm ci` then refuses with
+            # "Missing: …@x.y.z from lock file" for packages that are present.
+            # Pin the major so the runner resolves what the lock was made with.
+            - run: npm i -g npm@11
+            - run: npm ci
+
+            - name: Install the browser
+              run: npx playwright install --with-deps chromium
+
+            # The suite mocks `/api` with `page.route` and starts its own Vite
+            # server through Playwright's `webServer`. Do not add an API server
+            # here: a live one on :3000 makes the proxy answer whatever the
+            # mocks miss, `mockSignedIn` stops working, and every page-level
+            # spec fails on a redirect to sign-in.
+            - run: npx nx e2e admin-e2e
+
+            - uses: actions/upload-artifact@v4
+              if: failure()
+              with:
+                  name: playwright-report
+                  path: apps/admin-e2e/test-output/
+                  retention-days: 7
