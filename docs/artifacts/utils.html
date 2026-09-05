@@ -1633,7 +1633,7 @@ const where = and(mySearch, myStatusGuard, filterFragment);</code></pre></div>
       <tr>
         <td class="mono">Code · the operator vocabulary</td>
         <td>—</td>
-        <td>The operator vocabulary exists in two independent copies: <code>FilterOperator</code> in <code>utils-server</code> and its wire twin in <code>query-builder-admin/src/lib/utils/wireOp.ts</code>. The duplication is forced (a browser cannot drag in NestJS and Drizzle), but the two are not linked in any way: adding an operator requires an edit in both places, and no test will notice</td>
+        <td>The operator vocabulary exists in two independent copies: <code>FilterOperator</code> in <code>utils-server</code> and its wire twin in <code>query-builder-admin/src/lib/utils/wireOp.ts</code>. <b>Fixed 2026-09-05.</b> The duplication is forced (a browser cannot drag in NestJS and Drizzle), and an operator still needs an edit in both places — but a test notices now. <code>operator-vocabulary-parity.spec.ts</code> imports <code>FilterOperator</code> and reads <code>wireOp.ts</code> as text, the idiom <code>audit-event-mapping.spec.ts</code> already uses for the same reason: a real import would put a React package into the filter engine&#39;s project graph. It also pins a <b>third</b> copy nobody had named — <code>OPERATORS_BY_TYPE</code>, where an operator present in the vocabulary but absent from every type&#39;s list passes the unknown-operator check and is then refused on every field there is</td>
       </tr>
     </tbody>
   </table>

@@ -102,15 +102,29 @@ is in the schema rather than in taste — `all_workspaces` is a separate boolean
 there means "none" and a prune can only narrow. Both readings are pinned by a test that names
 the other. Found by the `workspaces`, `alarms` and `webhooks` dossiers.
 
-**The filter grammar is duplicated, though the copies no longer disagree.** The operator
-dictionary still exists in two copies that nothing keeps in sync (`utils-server`'s
-`FilterOperator` and `query-builder-admin/wireOp.ts`'s `WIRE_OP`) — thirteen operators each,
-currently identical, with no executable parity test to keep them that way. The `like` gap in
-the client-side reverse mapping is **fixed**: `WIRE_TO_UI` now maps all thirteen, and carries a
-comment describing the silent filter-widening it used to cause. `FILTER_MAX_LENGTH` is still
-duplicated across four packages (4096/4096/4096/8192), while the engine itself still imposes no
-string-length limit at all — it budgets nodes, depth, group depth and IN-list length, and
-nothing else. Found by the `query-builder` and `utils` dossiers.
+**The filter grammar. Closed 2026-09-05, and the last piece was a real exposure.** The operator
+dictionary is still duplicated — a browser cannot drag in NestJS and Drizzle — but it is no
+longer unwatched: `operator-vocabulary-parity.spec.ts` imports `FilterOperator` and reads
+`wireOp.ts` as text, and pins a **third** copy nobody had counted, `OPERATORS_BY_TYPE`, where an
+operator in the vocabulary but on no type's list passes the unknown-operator check and is then
+refused on every field there is. The `like` gap that started this is fixed and now has a general
+rule behind it rather than one case.
+
+`FILTER_MAX_LENGTH`'s odd 8192 turned out to be an accident that guarded nothing: **nothing
+imported it**, and nothing could have — the field it would have capped is `@IsObject()`, and
+`@MaxLength` is a string decorator. It is deleted rather than aligned; the other three re-export
+one value from `utils-server`.
+
+The engine's missing string-length budget was **not** covered by the DTOs, which is what the
+earlier note assumed. Four callers reach `parseFilterTree` without one: an alarm rule at write
+time, the same rule replayed out of its `jsonb` column by the subscriber and the sweep (where
+there is no string left to measure), the copilot's `admin_content_search`, and GraphQL's entry
+loader. On those the parser was the whole boundary and the next bound down was the 1 MB body
+limit. `maxValueLength` is now the fifth budget, applied per element of an `in` list as well as
+to a scalar. Its default equals `FILTER_MAX_LENGTH`, and the equality is the argument: a filter
+that arrived as a string is already capped at that length in total, so the budget provably
+refuses nothing an HTTP caller could already send, and exists only for the callers that never
+meet a DTO. Found by the `query-builder` and `utils` dossiers.
 
 **ADR statuses. Fixed 2026-09-05.** Nine records — 0003, 0004, 0005, 0006, 0007, 0009, 0010,
 0011 and 0013 — sat in status `Proposed` while the code had been built on them for months, which
