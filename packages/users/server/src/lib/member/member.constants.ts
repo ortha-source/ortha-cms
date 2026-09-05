@@ -5,10 +5,15 @@ export const DEFAULT_PAGE_SIZE = 10;
 export const MAX_PAGE_SIZE = 100;
 
 /**
- * Max length of the raw `?filter=` JSON string. A coarse first guard against
- * oversized payloads, ahead of the filter engine's node/depth caps.
+ * Max length of the raw `?filter=` JSON string — a coarse first guard against
+ * oversized payloads, ahead of the filter engine's own budgets.
+ *
+ * Re-exported rather than declared: the number belongs to the engine that
+ * enforces the rest of the filter's limits, and four packages each declaring
+ * their own copy is how one of them (`alarms`) came to say 8192 while the other
+ * three said 4096. See `filters/budgets.ts` in `@orthacms/utils-server`.
  */
-export const FILTER_MAX_LENGTH = 4096;
+export { FILTER_MAX_LENGTH } from '@orthacms/utils-server';
 
 /**
  * How long after issuing an invite a **resend** is refused.

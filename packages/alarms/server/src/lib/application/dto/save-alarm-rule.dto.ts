@@ -22,6 +22,22 @@ import { NAME_MAX_LENGTH, TEXT_MAX_LENGTH } from '../../alarms.constants';
  * is `parseFilterTree` against the named content type — the same parser the
  * records list runs. Restating its grammar in decorators would create a second,
  * weaker copy that drifts the first time the engine gains an operator.
+ *
+ * **And no `@MaxLength`, deliberately.** This package used to declare a
+ * `FILTER_MAX_LENGTH = 8192` next to the name and text caps, describing itself
+ * as "the same layering `activity.constants.ts` uses" — which declared 4096.
+ * Nothing imported it, and nothing could have: `@MaxLength` is a string
+ * decorator and this field is an object. It was a number that had never bounded
+ * anything, and reading it as a deliberately looser ceiling for a stored rule
+ * was the wrong inference twice over.
+ *
+ * The size of this tree is bounded where every caller meets it instead — the
+ * engine's own budgets in `@orthacms/utils-server`'s `filters/budgets.ts`,
+ * which since they gained `maxValueLength` cap the tree's text as well as its
+ * shape. That matters here more than on a `?filter=` route, because a rule is
+ * **stored and replayed**: the sweep and the outbox subscriber hand this tree
+ * straight back to the parser out of its `jsonb` column, where no serialised
+ * string exists to measure.
  */
 export class CreateAlarmRuleDto {
     @ApiProperty({
