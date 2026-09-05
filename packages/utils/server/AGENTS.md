@@ -46,7 +46,7 @@ Four things here are decisions rather than details:
   registered with an empty key — a backend that is in the picker and fails on
   the first message.
 - **`readOptionalPositiveInt` exists alongside `readPositiveInt`** (and
-  `readOptionalList` alongside `readList`). A *ceiling* whose owner ships its
+  `readOptionalList` alongside `readList`). A _ceiling_ whose owner ships its
   own default cannot be handed `{ maxSteps: undefined }` — spreading that
   overwrites the default with nothing — so the optional form yields `undefined`
   and the caller drops the key.
@@ -92,7 +92,27 @@ Key concepts:
 - **`FilterSchema`** declares which columns are filterable (`fields`), which
   relations are traversable (`relations`), optional `extensionFields` resolved
   by a host-supplied `resolveExtension` hook (e.g. a `role` filter), and the
-  `maxDepth` / `maxNodes` / `maxGroupDepth` guards.
+  `maxDepth` / `maxNodes` / `maxGroupDepth` / `maxInListLength` /
+  `maxValueLength` guards — all five defaulted in `filters/budgets.ts`.
+- **The budgets are the only thing bounding a stranger's tree, and one of them
+  counts text.** Four of the five bound the tree's _structure_; `maxValueLength`
+  (default 4096, applied to each element of an `in` list as well as to a bare
+  scalar) bounds one clause's string. It exists because the `@MaxLength` a
+  caller puts on its serialised `?filter=` does not reach every path: an alarm
+  rule's `filter` is an object (`@IsObject()`), the **stored** rule is replayed
+  straight out of its `jsonb` column by the sweep and the outbox subscriber with
+  no string to measure, the copilot's `admin_content_search` takes an object
+  whose contents the registry's `anyOf`-blind check does not inspect, and
+  GraphQL's entry loader builds a tree in code and casts past the DTO. On those
+  four the parser is the whole boundary, and the next bound down was the 1 MB
+  body limit. `budgets.ts` carries that list beside the numbers.
+- **`FILTER_MAX_LENGTH` lives here too**, exported from the package root, and is
+  what a caller's DTO puts on its own `?filter=` field. It was declared
+  separately in `activity`, `content`, `users` and `alarms`, and the `alarms`
+  copy said 8192 while claiming in its own comment to use "the same layering"
+  as the 4096 one — a number that had, in fact, never been applied to anything,
+  because `@MaxLength` is a string decorator and that field is an object. One
+  declaration now; the three packages that still need the name re-export it.
 - **Relation kinds** — `one-to-one` / `one-to-many` / `many-to-one` /
   `many-to-many` / `self-referential` — discriminate the EXISTS subquery
   shape. `self-referential` aliases the target so the correlation binds to

@@ -1,6 +1,6 @@
 # 0011 — Rich text is a structured document, not an opaque string
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-08-19
 - **Deciders:** Engineering
 

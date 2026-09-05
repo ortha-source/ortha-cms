@@ -1050,7 +1050,7 @@ import { createAnthropicProvider } from '@orthacms/copilot-provider-anthropic';
       <tr><td>The values of secrets and keys</td><td>the operator</td><td>Writes empty keys with comments; the only generated value is the first administrator's password</td></tr>
       <tr><td>Installing dependencies</td><td>npm</td><td>Runs <code>npm install</code> and reports a failure honestly, leaving the files in place</td></tr>
       <tr><td>Updating an application that already exists</td><td>the application's owner</td><td>Nothing: the package is single-use and never reaches an application's dependencies</td></tr>
-      <tr><td>Registering SSO adapters other than OIDC</td><td>the application's owner</td><td>Only installs the package — see D-06</td></tr>
+      <tr><td>Registering an SSO adapter beyond the three offered</td><td>the application's owner</td><td>Installs and registers the three the wizard offers; anything else is a line in <code>ssoProviders()</code></td></tr>
     </tbody>
   </table>
   </div>
@@ -1108,7 +1108,7 @@ import { createAnthropicProvider } from '@orthacms/copilot-provider-anthropic';
         <td class="mono">D-06</td>
         <td class="mono">features.ts, <code>SSO_PROVIDERS</code> ↔ the template</td>
         <td>The picker offers three equal options: <code>sso-oidc</code>, <code>sso-github</code>, <code>sso-saml</code></td>
-        <td>There are <b>no</b> <code>ortha:if sso-github</code> / <code>ortha:if sso-saml</code> markers in any template file. Choosing those two adds the package to the manifest and changes nothing else: no import, no registration in <code>plugins.ts</code>, no type in <code>ortha.config.ts</code>, no keys in <code>.env</code>. It is tacitly acknowledged in <code>USAGE</code>, where only <code>sso-oidc</code> is named in the flag's parentheses</td>
+        <td><b>Fixed.</b> There were <b>no</b> <code>ortha:if sso-github</code> / <code>ortha:if sso-saml</code> markers in any template file: choosing either added the package to the manifest and changed nothing else — no import, no registration in <code>plugins.ts</code>, no type in <code>ortha.config.ts</code>, no keys in <code>.env</code> — and <code>USAGE</code> tacitly acknowledged it by naming only <code>sso-oidc</code> in the flag's parentheses. Both are wired now: <code>config/sso-github.ts</code>, <code>config/sso-saml.ts</code>, their types and registrations in <code>config/identity.ts</code>, their builders in <code>plugins.ts</code>, and their keys in <code>.env</code>. The three share one <code>ssoProviders</code> key, one builder and one argument to <code>IdentityPlugin</code>, so <code>resolveFlags</code> derives a group flag <code>sso</code> — <code>ortha:if</code> is line-based and cannot say "any of these three". <code>generated-plugins.spec.ts</code> runs the rendered builder per provider and <code>generated-config.spec.ts</code> executes both new config modules</td>
       </tr>
       <tr>
         <td class="mono">D-07</td>
@@ -1120,7 +1120,7 @@ import { createAnthropicProvider } from '@orthacms/copilot-provider-anthropic';
         <td class="mono">D-08</td>
         <td class="mono">features.ts, <code>CORE_PACKAGES</code> ↔ the template</td>
         <td>The core declares <code>transfer-server</code>, <code>transfer-admin</code>, <code>transfer-domain</code>, <code>segments-server</code>, <code>segments-admin</code>, <code>segments-domain</code></td>
-        <td>Neither <code>TransferPlugin</code> nor <code>SegmentsPlugin</code> is registered in the template's server or admin <code>plugins.ts</code> (a grep over <code>templates/</code> gives zero matches). The packages are installed but the functionality does not appear in the generated application: no export/import routes and no Access tab. For the <code>*-domain</code> ones that is fine (extension points); for the other four it is not</td>
+        <td><b>Fixed.</b> Neither <code>TransferPlugin</code> nor <code>SegmentsPlugin</code> was registered in the template's server or admin <code>plugins.ts</code> — the packages were installed and the functionality did not appear: no export/import routes, no Access tab, no audience directory. Both halves are registered now, where this repository's own <code>apps/</code> registers them: transfer after content and media, segments after content whose read-scope port it binds. <code>composition.spec.ts</code> compares the registered list against the generated application's own expected list, so a future omission fails here. The <code>*-domain</code> ones remain unregistered by design — they are extension points</td>
       </tr>
       <tr>
         <td class="mono">D-09</td>
@@ -1132,7 +1132,7 @@ import { createAnthropicProvider } from '@orthacms/copilot-provider-anthropic';
         <td class="mono">D-10</td>
         <td class="mono">templates/default/README.md.tmpl, "Writing your own plugin"</td>
         <td>"added to the array in <code>src/server/plugins.ts</code>"; "an <code>AdminPlugin</code> … added to <code>src/admin/plugins.ts</code>"</td>
-        <td>The real paths are <code>apps/server/src/plugins.ts</code> and <code>apps/admin/src/plugins.ts</code>. The neighbouring section of the same README ("What you own") names them correctly, so the document contradicts itself. The same old layout shows up in a comment in the template's <code>plugins.ts</code>: "Define some in <code>src/server/content/</code>" against "<code>apps/server/src/content/</code>" in the README</td>
+        <td><b>Fixed.</b> The real paths are <code>apps/server/src/plugins.ts</code> and <code>apps/admin/src/plugins.ts</code>, which the neighbouring "What you own" section of the same README already named correctly — the document contradicted itself, and the same old layout showed up in a comment in the template's <code>plugins.ts</code> and in the header of the admin's. All of them now name the real paths, and <code>generated-readme.spec.ts</code> looks up every path the README names in a rendered application, so a stale one fails rather than reads badly</td>
       </tr>
       <tr>
         <td class="mono">D-11</td>
@@ -1159,7 +1159,7 @@ import { createAnthropicProvider } from '@orthacms/copilot-provider-anthropic';
   <h3>What is worth fixing first</h3>
   <ol>
     <li><b>D-07</b> — the only one that broke the product: <code>npm test</code> in a freshly created application was red on <em>both</em> halves, and the first thing a new user learned about the shipped tests was that they do not pass. <b>Fixed.</b> The two expected lists name <code>content-views</code> and <code>webhooks</code>, and <code>composition.spec.ts</code> compares them against the plugins the template actually registers, for every combination of capabilities — so the next omission fails the scaffolder's own suite instead of a stranger's first run.</li>
-    <li><b>D-06</b> and <b>D-08</b> — a choice and a declaration that lead to nothing: the user gets an installed package and absent functionality.</li>
+    <li><b>D-06</b> and <b>D-08</b> — a choice and a declaration that led to nothing: the user got an installed package and absent functionality. <b>Both fixed</b> — the two remaining identity providers are wired end to end, and transfer and segments are registered on both sides.</li>
     <li><b>D-01…D-05</b> — documentation that has fallen behind the code; cured by one edit of <code>AGENTS.md</code> at both levels.</li>
   </ol>
 </section>

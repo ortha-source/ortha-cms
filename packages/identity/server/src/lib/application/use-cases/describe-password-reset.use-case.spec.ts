@@ -13,9 +13,12 @@ const RAW_TOKEN = 'd'.repeat(64);
 /**
  * `DescribePasswordResetUseCase` — the invite screen's sibling, for the reset
  * link. The same two things hold: the lookup goes by digest rather than the raw
- * token (И-09), and the projection is exactly the address and name the screen
- * names back, so someone handed a link out-of-band can check it is for the
- * right account without the endpoint becoming a probe for live links (И-04).
+ * token (identity:I-09), and the projection is exactly the address and name the
+ * screen names back, so someone handed a link out-of-band can check it is for
+ * the right account without the endpoint becoming a probe for live links — the
+ * identity dossier's I-04. Only the first is cited: the one-generic-error case
+ * below feeds a single `null`, so it cannot tell the reasons apart, and the
+ * collapse is pinned in apps/server-e2e/src/server/auth/password-reset.spec.ts.
  */
 describe('DescribePasswordResetUseCase', () => {
     interface Harness {
@@ -61,7 +64,7 @@ describe('DescribePasswordResetUseCase', () => {
         };
     }
 
-    it('resolves the reset by digest and shows only what the screen renders', async () => {
+    it('resolves the reset by digest and shows only what the screen renders [identity:I-09]', async () => {
         const { useCase, lookups, consumed } = harness(pendingReset());
 
         const description = await useCase.execute(RAW_TOKEN);

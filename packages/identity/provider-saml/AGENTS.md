@@ -6,15 +6,15 @@ SAML 2.0 — HTTP-Redirect for the request, HTTP-POST for the response.
 first release.** SAML's response is not a redirect: the identity provider
 returns the person by POSTing a form to the callback. The adapter declares
 `'POST'`, the plugin mounts the route that serves it, and nothing about the seam
-had to change to add a second protocol shape — which was the whole bet ADR-0012
-made.
+had to change to add a second protocol shape — which was the whole bet
+[ADR-0013](../../../docs/adr/0013-sso-provider-port.md) made.
 
 ## `@node-saml/node-saml` does the XML
 
 Canonicalisation, signature validation and the conditions checks are its job.
 That is a deliberate dependency: XML signature validation has a long history of
 wrapping attacks that turn on parser details, and it is not a place to
-demonstrate independence. ADR-0012 permits it here for exactly this reason and
+demonstrate independence. ADR-0013 permits it here for exactly this reason and
 forbids it in `identity-domain` and `identity-server`.
 
 What **this** package owns is everything the library has no opinion about, and

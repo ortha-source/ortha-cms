@@ -1,5 +1,12 @@
 #!/usr/bin/env node
-import { USAGE, flag, option, wantsHelp, wantsVersion } from './lib/args';
+import {
+    USAGE,
+    halves,
+    numberOption,
+    option,
+    wantsHelp,
+    wantsVersion
+} from './lib/args';
 import { buildCommand } from './lib/commands/build';
 import { devCommand } from './lib/commands/dev';
 import { generateCommand } from './lib/commands/generate';
@@ -36,25 +43,20 @@ async function main(): Promise<void> {
 
     switch (command) {
         case 'dev':
-            return devCommand(root);
+            return devCommand(root, halves(argv, 'dev'));
         case 'build':
-            return buildCommand(root, {
-                serverOnly: flag(argv, 'server'),
-                adminOnly: flag(argv, 'admin')
-            });
+            return buildCommand(root, halves(argv, 'build'));
         case 'start':
             return startCommand(root);
         case 'migrate':
             return migrateCommand(root);
         case 'generate':
             return generateCommand(root, option(argv, 'name'));
-        case 'studio': {
-            const port = option(argv, 'port');
+        case 'studio':
             return studioCommand(root, {
                 host: option(argv, 'host'),
-                port: port ? Number(port) : undefined
+                port: numberOption(argv, 'port')
             });
-        }
         default:
             console.error(`Unknown command "${command}".\n`);
             console.log(USAGE);

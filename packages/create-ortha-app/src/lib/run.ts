@@ -38,7 +38,8 @@ Options:
   --yes            Accept every default, asking nothing
   --media <id>     Storage adapter (default: media-local)
   --copilot <ids>  Comma-separated copilot providers, or "none"
-  --sso <ids>      Comma-separated identity providers (sso-oidc), or "none"
+  --sso <ids>      Comma-separated identity providers (sso-oidc, sso-github,
+                   sso-saml), or "none"
   --protocols <ids> Comma-separated protocols beyond REST (graphql, mcp), or "none"
   --no-install     Skip installing dependencies
   --no-git         Skip initialising a git repository

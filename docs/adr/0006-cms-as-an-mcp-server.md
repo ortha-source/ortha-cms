@@ -1,6 +1,6 @@
 # 0006 — The CMS is an MCP server, over one shared tool registry
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-08-08
 - **Deciders:** Engineering
 

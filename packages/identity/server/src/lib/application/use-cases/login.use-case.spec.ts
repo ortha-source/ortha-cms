@@ -25,7 +25,7 @@ interface LoginConfig {
 }
 
 /**
- * `LoginUseCase` — И-03: every reason a sign-in fails is indistinguishable,
+ * `LoginUseCase` — identity:I-03: every reason a sign-in fails is indistinguishable,
  * both in the response and in the time it takes. That second clause is what
  * makes these tests about **call counts and ordering** rather than return
  * values: the flow must run exactly one bcrypt comparison on every path,
@@ -247,8 +247,8 @@ describe('LoginUseCase', () => {
         expect(events[0].payload.reason).toBe('not_active');
     });
 
-    it('refuses a disabled account holding the right password, opening no session', async () => {
-        // И-02: only an `active` account gets a session. The password verifies,
+    it('refuses a disabled account holding the right password, opening no session [identity:I-02]', async () => {
+        // identity:I-02: only an `active` account gets a session. The password verifies,
         // and it still ends in the same generic error.
         const { useCase, verifications, issued, events } = harness({
             user: credentials({ status: 'disabled' }),

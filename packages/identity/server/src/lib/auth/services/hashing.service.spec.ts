@@ -13,7 +13,7 @@ import { HashingService } from './hashing.service';
  *   "wrong password", because a rejected promise here becomes a 500 — which
  *   both breaks the login and tells an attacker they found an account whose
  *   stored hash is malformed. A boolean `false` says nothing.
- * - **`hashToken` is a plain, deterministic SHA-256 (И-09).** Determinism is
+ * - **`hashToken` is a plain, deterministic SHA-256 (identity:I-09).** Determinism is
  *   what makes the session lookup a by-id read instead of a table scan; that it
  *   is a *digest* is what makes the stored value useless to whoever reads the
  *   row, since only the digest is persisted and never the token.

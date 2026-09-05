@@ -13,7 +13,7 @@ const RAW_TOKEN = 'e'.repeat(64);
 /**
  * `DescribeInviteUseCase` — the pure read behind the accept-invite screen. Two
  * things are worth pinning: the lookup goes by digest, never by the raw token
- * (И-09), and the description that comes back is *only* what the screen shows —
+ * (identity:I-09), and the description that comes back is *only* what the screen shows —
  * email and name. Leaking the account id or its status would turn a public,
  * unauthenticated endpoint into a probe.
  *
@@ -66,7 +66,7 @@ describe('DescribeInviteUseCase', () => {
         };
     }
 
-    it('resolves the invite by digest and shows only what the screen renders', async () => {
+    it('resolves the invite by digest and shows only what the screen renders [identity:I-09]', async () => {
         const { useCase, lookups, consumed } = harness(pendingInvite());
 
         const description = await useCase.execute(RAW_TOKEN);
@@ -93,8 +93,11 @@ describe('DescribeInviteUseCase', () => {
     });
 
     it('raises the one generic error for a token that resolves to nothing', async () => {
-        // И-04: unknown, expired, already accepted, and revoked arrive here as
-        // the same `null`, and leave as the same 404.
+        // I-04 of the identity dossier — unknown, expired, already accepted and
+        // revoked arrive here as the same `null`, and leave as the same 404.
+        // Deliberately not cited: this case feeds one `null`, so it cannot tell
+        // the four reasons apart. The collapse is pinned end-to-end in
+        // apps/server-e2e/src/server/auth/accept-invite.spec.ts.
         const { useCase } = harness(null);
 
         await expect(useCase.execute(RAW_TOKEN)).rejects.toBeInstanceOf(

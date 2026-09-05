@@ -105,7 +105,15 @@ function config(options: {
     claude?: unknown;
     openai?: unknown;
     oidc?: unknown;
+    github?: unknown;
+    saml?: unknown;
 }): unknown {
+    const sso = {
+        ...(options.oidc ? { oidc: options.oidc } : {}),
+        ...(options.github ? { github: options.github } : {}),
+        ...(options.saml ? { saml: options.saml } : {})
+    };
+
     return {
         plugins: {
             copilot: {
@@ -115,7 +123,7 @@ function config(options: {
                 }
             },
             identity: {
-                ssoProviders: options.oidc ? { oidc: options.oidc } : undefined
+                ssoProviders: Object.keys(sso).length > 0 ? sso : undefined
             }
         }
     };
@@ -214,6 +222,91 @@ describe('ssoProviders in the rendered app', () => {
         // missing; registering anyway puts a button on the sign-in page whose
         // only outcome is a failure.
         expect(providersFor(undefined)).toEqual([]);
+    });
+
+    /**
+     * The three the wizard offers, each on its own.
+     *
+     * The picker offered all three from the start and only OIDC was wired: an
+     * app generated with `--sso sso-github` installed the adapter package,
+     * imported nothing, registered nothing, and had no key in `.env` to
+     * configure — a choice whose whole effect was a line in `package.json`.
+     * So this is per provider rather than per shape: it is exactly the case
+     * where "the OIDC one works" said nothing about the other two.
+     */
+    describe.each([
+        [
+            'sso-oidc',
+            'oidc',
+            'createOidcProvider',
+            { issuer: 'https://i.test', clientId: 'abc' }
+        ],
+        [
+            'sso-github',
+            'github',
+            'createGithubProvider',
+            { clientId: 'abc', clientSecret: 'shh' }
+        ],
+        [
+            'sso-saml',
+            'saml',
+            'createSamlProvider',
+            {
+                entryPoint: 'https://idp.test/sso',
+                idpCert: 'MIIC',
+                issuer: 'urn:my-cms'
+            }
+        ]
+    ])('%s', (_feature, key, factory, settings) => {
+        /** The rendered `ssoProviders` for an app generated with all three. */
+        function providers(configured: Record<string, unknown>) {
+            const { ssoProviders } = renderedPlugins([
+                'media-local',
+                'rest',
+                'sso-oidc',
+                'sso-github',
+                'sso-saml'
+            ]) as {
+                ssoProviders: (
+                    c: unknown
+                ) => { name: string; provider: Stub }[];
+            };
+            return ssoProviders(config(configured));
+        }
+
+        it('registers it under its own name, built by its own adapter [create-ortha-app:I-16]', () => {
+            const registered = providers({
+                [key]: { name: `acme-${key}`, ...settings }
+            });
+
+            expect(registered.map((entry) => entry.name)).toEqual([
+                `acme-${key}`
+            ]);
+            expect(registered[0].provider.factory).toBe(factory);
+            // The name is the registration's, not the adapter's settings.
+            expect(registered[0].provider.settings).toEqual(settings);
+        });
+
+        it('is absent when this provider alone is unconfigured [create-ortha-app:I-16]', () => {
+            // The other two are configured, so an empty list would prove
+            // nothing: what this shows is that the guard is per provider.
+            const others = {
+                oidc: { name: 'o', issuer: 'https://i.test', clientId: 'a' },
+                github: { name: 'g', clientId: 'a', clientSecret: 's' },
+                saml: {
+                    name: 's',
+                    entryPoint: 'https://idp.test/sso',
+                    idpCert: 'MIIC',
+                    issuer: 'urn:my-cms'
+                }
+            } as Record<string, unknown>;
+            delete others[key];
+
+            expect(providers(others).map((entry) => entry.name)).not.toContain(
+                `acme-${key}`
+            );
+            expect(providers(others)).toHaveLength(2);
+        });
     });
 
     it('registers it under its own name once configured [create-ortha-app:I-16]', () => {

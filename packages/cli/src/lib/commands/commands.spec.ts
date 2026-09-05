@@ -165,6 +165,57 @@ describe('devCommand', () => {
         );
     });
 
+    /**
+     * The half-stack flags. The monorepo runs either half on its own
+     * (`start:server` / `start:admin`), and these are the generated app's
+     * version of that — the API alone while the admin is served from
+     * somewhere else, or the admin alone against an API already up.
+     *
+     * Until this was implemented `devCommand` took no options at all, so
+     * `ortha dev --server` started Vite exactly as if the flag had not been
+     * typed.
+     */
+    describe('one half at a time', () => {
+        it('starts no Vite for --server, even with an admin present', async () => {
+            const root = tempApp({ adminIndex: true });
+
+            await devCommand(root, { serverOnly: true, adminOnly: false });
+
+            expect(spawnNode).toHaveBeenCalledTimes(2);
+            expect(calls.filter((call) => call.includes('vite'))).toEqual([]);
+        });
+
+        /**
+         * And no `tsc`, no `node --watch` and no build: `--admin` is for an
+         * API that is already running, so compiling over its `dist/` while it
+         * watches would restart someone else's server.
+         */
+        it('compiles nothing and watches nothing for --admin', async () => {
+            const root = tempApp({ adminIndex: true });
+
+            await devCommand(root, { serverOnly: false, adminOnly: true });
+
+            expect(buildCommand).not.toHaveBeenCalled();
+            expect(spawnNode).toHaveBeenCalledTimes(1);
+            expect(calls[0]).toContain('vite');
+        });
+
+        /**
+         * The one case where supervising an empty set would exit 0 with no
+         * output — a command that appears to have run and did nothing at all.
+         */
+        it('says so when --admin is asked of an app that has no admin', async () => {
+            const root = tempApp();
+
+            await expect(
+                devCommand(root, { serverOnly: false, adminOnly: true })
+            ).rejects.toThrow(/no admin to run/);
+
+            expect(spawnNode).not.toHaveBeenCalled();
+            expect(superviseUntilExit).not.toHaveBeenCalled();
+        });
+    });
+
     it('starts Vite only when the app has an admin', async () => {
         const withAdmin = tempApp({ adminIndex: true });
         await devCommand(withAdmin);

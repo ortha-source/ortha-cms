@@ -11,14 +11,6 @@ export const NAME_MAX_LENGTH = 120;
 export const TEXT_MAX_LENGTH = 500;
 
 /**
- * Max length of the JSON-encoded filter tree.
- *
- * A coarse first guard, ahead of the filter engine's own node and depth caps —
- * the same layering `activity.constants.ts` uses for its `?filter=`.
- */
-export const FILTER_MAX_LENGTH = 8192;
-
-/**
  * How many entry ids the batch findings endpoint accepts in one request.
  *
  * Sized for a records page: the largest page the admin offers is 100 rows, and

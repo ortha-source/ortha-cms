@@ -73,17 +73,33 @@ resolve anything.
 
 ## Feature selection
 
-The wizard asks three questions; everything else is installed unconditionally.
+The wizard asks four questions; everything else is installed unconditionally.
 
 | Question                                      | Kind     | Default          |
 | --------------------------------------------- | -------- | ---------------- |
 | Where should uploads be stored?               | single   | Local filesystem |
 | AI copilot — which model backends?            | multiple | none             |
+| How do people sign in?                        | multiple | none (email)     |
 | Which protocols should the content API speak? | multiple | REST (locked)    |
 
-Both multi-selects default to **nothing extra**, deliberately: a hosted copilot
-provider sends workspace content to a third party (ADR-0005 §10), and an
-endpoint nobody asked for is still an endpoint.
+The sign-in question offers OpenID Connect, GitHub and SAML — three because
+their **wire** differs, which is the only thing that earns a package: OIDC
+covers Okta, Auth0, Keycloak, Google, Entra ID and the rest through preset
+factories inside one adapter, GitHub is OAuth2 with no identity token, and SAML
+is a POST binding with XML signatures. None is on by default: SSO needs an
+issuer, a client and a callback registered on the other side, none of which a
+scaffolder can invent.
+
+All three share one `ssoProviders` key in `config/identity.ts`, one builder in
+`plugins.ts` and one extra argument to `IdentityPlugin` — each of which has to
+appear if *any* was picked. `ortha:if` is line-based with no expression
+language, so `resolveFlags` derives a group flag, **`sso`**, which is the one
+thing in the flag set that is not a picked id.
+
+All three multi-selects default to **nothing extra**, deliberately: a hosted
+copilot provider sends workspace content to a third party (ADR-0005 §10), an
+endpoint nobody asked for is still an endpoint, and an identity provider is a
+tenant on someone else's directory.
 
 REST is shown **`locked`** — ticked, dimmed, and skipped by the cursor — rather
 than left out of the question. "Which protocols does this app speak?" is a more
@@ -117,8 +133,8 @@ that configured nothing — so a keyless install answered every question with a
 canned sentence instead of failing. It is now a private test fixture of the CMS
 repo.
 
-Every question has a flag (`--media`, `--copilot`, `--protocols`, each taking a
-comma-separated list or `none`), and `--yes` plus any non-TTY takes the defaults
+Every question has a flag (`--media`, `--copilot`, `--sso`, `--protocols`, each
+taking a comma-separated list or `none`), and `--yes` plus any non-TTY takes the defaults
 without asking. A scaffolder that blocks on a prompt in CI hangs the job until
 it times out.
 

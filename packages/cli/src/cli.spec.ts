@@ -169,6 +169,44 @@ describe('dispatch', () => {
         });
     });
 
+    /**
+     * `--server` was documented for `dev` in `USAGE` and read by nobody:
+     * `devCommand(root)` took no options, so the flag parsed, changed nothing,
+     * and brought Vite up anyway. An accepted flag that does nothing is worse
+     * than one that errors, because there is no moment at which the user finds
+     * out.
+     */
+    it.each([
+        ['--server', { serverOnly: true, adminOnly: false }],
+        ['--admin', { serverOnly: false, adminOnly: true }]
+    ])('reads dev’s %s the same way build’s is read', async (arg, expected) => {
+        await ortha('dev', arg);
+
+        expect(devCommand).toHaveBeenCalledWith(ROOT, expected);
+    });
+
+    it('runs both halves when dev is given neither flag', async () => {
+        await ortha('dev');
+
+        expect(devCommand).toHaveBeenCalledWith(ROOT, {
+            serverOnly: false,
+            adminOnly: false
+        });
+    });
+
+    it.each(['dev', 'build'])(
+        'refuses %s --server --admin, which asks for neither half',
+        async (command) => {
+            await ortha(command, '--server', '--admin');
+
+            expect(console.error).toHaveBeenCalledWith(
+                expect.stringContaining('asks for neither half')
+            );
+            expect(devCommand).not.toHaveBeenCalled();
+            expect(buildCommand).not.toHaveBeenCalled();
+        }
+    );
+
     it('passes the migration name through', async () => {
         await ortha('generate', '--name', 'add_posts');
 
@@ -187,6 +225,31 @@ describe('dispatch', () => {
             host: undefined,
             port: undefined
         });
+    });
+
+    /**
+     * `port ? Number(port) : undefined` lost the one port a user can type that
+     * is falsy. Whether Studio should *run* on port 0 is `studio.ts`'s call —
+     * it refuses, because drizzle-kit prints the port it was asked for rather
+     * than the one it bound — but that decision can only be made by code the
+     * value actually reaches.
+     */
+    it('carries a --port=0 through to the command instead of dropping it', async () => {
+        await ortha('studio', '--port=0');
+
+        expect(studioCommand).toHaveBeenCalledWith(ROOT, {
+            host: undefined,
+            port: 0
+        });
+    });
+
+    it('reports a --port that is not a number, and runs nothing', async () => {
+        await ortha('studio', '--port=abc');
+
+        expect(console.error).toHaveBeenCalledWith(
+            expect.stringContaining('must be a whole number')
+        );
+        expect(studioCommand).not.toHaveBeenCalled();
     });
 
     it('names an unknown command, prints the usage, and fails', async () => {

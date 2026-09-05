@@ -165,7 +165,7 @@ test.describe('Workspaces page', () => {
         await expect(page).toHaveURL('/workspaces');
     });
 
-    // И-03 on the admin side. The server answers a workspace you may not see
+    // workspaces:I-03 on the admin side. The server answers a workspace you may not see
     // the same way whether or not it exists; the admin has to keep that
     // promise, and it does so by never asking — the shell resolves `:id`
     // against the membership-scoped list it already holds.
@@ -197,7 +197,7 @@ test.describe('Workspaces page', () => {
         expect(probe.count).toBe(0);
     });
 
-    // И-31 — a failed read is not an empty membership. Every surface that lists
+    // workspaces:I-31 — a failed read is not an empty membership. Every surface that lists
     // workspaces degrades to "none" when the list query fails, and "none" is a
     // sentence the operator will act on.
     test.describe('a broken list is not an empty one', () => {

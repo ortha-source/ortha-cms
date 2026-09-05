@@ -22,7 +22,7 @@ import {
  *   header is client-controlled, so falling back to it would let a caller
  *   choose the origin the provider redirects to. With nothing configured the
  *   right answer is a loud error, not a guess;
- * - **failure always lands on the sign-in screen with `?error=sso`** (И-20).
+ * - **failure always lands on the sign-in screen with `?error=sso`** (identity:I-20).
  *   The person is mid-redirect from a third party; a bare 401 is honest and
  *   useless.
  */

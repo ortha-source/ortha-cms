@@ -30,7 +30,7 @@ which is what stops a stream of tokens bearing invented `kid`s from turning this
 CMS into a load generator pointed at someone else's identity provider.
 
 Hand-rolling JWT and JWKS validation is not where to demonstrate independence.
-[ADR-0012](../../../docs/adr/0012-sso-provider-port.md) permits the dependency
+[ADR-0013](../../../docs/adr/0013-sso-provider-port.md) permits the dependency
 **here** for exactly this reason, and forbids it in `identity-domain` and
 `identity-server`.
 

@@ -32,6 +32,12 @@ export function runDrizzleKitStudio(
     databaseUrl: string,
     options: StudioServerOptions = {}
 ): void {
+    // Before the temp directory exists, so a refused port leaves nothing
+    // behind to clean up.
+    if (options.port !== undefined) {
+        requireReportablePort(options.port);
+    }
+
     // drizzle-kit's `exports` map blocks resolving `./bin.cjs` directly, so
     // resolve the package's main entry and locate the sibling bin.
     const bin = join(dirname(require.resolve('drizzle-kit')), 'bin.cjs');
@@ -54,7 +60,11 @@ export function runDrizzleKitStudio(
         warnIfExposed(options.host, options.port);
         args.push(`--host=${options.host}`);
     }
-    if (options.port) {
+    // `!== undefined`, not truthiness: `0` is the one value a user can type
+    // that a truthy guard eats, and eating it is exactly what must not happen
+    // here — it is refused above, and a refusal a guard skipped is a Studio
+    // quietly running somewhere else.
+    if (options.port !== undefined) {
         args.push(`--port=${String(options.port)}`);
     }
 
@@ -71,6 +81,45 @@ export function runDrizzleKitStudio(
         throw error;
     } finally {
         rmSync(dir, { recursive: true, force: true });
+    }
+}
+
+/**
+ * Refuses a port drizzle-kit could bind but could not tell anyone about.
+ *
+ * `--port=0` is the interesting one, and it is refused rather than forwarded.
+ * Everywhere else port 0 means "let the OS choose and tell me what it picked",
+ * and the second half is what drizzle-kit does not do: its listen callback is
+ * handed the bound address and ignores it, printing the port it was *asked*
+ * for (`bin.cjs`: `cb: (err, _address) => { … if (port !== 4983) queryParams.port = port … }`).
+ * So `--port=0` puts Studio — an unauthenticated read/write console on the
+ * database — on an ephemeral port, and announces a URL pointing at port 0.
+ * Nothing in the output says where it actually is.
+ *
+ * `@orthacms/nx`'s `db:studio` executor already refused this input, so the same
+ * flag on the same tool behaved two different ways depending on which half of
+ * the workspace you were in. This is that refusal, moved to the shared
+ * implementation both worlds call.
+ *
+ * The range check catches the rest of what a mistyped flag produces — `NaN`
+ * from a non-numeric value, a port past 65535 — which the old truthiness guard
+ * also dropped in silence.
+ */
+function requireReportablePort(port: number): void {
+    if (port === 0) {
+        throw new Error(
+            'port 0 is not supported — Drizzle Studio prints the port it was ' +
+                'asked for rather than the one it bound, so an ephemeral port ' +
+                'leaves it running at an address nothing reports. Pass a real ' +
+                'port, or drop --port for the default 4983.'
+        );
+    }
+
+    if (!Number.isInteger(port) || port < 0 || port > 65535) {
+        throw new Error(
+            `${port} is not a port — pass a whole number between 1 and 65535, ` +
+                `or drop --port for the default 4983.`
+        );
     }
 }
 

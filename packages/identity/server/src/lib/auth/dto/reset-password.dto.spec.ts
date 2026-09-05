@@ -7,7 +7,7 @@ import { ResetPasswordDto } from './reset-password.dto';
  * `ResetPasswordDto` — the body of `POST /auth/reset`, and the second place a
  * password is chosen without an existing credential to compare against.
  *
- * The invariant (И-11) is that the *reset* path enforces exactly the bounds the
+ * The invariant (identity:I-11) is that the *reset* path enforces exactly the bounds the
  * *invite accept* path does. Two public endpoints that both set a first-class
  * credential must not disagree about what a password is: a rule tightened on
  * one and forgotten on the other means an account can be walked below the floor

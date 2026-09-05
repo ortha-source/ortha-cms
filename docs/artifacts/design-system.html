@@ -246,12 +246,11 @@ html{scroll-behavior:smooth}
     </h1>
     <p class="lede">This is <strong>not a plugin</strong>. The package has no routes, no NestJS module, no tables and not one permission key. <code>@orthacms/design-system</code> is a React component library built on shadcn/ui: buttons, fields, dialogs, tables, the sidebar. Its job is to make eighteen independent admin plugins, written at different times by different people, look and behave like one application, and to hand a page's author accessibility, theming and keyboard navigation <em>by default</em> rather than as separate work.</p>
     <ul class="facts">
-      <li><b>48</b> component files</li>
-      <li><b>233</b> exported symbols</li>
-      <li><b>24</b> dependencies (15 of them Radix)</li>
-      <li><b>131</b> <code>--color-*</code> token declarations</li>
-      <li><b>23</b> test suites · 189 cases</li>
-      <li><b>18</b> consuming packages</li>
+      <li><b>49</b> component files</li>
+      <li><b>234</b> exported symbols</li>
+      <li><b>25</b> dependencies (16 of them Radix)</li>
+      <li><b>131</b> <code>--color-*</code> declarations in the palette it is styled by — which lives in the <em>host</em>, not here</li>
+      <li><b>19</b> consuming packages</li>
       <li><b>0</b> routes, tables and permissions</li>
     </ul>
   </div>
@@ -336,8 +335,8 @@ html{scroll-behavior:smooth}
   <table>
     <thead><tr><th>Path</th><th>What is there</th><th>Size</th></tr></thead>
     <tbody>
-      <tr><td class="mono">src/index.ts</td><td>The one public surface — a barrel of re-exports. Anything not in it does not exist for a consumer</td><td>233 symbols</td></tr>
-      <tr><td class="mono">src/lib/components/ui/</td><td>The components. One file is one family (<code>dialog.tsx</code> yields ten exports)</td><td>48 files</td></tr>
+      <tr><td class="mono">src/index.ts</td><td>The one public surface — a barrel of re-exports. Anything not in it does not exist for a consumer</td><td>234 symbols</td></tr>
+      <tr><td class="mono">src/lib/components/ui/</td><td>The components. One file is one family (<code>dialog.tsx</code> yields ten exports)</td><td>49 files</td></tr>
       <tr><td class="mono">src/lib/utils.ts</td><td>The <code>cn</code> utility — joining Tailwind classes with conflict resolution</td><td>7 lines</td></tr>
       <tr><td class="mono">src/lib/appearance/</td><td><code>AppearanceProvider</code> / <code>useAppearance</code> — theme choice, synchronised with <code>&lt;html&gt;</code> and <code>localStorage</code></td><td>1 module</td></tr>
       <tr><td class="mono">src/lib/labels/</td><td><code>DesignSystemLabelsProvider</code> — the one localisation seam for the library's own “furniture”</td><td>1 module</td></tr>
@@ -1489,6 +1488,13 @@ html{scroll-behavior:smooth}
     <span class="label">What this dossier leaves uncovered</span>
     <p>Nothing was verified <b>by execution</b>: the package's tests were not run and the application was not brought up — this environment has no installed dependencies. Every number was obtained statically, from the sources and the manifests. The largest CLI components in which no divergence from upstream was found were not read line by line (<code>calendar.tsx</code>, <code>command.tsx</code>, <code>drawer.tsx</code>, <code>input-group.tsx</code>, <code>collapsible.tsx</code>) — for them the inventory gives the purpose, the props and the consumers but not the internal markup. Token contrast was taken from the comments in <code>styles.css</code> rather than recomputed.</p>
   </div>
+
+  <details>
+    <summary>Why the numbers in this artifact were counted rather than copied, and how to recount them</summary>
+    <p>Every figure in the header is an enumeration of the working tree at the time of writing, not a fact about the library — and each has now drifted at least once, which is why the method is written down rather than the number alone. <b>49 component files</b>: non-spec <code>.tsx</code> under <code>src/lib/components/ui/</code>. <b>234 exported symbols</b>: named re-exports in <code>src/index.ts</code>, counted per identifier rather than per <code>export</code> statement; there is no <code>export *</code>. <b>25 dependencies, 16 Radix</b>: keys of <code>dependencies</code> in the package manifest, Radix being the <code>@radix-ui/</code> prefix. <b>19 consuming packages</b>: manifests under <code>packages/</code> and <code>apps/</code> that declare <code>@orthacms/design-system</code>, excluding its own.</p>
+    <p><b>131 <code>--color-*</code> declarations</b> needs a correction rather than a recount, because it was attributed to the wrong package. This package's own <code>styles.css</code> holds motion rules and nothing else — <b>no colour token at all</b>. The palette lives in <code>apps/admin/src/styles.css</code> and, byte for byte, in the scaffolder's template: 131 declarations over 76 distinct names, which is what a light value and a dark value per token comes to. The count is not pinned, but the property that matters is: <code>library-conventions.spec.ts</code> reads both palettes and asserts every token is paired across the themes unless it belongs to one of three families that are the same colour in both on purpose.</p>
+    <p>The test-suite count that used to sit here has been removed rather than corrected. It drifted three times, and "23 suites · 189 cases" told a reader nothing that "there are tests" does not — unlike <b>0 routes, tables and permissions</b>, which is a structural claim about what this package is.</p>
+  </details>
 </section>
 
 <footer class="end">

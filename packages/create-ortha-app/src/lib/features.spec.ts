@@ -222,9 +222,29 @@ describe('resolvePackages', () => {
 });
 
 describe('resolveFlags', () => {
-    it('is the picked ids, with nothing derived', () => {
+    it('is the picked ids, with nothing else derived', () => {
         expect(resolveFlags(selectionOf('mcp', 'copilot-openai'))).toEqual(
             new Set(['mcp', 'copilot-openai'])
+        );
+    });
+
+    /**
+     * The one derivation, and the reason for it: `ortha:if` is line-based with
+     * no expression language, so a block cannot say "any of these three". The
+     * three providers share one `ssoProviders` key, one builder in
+     * `plugins.ts` and one extra argument to `IdentityPlugin`, and each has to
+     * appear whichever of them was picked.
+     */
+    it.each(SSO_PROVIDERS.map((provider) => [provider.id] as const))(
+        'derives the sso group flag from %s',
+        (id) => {
+            expect(resolveFlags(selectionOf(id)).has('sso')).toBe(true);
+        }
+    );
+
+    it('derives no sso flag for an app that picked no provider', () => {
+        expect(resolveFlags(selectionOf('media-local', 'rest')).has('sso')).toBe(
+            false
         );
     });
 });

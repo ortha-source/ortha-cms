@@ -25,9 +25,10 @@ const HASH = `$2b$12$${'a'.repeat(53)}`;
  * junk link). Only a call log can show that, so the harness records one.
  *
  * The other two invariants: redeeming revokes every live session and issues
- * none (И-06 — a session is a bearer credential the *old* password opened, and
+ * none (identity:I-06 — a session is a bearer credential the *old* password opened, and
  * someone holding only a link should land back at the sign-in form), and every
- * failure mode collapses into one indistinguishable error (И-04, И-05).
+ * failure mode collapses into one indistinguishable error (identity:I-04,
+ * identity:I-05).
  */
 describe('ResetPasswordUseCase', () => {
     /** A `UnitOfWork` that simply runs the callback — one logical transaction. */
@@ -178,7 +179,7 @@ describe('ResetPasswordUseCase', () => {
         ).rejects.toBeInstanceOf(InvalidResetTokenError);
 
         expect(calls).toEqual(['resets.findPendingByTokenHash']);
-        // И-09: the digest is what the repository sees, never the raw token.
+        // identity:I-09: the digest is what the repository sees, never the raw token.
         expect(lookups).toEqual([`sha256:${RAW_TOKEN}`]);
     });
 
@@ -195,8 +196,8 @@ describe('ResetPasswordUseCase', () => {
         expect(opened).toBeGreaterThan(hashed);
     });
 
-    it('rejects the loser of a concurrent submission without saving anything', async () => {
-        // И-05: the read above is advisory; the conditional `consume` is what
+    it('rejects the loser of a concurrent submission without saving anything [identity:I-05]', async () => {
+        // identity:I-05: the read above is advisory; the conditional `consume` is what
         // actually makes the link one-time, and the loser stops here.
         const { useCase, calls, saved, revokedUsers, events } = harness({
             consumed: false
@@ -242,8 +243,8 @@ describe('ResetPasswordUseCase', () => {
         expect(revokedUsers).toEqual([]);
     });
 
-    it('evicts every live session and opens none, reporting the count', async () => {
-        // И-06. The count rides on the event so the audit row can state it —
+    it('evicts every live session and opens none, reporting the count [identity:I-06]', async () => {
+        // identity:I-06. The count rides on the event so the audit row can state it —
         // the aggregate raised the fact without it, having no idea sessions
         // exist.
         const { useCase, revokedUsers, issued, events } = harness({

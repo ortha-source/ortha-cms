@@ -11,13 +11,18 @@ import {
  *
  * Three invariants are worth holding still:
  *
- * - **The SSO attempt cookie is always `SameSite=Lax`, whatever the config says
- *   (И-26).** The identity provider returns the person by a top-level
+ * - **The SSO attempt cookie is always `SameSite=Lax`, whatever the config
+ *   says.** The identity provider returns the person by a top-level
  *   cross-site navigation, and a `strict` cookie is not sent on one — the
  *   callback would find no attempt and *every* SSO sign-in would fail with a
  *   generic error, on a deployment whose config looks stricter and therefore
  *   safer. Its path is narrowed to the SSO routes for the same reason a session
- *   cookie is not: nothing else reads it.
+ *   cookie is not: nothing else reads it. This is the *sibling* of the
+ *   identity dossier's I-26 rather than a test of it, so it carries no
+ *   citation: I-26 is `IdentityPlugin` refusing to boot with SSO providers
+ *   and a `strict` session cookie, and nothing in this file would go red if
+ *   that refusal were deleted. It is pinned in `utils/identity-plugin.spec.ts`
+ *   and `apps/server-e2e/src/server/auth/identity-boot-refusal.spec.ts`.
  * - **`clearSession` mirrors `setSession`'s attributes.** A browser matches a
  *   cookie for deletion on name/domain/path, so a clear that forgets the path
  *   leaves the session cookie sitting in the browser after logout.

@@ -483,6 +483,16 @@ describe('every combination', () => {
         ['nothing optional', ['media-local', 'rest']],
         ['every protocol', ['media-local', 'rest', 'graphql', 'mcp']],
         ['single sign-on', ['media-local', 'rest', 'sso-oidc']],
+        // One per identity provider, and then all three: they share the
+        // `ssoProviders` key, the builder in `plugins.ts` and the second
+        // argument to `IdentityPlugin`, so each is reached through the derived
+        // `sso` flag rather than through its own marker.
+        ['GitHub sign-in', ['media-local', 'rest', 'sso-github']],
+        ['SAML sign-in', ['media-local', 'rest', 'sso-saml']],
+        [
+            'every identity provider',
+            ['media-local', 'rest', 'sso-oidc', 'sso-github', 'sso-saml']
+        ],
         [
             'everything at once',
             [
@@ -492,7 +502,9 @@ describe('every combination', () => {
                 'mcp',
                 'copilot-anthropic',
                 'copilot-openai',
-                'sso-oidc'
+                'sso-oidc',
+                'sso-github',
+                'sso-saml'
             ]
         ]
     ];

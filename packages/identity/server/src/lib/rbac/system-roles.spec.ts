@@ -22,7 +22,7 @@ function grants(key: string): string[] {
 
 describe('SYSTEM_ROLES', () => {
     /**
-     * И-14: admin holds the full set **by enumeration**, and the system has no
+     * identity:I-14: admin holds the full set **by enumeration**, and the system has no
      * wildcard permission at all. Both halves matter — a `*` grant would make
      * every future permission silently admin's, which is the failure mode the
      * enumeration exists to prevent. A new key added to the catalogue without

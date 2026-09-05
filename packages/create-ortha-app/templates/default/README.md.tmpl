@@ -22,7 +22,7 @@ provisioned on boot, idempotently — clear those two variables once you have it
 | `npm run build` | Compiles the server and builds the admin bundle |
 | `npm start` | Runs the built server — API **and** admin, one process, one origin |
 | `npm run migrate` | Applies every plugin's pending migrations |
-| `npm run generate -- --name=<name>` | Generates a migration for your own content tables |
+| `npm run generate -- --name=<name>` | Generates a migration for your own content tables — needs a `drizzle.config.ts` first, see below |
 | `npm run studio` | Opens Drizzle Studio on this app's database |
 | `npm test` | Unit tests — both halves |
 | `npm run e2e` | Both end-to-end suites |
@@ -109,7 +109,7 @@ source lands in the same place here.
 | --- | --- |
 | `apps/server/src/plugins.ts` | Which plugins the API runs, and **in what order** |
 | `apps/admin/src/plugins.ts` | Which plugins the admin UI runs |
-| `apps/server/ortha.config.ts` | Every setting, typed — with `config/`, the only reader of the environment |
+| `apps/server/ortha.config.ts` | Every setting, typed — with `apps/server/config/`, the only reader of the environment |
 | `apps/admin/src/styles.css` | The theme tokens: this app's whole visual identity |
 
 Upgrading is a version bump. Keep the `@orthacms/*` versions **in step with each
@@ -121,9 +121,9 @@ and UI that silently stops talking to itself.
 
 A server plugin is a `ServerPlugin` from `@orthacms/bootstrap-server` — a name,
 a NestJS module, and optionally its own migrations — added to the array in
-`src/server/plugins.ts`. `@InjectDatabase()` from `@orthacms/database` gives it
+`apps/server/src/plugins.ts`. `@InjectDatabase()` from `@orthacms/database` gives it
 the shared connection. An admin plugin is an `AdminPlugin` from
-`@orthacms/bootstrap-admin`, added to `src/admin/plugins.ts`.
+`@orthacms/bootstrap-admin`, added to `apps/admin/src/plugins.ts`.
 
 `@orthacms/utils-server` and `@orthacms/utils-admin` hold the shared toolkit
 (filter parsing, `apiClient`, slots, table URL state), and
@@ -154,7 +154,7 @@ It is not the switch that keeps your content in-house, though. A backend is
 registered only when its settings are present (below), so an app with no key
 reaches no third party either way.
 
-Backends are registered in `src/server/plugins.ts`, and **the order is the
+Backends are registered in `apps/server/src/plugins.ts`, and **the order is the
 setting** — there is no `defaultProvider`. The first registered backend serves a
 run that names none, and it is what the admin's model picker opens on. A backend
 is only registered when its connection settings are present, so an unconfigured
@@ -189,8 +189,27 @@ This app starts with none. To add some:
 1. Write them under `apps/server/src/content/` and export a `contentTypes` array.
 2. Pass them to `ContentPlugin({ types: contentTypes, migrations: … })` in
    `apps/server/src/plugins.ts` — the comment there has the exact shape.
-3. Add `apps/server/drizzle.config.ts` pointing `schema` at your
-   `src/content/index.ts` and `out` at `../../migrations`.
+3. Add `apps/server/drizzle.config.ts`:
+
+    ```ts
+    import { defineConfig } from 'drizzle-kit';
+
+    export default defineConfig({
+        dialect: 'postgresql',
+        schema: 'apps/server/src/content/index.ts',
+        out: 'migrations'
+    });
+    ```
+
+    Both paths are relative to **this app's root**, not to the config file.
+    drizzle-kit resolves `schema` and `out` from the working directory, and
+    `ortha generate` runs it from the root — so `out: 'migrations'` is the
+    same `migrations/` the plugin's descriptor in step 2 points at, and a
+    `../../` in front of it would write two levels above your project.
+
+    No `dbCredentials`: generating a migration only diffs the schema against
+    the last snapshot and never connects, so there is no secret to put here.
+
 4. `npm run generate -- --name=add_content_types && npm run migrate`
 
 ## Deploying

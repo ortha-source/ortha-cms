@@ -13,9 +13,12 @@ import { WorkspacesPlugin } from '@orthacms/workspaces-admin';
 import { WysiwygPlugin } from '@orthacms/wysiwyg-admin';
 import { CopilotPlugin } from '@orthacms/copilot-admin';
 import { AlarmsPlugin } from '@orthacms/alarms-admin';
+import { transferAdminPlugin } from '@orthacms/transfer-admin';
+import { SegmentsPlugin } from '@orthacms/segments-admin';
 
 /**
- * The admin's composition, mirroring `src/server/plugins.ts` on the UI side.
+ * The admin's composition, mirroring `apps/server/src/plugins.ts` on the UI
+ * side.
  *
  * **Two positions matter; the rest is legibility.**
  *
@@ -48,6 +51,10 @@ export function buildPlugins(): AdminPlugin[] {
         I18nPlugin(),
         WysiwygPlugin(),
         MediaPlugin(),
+        // Export/import. Another Content Library slot filler — the entry menu,
+        // the records selection bar and the collection toolbar — so it reads
+        // after ContentPlugin() for the same reason I18nPlugin() does.
+        transferAdminPlugin(),
         // Another Content Library slot filler — the entry rail's checks block,
         // an optional records column, and "Save as rule" in the toolbar.
         AlarmsPlugin(),
@@ -55,6 +62,12 @@ export function buildPlugins(): AdminPlugin[] {
         // the workspace-interior features: the panel mounts into the workspace
         // shell's sidebar footer.
         CopilotPlugin(),
+        // Reader entitlements — who may *read* published content. It fills the
+        // Content Library's entry-header and entry-tab slots, so like the other
+        // library fillers it reads after ContentPlugin(); its own audience
+        // directory is independent of that order. Inert until an audience
+        // exists.
+        SegmentsPlugin(),
         UsersPlugin(),
         ActivityPlugin(),
         ApiTokensPlugin(),

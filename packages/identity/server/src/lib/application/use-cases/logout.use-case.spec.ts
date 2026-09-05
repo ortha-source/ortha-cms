@@ -8,7 +8,7 @@ const EMAIL = 'ada@example.com';
 const TOKEN = 'c'.repeat(64);
 
 /**
- * `LogoutUseCase` — И-07: signing out revokes **only** the presented session
+ * `LogoutUseCase` — identity:I-07: signing out revokes **only** the presented session
  * and always succeeds. The second half is the one worth pinning: an unknown or
  * already-revoked token is a no-op, and specifically a no-op that writes no
  * event — a phantom `auth.signed_out` for a session that was not live would put
