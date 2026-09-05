@@ -3749,7 +3749,7 @@
                 "server-e2e",
                 "unit"
             ],
-            "text": "The API-token management routes are reachable only with an administrator's session and never with a bearer token."
+            "text": "The API-token management routes are gated on the tokens:read / tokens:create / tokens:delete permissions rather than on the admin role, and answer only to a session — never to a bearer token, not even one of the tokens they mint."
         },
         {
             "id": "identity:I-20",
@@ -7684,7 +7684,7 @@
                 "admin-e2e",
                 "unit"
             ],
-            "text": "The language mark is not a textStyle: \"Clear formatting\" does not remove it."
+            "text": "The language mark declares clearable: false, so \"Clear formatting\" leaves it alone. Being its own mark rather than a textStyle attribute is necessary for that and not sufficient: \"Clear formatting\" runs unsetAllMarks(), which strips every mark in the schema that has not opted out — which is how a WCAG 3.1.2 language marker was once cleared along with a bold."
         },
         {
             "id": "wysiwyg:I-16",

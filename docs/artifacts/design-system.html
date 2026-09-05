@@ -250,7 +250,7 @@ html{scroll-behavior:smooth}
       <li><b>233</b> exported symbols</li>
       <li><b>24</b> dependencies (15 of them Radix)</li>
       <li><b>131</b> <code>--color-*</code> token declarations</li>
-      <li><b>15</b> test suites · 117 cases</li>
+      <li><b>23</b> test suites · 189 cases</li>
       <li><b>18</b> consuming packages</li>
       <li><b>0</b> routes, tables and permissions</li>
     </ul>
@@ -1108,11 +1108,11 @@ html{scroll-behavior:smooth}
       <tr><td>A scrollable region is keyboard-reachable and <b>visible</b> once reached</td><td><code>SidebarInset</code> (the scrollport) and <code>Table</code> (the wrapper) — <code>tabIndex={0}</code> + <code>ring-inset</code>; on the table the stop is taken only on real overflow</td><td>2.1.1, 2.4.7</td></tr>
       <tr><td>Focus is visible in forced-colors mode too</td><td><code>@media (forced-colors: active)</code> in <code>src/styles.css</code> — a real <code>outline</code> instead of a <code>ring</code></td><td>2.4.7, 1.4.11</td></tr>
       <tr><td>A hidden panel does not catch the Tab key</td><td><code>inert</code> on a collapsed offcanvas panel</td><td>2.4.3</td></tr>
-      <tr><td>Headings do not skip ranks</td><td><code>AlertTitle</code>, <code>CardTitle</code>, <code>EmptyTitle</code> are <code>&lt;div&gt;</code> by default; the rank is set by the page through <code>asChild</code></td><td>1.3.1</td></tr>
+      <tr><td>Headings do not skip ranks</td><td><code>AlertTitle</code>, <code>CardTitle</code>, <code>EmptyTitle</code> are <code>&lt;div&gt;</code> by default; the page sets the rank — through <code>asChild</code> on <code>CardTitle</code> and <code>EmptyTitle</code>, and by nesting a heading inside <code>AlertTitle</code>, which takes none because it stays the element the banner names itself with</td><td>1.3.1</td></tr>
       <tr><td>A table is really marked up as one</td><td><code>&lt;table&gt;</code>, <code>&lt;th scope="col"&gt;</code> by default, <code>&lt;caption&gt;</code></td><td>1.3.1</td></tr>
       <tr><td>An icon control is named</td><td><code>SidebarTrigger</code>, <code>SidebarRail</code> and the <code>Dialog</code>/<code>Sheet</code> close cross — an <code>sr-only</code> name whose default a localised string overrides</td><td>4.1.2, 3.1.2</td></tr>
       <tr><td>Meaning is not carried by colour alone</td><td><code>SegmentedControlItem</code> and <code>SidebarMenuButton</code> — a fill <b>plus</b> a heavier weight; <code>MultiSelect</code> — <code>aria-checked</code>, not just a tick; status dots always with text</td><td>1.4.1</td></tr>
-      <tr><td>Motion respects the system setting</td><td><code>Skeleton</code> (<code>motion-reduce:</code>) and both animations in <code>src/styles.css</code></td><td>2.3.3</td></tr>
+      <tr><td>Motion respects the system setting</td><td><code>Skeleton</code> (<code>motion-reduce:</code>) and the three <code>prefers-reduced-motion</code> blocks in <code>src/styles.css</code> — the dropdown and the wizard step are switched off, the spinner’s rotation is replaced by an opacity breath</td><td>2.3.3</td></tr>
       <tr><td>An overlay traps and returns focus and closes on Escape</td><td>Radix — <code>Dialog</code>, <code>Sheet</code>, <code>Popover</code>, <code>DropdownMenu</code>, <code>Select</code>, <code>Tooltip</code></td><td>2.1.2, 2.4.3</td></tr>
       <tr><td>A notification is announced</td><td>sonner's live region under <code>Toaster</code></td><td>4.1.3</td></tr>
       <tr><td>A disabled control reads as disabled in high contrast too</td><td><code>color: GrayText</code> in <code>forced-colors</code>: <code>opacity</code> is not part of the forced palette</td><td>1.4.1</td></tr>
@@ -1202,7 +1202,7 @@ html{scroll-behavior:smooth}
 <section id="tests">
   <h2 class="sec"><span class="num">09</span>The package's tests</h2>
 
-  <p>A vitest + Testing Library suite in a <code>jsdom</code> environment: <code>npx nx test design-system</code>. Fifteen files, 117 cases, all next to their component.</p>
+  <p>A vitest + Testing Library suite in a <code>jsdom</code> environment: <code>npx nx test design-system</code>. Twenty-three files, 189 cases, all next to their component.</p>
 
   <div class="note">
     <span class="label">This is not a coverage exercise</span>
@@ -1373,7 +1373,7 @@ html{scroll-behavior:smooth}
 
   <h3>Regressions after an upstream update</h3>
   <ul class="check">
-    <li><b>After a <code>shadcn add</code>, run <code>npx nx test design-system</code></b> → <span class="exp">all 117 cases green; a red <code>localizable-copy</code> means a lost localisation prop.</span></li>
+    <li><b>After a <code>shadcn add</code>, run <code>npx nx test design-system</code></b> → <span class="exp">the suite stays green; a red <code>localizable-copy</code> means a lost localisation prop.</span></li>
     <li><b>Look for <code>@/</code> in the diff</b> → <span class="exp">not one should remain; otherwise the admin dev server will not come up.</span></li>
     <li><b>Reconcile the exports with <code>src/index.ts</code></b> → <span class="exp">no previously public symbol has vanished, and the new ones are added.</span></li>
     <li><b>Look for <code>animate-in</code> / <code>fade-in-0</code> / <code>zoom-in-95</code> in the diff</b> → <span class="exp">if they arrived, they are dead classes: the plugin that generates them is not in the repository.</span></li>
@@ -1493,7 +1493,7 @@ html{scroll-behavior:smooth}
 
 <footer class="end">
   <p><b>A dossier on a library, not a plugin.</b> The series' frame is kept, but the sections a component library does not have — permissions, tables, an HTTP API, a lifecycle, configuration — are replaced by the ones that are load-bearing for it: tokens and theming, the complete component inventory, the authors' rules and accessibility. The main section is the fourth: 48 files, 233 exports, five groups by purpose, with the actual usage counts across the repository.</p>
-  <p>The source is the source code of <code>packages/design-system/**</code>: all 48 components, <code>src/index.ts</code>, <code>src/styles.css</code>, <code>utils.ts</code>, <code>appearance/</code>, <code>labels/</code>, <code>hooks/</code>, the fifteen test suites, <code>components.json</code>, <code>package.json</code>, <code>vite.config.mts</code>, <code>tsconfig.lib.json</code>; plus <code>apps/admin/src/styles.css</code> (the token values), <code>packages/bootstrap/admin</code> (mounting the providers), <code>tools/release/pack.mjs</code> (publishing), and the <code>shadcn</code> and <code>accessibility</code> skills. The <code>AGENTS.md</code> files were used as the frame, but every claim was checked against the implementation — the divergences are gathered in section 13.</p>
+  <p>The source is the source code of <code>packages/design-system/**</code>: all 48 components, <code>src/index.ts</code>, <code>src/styles.css</code>, <code>utils.ts</code>, <code>appearance/</code>, <code>labels/</code>, <code>hooks/</code>, the test suites, <code>components.json</code>, <code>package.json</code>, <code>vite.config.mts</code>, <code>tsconfig.lib.json</code>; plus <code>apps/admin/src/styles.css</code> (the token values), <code>packages/bootstrap/admin</code> (mounting the providers), <code>tools/release/pack.mjs</code> (publishing), and the <code>shadcn</code> and <code>accessibility</code> skills. The <code>AGENTS.md</code> files were used as the frame, but every claim was checked against the implementation — the divergences are gathered in section 13.</p>
 </footer>
 
 </main>
