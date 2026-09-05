@@ -265,10 +265,13 @@ Learned since, and each one produced a false report before it was understood:
   mutation is real and the run was not.
 - **Agents in one checkout share one git index.** A `git add -A` — or `git add`
   on a directory another agent is writing — stages that agent's half-finished
-  work into your commit. This happened three times in one week. Stage explicit
-  paths you own, never `-A` and never a shared directory, and expect files to
-  change under you mid-task. `git hash-object` + `update-index` is the escape
-  hatch when you must stage something without disturbing the index.
+  work into your commit. This happened four times in one week, and once *after*
+  a correct `git add`: another agent staged twenty files in the gap between the
+  add and the commit. Explicit paths are not enough, because the index can move
+  underneath you. Use **`git commit -- <paths>`**, which snapshots only those
+  paths and leaves everything else staged exactly as it was; `git hash-object` +
+  `update-index` is the escape hatch when you must stage without disturbing the
+  index. Expect files to change under you mid-task.
 - **Generated ledger files are shared state.** `invariants.json` is rebuilt from
   every dossier, so rebuilding it picks up other agents' in-flight edits.
   Either commit it knowing that, and say so, or leave it and let the pass owner
