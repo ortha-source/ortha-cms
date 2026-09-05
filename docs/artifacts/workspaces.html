@@ -1103,7 +1103,7 @@ html{scroll-behavior:smooth}
 
 <section id="qa">
   <h2 class="sec"><span class="num">13</span>Testing checklist</h2>
-  <p class="sub small">The wording is “action → expected result”, so items can go into a test case without rewriting. The server side is checked with <code>curl</code> + <code>psql</code>, the admin side in a browser. The existing suites are <code>apps/server-e2e/src/server/workspaces/*</code> (7 files: create, update, access, content, lifecycle, members, regressions) and <code>apps/admin-e2e/src/workspaces/*</code> (6 files: workspaces, settings, permissions, keyboard, a11y, regressions).</p>
+  <p class="sub small">The wording is “action → expected result”, so items can go into a test case without rewriting. The server side is checked with <code>curl</code> + <code>psql</code>, the admin side in a browser. The existing suites are <code>apps/server-e2e/src/server/workspaces/*</code> (8 files: create, update, access, content, delete-residue, lifecycle, members, regressions) and <code>apps/admin-e2e/src/workspaces/*</code> (6 files: workspaces, settings, permissions, keyboard, a11y, regressions).</p>
   <h3>The tenant boundary</h3>
   <ul class="check">
     <li><b>An administrator who is not a member of the workspace sends <code>PATCH /workspaces/:id</code></b> → <span class="exp">403 reading “You are not a member of this workspace.”, and the data is unchanged.</span></li>
@@ -1179,7 +1179,9 @@ html{scroll-behavior:smooth}
     <li><b>A purger throws</b> → <span class="exp">a complete rollback: the workspace is still there and not one other plugin's row was deleted.</span></li>
     <li><b>Byte reclamation fails</b> → <span class="exp">the request still succeeds (204), with a log line naming the purger and the workspace identifier.</span></li>
     <li><b>In parallel: creating an entry and deleting the workspace</b> → <span class="exp">serialised by the lock, with no orphaned entries.</span></li>
-    <li><b>After deletion, check <code>alarm_rules</code> and <code>entry_access</code></b> → <span class="exp">the rows remain — the known uncovered remainder (section 5).</span></li>
+    <li><b>After deletion, sweep every workspace-scoped table</b> → <span class="exp">nothing is left behind: the six cascading tables and the seven purged ones (<code>media_asset</code>, <code>media_folder</code>, <code>api_token_workspaces</code>, <code>alarm_rules</code>, <code>alarm_findings</code>, <code>entry_access</code>, <code>content_entry_revisions</code>) all count zero. <code>workspace-delete-residue.spec.ts</code> is the exhaustive version of this check.</span></li>
+    <li><b>After deletion, check <code>segments.workspace_ids</code></b> → <span class="exp">the dead id <b>stays</b>, and that is correct rather than residue: an empty <code>workspace_ids</code> means “every workspace”, so pruning the last id would <em>widen</em> who may read.</span></li>
+    <li><b>After deletion, check <code>webhook_endpoint_workspaces</code></b> → <span class="exp">the rows remain — the one genuine uncovered remainder. It has no foreign key and registers no purger, and the residue sweep does not reach it.</span></li>
   </ul>
 
   <h3>Permissions</h3>
@@ -1276,7 +1278,7 @@ html{scroll-behavior:smooth}
       <tr>
         <td class="mono">workspaces/server/AGENTS.md, “Deleting a workspace”</td>
         <td>The table of three mechanisms is presented as exhaustive: cascade, refusal, purge</td>
-        <td><b>Fixed 2026-08-30.</b> There are workspace-scoped tables <b>outside</b> all three: <code>alarm_rules</code>, <code>alarm_findings</code>, <code>entry_access</code> and the <code>segments.workspace_ids</code> array. They have no foreign key and register no purger (in the whole repository only media and the local <code>ApiTokenGrantsPurger</code> implement <code>WorkspacePurger</code>), so after a deletion their rows point nowhere — precisely the class of orphaning the purge mechanism was introduced for</td>
+        <td><b>Fixed 2026-08-30.</b> There are workspace-scoped tables <b>outside</b> all three: <code>alarm_rules</code>, <code>alarm_findings</code>, <code>entry_access</code> and the <code>segments.workspace_ids</code> array. At the time of the finding they had no foreign key and registered no purger — only media and the local <code>ApiTokenGrantsPurger</code> implemented <code>WorkspacePurger</code> anywhere in the repository — so after a deletion their rows pointed nowhere, precisely the class of orphaning the purge mechanism was introduced for. <code>alarms</code>, <code>segments/entry-access</code> and <code>content/revisions</code> have since shipped purgers of their own; <code>segments.workspace_ids</code> is deliberately left alone</td>
       </tr>
       <tr>
         <td class="mono">workspaces/server/AGENTS.md, the “Cascade” row</td>

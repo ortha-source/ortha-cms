@@ -1360,8 +1360,8 @@ Content-Type: application/json
 
   <h3>13.4 Tool visibility and authorization</h3>
   <ul class="check">
-    <li><b><code>tools/list</code> with a <code>read</code> token</b> → <span class="exp">13 tools; <code>content_list</code> and <code>content_types_list</code> present, <code>content_create</code>, <code>content_update</code>, <code>content_publish</code>, <code>content_delete</code> <b>absent</b>.</span></li>
-    <li><b><code>tools/list</code> with a <code>full</code> token</b> → <span class="exp">23 tools, including all sixteen content ones and <code>content_access_set</code>.</span></li>
+    <li><b><code>tools/list</code> with a <code>read</code> token</b> → <span class="exp"><code>content_list</code> and <code>content_types_list</code> present, <code>content_create</code>, <code>content_update</code>, <code>content_publish</code>, <code>content_delete</code> <b>absent</b>. Check membership, never a total: the set grows whenever a package registers a tool, and a count in a checklist is pinned by nothing.</span></li>
+    <li><b><code>tools/list</code> with a <code>full</code> token</b> → <span class="exp">the writing tools appear alongside the reading ones — <code>content_create</code>, <code>content_update</code>, <code>content_publish</code>, <code>content_unpublish</code>, <code>content_delete</code>, the four <code>content_bulk_*</code>, and <code>content_access_set</code>.</span></li>
     <li><b>Annotations</b> → <span class="exp"><code>content_list.readOnlyHint === true</code>; <code>content_delete.readOnlyHint === false</code> and <code>destructiveHint === true</code>.</span></li>
     <li><b>Every tool in the list</b> → <span class="exp"><code>inputSchema.type === 'object'</code> and a non-empty <code>description</code>. The description is the only documentation the model gets.</span></li>
     <li><b>A <code>read</code> token calls <code>content_create</code> by name</b> → <span class="exp"><code>isError: true</code>, <code>403</code>/<code>forbidden</code>. <b>This is the boundary:</b> the list only hides, and a client is free to name a name it was never shown.</span></li>

@@ -937,7 +937,7 @@ html{scroll-behavior:smooth}
     <li><span class="id">I-16</span><span>Listing and revoking somebody else's sessions requires <code>users:update</code>, not <code>users:read</code>.</span></li>
     <li><span class="id">I-17</span><span>The <code>current</code> flag in the session list is true only for the caller's own session.</span></li>
     <li><span class="id">I-18</span><span>An API token's scope is a non-empty workspace set; a non-existent id gives <code>400</code> rather than a token issued "into nowhere".</span></li>
-    <li><span class="id">I-19</span><span>The API-token management routes are reachable only with an administrator's session and never with a bearer token.</span></li>
+    <li><span class="id">I-19</span><span>The API-token management routes are gated on the <code>tokens:read</code> / <code>tokens:create</code> / <code>tokens:delete</code> permissions rather than on the <code>admin</code> role, and answer only to a session — never to a bearer token, not even one of the tokens they mint.</span></li>
     <li><span class="id">I-20</span><span>Any SSO failure is one and the same redirect to <code>?error=sso</code>; no distinguishable reason leaves the system.</span></li>
     <li><span class="id">I-21</span><span>An SSO attempt is consumed <b>before</b> the token exchange, and the exchange happens outside the transaction.</span></li>
     <li><span class="id">I-22</span><span>A first SSO sign-in claims an existing account only with <code>emailVerified: true</code>; <code>pending</code> and <code>disabled</code> are rejected exactly as on the password path.</span></li>
@@ -954,7 +954,7 @@ html{scroll-behavior:smooth}
 
 <section id="qa">
   <h2 class="sec"><span class="num">12</span>Testing checklist</h2>
-  <p class="sub small">Phrased as "action → expected result", so they can go into a test case without rewriting. The server side is exercised with <code>curl</code> + <code>psql</code> and the admin side with a browser; the existing suites are <code>apps/server-e2e/src/server/auth/*</code> (15 files) and <code>apps/admin-e2e/src/auth/*</code> (13 files, including <code>a11y</code>, <code>keyboard</code>, <code>reflow</code> and <code>reduced-motion</code>).</p>
+  <p class="sub small">Phrased as "action → expected result", so they can go into a test case without rewriting. The server side is exercised with <code>curl</code> + <code>psql</code> and the admin side with a browser; the existing suites are <code>apps/server-e2e/src/server/auth/*</code> (21 files) and <code>apps/admin-e2e/src/auth/*</code> (13 files, including <code>a11y</code>, <code>keyboard</code>, <code>reflow</code> and <code>reduced-motion</code>).</p>
 
   <h3>Sign-in and sessions</h3>
   <ul class="check">
