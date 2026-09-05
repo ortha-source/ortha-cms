@@ -294,7 +294,12 @@ locally is a hue nobody measured.
   worth the bookkeeping.
 - **Severity is a word as well as a colour.** Encoding the whole meaning of a
   finding in hue fails WCAG 1.4.1 and fails anyone who cannot tell the three
-  apart.
+  apart. Two surfaces had lost the word without looking like they had: a
+  group header's `sr-only` severity sat inside a `CollapsibleTrigger` carrying
+  an `aria-label`, which **replaces** descendant text in the accessible name,
+  so it was never read; and the records column's summary named the count and
+  the finding titles only, with the glyphs beside it `aria-hidden`. On any
+  element with an `aria-label`, the word has to be part of that label.
 - **Muting one finding at a time is gone.** It shipped, briefly, and was
   withdrawn: an alarm is either right about a record or wrong about it, and
   silencing them individually is a way of living with a bad condition instead of

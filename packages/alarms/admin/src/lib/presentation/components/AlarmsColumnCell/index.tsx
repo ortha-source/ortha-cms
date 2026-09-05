@@ -10,7 +10,7 @@ const messages = defineMessages({
     summary: {
         id: 'alarms.column.summary',
         defaultMessage:
-            '{count, plural, one {# check flagged} other {# checks flagged}}: {titles}'
+            '{severities}. {count, plural, one {# check flagged} other {# checks flagged}}: {titles}'
     }
 });
 
@@ -76,6 +76,14 @@ export function AlarmsColumnCell({ entry, data }: RecordsColumnCellContext) {
         findings.some((finding) => finding.severity === severity)
     );
     const label = intl.formatMessage(messages.summary, {
+        // The severities in words. The glyphs beside them are `aria-hidden`
+        // and their colours are decoration, so without this the cell says how
+        // many checks are flagged and never how badly — severity would be
+        // carried by shape and hue alone, which is the one thing this
+        // invariant forbids.
+        severities: present
+            .map((severity) => intl.formatMessage(severityLook(severity).label))
+            .join(', '),
         count: findings.length,
         titles: findings.map((finding) => finding.title).join(', ')
     });

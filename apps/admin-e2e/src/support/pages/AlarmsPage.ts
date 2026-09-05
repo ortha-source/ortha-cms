@@ -92,10 +92,16 @@ export class AlarmsPage extends BasePage {
 
     // --- findings, grouped by alarm ---
 
-    /** One alarm's collapsible group header, by the alarm's name. */
+    /**
+     * One alarm's collapsible group header, by the alarm's name.
+     *
+     * The accessible name leads with the severity word — `aria-label` on a
+     * button replaces its descendant text, so an `sr-only` word inside the
+     * trigger would never be read — hence the prefix here rather than `^`.
+     */
     group(name: string): Locator {
         return this.page.getByRole('button', {
-            name: new RegExp(`^${name} — `)
+            name: new RegExp(`^(Error|Warning|Info): ${name} — `)
         });
     }
 
