@@ -154,8 +154,8 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
         WorkspacesPlugin(),
         ActivityPlugin(),
         UsersPlugin(),
-        // No content types yet. Define some in `src/server/content/`, pass them
-        // here as `types`, then add a `drizzle.config.ts` pointing at them and
+        // No content types yet. Define some in `apps/server/src/content/`, pass
+        // them here as `types`, then add a `drizzle.config.ts` pointing at them and
         // a `migrations` descriptor so `ortha generate` / `ortha migrate` can
         // manage their tables:
         //
