@@ -43,11 +43,20 @@ export function parserFor(format: TransferFormat): ImportParser {
 }
 
 /**
- * Guesses the format of an uploaded file from its name.
+ * The format an uploaded file's name claims, if it claims one.
  *
- * A guess, and treated as one: it seeds the import dialog's format field, which
- * the reader can change. The bytes decide nothing here — an archive is detected
- * by its signature in `transfer-server`, where the bytes actually are.
+ * Named a guess, but it is not treated as one. Its only caller is
+ * `transfer-server`'s `readUpload`, which reads
+ * `formatFromFilename(name) ?? sniffTextFormat(bytes)` — so among the three
+ * text formats a name that resolves here **decides**, and the bytes are only
+ * consulted when it returns `undefined`. There is no format field on the
+ * import side for it to seed: the request carries a file, a conflict policy
+ * and a relation policy, and nothing else. (The export dialog has one; import
+ * does not.)
+ *
+ * The bytes do win where being wrong is expensive: an archive is detected by
+ * its signature before this is called at all, so a `.zip` renamed to `.json`
+ * is still read as an archive.
  */
 export function formatFromFilename(
     filename: string
