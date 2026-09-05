@@ -1,6 +1,7 @@
 import type { ServerPlugin } from '@orthacms/bootstrap-server';
 import type { ContentServerPlugin } from '@orthacms/content-server';
 import { ContentGraphqlModule } from '../content-graphql.module';
+import { describeGraphqlApi } from '../docs/describe-graphql-api';
 import { assertNoEnvelopeCollisions } from '../schema/build-schema';
 import { assertNoNameCollisions } from '../schema/naming';
 import {
@@ -81,6 +82,10 @@ export function ContentGraphqlPlugin(
     return {
         name: 'content-graphql',
         module: ContentGraphqlModule.forRoot(resolved, { playground }),
-        graphqlConfig: resolved
+        graphqlConfig: resolved,
+        // One route serving a schema that varies per workspace grant set is
+        // exactly the contract `@nestjs/swagger` cannot reflect. What the pass
+        // describes is the envelope around the answer, not the answer.
+        docs: { decorate: describeGraphqlApi }
     };
 }

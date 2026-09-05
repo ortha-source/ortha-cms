@@ -390,6 +390,15 @@ error, and type the barrel exports keeps its path, so no consumer import moved.
   artefact. `/api/users/{id}/sessions` is described here, not by
   `@orthacms/users-server`, because identity serves it — the two plugins share
   the `/api/users` prefix and each names only its own tails.
+  `/api/preferences` is described by a **second** pass in the same folder
+  (`describe-preferences-api.ts`), composed into the same `decorate`. It is
+  separate because the route is a different kind of thing: self-service, gated
+  by nothing but the session, and answering a `Pick<>` over a Drizzle row rather
+  than one of identity's view interfaces. One schema serves both methods, and
+  that is a fact rather than a shortcut — `PreferencesService.save` projects the
+  same `PREFERENCE_COLUMNS` out of its upsert's `RETURNING` that `get` selects,
+  so a `PUT` echoes exactly what the next `GET` would return, with no
+  server-assigned field and no `userId` on the wire.
 - **RBAC seeding.** `seedSystemRoles` writes the permission catalogue, the three
   roles, and their grants in one transaction, each via `ON CONFLICT DO NOTHING`
   — so it is idempotent and concurrency-safe across simultaneously booting

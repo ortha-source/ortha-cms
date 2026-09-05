@@ -265,6 +265,36 @@ content refused GraphiQL and every codegen tool at the defaults.
 throttle either (only login does). Worth its own issue; `request.apiToken.id` is
 the natural key.
 
+## What the OpenAPI document says about this endpoint (`src/lib/docs/`)
+
+The endpoint is visible to the Scalar reference (that is one of the things
+decision 2 buys), and `docs.decorate` gives its two operations response schemas.
+The interesting part is the line it draws.
+
+**The envelope is described exactly; `data` is not, on purpose.**
+`{ data, errors }` is fixed, and `errors` is shaped by this package's own
+`execution/errors.ts` — so both are written out in full, down to which
+`extensions` keys appear and when. `data` is described as the open object it is,
+with a description naming the thing that _does_ describe it: the GraphQL schema,
+served as SDL by `GET /v1/graphql` and reachable by introspection. A union of
+the content types there would look more useful and be a lie twice over — the
+schema is built **per workspace grant set**, so there is no one set of types
+this route returns, and a selection set asking for three fields matches none of
+the per-type schemas anyway.
+
+**The 200 says what a 200 means here.** `@HttpCode(HttpStatus.OK)` on a `@Post`
+plus an errors array instead of a throw means a refused document, a permission
+failure and a resolver error are all `200`s; the description says so, and points
+at `extensions.status` for the status a REST consumer used to branch on. The
+`GET` is `text/plain`, not JSON — it carries `@Header('Content-Type',
+'text/plain; charset=utf-8')` and returns SDL.
+
+Two shapes were read off live responses rather than assumed: only `message` is
+required on an error (a cost-limit refusal carries `message` + `extensions` and
+no `locations`; a validation failure the reverse), and `data` and `errors`
+routinely appear **together** — a nullable field that threw comes back with the
+rest of the data beside the error.
+
 ## The playground (`GET /v1/graphql/playground`)
 
 GraphiQL, the GraphQL counterpart of the Scalar reference at `/reference` — and

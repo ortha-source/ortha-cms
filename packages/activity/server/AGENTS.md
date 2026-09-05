@@ -68,6 +68,27 @@ Under `/api/activity`:
     replaying a parked row means clearing its `attempts`, a deliberate operator
     action against a fixed cause.
 
+## The plugin describes its own responses (`src/lib/docs/`)
+
+`ActivityEventView`, `ActivityListView` and `DeadLetterListView` are TypeScript
+`interface`s, so the OpenAPI scanner emitted a bare `200` with no payload for
+all three routes. `docs.decorate` writes the schemas on instead — the mechanism
+and the reasoning are in
+[`bootstrap/server`](../../bootstrap/server/AGENTS.md#the-response-schema-gap).
+
+Two of the shapes are worth stating rather than inferring:
+
+- **`kind`, `subjectType` and `actorType` are open strings, and stay open in the
+  document.** Each emitting plugin owns its own kinds — that is the point of a
+  generic sink — so an `enum` here would be a contract this package cannot keep,
+  and `actor_type` is a plain text column that a row written before it existed
+  leaves `null`.
+- **A dead letter is the projection, not the row.**
+  `OutboxDispatcher.deadLetters` selects seven columns and deliberately leaves
+  the `payload` behind — it is arbitrary domain data, some of it user-authored,
+  read over HTTP by an operator asking _what_ is stuck. Describing the table
+  instead of the projection would advertise a field the route does not return.
+
 ## Recording (outbox subscriber — the live path)
 
 `activity/infrastructure/audit-event.subscriber.ts` (`AuditEventSubscriber`) is
