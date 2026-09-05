@@ -110,6 +110,56 @@
     }
 }
 
+/* The indeterminate loading spinner.
+
+   Tailwind's `animate-spin` used to do this, and it was the one animation in
+   the library that kept running under `prefers-reduced-motion: reduce` — a
+   continuous full rotation, which is the shape of motion that vestibular
+   disorders react to most.
+
+   It is **not** simply suppressed, and the distinction is the whole point. A
+   stopped loader reads as a frozen app: an indeterminate spinner's only job is
+   to say "still working, nothing is wrong", and a user who asked for less
+   motion did not ask to be told less. WCAG 2.3.3 is about non-essential
+   *motion*; the feedback is essential, so what goes is the movement, not the
+   message.
+
+   So the reduced-motion branch keeps the glyph and swaps rotation for a slow
+   breath — **opacity only, the element never moves a pixel**. At a 1.6s cycle
+   that is 0.625 Hz, two orders of magnitude below the 3 Hz flash threshold of
+   WCAG 2.3.1, and it stays above 0.35 opacity so the shape never disappears
+   and reappears.
+
+   Owned here rather than composed out of `animate-spin` +
+   `motion-reduce:animate-none` because there is no Tailwind utility for the
+   replacement, and a rule whose two halves live in two files is a rule someone
+   deletes half of. */
+@keyframes ds-spinner-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes ds-spinner-breathe {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.35;
+    }
+}
+
+.ds-spinner {
+    animation: ds-spinner-spin 1s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ds-spinner {
+        animation: ds-spinner-breathe 1.6s ease-in-out infinite;
+    }
+}
+
 /* Interactive controls point.
 
    Tailwind v4's preflight no longer sets `cursor: pointer` on buttons — the

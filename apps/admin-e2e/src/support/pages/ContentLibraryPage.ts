@@ -893,7 +893,7 @@ export class ContentLibraryPage extends BasePage {
      * scrim uses.
      */
     get entryChecksSpinner(): Locator {
-        return this.entryChecksSection.locator('svg.animate-spin');
+        return this.entryChecksSection.locator('svg.ds-spinner');
     }
 
     /** Turn on the optional **Checks** column via the column picker. */

@@ -294,6 +294,20 @@ describe('library-wide source conventions', () => {
  * enumerates every animation the library actually ships.
  */
 describe('motion', () => {
+    /**
+     * Properties a reduced-motion replacement animation may touch: ones that
+     * cannot displace, rotate or resize anything. `transform` is the whole
+     * point of the list being a list.
+     */
+    const MOTIONLESS = new Set([
+        'opacity',
+        'color',
+        'background-color',
+        'border-color',
+        'fill',
+        'stroke'
+    ]);
+
     // Comments out: this file is mostly prose, and an unstripped `/* … */`
     // above a rule would be swallowed into that rule's selector.
     const styles = readFileSync(join(srcRoot, 'styles.css'), 'utf8').replace(
@@ -322,6 +336,16 @@ describe('motion', () => {
         );
     }
 
+    /** The property names one `@keyframes` block declares. */
+    function keyframeProperties(name: string): string[] {
+        const block = styles.match(
+            new RegExp(`@keyframes ${name} \\{([\\s\\S]*?)\\n\\}`)
+        );
+        return [...(block?.[1] ?? '').matchAll(/([a-z-]+)\s*:/g)].map(
+            ([, property]) => property
+        );
+    }
+
     /** Selectors turned off inside a reduced-motion block. */
     const suppressed = new Set(
         [...styles.matchAll(reducedMotionBlock)].flatMap(([block]) =>
@@ -331,21 +355,52 @@ describe('motion', () => {
         )
     );
 
+    /**
+     * Selectors a reduced-motion block gives a *different* animation to, one
+     * that declares no property capable of moving anything.
+     *
+     * `animation: none` is the usual answer and the safe default, but it is not
+     * the only correct one. An indeterminate loading spinner that stops reads
+     * as a frozen app, and the rule being enforced is about **motion**, not
+     * about withholding feedback — so a replacement is allowed here exactly
+     * when it cannot move the element: opacity and colour, never `transform`.
+     */
+    const motionFree = new Set(
+        [...styles.matchAll(reducedMotionBlock)].flatMap(([block]) =>
+            rulesIn(block)
+                .filter((rule) => rule.animation && rule.animation !== 'none')
+                .filter((rule) => {
+                    const name = (rule.animation as string).split(/\s+/)[0];
+                    const properties = keyframeProperties(name);
+                    return (
+                        properties.length > 0 &&
+                        properties.every((property) =>
+                            MOTIONLESS.has(property)
+                        )
+                    );
+                })
+                .flatMap((rule) => rule.selectors)
+        )
+    );
+
     it('finds the stylesheet it is meant to parse', () => {
         expect(suppressed.size).toBeGreaterThan(0);
     });
 
     it('suppresses every animation the stylesheet declares [design-system:I-30]', () => {
-        // Every rule that starts an animation, matched against the set above.
-        // Add a keyframed class to `styles.css` without a reduced-motion twin
-        // and it lands here.
+        // Every rule that starts an animation, matched against the two sets
+        // above. Add a keyframed class to `styles.css` without a reduced-motion
+        // twin — of either kind — and it lands here.
         const animated = rulesIn(styles.replace(reducedMotionBlock, ''))
             .filter((rule) => rule.animation && rule.animation !== 'none')
             .flatMap((rule) => rule.selectors);
 
         expect(animated.length).toBeGreaterThan(0);
         expect(
-            animated.filter((selector) => !suppressed.has(selector))
+            animated.filter(
+                (selector) =>
+                    !suppressed.has(selector) && !motionFree.has(selector)
+            )
         ).toEqual([]);
     });
 

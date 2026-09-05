@@ -82,7 +82,7 @@ export function AttachmentChip({
     const body = (
         <>
             {uploading ? (
-                <Loader2 className="size-3.5 shrink-0 animate-spin" />
+                <Loader2 className="size-3.5 shrink-0 ds-spinner" />
             ) : failed ? (
                 <TriangleAlert className="size-3.5 shrink-0" />
             ) : (
