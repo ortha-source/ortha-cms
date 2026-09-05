@@ -130,3 +130,72 @@ describe('an SSO provider', () => {
         });
     });
 });
+
+/**
+ * A key the generated `.env` ships blank.
+ *
+ * `env.tmpl` writes twenty-odd keys with nothing on the right-hand side —
+ * that is how an operator finds out a setting exists — so "present but empty"
+ * is the *default* state of a fresh app, not a mistake somebody has to make.
+ * `??` falls back on `undefined`, never on `''`, so a raw
+ * `process.env['X'] ?? default` in `config/` lets an untouched line beat the
+ * default it was there to fall back to. These load the rendered modules and
+ * pass the blank in.
+ */
+describe('a setting written into .env with no value', () => {
+    it('leaves the OIDC provider name at its default rather than naming it ""', () => {
+        // Registered under `''`, the provider's callback is
+        // `/api/auth/sso//callback`, and nothing reports it at boot.
+        process.env['SSO_OIDC_ISSUER'] = 'https://issuer.test';
+        process.env['SSO_OIDC_CLIENT_ID'] = 'client';
+        process.env['SSO_OIDC_NAME'] = '';
+
+        expect(
+            load<{ oidcProvider: () => { name: string } | undefined }>(
+                ['media-local', 'rest', 'sso-oidc'],
+                'apps/server/config/sso-oidc'
+            ).oidcProvider()
+        ).toMatchObject({ name: 'oidc' });
+    });
+
+    it('keeps the default upload root rather than writing blobs to ""', () => {
+        process.env['MEDIA_LOCAL_ROOT'] = '';
+
+        expect(
+            load<{ mediaStorage: () => { rootDir: string } }>(
+                ['media-local', 'rest'],
+                'apps/server/config/media-storage'
+            ).mediaStorage()
+        ).toEqual({ rootDir: './.storage/media' });
+    });
+
+    it('keeps the default S3 region rather than signing for region ""', () => {
+        // R2 rejects a request signed for the empty region, and the AWS SDK
+        // builds an endpoint from it — neither failure names the variable.
+        process.env['MEDIA_S3_BUCKET'] = 'uploads';
+        process.env['MEDIA_S3_REGION'] = '';
+
+        expect(
+            load<{ mediaStorage: () => { region: string } }>(
+                ['media-s3', 'rest'],
+                'apps/server/config/media-storage'
+            ).mediaStorage()
+        ).toMatchObject({ region: 'auto' });
+    });
+
+    it('refuses a root administrator password made of spaces', () => {
+        // Untrimmed, `'   '` passed identity's own `if (!password)` guard and
+        // became the administrator's actual password.
+        process.env['ORTHA_ROOT_ADMIN_EMAIL'] = 'admin@example.test';
+        process.env['ORTHA_ROOT_ADMIN_PASSWORD'] = '   ';
+
+        expect(
+            load<{
+                identityConfig: () => { rootAdmin: { password: string } };
+            }>(
+                ['media-local', 'rest'],
+                'apps/server/config/identity'
+            ).identityConfig().rootAdmin.password
+        ).toBe('');
+    });
+});

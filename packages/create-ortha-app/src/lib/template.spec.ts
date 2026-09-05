@@ -652,3 +652,45 @@ describe('a file the template ships as data', () => {
         }
     });
 });
+
+/**
+ * The template's `config/` reads the environment only through the shared
+ * readers.
+ *
+ * `readEnv` is where "an empty value means the setting is absent" is decided,
+ * once, so that a key `env.tmpl` ships blank leaves the setting unconfigured
+ * rather than configured to `''`. A raw `process.env['X'] ?? default` skips
+ * that decision and hands the blank line the win: `SSO_OIDC_NAME=` produced a
+ * provider named `''` and a callback of `/api/auth/sso//callback`, silently.
+ *
+ * Checked against the template *source* rather than a rendering, because each
+ * `ortha:if` block carries its own imports and only one survives — the source
+ * is the one place every adapter's body is visible at once, so no combination
+ * can hide a raw read behind a feature this fixture happens not to enable.
+ *
+ * A grep rather than an assertion on values: a raw read and a `readEnv` read
+ * agree on every input except the blank one, which is exactly the input the
+ * author of the next config module will not think to try.
+ */
+describe("the generated app's config modules", () => {
+    const CONFIG = 'apps/server/config';
+
+    const configFiles = templateFiles().filter(
+        (file) => file.startsWith(CONFIG) && file.endsWith('.ts')
+    );
+
+    it.each(configFiles)('%s names no process.env of its own', (file) => {
+        // A subscript, not the bare identifier: `ortha.config.ts`'s header
+        // prose names `process.env` deliberately, and so may a comment here.
+        expect(readFileSync(join(TEMPLATE, file), 'utf8')).not.toMatch(
+            /process\.env\s*\[/
+        );
+    });
+
+    it('finds the modules it is meant to be checking', () => {
+        // Without this the suite above passes on a renamed folder or an
+        // extension filter that stopped matching — the shape that lets a
+        // structural test go quietly green over nothing.
+        expect(configFiles.length).toBeGreaterThan(5);
+    });
+});

@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { OrthaConfig } from '../ortha.config';
 
 /**
@@ -303,5 +305,136 @@ describe('copilot provider registration', () => {
         // now — it would put a backend nobody runs at the top of the list.
         expect(ollama?.baseUrl).toBe('http://localhost:11434/v1');
         expect(ollama?.models).toEqual(['llama3.1']);
+    });
+});
+
+/**
+ * A key that is present but blank.
+ *
+ * `.env.example` ships forty-two keys with nothing on the right-hand side and
+ * the documented flow is to copy it to `.env`, so the state under test here is
+ * not an edge case — it is what following the instructions produces. `??` falls
+ * back on `undefined`, not on `''`, so every `process.env['X'] ?? default` in
+ * this folder handed the blank line the win over the default it was meant to
+ * fall back to. The readers in `@orthacms/utils-server` decide "empty means not
+ * configured" once; these assert each site actually goes through them.
+ *
+ * Each case sets the *other* variables it needs, because `loadConfig` layers
+ * over the ambient environment and this machine's `.env` is exactly the file
+ * that carries the blanks.
+ */
+describe('a variable that is set but empty', () => {
+    const oidc = {
+        SSO_OIDC_ISSUER: 'https://issuer.test',
+        SSO_OIDC_CLIENT_ID: 'client'
+    };
+
+    it('leaves the provider name at its default rather than naming it ""', () => {
+        // The reported defect. A provider named `''` is registered under the
+        // empty string, so its callback is `/api/auth/sso//callback` — and
+        // nothing says so at boot, or ever.
+        const { oidc: provider } = loadConfig({
+            ...oidc,
+            SSO_OIDC_NAME: ''
+        }).plugins.identity.ssoProviders;
+
+        expect(provider?.name).toBe('oidc');
+    });
+
+    it('honours a name that was actually set', () => {
+        // The other half: "empty means absent" must not become "ignore it".
+        expect(
+            loadConfig({ ...oidc, SSO_OIDC_NAME: 'staff' }).plugins.identity
+                .ssoProviders.oidc?.name
+        ).toBe('staff');
+    });
+
+    it('lets SSO_PUBLIC_BASE_URL through a blank SSO_SAML_ISSUER', () => {
+        // The worst of the set, because the blank was not merely losing its own
+        // default — it was shadowing a value the operator *had* set, one `??`
+        // to its right, and leaving the SAML entity id empty.
+        const { saml } = loadConfig({
+            SSO_SAML_ENTRY_POINT: 'https://idp.test/sso',
+            SSO_SAML_IDP_CERT: 'CERT',
+            SSO_SAML_ISSUER: '',
+            SSO_PUBLIC_BASE_URL: 'https://cms.example.test'
+        }).plugins.identity.ssoProviders;
+
+        expect(saml?.issuer).toBe('https://cms.example.test');
+    });
+
+    it('provisions into the default role rather than a role named ""', () => {
+        // A role named `''` matches no row in `roles`, so just-in-time
+        // provisioning fails on the first sign-in it was configured for.
+        expect(
+            loadConfig({
+                SSO_PROVISION_DOMAINS: 'example.test',
+                SSO_PROVISION_ROLE: ''
+            }).plugins.identity.sso?.provisioning?.defaultRole
+        ).toBe('viewer');
+    });
+
+    it('keeps the default upload root rather than writing blobs to ""', () => {
+        expect(
+            loadConfig({ MEDIA_LOCAL_ROOT: '' }).plugins.media.storage.rootDir
+        ).toBe('./.storage/media');
+    });
+
+    it('turns password login off for a value with a stray space', () => {
+        // `'false ' !== 'false'` was true, so the switch failed *open*: an
+        // operator who meant to require SSO kept password login enabled.
+        expect(
+            loadConfig({ SSO_ALLOW_PASSWORD_LOGIN: 'false ' }).plugins.identity
+                .sso?.allowPasswordLogin
+        ).toBe(false);
+    });
+
+    it('refuses a root administrator password made of spaces', () => {
+        // Untrimmed, `'   '` passed identity's own `if (!password)` guard and
+        // became the administrator's actual password.
+        expect(
+            loadConfig({
+                ORTHA_ROOT_ADMIN_EMAIL: 'admin@example.test',
+                ORTHA_ROOT_ADMIN_PASSWORD: '   '
+            }).plugins.identity.rootAdmin?.password
+        ).toBe('');
+    });
+});
+
+/**
+ * The rule that keeps the block above from being needed again.
+ *
+ * Every one of those defects was the same edit: someone needed a string with a
+ * default, reached for `process.env['X'] ?? 'y'`, and skipped the one place
+ * "empty means not configured" is decided. Nothing stopped them — the rule was
+ * prose in `AGENTS.md` and a sentence in `ortha.config.ts`'s header. The
+ * behavioural tests pin the six sites that were wrong; this pins the seventh
+ * nobody has written yet.
+ *
+ * Deliberately a grep over source text rather than a check of values. There is
+ * no runtime signal to assert on: a raw read and a `readEnv` read return the
+ * same thing for every input except the blank one, which is exactly the input a
+ * new site's author will not think to try.
+ */
+describe('config/ reads the environment only through the shared readers', () => {
+    const CONFIG = join(__dirname, '../config');
+
+    it.each(readdirSync(CONFIG).filter((name) => name.endsWith('.ts')))(
+        'config/%s names no process.env of its own',
+        (name) => {
+            const source = readFileSync(join(CONFIG, name), 'utf8');
+            // Comments may name it — the header of `env.ts` explains why the
+            // derivation there is a constant — so this looks for a subscript,
+            // which is the only shape a read takes in this folder.
+            expect(source).not.toMatch(/process\.env\s*\[/);
+        }
+    );
+
+    it('finds the modules it is meant to be checking', () => {
+        // Without this the suite above passes on an empty folder, a renamed
+        // directory, or a `.ts` filter that stopped matching.
+        expect(
+            readdirSync(CONFIG).filter((name) => name.endsWith('.ts')).length
+        ).toBeGreaterThan(5);
     });
 });
