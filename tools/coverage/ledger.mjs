@@ -91,15 +91,47 @@ const REPLACING = new Set(['not-mechanically-checkable', 'stale', 'needs-live-st
 
 /* ------------------------------------------------------------------ parsing */
 
+/**
+ * The named entities the dossiers actually use, plus the typographic ones an
+ * editor reaches for. Anything numeric is decoded generically, so a dossier
+ * that starts spelling a character by code point does not smuggle the entity
+ * into the ledger as literal text.
+ *
+ * `&amp;` is decoded **last**: doing it first turns `&amp;quot;` — an escaped
+ * entity, meant to be read as one — into a real quote.
+ */
+const ENTITIES = {
+    lt: '<',
+    gt: '>',
+    quot: '"',
+    apos: "'",
+    nbsp: ' ',
+    mdash: '\u2014',
+    ndash: '\u2013',
+    hellip: '\u2026',
+    rsquo: '\u2019',
+    lsquo: '\u2018',
+    ldquo: '\u201c',
+    rdquo: '\u201d',
+    times: '\u00d7',
+    rarr: '\u2192',
+    larr: '\u2190',
+    deg: '\u00b0',
+    middot: '\u00b7',
+    bull: '\u2022',
+    laquo: '\u00ab',
+    raquo: '\u00bb'
+};
+
 const stripTags = (s) =>
     s
         .replace(/<[^>]+>/g, '')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
+        .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
+        .replace(/&#[xX]([0-9a-fA-F]+);/g, (_, code) =>
+            String.fromCodePoint(parseInt(code, 16))
+        )
+        .replace(/&([a-zA-Z]+);/g, (whole, name) => ENTITIES[name] ?? whole)
         .replace(/&amp;/g, '&')
-        .replace(/&quot;/g, '"')
-        .replace(/&#39;/g, "'")
-        .replace(/&nbsp;/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();
 
