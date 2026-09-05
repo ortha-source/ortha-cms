@@ -314,3 +314,53 @@ describe('pack.mjs, for a plugin that ships migrations', () => {
         expect(stagedManifest().files).toEqual(['dist', 'migrations']);
     });
 });
+
+/**
+ * What the tarball's `dependencies` say, which is not what the checked-in
+ * manifest says. Four dossiers describe a domain package as having "no
+ * dependencies" on the strength of its own `package.json`; the staged
+ * manifest is the one a consumer installs from, and `pack.mjs` writes
+ * `tslib` into it unconditionally because `importHelpers` is on
+ * workspace-wide. Nothing pinned that until here.
+ */
+describe('pack.mjs, resolving what a package depends on', () => {
+    it('gives a package that declares nothing a tslib to run against', () => {
+        root = workspace(baseManifest);
+
+        pack();
+
+        // The source never mentions tslib — the emitted JS reaches for it.
+        expect(stagedManifest().dependencies).toEqual({ tslib: '^2.3.0' });
+    });
+
+    it('keeps a tslib the package pinned for itself', () => {
+        root = workspace({
+            ...baseManifest,
+            dependencies: { tslib: '^2.99.0' }
+        });
+
+        pack();
+
+        expect(stagedManifest().dependencies).toEqual({ tslib: '^2.99.0' });
+    });
+
+    it('pins a workspace dependency declared as "*" to its version', () => {
+        root = workspace({
+            ...baseManifest,
+            dependencies: { '@orthacms/database': '*' }
+        });
+        writeJson(join(root, 'packages/database/package.json'), {
+            name: '@orthacms/database',
+            version: '4.5.6'
+        });
+
+        pack();
+
+        // "*" on the registry means "whatever is latest", never what this
+        // was built against.
+        expect(stagedManifest().dependencies).toEqual({
+            '@orthacms/database': '^4.5.6',
+            tslib: '^2.3.0'
+        });
+    });
+});
