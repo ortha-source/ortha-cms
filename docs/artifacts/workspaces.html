@@ -1181,7 +1181,7 @@ html{scroll-behavior:smooth}
     <li><b>In parallel: creating an entry and deleting the workspace</b> → <span class="exp">serialised by the lock, with no orphaned entries.</span></li>
     <li><b>After deletion, sweep every workspace-scoped table</b> → <span class="exp">nothing is left behind: the six cascading tables and the seven purged ones (<code>media_asset</code>, <code>media_folder</code>, <code>api_token_workspaces</code>, <code>alarm_rules</code>, <code>alarm_findings</code>, <code>entry_access</code>, <code>content_entry_revisions</code>) all count zero. <code>workspace-delete-residue.spec.ts</code> is the exhaustive version of this check.</span></li>
     <li><b>After deletion, check <code>segments.workspace_ids</code></b> → <span class="exp">the dead id <b>stays</b>, and that is correct rather than residue: an empty <code>workspace_ids</code> means “every workspace”, so pruning the last id would <em>widen</em> who may read.</span></li>
-    <li><b>After deletion, check <code>webhook_endpoint_workspaces</code></b> → <span class="exp">the rows remain — the one genuine uncovered remainder. It has no foreign key and registers no purger, and the residue sweep does not reach it.</span></li>
+    <li><b>After deletion, check <code>webhook_endpoint_workspaces</code></b> → <span class="exp">gone. It has no foreign key, so <code>webhooks</code> registers a purger like the other five, and the table is now in the residue sweep. An endpoint that named only the deleted workspace survives with an empty set, which means "no workspace-carrying event" rather than "all" — the <code>all_workspaces</code> boolean is what makes that unambiguous.</span></li>
   </ul>
 
   <h3>Permissions</h3>

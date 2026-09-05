@@ -5,7 +5,7 @@
  *
  * Each dossier ends with a numbered list of invariants ("statements that must
  * always hold ... at once a review list and a draft set of test assertions").
- * There are 816 of them across 26 dossiers, and until this ledger existed not
+ * There are 817 of them across 26 dossiers, and until this ledger existed not
  * one was referenced from a spec: nothing said which invariants were tested,
  * so "is this package covered?" could only be answered by re-reading both
  * sides. That question gets asked once per sweep, so it needed a cheap answer.

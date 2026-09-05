@@ -1,7 +1,7 @@
 {
     "$generated": "tools/coverage/ledger.mjs build — do not hand-edit; author judgments.json instead",
     "source": "docs/artifacts/*.html §13 Invariants",
-    "count": 816,
+    "count": 817,
     "checklists": {
         "activity": [
             "Write-path coverage — the main thing",
@@ -7210,6 +7210,16 @@
                 "unit"
             ],
             "text": "Both permission keys are administrator-only, and the editor page requires webhooks:manage, not merely webhooks:read."
+        },
+        {
+            "id": "webhooks:I-19",
+            "package": "webhooks",
+            "axes": [
+                "admin-e2e",
+                "server-e2e",
+                "unit"
+            ],
+            "text": "Deleting a workspace removes it from every endpoint's subscription set, and never removes the endpoint. Pruning is safe here precisely because all_workspaces is a separate boolean: an empty set means \"none\", so a prune can only narrow — the opposite of segments.workspace_ids, where an empty set means \"every workspace\" and the same prune would widen."
         },
         {
             "id": "workspaces:I-01",

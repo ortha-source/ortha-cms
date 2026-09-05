@@ -2,7 +2,7 @@
 
 Each dossier in [`docs/artifacts/`](../artifacts/) ends with a numbered list of
 **invariants** — "statements that must always hold ... at once a review list and
-a draft set of test assertions". There are **816** of them across 26 dossiers.
+a draft set of test assertions". There are **817** of them across 26 dossiers.
 This directory is the traceability layer between those statements and the tests
 that actually pin them down.
 

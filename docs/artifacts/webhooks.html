@@ -695,6 +695,7 @@ html{scroll-behavior:smooth}
     <li><span class="id">I-16</span><span><code>claimTimeoutMs &gt; timeoutMs</code> is checked at boot. The plugin refuses to start otherwise.</span></li>
     <li><span class="id">I-17</span><span>The response snippet stored is capped at <code>responseSnippetBytes</code>.</span></li>
     <li><span class="id">I-18</span><span>Both permission keys are administrator-only, and the editor page requires <code>webhooks:manage</code>, not merely <code>webhooks:read</code>.</span></li>
+    <li><span class="id">I-19</span><span>Deleting a workspace removes it from every endpoint's subscription set, and never removes the endpoint. Pruning is safe here precisely because <code>all_workspaces</code> is a separate boolean: an empty set means "none", so a prune can only narrow — the opposite of <code>segments.workspace_ids</code>, where an empty set means "every workspace" and the same prune would widen.</span></li>
   </ul>
 </section>
 
@@ -778,7 +779,7 @@ html{scroll-behavior:smooth}
     <li><b>The outbox owns delivery to subscribers.</b> Ordering, the attempt budget and dead-lettering of the <b>event</b> are <code>database</code>'s; retries of the <b>HTTP request</b> are this package's. The two ladders are deliberately separate.</li>
     <li><b>Identity owns authorisation.</b> Both keys live in the system-role table; this package only names them on its guards.</li>
     <li><b>Media, users, workspaces and tokens are out.</b> They raise domain events and are not offered here yet. Adding one is a catalogue entry plus a payload contract — cheap, and deliberately not done on speculation.</li>
-    <li><b>No workspace purger.</b> Deleting a workspace does not strip its id from <code>webhook_endpoint_workspaces</code>. See the discrepancies below.</li>
+    <li><b>Workspace deletion.</b> <code>WebhookWorkspacesPurger</code> registers with the <code>workspaces</code> plugin's purge registry from <code>onModuleInit</code> and strips the dead id from <code>webhook_endpoint_workspaces</code> inside the delete transaction. The endpoint itself is never touched — see I-19.</li>
   </ul>
 </section>
 
@@ -787,7 +788,7 @@ html{scroll-behavior:smooth}
   <p class="sub small">Everything here was found by reading the source. Nothing in this list is a bug filed against a promise the code makes — they are the places where the shipped behaviour and a reasonable expectation of it diverge.</p>
 
   <ul>
-    <li><b>A deleted workspace leaves rows behind.</b> <code>webhook_endpoint_workspaces</code> holds a bare <code>workspace_id</code> with no FK and this package implements no <code>WorkspacePurger</code>. The stale id is harmless — no event will ever carry it again — but it joins the same class of leftovers the <code>workspaces</code> and <code>alarms</code> dossiers already flagged.</li>
+    <li><b>A deleted workspace left rows behind. Fixed 2026-09-05.</b> <code>webhook_endpoint_workspaces</code> holds a bare <code>workspace_id</code> with no FK, and this package implemented no <code>WorkspacePurger</code>, so fan-out re-read the dead rows on every content write. This entry called the stale id "harmless — no event will ever carry it again", which is exactly the reasoning that let it sit: it is true of correctness and false of everything else, and it was the last member of a class the <code>workspaces</code> and <code>alarms</code> dossiers had already flagged twice. <code>WebhookWorkspacesPurger</code> now removes them, pinned by <code>workspace-delete-residue.spec.ts</code>.</li>
     <li><b>The signing secret is not encrypted at rest.</b> Deliberate and explained in section 10, but worth a decision: a deployment key would make a database dump less interesting without changing any of the flows.</li>
     <li><b>Header values are readable by every administrator.</b> The API returns them in full. That is the same audience that can rotate the secret, so it is defensible — but a bearer token for a third-party system is a credential this product now stores and shows.</li>
     <li><b>There is no per-endpoint rate limit.</b> A workspace-wide bulk publish of a thousand entries queues a thousand deliveries, and the worker will send them as fast as <code>batchSize</code> and the interval allow. A receiver's own <code>429</code> plus <code>Retry-After</code> is the only brake today.</li>

@@ -1,6 +1,6 @@
 ---
 name: coverage-sweep
-description: Running the invariant qualification pass — establishing, for the first time, that the system does what its dossiers say, by connecting each of the 816 numbered invariants in docs/artifacts/ to a test that would fail if it broke. Tracked in the ledger at docs/coverage/. Covers the ledger contract and its states, the citation bar, batching by harness rather than by package, the two anti-patterns that produce tests which cannot fail, where the combinatorics belong versus what the live-stack pass is for, the fan-out mechanics for one agent per package, and the operational traps in the three harnesses. Use when triaging a package's invariants, closing coverage gaps, verifying against a live stack, or continuing the pass in a later session.
+description: Running the invariant qualification pass — establishing, for the first time, that the system does what its dossiers say, by connecting each of the 817 numbered invariants in docs/artifacts/ to a test that would fail if it broke. Tracked in the ledger at docs/coverage/. Covers the ledger contract and its states, the citation bar, batching by harness rather than by package, the two anti-patterns that produce tests which cannot fail, where the combinatorics belong versus what the live-stack pass is for, the fan-out mechanics for one agent per package, and the operational traps in the three harnesses. Use when triaging a package's invariants, closing coverage gaps, verifying against a live stack, or continuing the pass in a later session.
 user-invocable: true
 allowed-tools: Read, Edit, Write, Glob, Grep, Bash, Agent
 ---
@@ -9,7 +9,7 @@ allowed-tools: Read, Edit, Write, Glob, Grep, Bash, Agent
 
 Every package dossier in `docs/artifacts/` ends with a numbered list of
 **invariants** — statements the dossier itself calls "a draft set of test
-assertions". There are 816 across 26 dossiers. This pass connects each one to a
+assertions". There are 817 across 26 dossiers. This pass connects each one to a
 test that would fail if it broke, and writes the test where none exists.
 
 The ledger lives in `docs/coverage/` and is documented in its own
@@ -231,5 +231,5 @@ these five, and nothing softer:
 5. `check --strict` in CI, so point 1 cannot rot back.
 
 Points 1 and 5 are the answer to "is every case covered?" — not an assurance that
-we tried, but 816 named statements, each either pinned by a test or explicitly
+we tried, but 817 named statements, each either pinned by a test or explicitly
 declared unreachable with a stated reason.
