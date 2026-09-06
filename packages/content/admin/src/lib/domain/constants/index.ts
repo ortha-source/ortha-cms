@@ -86,6 +86,18 @@ export const ENTRY_TAB = {
      * would match the segment while `entryTabFromPath` could not resolve it.
      */
     Access: 'access',
+    /**
+     * What was **done** to this record and by whom — contributed by
+     * `@orthacms/activity-admin`. Declared here for the same reason as Access:
+     * the set is closed, because the route table would match a segment
+     * `entryTabFromPath` could not resolve.
+     *
+     * Next to History and deliberately not the same thing: History is the
+     * revision timeline (what the words were at each save), which cannot say
+     * who published the record, who took it down, or who changed who may read
+     * it.
+     */
+    Activity: 'activity',
     History: 'history'
 } as const;
 

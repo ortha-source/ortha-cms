@@ -17,6 +17,7 @@ import {
 } from '../../components/ResetPasswordForm';
 import { usePasswordReset } from '../../../application/usePasswordReset';
 import { useResetPasswordMutation } from '../../../application/useResetPasswordMutation';
+import { rateLimitMessage } from '../../rateLimitMessage';
 
 /** Intl descriptors for {@link ResetPasswordPage}, co-located with the component. */
 const messages = defineMessages({
@@ -160,13 +161,16 @@ export function ResetPasswordPage() {
     }
 
     const errorMessage = error
-        ? intl.formatMessage(
+        ? // Before the generic branch: this route carries `ThrottlerGuard` too,
+          // and a 429 is a temporary answer, not a broken request.
+          (rateLimitMessage(intl, error) ??
+          intl.formatMessage(
               error.status === HTTP_STATUS.NOT_FOUND
                   ? messages.linkExpired
                   : error.status === HTTP_STATUS.BAD_REQUEST
                     ? messages.rejected
                     : messages.generic
-          )
+          ))
         : undefined;
 
     return (

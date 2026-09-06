@@ -777,7 +777,10 @@ editor); `@orthacms/transfer-admin` fills three (`ENTRY_MENU_SLOT` and
 `RECORDS_BULK_ACTION_SLOT` to export, `RECORDS_MENU_SLOT` to import);
 `@orthacms/segments-admin` fills three (`ENTRY_HEADER_SLOT`, the restricted chip;
 `ENTRY_TAB_SLOT`, the Access tab; and `ENTRY_PRESAVE_SLOT`, which is what applies
-an entry's audiences on Save rather than on a button of its own).
+an entry's audiences on Save rather than on a button of its own);
+`@orthacms/activity-admin` fills one (`ENTRY_TAB_SLOT`, the **Activity** tab —
+who did what to this record, which the revision-timeline History tab cannot
+answer).
 **Slot items are boot-frozen**
 (`createAdmin` registers them once, before the first render), which is what
 makes the **hook-style** items (`RECORDS_COLUMN_SLOT.useRowsData`,
@@ -847,6 +850,15 @@ fetching internally.
 - **`ENTRY_HEADER_SLOT`** — an inline element in the entry editor's title row,
   rendered **after** the `<h1>` (the heading stays the sole `<h1>`) with the
   same `EntrySlotContext`. Used for the i18n plugin's current-locale chip.
+  Since `ORT-202` the editor's heading is the shared `ContainerHeader` rather
+  than a hand-rolled `<h1>`, so these items ride its `actions` region: still
+  after the heading in DOM order, still outside it, and now aligned with the
+  header's actions on every other page.
+
+    An **empty** contribution list has to be passed as `undefined`, not `[]` —
+    `ContainerHeader` draws its actions row for anything truthy, and an empty
+    array is truthy.
+
 - **`RECORDS_FILTER_FIELDS_SLOT`** — extra query-builder filter fields, appended
   after the server-derived fields (`useFilterFields`) at the call site.
 - **`CONTENT_OVERLAY_SLOT`** — viewport-level chrome, rendered once by

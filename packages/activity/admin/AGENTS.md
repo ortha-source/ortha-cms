@@ -9,7 +9,7 @@ the Members page patterns.
 This plugin is **layered (tactical DDD)**, but it is a **read-only projection
 viewer**: it has **no mutations** and **no client-side domain rules**, so — per
 ADR-0003 ("don't force DDD on CRUD / read-side contexts") — it has **no
-`domain/` layer**. Adding empty `domain/` folders here would be a *violation* of
+`domain/` layer**. Adding empty `domain/` folders here would be a _violation_ of
 ADR-0003, not compliance. This mirrors `activity/server`, which is likewise a
 read-side/CRUD audit context with **no aggregate**. `src/lib` is organized into
 three layers plus a shared type kernel:
@@ -45,14 +45,25 @@ three layers plus a shared type kernel:
   The page itself also gates on `useHasPermission('activity:read')`.
 - A `HOME_SECTION_SLOT` panel (`RecentActivityPanel`) — the latest events on the
   home dashboard, reusing `useActivityLog` and gated on `activity:read`.
-- An `ENTRY_SIDEBAR_WIDGET_SLOT` block (`EntryActivityWidget`) — **one entry's
-  own trail**, in the content editor's Properties rail. It reads a different
-  route (`GET /activity/entries/:id`) under a different permission
-  (`content:read`), which is the whole point: the editor's built-in History tab
-  is the *revision* timeline — what the words were at each save — and cannot say
-  who published the record, who took it down, or who changed who may read it.
-  Those rows existed and were reachable only from the admin-only Activity page,
-  so the person most likely to ask was the one who could not.
+- An `ENTRY_TAB_SLOT` tab (`EntryActivityTab`, slug `ENTRY_TAB.Activity`) —
+  **one entry's own trail**, in the content editor. It reads a different route
+  (`GET /activity/entries/:id`) under a different permission (`content:read`),
+  which is the whole point: the editor's built-in History tab is the _revision_
+  timeline — what the words were at each save — and cannot say who published the
+  record, who took it down, or who changed who may read it. Those rows existed
+  and were reachable only from the admin-only Activity page, so the person most
+  likely to ask was the one who could not.
+
+    It was a **section of the Properties rail** until `ORT-198`. The rail is
+    240px wide and shared by widgets from four plugins, so the list showed six
+    wrapped rows; and it collapses as one column, so a reader who closed the
+    panel lost the record's history with it. Tabs here are **routes**, which
+    also means the open one survives the remounts this editor takes from
+    navigations it does not own (a locale switch re-targets it at the sibling
+    record) and can be linked to. The slug is declared in content-admin's
+    `ENTRY_TAB`, not here: the set is closed, because the route table would
+    otherwise match a segment `entryTabFromPath` cannot resolve.
+
 - A `DeadLetterNotice` on the Activity page — how many events could **not** be
   recorded (`GET /activity/dead-letters`). It renders nothing when there are
   none, and nothing while loading or on error: a caveat about a list must never

@@ -569,6 +569,10 @@ Statements that must always hold. This is at once a review list and a draft set 
 - **I-36** — A row in `MultiSelect` is identified by its `value`, with the caption added as `keywords` — otherwise two options with the same caption merge into one.
 - **I-37** — The package exports nothing server-side and has no routes, no module, no tables and no permission keys.
 - **I-38** — The only peer dependencies are `react` and `react-dom` at `^19`; everything else is an ordinary dependency, so a consumer has nothing extra to install.
+- **I-39** — When `InputField` shows an error, the hint leaves the **screen** and not the document: it keeps its id, so the `aria-describedby` of `I-13` still resolves and the instruction stays available to the reader who just tripped the rule it states.
+- **I-40** — `FieldError` and `FieldDescription` carry the same type metrics — size, weight, line box and the `nth-last`/`last` rhythm. They occupy one slot under a control, one after the other, so colour is the only thing that may differ between them.
+- **I-41** — `SegmentedControl`'s `field` variant matches `Input` on radius, border token and height. A segmented control used as a form control is not styled as the toolbar variant, and the toolbar variant stays the default so the five toolbar call sites are unaffected.
+- **I-42** — `ContainerHeader`'s optional icon is `aria-hidden` and outside the `<h1>`: the heading's accessible name is its own words, and a page with a mark still reports exactly one heading.
 
 ## 11. Testing checklist
 

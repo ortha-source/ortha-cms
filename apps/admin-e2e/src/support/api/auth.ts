@@ -1,10 +1,19 @@
 import { type Page } from '@playwright/test';
 
 interface LoginOutcome {
-    /** Response status: 201 = success (app navigates to `/`), 401 = bad creds. */
+    /**
+     * Response status: 201 = success (app navigates to `/`), 401 = bad creds,
+     * 429 = the login throttle tripped.
+     */
     status?: number;
     /** Hold the response open this long, to observe the pending/spinner state. */
     delayMs?: number;
+    /**
+     * Seconds to send back as `Retry-After`. `@nestjs/throttler` puts this on
+     * every 429 and the sign-in page reads it, so a 429 stub without it and one
+     * with it are two different screens.
+     */
+    retryAfterSeconds?: number;
 }
 
 /**
@@ -17,7 +26,7 @@ interface LoginOutcome {
  */
 export async function mockLogin(
     page: Page,
-    { status = 201, delayMs }: LoginOutcome = {}
+    { status = 201, delayMs, retryAfterSeconds }: LoginOutcome = {}
 ): Promise<void> {
     await page.route('**/api/auth/login', async (route) => {
         if (delayMs) {
@@ -26,6 +35,9 @@ export async function mockLogin(
         await route.fulfill({
             status,
             contentType: 'application/json',
+            headers: retryAfterSeconds
+                ? { 'retry-after': String(retryAfterSeconds) }
+                : undefined,
             body: JSON.stringify(
                 status === 201
                     ? { ok: true }

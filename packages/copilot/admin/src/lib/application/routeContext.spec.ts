@@ -47,22 +47,48 @@ describe('readRouteContext', () => {
     });
 
     // Sending `entryId: "new"` would have the copilot confidently discuss an
-    // entry that does not exist.
-    it('does not treat `new` as an entry id', () => {
-        const context = readRouteContext(
-            '/workspaces/ws-1/content/article/new',
-            ''
-        );
-
-        expect(context.entryId).toBeUndefined();
-        expect(context.surface).toBe('records');
+    // entry that does not exist — so the create form still carries no id. What
+    // changed with ORT-203 is that it no longer *also* claims to be a records
+    // list: it is its own surface, which is the only way the model can be told
+    // the person is composing rather than browsing.
+    it('reads the create form as its own surface, with no entry id [copilot:I-42]', () => {
+        expect(
+            readRouteContext('/workspaces/ws-1/content/article/new', '')
+        ).toEqual({
+            workspaceId: 'ws-1',
+            contentType: 'article',
+            surface: 'create'
+        });
     });
 
-    it('does not treat `trash` as an entry id', () => {
+    it('keeps the create surface on a tab of the create form', () => {
+        expect(
+            readRouteContext(
+                '/workspaces/ws-1/content/article/new/relations',
+                ''
+            )
+        ).toMatchObject({ surface: 'create' });
+    });
+
+    it('carries the locale onto the create form', () => {
+        expect(
+            readRouteContext(
+                '/workspaces/ws-1/content/article/new',
+                '?locale=de'
+            )
+        ).toMatchObject({ surface: 'create', locale: 'de' });
+    });
+
+    // Trash is not the create form's neighbour: it is a different set of the
+    // same type's records, so it stays a records list.
+    it('does not treat `trash` as an entry id or as the create form', () => {
         expect(
             readRouteContext('/workspaces/ws-1/content/article/trash', '')
-                .entryId
-        ).toBeUndefined();
+        ).toEqual({
+            workspaceId: 'ws-1',
+            contentType: 'article',
+            surface: 'records'
+        });
     });
 
     it('reads the locale from the query string', () => {

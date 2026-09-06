@@ -1,11 +1,11 @@
 import { Suspense, lazy } from 'react';
 import type { AdminPlugin } from '@orthacms/bootstrap-admin';
 import { HOME_SECTION_SLOT, SIDEBAR_NAV_SLOT } from '@orthacms/shell-admin';
-import { ENTRY_SIDEBAR_WIDGET_SLOT } from '@orthacms/content-admin';
+import { ENTRY_TAB, ENTRY_TAB_SLOT } from '@orthacms/content-admin';
 import { Activity } from 'lucide-react';
 import { ActivityLogPageSkeleton } from '../components/ActivityLogSkeleton';
 import { RecentActivityPanel } from '../components/RecentActivityPanel';
-import { EntryActivityWidget } from '../components/EntryActivityWidget';
+import { EntryActivityTab } from '../components/EntryActivityTab';
 
 // Lazy-loaded so the Activity Log page is code-split into its own chunk,
 // fetched only when a signed-in user first navigates to `/activity`.
@@ -72,7 +72,7 @@ export function ActivityPlugin(): ActivityAdminPlugin {
                 ]
             },
             {
-                // The entry editor's Properties rail: who did what to the open
+                // The entry editor's **Activity** tab: who did what to the open
                 // record. The built-in History tab is the **revision**
                 // timeline — what the words were at each save — and cannot say
                 // who published it, who took it down, or who changed who may
@@ -80,17 +80,33 @@ export function ActivityPlugin(): ActivityAdminPlugin {
                 // admin-only Activity page, so the person most likely to ask
                 // was the one who could not.
                 //
+                // A tab rather than a section of the Properties rail
+                // (`ORT-198`): the list grows, the rail is 240px wide and
+                // shared by four plugins, and collapsing the panel took the
+                // record's whole history with it. Tabs are routes here, so the
+                // open one also survives the remounts this editor takes from
+                // navigations it does not own.
+                //
                 // Not mounted, and not requested, unless the reader holds
                 // `content:read` — the same key the scoped route is gated on.
-                slot: ENTRY_SIDEBAR_WIDGET_SLOT,
+                slot: ENTRY_TAB_SLOT,
                 items: [
                     {
                         id: 'activity.entry.history',
-                        // Last in the rail: the record's own properties and its
-                        // checks come first, and history is context you go
-                        // looking for rather than the reason you opened it.
-                        order: 60,
-                        Component: EntryActivityWidget
+                        slug: ENTRY_TAB.Activity,
+                        label: {
+                            id: 'activity.entryTab.label',
+                            defaultMessage: 'Activity'
+                        },
+                        // After Access (20) and before the built-in History,
+                        // which the tab strip always renders last: the two are
+                        // neighbours because readers reach for either when
+                        // asking "what happened here".
+                        order: 30,
+                        // Every type. Any record can be acted on, and a schema
+                        // says nothing about whether it has been.
+                        appliesTo: () => true,
+                        Component: EntryActivityTab
                     }
                 ]
             },

@@ -1,7 +1,39 @@
 import * as React from 'react';
 import * as ToggleGroupPrimitive from '@radix-ui/react-toggle-group';
+import { cva, type VariantProps } from 'class-variance-authority';
 
 import { cn } from '../../utils';
+
+/**
+ * The two jobs this control does, which want different chrome.
+ *
+ * `toolbar` — a filter or view switch sitting beside buttons (AND/OR, an
+ * Open/Rules tab strip). It is its own object on the page, and its rounder
+ * `rounded-xl` and structural `border` say so.
+ *
+ * `field` — a form control in a column of form controls, which is the boolean
+ * field in the entry editor. There it has to match `Input`, `Textarea` and
+ * `SelectTrigger` exactly or it reads as a foreign object dropped into the form:
+ * the same `rounded-lg`, the same `border-input` (a deliberately *darker* token
+ * than `border`, so an editable surface is distinguishable from a card edge),
+ * and the same 36px height — `h-9` on the box with `h-7` items inside its
+ * `p-1`, since the default's 38px left the boolean field two pixels taller than
+ * every field around it.
+ */
+const segmentedControlVariants = cva(
+    'inline-flex items-center gap-0.5 border bg-background p-1 aria-invalid:border-destructive',
+    {
+        variants: {
+            variant: {
+                toolbar: 'rounded-xl',
+                field: 'h-9 rounded-lg border-input [&>*]:h-7'
+            }
+        },
+        defaultVariants: {
+            variant: 'toolbar'
+        }
+    }
+);
 
 /**
  * Segmented single-select container — a padded, bordered pill that visually
@@ -12,26 +44,24 @@ import { cn } from '../../utils';
 type SegmentedControlProps = Omit<
     React.ComponentPropsWithoutRef<typeof ToggleGroupPrimitive.Root>,
     'type' | 'value' | 'onValueChange' | 'defaultValue'
-> & {
-    /** Currently selected item value. */
-    value?: string;
-    /** Called when the selected item changes. */
-    onValueChange?: (value: string) => void;
-    /** Initial selected item value (uncontrolled). */
-    defaultValue?: string;
-};
+> &
+    VariantProps<typeof segmentedControlVariants> & {
+        /** Currently selected item value. */
+        value?: string;
+        /** Called when the selected item changes. */
+        onValueChange?: (value: string) => void;
+        /** Initial selected item value (uncontrolled). */
+        defaultValue?: string;
+    };
 
 const SegmentedControl = React.forwardRef<
     React.ComponentRef<typeof ToggleGroupPrimitive.Root>,
     SegmentedControlProps
->(({ className, ...props }, ref) => (
+>(({ className, variant, ...props }, ref) => (
     <ToggleGroupPrimitive.Root
         ref={ref}
         type="single"
-        className={cn(
-            'inline-flex items-center gap-0.5 rounded-xl border bg-background p-1 aria-invalid:border-destructive',
-            className
-        )}
+        className={cn(segmentedControlVariants({ variant }), className)}
         {...props}
     />
 ));

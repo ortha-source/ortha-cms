@@ -18,6 +18,7 @@ import {
 import { useInvite } from '../../../application/useInvite';
 import { useAcceptInviteMutation } from '../../../application/useAcceptInviteMutation';
 import { currentUserKey } from '../../../application/useCurrentUser';
+import { rateLimitMessage } from '../../rateLimitMessage';
 
 /** Intl descriptors for {@link AcceptInvitePage}, co-located with the component. */
 const messages = defineMessages({
@@ -159,13 +160,16 @@ export function AcceptInvitePage() {
     }
 
     const errorMessage = error
-        ? intl.formatMessage(
+        ? // Before the generic branch: this route carries `ThrottlerGuard` too,
+          // and a 429 is a temporary answer, not a broken request.
+          (rateLimitMessage(intl, error) ??
+          intl.formatMessage(
               error.status === HTTP_STATUS.NOT_FOUND
                   ? messages.linkExpired
                   : error.status === HTTP_STATUS.BAD_REQUEST
                     ? messages.rejected
                     : messages.generic
-          )
+          ))
         : undefined;
 
     return (

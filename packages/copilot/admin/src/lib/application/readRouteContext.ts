@@ -8,8 +8,16 @@ export interface RouteContext {
     entryId?: string;
     /** The content locale in view, if any. */
     locale?: string;
-    /** Which surface the user is looking at. */
-    surface: 'chat' | 'entry' | 'records';
+    /**
+     * Which surface the user is looking at.
+     *
+     * `create` is the new-entry form: the content type is known, the record is
+     * not written yet and has no id. It is deliberately not folded into
+     * `records` — the two are different jobs (reading a list vs filling one
+     * record in), and calling the create form a list told the model the person
+     * was browsing when they were typing.
+     */
+    surface: 'chat' | 'entry' | 'records' | 'create';
 }
 
 /** The locale switcher's query param (`?locale=de`), owned by `i18n/admin`. */
@@ -21,6 +29,14 @@ const LOCALE_PARAM = 'locale';
  * does not exist.
  */
 const NOT_AN_ENTRY_ID = new Set(['new', 'trash']);
+
+/**
+ * The create form's own segment, out of {@link NOT_AN_ENTRY_ID} — it is not an
+ * entry id, but unlike `trash` it says something about what the person is
+ * doing. Mirrors content-admin's `NEW_SEGMENT`, restated here for the same
+ * reason every wire constant is: this package does not import that one.
+ */
+const CREATE_SEGMENT = 'new';
 
 /**
  * Parses the admin's URL into the run's surface context.
@@ -54,6 +70,7 @@ export function readRouteContext(
     const candidate = contentType ? segments[4] : undefined;
     const entryId =
         candidate && !NOT_AN_ENTRY_ID.has(candidate) ? candidate : undefined;
+    const creating = candidate === CREATE_SEGMENT;
 
     const locale = new URLSearchParams(search).get(LOCALE_PARAM) ?? undefined;
 
@@ -62,7 +79,16 @@ export function readRouteContext(
         ...(contentType ? { contentType } : {}),
         ...(entryId ? { entryId } : {}),
         ...(locale ? { locale } : {}),
-        // An open entry is the strongest signal, then a type's record list.
-        surface: entryId ? 'entry' : contentType ? 'records' : 'chat'
+        // An open entry is the strongest signal, then the create form, then a
+        // type's record list. `create` outranks `records` because the URL that
+        // produces it names a type *and* an intent, where a bare type names
+        // only what is being looked at.
+        surface: entryId
+            ? 'entry'
+            : creating
+              ? 'create'
+              : contentType
+                ? 'records'
+                : 'chat'
     };
 }

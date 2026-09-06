@@ -252,6 +252,27 @@ export function useCopilotChat(
                         if (runController(sessionId) !== controller) {
                             break;
                         }
+                        // A brand-new thread exists on the server from the
+                        // *first* frame, not from the end of the run — the id
+                        // rides `run-started`. Refreshing the list only in the
+                        // `finally` below left the rail without the thread the
+                        // user is looking at for as long as the answer took to
+                        // stream, which on a long turn is most of a minute.
+                        //
+                        // Guarded on the id actually being new: `run-started`
+                        // opens every turn, and the second question in a thread
+                        // already in the list has nothing to add to it. Read
+                        // before the `dispatch` below, so the comparison still
+                        // sees the outgoing id.
+                        if (
+                            event.type === 'run-started' &&
+                            event.conversationId !==
+                                chatStateOf(sessionId).conversationId
+                        ) {
+                            void queryClient.invalidateQueries({
+                                queryKey: conversationsScopeKey(workspaceId)
+                            });
+                        }
                         dispatch({ type: 'event', event });
                     }
                 } catch (error) {

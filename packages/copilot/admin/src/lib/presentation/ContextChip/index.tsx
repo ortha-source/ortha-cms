@@ -1,5 +1,5 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { FileText, Plus, Table2, X } from 'lucide-react';
+import { FilePlus, FileText, Plus, Table2, X } from 'lucide-react';
 import { Badge, Button, cn } from '@orthacms/design-system';
 import type { RouteContext } from '../../application/readRouteContext';
 
@@ -27,6 +27,10 @@ const messages = defineMessages({
     records: {
         id: 'copilot.context.records',
         defaultMessage: '{type} list'
+    },
+    create: {
+        id: 'copilot.context.create',
+        defaultMessage: 'New {type}'
     }
 });
 
@@ -102,13 +106,20 @@ export function ContextChip({
                 <Badge variant="secondary" className="gap-1 pr-1 font-normal">
                     {attached.surface === 'entry' ? (
                         <FileText className="size-3" />
+                    ) : attached.surface === 'create' ? (
+                        <FilePlus className="size-3" />
                     ) : (
                         <Table2 className="size-3" />
                     )}
                     {intl.formatMessage(
+                        // The create form says so. Attached from `/new` the
+                        // chip used to read "{type} list", which described a
+                        // page the person was not on.
                         attached.surface === 'entry'
                             ? messages.entry
-                            : messages.records,
+                            : attached.surface === 'create'
+                              ? messages.create
+                              : messages.records,
                         { type: attached.contentType }
                     )}
                     {attached.locale && (

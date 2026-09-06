@@ -448,13 +448,21 @@ The core of ADR-0009. Examined line by line, because the ordering here is load-b
 >
 > The promise the run awaits lives in this process, so `POST …/permission` must reach that same instance. A single-server self-hosted installation — which is what this is — is fine. A horizontally scaled one needs sticky routing on `runId`, or the registry moved behind a shared channel. Documented rather than discovered as a random hang.
 
-### 8.4 “I need more time” — `POST …/permission/extend`
+### 8.4 Extending a parked run — `POST …/permission/extend`
 
 The prompt used to have a hard five minutes with no warning, no countdown and no way to ask for an extension: it simply vanished, and the model reported that nobody answered. WCAG 2.2.1 requires that a content-set limit can be turned off, adjusted or **extended after a warning**, and none of the criterion's exceptions applies here — ADR-0009 justifies the limit by cost rather than correctness (ticket `ORT-118`).
 
-- **An extension gives a full fresh budget** rather than a top-up: somebody who pressed “I need more time” is saying the first portion was not enough, and WCAG asks for the ability to extend “at least ten times” — which repeated full-size extensions satisfy without inventing a second number.
+- **An extension gives a full fresh budget** rather than a top-up: the first portion was not enough, and WCAG asks for the ability to extend “at least ten times” — which repeated full-size extensions satisfy without inventing a second number.
 - **The same guards, the same ownership check, the same 404.** Extending a parked run's time is the same authority as answering it.
-- **The response carries a new `expiresAt`**, which the client counts down to.
+- **The response carries a new `expiresAt`.**
+
+**The endpoint is no longer a button (ticket `ORT-199`).** It was “I need more time”, beside a running countdown and a twenty-second warning; it is now a **keep-alive the open prompt runs by itself**, every two minutes while the tab is visible. That satisfies 2.2.1 by a different exception than before: the criterion governs a limit the _content imposes on the user_, and with the countdown, the warning and the button all gone there is no limit in front of them to extend. Removing the button alone would have been the failure — a timer that hurries a reader through a decision about writing to their content, with nothing to press.
+
+Three things stay, and each is load-bearing:
+
+- **The server-side budget is unchanged.** It bounds a connection, a generator and a model context that a parked run holds open; it was never there to hurry anybody.
+- **A hidden tab does not extend.** Nobody is reading it, so a prompt abandoned in a background tab is the one case where the budget should still run out.
+- **The expiry message stays.** A prompt whose run did close has to say so, or its three buttons look answerable and quietly do nothing.
 
 ### 8.5 Attached files
 
@@ -787,6 +795,8 @@ Statements that must always hold. This is at once a review list and a draft set 
 - **I-38** — Attaching a file gives the copilot no new write path: the upload is an ordinary `POST /api/media/assets` under the user's own `media:create`.
 - **I-39** — Client-disconnect detection hangs on `res`, never on `req`.
 - **I-40** — The admin UI treats the copilot as switched off **only** on an explicit 404 from the model catalogue; a load, a 5xx, a 403 and a network failure all leave the surfaces in place.
+- **I-41** — The permission prompt shows the reader no time limit: no countdown, no warning and no extend button. While it is open on a visible tab it extends the run's budget itself, so the limit it removes from the screen is one it also removes from the reader's experience — not one it merely stopped displaying. A prompt whose run did expire still says so.
+- **I-42** — The create form is its own run surface (`create`), never `records`. The context carries the content type and no entry id, and the prompt tells the model the record does not exist yet — so “this entry” cannot resolve to one the person is not on.
 
 ## 14. Testing checklist
 

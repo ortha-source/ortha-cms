@@ -55,6 +55,61 @@ test.describe('Login page (/identity/signin)', () => {
         });
     });
 
+    /**
+     * ORT-201 — a throttled attempt says so.
+     *
+     * The route carries `ThrottlerGuard`, and everything that was not a 401
+     * fell into "Something went wrong. Please try again" — advice that cannot
+     * work, given to the one person it is aimed at: somebody who mistyped their
+     * password a few times and is now locked out for a minute. Asserted from
+     * the browser rather than as a unit, because what is under test is the
+     * whole path — the header surviving axios, `ApiError` carrying it, and the
+     * page choosing the sentence.
+     */
+    test.describe('rate limited (429)', () => {
+        test('names the wait when the server sends Retry-After', async ({
+            page,
+            loginPage
+        }) => {
+            await mockLogin(page, { status: 429, retryAfterSeconds: 45 });
+            await loginPage.login(EMAIL, 'wrong-password');
+
+            await expect(loginPage.errorBanner).toContainText('45 seconds');
+            // And is not the generic catch-all it used to be.
+            await expect(loginPage.errorBanner).not.toContainText(
+                'Something went wrong'
+            );
+            await expect(page).toHaveURL(/\/identity\/signin/);
+        });
+
+        test('still explains itself when the server names no wait', async ({
+            page,
+            loginPage
+        }) => {
+            await mockLogin(page, { status: 429 });
+            await loginPage.login(EMAIL, 'wrong-password');
+
+            // No invented countdown — a number the user watches expire and
+            // finds still wrong is worse than no number.
+            await expect(loginPage.errorBanner).toContainText('Too many');
+            await expect(loginPage.errorBanner).not.toContainText('seconds');
+        });
+
+        test('says nothing about whether the account exists', async ({
+            page,
+            loginPage
+        }) => {
+            await mockLogin(page, { status: 429 });
+            await loginPage.login('nobody@example.com', 'whatever');
+
+            // The limit is keyed on the caller, not the identity claimed, so
+            // the message must not drift into the enumeration signal the 401
+            // copy is carefully written to avoid.
+            await expect(loginPage.errorBanner).not.toContainText('incorrect');
+            await expect(loginPage.errorBanner).not.toContainText('account');
+        });
+    });
+
     test.describe('client-side validation', () => {
         test('empty submit flags both required fields without calling the API', async ({
             page,

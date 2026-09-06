@@ -95,7 +95,19 @@ const InputField = React.forwardRef<HTMLInputElement, InputFieldProps>(
                     aria-describedby={describedBy}
                 />
                 {description && (
-                    <FieldDescription id={descriptionId}>
+                    // Off the screen once there is an error, still in the
+                    // accessibility tree. The hint and the error compete for
+                    // one line under the control, and the error is what the
+                    // reader needs to see — but dropping the hint from the DOM
+                    // would leave `aria-describedby` pointing at nothing and
+                    // break `design-system:I-13`, and dropping it from
+                    // `describedBy` too would take the instruction away from
+                    // exactly the reader who just tripped over the rule it
+                    // states.
+                    <FieldDescription
+                        id={descriptionId}
+                        className={showError ? 'sr-only' : undefined}
+                    >
                         {description}
                     </FieldDescription>
                 )}

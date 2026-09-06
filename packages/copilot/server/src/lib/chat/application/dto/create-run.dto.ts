@@ -31,8 +31,21 @@ export const MAX_MESSAGE_LENGTH = 8_000;
  */
 export const MAX_RUN_ATTACHMENTS = 8;
 
-/** The surfaces a run can be started from (design §2). */
-export const RUN_SURFACES = ['chat', 'palette', 'entry', 'records'] as const;
+/**
+ * The surfaces a run can be started from (design §2).
+ *
+ * `create` is the new-entry form. It is a separate surface rather than
+ * `records` because the client cannot describe it any other way: the URL has a
+ * content type but no entry id, so the form used to arrive here claiming the
+ * person was looking at a list.
+ */
+export const RUN_SURFACES = [
+    'chat',
+    'palette',
+    'entry',
+    'records',
+    'create'
+] as const;
 
 /**
  * Where the user was when they asked. Every field is optional — the chat panel

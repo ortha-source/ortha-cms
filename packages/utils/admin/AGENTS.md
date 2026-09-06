@@ -31,9 +31,9 @@ singletons live in one place instead of inside `bootstrap-admin`.
   exemption is matched on **whole path segments** of the normalized request
   path, never as a bare `startsWith` on the string the caller passed. Both
   directions of a prefix test are wrong: `apiClient.post('auth/login', …)` (no
-  leading slash — axios resolves it fine against `baseURL`) would fall *out* of
+  leading slash — axios resolves it fine against `baseURL`) would fall _out_ of
   the list and sign the user out on a typo'd password, and a future
-  `/auth/logins-report` would fall *into* it and never sign them out when the
+  `/auth/logins-report` would fall _into_ it and never sign them out when the
   session really did die. The handler is also called inside a `try` — a throw
   from it must not replace the caller's `401` rejection.
 - `queryClient` — the app's single TanStack Query `QueryClient`. The host wires
@@ -46,13 +46,22 @@ singletons live in one place instead of inside `bootstrap-admin`.
   transient and still retried. A hook that wants different behaviour overrides
   `retry` itself (`usePreferences` disables it outright).
 - `ApiError` / `toApiError(error)` — a normalized transport error carrying
-  `status: number | null` (`null` for a network failure) and `details` (the
-  parsed response body when the server responded, else `undefined`). `toApiError`
-  unwraps an axios error so call sites never touch axios internals. **Transport
-  only** — it carries the status + raw body, not domain meaning; the consumer
-  decides what a code means and narrows `details` to its endpoint's error shape
-  (e.g. identity treats `401` as invalid credentials; content-admin reads a
-  422's `details.issues` to map field errors).
+  `status: number | null` (`null` for a network failure), `details` (the parsed
+  response body when the server responded, else `undefined`) and
+  `retryAfterSeconds` (the `Retry-After` header, when the server sent a usable
+  one). `toApiError` unwraps an axios error so call sites never touch axios
+  internals. **Transport only** — it carries the status, the raw body and that
+  one header, not domain meaning; the consumer decides what a code means and
+  narrows `details` to its endpoint's error shape (e.g. identity treats `401` as
+  invalid credentials and turns a `429` plus `retryAfterSeconds` into "try again
+  in 45 seconds"; content-admin reads a 422's `details.issues` to map field
+  errors).
+
+    `retryAfterSeconds` is here rather than in identity because every throttled
+    route answers the same way, and it is `undefined` unless the header parses
+    to a positive number of seconds — the header's other legal form is an HTTP
+    date, and a wrong countdown is worse than none.
+
 - `HTTP_STATUS` — named status codes (`UNAUTHORIZED`, `FORBIDDEN`,
   `TOO_MANY_REQUESTS`) so call sites branch on `HTTP_STATUS.UNAUTHORIZED`, not a
   bare `401`.
@@ -65,7 +74,7 @@ singletons live in one place instead of inside `bootstrap-admin`.
   extension-point primitive. A slot is a named, shared list: a consumer creates
   it and reads `getItems()`, plugins contribute items via the host, and the host
   wires contributions in once at boot. Pure data (no `react`), so it lives in
-  this leaf rather than the host. The *generic* mechanism only — concrete slots
+  this leaf rather than the host. The _generic_ mechanism only — concrete slots
   (e.g. the shell's `SIDEBAR_NAV_SLOT`) are defined by their owning plugin.
   `getItems()` returns a **copy**: one slot is read by every plugin that
   consumes it, so handing back the internal array would make one consumer's
@@ -92,12 +101,12 @@ singletons live in one place instead of inside `bootstrap-admin`.
 
 - `useTableUrlState({ searchKey, defaultPageSize })` — the URL-as-source-of-truth
   plumbing for list pages. The search box is **two-way**: it debounces into the
-  URL (300 ms), and it re-syncs *back* whenever the URL changes for a reason
+  URL (300 ms), and it re-syncs _back_ whenever the URL changes for a reason
   other than that debounce — Back/Forward, a link to the bare list, a saved
   view. A one-way box looks fine until you press Back and the filter reappears,
   because the effect writes it out again; the guards on both sides
   (`searchParam !== debouncedSearch` on the way in, `debouncedSearch ===
-  searchInput` on the way out) are what keep the round trip from looping or
+searchInput` on the way out) are what keep the round trip from looping or
   clobbering keystrokes typed during the debounce window.
 - `UnsavedChangesProvider` / `useUnsavedChanges(dirty, key)` — the app-wide
   "you have unsaved changes" guard. Two rules it is easy to get wrong:
@@ -150,7 +159,7 @@ package, so a defect here is a defect everywhere at once — which is why the
 seams are pinned here rather than in whichever page happened to notice: the
 `401` exemption match driven through the real interceptor stack, the query
 retry predicate read off the shipped client, the URL/search round trip, and the
-unsaved-changes guard against a real `BrowserRouter`. Component *behaviour*
+unsaved-changes guard against a real `BrowserRouter`. Component _behaviour_
 still belongs in `admin-e2e`.
 
 ## Commands

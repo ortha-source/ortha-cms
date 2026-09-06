@@ -231,7 +231,18 @@ function FieldError({
         <div
             role="alert"
             data-slot="field-error"
-            className={cn('text-destructive text-sm font-normal', className)}
+            className={cn(
+                // Set like `FieldDescription`, deliberately: the error takes
+                // the hint's place under the control, so anything they don't
+                // share — `text-sm` alone is a tighter line box than
+                // `text-sm leading-normal`, and the hint's `nth-last`/`last`
+                // rhythm has no counterpart here — shifts the message a pixel
+                // or two as it appears. Colour is the only thing that should
+                // change between the two.
+                'text-destructive text-sm font-normal leading-normal',
+                'nth-last-2:-mt-1 last:mt-0',
+                className
+            )}
             {...props}
         >
             {content}

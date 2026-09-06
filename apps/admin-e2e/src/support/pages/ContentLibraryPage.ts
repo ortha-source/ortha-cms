@@ -152,6 +152,16 @@ export class ContentLibraryPage extends BasePage {
             .waitFor();
     }
 
+    /**
+     * A group's row when it holds nothing — a plain label, not a trigger.
+     *
+     * Paired with `group(label)` having no match at all: an empty group renders
+     * no button, so the two together say "still listed, no longer operable".
+     */
+    emptyGroup(label: string): Locator {
+        return this.sidebar.getByText(label, { exact: true });
+    }
+
     /** A category label in the sidebar ("Favorites" / "Workspace Content"). */
     sectionLabel(label: string): Locator {
         return this.sidebar.getByText(label, { exact: true });

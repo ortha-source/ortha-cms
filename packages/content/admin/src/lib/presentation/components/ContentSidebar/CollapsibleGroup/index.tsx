@@ -25,6 +25,13 @@ type CollapsibleGroupProps = {
  * label, and count — that doubles as the collapse trigger (chevron rotates open;
  * Radix manages `aria-expanded` + `data-state`), with the rows nested under a
  * left border line. Starts collapsed; expanded, the rows show.
+ *
+ * A group holding **nothing** renders as a plain row instead: no trigger, no
+ * chevron, no tab stop. There is nothing to reveal, so a control that announces
+ * itself as expandable — and then opens an empty strip — is one WCAG 4.1.2 calls
+ * a lie, and one a keyboard user meets as a dead stop mid-sidebar. The row still
+ * shows, muted and counting zero: "this workspace has no pages yet" is a fact
+ * worth reading, while a section that vanished reads as a bug.
  */
 export function CollapsibleGroup({
     label,
@@ -33,6 +40,16 @@ export function CollapsibleGroup({
     defaultOpen = false,
     children
 }: CollapsibleGroupProps) {
+    if (count === 0) {
+        return (
+            <div className="flex h-9 w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm text-sidebar-foreground/50">
+                <Icon aria-hidden className="size-4 shrink-0" />
+                <span className="flex-1 truncate font-medium">{label}</span>
+                <span className="tabular-nums text-xs">{count}</span>
+            </div>
+        );
+    }
+
     return (
         <Collapsible
             defaultOpen={defaultOpen}

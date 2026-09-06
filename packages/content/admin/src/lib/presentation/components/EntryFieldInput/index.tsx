@@ -222,6 +222,13 @@ export function EntryFieldInput({
         [description ? descriptionId : null, error ? errorId : null]
             .filter(Boolean)
             .join(' ') || undefined;
+    // ...and the hint goes **off the screen**, not out of the DOM, once there is
+    // an error. Both messages sit in the same place under the control, and the
+    // error is the one to read; but the id above still has to resolve, and the
+    // instruction is worth more to a reader who just tripped a rule than to one
+    // who hasn't. One constant rather than the condition repeated in each of the
+    // seven branches below.
+    const hintClass = error ? 'sr-only' : undefined;
 
     // A plugin may own this field's control (ENTRY_FIELD_CONTROL_SLOT — the
     // WYSIWYG plugin claims `richtext`). Only the *input* is handed over: the
@@ -265,7 +272,7 @@ export function EntryFieldInput({
                     }}
                 />
                 {description && (
-                    <FieldDescription id={descriptionId}>
+                    <FieldDescription id={descriptionId} className={hintClass}>
                         {description}
                     </FieldDescription>
                 )}
@@ -286,6 +293,10 @@ export function EntryFieldInput({
                         {endAdornment}
                     </FieldLabel>
                     <SegmentedControl
+                        // A field, not a toolbar: this sits in a column of
+                        // text boxes and selects, and has to carry the same
+                        // radius, border token and height as they do.
+                        variant="field"
                         aria-labelledby={`${id}-label`}
                         aria-invalid={!!error}
                         {...requiredProps}
@@ -309,7 +320,10 @@ export function EntryFieldInput({
                         </SegmentedControlItem>
                     </SegmentedControl>
                     {description && (
-                        <FieldDescription id={descriptionId}>
+                        <FieldDescription
+                            id={descriptionId}
+                            className={hintClass}
+                        >
                             {description}
                         </FieldDescription>
                     )}
@@ -357,7 +371,10 @@ export function EntryFieldInput({
                         </SelectContent>
                     </Select>
                     {description && (
-                        <FieldDescription id={descriptionId}>
+                        <FieldDescription
+                            id={descriptionId}
+                            className={hintClass}
+                        >
                             {description}
                         </FieldDescription>
                     )}
@@ -401,7 +418,10 @@ export function EntryFieldInput({
                         emptyText={intl.formatMessage(messages.noResults)}
                     />
                     {description && (
-                        <FieldDescription id={descriptionId}>
+                        <FieldDescription
+                            id={descriptionId}
+                            className={hintClass}
+                        >
                             {description}
                         </FieldDescription>
                     )}
@@ -442,7 +462,10 @@ export function EntryFieldInput({
                         onBlur={onBlur}
                     />
                     {description && (
-                        <FieldDescription id={descriptionId}>
+                        <FieldDescription
+                            id={descriptionId}
+                            className={hintClass}
+                        >
                             {description}
                         </FieldDescription>
                     )}
@@ -483,7 +506,10 @@ export function EntryFieldInput({
                             onBlur={onBlur}
                         />
                         {description && (
-                            <FieldDescription id={descriptionId}>
+                            <FieldDescription
+                                id={descriptionId}
+                                className={hintClass}
+                            >
                                 {description}
                             </FieldDescription>
                         )}
@@ -536,7 +562,10 @@ export function EntryFieldInput({
                         aria-describedby={describedBy}
                     />
                     {description && (
-                        <FieldDescription id={descriptionId}>
+                        <FieldDescription
+                            id={descriptionId}
+                            className={hintClass}
+                        >
                             {description}
                         </FieldDescription>
                     )}
