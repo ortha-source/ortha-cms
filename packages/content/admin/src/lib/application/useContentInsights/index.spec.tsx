@@ -18,7 +18,7 @@ import {
  * How many times an Insights query is allowed to ask before it gives up.
  *
  * This pins an invariant of the **Insights page**
- * (`docs/artifacts/insights.html`), which owns the reasoning: the page's whole
+ * (`docs/artifacts/insights.md`), which owns the reasoning: the page's whole
  * premise is that one card fails on its own, and TanStack's default of three
  * attempts with exponential backoff leaves a broken card sitting on a skeleton
  * for about seven seconds first — which reads as a hang, not as a failure. The

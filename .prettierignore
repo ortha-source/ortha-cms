@@ -11,7 +11,3 @@ skills-lock.json
 # Scaffolding templates carry placeholder tokens (__APP_NAME__) inside JSON
 # and are rendered, not compiled — formatting them here means nothing.
 /packages/create-ortha-app/templates
-
-# Hand-authored HTML dossiers — one artifact per package, formatted for
-# reading rather than by a tool. Prettier rewrites each of them entirely.
-/docs/artifacts
