@@ -41,10 +41,14 @@ test.describe('Activity filter (query builder)', () => {
             activityLogPage.row('ada@ortha.dev').first()
         ).toBeVisible();
 
-        // Default field is "Kind" with the "equals" operator → a text value.
+        // The default field is Action with "equals". Its value editor is a
+        // select over the kind vocabulary, not a text box (`ORT-205`): the
+        // column reads "Suspended member" and the wire carries
+        // `user.suspended`, so asking the reader to type the second while
+        // looking at the first made the column effectively unfilterable.
         await activityLogPage.openFilters();
         await activityLogPage.addRule();
-        await activityLogPage.fillValue('user.suspended');
+        await activityLogPage.selectEnumValue('Suspended member');
         await activityLogPage.applyFilters();
 
         // Only the suspension event (actor grace) survives. The panel stays
@@ -72,7 +76,7 @@ test.describe('Activity filter (query builder)', () => {
         await activityLogPage.goto();
         await activityLogPage.openFilters();
         await activityLogPage.addRule();
-        await activityLogPage.fillValue('user.suspended');
+        await activityLogPage.selectEnumValue('Suspended member');
         await activityLogPage.applyFilters();
 
         await expect(activityLogPage.filterTrigger()).toHaveText(

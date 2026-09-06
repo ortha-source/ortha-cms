@@ -30,8 +30,15 @@ type CollapsibleGroupProps = {
  * chevron, no tab stop. There is nothing to reveal, so a control that announces
  * itself as expandable — and then opens an empty strip — is one WCAG 4.1.2 calls
  * a lie, and one a keyboard user meets as a dead stop mid-sidebar. The row still
- * shows, muted and counting zero: "this workspace has no pages yet" is a fact
- * worth reading, while a section that vanished reads as a bug.
+ * shows and still counts zero: "this workspace has no pages yet" is a fact worth
+ * reading, while a section that vanished reads as a bug.
+ *
+ * **The empty row is not dimmed past the tokens the populated one uses.** The
+ * first version reached for `text-sidebar-foreground/50` to say "quiet", and the
+ * axe scan called it: a serious `color-contrast` failure, which is the same
+ * mistake the Agents rail's headings already carry a note about. What tells the
+ * two rows apart is the missing chevron and the `0` — structure, not a colour
+ * nobody with low vision can read.
  */
 export function CollapsibleGroup({
     label,
@@ -42,10 +49,17 @@ export function CollapsibleGroup({
 }: CollapsibleGroupProps) {
     if (count === 0) {
         return (
-            <div className="flex h-9 w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm text-sidebar-foreground/50">
-                <Icon aria-hidden className="size-4 shrink-0" />
-                <span className="flex-1 truncate font-medium">{label}</span>
-                <span className="tabular-nums text-xs">{count}</span>
+            <div className="flex h-9 w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm">
+                <Icon
+                    aria-hidden
+                    className="size-4 shrink-0 text-sidebar-foreground/70"
+                />
+                <span className="flex-1 truncate font-medium text-sidebar-foreground/70">
+                    {label}
+                </span>
+                <span className="tabular-nums text-xs text-sidebar-foreground/60">
+                    {count}
+                </span>
             </div>
         );
     }
