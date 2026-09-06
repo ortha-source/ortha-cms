@@ -9,6 +9,7 @@ import type { LoginCredentials } from '../../../../types/auth';
 import { useLoginMutation } from '../../../application/useLoginMutation';
 import { currentUserKey } from '../../../application/useCurrentUser';
 import { takeSessionEnded } from '../../../application/sessionEnded';
+import { rateLimitMessage } from '../../rateLimitMessage';
 
 /** Router state `RequireAuth` attaches when it bounces a user to sign-in. */
 type FromState = { from?: { pathname?: string } };
@@ -104,11 +105,16 @@ export function LoginPage() {
     // the visitor arrived, and once they have tried a password the result of
     // that attempt is the thing they are waiting to hear about.
     const errorMessage = error
-        ? intl.formatMessage(
+        ? // A throttled attempt gets its own answer before the generic one: the
+          // route carries `ThrottlerGuard`, and someone who mistyped a password
+          // a few times is exactly who reaches it — for whom "please try again"
+          // is the one thing that cannot work.
+          (rateLimitMessage(intl, error) ??
+          intl.formatMessage(
               error.status === HTTP_STATUS.UNAUTHORIZED
                   ? messages.invalidCredentials
                   : messages.generic
-          )
+          ))
         : ssoFailed
           ? intl.formatMessage(messages.ssoFailed)
           : undefined;

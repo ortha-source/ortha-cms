@@ -384,8 +384,17 @@ const subjectTypeMessages = defineMessages({
     }
 });
 
-/** The Subject-cell label descriptor for every known subject type. */
-const SUBJECT_TYPE_MESSAGES: Record<ActivitySubjectType, MessageDescriptor> = {
+/**
+ * The Subject-cell label descriptor for every known subject type.
+ *
+ * Exported for the **filter** as well as the cell: the Subject column reads
+ * "Media asset" while its filter used to want the raw `media_asset`, so the two
+ * now render from one map and cannot say different things about one row.
+ */
+export const SUBJECT_TYPE_MESSAGES: Record<
+    ActivitySubjectType,
+    MessageDescriptor
+> = {
     user: subjectTypeMessages.user,
     workspace: subjectTypeMessages.workspace,
     content_entry: subjectTypeMessages.contentEntry,

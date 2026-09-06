@@ -14,7 +14,15 @@ import {
     useSearchParams
 } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
-import { ArrowLeft, ChevronDown, Filter, Plus } from 'lucide-react';
+import {
+    ArrowLeft,
+    ChevronDown,
+    FileText,
+    Filter,
+    Plus,
+    Table2,
+    Trash2
+} from 'lucide-react';
 import {
     QueryBuilderPanel,
     QueryBuilderSummary,
@@ -46,6 +54,7 @@ import {
     CONTENT_DELETE,
     CONTENT_FIELD_TYPE,
     CONTENT_SEGMENT,
+    CONTENT_TYPE_KIND,
     DEFAULT_PAGE_SIZE,
     NEW_SEGMENT,
     SEARCH_PARAM,
@@ -811,7 +820,19 @@ export function LoadedRecordsView({
     return (
         <Container className="max-w-none p-6 sm:p-6">
             <ContainerHeader
-                titleClassName="text-lg"
+                // The same mark the sidebar puts on this type, so the heading
+                // and the row that led here read as one place — and the trash
+                // bin when the list is the trash view, which is a different
+                // set of records under the same type's name.
+                icon={
+                    trashed ? (
+                        <Trash2 className="size-4" />
+                    ) : schema.kind === CONTENT_TYPE_KIND.Collection ? (
+                        <Table2 className="size-4" />
+                    ) : (
+                        <FileText className="size-4" />
+                    )
+                }
                 title={
                     trashed
                         ? intl.formatMessage(messages.trashTitle, {

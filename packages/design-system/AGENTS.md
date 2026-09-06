@@ -41,6 +41,26 @@ hand-written):
 
 ## Notes on specific components
 
+- **`SegmentedControl` has two variants, and the default is the toolbar one.**
+  `variant="field"` is for a segmented control used as a **form control** — the
+  entry editor's boolean field — and matches `Input` / `Textarea` /
+  `SelectTrigger` on radius, border token and height. Those are not
+  interchangeable with the toolbar's: `border-input` is deliberately a step
+  darker than `border`, so an editable surface reads as editable, and the
+  toolbar's 38px box left the boolean field standing proud of its neighbours.
+  Five of the six call sites are toolbars, which is why the fix is a variant
+  rather than a change to the base class.
+- **`ContainerHeader` is where the admin's `<h1>` lives** — every page,
+  including the two that used to draw their own. Its optional `icon` takes a
+  sized icon element and draws the tile itself; the tile is `aria-hidden`,
+  because the heading beside it already names the page.
+- **`FieldError` is set like `FieldDescription`, on purpose.** They occupy the
+  same line under the same control, one replacing the other, so size, weight,
+  line box and vertical rhythm all have to match — colour is the only thing that
+  should change. `InputField` hides the hint with `sr-only` rather than
+  unmounting it when an error appears (`ORT-197`): it has to stay in the
+  document for `aria-describedby` to resolve, and the instruction is worth most
+  to the reader who just tripped the rule it states.
 - **`MultiSelect` is a closed list by default.** Passing `onCreate` opens it:
   the search box then offers an "Add …" row for a query that matches no option,
   and the caller decides what the query means (it may name several values). The

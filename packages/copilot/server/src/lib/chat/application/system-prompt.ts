@@ -118,6 +118,13 @@ const SURFACE_GUIDANCE = new Map<string, string>([
             'above. Take a question that names no type to be about that one.'
     ],
     [
+        'create',
+        'The person is filling in a new entry of the content type named above. ' +
+            'It does not exist yet and has no id, so do not look it up and do ' +
+            'not offer to change an existing entry — help them write the ' +
+            'values for the record in front of them.'
+    ],
+    [
         'palette',
         'This came from the command palette: one instruction, not a conversation. ' +
             'Do the single thing asked and reply in a sentence or two — no ' +

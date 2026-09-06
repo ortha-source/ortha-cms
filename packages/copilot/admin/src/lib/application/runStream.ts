@@ -14,7 +14,7 @@ export interface StartRunRequest {
     model?: string;
     /** Where the user is. */
     context?: {
-        surface?: 'chat' | 'palette' | 'entry' | 'records';
+        surface?: 'chat' | 'palette' | 'entry' | 'records' | 'create';
         contentType?: string;
         entryId?: string;
         locale?: string;

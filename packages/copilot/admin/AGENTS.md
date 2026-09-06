@@ -481,6 +481,17 @@ the change is about.
   timeout fired, or it is parked on another instance. The prompt then **keeps its
   buttons** and says the answer did not land — the run might still be parked, and
   taking the controls away would strand it.
+- **No clock, and that is what makes removing the button legal.** The prompt had
+  a countdown, a twenty-second warning and an "I need more time" button, which
+  is how it satisfied WCAG 2.2.1. `ORT-199` removed all three — but removing the
+  button alone would have left a limit the reader is shown, is hurried by and
+  cannot extend, which is a failure of the criterion rather than a tidy-up. So
+  the prompt now **extends the run itself** every two minutes while it is open
+  and the tab is visible: with no limit in front of the reader, the criterion has
+  nothing to bite on. A hidden tab does not extend — nobody is reading it, and
+  the run is holding a connection and a model context open — and the expiry
+  message stays, because a prompt whose run did close must not leave three
+  buttons looking answerable.
 - **A `tool-result` for a parked call retires its prompt.** The server timing
   out, or another window answering, both end the wait without this client having
   clicked; live buttons that answer nothing are worse than no buttons.
@@ -667,6 +678,15 @@ Three things that matter:
 - **`new` and `trash` are not entry ids.** They sit in the `:entryId` slot on
   the create form and the trash view. Sending `entryId: "new"` would have the
   model confidently discuss an entry that does not exist.
+
+    **The create form is its own surface, though** (`create`, `ORT-203`).
+    Dropping the id was right and folding the page into `records` was not: it
+    told the model somebody filling in a new entry was browsing a list, and the
+    chip offered to attach "{type} list" from a page that is not one. The
+    surface is a closed set the server validates (`RUN_SURFACES`), so the
+    admin, the DTO and the prompt's `SURFACE_GUIDANCE` are added to together —
+    the admin alone would get the whole run rejected as a 400.
+
 - **The attached context is shown** (`ContextChip`, above the composer). Context
   attached invisibly is context the user cannot correct when it is wrong. The
   design's turn anatomy asks for it too: "Your message, plus where you are" (§2).

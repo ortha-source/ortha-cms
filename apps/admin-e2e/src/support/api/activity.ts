@@ -97,7 +97,11 @@ export const ALL_KINDS_ACTIVITY: ActivitySeed[] = [
     ['user.suspended', 'user', null],
     ['user.reactivated', 'user', null],
     ['user.password_changed', 'user', { sessionsRevoked: 2 }],
-    ['user.signed_in', 'user', { ipAddress: '203.0.113.7', userAgent: 'Firefox' }],
+    [
+        'user.signed_in',
+        'user',
+        { ipAddress: '203.0.113.7', userAgent: 'Firefox' }
+    ],
     ['user.signed_out', 'user', null],
     [
         'user.sign_in_failed',
@@ -161,11 +165,7 @@ export const ALL_KINDS_ACTIVITY: ActivitySeed[] = [
     ],
     ['transfer.content.imported', 'content_type', { created: 12, updated: 0 }],
     ['segment.created', 'segment', { key: 'members', label: 'Members' }],
-    [
-        'segment.updated',
-        'segment',
-        { tags: { from: ['a'], to: ['a', 'b'] } }
-    ],
+    ['segment.updated', 'segment', { tags: { from: ['a'], to: ['a', 'b'] } }],
     ['segment.deleted', 'segment', { key: 'members' }],
     [
         'segment.entry_access_changed',
@@ -402,6 +402,82 @@ export async function mockActivity(
                 page: pageNum,
                 pageSize
             })
+        });
+    });
+}
+
+/**
+ * The trail of **one entry**, as `GET /api/activity/entries/:entryId` returns
+ * it. Three events, oldest last, covering the two renderings the tab has: a
+ * named actor and a system-initiated event with no actor at all.
+ */
+export const ENTRY_ACTIVITY: ActivitySeed[] = [
+    {
+        id: 'ev_entry_3',
+        kind: 'entry.published',
+        subjectType: 'content_entry',
+        subjectId: 'blog_post-01',
+        actorId: 'u_ada',
+        actorEmail: 'ada@ortha.dev',
+        meta: null,
+        at: '2026-06-12T11:30:00.000Z'
+    },
+    {
+        id: 'ev_entry_2',
+        kind: 'entry.updated',
+        subjectType: 'content_entry',
+        subjectId: 'blog_post-01',
+        actorId: 'u_grace',
+        actorEmail: 'grace@ortha.dev',
+        meta: null,
+        at: '2026-06-11T15:05:00.000Z'
+    },
+    {
+        id: 'ev_entry_1',
+        kind: 'entry.created',
+        subjectType: 'content_entry',
+        subjectId: 'blog_post-01',
+        actorId: null,
+        actorEmail: null,
+        meta: null,
+        at: '2026-06-10T08:00:00.000Z'
+    }
+];
+
+/**
+ * Stub `GET /api/activity/entries/:entryId` — the entry editor's Activity tab.
+ *
+ * A **different route with a different permission** from `GET /activity`
+ * (`content:read` rather than the admin-only `activity:read`), which is why it
+ * gets a mock of its own rather than a branch inside {@link mockActivity}.
+ *
+ * `**\/api/activity/entries/*` cannot collide with that one's
+ * `**\/api/activity?*` — a `*` segment does not cross `/` — so registration
+ * order does not matter between the two.
+ */
+export async function mockEntryActivity(
+    page: Page,
+    events: ActivitySeed[] = ENTRY_ACTIVITY,
+    { status = 200 }: { status?: number } = {}
+): Promise<void> {
+    await page.route('**/api/activity/entries/*', async (route) => {
+        if (route.request().method() !== 'GET') {
+            await route.fallback();
+            return;
+        }
+        await route.fulfill({
+            status,
+            contentType: 'application/json',
+            body: JSON.stringify(
+                status >= 400
+                    ? { message: 'Server error' }
+                    : {
+                          items: events,
+                          total: events.length,
+                          page: 1,
+                          pageSize: 25
+                      }
+            )
         });
     });
 }

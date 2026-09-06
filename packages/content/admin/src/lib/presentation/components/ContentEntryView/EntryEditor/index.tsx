@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, FileText } from 'lucide-react';
 import {
+    ContainerHeader,
     Tabs,
     TabsContent,
     TabsList,
@@ -829,26 +830,39 @@ export function EntryEditor({
                                     {intl.formatMessage(messages.backToList)}
                                 </Link>
                             ) : null}
-                            <div className="mb-6 min-w-0">
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <h1 className="text-lg font-semibold tracking-[-0.01em]">
-                                        {title}
-                                    </h1>
-                                    {slotContext
+                            {/* The shared page header, not a hand-rolled one.
+                                This heading had drifted to its own size and
+                                tracking, so the record page and every other
+                                page in the admin titled themselves
+                                differently — and would have again on the next
+                                change to either.
+
+                                `ENTRY_HEADER_SLOT` items ride the `actions`
+                                region: they are marks *about* the record (the
+                                current locale, a restricted chip), and the
+                                header already keeps them on the title's row
+                                while leaving the `<h1>` the sole heading. */}
+                            <ContainerHeader
+                                className="mb-6 min-w-0"
+                                icon={<FileText className="size-4" />}
+                                title={title}
+                                subtitle={subtitle}
+                                actions={
+                                    // An empty array is truthy, and the header
+                                    // draws its actions row for anything
+                                    // truthy — so a record with no
+                                    // contributions has to hand it `undefined`
+                                    // rather than `[]`.
+                                    slotContext && headerItems.length > 0
                                         ? headerItems.map((item) => (
                                               <item.Component
                                                   key={item.id}
                                                   {...slotContext}
                                               />
                                           ))
-                                        : null}
-                                </div>
-                                {subtitle ? (
-                                    <p className="mt-1 text-sm text-muted-foreground">
-                                        {subtitle}
-                                    </p>
-                                ) : null}
-                            </div>
+                                        : undefined
+                                }
+                            />
 
                             {readOnly ? <ReadOnlyNotice /> : null}
 

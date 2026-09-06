@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { FieldError } from './field';
+import { FieldDescription, FieldError } from './field';
 import { InputField } from './input-field';
 
 /**
@@ -129,6 +129,63 @@ describe('InputField', () => {
             screen.getAllByRole('listitem').map((li) => li.textContent)
         ).toEqual(['Too short', 'Not an email']);
     });
+
+    /**
+     * ORT-197 — the hint leaves the screen when an error arrives, and does not
+     * leave the accessibility tree.
+     *
+     * The two halves have to be asserted together, because each is the way the
+     * other gets broken. Rendering the hint conditionally passes the first and
+     * fails the second — `aria-describedby` is then a dangling id, which
+     * `design-system:I-13` above exists to prevent and which no page test can
+     * see. Leaving it visible passes the second and fails the ticket.
+     */
+    describe('the hint under an error', () => {
+        const hint = () => screen.getByText('We never share it.');
+
+        it('keeps the hint on screen while the field is valid', () => {
+            render(
+                <InputField
+                    id="email"
+                    label="Email"
+                    description="We never share it."
+                />
+            );
+
+            expect(hint().className).not.toContain('sr-only');
+        });
+
+        it('takes the hint off the screen once an error shows [design-system:I-39]', () => {
+            render(
+                <InputField
+                    id="email"
+                    label="Email"
+                    description="We never share it."
+                    error="Email is required"
+                />
+            );
+
+            expect(hint().className).toContain('sr-only');
+        });
+
+        it('still describes the control with the hint it hid [design-system:I-13, I-39]', () => {
+            render(
+                <InputField
+                    id="email"
+                    label="Email"
+                    description="We never share it."
+                    error="Email is required"
+                />
+            );
+
+            // Both ids, both resolving to a node that is still in the document
+            // — a hidden hint the reader can still hear, not a broken pointer.
+            expect(email().getAttribute('aria-describedby')).toBe(
+                'email-description email-error'
+            );
+            expect(document.getElementById('email-description')).not.toBeNull();
+        });
+    });
 });
 
 describe('FieldError', () => {
@@ -156,5 +213,43 @@ describe('FieldError', () => {
             </FieldError>
         );
         expect(screen.getByRole('alert').textContent).toBe('from children');
+    });
+
+    /**
+     * ORT-197, second half — the error is set like the hint it replaces.
+     *
+     * They occupy the same line under the same control, one after the other, so
+     * a difference in size, weight, line box or vertical rhythm shows up as the
+     * message shifting as it appears. Colour is the one thing that should
+     * differ. Asserted on the classes because that shift is a composed-
+     * stylesheet property no rendering test in this repo can measure.
+     */
+    it('carries the same type metrics as FieldDescription [design-system:I-40]', () => {
+        const { container: errorBox } = render(<FieldError>Nope</FieldError>);
+        const { container: hintBox } = render(
+            <FieldDescription>We never share it.</FieldDescription>
+        );
+
+        const errorClasses = errorBox.firstElementChild?.className ?? '';
+        const hintClasses = hintBox.firstElementChild?.className ?? '';
+
+        for (const metric of [
+            'text-sm',
+            'font-normal',
+            'leading-normal',
+            'nth-last-2:-mt-1',
+            'last:mt-0'
+        ]) {
+            expect(`${metric} on the hint`).toBe(
+                hintClasses.includes(metric)
+                    ? `${metric} on the hint`
+                    : `${metric} missing from the hint`
+            );
+            expect(`${metric} on the error`).toBe(
+                errorClasses.includes(metric)
+                    ? `${metric} on the error`
+                    : `${metric} missing from the error`
+            );
+        }
     });
 });

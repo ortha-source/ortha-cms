@@ -2,6 +2,7 @@ import { test, expect } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
 import { mockWorkspaces } from '../support/api/workspaces';
 import {
+    CONTENT_SCHEMA_SEED,
     LIBRARY_WORKSPACE,
     SCOPED_WORKSPACE,
     UNGRANTED_WORKSPACE,
@@ -66,6 +67,39 @@ test.describe('Content Library', () => {
         // Clicking an open group collapses it again.
         await contentLibraryPage.group('Pages').click();
         await expect(contentLibraryPage.typeLink('Home')).toBeHidden();
+    });
+
+    /**
+     * ORT-206 — a group with nothing in it is a label, not a control.
+     *
+     * The trigger used to render regardless of the count, so an empty Pages
+     * group answered a click by rotating its chevron and opening an empty
+     * strip: a control that announces itself as expandable and expands onto
+     * nothing (WCAG 4.1.2), and a keyboard stop mid-sidebar that does nothing.
+     * The row itself stays — "no pages yet" is a fact about the workspace, and
+     * a section that vanished would read as a bug.
+     */
+    test('a group with no types is listed but not expandable', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        // A catalogue of collections only, so Pages has nothing to hold.
+        await mockContentSchema(page, {
+            types: CONTENT_SCHEMA_SEED.filter(
+                (type) => type.kind === 'collection'
+            )
+        });
+        await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
+        await contentLibraryPage.goto(LIBRARY_WORKSPACE.id);
+
+        // Still on screen, and still counting.
+        await expect(contentLibraryPage.emptyGroup('Pages')).toBeVisible();
+        // But not a button — nothing to focus, nothing to press.
+        await expect(contentLibraryPage.group('Pages')).toHaveCount(0);
+
+        // The control case: the group that does hold something is unchanged.
+        await expect(contentLibraryPage.group('Collections')).toBeVisible();
+        await expect(contentLibraryPage.typeLink('Blog posts')).toBeVisible();
     });
 
     test('selecting a single (page) opens its entry editor', async ({

@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { PgDialect } from 'drizzle-orm/pg-core';
 import type { SQL } from 'drizzle-orm';
 import type { Database } from '@orthacms/database';
@@ -114,6 +116,69 @@ describe('the audit log’s filterable surface', () => {
             expect(`no such column: ${unknown.join(', ')}`).toBe(
                 'no such column: '
             );
+        });
+
+        /**
+         * ORT-205 — the admin's copy of this schema, in both directions.
+         *
+         * `activityFilterFields` calls itself "a static mirror of the server's
+         * `ACTIVITY_FILTER_SCHEMA`", and nothing held it to that: it had
+         * drifted to six of these eight, so `actorType` and `workspaceId` were
+         * filterable over HTTP and unreachable from the UI, with every test
+         * green. The other direction is the louder failure — a field the admin
+         * offers and the server does not whitelist is a rule the user can
+         * build and the API answers 400 to.
+         *
+         * Read as **text**, like the kind catalogue in
+         * `audit-event-mapping.spec.ts`, and for the same reason: importing the
+         * admin module would put a React package in this plugin's TypeScript
+         * project graph. The parse is deliberately dumb and fails loudly — a
+         * reformat that defeats it yields an empty list and fails both
+         * assertions rather than passing silently.
+         */
+        describe('the admin’s mirror of it', () => {
+            const adminFields = (): string[] => {
+                const source = readFileSync(
+                    join(
+                        __dirname,
+                        '../../../../admin/src/lib/presentation/activityFilterFields/index.ts'
+                    ),
+                    'utf8'
+                );
+                const block =
+                    /export const ACTIVITY_FILTER_FIELDS[\s\S]*?\n\];/.exec(
+                        source
+                    );
+                if (!block) {
+                    throw new Error(
+                        'Could not find ACTIVITY_FILTER_FIELDS in the admin ' +
+                            'plugin. If it moved, point this test at its new ' +
+                            'home rather than deleting the check.'
+                    );
+                }
+                return [...block[0].matchAll(/id: '([^']+)'/g)].map(
+                    (match) => match[1]
+                );
+            };
+
+            it('offers every field this schema whitelists [activity:I-37]', () => {
+                const offered = adminFields();
+                const missing = Object.keys(FIELDS).filter(
+                    (field) => !offered.includes(field)
+                );
+                expect(
+                    `filterable over HTTP but absent from the UI: ${missing.join(', ')}`
+                ).toBe('filterable over HTTP but absent from the UI: ');
+            });
+
+            it('offers no field this schema would reject [activity:I-37]', () => {
+                const extra = adminFields().filter(
+                    (field) => !Object.hasOwn(FIELDS, field)
+                );
+                expect(
+                    `offered by the UI and answered 400: ${extra.join(', ')}`
+                ).toBe('offered by the UI and answered 400: ');
+            });
         });
     });
 

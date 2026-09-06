@@ -40,37 +40,40 @@ const messages = defineMessages({
         defaultMessage:
             'That answer did not reach the run — it may have already moved on.'
     },
-    // The time limit, said out loud. It used to be invisible: the prompt showed
-    // no time at all and simply vanished when the broker gave up (`ORT-118`).
-    remaining: {
-        id: 'copilot.permission.remaining',
-        defaultMessage:
-            'Waiting {minutes, plural, =0 {} one {# minute } other {# minutes }}{seconds, plural, one {# second} other {# seconds}} more for your answer.'
-    },
-    expiringSoon: {
-        id: 'copilot.permission.expiringSoon',
-        defaultMessage:
-            'This request expires in {seconds, plural, one {# second} other {# seconds}}. Choose an answer, or ask for more time.'
-    },
+    // The only thing left to say about time. The countdown, the twenty-second
+    // warning and the "I need more time" button are gone (`ORT-199`) — see the
+    // keep-alive below for why removing them is allowed. This one stays,
+    // because a prompt that *did* run out has to say so rather than sit there
+    // looking answerable.
     expired: {
         id: 'copilot.permission.expired',
         defaultMessage:
             'Time ran out, so nothing was run. Ask again if you still want this change.'
-    },
-    moreTime: {
-        id: 'copilot.permission.moreTime',
-        defaultMessage: 'I need more time'
     }
 });
 
 /**
- * How long before the deadline the countdown turns into an assertive warning.
+ * How often an open prompt asks the run for more time.
  *
- * WCAG 2.2.1 requires **at least twenty seconds'** notice before a
- * content-imposed limit expires, and that the user be able to extend it with a
- * simple action. Twenty exactly is the floor; this is the floor.
+ * **This is what lets the prompt show no clock at all.** WCAG 2.2.1 governs a
+ * time limit the *content* imposes on the user, and offers several ways out —
+ * the one this component used was "extendable by a simple action", which is
+ * what the countdown, the twenty-second warning and the "I need more time"
+ * button were. Removing that button on its own would have left a limit the user
+ * is shown, is hurried by, and cannot extend: a failure of the criterion rather
+ * than a tidy-up. Extending it from here instead removes the limit from the
+ * user's experience entirely, which is the exception the criterion opens with.
+ *
+ * The server's budget is five minutes per run
+ * (`DEFAULT_RUN_DECISION_BUDGET_MS`) and one extension grants a fresh one, so
+ * two minutes is comfortably inside it without being a stream of requests.
+ *
+ * A **hidden tab does not extend**. Nobody is reading it, and the run is
+ * holding a connection, a generator and the model's context open while it
+ * waits — so a prompt left open in a background tab is the one case where the
+ * budget should still be allowed to run out.
  */
-const WARN_AT_MS = 20_000;
+const KEEPALIVE_MS = 120_000;
 
 /**
  * The in-the-moment "may I?" — **the gate ADR-0009 left owing.**
@@ -101,7 +104,12 @@ export function PermissionPrompt({
 }: {
     request: ChatPermissionRequest;
     onDecide(decision: ToolPermissionDecision): void;
-    /** Asks the run for more time. Omitted, the extension control is not shown. */
+    /**
+     * Asks the run for more time. No longer a control the user presses — it is
+     * the keep-alive this prompt runs while it is open. Omitted, the run's
+     * budget is left to expire on its own, which is what a replayed transcript
+     * wants.
+     */
     onExtend?(): void;
 }) {
     const intl = useIntl();
@@ -124,6 +132,21 @@ export function PermissionPrompt({
     useEffect(() => {
         primaryRef.current?.focus();
     }, []);
+
+    // **Hold the run open while this prompt is on screen.** With the countdown
+    // and its extend button gone, nothing else would: the broker's budget would
+    // expire under a reader who is still deciding, which is exactly the hurry
+    // the removal was meant to end. See `KEEPALIVE_MS` for why this is what
+    // makes removing them legitimate rather than a regression.
+    //
+    // No leading call: the run has just parked, so it has its full budget.
+    useEffect(() => {
+        if (!onExtend) return;
+        const id = window.setInterval(() => {
+            if (document.visibilityState === 'visible') onExtend();
+        }, KEEPALIVE_MS);
+        return () => window.clearInterval(id);
+    }, [onExtend]);
 
     return (
         <section
@@ -175,45 +198,23 @@ export function PermissionPrompt({
                 </div>
             )}
 
-            {/* The countdown, and — inside the last twenty seconds — the
-                warning WCAG 2.2.1 asks for. Two regions rather than one because
-                they are different urgencies: the running countdown is polite
-                and must not interrupt, while the warning is the user's last
-                chance to act and is assertive. Only one is ever mounted, so
-                they cannot both speak. */}
-            {remainingMs !== null && (
+            {/* The **outcome**, not a countdown. While the prompt is open the
+                keep-alive above holds the run, so there is no clock to show and
+                nothing to hurry the reader with. What is left is the one case
+                the keep-alive deliberately does not cover — a prompt left in a
+                hidden tab until the budget ran out — where the buttons below
+                would otherwise look answerable and quietly do nothing.
+                `role="status"`, because by the time it appears there is no
+                longer anything for the reader to do about it. */}
+            {remainingMs !== null && remainingMs <= 0 && (
                 <div className="px-3 pt-2">
-                    {remainingMs <= 0 ? (
-                        <p
-                            role="status"
-                            className="text-muted-foreground text-[11px]"
-                        >
-                            {intl.formatMessage(messages.expired)}
-                        </p>
-                    ) : remainingMs <= WARN_AT_MS ? (
-                        <p
-                            role="alert"
-                            className="text-destructive flex items-center gap-1.5 text-[11px]"
-                        >
-                            <Clock aria-hidden className="size-3.5 shrink-0" />
-                            {intl.formatMessage(messages.expiringSoon, {
-                                seconds: Math.ceil(remainingMs / 1000)
-                            })}
-                        </p>
-                    ) : (
-                        <p
-                            role="status"
-                            className="text-muted-foreground flex items-center gap-1.5 text-[11px]"
-                        >
-                            <Clock aria-hidden className="size-3.5 shrink-0" />
-                            {intl.formatMessage(messages.remaining, {
-                                minutes: Math.floor(remainingMs / 60_000),
-                                seconds: Math.ceil(
-                                    (remainingMs % 60_000) / 1000
-                                )
-                            })}
-                        </p>
-                    )}
+                    <p
+                        role="status"
+                        className="text-muted-foreground flex items-center gap-1.5 text-[11px]"
+                    >
+                        <Clock aria-hidden className="size-3.5 shrink-0" />
+                        {intl.formatMessage(messages.expired)}
+                    </p>
                 </div>
             )}
 
@@ -221,17 +222,6 @@ export function PermissionPrompt({
                 <span className="text-muted-foreground mr-auto text-[11px]">
                     {intl.formatMessage(messages.nothingYet)}
                 </span>
-                {onExtend && remainingMs !== null && remainingMs > 0 && (
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        disabled={busy}
-                        onClick={onExtend}
-                    >
-                        <Clock aria-hidden className="size-3.5" />
-                        {intl.formatMessage(messages.moreTime)}
-                    </Button>
-                )}
                 <Button
                     size="sm"
                     variant="ghost"
@@ -290,14 +280,16 @@ function stringify(value: unknown): string {
 }
 
 /**
- * Milliseconds left until `expiresAt`, ticking once a second — or `null` when
- * the run did not say (an older server, or a replayed transcript).
+ * Milliseconds left until `expiresAt` — or `null` when the run did not say (an
+ * older server, or a replayed transcript).
  *
- * Ticks on a **one-second** interval rather than an animation frame: the number
- * on screen changes once a second, and the polite live region beside it should
- * not be re-rendered sixty times for each of those. Clamped at zero so a prompt
- * left open past its deadline reads "time ran out" instead of counting into
- * negative numbers.
+ * Nothing renders the number any more: with the keep-alive holding an open
+ * prompt, the only question left is whether the deadline has **passed**, which
+ * is the one thing this still answers. It keeps a one-second tick rather than
+ * a single timer to the deadline because a machine that slept through it would
+ * never fire that timer, and the prompt would stay looking answerable.
+ * Clamped at zero so an expired prompt reads "time ran out" rather than
+ * counting into negative numbers.
  */
 function useRemainingMs(expiresAt: string | undefined): number | null {
     const deadline = expiresAt ? Date.parse(expiresAt) : Number.NaN;

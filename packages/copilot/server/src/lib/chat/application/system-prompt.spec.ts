@@ -310,6 +310,22 @@ describe('buildSystemPrompt', () => {
             );
         });
 
+        /**
+         * ORT-203 — the create form is its own surface.
+         *
+         * It used to arrive as `records`, so a person filling in a new entry
+         * was described to the model as browsing a list — which is the one
+         * reading that makes it look up an entry that does not exist yet.
+         */
+        it('tells the create surface the record does not exist yet [copilot:I-42]', () => {
+            const prompt = build({
+                context: { surface: 'create', contentType: 'article' }
+            });
+
+            expect(prompt).toContain('ON THIS SURFACE');
+            expect(prompt).toContain('does not exist yet');
+        });
+
         it('tells the palette to answer in a sentence or two', () => {
             expect(build({ context: { surface: 'palette' } })).toContain(
                 'no preamble'
