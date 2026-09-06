@@ -11,8 +11,8 @@ import { LAYOUT } from './project';
  * somewhere to be used: a second opinion about where the server compiles to is
  * a string literal, and this file is the assertion that there is no such
  * literal outside the one table. The other half — "the CLI reads no settings
- * file of its own" — is an unbounded absence over the package, and stays
- * recorded as the missing clause in `docs/coverage/judgments/cli.json`.
+ * file of its own" — is an unbounded absence over the package, and is
+ * deliberately left unasserted.
  *
  * What the checkable half buys is not tidiness. Every one of these paths is
  * load-bearing at a distance: `serverEntry` follows from `apps/server/

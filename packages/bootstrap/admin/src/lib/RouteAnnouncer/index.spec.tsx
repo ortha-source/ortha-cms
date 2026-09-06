@@ -100,8 +100,7 @@ describe('RouteAnnouncer', () => {
  * The fixture that matters is the one the obvious test does not build. A route
  * whose heading simply never arrives is silent whether the timeout is there or
  * not, so a case built that way passes against an announcer with
- * `POLL_TIMEOUT_MS` deleted — the shape catalogued in
- * `docs/coverage/tests-that-cannot-fail.md`. What discriminates them is a
+ * `POLL_TIMEOUT_MS` deleted — a test that cannot fail. What discriminates them is a
  * heading that arrives *late*: with the deadline, the poll has already stopped
  * and the page is never announced; without it, the poll is still running and
  * announces a page the user navigated away from five seconds ago.

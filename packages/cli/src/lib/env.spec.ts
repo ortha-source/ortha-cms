@@ -5,9 +5,8 @@ import { join } from 'node:path';
 import { transformFileSync } from '@swc/core';
 
 /**
- * These run `loadEnv` in a **real child process**, and the reason is the third
- * shape in `docs/coverage/tests-that-cannot-fail.md`: the observable in this
- * harness cannot show the difference. Jest's node environment hands each test
+ * These run `loadEnv` in a **real child process**, and the reason is that the
+ * observable in this harness cannot otherwise show the difference. Jest's node environment hands each test
  * file a `process` whose `env` is a copy, while `process.loadEnvFile` writes to
  * the real environment through V8 — so in-process, a correct `loadEnv` and one
  * that did nothing at all leave `process.env` looking identical. Measured, not

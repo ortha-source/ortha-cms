@@ -60,8 +60,8 @@ describe('surface is presentation, never authority', () => {
 
     it('finds the provider set it is scanning', () => {
         // The premise. A scan that matched nothing would pass every assertion
-        // below without looking at a line of anybody's handler — the shape this
-        // repo's `tests-that-cannot-fail.md` exists to keep out.
+        // below without looking at a line of anybody's handler — the shape of a
+        // test that cannot fail.
         expect(providers.length).toBeGreaterThan(8);
         expect(
             providers.map((path) => relative(PACKAGES, path))

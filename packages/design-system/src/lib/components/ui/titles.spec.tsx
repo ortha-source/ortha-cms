@@ -96,8 +96,7 @@ describe('title slots', () => {
         // `AlertTitle` takes no `asChild` — it stays the labelled wrapper the
         // banner points `aria-labelledby` at, and a page that genuinely wants
         // a heading renders one inside. Same outcome, different mechanism from
-        // the two above; recorded as `partial` against I-14 in
-        // docs/coverage/judgments/design-system.json.
+        // the two above.
         render(
             <Alert>
                 <AlertTitle>

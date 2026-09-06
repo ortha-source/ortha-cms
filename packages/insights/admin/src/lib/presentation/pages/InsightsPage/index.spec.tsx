@@ -21,8 +21,8 @@ import {
  * "the cards rendered" tells a reader whether the frame around them also went to
  * the server, so a `useQuery` added to `InsightsPage`, `InsightsSectionBand` or
  * the range picker would pass every suite in the repo. That exact shape — an
- * observable that cannot distinguish the two implementations — is what put an
- * equivalent test on `docs/coverage/tests-that-cannot-fail.md` in `activity`.
+ * observable that cannot distinguish the two implementations — is what once left an
+ * equivalent test in `activity` unable to fail.
  *
  * So the observable here is the request itself. Every channel the admin can
  * reach the network through is intercepted — the shared `apiClient`'s axios

@@ -7,8 +7,7 @@ import { mediaAltAttributes } from '.';
  * out at one of the two writers and not the other: `setMediaAlt` cleared the
  * alt, the node view's own save did not, and an image the author had declared
  * carries no information still announced its description to the screen-reader
- * user the mark exists to protect (see `docs/coverage/tests-that-cannot-fail.md`,
- * `wysiwyg:I-25`). The e2e case pins the popover's path through the browser;
+ * user the mark exists to protect (`wysiwyg:I-25`). The e2e case pins the popover's path through the browser;
  * this pins the rule itself, which is what both paths now call.
  *
  * The fixture that matters is the one that was missing then: a **non-empty**

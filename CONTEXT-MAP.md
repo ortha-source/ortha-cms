@@ -182,8 +182,7 @@ detail.
 
 Authoring conventions are encoded as skills under `.agents/skills/` and
 `.claude/skills/`: `server-plugin`, `admin-plugin`, `accessibility`,
-`admin-e2e`, `server-e2e`, `shadcn`, `agent-browser`, and `coverage-sweep` (the
-invariant qualification pass, tracked in [`docs/coverage/`](docs/coverage/README.md)).
+`admin-e2e`, `server-e2e`, `shadcn`, and `agent-browser`.
 Prefer the skill over reverse-engineering a convention from code.
 
 <!-- TODO: add domain/business glossary terms (non-technical) as the product grows. -->

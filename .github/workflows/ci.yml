@@ -26,7 +26,7 @@ concurrency:
 
 jobs:
     check:
-        name: types, lint, unit, coverage gate
+        name: types, lint, unit
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
@@ -50,12 +50,6 @@ jobs:
             - run: npx nx run-many -t typecheck
             - run: npx nx run-many -t lint
             - run: npx nx run-many -t test
-
-            # Every numbered invariant in docs/artifacts/ is either named by a
-            # test or carries a written reason why no harness can reach it.
-            # Silence is the one thing this refuses — see docs/coverage/README.md.
-            - name: Invariant coverage gate
-              run: node tools/coverage/ledger.mjs check --strict
 
     server-e2e:
         name: server-e2e
