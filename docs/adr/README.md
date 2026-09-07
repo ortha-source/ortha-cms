@@ -40,5 +40,6 @@ routine, easily-reversed changes.
 - [0014 — Export and import as a separate plugin, one hop deep](0014-transfer-as-a-separate-plugin.md)
 - [0015 — Alarms flag content, and never block a write](0015-alarms-are-non-blocking.md)
 - [0016 — Webhooks deliver from a queue, never from the outbox subscriber](0016-webhooks-deliver-from-a-queue.md)
+- [0017 — Publication is protected per content type, and an approval belongs to a revision](0017-publication-protection.md)
 
 <!-- Add new ADRs to this index. -->
