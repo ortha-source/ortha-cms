@@ -32,6 +32,12 @@ type CollapsibleGroupProps = {
  * a lie, and one a keyboard user meets as a dead stop mid-sidebar. The row still
  * shows, muted and counting zero: "this workspace has no pages yet" is a fact
  * worth reading, while a section that vanished reads as a bug.
+ *
+ * The muting is `/70`, the same level the live row's icon and chevron use, and
+ * it is a floor rather than a taste: `sidebar-foreground/50` over `sidebar`
+ * composites to 4.48:1, which misses AA's 4.5 by two hundredths and fails the
+ * axe scan every entry-editor suite runs. Mute it further and the row stops
+ * clearing 1.4.3.
  */
 export function CollapsibleGroup({
     label,
@@ -42,7 +48,7 @@ export function CollapsibleGroup({
 }: CollapsibleGroupProps) {
     if (count === 0) {
         return (
-            <div className="flex h-9 w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm text-sidebar-foreground/50">
+            <div className="flex h-9 w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm text-sidebar-foreground/70">
                 <Icon aria-hidden className="size-4 shrink-0" />
                 <span className="flex-1 truncate font-medium">{label}</span>
                 <span className="tabular-nums text-xs">{count}</span>

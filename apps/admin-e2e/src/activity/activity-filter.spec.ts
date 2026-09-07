@@ -41,10 +41,13 @@ test.describe('Activity filter (query builder)', () => {
             activityLogPage.row('ada@ortha.dev').first()
         ).toBeVisible();
 
-        // Default field is "Kind" with the "equals" operator → a text value.
+        // Default field is "Action" with the "equals" operator. It is an enum
+        // field, so the value editor is a select over the kind catalogue — the
+        // reader picks the label the Action column renders ("Suspended
+        // member"), never the `user.suspended` token it stands for.
         await activityLogPage.openFilters();
         await activityLogPage.addRule();
-        await activityLogPage.fillValue('user.suspended');
+        await activityLogPage.selectEnumValue('Suspended member');
         await activityLogPage.applyFilters();
 
         // Only the suspension event (actor grace) survives. The panel stays
@@ -62,6 +65,7 @@ test.describe('Activity filter (query builder)', () => {
 
         await expect(page).toHaveURL(/filter=/);
         const filterParam = new URL(page.url()).searchParams.get('filter');
+        // The label is display only — what travels is still the wire token.
         expect(filterParam).toContain('"kind"');
         expect(filterParam).toContain('user.suspended');
     });
@@ -72,7 +76,7 @@ test.describe('Activity filter (query builder)', () => {
         await activityLogPage.goto();
         await activityLogPage.openFilters();
         await activityLogPage.addRule();
-        await activityLogPage.fillValue('user.suspended');
+        await activityLogPage.selectEnumValue('Suspended member');
         await activityLogPage.applyFilters();
 
         await expect(activityLogPage.filterTrigger()).toHaveText(
