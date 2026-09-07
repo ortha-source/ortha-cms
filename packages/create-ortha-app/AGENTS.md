@@ -40,11 +40,11 @@ to update here. There is no version list to fall behind.
 must be classified in [`src/lib/features.ts`](src/lib/features.ts) as exactly
 one of:
 
-| Group                    | Meaning                                                                               |
-| ------------------------ | ------------------------------------------------------------------------------------- |
-| `CORE_PACKAGES`          | every app gets it                                                                     |
-| a `Feature`'s `packages` | installed when that feature is chosen                                                 |
-| `TRANSITIVE_PACKAGES`    | an internal detail of another package; deliberately not declared. **Currently empty** |
+| Group                    | Meaning                                                                                                                                                                                      |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CORE_PACKAGES`          | every app gets it                                                                                                                                                                            |
+| a `Feature`'s `packages` | installed when that feature is chosen                                                                                                                                                        |
+| `TRANSITIVE_PACKAGES`    | published, but with no reason for a generated app to import it. Currently `media-provider-memory` and `media-provider-testkit` — tools for _writing_ a storage provider, not for running one |
 
 `features.spec.ts` enumerates the workspace and fails on anything unclassified,
 so a new package cannot merge without someone deciding whether a new app gets
@@ -53,16 +53,19 @@ publishes, nothing references it, and nobody notices until a user asks why the
 feature they read about is missing.
 
 **Everything reachable is declared.** A generated app's manifest lists every
-`@orthacms/*` package it could import, the extension points included —
-`content-domain`, `copilot-domain`, `tools-server`, `query-builder-admin`. All
-four arrive transitively anyway, so an import resolves on npm's flat
+`@orthacms/*` package it could import, the extension points included — the
+`*-domain` kernels (`content`, `copilot`, `identity`, `media`, `segments`,
+`transfer`, `webhooks`) plus `tools-server` and `query-builder-admin`. Every one
+of them arrives transitively anyway, so an import resolves on npm's flat
 `node_modules` regardless; declaring them is what makes that resolution
 something the app owns. An undeclared import works until a version conflict
 nests a copy, and never works under pnpm.
 
-That leaves exactly five packages out of a default app, and
-`features.spec.ts` asserts the list in full: the two hosted copilot backends,
-`content-graphql`, `mcp-server`, and the unreleased S3 adapter.
+That leaves **13** of the 59 published packages out of a default app, and
+`features.spec.ts` asserts the list in full: the four unpicked storage adapters,
+the two hosted copilot backends, the three SSO adapters, `content-graphql`,
+`mcp-server`, and the two `TRANSITIVE_PACKAGES`. Every one of the eleven is
+reachable from the wizard; only the last two are unreachable by design.
 
 Note what "optional" does and does not mean for the last two.
 `content-server` depends on `mcp-server`, so it is on disk in every generated
@@ -92,7 +95,7 @@ scaffolder can invent.
 
 All three share one `ssoProviders` key in `config/identity.ts`, one builder in
 `plugins.ts` and one extra argument to `IdentityPlugin` — each of which has to
-appear if *any* was picked. `ortha:if` is line-based with no expression
+appear if _any_ was picked. `ortha:if` is line-based with no expression
 language, so `resolveFlags` derives a group flag, **`sso`**, which is the one
 thing in the flag set that is not a picked id.
 
@@ -107,15 +110,17 @@ useful thing to answer than "do you want these two extras", and the answer reads
 as a complete set only if the one you always get is in it. `--protocols none`
 still yields REST; it is not something a flag can switch off.
 
-The storage question is **skipped while only one adapter is available** — S3 is
-listed in the registry and marked `available: false` because the package has
-never been released, and a question with a single possible answer is noise
-pretending to be a choice. It appears the moment S3 ships.
+The storage question offers **five** adapters — local disk, S3-compatible,
+Azure, GCS and Vercel Blob — all of them published and selectable. It is
+**skipped whenever only one is `available`**, because a question with a single
+possible answer is noise pretending to be a choice; that branch is dormant
+today and exists for the next adapter that lands in the codebase before it
+lands on npm, which is shown greyed out rather than hidden.
 
 **The copilot itself is core, not a choice.** `copilot-server` and
 `copilot-admin` are in `CORE_PACKAGES`, and `CopilotPlugin` is registered on
 both sides of every generated app, because its server half arrives regardless —
-five core plugins (`content`, `activity`, `i18n`, `media`, `users`) depend on
+five core plugins (`content`, `i18n`, `media`, `segments`, `users`) depend on
 `copilot-server` to contribute their tools, so the code is on disk whatever the
 manifest says, and leaving it undeclared bought only a missing chat panel.
 `COPILOT_ENABLED` defaults to `false`, and since that flag unregisters the
@@ -262,6 +267,29 @@ how you get a trailing comma and an app that cannot be installed, blaming the
 template rather than the feature that was switched off. Its dependency map is
 assembled in `features.ts` and re-sorted instead.
 
+## Registering a plugin is three edits, not one
+
+Mounting a plugin in the generated app touches three files, and the failure
+modes differ:
+
+1. `src/lib/features.ts` — classify the package, or it is not installed at all.
+2. `templates/default/apps/{server,admin}/src/plugins.ts` — import the factory
+   and add it to `buildPlugins`, plus its `name` to that app's
+   `EXPECTED_PLUGINS`. Skip this and the package ships in `node_modules` with
+   no route and no nav row (**I-33**).
+3. `templates/default/apps/server/config/<plugin>.ts` plus a line in
+   `ortha.config.ts` — **only if the plugin has settings an operator sets**.
+   Skip this while advertising the keys in `env.tmpl` and the app documents
+   configuration it ignores (**I-34**).
+
+Step 3 is the one with no natural reminder, so mirror
+[`apps/server/config/`](../../apps/server/config/) — this repo's own app is the
+reference composition, and a plugin configured there and not here is the tell.
+`AlarmsPlugin()` takes no argument in either, which is what "has no settings"
+looks like; `transfer` and `segments` have settings that are **code** (a
+per-type identity map, a resolver function) rather than environment values, so
+their modules read no env and exist to give that code a home.
+
 ## The command and the scaffolder
 
 `src/cli.ts` is the `bin` and nothing else: it calls `main()` and turns a thrown
@@ -352,8 +380,8 @@ the tests into`dist/server` and ships them.
 
 `npx nx test create-ortha-app` — the package-coverage guard, the conditional
 processor, and the scaffolded output for several feature combinations (nothing
-optional, one copilot provider, both, and every protocol). Four of the nine spec
-files are worth knowing about by name:
+optional, one copilot provider, both, and every protocol). Four of the eleven
+spec files are worth knowing about by name:
 
 - `run.spec.ts` drives `main()` end to end in a temporary directory: the
   non-empty-directory refusal, the two ways of answering without being asked,
@@ -363,6 +391,15 @@ files are worth knowing about by name:
   each plugin's name from the package that defines it. Those generated specs
   never run here, so nothing else notices when they stop describing the app —
   which is exactly how a scaffolded app shipped with `npm test` already red.
+  It also closes the gap between **classified** and **mounted**: every
+  `CORE_PACKAGES` entry that defines a plugin factory must appear in
+  `buildPlugins`. Classification alone only puts a package in `package.json`,
+  and the two drifted apart for four releases — `v0.4.0`–`v0.4.3` installed
+  `transfer-*` and `segments-*` in every generated app without registering
+  either, so users got the code in `node_modules` and no export/import dialogs
+  and no audience directory, with every guard green. Plugin-ness is read from
+  the package's own return types, so a library that grows a factory later fails
+  this without anyone touching the scaffolder.
 - `generated-config.spec.ts` **executes** rendered `config/` modules (they
   import types and env readers only, so this costs nothing) to check that an
   unset key means no provider rather than one that fails on the first message.

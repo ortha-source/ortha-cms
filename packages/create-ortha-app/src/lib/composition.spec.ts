@@ -8,6 +8,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { renderTemplate, type TemplateValues } from './template';
+import { CORE_PACKAGES } from './features';
 
 /**
  * What the generated app is composed of — asserted from the template, before
@@ -278,5 +279,180 @@ describe('the generated app’s admin composition', () => {
 
         expect(layouts).toEqual(['ShellPlugin']);
         expect(registeredNames(source)[0]).toBe('identity');
+    });
+});
+
+/**
+ * The gap between "installed" and "mounted".
+ *
+ * `features.spec.ts` proves every published package is *classified*, which puts
+ * it in the generated `package.json`. Nothing proved the second half: that a
+ * package which **is a plugin** is also registered in `buildPlugins`. The two
+ * are independent, and the failure is silent in both directions — the app
+ * installs cleanly, `npm test` stays green, and the feature is simply not
+ * there. There is no route, no nav row, and no error saying why.
+ *
+ * It is not hypothetical. `v0.4.0`–`v0.4.3` shipped `transfer-*` and
+ * `segments-*` as dependencies of every generated app while registering
+ * neither, and `webhooks-*` was classified a release before it was mounted.
+ * Users got the packages in `node_modules` and no export/import dialogs, no
+ * audience directory and no webhooks page. It was found by hand and fixed by
+ * hand; every existing guard was green throughout.
+ *
+ * The plugin-ness of a package is read from the package, not listed here — an
+ * exported factory whose return type is a `…Plugin` (or the `…PluginType` /
+ * `…PluginDefinition` alias some packages use). So a library that grows a
+ * plugin factory in a later release fails this without anyone having touched
+ * the scaffolder, which is the whole point: adding a plugin to the workspace
+ * should force a decision about whether a new app mounts it.
+ *
+ * Only `CORE_PACKAGES` is checked. A feature's packages are conditional by
+ * design — an unpicked media adapter or an `ortha:if`-guarded protocol is
+ * *meant* to be absent — and `conditionals.spec.ts` covers those.
+ */
+describe('every core plugin package is actually mounted', () => {
+    /**
+     * The plugin factories a package exports, by name.
+     *
+     * Empty for a library — `utils-admin`, `design-system`, the `*-domain`
+     * kernels, `tools-server` — which is how a package opts out of this guard
+     * without being listed anywhere as an exception.
+     */
+    function pluginFactoriesOf(pkg: string): string[] {
+        const factories: string[] = [];
+
+        for (const file of sourcesOf(pkg)) {
+            for (const [, factory] of readFileSync(file, 'utf8').matchAll(
+                /export function (\w+)\s*\([^)]*\)\s*:\s*\w*Plugin(?:Type|Definition)?\s*\{/g
+            )) {
+                factories.push(factory as string);
+            }
+        }
+
+        return factories;
+    }
+
+    const pluginPackages = CORE_PACKAGES.filter(
+        (pkg) => pluginFactoriesOf(pkg).length > 0
+    );
+
+    /**
+     * A sanity check on the detector itself. If the return-type convention ever
+     * changes, `pluginFactoriesOf` quietly finds nothing and every assertion
+     * below passes vacuously — the guard would still be green while guarding
+     * nothing, which is worse than not having it.
+     */
+    it('recognises the core packages that define plugins', () => {
+        expect(pluginPackages.length).toBeGreaterThan(20);
+        expect(pluginPackages).toContain('@orthacms/webhooks-server');
+        expect(pluginPackages).toContain('@orthacms/webhooks-admin');
+        expect(pluginPackages).not.toContain('@orthacms/utils-admin');
+        expect(pluginPackages).not.toContain('@orthacms/webhooks-domain');
+    });
+
+    // covers: create-ortha-app:I-33
+    it.each(pluginPackages)('%s is registered in buildPlugins', (pkg) => {
+        const rendered = scaffold('media-local', 'rest');
+        const composition = [
+            rendered('apps/server/src/plugins.ts'),
+            rendered('apps/admin/src/plugins.ts')
+        ];
+        const factories = pluginFactoriesOf(pkg);
+
+        // If this fails you added a plugin package to `CORE_PACKAGES` without
+        // mounting it. Import one of its factories in the matching
+        // `templates/default/apps/{server,admin}/src/plugins.ts`, add it to the
+        // returned array, and add its plugin `name` to that app's
+        // `EXPECTED_PLUGINS`. Installing it is not shipping it.
+        const mounted = composition.some((source) => {
+            const owners = importedFrom(source);
+            return registeredFactories(source).some(
+                (factory) =>
+                    factories.includes(factory) && owners.get(factory) === pkg
+            );
+        });
+
+        expect(mounted).toBe(true);
+    });
+});
+
+/**
+ * A `.env` key nothing reads.
+ *
+ * The generated `.env` is documentation as much as configuration — it is where
+ * an operator learns which knobs exist, and each key ships with a paragraph
+ * saying what turning it does. So a key nobody reads is worse than a missing
+ * one: the operator sets it, restarts, and gets the default anyway, with the
+ * file in front of them promising otherwise. Nothing errors, because an unread
+ * environment variable is not an error.
+ *
+ * That is not hypothetical either. The template shipped five `WEBHOOKS_*` keys
+ * — including `WEBHOOKS_ALLOW_PRIVATE_NETWORKS`, which is what a self-hosted
+ * install has to turn on to reach an in-cluster receiver — while
+ * `WebhooksPlugin()` was called with no config at all and no `config/webhooks.ts`
+ * existed to read them. Every one was inert.
+ *
+ * Read against the **whole rendered app**, not just `config/`: `ADMIN_PORT`
+ * belongs to the Vite config, `DATABASE_URL` to two places, and the e2e setup
+ * has keys of its own. Every combination is rendered, because a key inside an
+ * `ortha:if` block must be read by something that survives the same block —
+ * shipping `GRAPHQL_MAX_DEPTH` to an app with no GraphQL would be the same bug
+ * with a conditional in front of it.
+ */
+describe('the generated .env has no key nothing reads', () => {
+    /** Every `KEY=` declared in a rendered `.env`. */
+    function declaredKeys(env: string): string[] {
+        return [...env.matchAll(/^([A-Z][A-Z0-9_]*)=/gm)].map(
+            (match) => match[1] as string
+        );
+    }
+
+    /** Every rendered file except the `.env` itself. */
+    function renderedSources(): string {
+        const walk = (dir: string): string[] =>
+            readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
+                entry.isDirectory()
+                    ? walk(join(dir, entry.name))
+                    : entry.name === '.env'
+                      ? []
+                      : [join(dir, entry.name)]
+            );
+
+        return walk(target)
+            .map((file) => readFileSync(file, 'utf8'))
+            .join('\n');
+    }
+
+    // covers: create-ortha-app:I-34
+    it.each([
+        ['nothing optional', ['media-local', 'rest']],
+        ['every protocol', ['media-local', 'rest', 'graphql', 'mcp']],
+        [
+            'everything at once',
+            [
+                'media-s3',
+                'rest',
+                'graphql',
+                'mcp',
+                'copilot-anthropic',
+                'copilot-openai',
+                'sso-oidc',
+                'sso-github',
+                'sso-saml'
+            ]
+        ]
+    ])('%s', (_label, ids) => {
+        const rendered = scaffold(...(ids as string[]));
+        const sources = renderedSources();
+
+        // If this fails, a key in `env.tmpl` is read by nothing the app ships.
+        // Either give it a reader — usually a line in the matching
+        // `apps/server/config/` module — or delete it. Documenting a setting
+        // that does nothing is the worse of the two.
+        const inert = declaredKeys(rendered('.env')).filter(
+            (key) => !sources.includes(key)
+        );
+
+        expect(inert).toEqual([]);
     });
 });

@@ -43,7 +43,7 @@ export interface Feature {
  *
  * The **copilot** is here — plugin and admin panel — even though it is a large
  * feature nobody may want, because its server half arrives anyway: five core
- * plugins (`content`, `activity`, `i18n`, `media`, `users`) depend on
+ * plugins (`content`, `i18n`, `media`, `segments`, `users`) depend on
  * `copilot-server` to contribute their tools, so the code is on disk whatever
  * the manifest says, and leaving it undeclared bought nothing but a missing chat
  * panel. No **model backend** comes with it: those are the opt-in
@@ -55,7 +55,8 @@ export interface Feature {
  * answer.
  *
  * The **extension points** are here for the same reason — `content-domain`,
- * `copilot-domain`, `tools-server`, `query-builder-admin`. Every one of them
+ * `copilot-domain`, `segments-domain`, `transfer-domain`, `webhooks-domain`,
+ * `tools-server`, `query-builder-admin`. Every one of them
  * already arrives transitively, so an import would resolve on npm's flat
  * `node_modules` today; declaring them is what makes that resolution something
  * the app owns rather than something it borrows. An undeclared import breaks
@@ -162,8 +163,9 @@ export const TRANSITIVE_PACKAGES: readonly string[] = [
  * Where uploads are written.
  *
  * A single-choice group: media always runs, the question is only which adapter
- * backs it. S3 is listed and disabled — the package exists but has never been
- * released, and offering it would generate an app that cannot install.
+ * backs it. All five are published and selectable; `available` stays on the
+ * type for the next adapter that lands in the codebase before it lands on npm,
+ * which is shown greyed out rather than hidden.
  */
 export const MEDIA_PROVIDERS: readonly Feature[] = [
     {

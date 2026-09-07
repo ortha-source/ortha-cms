@@ -212,6 +212,10 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
         // first request from a workspace granted both.
         ContentGraphqlPlugin({
             content,
+            ...config.plugins.contentGraphql,
+            // GraphiQL rides the same switch as the Scalar reference: both are
+            // developer tooling, and neither should be reachable in production
+            // unless the operator asks (`API_DOCS=true`).
             playground: config.docs.enabled === true
         }),
         // ortha:end
@@ -227,8 +231,9 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
         AlarmsPlugin(),
         // Outgoing webhooks. Inert until someone adds an endpoint in the admin,
         // and it only subscribes to the outbox, so nothing depends on it being
-        // registered any earlier than this.
-        WebhooksPlugin(),
+        // registered any earlier than this. The settings worth knowing about
+        // are the two `WEBHOOKS_ALLOW_*` flags — see `config/webhooks.ts`.
+        WebhooksPlugin(config.plugins.webhooks),
         MediaServerPlugin({
             // ortha:if media-local
             provider: createLocalStorageProvider(config.plugins.media.storage),
@@ -259,9 +264,10 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
         // The setting worth filling in per install is `identity`: it says
         // which field identifies a record of each type, which is what lets an
         // import recognise "this is that record" instead of adding a
-        // duplicate. Without it the natural key is a heuristic —
-        // `TransferPlugin({ identity: { post: ['slug'] } })`.
-        TransferPlugin(),
+        // duplicate. Without it the natural key is a heuristic. It is a map of
+        // your own content types rather than an environment value, so it lives
+        // in `config/transfer.ts`.
+        TransferPlugin(config.plugins.transfer),
         // Reader entitlements — who may *read* published content, as against
         // who may touch it. After content, whose read-scope port it binds, so
         // one decision covers REST, GraphQL and MCP at once.
@@ -270,8 +276,10 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
         // in the admin no predicate is emitted and every read costs what it
         // did before. The line to fill in per install is `resolver` — it says
         // where a reader's tags come from, and its absence means every reader
-        // is anonymous, which serves unrestricted content and nothing else.
-        SegmentsPlugin(),
+        // is anonymous, which serves unrestricted content and nothing else. It
+        // is a function you write, not an environment value, so it lives in
+        // `config/segments.ts`.
+        SegmentsPlugin(config.plugins.segments),
         // Registered after workspaces (runs are workspace-scoped) and identity
         // (runs execute as the calling user, gated on `copilot:use`). The
         // composition root is the single place that selects a backend: the
