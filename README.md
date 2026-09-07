@@ -1,5 +1,7 @@
 # OrthaCms
 
+[orthacms.com](https://orthacms.com) · [Documentation](https://orthacms.com/docs) · [Quick start](https://orthacms.com/docs/start/quickstart)
+
 A plugin-based CMS built as an [Nx](https://nx.dev) monorepo. A small, generic
 **host** turns a list of **plugins** into a running app — capability lives in
 plugins, not in the host.
@@ -18,6 +20,9 @@ plugins, not in the host.
 | [`CONTEXT-MAP.md`](CONTEXT-MAP.md)   | Project map (every app & package) + glossary                             |
 | [`DESIGN.md`](DESIGN.md)             | Product & design intent                                                  |
 | [`docs/adr/`](docs/adr/README.md)    | Architecture Decision Records — the _why_                                |
+
+The reference for people **using** Ortha rather than working on it is the
+documentation portal at [orthacms.com/docs](https://orthacms.com/docs).
 
 ## Getting started
 
