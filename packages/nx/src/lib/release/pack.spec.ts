@@ -91,6 +91,7 @@ function stagedManifest(): Record<string, never> {
 const baseManifest = {
     name: 'create-ortha-app',
     version: '1.2.3',
+    license: 'MIT',
     main: './src/index.ts',
     types: './src/index.ts',
     exports: {
@@ -140,6 +141,31 @@ describe('pack.mjs, for a package that ships a bin', () => {
         });
 
         expect(pack).toThrow();
+    });
+});
+
+describe('pack.mjs, and the licence a package states', () => {
+    it('stages the licence the package declares', () => {
+        root = workspace(baseManifest);
+
+        pack();
+
+        expect(stagedManifest().license).toBe('MIT');
+    });
+
+    it('refuses a package that states no licence, rather than inheriting one', () => {
+        const { license: _omitted, ...unlicensed } = baseManifest;
+        root = workspace(unlicensed);
+
+        expect(pack).toThrow(/no "license" field/);
+    });
+
+    it('refuses a package whose licence differs from the workspace', () => {
+        root = workspace({ ...baseManifest, license: 'Apache-2.0' });
+
+        expect(pack).toThrow(
+            /licensed "Apache-2.0" but the workspace is "MIT"/
+        );
     });
 });
 

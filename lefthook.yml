@@ -1,8 +1,15 @@
 # Git hooks (installed via the root `prepare` script → `lefthook install`).
 # Docs: https://lefthook.dev/configuration/
 #
-# No hooks are configured today. When adding one, note that `glob` takes a
-# **list**, not a brace expansion: `{a,b}` is passed through to the matcher
-# verbatim and matches nothing, silently — a job wired that way logs
-# "(skip) no matching staged files" on every commit and no reviewer reads a
-# skip line.
+# When adding a job, note that `glob` takes a **list**, not a brace
+# expansion: `{a,b}` is passed through to the matcher verbatim and matches
+# nothing, silently — a job wired that way logs "(skip) no matching staged
+# files" on every commit and no reviewer reads a skip line.
+
+# Every commit certifies the Developer Certificate of Origin (see DCO and
+# CONTRIBUTING.md). `git commit -s` adds the line; this refuses a commit
+# without one, so the requirement is met locally rather than in review.
+commit-msg:
+    commands:
+        dco:
+            run: node tools/hooks/require-signoff.mjs {1}

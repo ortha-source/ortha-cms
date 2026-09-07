@@ -1,6 +1,7 @@
 {
     "name": "@orthacms/content-server",
     "version": "0.4.3",
+    "license": "MIT",
     "main": "./src/index.ts",
     "types": "./src/index.ts",
     "exports": {
