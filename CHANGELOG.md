@@ -1,3 +1,14 @@
+## 0.5.2 (2026-09-07)
+
+### 🩹 Fixes
+
+- **create-ortha-app:** configure the plugins the template only registered ([#250](https://github.com/ortha-source/ortha-cms/pull/250))
+
+### ❤️ Thank You
+
+- Claude Opus 5 (1M context)
+- Pavel Makhanko @pmknk
+
 ## 0.5.1 (2026-09-07)
 
 ### 🩹 Fixes
