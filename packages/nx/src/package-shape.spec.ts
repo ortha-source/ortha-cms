@@ -189,3 +189,66 @@ describe('the shape of @orthacms/nx', () => {
         ).toHaveLength(2);
     });
 });
+
+/**
+ * The licence is a claim every package makes about itself, and one no test
+ * that drives a package can see: a manifest with no `license` field builds,
+ * tests and links exactly like one with it. It is read by `pack` at release
+ * time — which refuses the package — and by a consumer's compliance scanner
+ * after publication, which is too late. So the whole workspace is checked
+ * here, against the root manifest, on every test run.
+ */
+describe('every workspace package states the licence', () => {
+    const root = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8'));
+
+    /** Every `package.json` one or two levels under `packages/`. */
+    const manifests = (() => {
+        const out: string[] = [];
+        const packages = join(REPO, 'packages');
+        for (const group of readdirSync(packages, { withFileTypes: true })) {
+            if (!group.isDirectory()) continue;
+            const flat = join(packages, group.name, 'package.json');
+            try {
+                readFileSync(flat);
+                out.push(flat);
+                continue;
+            } catch {
+                /* a group directory: its packages are one level down */
+            }
+            for (const child of readdirSync(join(packages, group.name), {
+                withFileTypes: true
+            })) {
+                if (!child.isDirectory()) continue;
+                const nested = join(
+                    packages,
+                    group.name,
+                    child.name,
+                    'package.json'
+                );
+                try {
+                    readFileSync(nested);
+                    out.push(nested);
+                } catch {
+                    /* not a package */
+                }
+            }
+        }
+        return out;
+    })();
+
+    it('finds the packages at all', () => {
+        expect(manifests.length).toBeGreaterThan(50);
+    });
+
+    it('is the workspace licence, stated on the package itself', () => {
+        const wrong = manifests
+            .map((file) => ({
+                file: relative(REPO, file),
+                license: JSON.parse(readFileSync(file, 'utf8')).license
+            }))
+            .filter((entry) => entry.license !== root.license);
+
+        expect(root.license).toBe('MIT');
+        expect(wrong).toEqual([]);
+    });
+});

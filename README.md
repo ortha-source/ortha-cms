@@ -11,13 +11,13 @@ plugins, not in the host.
 
 ## Documentation
 
-| Doc | What it covers |
-|---|---|
-| [`AGENTS.md`](AGENTS.md) | Canonical context: layout, commands, conventions (read by all AI agents) |
-| [`ARCHITECTURE.md`](ARCHITECTURE.md) | How the system is built — plugin hosts, data layer, request flow |
-| [`CONTEXT-MAP.md`](CONTEXT-MAP.md) | Project map (every app & package) + glossary |
-| [`DESIGN.md`](DESIGN.md) | Product & design intent |
-| [`docs/adr/`](docs/adr/README.md) | Architecture Decision Records — the *why* |
+| Doc                                  | What it covers                                                           |
+| ------------------------------------ | ------------------------------------------------------------------------ |
+| [`AGENTS.md`](AGENTS.md)             | Canonical context: layout, commands, conventions (read by all AI agents) |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | How the system is built — plugin hosts, data layer, request flow         |
+| [`CONTEXT-MAP.md`](CONTEXT-MAP.md)   | Project map (every app & package) + glossary                             |
+| [`DESIGN.md`](DESIGN.md)             | Product & design intent                                                  |
+| [`docs/adr/`](docs/adr/README.md)    | Architecture Decision Records — the _why_                                |
 
 ## Getting started
 
@@ -63,8 +63,13 @@ single quotes).
 
 ## Contributing
 
-Authoring conventions are encoded as skills under `.agents/skills/`
-(`server-plugin`, `admin-plugin`, `accessibility`, `admin-e2e`, `server-e2e`,
-`shadcn`). Before changing a plugin, read its package `AGENTS.md` and the
-relevant skill. Recurring pitfalls to avoid are listed in
+See [`CONTRIBUTING.md`](CONTRIBUTING.md). In short: sign every commit
+(`git commit -s`) to certify the [Developer Certificate of Origin](DCO), and
+before changing a plugin read its package `AGENTS.md` and the relevant skill
+under `.agents/skills/`. Recurring pitfalls to avoid are listed in
 [`.cursor/BUGBOT.md`](.cursor/BUGBOT.md).
+
+## Licence
+
+MIT, for every package. Each `package.json` states it, and a release refuses
+to stage a package that omits the field or names a different licence.

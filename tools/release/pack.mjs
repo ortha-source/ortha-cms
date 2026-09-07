@@ -141,11 +141,32 @@ if (existsSync(readme)) {
 
 /* --------------------------------------------------------------- manifest */
 
+/*
+ * The licence is stated on the package itself, never inherited. Every
+ * package publishes under the workspace's licence, and a manifest that
+ * omits the field or says something else is either a mistake or a
+ * decision — both are worth stopping a release for, because a tarball's
+ * licence is the one field a consumer's compliance scanner reads and the
+ * one that cannot be corrected after publication.
+ */
+if (!pkg.license) {
+    fail(
+        `${pkg.name} has no "license" field; every published package must state one`
+    );
+}
+if (pkg.license !== rootPkg.license) {
+    fail(
+        `${pkg.name} is licensed "${pkg.license}" but the workspace is "${rootPkg.license}".\n` +
+            '        A package under a different licence is a deliberate decision — record it\n' +
+            '        in an ADR and lift this check for that package explicitly.'
+    );
+}
+
 const staged = {
     name: pkg.name,
     version: pkg.version,
     description: pkg.description ?? `${pkg.name} — part of Ortha CMS.`,
-    license: pkg.license ?? rootPkg.license,
+    license: pkg.license,
     homepage: `${homepage}/tree/main/${projectRoot}`,
     repository: { type: 'git', url: repoUrl, directory: projectRoot },
     bugs: { url: `${homepage}/issues` },
