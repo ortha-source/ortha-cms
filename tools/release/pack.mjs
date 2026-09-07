@@ -427,12 +427,59 @@ function verifyDependenciesAreDeclared(manifest) {
     }
 }
 
-/** Everything the library build compiles — so, no specs. */
+/**
+ * Everything the library build compiles, under `dir`.
+ *
+ * The package's own `tsconfig.lib.json` is the authority, not a filename
+ * convention: a spec is only one of the things a build leaves out. Test
+ * scaffolding that is *not* named `.spec.` — a `__test__/harness.tsx`, a
+ * `test-setup.ts` — is excluded there and compiled nowhere, so it reaches no
+ * consumer and cannot owe them a dependency. Walking the tree by name instead
+ * read those files, found `@testing-library/react`, and refused to stage a
+ * package whose tarball would never contain the import.
+ *
+ * Which excludes apply differs per package — some do compile their `__test__`
+ * helpers, and a few still compile their specs — so this asks the compiler
+ * rather than restating the rules, and keeps the name filter on top of the
+ * answer: a spec that gets compiled anyway is a tidiness problem, not a
+ * dependency a consumer can be handed a broken import through.
+ */
 function sourceFiles(dir) {
+    const configPath = join(projectDir, 'tsconfig.lib.json');
+    if (!existsSync(configPath)) return walkSources(dir);
+
+    const parsed = ts.getParsedCommandLineOfConfigFile(
+        configPath,
+        {},
+        {
+            ...ts.sys,
+            onUnRecoverableConfigFileDiagnostic: (diagnostic) =>
+                fail(
+                    `cannot read ${relative(workspaceRoot, configPath)}: ` +
+                        ts.flattenDiagnosticMessageText(
+                            diagnostic.messageText,
+                            ' '
+                        )
+                )
+        }
+    );
+
+    const prefix = `${dir.replace(/\\/g, '/')}/`;
+    return (parsed?.fileNames ?? [])
+        .map((file) => file.replace(/\\/g, '/'))
+        .filter((file) => file.startsWith(prefix))
+        .filter((file) => !/\.(spec|test)\./.test(file));
+}
+
+/**
+ * The fallback for a package with no `tsconfig.lib.json`: every TypeScript
+ * file under `dir` that is not itself a spec.
+ */
+function walkSources(dir) {
     if (!existsSync(dir)) return [];
     return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
         const path = join(dir, entry.name);
-        if (entry.isDirectory()) return sourceFiles(path);
+        if (entry.isDirectory()) return walkSources(path);
         if (!/\.tsx?$/.test(entry.name)) return [];
         return /\.(spec|test)\./.test(entry.name) ? [] : [path];
     });

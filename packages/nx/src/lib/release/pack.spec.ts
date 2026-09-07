@@ -390,3 +390,53 @@ describe('pack.mjs, resolving what a package depends on', () => {
         });
     });
 });
+
+/**
+ * What the phantom-dependency check reads, which is not every file under
+ * `src/`.
+ *
+ * The check exists to catch a package importing something only the workspace
+ * root depends on — hoisted in development, absent from the consumer's tree.
+ * That reasoning applies to what the tarball *contains*. Test scaffolding a
+ * package excludes from its build — `__test__/harness.tsx`, `test-setup.ts` —
+ * is compiled nowhere and shipped nowhere, and reading it refused
+ * `@orthacms/query-builder-admin` over a `@testing-library/react` import no
+ * consumer could ever reach. The excludes differ per package, so the package's
+ * own `tsconfig.lib.json` is what decides.
+ */
+describe('pack.mjs, and which files owe a dependency', () => {
+    /** The fixture workspace, plus a `src/` and the tsconfig that compiles it. */
+    function withSources(exclude: string[]): string {
+        const dir = workspace(baseManifest);
+        const project = join(dir, 'packages/scaffolder');
+
+        writeJson(join(project, 'tsconfig.lib.json'), {
+            compilerOptions: {
+                outDir: 'dist',
+                rootDir: 'src',
+                jsx: 'react-jsx'
+            },
+            include: ['src/**/*.ts', 'src/**/*.tsx'],
+            exclude
+        });
+        writeText(join(project, 'src/index.ts'), 'export const x = 1;\n');
+        writeText(
+            join(project, 'src/lib/__test__/harness.tsx'),
+            "import { render } from '@testing-library/react';\nexport { render };\n"
+        );
+
+        return dir;
+    }
+
+    it('ignores a test helper the build excludes', () => {
+        root = withSources(['src/**/__test__/**']);
+
+        expect(() => pack()).not.toThrow();
+    });
+
+    it('still refuses an undeclared import the build does compile', () => {
+        root = withSources([]);
+
+        expect(() => pack()).toThrow(/@testing-library\/react/);
+    });
+});
