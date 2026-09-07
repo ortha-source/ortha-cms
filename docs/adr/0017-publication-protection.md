@@ -4,6 +4,10 @@
 - **Date:** 2026-09-07
 - **Deciders:** Engineering
 
+> The technical description this record deliberately does not carry — tables,
+> the port, the API, the screens, the invariants and the test checklist — is
+> [`docs/design/protection.md`](../design/protection.md).
+
 ## Context
 
 There is no editorial review in the CMS, and there is no way to arrange one out
