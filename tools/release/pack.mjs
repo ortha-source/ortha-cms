@@ -67,7 +67,14 @@ const buildDir = join(projectDir, 'dist');
 const repoUrl =
     rootPkg.repository?.url ??
     'git+https://github.com/ortha-source/ortha-cms.git';
-const homepage = repoUrl.replace(/^git\+/, '').replace(/\.git$/, '');
+const repoWeb = repoUrl.replace(/^git\+/, '').replace(/\.git$/, '');
+/*
+ * The project's website, which is what npm means by `homepage` — the page a
+ * reader lands on from a package listing. `repository` and `bugs` still point
+ * at GitHub, so a tarball says where the source is and where a bug goes
+ * without conflating either with where the product is explained.
+ */
+const website = rootPkg.homepage ?? 'https://orthacms.com';
 
 if (!existsSync(buildDir)) {
     fail(`${pkg.name} has no dist/ — run \`nx build ${pkg.name}\` first`);
@@ -167,9 +174,9 @@ const staged = {
     version: pkg.version,
     description: pkg.description ?? `${pkg.name} — part of Ortha CMS.`,
     license: pkg.license,
-    homepage: `${homepage}/tree/main/${projectRoot}`,
+    homepage: website,
     repository: { type: 'git', url: repoUrl, directory: projectRoot },
-    bugs: { url: `${homepage}/issues` },
+    bugs: { url: `${repoWeb}/issues` },
     main: toBuilt(pkg.main),
     types: toTypes(pkg.types),
     exports: remapExports(pkg.exports),
@@ -499,7 +506,8 @@ function stubReadme(name) {
     return [
         `# ${name}`,
         '',
-        `Part of [Ortha CMS](${homepage}).`,
+        `Part of [Ortha CMS](${website}) — the source is on`,
+        `[GitHub](${repoWeb}/tree/main/${projectRoot}).`,
         '',
         '```sh',
         `npm install ${name}`,
