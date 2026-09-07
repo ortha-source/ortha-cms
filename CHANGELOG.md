@@ -1,3 +1,14 @@
+## 0.5.1 (2026-09-07)
+
+### 🩹 Fixes
+
+- **release:** pack what the build compiles, and state media-domain's licence ([771bdbef](https://github.com/ortha-source/ortha-cms/commit/771bdbef))
+
+### ❤️ Thank You
+
+- Claude Opus 5 (1M context)
+- Pavel Makhanko
+
 ## 0.5.0 (2026-09-07)
 
 ### 🚀 Features
