@@ -34,6 +34,12 @@ import type {
     TrustProxySetting
 } from '@orthacms/bootstrap-server';
 import type { I18nPluginConfig } from '@orthacms/i18n-server';
+import type { SegmentsPluginConfig } from '@orthacms/segments-server';
+import type { TransferPluginConfig } from '@orthacms/transfer-server';
+import type { WebhooksPluginConfig } from '@orthacms/webhooks-server';
+// ortha:if graphql
+import type { ContentGraphqlPluginConfig } from '@orthacms/content-graphql';
+// ortha:end
 // ortha:if mcp
 import type { McpPluginConfig } from '@orthacms/mcp-server';
 // ortha:end
@@ -49,6 +55,12 @@ import { identityConfig, type AppIdentityConfig } from './config/identity';
 import { i18nConfig } from './config/i18n';
 import { mediaConfig, type AppMediaConfig } from './config/media';
 import { copilotConfig, type AppCopilotConfig } from './config/copilot';
+import { segmentsConfig } from './config/segments';
+import { transferConfig } from './config/transfer';
+import { webhooksConfig } from './config/webhooks';
+// ortha:if graphql
+import { contentGraphqlConfig } from './config/graphql';
+// ortha:end
 // ortha:if mcp
 import { mcpConfig } from './config/mcp';
 // ortha:end
@@ -74,6 +86,16 @@ export interface OrthaConfig {
         i18n: I18nPluginConfig;
         media: AppMediaConfig;
         copilot: AppCopilotConfig;
+        /** Export/import — per-type identity fields and transfer ceilings. */
+        transfer: TransferPluginConfig;
+        /** Reader entitlements — where a reader's tags come from. */
+        segments: SegmentsPluginConfig;
+        /** Outgoing webhooks — delivery pacing and the URL policy. */
+        webhooks: WebhooksPluginConfig;
+        // ortha:if graphql
+        /** Public GraphQL endpoint — the per-operation cost budget. */
+        contentGraphql: ContentGraphqlPluginConfig;
+        // ortha:end
         // ortha:if mcp
         mcp: McpPluginConfig;
         // ortha:end
@@ -107,6 +129,12 @@ const config: OrthaConfig = {
         i18n: i18nConfig(),
         media: mediaConfig(),
         copilot: copilotConfig(),
+        transfer: transferConfig(),
+        segments: segmentsConfig(),
+        webhooks: webhooksConfig(),
+        // ortha:if graphql
+        contentGraphql: contentGraphqlConfig(),
+        // ortha:end
         // ortha:if mcp
         mcp: mcpConfig()
         // ortha:end

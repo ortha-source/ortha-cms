@@ -175,7 +175,7 @@ The `COPILOT_PROVIDERS` group, a multiple choice. Flag `--copilot <ids|none>`.
 
 > **This is not the question "do you want a copilot"**
 >
-> The copilot itself is **core**: `copilot-server` and `copilot-admin` are in `CORE_PACKAGES`, and `CopilotPlugin` is registered on both sides of any generated application. The reason is technical and unavoidable: five core plugins (`content`, `activity`, `i18n`, `media`, `users`) depend on `copilot-server` in order to hand it their tools. The code will be on disk regardless — not declaring it would only buy us a missing chat panel. What is asked is **which model backends to add**.
+> The copilot itself is **core**: `copilot-server` and `copilot-admin` are in `CORE_PACKAGES`, and `CopilotPlugin` is registered on both sides of any generated application. The reason is technical and unavoidable: five core plugins (`content`, `i18n`, `media`, `segments`, `users`) depend on `copilot-server` in order to hand it their tools. The code will be on disk regardless — not declaring it would only buy us a missing chat panel. What is asked is **which model backends to add**.
 
 | id                | What it is                                                                                 | Package                    | What registers the backend                                                                                        |
 | ----------------- | ------------------------------------------------------------------------------------------ | -------------------------- | ----------------------------------------------------------------------------------------------------------------- |
@@ -694,6 +694,8 @@ Statements that must always hold. Both a review list and a starting set of test 
 - **I-30** — A template file outside the text-extension list is copied byte for byte, with no substitutions.
 - **I-31** — The `templates/` directory is excluded from Nx inference, the TypeScript build, linting and formatting — in all four places at once.
 - **I-32** — The package has zero runtime dependencies.
+- **I-33** — Every `CORE_PACKAGES` entry that **defines a plugin factory** is also registered in the generated application's `buildPlugins`. Classification puts a package in `package.json`; only this puts it in the running app. The two drifted apart in `v0.4.0`–`v0.4.3`, which installed `transfer-*` and `segments-*` in every generated app without mounting either.
+- **I-34** — Every key the generated `.env` declares is read by something the generated application ships, in **every** feature combination. A documented setting that changes nothing is worse than a missing one: the operator sets it, restarts, and gets the default with the file in front of them promising otherwise. Five `WEBHOOKS_*` keys — `WEBHOOKS_ALLOW_PRIVATE_NETWORKS` among them — were inert until `config/webhooks.ts` existed to read them.
 
 ## 09. Testing checklist
 

@@ -264,9 +264,10 @@ export async function resolveAnswers(
     ui.note('Everything else is installed for you. These are the choices.');
     console.log('');
 
-    // Only ask when there is more than one answer available. S3 is not
-    // published, so today this is a question with a single possible reply, and
-    // asking it would be noise pretending to be a choice.
+    // Only ask when there is more than one answer available — a question with a
+    // single possible reply is noise pretending to be a choice. Every adapter
+    // is published today, so the question is asked; it stops being asked by
+    // itself if all but one are ever marked unavailable.
     const selectable = MEDIA_PROVIDERS.filter((provider) => provider.available);
     const chosenMedia =
         selectable.length > 1

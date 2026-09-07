@@ -365,3 +365,55 @@ describe('a setting written into .env with no value', () => {
         ).toBe('');
     });
 });
+
+/**
+ * The webhook URL policy.
+ *
+ * These two flags decide where this server can be talked into connecting, and
+ * both default to **off** because a webhook is the server making a request to
+ * an address a user typed — the shape of every SSRF. The reason they are pinned
+ * here rather than trusted to the plugin is that they were **documented in
+ * `.env` and read by nothing** for several releases: `config/webhooks.ts` did
+ * not exist and `WebhooksPlugin()` took no argument, so an operator who set
+ * `WEBHOOKS_ALLOW_PRIVATE_NETWORKS=true` to reach an in-cluster receiver got the
+ * default anyway, silently.
+ *
+ * So the assertion is deliberately end-to-end for a config module: the value in
+ * the environment has to come out of the builder. A default that is merely
+ * correct proves nothing here — the broken version had correct defaults too.
+ */
+describe('the webhook URL policy', () => {
+    /** Renders a default app and reads the webhooks builder back. */
+    function webhooksConfig(): () => {
+        allowInsecureUrls?: boolean;
+        allowPrivateNetworks?: boolean;
+        retentionDays?: number;
+    } {
+        return load<{ webhooksConfig: () => never }>(
+            ['media-local', 'rest'],
+            'apps/server/config/webhooks'
+        ).webhooksConfig;
+    }
+
+    it('refuses plain HTTP and private networks by default', () => {
+        delete process.env['WEBHOOKS_ALLOW_INSECURE_URLS'];
+        delete process.env['WEBHOOKS_ALLOW_PRIVATE_NETWORKS'];
+
+        expect(webhooksConfig()()).toMatchObject({
+            allowInsecureUrls: false,
+            allowPrivateNetworks: false
+        });
+    });
+
+    it('lets the environment widen it, which is the whole point [create-ortha-app:I-34]', () => {
+        process.env['WEBHOOKS_ALLOW_INSECURE_URLS'] = 'true';
+        process.env['WEBHOOKS_ALLOW_PRIVATE_NETWORKS'] = 'true';
+        process.env['WEBHOOKS_RETENTION_DAYS'] = '7';
+
+        expect(webhooksConfig()()).toMatchObject({
+            allowInsecureUrls: true,
+            allowPrivateNetworks: true,
+            retentionDays: 7
+        });
+    });
+});
