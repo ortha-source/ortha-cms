@@ -1,3 +1,64 @@
+## 0.5.0 (2026-09-07)
+
+### 🚀 Features
+
+- **activity:** close the silent gaps in the audit trail (server) ([41a038c6](https://github.com/ortha-source/ortha-cms/commit/41a038c6))
+- **activity:** audit the contexts that raised no events at all ([599485a5](https://github.com/ortha-source/ortha-cms/commit/599485a5))
+- **activity:** make the trail's gaps and one entry's history reachable ([57e3cd02](https://github.com/ortha-source/ortha-cms/commit/57e3cd02))
+- **activity-admin:** render every kind the server writes, and pin it ([e9d1640b](https://github.com/ortha-source/ortha-cms/commit/e9d1640b))
+- **cli:** add `ortha --version` ([68564167](https://github.com/ortha-source/ortha-cms/commit/68564167))
+- **design-system:** let MultiSelect add what was typed, and use it ([364fa2b7](https://github.com/ortha-source/ortha-cms/commit/364fa2b7))
+- **users-admin:** filter Members through the inline panel, not a drawer ([8a440191](https://github.com/ortha-source/ortha-cms/commit/8a440191))
+- **webhooks:** deliver content changes to configured endpoints ([9246ffb4](https://github.com/ortha-source/ortha-cms/commit/9246ffb4))
+- **webhooks-admin:** configure endpoints and read the delivery log ([2c9583a8](https://github.com/ortha-source/ortha-cms/commit/2c9583a8))
+- **webhooks-admin:** pick content types, without closing the list ([465c1cb4](https://github.com/ortha-source/ortha-cms/commit/465c1cb4))
+- **webhooks-admin:** scope the type picker to the chosen workspaces ([ecb37070](https://github.com/ortha-source/ortha-cms/commit/ecb37070))
+- **webhooks-admin:** a status switch that asks, and custom headers ([e746ef56](https://github.com/ortha-source/ortha-cms/commit/e746ef56))
+
+### 🩹 Fixes
+
+- **admin:** close the ten UI tickets ORT-197…ORT-206 ([#247](https://github.com/ortha-source/ortha-cms/pull/247))
+- **admin:** pick the Action filter by label, and lift the empty-group mute to AA ([09f647ff](https://github.com/ortha-source/ortha-cms/commit/09f647ff))
+- **alarms:** say the severity on the two surfaces that had stopped ([4940789b](https://github.com/ortha-source/ortha-cms/commit/4940789b))
+- **api-tokens:** answer honestly about an expiry, a scope, and an empty bucket ([37934330](https://github.com/ortha-source/ortha-cms/commit/37934330))
+- **api-tokens-admin:** keep a credential from being minted twice, and give focus somewhere to land ([275b5df9](https://github.com/ortha-source/ortha-cms/commit/275b5df9))
+- **cli:** answer `ortha --help` instead of "Unknown command" ([25ca4018](https://github.com/ortha-source/ortha-cms/commit/25ca4018))
+- **config:** read the environment only through readEnv, so a blank key means absent ([f9c1a50f](https://github.com/ortha-source/ortha-cms/commit/f9c1a50f))
+- **content:** describe the public content API in the OpenAPI document ([f36b0ade](https://github.com/ortha-source/ortha-cms/commit/f36b0ade))
+- **copilot:** keep a partial answer when a run ends mid-stream ([21ea4223](https://github.com/ortha-source/ortha-cms/commit/21ea4223))
+- **create-ortha-app:** expect the plugins the template actually registers ([66649d4a](https://github.com/ortha-source/ortha-cms/commit/66649d4a))
+- **design-system:** drop the dropdown exit animation, which kept closed overlays live ([13622011](https://github.com/ortha-source/ortha-cms/commit/13622011))
+- **design-system:** the spinner stops rotating under reduced motion, without stopping ([ab4f6aed](https://github.com/ortha-source/ortha-cms/commit/ab4f6aed))
+- **e2e:** stop the memory advisory crying wolf on macOS ([bb11484f](https://github.com/ortha-source/ortha-cms/commit/bb11484f))
+- **i18n:** join the ambient unit of work when checking a translation group ([65904430](https://github.com/ortha-source/ortha-cms/commit/65904430))
+- **identity-admin:** say why the session ended, and ask for the confirm once ([1f36533c](https://github.com/ortha-source/ortha-cms/commit/1f36533c))
+- **identity-admin:** answer an unknown /identity path instead of a blank page ([f5e89918](https://github.com/ortha-source/ortha-cms/commit/f5e89918))
+- **media:** move the timed-text track types out of infrastructure ([80219e9a](https://github.com/ortha-source/ortha-cms/commit/80219e9a))
+- **media:** give the storage port its own package, so an adapter costs an adapter ([82d12871](https://github.com/ortha-source/ortha-cms/commit/82d12871))
+- **query-builder:** restore `like` to the reverse map, which silently dropped it ([4574cfd9](https://github.com/ortha-source/ortha-cms/commit/4574cfd9))
+- **query-builder:** open the filter panel without scrolling its own clip ([0fc39073](https://github.com/ortha-source/ortha-cms/commit/0fc39073))
+- **segments:** check an entry's workspace before writing its audiences ([5e974b41](https://github.com/ortha-source/ortha-cms/commit/5e974b41))
+- **server-e2e:** retry a deadlocked truncate, and unpin two stale expectations ([aedcd992](https://github.com/ortha-source/ortha-cms/commit/aedcd992))
+- **server-e2e:** bind the harness to loopback, so the suite stops losing requests ([99a648f7](https://github.com/ortha-source/ortha-cms/commit/99a648f7))
+- **transfer:** let the link pass see what the first write actually wrote ([585418d2](https://github.com/ortha-source/ortha-cms/commit/585418d2))
+- **users-server:** reject an explicit null name instead of clearing it ([d73d8ffa](https://github.com/ortha-source/ortha-cms/commit/d73d8ffa))
+- **webhooks:** purge a deleted workspace's subscription rows ([#245](https://github.com/ortha-source/ortha-cms/pull/245))
+- **webhooks-admin:** keep node:crypto out of the browser bundle ([a58eeb4c](https://github.com/ortha-source/ortha-cms/commit/a58eeb4c))
+- **webhooks-admin:** the three things only a browser could find ([7e73abdf](https://github.com/ortha-source/ortha-cms/commit/7e73abdf))
+- **webhooks-admin:** name the two filter pickers ([7c3bf771](https://github.com/ortha-source/ortha-cms/commit/7c3bf771))
+- **workspaces:** purge the rows a deleted workspace used to strand ([ba4632b1](https://github.com/ortha-source/ortha-cms/commit/ba4632b1))
+- **workspaces-admin:** stop the roster surfaces failing quietly ([3b12ffef](https://github.com/ortha-source/ortha-cms/commit/3b12ffef))
+- **wysiwyg:** actually clear the alt when an image is marked decorative ([dd0b9676](https://github.com/ortha-source/ortha-cms/commit/dd0b9676))
+- **wysiwyg:** keep a passage's language when formatting is cleared ([fcd1f3b9](https://github.com/ortha-source/ortha-cms/commit/fcd1f3b9))
+- **wysiwyg:** stop Tab re-appending the row TableTab just bounded ([5b0a906a](https://github.com/ortha-source/ortha-cms/commit/5b0a906a))
+
+### ❤️ Thank You
+
+- Claude
+- Claude Opus 5
+- Claude Opus 5 (1M context)
+- Pavel Makhanko @pmknk
+
 ## 0.4.3 (2026-08-28)
 
 ### 🚀 Features
