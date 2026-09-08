@@ -341,29 +341,44 @@ has the settings screen ADR-0009 deleted.
 
 ## Invariants
 
-- **I-01** With no `protection_rules` row for a type, publication behaves byte
+The first four say the same thing at four altitudes, because "inert until a
+rule exists" is a claim about the uninstalled host, the unconfigured install,
+the empty slot and the missing row — and only the last of them is about this
+package's own data.
+
+- **I-01** With no guard registered at all — a host whose plugin list does not
+  name protection — the port resolves to allowed without consulting anything,
+  and the publish path is the one that ran before the port existed.
+- **I-02** Installed but unconfigured pays nothing: with no rule for the type,
+  the guard answers before it reads an approval.
+- **I-03** `ENTRY_PUBLISH_GUARD_SLOT` carrying no contribution leaves the
+  publish button exactly as the publish gate alone had it.
+- **I-04** With no `protection_rules` row for a type, publication behaves byte
   for byte as it does with the plugin uninstalled.
-- **I-02** An approval counts only on the entry's head revision, unless
+- **I-05** An approval counts only on the entry's head revision, unless
   `count_stale_approvals` is on.
-- **I-03** Saving an entry never deletes an approval, and always changes which
+- **I-06** Saving an entry never deletes an approval, and always changes which
   approvals count.
-- **I-04** With `require_other_person`, the head revision's author is excluded
+- **I-07** With `require_other_person`, the head revision's author is excluded
   from the count, whoever they are — administrators included.
-- **I-05** One user contributes at most one vote per revision.
-- **I-06** `changes_requested` never lowers the count below what `approved`
+- **I-08** One user contributes at most one vote per revision.
+- **I-09** `changes_requested` never lowers the count below what `approved`
   votes give.
-- **I-07** Protection never inspects field values, and never overrides the
+- **I-10** Protection never inspects field values, and never overrides the
   publish gate. A bypass passes protection only.
-- **I-08** A bearer token cannot publish a protected type unless
+- **I-11** A bearer token cannot publish a protected type unless
   `allow_token_publish` is on for that type.
-- **I-09** Every successful bypass writes exactly one `entry.publish_bypassed`
+- **I-12** No API token scope grants `content:approve`. A token names no person,
+  and "no approve tool on any surface" ([ADR-0017](../adr/0017-publication-protection.md) §6)
+  buys nothing if minting a key casts the vote the tool may not.
+- **I-13** Every successful bypass writes exactly one `entry.publish_bypassed`
   row carrying a non-empty reason.
-- **I-10** Disabling a rule or lowering `required_approvals` writes
+- **I-14** Disabling a rule or lowering `required_approvals` writes
   `protection.rule_changed`.
-- **I-11** `status` takes no value other than `draft` or `published`, and no
+- **I-15** `status` takes no value other than `draft` or `published`, and no
   review state is readable through the public API.
-- **I-12** Deleting a workspace leaves zero rows in all three tables.
-- **I-13** No tool in the registry can record an approval, on any surface.
+- **I-16** Deleting a workspace leaves zero rows in all three tables.
+- **I-17** No tool in the registry can record an approval, on any surface.
 
 ## Testing checklist
 
@@ -381,7 +396,10 @@ has the settings screen ADR-0009 deleted.
 | Publish an entry whose German locale lacks approvals | German refused by name, the others proceed |
 | Delete the workspace | All three tables count zero (`workspace-delete-residue.spec.ts`) |
 | Offer the tool catalogue to any role | No tool with an approve effect appears |
-| Uninstall the plugin, publish | Succeeds; the port resolves to always-allowed |
+| Ask `scopePermissions` for either token scope | `content:approve` in neither (`api-token-scope.spec.ts` already lists `full` exhaustively) |
+| Boot a host that never registers the plugin, publish | Succeeds; the port resolves to always-allowed |
+| Register the plugin, write no rule, publish | Succeeds, and the approvals store is never queried |
+| Render the entry editor with nothing in `ENTRY_PUBLISH_GUARD_SLOT` | The button is the publish gate's own state, unchanged — a `content-admin` test, written with the slot |
 
 ## What this does not do
 
