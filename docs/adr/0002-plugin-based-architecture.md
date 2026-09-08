@@ -20,9 +20,9 @@ We will keep the application **hosts** (`@orthacms/bootstrap-admin`,
 plugins_ into a running app. Capability lives in plugins, usually shipped as an
 `admin`/`server` pair under `packages/<group>/{admin,server}`. Server plugins own
 their own Drizzle schema and migrations; the shared `@orthacms/database` plugin
-owns the single connection but no schema. Plugins integrate through explicit
-contracts (`AdminPlugin`, `ServerPlugin`) and named UI **slots**, never by
-reaching into each other.
+owns the single connection but no schema _(amended below — it owns the outbox
+table)_. Plugins integrate through explicit contracts (`AdminPlugin`,
+`ServerPlugin`) and named UI **slots**, never by reaching into each other.
 
 > **Amended by [ADR-0003](0003-tactical-ddd-inside-plugins.md).** "No schema" now
 > has exactly one sanctioned exception: the transactional outbox

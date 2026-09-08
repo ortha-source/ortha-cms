@@ -253,6 +253,14 @@ package; the admin app's Vite transpiles the design-system source directly.
   ends with a numbered list of invariants: at once a review checklist and a
   draft set of test assertions. Many specs name the one they pin in their title
   (`[segments:I-01]`); keep the habit when a test exists for a documented rule.
+- **Countable claims in the root documents are pinned by a test.** Slot counts,
+  contract fields, provider adapters, the tables a plugin owns and the project
+  map itself are derived from the code by
+  [`tools/docs-guard`](tools/docs-guard/AGENTS.md) and compared against
+  `ARCHITECTURE.md` / `CONTEXT-MAP.md`. Add a package, a slot or a table and
+  `npx nx test docs-guard` tells you which sentence now lies. Reword those
+  sentences freely — a claim that stops matching its pattern fails too, so
+  re-point the pattern in the same commit.
 - **Tactical DDD inside plugins** ([ADR-0003](docs/adr/0003-tactical-ddd-inside-plugins.md)):
   we are migrating each plugin from feature-then-kind to a layered
   `domain / application / infrastructure / http(presentation)` layout

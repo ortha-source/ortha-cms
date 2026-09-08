@@ -4,6 +4,10 @@ How OrthaCms is built. For the _why_ behind these choices, see
 [`docs/adr/`](docs/adr/README.md). For the project inventory and glossary, see
 [`CONTEXT-MAP.md`](CONTEXT-MAP.md).
 
+The countable claims below — how many slots, which contract fields, what tables
+a plugin owns — are derived from the code and checked by
+[`tools/docs-guard`](tools/docs-guard/AGENTS.md), not maintained by hand.
+
 ## 1. The big idea: a plugin host
 
 OrthaCms is not a monolith with features bolted on. It is a small, dumb **host**
