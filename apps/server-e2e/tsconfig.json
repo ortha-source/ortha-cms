@@ -18,19 +18,16 @@
             "path": "../server"
         },
         {
-            "path": "../../packages/webhooks/server"
-        },
-        {
             "path": "../../packages/users/server"
         },
         {
             "path": "../../packages/media/provider-local"
         },
         {
-            "path": "../../packages/mcp/server"
+            "path": "../../packages/protection/server"
         },
         {
-            "path": "../../packages/alarms/server"
+            "path": "../../packages/mcp/server"
         },
         {
             "path": "../../packages/content/graphql"
@@ -46,6 +43,9 @@
         },
         {
             "path": "../../packages/tools/server"
+        },
+        {
+            "path": "../../packages/webhooks/server"
         },
         {
             "path": "../../packages/webhooks/domain"
@@ -64,6 +64,9 @@
         },
         {
             "path": "../../packages/identity/server"
+        },
+        {
+            "path": "../../packages/alarms/server"
         },
         {
             "path": "../../packages/database"

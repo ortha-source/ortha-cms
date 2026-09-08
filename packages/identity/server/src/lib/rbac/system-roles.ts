@@ -37,7 +37,8 @@ export const PERMISSIONS = {
     SEGMENTS_READ: 'segments:read',
     SEGMENTS_MANAGE: 'segments:manage',
     WEBHOOKS_READ: 'webhooks:read',
-    WEBHOOKS_MANAGE: 'webhooks:manage'
+    WEBHOOKS_MANAGE: 'webhooks:manage',
+    PROTECTION_MANAGE: 'protection:manage'
 } as const;
 
 /**
@@ -127,6 +128,16 @@ export interface SystemRole {
  * editorial surface — so even reading it is withheld from contributors, unlike
  * `alarms:read` or `segments:read`, which describe content an editor is already
  * working on.
+ *
+ * `protection:manage` is **admin-only**, and has no `protection:read` beside
+ * it — the only asymmetry in this catalogue, and deliberate. A publication
+ * protection rule is configuration of the same class as `alarms:manage`:
+ * turning one on decides who may ship a content type, for everybody. The
+ * missing read half is the interesting part. A contributor does need to know
+ * that *this entry* wants two approvals, but that answer comes from the entry
+ * itself under `content:read`, not from the workspace's rule table — so nobody
+ * but an administrator has a reason to read the table, and a key nobody needs
+ * is a key that only ever gets granted by accident.
  *
  * `copilot:skills:manage` is **admin-only** for the same class of reason
  * ([ADR-0010](../../../../../../docs/adr/0010-copilot-skills.md)): a skill's

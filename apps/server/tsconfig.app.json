@@ -22,6 +22,9 @@
     ],
     "references": [
         {
+            "path": "../../packages/protection/server/tsconfig.lib.json"
+        },
+        {
             "path": "../../packages/alarms/server/tsconfig.lib.json"
         },
         {
