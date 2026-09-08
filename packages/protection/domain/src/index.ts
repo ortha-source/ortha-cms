@@ -11,8 +11,11 @@
  * There is no `canPublish` here on purpose — see `evaluate-protection.ts`.
  */
 
-export { evaluateProtection } from './lib/evaluate-protection';
-export type { ProtectionDecision } from './lib/evaluate-protection';
+export { countApprovals, evaluateProtection } from './lib/evaluate-protection';
+export type {
+    ApprovalCounts,
+    ProtectionDecision
+} from './lib/evaluate-protection';
 
 export { APPROVAL_DECISION } from './lib/protection-rule';
 export type {

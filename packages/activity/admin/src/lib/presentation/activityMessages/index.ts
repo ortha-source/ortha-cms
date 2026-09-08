@@ -254,6 +254,22 @@ const actionMessages = defineMessages({
     toolPermissionDecided: {
         id: 'activity.action.copilot.tool_permission.decided',
         defaultMessage: 'Answered a copilot request'
+    },
+    reviewRequested: {
+        id: 'activity.action.review.requested',
+        defaultMessage: 'Requested review'
+    },
+    reviewApproved: {
+        id: 'activity.action.review.approved',
+        defaultMessage: 'Approved a version'
+    },
+    reviewChangesRequested: {
+        id: 'activity.action.review.changes_requested',
+        defaultMessage: 'Requested changes'
+    },
+    protectionRuleChanged: {
+        id: 'activity.action.protection.rule_changed',
+        defaultMessage: 'Changed a protection rule'
     }
 });
 
@@ -328,7 +344,14 @@ export const ACTION_MESSAGES: Record<ActivityKind, MessageDescriptor> = {
     'copilot.skill.created': actionMessages.skillCreated,
     'copilot.skill.updated': actionMessages.skillUpdated,
     'copilot.skill.deleted': actionMessages.skillDeleted,
-    'copilot.tool_permission.decided': actionMessages.toolPermissionDecided
+    'copilot.tool_permission.decided': actionMessages.toolPermissionDecided,
+    'review.requested': actionMessages.reviewRequested,
+    // "a version", not "the entry": an approval is bound to a revision and
+    // stops counting on the next save, so a label promising more than that
+    // would misread the row a month later.
+    'review.approved': actionMessages.reviewApproved,
+    'review.changes_requested': actionMessages.reviewChangesRequested,
+    'protection.rule_changed': actionMessages.protectionRuleChanged
 };
 
 /** Display labels for the `subjectType` column's machine tokens. */
@@ -381,6 +404,10 @@ const subjectTypeMessages = defineMessages({
     copilotRun: {
         id: 'activity.subjectType.copilot_run',
         defaultMessage: 'Copilot run'
+    },
+    protectionRule: {
+        id: 'activity.subjectType.protection_rule',
+        defaultMessage: 'Protection rule'
     }
 });
 
@@ -407,7 +434,8 @@ export const SUBJECT_TYPE_MESSAGES: Record<
     alarm_rule: subjectTypeMessages.alarmRule,
     saved_view: subjectTypeMessages.savedView,
     copilot_skill: subjectTypeMessages.copilotSkill,
-    copilot_run: subjectTypeMessages.copilotRun
+    copilot_run: subjectTypeMessages.copilotRun,
+    protection_rule: subjectTypeMessages.protectionRule
 };
 
 /** Detail-template descriptors for the kinds that render a "Details" string. */

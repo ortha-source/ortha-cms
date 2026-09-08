@@ -23,7 +23,48 @@ export type { SaveProtectionRuleInput } from './lib/infrastructure/protection-ru
 export { SaveProtectionRuleDto } from './lib/application/dto/save-protection-rule.dto';
 export { REQUIRED_APPROVALS_MAX } from './lib/application/dto/save-protection-rule.dto';
 export type { ProtectionRuleView } from './lib/types/protection-views';
-export { UnknownProtectedContentTypeError } from './lib/domain/errors';
+
+// The review surface, for the publish guard a later PR adds: it has to read the
+// same votes against the same head, through the same service, or the button and
+// the refusal will disagree.
+export { EntryReviewService } from './lib/application/entry-review.service';
+export type { ReviewActor } from './lib/application/entry-review.service';
+export { ReviewQueueService } from './lib/application/review-queue.service';
+export { HeadRevisionQuery } from './lib/infrastructure/head-revision.query';
+export type { HeadRevision } from './lib/infrastructure/head-revision.query';
+export { ReviewApprovalRepository } from './lib/infrastructure/review-approval.repository';
+export { ReviewRequestRepository } from './lib/infrastructure/review-request.repository';
+export type {
+    EntryReviewView,
+    ReviewApprovalView,
+    ReviewQueueItemView,
+    ReviewQueueView,
+    ReviewRequestView
+} from './lib/types/protection-views';
+export {
+    ReviewNoteDto,
+    REVIEW_NOTE_MAX
+} from './lib/application/dto/review-note.dto';
+export {
+    ReviewQueueQueryDto,
+    REVIEW_QUEUE_PAGE_MAX
+} from './lib/application/dto/review-queue-query.dto';
+
+// The event catalogue, so `activity-server`'s mapper and any future subscriber
+// can name a kind rather than repeat a string literal.
+export {
+    PROTECTION_EVENT_KINDS,
+    protectionRuleEvent,
+    reviewEvent
+} from './lib/protection.events';
+
+export {
+    UnknownProtectedContentTypeError,
+    ReviewableEntryNotFoundError,
+    ReviewRequestNotFoundError,
+    ReviewRequestNotYoursError,
+    SelfApprovalRefusedError
+} from './lib/domain/errors';
 
 // The tables, so the host's tooling and other plugins' queries can name them
 // rather than re-declaring a `pgTable` that would drift.

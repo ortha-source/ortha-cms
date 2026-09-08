@@ -19,6 +19,7 @@ import {
     type PublicUser
 } from '@orthacms/identity-server';
 import { CurrentWorkspace, WorkspaceGuard } from '@orthacms/workspaces-server';
+import type { EventActor } from '@orthacms/database';
 import { ProtectionRulesService } from '../../application/protection-rules.service';
 import { SaveProtectionRuleDto } from '../../application/dto/save-protection-rule.dto';
 import { UnknownProtectedContentTypeError } from '../../domain/errors';
@@ -94,7 +95,7 @@ export class ProtectionRulesController {
         @CurrentUser() user?: PublicUser
     ): Promise<ProtectionRuleView> {
         return mapErrors(() =>
-            this.rules.save(workspaceId, kind, slug, dto, user?.id ?? null)
+            this.rules.save(workspaceId, kind, slug, dto, toActor(user))
         );
     }
 
@@ -119,10 +120,19 @@ export class ProtectionRulesController {
     async remove(
         @CurrentWorkspace() workspaceId: string,
         @Param('kind') kind: string,
-        @Param('slug') slug: string
+        @Param('slug') slug: string,
+        @CurrentUser() user?: PublicUser
     ): Promise<void> {
-        await this.rules.remove(workspaceId, kind, slug);
+        await this.rules.remove(workspaceId, kind, slug, toActor(user));
     }
+}
+
+/**
+ * The signed-in administrator as the {@link EventActor} a rule write stamps on
+ * its event, or `undefined` when there is nobody to name.
+ */
+function toActor(user?: PublicUser): EventActor | undefined {
+    return user ? { id: user.id, email: user.email ?? null } : undefined;
 }
 
 /**

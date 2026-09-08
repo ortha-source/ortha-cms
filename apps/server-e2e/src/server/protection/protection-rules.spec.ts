@@ -103,6 +103,124 @@ describe('/api/protection/rules', () => {
         return Number(rows[0].count);
     }
 
+    /**
+     * `protection.rule_changed` rows for one workspace, polled — the outbox
+     * dispatcher drains on commit, but in its own transaction, so asserting
+     * immediately makes the test a race rather than a check.
+     */
+    async function ruleAudit(
+        workspaceId: string,
+        expected = 1
+    ): Promise<{ meta: Record<string, unknown>; actorId: string | null }[]> {
+        for (let attempt = 0; attempt < 40; attempt += 1) {
+            const { rows } = await getPool().query<{
+                meta: Record<string, unknown>;
+                actorId: string | null;
+            }>(
+                `SELECT meta, actor_id AS "actorId" FROM activity_events
+                 WHERE kind = 'protection.rule_changed'
+                   AND workspace_id = $1
+                 ORDER BY at, id`,
+                [workspaceId]
+            );
+            if (rows.length >= expected) return rows;
+            await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+        return [];
+    }
+
+    /**
+     * `protection:I-14` — every rule change reaches the log.
+     *
+     * The rows that matter are the ones that make a rule stop blocking:
+     * switching it off and lowering its count. Without them the bypass is not a
+     * button somebody had to justify, it is a settings tab left open for two
+     * minutes, and afterwards nothing can tell a rule that was never there from
+     * one that was quietly removed.
+     */
+    describe('the audit trail', () => {
+        it('records a rule being created [protection:I-14]', async () => {
+            const { agent, user, workspaceId } = await adminWithWorkspace();
+
+            await agent
+                .put('/api/protection/rules/collection/test_article')
+                .set('X-Workspace-Id', workspaceId)
+                .send({ enabled: true, requiredApprovals: 2 })
+                .expect(200);
+
+            const rows = await ruleAudit(workspaceId);
+            expect(rows).toHaveLength(1);
+            expect(rows[0].actorId).toBe(user.id);
+            expect(rows[0].meta).toMatchObject({
+                kind: 'collection',
+                slug: 'test_article',
+                action: 'created',
+                from: null,
+                to: { enabled: true, requiredApprovals: 2 }
+            });
+        });
+
+        it('records the numbers on both sides when a rule is weakened [protection:I-14]', async () => {
+            const { agent, workspaceId } = await adminWithWorkspace();
+            await agent
+                .put('/api/protection/rules/collection/test_article')
+                .set('X-Workspace-Id', workspaceId)
+                .send({ enabled: true, requiredApprovals: 3 })
+                .expect(200);
+            await agent
+                .put('/api/protection/rules/collection/test_article')
+                .set('X-Workspace-Id', workspaceId)
+                .send({ enabled: false })
+                .expect(200);
+
+            const rows = await ruleAudit(workspaceId, 2);
+            expect(rows).toHaveLength(2);
+            // "now disabled" on its own does not say that anything moved, which
+            // is the only question an auditor is asking.
+            expect(rows[1].meta).toMatchObject({
+                action: 'updated',
+                from: { enabled: true, requiredApprovals: 3 },
+                to: { enabled: false, requiredApprovals: 1 }
+            });
+        });
+
+        it('records a removal carrying what the rule was [protection:I-14]', async () => {
+            const { agent, workspaceId } = await adminWithWorkspace();
+            await agent
+                .put('/api/protection/rules/collection/test_article')
+                .set('X-Workspace-Id', workspaceId)
+                .send({ enabled: true, requiredApprovals: 2 })
+                .expect(200);
+
+            await agent
+                .delete('/api/protection/rules/collection/test_article')
+                .set('X-Workspace-Id', workspaceId)
+                .expect(204);
+
+            const rows = await ruleAudit(workspaceId, 2);
+            // After the delete commits there is nowhere left to look the
+            // numbers up, so the row has to carry them.
+            expect(rows[1].meta).toMatchObject({
+                action: 'removed',
+                from: { enabled: true, requiredApprovals: 2 },
+                to: null
+            });
+        });
+
+        it('records nothing when a delete removed nothing', async () => {
+            const { agent, workspaceId } = await adminWithWorkspace();
+
+            await agent
+                .delete('/api/protection/rules/collection/test_article')
+                .set('X-Workspace-Id', workspaceId)
+                .expect(204);
+
+            // A no-op delete is not a policy change, and a row saying otherwise
+            // would make "how often was protection weakened" unanswerable.
+            expect(await ruleAudit(workspaceId, 1)).toEqual([]);
+        });
+    });
+
     describe('GET /', () => {
         it('is empty on a workspace nobody has protected', async () => {
             const { agent, workspaceId } = await adminWithWorkspace();

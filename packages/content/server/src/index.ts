@@ -142,6 +142,24 @@ export type {
     SerializedField
 } from './lib/registry/content-type-registry';
 
+// The revision store, exported for `@orthacms/protection-server`: an approval is
+// bound to a **revision**, so a plugin recording one has to be able to ask which
+// version is currently the head and who wrote it. `content_entry_revisions` is
+// host-owned and belongs to content, so the alternative was protection querying
+// a table it does not own — which would make its correctness depend on content's
+// unpublished column names rather than on a contract. Reads only; the write
+// primitives are executor-parameterized for `EntryWriterService`'s own save
+// transaction and are no use to anyone else.
+export {
+    REVISION_STORE,
+    InjectRevisionStore
+} from './lib/revisions/application/ports/revision-store';
+export type { RevisionStore } from './lib/revisions/application/ports/revision-store';
+export type {
+    RevisionListView,
+    RevisionSummary
+} from './lib/revisions/types/revision-view';
+
 // Filter evaluation over a content type, exported for `@orthacms/alarms-server`:
 // an alarm rule IS a records-list filter, so it must be parsed and translated
 // by the same surface the list uses rather than by a second implementation.
