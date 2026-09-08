@@ -40,8 +40,8 @@ describe('SYSTEM_ROLES', () => {
     });
 
     describe('the permission catalogue', () => {
-        it('enumerates 32 distinct keys', () => {
-            expect(PERMISSION_KEYS).toHaveLength(32);
+        it('enumerates 33 distinct keys', () => {
+            expect(PERMISSION_KEYS).toHaveLength(33);
             expect(new Set(PERMISSION_KEYS).size).toBe(PERMISSION_KEYS.length);
         });
 

@@ -1,0 +1,24 @@
+{
+    "extends": "../../../tsconfig.base.json",
+    "compilerOptions": {
+        "emitDeclarationOnly": false,
+        "outDir": "dist",
+        "rootDir": "src",
+        "module": "nodenext",
+        "moduleResolution": "nodenext",
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true,
+        "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
+        "types": ["node"]
+    },
+    "include": ["src/**/*.ts"],
+    "exclude": ["dist", "**/*.spec.ts", "**/*.test.ts"],
+    "references": [
+        { "path": "../domain/tsconfig.lib.json" },
+        { "path": "../../identity/server/tsconfig.lib.json" },
+        { "path": "../../workspaces/server/tsconfig.lib.json" },
+        { "path": "../../content/server/tsconfig.lib.json" },
+        { "path": "../../database/tsconfig.lib.json" },
+        { "path": "../../bootstrap/server/tsconfig.lib.json" }
+    ]
+}

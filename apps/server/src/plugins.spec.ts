@@ -36,6 +36,7 @@ const EXPECTED_PLUGINS = [
     'transfer',
     'alarms',
     'segments',
+    'protection',
     'webhooks',
     'copilot',
     'mcp'
