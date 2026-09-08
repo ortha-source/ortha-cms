@@ -142,12 +142,21 @@ export const CORE_DEV_PACKAGES: readonly string[] = ['@orthacms/cli'];
  * Packages deliberately left undeclared — published, but with no reason for a
  * generated app to import them.
  *
- * Both entries are tools for **writing a storage provider**, not for running
- * one. `StorageProviderCheck` refuses to boot a database whose rows were
- * written by a provider that is no longer configured, so the in-memory backend
- * is a test and offline-development affordance, never a deployment: offering it
- * in the scaffolder would be offering an app that loses every upload on
- * restart. The testkit is the contract suite those providers run against.
+ * The two `media-*` entries are tools for **writing a storage provider**, not
+ * for running one. `StorageProviderCheck` refuses to boot a database whose rows
+ * were written by a provider that is no longer configured, so the in-memory
+ * backend is a test and offline-development affordance, never a deployment:
+ * offering it in the scaffolder would be offering an app that loses every
+ * upload on restart. The testkit is the contract suite those providers run
+ * against.
+ *
+ * `protection-domain` is the publication-protection kernel, published ahead of
+ * the plugin that will call it: `protection-server` does not exist yet, so
+ * declaring the kernel in a generated app would install a package with nothing
+ * to import it. It becomes an extension point in `CORE_PACKAGES`, on the same
+ * reasoning as `segments-domain`, in the release that ships the plugin — and
+ * this guard is what will force that decision rather than leaving the template
+ * a release behind.
  *
  * Everything else a generated app can reach is in its own manifest, so "it
  * resolves because npm hoisted it" is never the answer to why an import works.
@@ -156,7 +165,8 @@ export const CORE_DEV_PACKAGES: readonly string[] = ['@orthacms/cli'];
  */
 export const TRANSITIVE_PACKAGES: readonly string[] = [
     '@orthacms/media-provider-memory',
-    '@orthacms/media-provider-testkit'
+    '@orthacms/media-provider-testkit',
+    '@orthacms/protection-domain'
 ];
 
 /**

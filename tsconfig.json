@@ -203,6 +203,9 @@
         },
         {
             "path": "./tools/docs-guard"
+        },
+        {
+            "path": "./packages/protection/domain"
         }
     ]
 }

@@ -1,0 +1,96 @@
+# `@orthacms/protection-domain`
+
+The **publication-protection kernel** — may this person ship this entry now,
+decided by one pure function over a rule, the head revision and the votes
+recorded against it. No NestJS, no Drizzle, no React.
+
+It is the **third** gate on publish, after the `content:publish` permission and
+after the publish gate. It answers _who_, never _what_.
+
+| File                     | What lives there                                             |
+| ------------------------ | ------------------------------------------------------------ |
+| `protection-rule.ts`     | The rule's six fields, a vote, the actor, and the input.     |
+| `evaluate-protection.ts` | `evaluateProtection` and `ProtectionDecision`. The decision. |
+
+## Do not call it `canPublish`
+
+`content/domain` already exports that name — the publish gate, which answers
+whether the entry is _complete_. Two functions of one name deciding different
+halves of the same button is exactly the two-authorities confusion
+[ADR-0015](../../../docs/adr/0015-alarms-are-non-blocking.md) exists to prevent.
+`kernel-boundary.spec.ts` fails if a `canPublish` ever appears in this package's
+public API.
+
+## The model, in full
+
+An **approval belongs to a revision, not to an entry.** That single decision
+carries the design: `content_entry_revisions` already snapshots every save,
+numbered per entry and keyed per locale, so a vote recorded against the previous
+revision stops counting toward the head **with no dismissal logic anywhere**.
+Nothing is deleted; the row survives so the interface can strike it through
+naming its version, because a counter that silently rolls back is unexplainable
+to the person who just pressed Save.
+
+`evaluateProtection` applies its rules in this order, and the order is load-bearing:
+
+1. **No rule, or a rule switched off → `unprotected`.** The two states are
+   identical, and this check sits _before_ the token gate: refusing a key on a
+   type nobody chose to protect would break a deploy that never opted in.
+2. **A bearer token is refused**, before the count and regardless of it, unless
+   the rule sets `allowTokenPublish`. A token holds `content:publish` in the
+   `full` scope and names nobody in the log, so a rule that let one through by
+   default would be escaped by minting a key.
+3. **Count the distinct people** with an `approved` vote on the head revision —
+   or on any revision when `countStaleApprovals` is on.
+4. **Minus the head revision's author**, when `requireOtherPerson`. Whoever they
+   are, administrators included.
+5. **`changes_requested` never subtracts.** It is zero votes plus an
+   explanation; a reviewer who wants to block simply does not approve.
+
+## Four things worth not re-deriving
+
+**`allowTokenPublish` lets a token reach the count, it does not exempt it from
+one.** The design doc is genuinely ambiguous here — its table says a token
+"cannot publish this type at all" when off, and ADR-0017 calls allowing tokens
+"escaping the rule", which reads the other way. Decided this way because the
+flag is named _allow token publish_, not _exempt tokens from review_; because
+guessing this way costs a confused CI run while guessing the other way silently
+unprotects a type; and because it buys the flow people actually want — a human
+writes, humans approve, a deploy key ships it. Revisit it here, in one line, not
+by copying a second reading into the server.
+
+**`stale` is people, not rows.** It is `|approvers across every revision| −
+|approvers who count|`, which makes it exactly "how many names the interface
+strikes through", and drops to zero on its own when `countStaleApprovals` is on,
+because then they are not stale. The excluded head author never appears in it: a
+vote that never counted is not a vote lost to a save.
+
+**Distinctness is by user, in both sets.** `unique (revision_id, user_id)` stops
+one person voting twice on one version, but nothing stops them approving five
+versions in a row — and a naive sum would turn one reviewer into five the moment
+stale approvals are counted.
+
+**With `countStaleApprovals` on, an older approval survives its author's later
+`changes_requested`.** Surprising, pinned rather than fixed: rule 5 says a
+`changes_requested` never lowers the count, and special-casing it in this one
+branch would contradict that. It is one more reason the editor labels the flag
+as not recommended.
+
+## What is deliberately not here
+
+No field values, so protection **cannot** validate content even by accident —
+there is nowhere in the input to put one. No locale handling: revisions are
+already per-locale, so `headRevisionId` carries it and the caller's query does
+the scoping. No reviewer lists, no assignment, no statuses.
+
+`bypassable` is **reported, never applied**. Taking a bypass costs a mandatory
+reason and only the caller can supply one, so a decision that returned
+`allowed: true` here would publish without the log row that is the whole reason
+bypassing is permitted at all.
+
+## Invariants covered here
+
+The full list is in
+[`docs/design/protection.md`](../../../docs/design/protection.md). This package's
+tests carry the domain half of **I-04** through **I-09** and **I-11**, tagged in
+the test names. The rest belong to the server, the admin and the host.

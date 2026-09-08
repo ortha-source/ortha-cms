@@ -42,7 +42,7 @@ Some are single-runtime (`design-system`, `query-builder/admin`, `database`,
 `nx`), and a group is **not** limited to two: it holds however many packages the
 domain needs, named for what they are. Alongside `admin` and `server` you will
 find a framework-free `domain` kernel (`content`, `copilot`, `identity`,
-`media`, `segments`, `transfer`, `webhooks`), a second protocol
+`media`, `protection`, `segments`, `transfer`, `webhooks`), a second protocol
 (`content/graphql`), and `provider-*` adapters where the domain has a swappable
 backend — `media` has six plus a shared contract test kit, `identity` four,
 `copilot` three. The npm name is always hyphenated regardless of nesting:
