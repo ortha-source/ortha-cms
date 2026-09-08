@@ -119,6 +119,35 @@ const MEDIA_AUDIT_KINDS = {
 } as const;
 
 /**
+ * The **review.\*** and **protection.\*** audit kinds — publication protection
+ * ([ADR-0017](../../../../../../docs/adr/0017-publication-protection.md)).
+ *
+ * The `review.*` kinds are facts about an **entry** and take `content_entry` as
+ * their subject, the way `segment.entry_access_changed` does: "who has looked at
+ * this and what did they say" belongs in that entry's own history, beside its
+ * edits and its publishes, which is where somebody asking "why has this not gone
+ * out" actually looks.
+ *
+ * `review.approved` carries the **revision number**. An approval is bound to a
+ * revision and stops counting the moment the entry is saved again, so a row
+ * saying only "approved" would, a month later, be a record of a fact that is no
+ * longer true with nothing to say which version it was ever true of.
+ *
+ * `protection.rule_changed` is a fact about the **rule**, and it is the row an
+ * auditor needs most. A rule that is switched off or has its count lowered stops
+ * blocking, everything downstream simply goes quiet, and nothing about that quiet
+ * says anybody chose it — the same reasoning `alarm.rule.updated` exists for.
+ * Without it the bypass is not a button somebody had to justify but a settings
+ * tab left open for two minutes.
+ */
+const PROTECTION_AUDIT_KINDS = {
+    REVIEW_REQUESTED: 'review.requested',
+    REVIEW_APPROVED: 'review.approved',
+    REVIEW_CHANGES_REQUESTED: 'review.changes_requested',
+    RULE_CHANGED: 'protection.rule_changed'
+} as const;
+
+/**
  * The **transfer.\*** audit kinds — content leaving and entering the system in
  * bulk.
  *
@@ -518,6 +547,22 @@ function transferSubject(event: DomainEvent): AuditFacet {
 }
 
 /**
+ * A `'protection_rule'`-subject facet. `meta` is the payload minus the actor,
+ * which carries the rule's address and the six fields on **both sides** of the
+ * change — because "now requires one approval" on its own does not say that
+ * anything moved, and after a removal there is nowhere left to look the old
+ * numbers up.
+ */
+function protectionRuleSubject(event: DomainEvent): AuditFacet {
+    return {
+        kind: event.kind,
+        subjectType: 'protection_rule',
+        subjectId: event.aggregateId,
+        meta: payloadWithoutActor(event)
+    };
+}
+
+/**
  * The event payload with `attachActor`'s `actor` key removed — the actor is
  * lifted onto the row's own `actorId`/`actorEmail` columns by
  * {@link toAuditRow}, so repeating it inside `meta` would only duplicate it.
@@ -858,7 +903,14 @@ const FACET_MAPPERS: Record<string, (event: DomainEvent) => AuditFacet> = {
     [COPILOT_AUDIT_KINDS.TOOL_PERMISSION_DECIDED]: copilotRunSubject,
 
     [TRANSFER_AUDIT_KINDS.EXPORTED]: transferSubject,
-    [TRANSFER_AUDIT_KINDS.IMPORTED]: transferSubject
+    [TRANSFER_AUDIT_KINDS.IMPORTED]: transferSubject,
+
+    // Publication protection. The three `review.*` kinds are the entry's own
+    // history; the rule change is the row an auditor opens the log for.
+    [PROTECTION_AUDIT_KINDS.REVIEW_REQUESTED]: entryAccessSubject,
+    [PROTECTION_AUDIT_KINDS.REVIEW_APPROVED]: entryAccessSubject,
+    [PROTECTION_AUDIT_KINDS.REVIEW_CHANGES_REQUESTED]: entryAccessSubject,
+    [PROTECTION_AUDIT_KINDS.RULE_CHANGED]: protectionRuleSubject
 };
 
 /**
@@ -952,7 +1004,11 @@ export const AUDIT_KINDS = [
     'copilot.skill.created',
     'copilot.skill.updated',
     'copilot.skill.deleted',
-    'copilot.tool_permission.decided'
+    'copilot.tool_permission.decided',
+    'review.requested',
+    'review.approved',
+    'review.changes_requested',
+    'protection.rule_changed'
 ] as const satisfies readonly string[];
 
 /**
@@ -975,7 +1031,8 @@ export const AUDIT_SUBJECT_TYPES = [
     'alarm_rule',
     'saved_view',
     'copilot_skill',
-    'copilot_run'
+    'copilot_run',
+    'protection_rule'
 ] as const satisfies readonly string[];
 
 /**

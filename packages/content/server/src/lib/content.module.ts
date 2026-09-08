@@ -294,7 +294,17 @@ export class ContentModule {
                 // records-list filter, and it has to keep meaning exactly what
                 // the list showed when it was saved. Sharing the query is what
                 // makes that structural instead of aspirational.
-                EntryMatchQuery
+                EntryMatchQuery,
+                // The revision store, for the protection plugin: an approval is
+                // bound to a **revision**, so recording one means asking which
+                // version is currently the head and who wrote it. The
+                // alternative was protection querying `content_entry_revisions`
+                // itself — a host-owned table it cannot migrate and has no
+                // business knowing the columns of. Reads are what it needs; the
+                // write primitives are executor-parameterized for
+                // `EntryWriterService`'s own save transaction and are no use to
+                // anyone outside it.
+                REVISION_STORE
             ]
         };
     }

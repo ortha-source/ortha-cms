@@ -194,6 +194,17 @@ describe('GET /api/auth/me', () => {
                     'content:create',
                     'content:update',
                     'content:publish',
+                    // Approving is an editorial act — the statement that a
+                    // second person read the thing — so it lands on the role
+                    // that edits rather than on a new "reviewer" role: a
+                    // protection rule blocks everyone equally, and a
+                    // deployment wanting a reviewer who cannot write mints a
+                    // custom role with this key and without `content:update`.
+                    // Viewer does not get it, and no API token scope does
+                    // (`protection:I-12`) — a token names nobody, so a vote
+                    // from one would satisfy the count while the guarantee it
+                    // stands for quietly does not hold.
+                    'content:approve',
                     // Removing the draft that should never have existed is the
                     // same editorial act as writing it — a role that can
                     // publish to the world but cannot retract is the more

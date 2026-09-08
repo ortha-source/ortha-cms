@@ -90,7 +90,11 @@ export const ACTIVITY_KINDS = [
     'copilot.skill.created',
     'copilot.skill.updated',
     'copilot.skill.deleted',
-    'copilot.tool_permission.decided'
+    'copilot.tool_permission.decided',
+    'review.requested',
+    'review.approved',
+    'review.changes_requested',
+    'protection.rule_changed'
 ] as const;
 
 /** A kind the Activity Log knows how to render. */
@@ -116,7 +120,8 @@ export const ACTIVITY_SUBJECT_TYPES = [
     'alarm_rule',
     'saved_view',
     'copilot_skill',
-    'copilot_run'
+    'copilot_run',
+    'protection_rule'
 ] as const;
 
 /** A subject type the Activity Log knows how to name. */

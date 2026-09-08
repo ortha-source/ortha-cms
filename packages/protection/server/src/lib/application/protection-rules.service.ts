@@ -1,11 +1,17 @@
 import { Injectable } from '@nestjs/common';
-import { UnitOfWork } from '@orthacms/database';
+import {
+    attachActor,
+    OutboxWriter,
+    UnitOfWork,
+    type EventActor
+} from '@orthacms/database';
 import {
     InjectContentRegistry,
     WorkspaceGrantsQuery,
     type ContentTypeRegistry
 } from '@orthacms/content-server';
 import { UnknownProtectedContentTypeError } from '../domain/errors';
+import { protectionRuleEvent } from '../protection.events';
 import { ProtectionRuleRepository } from '../infrastructure/protection-rule.repository';
 import type { ProtectionRuleView } from '../types/protection-views';
 import type { SaveProtectionRuleDto } from './dto/save-protection-rule.dto';
@@ -46,6 +52,7 @@ const RULE_DEFAULTS = {
 export class ProtectionRulesService {
     constructor(
         private readonly uow: UnitOfWork,
+        private readonly outbox: OutboxWriter,
         private readonly rules: ProtectionRuleRepository,
         private readonly grants: WorkspaceGrantsQuery,
         @InjectContentRegistry()
@@ -85,21 +92,38 @@ export class ProtectionRulesService {
         kind: string,
         slug: string,
         dto: SaveProtectionRuleDto,
-        actorId: string | null
+        actor?: EventActor
     ): Promise<ProtectionRuleView> {
         await this.assertGranted(workspaceId, kind, slug);
 
-        // A single-statement upsert would not need the unit of work; it is
-        // opened so the `protection.rule_changed` event lands in the same
-        // transaction as the row once the activity events PR adds it, rather
-        // than becoming a second thing to remember at that point.
-        return this.uow.run(() =>
-            this.rules.save(workspaceId, kind, slug, {
+        // Read before the write so the event can carry both sides. A rule that
+        // went from two approvals to one is the change worth having a row for,
+        // and "now requires 1" on its own does not say that anything moved.
+        const before = await this.rules.find(workspaceId, kind, slug);
+
+        // The unit of work is what makes the row and the event that describes
+        // it commit together — an audit trail that can disagree with the state
+        // it describes is worse than none.
+        return this.uow.run(async () => {
+            const after = await this.rules.save(workspaceId, kind, slug, {
                 ...RULE_DEFAULTS,
                 ...definedOnly(dto),
-                updatedBy: actorId
-            })
-        );
+                updatedBy: actor?.id ?? null
+            });
+            await this.emit(
+                after.id,
+                {
+                    workspaceId,
+                    kind,
+                    slug,
+                    action: before ? 'updated' : 'created',
+                    from: before ? snapshot(before) : null,
+                    to: snapshot(after)
+                },
+                actor
+            );
+            return after;
+        });
     }
 
     /**
@@ -111,8 +135,53 @@ export class ProtectionRulesService {
      * and a 404 would strand it. Reports whether a row was actually there, for
      * the audit trail — a delete that removed nothing is not a policy change.
      */
-    remove(workspaceId: string, kind: string, slug: string): Promise<boolean> {
-        return this.uow.run(() => this.rules.remove(workspaceId, kind, slug));
+    async remove(
+        workspaceId: string,
+        kind: string,
+        slug: string,
+        actor?: EventActor
+    ): Promise<boolean> {
+        const before = await this.rules.find(workspaceId, kind, slug);
+        return this.uow.run(async () => {
+            const removed = await this.rules.remove(workspaceId, kind, slug);
+            // A delete that removed nothing is not a policy change, and a row
+            // saying otherwise would make the log's count of "protection was
+            // weakened" meaningless. `before` is what the event carries: after
+            // this commits there is nowhere left to look the numbers up.
+            if (removed && before) {
+                await this.emit(
+                    before.id,
+                    {
+                        workspaceId,
+                        kind,
+                        slug,
+                        action: 'removed',
+                        from: snapshot(before),
+                        to: null
+                    },
+                    actor
+                );
+            }
+            return removed;
+        });
+    }
+
+    /**
+     * Append the rule event to the outbox from inside the active unit of work.
+     *
+     * Every rule write raises one — **including switching a rule off and
+     * lowering its count** (`protection:I-14`). Without those rows the bypass
+     * is not a button somebody had to justify in the log; it is a settings tab
+     * left open for two minutes, and nothing afterwards can tell the difference
+     * between a rule that was never there and a rule that was quietly removed.
+     */
+    private async emit(
+        ruleId: string,
+        payload: Record<string, unknown>,
+        actor?: EventActor
+    ): Promise<void> {
+        const event = protectionRuleEvent(ruleId, payload);
+        await this.outbox.append(actor ? attachActor([event], actor) : [event]);
     }
 
     /**
@@ -152,4 +221,22 @@ function definedOnly(
     return Object.fromEntries(
         Object.entries(dto).filter(([, value]) => value !== undefined)
     );
+}
+
+/**
+ * The six fields the audit row records, on each side of a change.
+ *
+ * The addressing and the timestamps are left out: `(kind, slug)` already rides
+ * on the event, and a diff whose only difference is `updatedAt` reads as a
+ * change that never happened.
+ */
+function snapshot(rule: ProtectionRuleView) {
+    return {
+        enabled: rule.enabled,
+        requiredApprovals: rule.requiredApprovals,
+        requireOtherPerson: rule.requireOtherPerson,
+        countStaleApprovals: rule.countStaleApprovals,
+        adminBypass: rule.adminBypass,
+        allowTokenPublish: rule.allowTokenPublish
+    };
 }

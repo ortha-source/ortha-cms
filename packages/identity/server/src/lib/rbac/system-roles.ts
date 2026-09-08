@@ -19,6 +19,7 @@ export const PERMISSIONS = {
     CONTENT_CREATE: 'content:create',
     CONTENT_UPDATE: 'content:update',
     CONTENT_PUBLISH: 'content:publish',
+    CONTENT_APPROVE: 'content:approve',
     CONTENT_DELETE: 'content:delete',
     CONTENT_EXPORT: 'content:export',
     CONTENT_IMPORT: 'content:import',
@@ -129,6 +130,19 @@ export interface SystemRole {
  * `alarms:read` or `segments:read`, which describe content an editor is already
  * working on.
  *
+ * `content:approve` is granted to **contributor** and to admin, and withheld
+ * from **viewer**. Approving is an editorial act — it is the statement that a
+ * second person read the thing — so the role that reads without editing does
+ * not get to make it. Granting it to contributor is also what keeps every
+ * existing installation behaving exactly as it does: the role that could
+ * already publish can now also approve, and until somebody writes a rule
+ * neither key does anything new.
+ *
+ * **No API token scope grants it** (`protection:I-12`, pinned in
+ * `api-token-scope.spec.ts`). A token names no person, and ADR-0017 §6's
+ * refusal to offer an approve tool on any surface buys nothing if minting a key
+ * casts the vote the tool may not.
+ *
  * `protection:manage` is **admin-only**, and has no `protection:read` beside
  * it — the only asymmetry in this catalogue, and deliberate. A publication
  * protection rule is configuration of the same class as `alarms:manage`:
@@ -157,6 +171,13 @@ export const SYSTEM_ROLES: readonly SystemRole[] = [
             PERMISSIONS.CONTENT_CREATE,
             PERMISSIONS.CONTENT_UPDATE,
             PERMISSIONS.CONTENT_PUBLISH,
+            // Approving is an editorial act, so it lands on the role that
+            // edits — and it lands there rather than on a new "reviewer" role
+            // because a rule blocks everyone equally: an installation that
+            // wants a reviewer who cannot write mints a custom role with this
+            // key and without `content:update`, which is operator
+            // configuration and not this feature's business.
+            PERMISSIONS.CONTENT_APPROVE,
             PERMISSIONS.CONTENT_DELETE,
             PERMISSIONS.CONTENT_EXPORT,
             PERMISSIONS.CONTENT_IMPORT,

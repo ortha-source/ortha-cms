@@ -12,11 +12,7 @@
  * exists to prevent.
  */
 
-import {
-    APPROVAL_DECISION,
-    type ProtectionInput,
-    type ProtectionRule
-} from './protection-rule';
+import { APPROVAL_DECISION, type ProtectionInput } from './protection-rule';
 
 /**
  * What the gate decided.
@@ -59,7 +55,7 @@ export type ProtectionDecision =
  */
 function approvers(
     input: ProtectionInput,
-    rule: ProtectionRule,
+    requireOtherPerson: boolean,
     headOnly: boolean
 ): Set<string> {
     const users = new Set<string>();
@@ -74,7 +70,7 @@ function approvers(
         // on the entry instead would block on something there is nothing to
         // point at.
         if (
-            rule.requireOtherPerson &&
+            requireOtherPerson &&
             input.headAuthorId !== null &&
             approval.userId === input.headAuthorId
         ) {
@@ -84,6 +80,50 @@ function approvers(
     }
 
     return users;
+}
+
+/** Where the approval count stands, whether or not that is enough to publish. */
+export interface ApprovalCounts {
+    /** Distinct people whose vote counts toward the head revision. */
+    readonly given: number;
+    /**
+     * Distinct people whose only approval sits on an earlier revision — why the
+     * count moved after a save, and who the interface strikes through. Zero
+     * when stale approvals are being counted anyway, because then they are not
+     * stale.
+     */
+    readonly stale: number;
+}
+
+/**
+ * The counts on their own, for a surface that has to render "2 of 2" — which
+ * {@link ProtectionDecision} does not carry, because a satisfied publish has
+ * nothing to explain.
+ *
+ * Exported so the editor's panel and the gate that refuses the publish are
+ * **one implementation of counting**, not two that agree until somebody
+ * switches on `countStaleApprovals`. `evaluateProtection` calls this; a caller
+ * that only wants the numbers calls it directly rather than asking the gate a
+ * question it is rigged to refuse.
+ *
+ * With no rule, the counting flags take their documented defaults — the head
+ * author excluded, stale approvals not counted — which is what a type shows
+ * before anybody protects it, and what it would show if a rule were switched on
+ * as it stands.
+ */
+export function countApprovals(input: ProtectionInput): ApprovalCounts {
+    const requireOtherPerson = input.rule?.requireOtherPerson ?? true;
+    const countStale = input.rule?.countStaleApprovals ?? false;
+
+    const onHead = approvers(input, requireOtherPerson, true);
+    const everywhere = approvers(input, requireOtherPerson, false);
+
+    // `everywhere` is always a superset of `onHead`, so `stale` cannot go
+    // negative — and it falls to zero on its own when the stale ones are being
+    // counted, because then they are not stale.
+    const given = countStale ? everywhere.size : onHead.size;
+
+    return { given, stale: everywhere.size - given };
 }
 
 /** Whether `actor` may publish `entry` past `rule`, and if not, why. */
@@ -104,14 +144,7 @@ export function evaluateProtection(input: ProtectionInput): ProtectionDecision {
         return { allowed: false, reason: 'token-refused' };
     }
 
-    const onHead = approvers(input, rule, true);
-    const everywhere = approvers(input, rule, false);
-
-    // `everywhere` is always a superset of `onHead`, so `stale` cannot go
-    // negative — and it falls to zero on its own when the stale ones are being
-    // counted, because then they are not stale.
-    const given = rule.countStaleApprovals ? everywhere.size : onHead.size;
-    const stale = everywhere.size - given;
+    const { given, stale } = countApprovals(input);
 
     if (given >= rule.requiredApprovals) {
         return { allowed: true, reason: 'satisfied' };
