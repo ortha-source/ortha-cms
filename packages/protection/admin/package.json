@@ -20,6 +20,8 @@
         "@orthacms/content-admin": "*",
         "@orthacms/design-system": "*",
         "@orthacms/identity-admin": "*",
+        "@orthacms/insights-admin": "*",
+        "@orthacms/query-builder-admin": "*",
         "@orthacms/utils-admin": "*",
         "@orthacms/workspaces-admin": "*",
         "@tanstack/react-query": "^5.0.0",

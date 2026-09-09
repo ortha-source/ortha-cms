@@ -1686,6 +1686,21 @@ a browsable version history and can be restored. Layered per ADR-0003
   save appends a version equal to the live row again. Composes the existing
   restore + entry-publish use-cases; publishing re-validates through the publish
   gate (a `422` leaves the content re-applied as a draft, a recoverable state).
+- **The batched head read (`RevisionStore.heads`).** `list` answers for one
+  entry in three queries, so a caller wanting the head of a whole records page —
+  a contributed column, a per-page aggregate — would issue one `list` per row:
+  an N+1 that grows with the page size the _user_ chose. `heads(contentType,
+entryIds, workspaceId)` answers the same question for many entries in **one**
+  query (`DISTINCT ON (entry_id) … ORDER BY entry_id, revision_number DESC`,
+  riding the `(entry_id, revision_number)` unique index). It is a batched
+  variant of an existing read on an existing port, **not** a new seam — the
+  contrast with `ENTRY_PUBLISH_GUARD_SLOT` and `WORKSPACE_SETTINGS_TAB_SLOT`,
+  which are extension points and are counted as such. Rows come back in no
+  guaranteed order and an id with no revision is simply **absent**: to a caller
+  "not yours", "wrong type" and "does not exist" are one fact, and reporting
+  them apart would be an enumeration signal. `@orthacms/protection-server`'s
+  records column is the first consumer, and `review-status.spec.ts` pins its
+  query count flat as the page grows.
 - **HTTP** (workspace-scoped, same guards as the entry routes):
   `GET :typeName/:id/revisions` (timeline, newest first), `.../revisions/:number`
   (one snapshot), `POST .../revisions/:number/restore` (`content:update`). The

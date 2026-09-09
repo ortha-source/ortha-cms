@@ -171,7 +171,18 @@ export {
     REVISION_STORE,
     InjectRevisionStore
 } from './lib/revisions/application/ports/revision-store';
-export type { RevisionStore } from './lib/revisions/application/ports/revision-store';
+export type {
+    RevisionHead,
+    RevisionStore
+} from './lib/revisions/application/ports/revision-store';
+
+// The snapshot comparison the revision-diff tools answer with. Exported rather
+// than reimplemented by a second caller: the rules it encodes (empties collapse,
+// link sets compare order-sensitively) are the ones the admin's own diff dialog
+// shows, and a second copy would disagree the first time either moved.
+export { diffSnapshots } from './lib/copilot/diff-snapshots';
+export type { SnapshotFieldChange } from './lib/copilot/diff-snapshots';
+export type { RevisionSnapshot } from './lib/revisions/types/revision-view';
 export type {
     RevisionListView,
     RevisionSummary

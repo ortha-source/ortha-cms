@@ -1,5 +1,7 @@
 import { apiClient, toApiError } from '@orthacms/utils-admin';
 import type {
+    EntryReviewStatus,
+    ProtectionInsights,
     EntryReview,
     ProtectionRule,
     ProtectionRuleRecord,
@@ -96,6 +98,20 @@ export type ProtectionGateway = {
      * numbers the workspace had chosen. Idempotent.
      */
     deleteRule(address: RuleAddress): Promise<void>;
+    /**
+     * Where each entry on a records page stands, keyed by entry id.
+     *
+     * **One request per page, never one per row.** The records column's
+     * `useRowsData` hook is handed the whole page for exactly this, and the
+     * server answers it in three queries whatever the page size — an id with no
+     * revision in this workspace is simply absent from the answer.
+     */
+    reviewStatusByEntry(
+        typeName: string,
+        entryIds: readonly string[]
+    ): Promise<Record<string, EntryReviewStatus>>;
+    /** Outstanding review requests, for the Insights card. */
+    insights(): Promise<ProtectionInsights>;
 };
 
 /** Addresses one rule — the pair `workspace_content` already grants. */
@@ -382,6 +398,36 @@ export const httpProtectionGateway: ProtectionGateway = {
     async deleteRule(address: RuleAddress): Promise<void> {
         try {
             await apiClient.delete(rulePath(address));
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+    async reviewStatusByEntry(
+        typeName: string,
+        entryIds: readonly string[]
+    ): Promise<Record<string, EntryReviewStatus>> {
+        // Asking about nothing is a request worth not making: the records list
+        // renders an empty page while a filter is being typed, and the hook runs
+        // on every render.
+        if (!entryIds.length) return {};
+        try {
+            const { data } = await apiClient.get<{
+                byEntry: Record<string, EntryReviewStatus>;
+            }>(`/protection/entries/${encodeURIComponent(typeName)}/status`, {
+                params: { ids: entryIds.join(',') }
+            });
+            return data?.byEntry ?? {};
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async insights(): Promise<ProtectionInsights> {
+        try {
+            const { data } = await apiClient.get<ProtectionInsights>(
+                '/insights/protection/reviews'
+            );
+            return data;
         } catch (error) {
             throw toApiError(error);
         }

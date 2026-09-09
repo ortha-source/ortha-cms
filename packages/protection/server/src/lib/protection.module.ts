@@ -1,5 +1,8 @@
 import { Module, type DynamicModule } from '@nestjs/common';
-import { contentPublishGuardRegistrar } from '@orthacms/content-server';
+import {
+    contentPublishGuardRegistrar,
+    entryFilterProviderRegistrar
+} from '@orthacms/content-server';
 import { EntryReviewService } from './application/entry-review.service';
 import { ProtectionRulesService } from './application/protection-rules.service';
 import { ReviewQueueService } from './application/review-queue.service';
@@ -13,6 +16,12 @@ import { ProtectionWorkspacePurger } from './infrastructure/purge/protection-wor
 import { ProtectionRulesController } from './http/controllers/protection-rules.controller';
 import { PublishProtectionGuard } from './infrastructure/publish-protection.guard';
 import { EntryPublishedSubscriber } from './infrastructure/entry-published.subscriber';
+import { ReviewStatusQuery } from './application/review-status.query';
+import { ReviewStatusController } from './http/controllers/review-status.controller';
+import { ReviewStateFilterProvider } from './infrastructure/review-state-filter.provider';
+import { ProtectionInsightsQuery } from './application/protection-insights.query';
+import { ProtectionInsightsController } from './http/controllers/protection-insights.controller';
+import { ProtectionToolProvider } from './tools/protection-tool.provider';
 
 /**
  * The protection plugin's module — three tables, one controller.
@@ -43,7 +52,11 @@ export class ProtectionModule {
                 // shadow it — but registering the specific one first keeps that
                 // true if either prefix is ever widened.
                 ReviewQueueController,
-                EntryReviewController
+                // Also a literal beneath `protection/entries/:typeName`, so it
+                // is registered ahead of the `:id` routes for the same reason.
+                ReviewStatusController,
+                EntryReviewController,
+                ProtectionInsightsController
             ],
             providers: [
                 ProtectionRulesService,
@@ -72,7 +85,23 @@ export class ProtectionModule {
                 ),
                 // Closes an open review request when the entry it was about
                 // actually goes out, however it was published.
-                EntryPublishedSubscriber
+                EntryPublishedSubscriber,
+                // The records column's batched read, and the aggregate behind
+                // the Insights card. Both go through the kernel's counting, so
+                // a cell, a card and the publish gate cannot disagree.
+                ReviewStatusQuery,
+                ProtectionInsightsQuery,
+                // `reviewState` in the records list's own filter tree — which
+                // is what makes saved views and alarms' "Save as rule" work
+                // over review state with no code of their own.
+                ReviewStateFilterProvider,
+                entryFilterProviderRegistrar(
+                    'protection',
+                    ReviewStateFilterProvider
+                ),
+                // Three tools; there is deliberately no fourth. See the
+                // provider's header and ADR-0017 §6.
+                ProtectionToolProvider
             ],
             exports: [
                 ProtectionRulesService,
@@ -81,7 +110,8 @@ export class ProtectionModule {
                 ReviewRequestRepository,
                 ReviewApprovalRepository,
                 HeadRevisionQuery,
-                PublishProtectionGuard
+                PublishProtectionGuard,
+                ReviewStatusQuery
             ]
         };
     }

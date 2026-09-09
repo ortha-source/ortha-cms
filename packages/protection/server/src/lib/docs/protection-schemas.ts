@@ -6,6 +6,12 @@ export const PROTECTION_RULE_SCHEMA = 'ProtectionRule';
 /** Component name for one entry's whole review state. */
 export const ENTRY_REVIEW_SCHEMA = 'EntryReview';
 
+/** Component name for the records column's batched status map. */
+export const REVIEW_STATUS_MAP_SCHEMA = 'EntryReviewStatusMap';
+
+/** Component name for the Insights card's figures. */
+export const PROTECTION_INSIGHTS_SCHEMA = 'ProtectionInsights';
+
 /** Component name for a page of the reviewer queue. */
 export const REVIEW_QUEUE_SCHEMA = 'ReviewQueue';
 
@@ -225,6 +231,87 @@ export function buildProtectionSchemas(): Record<string, OpenApiSchema> {
             }
         },
 
+        [REVIEW_STATUS_MAP_SCHEMA]: {
+            type: 'object',
+            required: ['byEntry'],
+            properties: {
+                byEntry: {
+                    type: 'object',
+                    description:
+                        'Keyed by entry id. An id with no revision in this workspace under this content type is **absent** rather than reported as unprotected — the two are different facts, and telling them apart would let a caller probe another workspace’s ids.',
+                    additionalProperties: {
+                        type: 'object',
+                        required: [
+                            'protected',
+                            'required',
+                            'given',
+                            'stale',
+                            'changesRequested',
+                            'requested',
+                            'blocked'
+                        ],
+                        properties: {
+                            protected: {
+                                type: 'boolean',
+                                description:
+                                    'Whether a rule applies to this entry’s type at all.'
+                            },
+                            required: {
+                                type: 'integer',
+                                description:
+                                    'Approvals the rule asks for; 0 when unprotected.'
+                            },
+                            given: {
+                                type: 'integer',
+                                description:
+                                    'Approvals counting toward the head revision, from the same kernel function the publish gate obeys.'
+                            },
+                            stale: {
+                                type: 'integer',
+                                description:
+                                    'People whose only approval sits on an earlier revision.'
+                            },
+                            changesRequested: {
+                                type: 'boolean',
+                                description:
+                                    'Whether somebody asked for changes on the current version. It never lowers `given`.'
+                            },
+                            requested: {
+                                type: 'boolean',
+                                description:
+                                    'Whether a review has been asked for and not yet resolved.'
+                            },
+                            blocked: {
+                                type: 'boolean',
+                                description:
+                                    'Whether publishing is currently held by the rule.'
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        [PROTECTION_INSIGHTS_SCHEMA]: {
+            type: 'object',
+            required: ['open', 'overdue', 'overdueAfterDays'],
+            properties: {
+                open: {
+                    type: 'integer',
+                    description:
+                        'Open review requests across every protected type in the workspace.'
+                },
+                overdue: {
+                    type: 'integer',
+                    description:
+                        'How many of those have waited longer than `overdueAfterDays`.'
+                },
+                overdueAfterDays: {
+                    type: 'integer',
+                    description:
+                        'The threshold `overdue` was counted against, reported so a caller cannot restate it and drift.'
+                }
+            }
+        },
         [REVIEW_QUEUE_SCHEMA]: {
             type: 'object',
             required: ['items', 'total'],

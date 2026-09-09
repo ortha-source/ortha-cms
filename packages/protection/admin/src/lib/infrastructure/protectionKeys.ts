@@ -43,3 +43,28 @@ export const queueKey = (
         window.limit ?? null,
         window.offset ?? null
     ] as const;
+
+/**
+ * One records page's review statuses.
+ *
+ * The **entry ids** are part of the key, not just the type: paging or filtering
+ * the list changes which rows are on screen, and a key that ignored them would
+ * serve the previous page's numbers against the new page's rows — wrong in a way
+ * that looks plausible. Sorted so two renders of the same page share one entry.
+ */
+export const reviewStatusKey = (
+    workspaceId: string,
+    typeName: string,
+    entryIds: readonly string[]
+) =>
+    [
+        'protection',
+        'review-status',
+        workspaceId,
+        typeName,
+        [...entryIds].sort().join(',')
+    ] as const;
+
+/** The Insights card's figures. */
+export const insightsKey = (workspaceId: string) =>
+    ['protection', 'insights', workspaceId] as const;

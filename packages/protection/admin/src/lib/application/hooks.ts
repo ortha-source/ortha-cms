@@ -9,13 +9,17 @@ import { refreshEntryCaches } from '@orthacms/content-admin';
 import { type ApiError } from '@orthacms/utils-admin';
 import type {
     EntryReview,
+    EntryReviewStatus,
+    ProtectionInsights,
     ProtectionRule,
     ProtectionRuleRecord,
     ReviewQueue
 } from '../domain/types';
 import {
     entryReviewKey,
+    insightsKey,
     queueKey,
+    reviewStatusKey,
     rulesKey
 } from '../infrastructure/protectionKeys';
 import {
@@ -262,5 +266,42 @@ export function useReviewQueue(
         queryFn: () => httpProtectionGateway.listQueue(params),
         placeholderData: keepPreviousData,
         enabled
+    });
+}
+
+/**
+ * Review status for a whole records page, keyed by entry id.
+ *
+ * `enabled` matters more here than anywhere else in this plugin: the records
+ * column is **hidden by default** and its `useRowsData` hook runs on every
+ * render whether or not the column is shown, so ignoring `isVisible` would fire
+ * this on every page of every list for numbers nobody is looking at — the
+ * over-fetching alarms' own column documents having had to fix.
+ */
+export function useReviewStatusByEntry(
+    workspaceId: string,
+    typeName: string,
+    entryIds: readonly string[],
+    enabled = true
+) {
+    return useQuery<Record<string, EntryReviewStatus>, ApiError>({
+        queryKey: reviewStatusKey(workspaceId, typeName, entryIds),
+        queryFn: () =>
+            httpProtectionGateway.reviewStatusByEntry(typeName, entryIds),
+        enabled: enabled && entryIds.length > 0
+    });
+}
+
+/**
+ * The Insights card's figures.
+ *
+ * No `staleTime` tuning of its own — the dashboard mounts every card at once and
+ * the shared client's defaults are what keep the page from re-reading them on
+ * every focus.
+ */
+export function useProtectionInsights(workspaceId: string) {
+    return useQuery<ProtectionInsights, ApiError>({
+        queryKey: insightsKey(workspaceId),
+        queryFn: () => httpProtectionGateway.insights()
     });
 }

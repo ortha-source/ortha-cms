@@ -18,6 +18,12 @@
             "path": "../../shell/admin/tsconfig.lib.json"
         },
         {
+            "path": "../../insights/admin/tsconfig.lib.json"
+        },
+        {
+            "path": "../../query-builder/admin/tsconfig.lib.json"
+        },
+        {
             "path": "../../workspaces/admin/tsconfig.lib.json"
         },
         {

@@ -82,3 +82,18 @@ export {
     PublishProtectionGuard
 } from './lib/infrastructure/publish-protection.guard';
 export { EntryPublishedSubscriber } from './lib/infrastructure/entry-published.subscriber';
+
+// The batched status read, exported for the records column and the agent tools
+// — both of which must count through the same kernel call the publish gate uses.
+export { ReviewStatusQuery } from './lib/application/review-status.query';
+export { ProtectionInsightsQuery } from './lib/application/protection-insights.query';
+export {
+    REVIEW_STATE,
+    REVIEW_STATE_FIELD
+} from './lib/infrastructure/review-state-filter.provider';
+export type { ReviewState } from './lib/infrastructure/review-state-filter.provider';
+export type {
+    EntryReviewStatusMapView,
+    EntryReviewStatusView,
+    ProtectionInsightsView
+} from './lib/types/protection-views';
