@@ -11,6 +11,7 @@ import { WorkspaceGeneralSettings } from '../../components/WorkspaceGeneralSetti
 import { WorkspaceMembersSettings } from '../../components/WorkspaceMembersSettings';
 import { WorkspaceContentSettings } from '../../components/WorkspaceContentSettings';
 import { WorkspaceDangerSettings } from '../../components/WorkspaceDangerSettings';
+import { WORKSPACE_SETTINGS_TAB_SLOT } from '../../slots/workspaceSlots';
 
 /** Intl descriptors for the workspace settings page, co-located here. */
 const messages = defineMessages({
@@ -46,6 +47,12 @@ const messages = defineMessages({
  * Reads the open workspace from context; edits are gated by `workspaces:update`
  * / `workspaces:delete`, so a viewer sees a read-only page and the Danger
  * section (rail entry + route) only exists when the user can act on it.
+ *
+ * Plugin-contributed sections ({@link WORKSPACE_SETTINGS_TAB_SLOT}) mount as
+ * ordinary nested routes. Unlike the Danger zone they are **not** gated here:
+ * the tab bar already hides an entry the caller may not use, and a section that
+ * can say "you need `protection:manage` for this" is a better answer to a deep
+ * link than a redirect to a page nobody asked for.
  */
 export function WorkspaceSettingsPage() {
     const intl = useIntl();
@@ -151,6 +158,15 @@ export function WorkspaceSettingsPage() {
                                     )
                                 }
                             />
+                            {WORKSPACE_SETTINGS_TAB_SLOT.getItems().map(
+                                (tab) => (
+                                    <Route
+                                        key={tab.id}
+                                        path={tab.path}
+                                        element={tab.element}
+                                    />
+                                )
+                            )}
                             {/* Unknown sub-path falls back to the first section. */}
                             <Route
                                 path="*"

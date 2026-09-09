@@ -1,5 +1,10 @@
 import { apiClient, toApiError } from '@orthacms/utils-admin';
-import type { EntryReview, ReviewApproval } from '../domain/types';
+import type {
+    EntryReview,
+    ProtectionRule,
+    ProtectionRuleRecord,
+    ReviewApproval
+} from '../domain/types';
 
 /** Addresses one entry's review state. */
 export type EntryRef = {
@@ -64,6 +69,31 @@ export type ProtectionGateway = {
     withdrawVote(ref: EntryRef): Promise<void>;
     /** Publish past the rule, with a reason bound for the activity log. */
     bypassPublish(input: BypassPublishInput): Promise<void>;
+    /**
+     * Every rule the open workspace holds, including any addressed at a type it
+     * is no longer granted — those are the rows an administrator needs in order
+     * to remove them. `protection:manage`, administrator-only.
+     */
+    listRules(): Promise<ProtectionRuleRecord[]>;
+    /**
+     * Writes the rule for one content type. A **replacement**: the six fields
+     * travel whole, so the stored rule is what the form says and nothing
+     * carried over.
+     */
+    saveRule(address: RuleAddress, rule: ProtectionRule): Promise<void>;
+    /**
+     * Removes the rule. Not the same as `enabled: false`, which keeps the
+     * numbers the workspace had chosen. Idempotent.
+     */
+    deleteRule(address: RuleAddress): Promise<void>;
+};
+
+/** Addresses one rule — the pair `workspace_content` already grants. */
+export type RuleAddress = {
+    /** `collection` or `single`. */
+    kind: string;
+    /** The code-defined content type name. */
+    slug: string;
 };
 
 /** One vote as the wire returns it. */
@@ -144,6 +174,45 @@ function toEntryReview(dto: EntryReviewResponse): EntryReview {
     };
 }
 
+/** One stored rule as the wire returns it. */
+type ProtectionRuleResponse = {
+    id: string;
+    kind: string;
+    slug: string;
+    enabled: boolean;
+    requiredApprovals: number;
+    requireOtherPerson: boolean;
+    countStaleApprovals: boolean;
+    adminBypass: boolean;
+    allowTokenPublish: boolean;
+};
+
+/**
+ * Maps one rule from the wire.
+ *
+ * Booleans are coerced rather than defaulted, and the count is taken as given:
+ * a mapper that quietly substituted a default here would show a rule the
+ * workspace does not have, and the form would then **save** that invention on
+ * the next press of Save.
+ */
+function toRule(dto: ProtectionRuleResponse): ProtectionRuleRecord {
+    return {
+        id: dto.id,
+        kind: dto.kind,
+        slug: dto.slug,
+        enabled: !!dto.enabled,
+        requiredApprovals: dto.requiredApprovals,
+        requireOtherPerson: !!dto.requireOtherPerson,
+        countStaleApprovals: !!dto.countStaleApprovals,
+        adminBypass: !!dto.adminBypass,
+        allowTokenPublish: !!dto.allowTokenPublish
+    };
+}
+
+/** `/protection/rules/:kind/:slug`. */
+const rulePath = ({ kind, slug }: RuleAddress) =>
+    `/protection/rules/${encodeURIComponent(kind)}/${encodeURIComponent(slug)}`;
+
 /** `/protection/entries/:type/:id`, the prefix every entry route shares. */
 const entryPath = ({ typeName, entryId }: EntryRef) =>
     `/protection/entries/${encodeURIComponent(typeName)}/${encodeURIComponent(entryId)}`;
@@ -216,6 +285,35 @@ export const httpProtectionGateway: ProtectionGateway = {
                 `/content/${encodeURIComponent(typeName)}/${encodeURIComponent(entryId)}/publish`,
                 { bypassReason }
             );
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async listRules(): Promise<ProtectionRuleRecord[]> {
+        try {
+            const { data } =
+                await apiClient.get<ProtectionRuleResponse[]>(
+                    '/protection/rules'
+                );
+            return (data ?? []).map(toRule);
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async saveRule(address: RuleAddress, rule: ProtectionRule): Promise<void> {
+        try {
+            // All six, always — the API replaces rather than patches.
+            await apiClient.put(rulePath(address), rule);
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async deleteRule(address: RuleAddress): Promise<void> {
+        try {
+            await apiClient.delete(rulePath(address));
         } catch (error) {
             throw toApiError(error);
         }

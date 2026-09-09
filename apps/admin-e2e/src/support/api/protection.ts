@@ -88,3 +88,74 @@ export async function mockEntryReview(
         });
     });
 }
+
+/** One stored rule, as `GET /api/protection/rules` returns it. */
+export type ProtectionRuleSeed = {
+    id?: string;
+    kind?: string;
+    slug: string;
+    enabled?: boolean;
+    requiredApprovals?: number;
+    requireOtherPerson?: boolean;
+    countStaleApprovals?: boolean;
+    adminBypass?: boolean;
+    allowTokenPublish?: boolean;
+};
+
+/** What a captured `PUT /api/protection/rules/:kind/:slug` carried. */
+export type CapturedRuleWrite = {
+    /** The `:kind/:slug` the write addressed. */
+    path: string;
+    /** The body, as sent. */
+    body: Record<string, unknown>;
+};
+
+/**
+ * Serves the workspace's rule list and captures every write.
+ *
+ * The returned array is filled as the page saves, so a test can assert on
+ * **what was sent** rather than only on what the screen did — which is the only
+ * way to pin that the editor submits all six fields, since a partial body would
+ * look identical in the browser and silently reset the rest server-side.
+ */
+export async function mockProtectionRules(
+    page: Page,
+    rules: ProtectionRuleSeed[] = [],
+    { status = 200 }: { status?: number } = {}
+): Promise<CapturedRuleWrite[]> {
+    const writes: CapturedRuleWrite[] = [];
+    const body = rules.map((rule) => ({
+        id: rule.id ?? `rule-${rule.slug}`,
+        kind: rule.kind ?? 'collection',
+        slug: rule.slug,
+        enabled: rule.enabled ?? true,
+        requiredApprovals: rule.requiredApprovals ?? 2,
+        requireOtherPerson: rule.requireOtherPerson ?? true,
+        countStaleApprovals: rule.countStaleApprovals ?? false,
+        adminBypass: rule.adminBypass ?? true,
+        allowTokenPublish: rule.allowTokenPublish ?? false
+    }));
+
+    await page.route('**/api/protection/rules**', async (route) => {
+        const request = route.request();
+        if (request.method() === 'GET') {
+            await route.fulfill({
+                status,
+                contentType: 'application/json',
+                body: JSON.stringify(status === 200 ? body : { message: 'no' })
+            });
+            return;
+        }
+        if (request.method() === 'PUT') {
+            writes.push({
+                path: new URL(request.url()).pathname.split('/rules/')[1] ?? '',
+                body: request.postDataJSON() as Record<string, unknown>
+            });
+            await route.fulfill({ status: 200, body: '{}' });
+            return;
+        }
+        await route.fulfill({ status: 204, body: '' });
+    });
+
+    return writes;
+}

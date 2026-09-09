@@ -1,8 +1,9 @@
 # `@orthacms/protection-admin`
 
-Publication protection as the person editing an entry meets it. **Three
-contributions into the Content Library's slots and no page of its own** — the
-reviewer queue and the settings tab are a later piece.
+Publication protection as the people who use it meet it: three contributions
+into the Content Library's slots, where a requirement is met or missed, and one
+into workspace settings, where a rule is made. **No page of its own** — the
+reviewer queue is a later piece.
 
 ```
 src/lib/
@@ -20,6 +21,8 @@ src/lib/
         ApprovalRow/             one vote, stale ones struck through
         ReviewActions/           request / approve / request changes
       BypassDialog/            the way past a rule, with a mandatory reason
+      ProtectionSettings/      the settings tab (WORKSPACE_SETTINGS_TAB_SLOT)
+        RuleEditorDialog/        the six fields, submitted whole
     slots/publishGuard/        the verdict     (ENTRY_PUBLISH_GUARD_SLOT)
 ```
 
@@ -27,16 +30,23 @@ Layered per [ADR-0003](../../../docs/adr/0003-tactical-ddd-inside-plugins.md).
 
 ## What it contributes
 
-| Surface         | Where                       | What it says                       |
-| --------------- | --------------------------- | ---------------------------------- |
-| Review chip     | `ENTRY_HEADER_SLOT`         | "Needs review · 0 of 2"            |
-| Review block    | `ENTRY_SIDEBAR_WIDGET_SLOT` | who approved what, and the actions |
-| Publish verdict | `ENTRY_PUBLISH_GUARD_SLOT`  | whether Publish is held, and why   |
+| Surface         | Where                         | What it says                       |
+| --------------- | ----------------------------- | ---------------------------------- |
+| Review chip     | `ENTRY_HEADER_SLOT`           | "Needs review · 0 of 2"            |
+| Review block    | `ENTRY_SIDEBAR_WIDGET_SLOT`   | who approved what, and the actions |
+| Publish verdict | `ENTRY_PUBLISH_GUARD_SLOT`    | whether Publish is held, and why   |
+| Protection tab  | `WORKSPACE_SETTINGS_TAB_SLOT` | which types are protected, and how |
 
-**All three render nothing on an unprotected type**, on a create form, and on a
-non-publishable one. `reviewScopeOf` is the single place that decides, so the
-three cannot disagree about when the feature applies at all. An installation
-with no rule is the admin it was before this package existed.
+**The three entry contributions render nothing on an unprotected type**, on a
+create form, and on a non-publishable one. `reviewScopeOf` is the single place
+that decides, so the three cannot disagree about when the feature applies at
+all. An installation with no rule is the entry editor it was before this
+package existed.
+
+**The settings tab is the deliberate exception.** It is where a workspace with
+no rule goes to get one, so it has to be visible before there is anything to
+see. It is hidden from anybody without `protection:manage` instead — the list
+route is administrator-only too, so a visible tab would be a link to a 403.
 
 ## The rules worth not re-deriving
 
@@ -99,3 +109,41 @@ The API stays id-only. `ReviewerLabel` resolves a reviewer through
 name beside a vote costs no request. Somebody who has left is named as such
 rather than given a fabricated label: a vote records who looked, and inventing a
 name over a gap in the roster misreports the one fact the row carries.
+
+## The settings tab
+
+**The list is the workspace's content grants, not its rules.** A rule is
+addressed by `(workspace, kind, slug)` — the same pair `workspace_content`
+grants — so no type picker is invented and there is nothing to keep in step: a
+type is listed because the workspace may work with it, and its rule is a
+property of the row rather than the reason for it. `protectedTypeRows` is the
+whole selector, pure and unit-tested.
+
+**A non-publishable type is left out**, because protection guards
+`draft → published` and a type that is always live has no transition to hold.
+**A rule whose type is no longer granted is kept**, listed separately and
+removable — the API returns those on purpose, and dropping them here would
+leave a rule nobody can see and nobody can delete.
+
+**The editor submits all six fields, always.** `PUT` replaces rather than
+patches, so a form that sent only what it showed would reset the rest to their
+defaults and "what does this rule do" would become a question about the order
+somebody edited it in.
+
+**The one-member warning is announced, not merely rendered.** ADR-0017 accepts
+that a workspace of one person with four eyes required blocks itself, and
+requires the interface to say so _when the rule is switched on_ rather than a
+week later on the first failed publish. Somebody who has just flipped a toggle
+is looking at the toggle, so the warning lives in a `role="status"` live region.
+`blocksEveryone` is the predicate; both halves are pinned by tests, and both
+mutations fail them.
+
+**The count is a number input, not a stepper.** The mockup draws −/+ around a
+value; a pair of buttons around a `<span>` has no value a screen reader can read
+back and no keyboard behaviour of its own. A real `type="number"` with a label
+gets both for free, and the clamp still runs on what is typed.
+
+**`allow_token_publish`'s helper text says what it actually does.** A token that
+is let through still meets the approval count — the flag stops it being refused
+outright, it does not exempt it from review (#258). The mockup's caption
+predates that decision and is wrong; the interface says the true thing.

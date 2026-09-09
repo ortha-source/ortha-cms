@@ -16,3 +16,12 @@ export const entryReviewKey = (
     typeName: string,
     entryId: string
 ) => ['protection', 'entry-review', workspaceId, typeName, entryId] as const;
+
+/**
+ * Every rule the workspace holds.
+ *
+ * Carries the workspace id for the reason above: the list is scoped by the
+ * ambient `X-Workspace-Id` header, which is not sent on a cache hit.
+ */
+export const rulesKey = (workspaceId: string) =>
+    ['protection', 'rules', workspaceId] as const;

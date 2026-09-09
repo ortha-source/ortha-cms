@@ -8,6 +8,8 @@ import {
     Users
 } from 'lucide-react';
 import { TabNav, TabNavLink } from '@orthacms/design-system';
+import { WORKSPACE_SETTINGS_TAB_SLOT } from '../../slots/workspaceSlots';
+import { SettingsTabLink } from './SettingsTabLink';
 
 /** Intl descriptors for {@link WorkspaceSettingsTabs}, co-located here. */
 const messages = defineMessages({
@@ -51,6 +53,14 @@ type TabEntry = {
  * (`/workspaces/:id/settings/...`) so active state is unambiguous. The
  * Danger-zone entry is included only when the user can act on it (its route
  * redirects away otherwise), so a read-only viewer never sees a dead link.
+ *
+ * Plugin-contributed tabs ({@link WORKSPACE_SETTINGS_TAB_SLOT}) render
+ * **between Content and Danger zone**, each through a {@link SettingsTabLink}
+ * that gates itself: a permission check is a hook, and the alternative — one
+ * `useHasPermission` per item inside a `.map` — is a hook call whose position
+ * depends on the list. Slot items are frozen at boot so the list cannot move,
+ * but writing it that way makes the next contributor's change a rules-of-hooks
+ * bug rather than an addition.
  */
 export function WorkspaceSettingsTabs({
     workspaceId,
@@ -64,7 +74,7 @@ export function WorkspaceSettingsTabs({
     const intl = useIntl();
     const base = `/workspaces/${workspaceId}/settings`;
 
-    const entries: TabEntry[] = [
+    const leading: TabEntry[] = [
         {
             to: `${base}/general`,
             icon: SlidersHorizontal,
@@ -79,21 +89,37 @@ export function WorkspaceSettingsTabs({
             to: `${base}/content`,
             icon: FileStack,
             label: intl.formatMessage(messages.content)
-        },
-        ...(showDanger
-            ? [
-                  {
-                      to: `${base}/danger`,
-                      icon: TriangleAlert,
-                      label: intl.formatMessage(messages.danger)
-                  }
-              ]
-            : [])
+        }
     ];
+
+    const trailing: TabEntry[] = showDanger
+        ? [
+              {
+                  to: `${base}/danger`,
+                  icon: TriangleAlert,
+                  label: intl.formatMessage(messages.danger)
+              }
+          ]
+        : [];
+
+    const contributed = WORKSPACE_SETTINGS_TAB_SLOT.getItems().sort(
+        (a, b) => a.order - b.order
+    );
 
     return (
         <TabNav aria-label={intl.formatMessage(messages.nav)}>
-            {entries.map(({ to, icon: Icon, label }) => (
+            {leading.map(({ to, icon: Icon, label }) => (
+                <TabNavLink key={to} asChild>
+                    <NavLink to={to}>
+                        <Icon aria-hidden className="size-4 shrink-0" />
+                        {label}
+                    </NavLink>
+                </TabNavLink>
+            ))}
+            {contributed.map((tab) => (
+                <SettingsTabLink key={tab.id} base={base} tab={tab} />
+            ))}
+            {trailing.map(({ to, icon: Icon, label }) => (
                 <TabNavLink key={to} asChild>
                     <NavLink to={to}>
                         <Icon aria-hidden className="size-4 shrink-0" />
