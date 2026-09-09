@@ -767,7 +767,7 @@ of the package — `infrastructure/contentInsightsGateway` (the port),
 
 ## Extension slots
 
-The library exposes fourteen named slots (`presentation/slots/contentSlots`, via
+The library exposes fifteen named slots (`presentation/slots/contentSlots`, via
 `createSlot`) another admin plugin contributes into — no coupling beyond the
 contracts, the same idiom as the workspace shell's slots.
 `@orthacms/i18n-admin` fills eight; `@orthacms/media-admin` fills two
@@ -786,7 +786,7 @@ answer).
 makes the **hook-style** items (`RECORDS_COLUMN_SLOT.useRowsData`,
 `RECORDS_FILTER_FIELDS_SLOT.useFields`, `ENTRY_PRESAVE_SLOT.usePresave`,
 `ENTRY_MENU_SLOT.useItem`, `RECORDS_BULK_ACTION_SLOT.useItem`,
-`RECORDS_MENU_SLOT.useItem`)
+`RECORDS_MENU_SLOT.useItem`, `ENTRY_PUBLISH_GUARD_SLOT.useVerdict`)
 rules-of-hooks-safe when the render
 sites call them in a loop — the call order never changes; an item gates its own
 fetching internally.
@@ -929,6 +929,41 @@ fetching internally.
   and `commit` uploads them and swaps in the real ids. The staging lives in the
   hook because editor **tabs are routes** — the Media panel unmounts on every tab
   switch, and a file staged there must not die with it.
+- **`ENTRY_PUBLISH_GUARD_SLOT`** — the **third gate** on the editor's publish
+  button, and the admin-side counterpart of content-server's
+  `CONTENT_PUBLISH_GUARD` port. `useVerdict(context)` returns
+  `{ blocked, reason?, action?, overlay? }`, or `null` for no opinion.
+  `@orthacms/protection-server`'s admin half fills it with an approval rule.
+    - **Content keeps rendering the button.** It already computes the publish
+      gate's half of that button's state, and a contributed second button would
+      drift from the first on every state neither owns alone — the same reason
+      `ENTRY_FIELD_CONTROL_SLOT` keeps the label row and `REVISION_EXTRA_SLOT`
+      keeps the two-column layout.
+    - **Content learns nothing about what refused it.** It gets a sentence to
+      show and, when the contribution offers a way through, a label and a
+      callback. That is what lets a bypass dialog, its mandatory reason and its
+      audit row live entirely in the contributing plugin — the discipline the
+      server-side port follows when it forwards a `bypassReason` without
+      interpreting it.
+    - **The first refusal wins**, as on the server. Later items are still
+      _asked_ — they are hooks, and skipping one would change the call order —
+      but their verdicts are not read. Overlays are collected from every item.
+    - **A blocked button is `aria-disabled`, not `disabled`.** A `disabled`
+      button is not focusable and fires none of the pointer/focus events a
+      tooltip needs, so the reason would be reachable only by hovering — unusable
+      by keyboard and silent to a screen reader, for the person most likely to
+      need it. The reason is rendered as an `sr-only` sibling referenced by
+      `aria-describedby`, **not** as a child: text inside a control joins its
+      accessible _name_, which would announce the whole refusal as the thing to
+      press. Same treatment as users-admin's `GuardedMenuItem`.
+    - **A guard speaks about publishing only.** A verdict is read only when the
+      primary button _is_ Publish, so a refusal can never disable the draft save
+      on a type whose drafts are explicitly still editable.
+    - **With nothing contributed the button is exactly what the publish gate
+      alone made it** — invariant `protection:I-03`, pinned by
+      `EntryActions/index.spec.tsx`. An empty slot is the state this seam spends
+      almost all of its life in, and nothing else would record that it was a
+      decision rather than an accident.
 - **`REVISION_EXTRA_SLOT`** — a row in the **revision preview** for state a
   plugin stores alongside the entry rather than in its values: what
   content-server's entry-write extensions record in `RevisionSnapshot.extra`.
