@@ -1,6 +1,14 @@
+import { useId } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Save, Send } from 'lucide-react';
-import { Button, Spinner } from '@orthacms/design-system';
+import {
+    Button,
+    Spinner,
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+    cn
+} from '@orthacms/design-system';
 import { useHasPermission } from '@orthacms/identity-admin';
 import type { EntryRecord } from '../../../../../domain/types/contentType';
 import {
@@ -11,6 +19,11 @@ import {
     ENTRY_STATUS
 } from '../../../../../domain/constants';
 import { useEntrySlotContext } from '../../../../hooks/useEntrySlotContext';
+import {
+    ENTRY_PUBLISH_GUARD_SLOT,
+    type EntryPublishVerdict,
+    type EntrySlotContext
+} from '../../../../slots/contentSlots';
 import { EntryMenu } from './EntryMenu';
 
 const messages = defineMessages({
@@ -27,6 +40,40 @@ const PRIMARY_META = {
 } as const;
 
 /**
+ * The guard slot's answer for this entry: the first refusal, plus every
+ * contributed overlay.
+ *
+ * Every item's hook is called, in slot order, on every render — the same
+ * rules-of-hooks contract the other hook-style items here follow. Only the
+ * **first** blocking verdict is read, mirroring the server port's "first
+ * refusal wins and no later guard is asked"; the difference is that here the
+ * later guards are still asked, because not calling a hook is not an option.
+ *
+ * Overlays are collected from **every** item, blocked or not: a contribution
+ * that has just published through its own action still has a dialog on screen
+ * for the moment its verdict flips.
+ */
+function usePublishVerdict(context: EntrySlotContext | null) {
+    const items = ENTRY_PUBLISH_GUARD_SLOT.getItems();
+    const verdicts: (EntryPublishVerdict | null)[] = [];
+    for (const item of items) {
+        // A hook in a loop, which is safe here for the reason every hook-style
+        // item in this module relies on: slot items are boot-frozen, so the
+        // list never changes length between renders. The call is
+        // unconditional — a contribution with nothing to say returns `null`
+        // rather than being skipped.
+        verdicts.push(context ? item.useVerdict(context) : null);
+    }
+
+    const blocking = verdicts.find((verdict) => verdict?.blocked) ?? null;
+    const overlays = items
+        .map((item, index) => ({ id: item.id, node: verdicts[index]?.overlay }))
+        .filter((entry) => !!entry.node);
+
+    return { blocking, overlays };
+}
+
+/**
  * The entry editor's **write actions**, rendered into the page top bar's actions
  * region (`PageActionsPortal`): a primary button — **Publish** for a publishable
  * type the user may publish, else **Save** / **Save draft** — beside the
@@ -39,6 +86,12 @@ const PRIMARY_META = {
  *
  * Owns the permission gating and the primary/menu derivation; the menu owns its
  * own contents (including the delete confirmation and any contributed overlay).
+ *
+ * It also owns the **third** gate on that button. `content:publish` decides
+ * whether it renders at all and the publish gate decides whether the values are
+ * complete; a contribution to {@link ENTRY_PUBLISH_GUARD_SLOT} may then refuse
+ * the publish for a reason this package never learns. With nothing contributed
+ * the button is exactly what the first two gates made it.
  */
 export function EntryActions({
     entry,
@@ -74,6 +127,7 @@ export function EntryActions({
     // provider. The menu needs it (contributed items are resolved against it),
     // so it renders only alongside a context rather than with a stand-in.
     const slotContext = useEntrySlotContext();
+    const reasonId = useId();
 
     const canCreate = useHasPermission(CONTENT_CREATE);
     const canUpdate = useHasPermission(CONTENT_UPDATE);
@@ -98,6 +152,13 @@ export function EntryActions({
                 }
               : null;
 
+    const { blocking, overlays } = usePublishVerdict(slotContext);
+    // A guard speaks about publishing, so it says nothing about a Save button.
+    // Without this a refusal would silently disable the draft save on a type
+    // whose drafts are explicitly still editable.
+    const guard = primary?.kind === 'publish' ? blocking : null;
+    const override = guard?.action;
+
     const showSaveDraft = publishable && canSave;
     const showPublish = publishable && canPublish && canSave;
     const showUnpublish =
@@ -107,22 +168,71 @@ export function EntryActions({
     const primaryMeta = primary ? PRIMARY_META[primary.kind] : null;
     const PrimaryIcon = primaryMeta?.icon;
 
+    // Blocked with no way through: the control stays in the tab order and
+    // carries its reason as a description, rather than going `disabled`.
+    // A `disabled` button is not focusable and holds no tooltip, so the person
+    // most likely to need the explanation is the one who cannot reach it —
+    // the treatment `GuardedMenuItem` already uses for the same problem.
+    const inert = !!guard && !override;
+
+    const label = override
+        ? override.label
+        : primaryMeta
+          ? intl.formatMessage(primaryMeta.label)
+          : '';
+
+    const button =
+        primary && primaryMeta && PrimaryIcon ? (
+            <Button
+                type="button"
+                size="sm"
+                variant={override ? 'outline' : 'default'}
+                className={cn(
+                    inert && 'opacity-60',
+                    // An override is not an ordinary publish and must never
+                    // look like one.
+                    override &&
+                        'border-warning text-warning-soft-foreground hover:bg-warning-soft'
+                )}
+                aria-disabled={inert || undefined}
+                aria-describedby={guard?.reason ? reasonId : undefined}
+                onClick={
+                    inert
+                        ? (event) => event.preventDefault()
+                        : (override?.onSelect ?? primary.onClick)
+                }
+                disabled={busy}
+            >
+                {saving ? <Spinner aria-hidden /> : <PrimaryIcon aria-hidden />}
+                {label}
+            </Button>
+        ) : null;
+
     return (
         <>
-            {primary && primaryMeta && PrimaryIcon && (
-                <Button
-                    type="button"
-                    size="sm"
-                    onClick={primary.onClick}
-                    disabled={busy}
-                >
-                    {saving ? (
-                        <Spinner aria-hidden />
-                    ) : (
-                        <PrimaryIcon aria-hidden />
-                    )}
-                    {intl.formatMessage(primaryMeta.label)}
-                </Button>
+            {button && guard?.reason ? (
+                <Tooltip>
+                    <TooltipTrigger asChild>{button}</TooltipTrigger>
+                    <TooltipContent className="max-w-60">
+                        {guard.reason}
+                    </TooltipContent>
+                </Tooltip>
+            ) : (
+                button
+            )}
+            {/* The reason is the button's **description**, so it lives beside
+                it rather than inside it: text nested in a control joins its
+                accessible *name*, which would have a screen reader announce
+                "Publish anyway, 2 approvals required, 0 given" as the thing to
+                press. `aria-describedby` resolves by id anywhere in the
+                document, so nothing is lost by moving it out. The tooltip is
+                the visual half of the same sentence, and is why the control
+                keeps `aria-disabled` over `disabled` — Radix needs the pointer
+                and focus events a disabled button never fires. */}
+            {guard?.reason && (
+                <span id={reasonId} className="sr-only">
+                    {guard.reason}
+                </span>
             )}
             {slotContext && (
                 <EntryMenu
@@ -139,6 +249,12 @@ export function EntryActions({
                     onDelete={onDelete}
                 />
             )}
+            {/* Outside the button, which is relabelled and re-rendered as the
+                verdict changes — a dialog mounted inside it would close with
+                it. Same rule `ENTRY_MENU_SLOT` overlays follow. */}
+            {overlays.map((overlay) => (
+                <span key={overlay.id}>{overlay.node}</span>
+            ))}
         </>
     );
 }

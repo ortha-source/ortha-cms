@@ -69,6 +69,14 @@ const ALL_PERMISSIONS = [
     'content:update',
     'content:publish',
     'content:delete',
+    // Publication protection's two keys, added by the server PRs below this one
+    // in the ORT-226 stack (`protection-server`'s rule CRUD and the review
+    // routes). Nothing in the admin reads them yet — `protection/admin` is a
+    // later PR — but `seed-drift.spec.ts` compares this list against the whole
+    // server catalogue, so they belong here the moment the server declares
+    // them, not the moment a screen does.
+    'content:approve',
+    'protection:manage',
     // Export and import (`transfer-admin`). Separate keys on the server rather
     // than folded into read and create, because bulk egress is a capability an
     // operator withholds on its own — so they have to be listed here too, or
