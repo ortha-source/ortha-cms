@@ -220,3 +220,107 @@ export async function mockReviewQueue(
         });
     });
 }
+
+/** One entry's row in the records column, as the batched read returns it. */
+export type ReviewStatusSeed = {
+    protected?: boolean;
+    required?: number;
+    given?: number;
+    stale?: number;
+    changesRequested?: boolean;
+    requested?: boolean;
+    blocked?: boolean;
+};
+
+/** What {@link mockReviewStatusByEntry} records about the calls it answered. */
+export interface ReviewStatusRecorder {
+    /**
+     * The `ids` query parameter of every batched read, in order.
+     *
+     * The assertion this exists for is a **negative** one: while the column is
+     * switched off nothing may be requested at all, and no pixel on screen
+     * would say whether it was. `[]` is the interesting value.
+     */
+    requests: string[];
+}
+
+/**
+ * Serves the records column's batched read, and records what it was asked.
+ *
+ * **Register this after {@link mockEntryReview}.** That one claims the whole
+ * `api/protection/entries` subtree, which also matches
+ * `…/entries/:type/status`, and `page.route` matching runs in reverse
+ * registration order — so the general pattern registered second would swallow
+ * this one and the column would render an entry's panel payload.
+ */
+export async function mockReviewStatusByEntry(
+    page: Page,
+    byEntry: Record<string, ReviewStatusSeed> = {},
+    options: { status?: number } = {}
+): Promise<ReviewStatusRecorder> {
+    const recorder: ReviewStatusRecorder = { requests: [] };
+
+    await page.route(
+        '**/api/protection/entries/*/status*',
+        async (route, request) => {
+            recorder.requests.push(
+                new URL(request.url()).searchParams.get('ids') ?? ''
+            );
+
+            if (options.status && options.status >= 400) {
+                await route.fulfill({
+                    status: options.status,
+                    contentType: 'application/json',
+                    body: JSON.stringify({
+                        message: 'Review state unavailable'
+                    })
+                });
+                return;
+            }
+
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    byEntry: Object.fromEntries(
+                        Object.entries(byEntry).map(([id, seed]) => [
+                            id,
+                            {
+                                protected: seed.protected ?? true,
+                                required: seed.required ?? 2,
+                                given: seed.given ?? 0,
+                                stale: seed.stale ?? 0,
+                                changesRequested:
+                                    seed.changesRequested ?? false,
+                                requested: seed.requested ?? false,
+                                blocked:
+                                    seed.blocked ??
+                                    (seed.given ?? 0) < (seed.required ?? 2)
+                            }
+                        ])
+                    )
+                })
+            });
+        }
+    );
+
+    return recorder;
+}
+
+/** Serves the Insights card's two figures. */
+export async function mockProtectionInsights(
+    page: Page,
+    view: { open?: number; overdue?: number; overdueAfterDays?: number } = {}
+): Promise<void> {
+    await page.route('**/api/insights/protection/reviews*', async (route) => {
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+                open: view.open ?? 0,
+                overdue: view.overdue ?? 0,
+                overdueAfterDays: view.overdueAfterDays ?? 3
+            })
+        });
+    });
+}
