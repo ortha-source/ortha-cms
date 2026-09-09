@@ -88,6 +88,23 @@ export type {
     ContentReadScopeContext
 } from './lib/extension/read-scope';
 
+// The publish-guard port — how a plugin refuses a publish without this package
+// knowing why. A registry for the same reason the read scope is one: Nest has no
+// multi-provider, and a silently-replaced publish rule is a rule the
+// installation that bought it would never notice was gone.
+export {
+    ContentPublishGuardRegistry,
+    contentPublishGuardRegistrar
+} from './lib/extension/publish-guard';
+export type {
+    ContentPublishGuard,
+    ContentPublishGuardContext,
+    PublishActor,
+    PublishAllowed,
+    PublishRefused,
+    PublishVerdict
+} from './lib/extension/publish-guard';
+
 // The entry-write extension port — how a plugin stores state *about* an entry
 // inside the entry's own write transaction, and has it captured by (and restored
 // from) the entry's own version history.

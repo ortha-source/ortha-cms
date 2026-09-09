@@ -19,6 +19,8 @@ import type { EntryRecord } from '../../types/entry-list-view';
 import { entryTitle } from '../../infrastructure/persistence/entry-row';
 import { Entry } from '../../domain/entry';
 import { EntryPublishBlockedError } from '../../domain/entry-publish-blocked.error';
+import { ContentPublishGuardRegistry } from '../../../extension/publish-guard';
+import { refusalToHttp, toPublishActor } from './publish-guard-refusal';
 
 /**
  * Publish one entry. Runs inside a {@link UnitOfWork} so the status write and
@@ -38,7 +40,13 @@ export class PublishEntryUseCase {
         private readonly uow: UnitOfWork,
         private readonly outbox: OutboxWriter,
         private readonly writer: EntryWriterService,
-        private readonly validation: EntryValidationService
+        private readonly validation: EntryValidationService,
+        /**
+         * Optional so a host without `ContentPlugin`'s full provider set — and
+         * every unit test that constructs this use-case by hand — behaves as it
+         * did before the port existed.
+         */
+        private readonly publishGuards?: ContentPublishGuardRegistry
     ) {}
 
     async execute(
@@ -58,7 +66,14 @@ export class PublishEntryUseCase {
          * (the entry-level publish), the latest version is promoted — it is the
          * row that was just published.
          */
-        revisionNumber?: number
+        revisionNumber?: number,
+        /**
+         * The caller's stated reason for publishing past a registered guard.
+         * Content neither validates nor interprets it — whether a bypass exists,
+         * who may take one and what makes a reason acceptable are the guard's
+         * rules, and content has no way to have an opinion about them.
+         */
+        bypassReason?: string
     ): Promise<EntryRecord> {
         if (!type.publishable) {
             throw new BadRequestException(
@@ -111,6 +126,19 @@ export class PublishEntryUseCase {
                 throw error;
             }
 
+            // The third gate, and only now: the publish gate above has already
+            // had its say, so a guard never sees an entry it would have to
+            // judge the contents of — and a bypass, which passes this gate
+            // alone, cannot smuggle an incomplete entry out.
+            const verdict = (await this.publishGuards?.check({
+                type,
+                entryId: id,
+                workspaceId,
+                actor: toPublishActor(actor),
+                bypassReason
+            })) ?? { allowed: true as const };
+            if (!verdict.allowed) throw refusalToHttp(verdict);
+
             // Re-stamp unconditionally (an idempotent re-publish keeps the
             // original behavior); 404 if the row vanished under us.
             const updated = await this.writer.markPublished(
@@ -129,10 +157,13 @@ export class PublishEntryUseCase {
                 workspaceId,
                 revisionNumber
             );
+            // A guard's events ride the same append as the publish's own, so an
+            // allowed bypass cannot lose the row that excuses it — and they get
+            // the same actor stamped, since the guard knows who asked but not
+            // what to call them.
+            const events = [...entry.pullEvents(), ...(verdict.events ?? [])];
             await this.outbox.append(
-                actor
-                    ? attachActor(entry.pullEvents(), actor)
-                    : entry.pullEvents()
+                actor ? attachActor(events, actor) : events
             );
             return toRecord(type, updated);
         });

@@ -94,7 +94,8 @@ export const ACTIVITY_KINDS = [
     'review.requested',
     'review.approved',
     'review.changes_requested',
-    'protection.rule_changed'
+    'protection.rule_changed',
+    'entry.publish_bypassed'
 ] as const;
 
 /** A kind the Activity Log knows how to render. */

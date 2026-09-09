@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import {
     attachActor,
+    type DomainEvent,
     type EventActor,
     OutboxWriter,
     UnitOfWork
@@ -13,6 +14,8 @@ import { computeBulkPublishVerdicts } from '../../infrastructure/persistence/bul
 import { BULK_VERDICT, type BulkPublishResult } from '../../types/bulk-publish';
 import { Entry } from '../../domain/entry';
 import { entryTitle } from '../../infrastructure/persistence/entry-row';
+import { ContentPublishGuardRegistry } from '../../../extension/publish-guard';
+import { toPublishActor } from './publish-guard-refusal';
 
 /**
  * Commit a bulk publish. Preserves the original single **locked** transaction:
@@ -35,7 +38,9 @@ export class BulkPublishEntriesUseCase {
         private readonly uow: UnitOfWork,
         private readonly outbox: OutboxWriter,
         private readonly writer: EntryWriterService,
-        private readonly validation: EntryValidationService
+        private readonly validation: EntryValidationService,
+        /** Optional, exactly as in the single-entry publish. */
+        private readonly publishGuards?: ContentPublishGuardRegistry
     ) {}
 
     async execute(
@@ -65,9 +70,37 @@ export class BulkPublishEntriesUseCase {
                 byId,
                 (t, values) => this.validation.validate(t, values)
             );
-            const published = items
+            const candidates = items
                 .filter((item) => item.verdict === BULK_VERDICT.Publishable)
                 .map((item) => item.id);
+
+            // Each id is asked separately because each is a separate decision —
+            // on a localized type these ids are one record's translations, and
+            // a rule is satisfied per locale (approvals hang off a revision, and
+            // revision lines are per-locale). Refusing or allowing them as a
+            // block would be the one thing the design says not to do.
+            const published: string[] = [];
+            const refused: string[] = [];
+            const guardEvents: DomainEvent[] = [];
+            for (const id of candidates) {
+                const verdict = (await this.publishGuards?.check({
+                    type,
+                    entryId: id,
+                    workspaceId,
+                    actor: toPublishActor(actor)
+                    // No `bypassReason`: a bypass is a deliberate act on one
+                    // entry with a reason attached to it, and a reason typed
+                    // once to excuse fifty publishes is not a reason.
+                })) ?? { allowed: true as const };
+                if (verdict.allowed) {
+                    published.push(id);
+                    if (verdict.events?.length) {
+                        guardEvents.push(...verdict.events);
+                    }
+                } else {
+                    refused.push(id);
+                }
+            }
 
             if (published.length) {
                 await this.writer.markPublishedBulk(
@@ -101,14 +134,27 @@ export class BulkPublishEntriesUseCase {
                     entry.publish({ valid: true, issues: [] });
                     return entry.pullEvents();
                 });
-                await this.outbox.append(
-                    actor ? attachActor(events, actor) : events
-                );
+                // A guard's own events (an allowed bypass, say) ride the same
+                // append, so nothing a guard recorded can outlive — or be lost
+                // by — the batch it belonged to.
+                const all = [...events, ...guardEvents];
+                await this.outbox.append(actor ? attachActor(all, actor) : all);
             }
 
+            const refusedIds = new Set(refused);
             const skipped = items
                 .filter((item) => item.verdict !== BULK_VERDICT.Publishable)
                 .map((item) => ({ id: item.id, reason: item.verdict }));
+            // In request order, beside the rows the preview already accounted
+            // for, so a caller reading `skipped` sees one list rather than two.
+            for (const item of items) {
+                if (refusedIds.has(item.id)) {
+                    skipped.push({
+                        id: item.id,
+                        reason: BULK_VERDICT.GuardRefused
+                    });
+                }
+            }
             return { published, skipped };
         });
     }

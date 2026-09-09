@@ -76,6 +76,33 @@ export class ReviewRequestRepository {
     }
 
     /**
+     * The open request on one entry, found by entry id alone.
+     *
+     * Every other read here AND-s the workspace in, and that is right: they
+     * serve a request that resolved to one. This one serves the outbox
+     * subscriber, which is handed an `entry.published` event carrying an entry
+     * id and no workspace — and does not need one, because the partial unique
+     * index makes at most one request open per entry across the installation.
+     * Requiring a workspace here would mean either carrying it on every entry
+     * event or looking the entry up in a table this package does not own.
+     */
+    async findOpenByEntry(
+        entryId: string
+    ): Promise<StoredReviewRequest | null> {
+        const [row] = await this.exec
+            .select()
+            .from(reviewRequests)
+            .where(
+                and(
+                    eq(reviewRequests.entryId, entryId),
+                    isNull(reviewRequests.resolvedAt)
+                )
+            )
+            .limit(1);
+        return row ? toRequest(row) : null;
+    }
+
+    /**
      * Opens the request, or updates the one already open.
      *
      * `onConflictDoUpdate` on the partial unique index rather than

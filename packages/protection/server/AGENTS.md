@@ -65,7 +65,52 @@ surface would buy nothing if minting a key cast the vote the tool may not.
 The **decision** these rules feed — may this person publish this entry — is
 `evaluateProtection` in `@orthacms/protection-domain` and is not re-implemented
 here. `EntryReviewService` reads the rule, the head revision and the votes, and
-hands all three to the kernel.
+hands all three to the kernel; `PublishProtectionGuard` does the same on the
+publish path.
+
+## The guard is where a rule becomes real
+
+`PublishProtectionGuard` implements `content-server`'s `ContentPublishGuard` and
+is registered with `contentPublishGuardRegistrar('protection', …)`. Because that
+port is consulted from the publish **use-cases**, one registration covers every
+caller at once — the admin's button, the public REST route, the GraphQL mutation
+and the MCP tool all funnel through `PublishEntryUseCase` or
+`BulkPublishEntriesUseCase`. Nothing here enumerates them, which is the entire
+argument for a port over a patch: a publish route added tomorrow is guarded the
+day it is written.
+
+**The order of its own checks is load-bearing.** The rule lookup comes first, so
+an installation with the plugin registered and no rule on this type pays for one
+indexed read and nothing else (`protection:I-02`, asserted on the collaborators
+that were _not_ called, since a passing publish would prove nothing). The token
+gate comes second, before the count and regardless of it. Only then are the head
+revision and the votes read.
+
+**A refusal is 409, never 403.** A 403 is indistinguishable from lacking
+`content:publish`, and the caller has to tell "ask an administrator for the
+permission" from "ask a colleague for an approval". The two 403s the guard does
+emit are about the **bypass** — a thing the caller may not do — and the 400 is a
+bypass with no usable reason. Authorization is checked before the reason's shape,
+so a member who may not bypass is told that whatever they typed rather than being
+handed the shape of a door that is not theirs.
+
+**`isAdmin` is `protection:manage`, not the role key** — the same reading
+`EntryReviewService` uses to tell the panel a bypass is available. If they
+diverged the editor would offer a button the API then refused.
+
+**The bypass event is returned, not written.** The guard hands
+`entry.publish_bypassed` back in its verdict and content appends it to the outbox
+with the status change, so the row that excuses a publish commits with it or not
+at all. The actor is stamped by the use-case, which is the layer that knows what
+to call them.
+
+**Closing a request on publish is a subscriber, not a call.** `entry.published`
+already exists; `EntryPublishedSubscriber` reacts to it and resolves the open
+request. So the ask closes however the entry went out — button, API, bulk,
+bypass — with no list of publish routes to keep in step. Delivery is
+at-least-once, so it is idempotent, and a failure is logged rather than thrown:
+the entry is already published and a retry loop over a committed publish is worse
+than a stale queue row.
 
 ## How the head revision is reached
 
@@ -97,9 +142,12 @@ package must not do. A count computed twice is a panel that disagrees with the
 API refusing the publish, and it would disagree first on exactly the paths
 nobody exercises: `countStaleApprovals` and the four-eyes exclusion.
 
-So `countsOf` asks the kernel a question it is guaranteed to refuse — the real
-rule with an unreachable threshold — and reads the counts off the refusal. One
-implementation of counting, and the panel cannot drift from the gate.
+So the kernel exports **`countApprovals`** beside `evaluateProtection`, and
+`evaluateProtection` calls it: one answers _may this ship_, the other _where does
+the count stand_, over one implementation. The panel asks for the numbers rather
+than asking the gate a question rigged to be refused. `PublishProtectionGuard`
+takes the same route in the other direction — it reads the decision, never the
+counts — so the button and the refusal are the same arithmetic.
 
 ## The decisions that are easy to get wrong
 
@@ -188,14 +236,13 @@ stays as history and does not block the next ask.
 
 Deliberately, and each is its own PR:
 
-- **The `CONTENT_PUBLISH_GUARD` port and its provider.** Until it lands, a rule
-  is stored and read but nothing consults it — publication is unaffected.
-- **The review routes** (`request` / `approve` / `changes` / `queue`) and
-  `content:approve`. The two tables they write are already here so the migration
-  is written once.
-- **`entry.publish_bypassed`.** It belongs to the guard provider, which is the
-  only thing that can be bypassed.
-- **Resolving a request on publish.** Withdrawing sets `resolved_at`; closing one
-  because the entry went out needs the publish path, which is the same PR.
+- **Everything in the admin** — the publish-button states, the bypass dialog,
+  the rail section, the settings tab, the reviews page. The server says 409 with
+  the numbers; nothing yet renders them.
+- **The three agent tools** (`review_status`, `review_diff`, `request_review`),
+  and with them the `surfaces` decision each has to declare.
+- **Scheduled publishing.** The rule must be evaluated when the timer fires
+  rather than when the schedule is set, and a fired timer has no human, so a
+  bypass cannot apply to it. That needs the scheduler to exist (ORT-210).
 - **Mail on a review request.** After the mail port (ORT-207). Until then the
   queue page is the only way a reviewer learns there is work.
