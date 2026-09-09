@@ -3,7 +3,9 @@ import type {
     EntryReview,
     ProtectionRule,
     ProtectionRuleRecord,
-    ReviewApproval
+    ReviewApproval,
+    ReviewQueue,
+    ReviewQueueItem
 } from '../domain/types';
 
 /** Addresses one entry's review state. */
@@ -70,6 +72,14 @@ export type ProtectionGateway = {
     /** Publish past the rule, with a reason bound for the activity log. */
     bypassPublish(input: BypassPublishInput): Promise<void>;
     /**
+     * One page of the workspace's open review requests, across every content
+     * type — what the Reviews page reads. `content:read`, not
+     * `content:approve`: the "My requests" tab is an author checking on work
+     * they sent, and somebody who cannot approve still has to see whether
+     * anyone has looked.
+     */
+    listQueue(params?: ReviewQueueParams): Promise<ReviewQueue>;
+    /**
      * Every rule the open workspace holds, including any addressed at a type it
      * is no longer granted — those are the rows an administrator needs in order
      * to remove them. `protection:manage`, administrator-only.
@@ -94,6 +104,32 @@ export type RuleAddress = {
     kind: string;
     /** The code-defined content type name. */
     slug: string;
+};
+
+/** The window the queue read asks for. */
+export type ReviewQueueParams = {
+    /** Page size. The server caps it; omitted, it serves its own default. */
+    limit?: number;
+    /** How many rows to skip. */
+    offset?: number;
+};
+
+/** One queue line as the wire returns it. */
+type ReviewQueueItemResponse = {
+    id: string;
+    contentType: string;
+    entryId: string;
+    requestedBy: string;
+    note: string | null;
+    required: number;
+    given: number;
+    createdAt: string;
+};
+
+/** A page of the queue as the wire returns it. */
+type ReviewQueueResponse = {
+    items: ReviewQueueItemResponse[];
+    total: number;
 };
 
 /** One vote as the wire returns it. */
@@ -209,6 +245,20 @@ function toRule(dto: ProtectionRuleResponse): ProtectionRuleRecord {
     };
 }
 
+/** One queue line, wire → view. */
+function toQueueItem(dto: ReviewQueueItemResponse): ReviewQueueItem {
+    return {
+        id: dto.id,
+        contentType: dto.contentType,
+        entryId: dto.entryId,
+        requestedBy: dto.requestedBy,
+        note: dto.note,
+        required: dto.required,
+        given: dto.given,
+        createdAt: dto.createdAt
+    };
+}
+
 /** `/protection/rules/:kind/:slug`. */
 const rulePath = ({ kind, slug }: RuleAddress) =>
     `/protection/rules/${encodeURIComponent(kind)}/${encodeURIComponent(slug)}`;
@@ -238,6 +288,24 @@ export const httpProtectionGateway: ProtectionGateway = {
     async requestReview({ note, ...ref }: RequestReviewInput): Promise<void> {
         try {
             await apiClient.post(`${entryPath(ref)}/request`, { note });
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async listQueue(params: ReviewQueueParams = {}): Promise<ReviewQueue> {
+        try {
+            // No `mine` flag: the page fetches one window and splits it into
+            // both tabs, so their counts cannot disagree with each other or
+            // with the nav badge. See `splitQueue`.
+            const { data } = await apiClient.get<ReviewQueueResponse>(
+                '/protection/queue',
+                { params }
+            );
+            return {
+                items: data.items.map(toQueueItem),
+                total: data.total
+            };
         } catch (error) {
             throw toApiError(error);
         }

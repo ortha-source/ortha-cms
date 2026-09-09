@@ -178,3 +178,72 @@ export type ProtectedTypeRow = {
 export function blocksEveryone(rule: ProtectionRule, memberCount: number) {
     return rule.enabled && rule.requireOtherPerson && memberCount < 2;
 }
+
+/** One open ask, as the reviewer queue lists it. */
+export type ReviewQueueItem = {
+    /** The request row id — the React key, and stable across refetches. */
+    id: string;
+    /** The code-defined content type name; the queue spans every type. */
+    contentType: string;
+    /** The entry the ask is about — one row per locale. */
+    entryId: string;
+    /** Who asked. The page resolves the name; the API stays id-only. */
+    requestedBy: string;
+    /** What they wanted looked at, when they said. */
+    note: string | null;
+    /** How many approvals the type's rule wants; `0` when unprotected. */
+    required: number;
+    /** How many count on the entry's current head. */
+    given: number;
+    /** ISO-8601 — what the age is measured from. */
+    createdAt: string;
+};
+
+/** A page of the reviewer queue. */
+export type ReviewQueue = {
+    items: ReviewQueueItem[];
+    /** Open requests in the workspace, before the page window. */
+    total: number;
+};
+
+/** The queue split into the two questions the page asks. */
+export type ReviewQueueTabs = {
+    /** Work somebody else asked for — what a reviewer can pick up. */
+    waitingOnMe: ReviewQueueItem[];
+    /** Asks this person sent, and how far each has got. */
+    mine: ReviewQueueItem[];
+};
+
+/**
+ * Splits one page of the queue into the page's two tabs.
+ *
+ * **"Waiting on me" is every open ask this person did not open themselves** —
+ * not an assignment. The feature has no reviewer lists by design (ADR-0017):
+ * anyone holding `content:approve` may review anything except their own head
+ * revision, so "could I pick this up" is the only question with a true answer,
+ * and "somebody else asked for it" is that answer.
+ *
+ * The narrower reading — *minus the ones I have already voted on* — is not
+ * available here and is deliberately not faked: the queue line carries the
+ * tally but not **who** voted, so a client cannot tell its own approval from a
+ * colleague's. Guessing from `given > 0` would hide a two-approval rule from
+ * the second reviewer the rule exists to involve. Returning it would mean the
+ * queue read carrying every voter per line, which is a payload the column does
+ * not need; it is worth doing when somebody asks for it, and wrong to
+ * approximate before then.
+ *
+ * Pure, and split from one page rather than two requests: both tabs are views
+ * of the same fetched window, so their counts cannot disagree with each other
+ * or with the badge.
+ */
+export function splitQueue(
+    items: readonly ReviewQueueItem[],
+    callerId: string
+): ReviewQueueTabs {
+    const waitingOnMe: ReviewQueueItem[] = [];
+    const mine: ReviewQueueItem[] = [];
+    for (const item of items) {
+        (item.requestedBy === callerId ? mine : waitingOnMe).push(item);
+    }
+    return { waitingOnMe, mine };
+}

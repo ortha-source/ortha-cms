@@ -25,3 +25,21 @@ export const entryReviewKey = (
  */
 export const rulesKey = (workspaceId: string) =>
     ['protection', 'rules', workspaceId] as const;
+
+/**
+ * One page of the reviewer queue.
+ *
+ * The window is part of the key so paging does not serve the previous page's
+ * rows; the workspace id is there for the reason every key here carries it.
+ */
+export const queueKey = (
+    workspaceId: string,
+    window: { limit?: number; offset?: number } = {}
+) =>
+    [
+        'protection',
+        'queue',
+        workspaceId,
+        window.limit ?? null,
+        window.offset ?? null
+    ] as const;

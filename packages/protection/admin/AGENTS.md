@@ -1,9 +1,9 @@
 # `@orthacms/protection-admin`
 
 Publication protection as the people who use it meet it: three contributions
-into the Content Library's slots, where a requirement is met or missed, and one
-into workspace settings, where a rule is made. **No page of its own** — the
-reviewer queue is a later piece.
+into the Content Library's slots, where a requirement is met or missed, one into
+workspace settings, where a rule is made, and **one page of its own** — the
+reviewer's queue, which is where somebody finds out an approval is wanted.
 
 ```
 src/lib/
@@ -23,6 +23,10 @@ src/lib/
       BypassDialog/            the way past a rule, with a mandatory reason
       ProtectionSettings/      the settings tab (WORKSPACE_SETTINGS_TAB_SLOT)
         RuleEditorDialog/        the six fields, submitted whole
+      ReviewQueueTable/        one tab's rows, as a real table
+      RequestAge/              how long an ask has waited, in words
+      ReviewsSkeleton/         the lazy route's fallback
+    pages/ReviewsPage/         the queue      (WORKSPACE_ROUTE_SLOT + NAV)
     slots/publishGuard/        the verdict     (ENTRY_PUBLISH_GUARD_SLOT)
 ```
 
@@ -36,6 +40,7 @@ Layered per [ADR-0003](../../../docs/adr/0003-tactical-ddd-inside-plugins.md).
 | Review block    | `ENTRY_SIDEBAR_WIDGET_SLOT`   | who approved what, and the actions |
 | Publish verdict | `ENTRY_PUBLISH_GUARD_SLOT`    | whether Publish is held, and why   |
 | Protection tab  | `WORKSPACE_SETTINGS_TAB_SLOT` | which types are protected, and how |
+| Reviews page    | `WORKSPACE_ROUTE_SLOT` + nav  | what is waiting, and on whom       |
 
 **The three entry contributions render nothing on an unprotected type**, on a
 create form, and on a non-publishable one. `reviewScopeOf` is the single place
@@ -147,3 +152,37 @@ gets both for free, and the clamp still runs on what is typed.
 is let through still meets the approval count — the flag stops it being refused
 outright, it does not exempt it from review (#258). The mockup's caption
 predates that decision and is wrong; the interface says the true thing.
+
+## The Reviews page
+
+**It is the only way a reviewer learns there is work.** Approvals can be
+recorded the moment a rule exists, but nothing announces one until the mail port
+lands (ORT-207), so this page carries the whole feature's discoverability. It is
+a page rather than a saved view of a records list because an ask arrives against
+whichever type somebody happened to be editing, and a saved view can only ever
+ask about the collection it belongs to.
+
+**One request feeds both tabs.** `splitQueue` partitions one fetched window, so
+the two counts cannot disagree with each other, switching tabs costs nothing,
+and no ask can appear in both for the render where a second request had not yet
+landed.
+
+**"Waiting on me" is every ask I did not open** — not an assignment. The feature
+has no reviewer lists by design (ADR-0017): anyone with `content:approve` may
+review anything but their own head revision, so "could I pick this up" is the
+only question with a true answer. The narrower reading — _minus what I have
+already voted on_ — is deliberately **not approximated**: the queue line carries
+the tally but not who voted, and guessing from `given > 0` would hide a
+two-approval rule from the second reviewer the rule exists to involve. It wants
+the queue read to name its voters, which is a payload nothing needs yet.
+
+**The age says "overdue" in words, not only in colour.** A greyscale screen, a
+colour-blind reader and a screen reader all have to get the same fact — the rule
+a queue breaks most easily, because "this one is old" feels like something red
+says by itself. The exact moment rides `<time datetime>` so nothing is lost to
+the rounding.
+
+**A failed read is not an empty queue.** "Nothing is waiting on you" is a claim
+about the workspace; saying it when the truth is "we could not ask" tells a
+reviewer they are free when they are not, which is the one thing this page must
+never do.
