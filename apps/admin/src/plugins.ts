@@ -15,6 +15,7 @@ import { CopilotPlugin } from '@orthacms/copilot-admin';
 import { transferAdminPlugin } from '@orthacms/transfer-admin';
 import { AlarmsPlugin } from '@orthacms/alarms-admin';
 import { SegmentsPlugin } from '@orthacms/segments-admin';
+import { ProtectionPlugin } from '@orthacms/protection-admin';
 
 /**
  * Builds the admin's plugin list — the app's whole composition, mirroring
@@ -87,6 +88,11 @@ export function buildPlugins(): AdminPlugin[] {
         // entry-tab slots, so like the other library fillers it reads after
         // ContentPlugin(); its own directory page is independent of that order.
         SegmentsPlugin(),
+        // Publication protection. Three contributions into the Content
+        // Library's entry editor — the header chip, the rail's Review block and
+        // the publish verdict — so it reads after ContentPlugin() like every
+        // other library filler. It owns no page of its own.
+        ProtectionPlugin(),
         UsersPlugin(),
         ActivityPlugin(),
         // Global token-management page in the main sidebar (no workspace

@@ -41,6 +41,7 @@ const EXPECTED_PLUGINS = [
     'media',
     'transfer',
     'segments',
+    'protection',
     'copilot'
     // ortha:if mcp
     ,
