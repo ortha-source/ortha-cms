@@ -270,6 +270,10 @@ const actionMessages = defineMessages({
     protectionRuleChanged: {
         id: 'activity.action.protection.rule_changed',
         defaultMessage: 'Changed a protection rule'
+    },
+    entryPublishBypassed: {
+        id: 'activity.action.entry.publish_bypassed',
+        defaultMessage: 'Published without review'
     }
 });
 
@@ -351,7 +355,11 @@ export const ACTION_MESSAGES: Record<ActivityKind, MessageDescriptor> = {
     // would misread the row a month later.
     'review.approved': actionMessages.reviewApproved,
     'review.changes_requested': actionMessages.reviewChangesRequested,
-    'protection.rule_changed': actionMessages.protectionRuleChanged
+    'protection.rule_changed': actionMessages.protectionRuleChanged,
+    // "without review", not "bypassed": the row exists to be legible to
+    // somebody auditing months later, and it should say what happened rather
+    // than name the mechanism that allowed it.
+    'entry.publish_bypassed': actionMessages.entryPublishBypassed
 };
 
 /** Display labels for the `subjectType` column's machine tokens. */

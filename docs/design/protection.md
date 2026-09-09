@@ -47,14 +47,28 @@ unpublishable for an administrator too.
 
 `content-server` already declares `CONTENT_READ_SCOPE`, which `segments` fills to
 compile reader entitlements into one SQL predicate. Protection uses the same
-shape: content declares **`CONTENT_PUBLISH_GUARD`**, protection provides it, and
-with no provider the guard resolves to "always allowed".
+shape: content declares **`CONTENT_PUBLISH_GUARD`**, protection registers a guard
+against it, and with nothing registered the port resolves to "always allowed"
+without awaiting anything.
+
+**It is a registry, not a single binding**, for the reason `read-scope.ts` sets
+out at length: Nest has no multi-provider, so two dynamic modules binding one
+token do not merge — the second silently replaces the first. For a read scope
+that means content quietly becoming visible; for a publish guard it means
+protection quietly switched off, which is worse, because the installation that
+bought the rule is the one that would never notice. Several guards AND together:
+any refusal refuses.
 
 That keeps the dependency arrow one-way (`protection → content`, never back),
 puts the decision in front of every caller of the publish path at once — admin,
 REST, GraphQL mutation, MCP tool, transfer import — and means content-server
 needs no knowledge of rules, approvals or revisions beyond calling a port it
 already knows how to declare.
+
+A guard returns a verdict, and an allowing verdict may carry **events** for
+content to commit with the status write. That is how `entry.publish_bypassed`
+lands in the same transaction as the publish it excuses, without content
+learning what a bypass is.
 
 ## The rule
 

@@ -1,4 +1,5 @@
 import {
+    Body,
     Controller,
     Param,
     ParseUUIDPipe,
@@ -20,6 +21,7 @@ import type { ContentTypeRegistry } from '../../../registry/content-type-registr
 import { PublishEntryUseCase } from '../../application/use-cases/publish-entry.use-case';
 import { UnpublishEntryUseCase } from '../../application/use-cases/unpublish-entry.use-case';
 import type { EntryRecord } from '../../types/entry-list-view';
+import { PublishEntryDto } from '../dto/publish-entry.dto';
 import { resolveType } from './resolve-type';
 import { toActor } from './to-actor';
 
@@ -47,10 +49,18 @@ export class PublishEntryController {
         @Param('typeName') typeName: string,
         @Param('id', ParseUUIDPipe) id: string,
         @CurrentWorkspace() workspaceId: string,
+        @Body() body?: PublishEntryDto,
         @CurrentUser() user?: PublicUser
     ): Promise<EntryRecord> {
         const type = resolveType(this.registry, typeName);
-        return this.publishEntry.execute(type, id, workspaceId, toActor(user));
+        return this.publishEntry.execute(
+            type,
+            id,
+            workspaceId,
+            toActor(user),
+            undefined,
+            body?.bypassReason
+        );
     }
 
     @Post(':typeName/:id/unpublish')

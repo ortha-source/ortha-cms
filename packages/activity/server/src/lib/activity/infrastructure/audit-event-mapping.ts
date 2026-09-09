@@ -139,12 +139,21 @@ const MEDIA_AUDIT_KINDS = {
  * says anybody chose it — the same reasoning `alarm.rule.updated` exists for.
  * Without it the bypass is not a button somebody had to justify but a settings
  * tab left open for two minutes.
+ *
+ * `entry.publish_bypassed` is the row the whole feature is sold on. It takes the
+ * **entry** as its subject, beside that entry's own `entry.published`, so the
+ * two sit together and the history reads as what it was: this went out, and it
+ * went out without the approvals the rule demanded, because this person said
+ * this. The payload keeps `required` and `given` as well as the reason — one
+ * approval short of three is a judgement call, three short of three is a rule
+ * nobody is using, and "bypassed" alone cannot tell them apart.
  */
 const PROTECTION_AUDIT_KINDS = {
     REVIEW_REQUESTED: 'review.requested',
     REVIEW_APPROVED: 'review.approved',
     REVIEW_CHANGES_REQUESTED: 'review.changes_requested',
-    RULE_CHANGED: 'protection.rule_changed'
+    RULE_CHANGED: 'protection.rule_changed',
+    PUBLISH_BYPASSED: 'entry.publish_bypassed'
 } as const;
 
 /**
@@ -910,7 +919,8 @@ const FACET_MAPPERS: Record<string, (event: DomainEvent) => AuditFacet> = {
     [PROTECTION_AUDIT_KINDS.REVIEW_REQUESTED]: entryAccessSubject,
     [PROTECTION_AUDIT_KINDS.REVIEW_APPROVED]: entryAccessSubject,
     [PROTECTION_AUDIT_KINDS.REVIEW_CHANGES_REQUESTED]: entryAccessSubject,
-    [PROTECTION_AUDIT_KINDS.RULE_CHANGED]: protectionRuleSubject
+    [PROTECTION_AUDIT_KINDS.RULE_CHANGED]: protectionRuleSubject,
+    [PROTECTION_AUDIT_KINDS.PUBLISH_BYPASSED]: entryAccessSubject
 };
 
 /**
@@ -1008,7 +1018,8 @@ export const AUDIT_KINDS = [
     'review.requested',
     'review.approved',
     'review.changes_requested',
-    'protection.rule_changed'
+    'protection.rule_changed',
+    'entry.publish_bypassed'
 ] as const satisfies readonly string[];
 
 /**

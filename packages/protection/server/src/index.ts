@@ -73,3 +73,12 @@ export {
     reviewApprovals,
     reviewRequests
 } from './lib/infrastructure/schema';
+
+// The publish guard, and the refusal codes it emits. The codes are a client
+// contract — the admin branches on them to tell "ask for an approval" from
+// "ask for the permission" — so they are exported rather than restated.
+export {
+    PROTECTION_REFUSAL,
+    PublishProtectionGuard
+} from './lib/infrastructure/publish-protection.guard';
+export { EntryPublishedSubscriber } from './lib/infrastructure/entry-published.subscriber';
