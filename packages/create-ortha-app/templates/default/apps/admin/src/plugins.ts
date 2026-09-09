@@ -15,6 +15,7 @@ import { CopilotPlugin } from '@orthacms/copilot-admin';
 import { AlarmsPlugin } from '@orthacms/alarms-admin';
 import { transferAdminPlugin } from '@orthacms/transfer-admin';
 import { SegmentsPlugin } from '@orthacms/segments-admin';
+import { ProtectionPlugin } from '@orthacms/protection-admin';
 
 /**
  * The admin's composition, mirroring `apps/server/src/plugins.ts` on the UI
@@ -68,6 +69,10 @@ export function buildPlugins(): AdminPlugin[] {
         // directory is independent of that order. Inert until an audience
         // exists.
         SegmentsPlugin(),
+        // Publication protection: the entry editor's review chip, rail
+        // block and publish verdict. A Content Library slot filler, so it
+        // reads after ContentPlugin() like the others.
+        ProtectionPlugin(),
         UsersPlugin(),
         ActivityPlugin(),
         ApiTokensPlugin(),

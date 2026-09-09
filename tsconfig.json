@@ -209,6 +209,9 @@
         },
         {
             "path": "./packages/protection/server"
+        },
+        {
+            "path": "./packages/protection/admin"
         }
     ]
 }

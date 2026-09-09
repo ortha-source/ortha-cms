@@ -1,0 +1,36 @@
+{
+    "extends": "../../../tsconfig.base.json",
+    "compilerOptions": {
+        "emitDeclarationOnly": false,
+        "outDir": "dist",
+        "rootDir": "src",
+        "lib": ["es2022", "dom", "dom.iterable"],
+        "jsx": "react-jsx",
+        "module": "esnext",
+        "moduleResolution": "bundler",
+        "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
+        "types": ["node"]
+    },
+    "include": ["src/**/*.ts", "src/**/*.tsx"],
+    "exclude": ["dist", "**/*.spec.ts", "**/*.spec.tsx"],
+    "references": [
+        {
+            "path": "../../workspaces/admin/tsconfig.lib.json"
+        },
+        {
+            "path": "../../utils/admin/tsconfig.lib.json"
+        },
+        {
+            "path": "../../identity/admin/tsconfig.lib.json"
+        },
+        {
+            "path": "../../design-system/tsconfig.lib.json"
+        },
+        {
+            "path": "../../content/admin/tsconfig.lib.json"
+        },
+        {
+            "path": "../../bootstrap/admin/tsconfig.lib.json"
+        }
+    ]
+}

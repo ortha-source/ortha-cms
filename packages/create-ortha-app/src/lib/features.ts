@@ -114,6 +114,9 @@ export const CORE_PACKAGES: readonly string[] = [
     '@orthacms/media-admin',
     '@orthacms/media-domain',
     '@orthacms/media-server',
+    '@orthacms/protection-admin',
+    '@orthacms/protection-domain',
+    '@orthacms/protection-server',
     '@orthacms/query-builder-admin',
     '@orthacms/segments-admin',
     '@orthacms/segments-domain',
@@ -150,20 +153,6 @@ export const CORE_DEV_PACKAGES: readonly string[] = ['@orthacms/cli'];
  * upload on restart. The testkit is the contract suite those providers run
  * against.
  *
- * The two `protection-*` entries are publication protection, mid-construction.
- * The kernel and the rule surface both work — the routes are real and the
- * migrations apply — but nothing an operator can *reach* uses them yet: the
- * settings tab, the entry-editor section and the publish guard itself are
- * later pieces. Mounting the plugin now would put three tables and an
- * unreachable API into every generated app, which is the half-shipped state
- * `webhooks-*` was in for a release and which the composition guard below
- * exists to stop.
- *
- * Both move to `CORE_PACKAGES` together, in the release that lands
- * `protection-admin` and makes the feature reachable — and moving `-server`
- * there is what will force `buildPlugins` to register it, because
- * `composition.spec.ts` only checks that list.
- *
  * Everything else a generated app can reach is in its own manifest, so "it
  * resolves because npm hoisted it" is never the answer to why an import works.
  * Putting a package here is a decision the coverage guard accepts; forgetting
@@ -171,9 +160,7 @@ export const CORE_DEV_PACKAGES: readonly string[] = ['@orthacms/cli'];
  */
 export const TRANSITIVE_PACKAGES: readonly string[] = [
     '@orthacms/media-provider-memory',
-    '@orthacms/media-provider-testkit',
-    '@orthacms/protection-domain',
-    '@orthacms/protection-server'
+    '@orthacms/media-provider-testkit'
 ];
 
 /**
