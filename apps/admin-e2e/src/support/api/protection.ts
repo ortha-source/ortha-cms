@@ -159,3 +159,64 @@ export async function mockProtectionRules(
 
     return writes;
 }
+
+/** One line of the reviewer queue, as `GET /api/protection/queue` returns it. */
+export type ReviewQueueSeed = {
+    id: string;
+    contentType?: string;
+    entryId?: string;
+    /** Who asked. Match the signed-in user's id to land it in "My requests". */
+    requestedBy: string;
+    note?: string | null;
+    required?: number;
+    given?: number;
+    /** ISO-8601. Defaults to now, so a seed is "fresh" unless it says otherwise. */
+    createdAt?: string;
+};
+
+/** `createdAt` for an ask opened `days` ago — the age column's input. */
+export function daysAgo(days: number): string {
+    return new Date(Date.now() - days * 86_400_000).toISOString();
+}
+
+/**
+ * Serves the reviewer queue.
+ *
+ * One route for both tabs, because the page fetches one window and splits it
+ * client-side — so a seed is a single list and the tabs are two views of it.
+ * Pass `status` to exercise the failed-read state, which the page must keep
+ * distinct from an empty one.
+ */
+export async function mockReviewQueue(
+    page: Page,
+    items: ReviewQueueSeed[] = [],
+    options: { status?: number } = {}
+): Promise<void> {
+    await page.route('**/api/protection/queue*', async (route) => {
+        if (options.status && options.status >= 400) {
+            await route.fulfill({
+                status: options.status,
+                contentType: 'application/json',
+                body: JSON.stringify({ message: 'Queue unavailable' })
+            });
+            return;
+        }
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+                items: items.map((item) => ({
+                    id: item.id,
+                    contentType: item.contentType ?? 'blog_post',
+                    entryId: item.entryId ?? `entry-${item.id}`,
+                    requestedBy: item.requestedBy,
+                    note: item.note ?? null,
+                    required: item.required ?? 2,
+                    given: item.given ?? 0,
+                    createdAt: item.createdAt ?? new Date().toISOString()
+                })),
+                total: items.length
+            })
+        });
+    });
+}

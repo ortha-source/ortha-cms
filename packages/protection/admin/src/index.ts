@@ -2,18 +2,20 @@
  * Public API of `@orthacms/protection-admin` — publication protection as the
  * person editing an entry meets it.
  *
- * Three contributions into the Content Library's slots and no page of its own:
- * a chip beside the title, a Review block in the properties rail, and the
- * verdict that decides what the Publish button says. Every one of them is
- * silent on a type nobody protected.
+ * Four contributions into other people's screens — a chip beside an entry's
+ * title, a Review block in the properties rail, the verdict that decides what
+ * the Publish button says, and a Protection tab in workspace settings — plus
+ * one page of its own, the reviewer's queue. Every entry contribution is silent
+ * on a type nobody protected; the settings tab and the queue are not, because
+ * they are where a workspace with no rule goes to get one and where a reviewer
+ * finds out an approval is wanted.
  */
 
 export { ProtectionPlugin } from './lib/presentation/protectionPlugin';
 export type { ProtectionAdminPlugin } from './lib/presentation/protectionPlugin';
 
-// The review read, exported for the surfaces the next PR adds (the reviewer
-// queue and the records column) so they read the same endpoint through the same
-// cache rather than a second copy of it.
+// The review read, exported so a surface added later (the records column) reads
+// the same endpoint through the same cache rather than a second copy of it.
 export { useEntryReview, reviewScopeOf } from './lib/application/hooks';
 export type { EntryReviewScope } from './lib/application/hooks';
 export type {

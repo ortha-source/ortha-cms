@@ -1,4 +1,5 @@
 import {
+    keepPreviousData,
     useMutation,
     useQuery,
     useQueryClient,
@@ -9,14 +10,20 @@ import { type ApiError } from '@orthacms/utils-admin';
 import type {
     EntryReview,
     ProtectionRule,
-    ProtectionRuleRecord
+    ProtectionRuleRecord,
+    ReviewQueue
 } from '../domain/types';
-import { entryReviewKey, rulesKey } from '../infrastructure/protectionKeys';
+import {
+    entryReviewKey,
+    queueKey,
+    rulesKey
+} from '../infrastructure/protectionKeys';
 import {
     httpProtectionGateway,
     type BypassPublishInput,
     type EntryRef,
     type RequestReviewInput,
+    type ReviewQueueParams,
     type RuleAddress,
     type VoteInput
 } from '../infrastructure/protectionGateway';
@@ -233,4 +240,27 @@ export function useDeleteProtectionRule(workspaceId: string) {
 /** Refreshes the workspace's rule list after a write. */
 function invalidateRules(queryClient: QueryClient, workspaceId: string) {
     return queryClient.invalidateQueries({ queryKey: rulesKey(workspaceId) });
+}
+
+/**
+ * One page of the workspace's open review requests.
+ *
+ * `keepPreviousData` because the page splits one window into two tabs: without
+ * it, switching tabs during a refetch would empty the table under the person's
+ * cursor even though the rows it needs are already cached.
+ *
+ * Gated by the caller rather than here — the route is `content:read`, which
+ * anybody who can open the Content Library already holds.
+ */
+export function useReviewQueue(
+    workspaceId: string,
+    params: ReviewQueueParams = {},
+    enabled = true
+) {
+    return useQuery<ReviewQueue, ApiError>({
+        queryKey: queueKey(workspaceId, params),
+        queryFn: () => httpProtectionGateway.listQueue(params),
+        placeholderData: keepPreviousData,
+        enabled
+    });
 }
