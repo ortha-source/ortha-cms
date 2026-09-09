@@ -56,9 +56,11 @@ business truth (ADR-0003 frontend guidance).
 - `Workspace` / `WorkspaceMember` / `WorkspaceStatus` — the data model.
 - **Workspace shell slots** — `WORKSPACE_NAV_SLOT` (the "Workspace" section's
   labeled nav rows), `WORKSPACE_SECTION_SLOT` (custom sidebar sections, e.g. the
-  Content Library's content-type list), and `WORKSPACE_ROUTE_SLOT` (pages mounted
-  inside the shell; `WorkspaceRoute.order` picks the default landing), plus the
-  `WorkspaceNavItem` / `WorkspaceSectionItem` / `WorkspaceRoute` item types. A
+  Content Library's content-type list), `WORKSPACE_ROUTE_SLOT` (pages mounted
+  inside the shell; `WorkspaceRoute.order` picks the default landing), and
+  `WORKSPACE_SETTINGS_TAB_SLOT` (a section on the **settings** page — see
+  below), plus the `WorkspaceNavItem` / `WorkspaceSectionItem` /
+  `WorkspaceRoute` / `WorkspaceSettingsTab` item types. A
   feature plugin that lives inside a workspace (Content Library, Media Library,
   Insights) contributes a route + either a nav entry or a section to these — and
   **no** top-level route or global nav item.
@@ -86,10 +88,10 @@ exist", mirroring the API's flat 403.
 ## Workspace shell (`/workspaces/:id/*`)
 
 - `WorkspaceShell` resolves the `:id` param against `useWorkspaces()` (the
-  membership-scoped list, so an unresolved id *is* the no-access case),
+  membership-scoped list, so an unresolved id _is_ the no-access case),
   publishes it via `CurrentWorkspaceProvider`, and **injects `WorkspaceNav` into
   the app sidebar** via `useSidebarContent(() => <WorkspaceNav workspace={current}/>,
-  [current.id])`, clearing it on unmount. Its own render is just the content
+[current.id])`, clearing it on unmount. Its own render is just the content
   area whose nested `<Routes>` are built from `WORKSPACE_ROUTE_SLOT`; landing on
   the base redirects to the lowest-`order` route (the Content Library).
 - `WorkspaceNav` (rendered in the app sidebar, so **above**
@@ -104,7 +106,7 @@ exist", mirroring the API's flat 403.
 - The workspace accent tints the switcher avatar; the persistent account footer
   (from the shell) stays below.
 - Workspaces owns the last **Settings** entry (`WORKSPACE_NAV_SLOT`, `order:
-  100`) + its `/workspaces/:id/settings` page; the Content and Media/Insights
+100`) + its `/workspaces/:id/settings` page; the Content and Media/Insights
   sections come from the feature plugins.
 
 ## Settings page (`/workspaces/:id/settings/*`)
@@ -152,6 +154,27 @@ exist", mirroring the API's flat 403.
   so a deep link can't reach it). The section bodies live in top-level
   `components/Workspace{General,Members,Content,Danger}Settings/` (their
   one-off parts nested inside).
+- **A plugin adds a settings section through `WORKSPACE_SETTINGS_TAB_SLOT`.**
+  A contribution names a `path`, a label (`labelId` + `defaultLabel`), an
+  `icon`, an `order` and the `element` to render; `WorkspaceSettingsTabs` links
+  to it and `WorkspaceSettingsPage` mounts it as a nested route.
+  `@orthacms/protection-admin` is the first contributor. Three rules worth
+  knowing:
+    - **Contributed tabs sit between Content and Danger zone**, and `order`
+      sorts them only against each other. Danger zone is last because it is
+      where a workspace is destroyed; a plugin that could sort past it would put
+      a routine setting beyond the point everything else treats as the end.
+    - **A tab's `permission` hides the entry, and the route stays mounted.**
+      `SettingsTabLink` does the check, as a component rather than a
+      `useHasPermission` inside the parent's `.map` — slot items are frozen at
+      boot so the list cannot actually move, but writing it the other way makes
+      the next contributor's change a rules-of-hooks bug rather than an
+      addition. The route is left mounted deliberately: a deep link reaching a
+      section that explains the refusal beats a redirect somewhere nobody asked
+      for.
+    - **An empty slot changes nothing**, and `WorkspaceSettingsTabs`' spec pins
+      it — that is the state the seam spends almost all of its life in, and
+      nothing else would record that the default was a decision.
 - Each area owns its mutation hook under `lib/application/` — `useUpdateWorkspace`,
   `useSetWorkspaceStatus`, `useDeleteWorkspace`, `useAddWorkspaceMember` /
   `useRemoveWorkspaceMember`, `useAddWorkspaceContent` /

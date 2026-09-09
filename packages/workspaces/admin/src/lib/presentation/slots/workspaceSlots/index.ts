@@ -78,6 +78,45 @@ export type WorkspaceSectionItem = {
 };
 
 /**
+ * One contributed tab in the **workspace settings** page — a section another
+ * plugin owns, rendered under the same underline tab bar as General, Members
+ * and Content.
+ *
+ * Contributed tabs sit **between Content and Danger zone**, which is a fixed
+ * position rather than an `order` among the built-ins: Danger zone is last
+ * because it is where a workspace is destroyed, and a plugin that could sort
+ * itself after it would put a routine setting past the point everything else
+ * treats as the end of the page.
+ */
+export type WorkspaceSettingsTab = {
+    /** Stable id, also the React key. */
+    id: string;
+    /**
+     * Path segment under `/workspaces/:id/settings`, e.g. `'protection'`. No
+     * leading slash; the owning page joins it and builds the absolute link.
+     */
+    path: string;
+    /** react-intl message id for the label. */
+    labelId: string;
+    /** Fallback label when no translation is available. */
+    defaultLabel: string;
+    /** Leading icon (e.g. a lucide-react icon). */
+    icon: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
+    /** Sort order **among the contributed tabs**; lower appears first. */
+    order: number;
+    /**
+     * Permission required to see the entry. Omit for a tab every member may
+     * open. The entry is hidden without it — the same treatment the Danger
+     * zone gets, so nobody is shown a link to a page that will refuse them —
+     * while the **route stays mounted**, so a deep link explains itself rather
+     * than silently moving somebody somewhere else.
+     */
+    permission?: string;
+    /** The section rendered at that path. */
+    element: ReactNode;
+};
+
+/**
  * The "Workspace" section's nav slot — the workspace's utility sections (Media,
  * Insights, Settings), rendered as labeled rows. Any plugin contributes entries
  * via its `slots`; {@link WorkspaceNav} reads it sorted by `order`. (Formerly
@@ -105,3 +144,19 @@ export const WORKSPACE_SECTION_SLOT =
  */
 export const WORKSPACE_ROUTE_SLOT =
     createSlot<WorkspaceRoute>('workspace.routes');
+
+/**
+ * The workspace **settings** page's tab slot — how a plugin adds a section to
+ * a page `workspaces-admin` owns, without that package learning what the
+ * section is for.
+ *
+ * `@orthacms/protection-admin` is the first contributor (the Protection tab
+ * and its rule editor). With nothing registered the tab bar and its routes are
+ * byte for byte what they were before the slot existed, which
+ * `WorkspaceSettingsTabs`' own spec pins — an empty slot is the state this
+ * seam spends almost all of its life in, and nothing else would record that
+ * the default was a decision.
+ */
+export const WORKSPACE_SETTINGS_TAB_SLOT = createSlot<WorkspaceSettingsTab>(
+    'workspace.settings.tab'
+);

@@ -96,3 +96,85 @@ export function approvalBlockedReason(
     if (review.callerWroteHead) return 'wrote-head';
     return null;
 }
+
+/**
+ * The six fields a rule holds, as the settings editor edits them.
+ *
+ * Every one is required here even though the API's body makes them optional:
+ * `PUT` is a **replacement**, so a form that submitted a partial rule would
+ * reset whatever it did not show to the default. Keeping the type total means
+ * a field added to the rule later cannot be forgotten by the editor — it stops
+ * compiling instead.
+ */
+export type ProtectionRule = {
+    /** In force. Off behaves exactly as no rule at all, a bearer token included. */
+    enabled: boolean;
+    /** Approvals needed on the entry's current revision. */
+    requiredApprovals: number;
+    /** Four eyes: the author of the current revision cannot approve it. */
+    requireOtherPerson: boolean;
+    /** Count approvals given on earlier revisions. Not recommended. */
+    countStaleApprovals: boolean;
+    /** An administrator may publish past the rule, with a mandatory reason. */
+    adminBypass: boolean;
+    /** A bearer token may publish this type — still meeting the count. */
+    allowTokenPublish: boolean;
+};
+
+/** The documented defaults — what a type with no rule row already behaves by. */
+export const DEFAULT_PROTECTION_RULE: ProtectionRule = {
+    enabled: false,
+    requiredApprovals: 1,
+    requireOtherPerson: true,
+    countStaleApprovals: false,
+    adminBypass: true,
+    allowTokenPublish: false
+};
+
+/** The largest count the API stores; mirrors the server's `REQUIRED_APPROVALS_MAX`. */
+export const REQUIRED_APPROVALS_MAX = 100;
+
+/** A stored rule, addressed by the pair `workspace_content` already grants. */
+export type ProtectionRuleRecord = ProtectionRule & {
+    /** Row id. Stable across edits; the address is `(kind, slug)`. */
+    id: string;
+    /** `collection` or `single`. */
+    kind: string;
+    /** The code-defined content type name. */
+    slug: string;
+};
+
+/**
+ * One row of the settings tab: a content type the workspace was granted, with
+ * the rule it holds — or none.
+ *
+ * The list is **the grants**, not the rules. A type the workspace can work with
+ * and has not protected has to appear, or the tab would only ever show what
+ * somebody had already switched on and there would be no way to switch on the
+ * first one.
+ */
+export type ProtectedTypeRow = {
+    /** The code-defined type name — the `slug` half of a rule's address. */
+    slug: string;
+    /** `collection` or `single` — the `kind` half. */
+    kind: string;
+    /** Human label; falls back to the slug. */
+    label: string;
+    /** The stored rule, or `null` when the type carries none. */
+    rule: ProtectionRuleRecord | null;
+};
+
+/**
+ * Whether switching this rule on would leave the workspace unable to publish
+ * the type at all.
+ *
+ * A workspace of one person, with four eyes required, blocks itself: the only
+ * member is always the author of the head revision and so is always excluded
+ * from the count. ADR-0017 accepts that cost and says the interface has to
+ * name it **when the rule is switched on**, not a week later on the first
+ * failed publish — which is the whole reason this is a function of the draft
+ * rather than a check on save.
+ */
+export function blocksEveryone(rule: ProtectionRule, memberCount: number) {
+    return rule.enabled && rule.requireOtherPerson && memberCount < 2;
+}

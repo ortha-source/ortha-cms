@@ -6,13 +6,18 @@ import {
 } from '@tanstack/react-query';
 import { refreshEntryCaches } from '@orthacms/content-admin';
 import { type ApiError } from '@orthacms/utils-admin';
-import type { EntryReview } from '../domain/types';
-import { entryReviewKey } from '../infrastructure/protectionKeys';
+import type {
+    EntryReview,
+    ProtectionRule,
+    ProtectionRuleRecord
+} from '../domain/types';
+import { entryReviewKey, rulesKey } from '../infrastructure/protectionKeys';
 import {
     httpProtectionGateway,
     type BypassPublishInput,
     type EntryRef,
     type RequestReviewInput,
+    type RuleAddress,
     type VoteInput
 } from '../infrastructure/protectionGateway';
 
@@ -177,4 +182,55 @@ export function useBypassPublish(scope: EntryReviewScope) {
             await refreshReview(queryClient, scope);
         }
     });
+}
+
+/**
+ * Every rule the open workspace holds.
+ *
+ * Gated by the caller rather than here: the list route is `protection:manage`,
+ * administrator-only, so a member without it would spend a request to be told
+ * 403 and the settings section shows them why instead.
+ */
+export function useProtectionRules(workspaceId: string, enabled = true) {
+    return useQuery<ProtectionRuleRecord[], ApiError>({
+        queryKey: rulesKey(workspaceId),
+        queryFn: () => httpProtectionGateway.listRules(),
+        enabled
+    });
+}
+
+/** What a rule save needs: where it goes, and all six fields. */
+export type SaveRuleInput = RuleAddress & { rule: ProtectionRule };
+
+/**
+ * Writes one rule.
+ *
+ * Invalidates **only** the rules key. A rule changes which entries are held,
+ * but every entry panel reads its own `entryReviewKey`, and those are keyed by
+ * the entry's `updatedAt` rather than by anything this write moves — so
+ * clearing them would refetch every open editor to learn a number none of them
+ * is showing. An editor opened after the change reads the new rule on its first
+ * request, which is the only moment it can matter.
+ */
+export function useSaveProtectionRule(workspaceId: string) {
+    const queryClient = useQueryClient();
+    return useMutation<void, ApiError, SaveRuleInput>({
+        mutationFn: ({ kind, slug, rule }) =>
+            httpProtectionGateway.saveRule({ kind, slug }, rule),
+        onSuccess: () => invalidateRules(queryClient, workspaceId)
+    });
+}
+
+/** Removes one rule, leaving no row. */
+export function useDeleteProtectionRule(workspaceId: string) {
+    const queryClient = useQueryClient();
+    return useMutation<void, ApiError, RuleAddress>({
+        mutationFn: (address) => httpProtectionGateway.deleteRule(address),
+        onSuccess: () => invalidateRules(queryClient, workspaceId)
+    });
+}
+
+/** Refreshes the workspace's rule list after a write. */
+function invalidateRules(queryClient: QueryClient, workspaceId: string) {
+    return queryClient.invalidateQueries({ queryKey: rulesKey(workspaceId) });
 }

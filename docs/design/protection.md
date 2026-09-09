@@ -250,16 +250,29 @@ and neither is this feature's business.
 
 ## The admin UI
 
-`protection/admin`. One new slot in `content-admin`, everything else contributed
-into slots that already exist.
+`protection/admin`. **Two** new slots in packages this feature does not own,
+everything else contributed into slots that already exist.
 
-### The one change to an existing package
+### The changes to existing packages
 
-**`ENTRY_PUBLISH_GUARD_SLOT`.** A contribution returns
+The plan said one. Building it found a second, and the second is the honest
+kind: the workspace settings tab strip was hardcoded, so there was no seam to
+contribute a tab through. Both follow the same rule — the owning package keeps
+rendering, the contribution only says what to render — and both ship with a
+test, in the package that owns the slot, that an empty slot changes nothing.
+
+**`ENTRY_PUBLISH_GUARD_SLOT`** (`content-admin`). A contribution returns
 `{ blocked, reason, action? }` for the current entry; `EntryActions` keeps
 rendering the button. Content owns the button because it already computes the
 publish gate's half of its state, and a second component drawing a second button
 would drift from the first.
+
+**`WORKSPACE_SETTINGS_TAB_SLOT`** (`workspaces-admin`). A contribution names a
+path, a label, an icon, an order and the section to render; the settings page
+mounts it as a nested route and the tab strip links to it, between Content and
+Danger zone. Danger zone stays last because it is where a workspace is
+destroyed, so contributed tabs sort among themselves rather than against the
+built-ins.
 
 ### Entry editor
 
