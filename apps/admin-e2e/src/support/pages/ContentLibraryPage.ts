@@ -906,44 +906,76 @@ export class ContentLibraryPage extends BasePage {
         return this.entryChecksSection.locator('svg.ds-spinner');
     }
 
-    /** Turn on the optional **Checks** column via the column picker. */
-    async showChecksColumn(): Promise<void> {
+    /**
+     * Turn on an optional extension column via the column picker.
+     *
+     * Every contributed column is hidden by default, so a suite that wants one
+     * has to switch it on the way a person would — which is also the only way
+     * to observe the `isVisible` half of the contract, since a column that is
+     * off must cost no request at all.
+     */
+    async showColumn(label: string): Promise<void> {
         await this.columnsButton.click();
-        await this.columnOption('Checks').click();
+        await this.columnOption(label).click();
         await this.columnsButton.click();
     }
 
     /**
-     * The 1-based `<td>` position of the Checks column, resolved at runtime.
+     * The 1-based `<td>` position of a column, resolved at runtime by its
+     * header text.
      *
      * An extension column is appended after the schema fields and Status but
      * before Updated, so its index depends on the type — reading it off the
      * header row keeps the assertion about the cell rather than about the seed
      * a suite happens to use.
      */
-    async checksColumnIndex(table: string): Promise<number> {
+    async columnIndex(table: string, label: string): Promise<number> {
         const labels = await this.columnHeaders(table).allInnerTexts();
-        return labels.findIndex((label) => label.trim() === 'Checks') + 1;
+        return labels.findIndex((text) => text.trim() === label) + 1;
     }
 
-    /** The Checks cells of every data row. */
-    async checksCells(table: string): Promise<Locator> {
+    /** That column's cells across every data row. */
+    async columnCells(table: string, label: string): Promise<Locator> {
         return this.recordColumnCells(
             table,
-            await this.checksColumnIndex(table)
+            await this.columnIndex(table, label)
         );
     }
 
     /**
-     * The Checks cell of the row carrying `rowText` — by the record rather than
-     * by position, so an assertion about one seeded record does not silently
-     * move to a different row when the list's order changes.
+     * One column's cell in the row carrying `rowText` — by the record rather
+     * than by position, so an assertion about one seeded record does not
+     * silently move to a different row when the list's order changes.
      */
-    async checksCellIn(table: string, rowText: string): Promise<Locator> {
-        const index = await this.checksColumnIndex(table);
+    async columnCellIn(
+        table: string,
+        label: string,
+        rowText: string
+    ): Promise<Locator> {
+        const index = await this.columnIndex(table, label);
         return this.recordRows(table)
             .filter({ hasText: rowText })
             .locator(`td:nth-child(${index})`);
+    }
+
+    /** Turn on the optional **Checks** column via the column picker. */
+    async showChecksColumn(): Promise<void> {
+        await this.showColumn('Checks');
+    }
+
+    /** The 1-based `<td>` position of the Checks column. */
+    async checksColumnIndex(table: string): Promise<number> {
+        return this.columnIndex(table, 'Checks');
+    }
+
+    /** The Checks cells of every data row. */
+    async checksCells(table: string): Promise<Locator> {
+        return this.columnCells(table, 'Checks');
+    }
+
+    /** The Checks cell of the row carrying `rowText`. */
+    async checksCellIn(table: string, rowText: string): Promise<Locator> {
+        return this.columnCellIn(table, 'Checks', rowText);
     }
 
     /* --- Bulk actions + the publish pre-flight dialog --------------------- */
