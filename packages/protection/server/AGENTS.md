@@ -232,17 +232,76 @@ is null` — one _open_ request per entry, so asking twice updates the note rath
 than stacking a second row into the reviewer's queue, while a resolved request
 stays as history and does not block the next ask.
 
+## The batched status read
+
+`ReviewStatusQuery` answers "where does each of these entries stand" for a whole
+records page in **three queries whatever the page holds** — the heads (through
+content's batched `RevisionStore.heads`), every vote on those entries (one query
+over the denormalised `entry_id`), and the workspace's rules (one, and the rule
+set is one row per protected type).
+
+The shape is the point. A column asking the single-entry review route per row is
+an N+1 over a page whose size the user chose, and it is the reason `heads` was
+added to content's port at all. `review-status.spec.ts` pins the count flat, and
+that test — not this paragraph — is what keeps it true: mutating the query into a
+per-entry read takes it from 8 to 17.
+
+It counts through **`countApprovals`**, the same kernel function
+`evaluateProtection` calls. A cell reading "2 of 2" beside a Publish button that
+then refuses is the failure this avoids, and it is the third time that rule has
+had to be stated — see _Every number comes from the kernel_ above.
+
+## The `reviewState` filter field
+
+Contributed through content's `ENTRY_FILTER_PROVIDER` registry, so it joins the
+records list's own query builder — which is what makes saved views and alarms'
+"Save as rule" work over review state with no code of their own.
+
+**It filters on whether a review was asked for, not on the tally.** The obvious
+field is the counter the column shows, and it is deliberately absent: the tally
+depends on the head revision, on `requireOtherPerson` against the head's author,
+and on `countStaleApprovals`, so answering it in SQL means a second
+implementation of `countApprovals` written in Drizzle. That would drift
+**silently**, because a filter that is merely wrong still returns rows. Whether
+an open request exists is one row keyed by entry id with no counting in it, and
+it is the question a reviewer actually saves a view for.
+
+The three obligations the registry states are met and tested: the subquery is
+workspace-scoped (a virtual field is a subquery over a table content has never
+heard of, and forgetting the workspace turns a filter into a cross-tenant read),
+only `eq` and `in` are declared and the admin's `FilterField.operators` is
+narrowed to match, and it narrows a list rather than deciding visibility.
+
+## The three tools, and the fourth that does not exist
+
+`protection_review_status`, `protection_review_diff` and
+`protection_request_review`. Each declares `surfaces` **explicitly** — omitting
+the field in `tools/server` means _both_ consumers, so silence would hand a tool
+to MCP by accident rather than by decision.
+
+`review_diff` is the valuable one: what changed between the head and the last
+version _this caller_ approved. Revisions make that exact rather than a
+paraphrase, and it is the question a returning reviewer actually has. It compares
+through content's own `diffSnapshots` rather than a second comparison written
+here, for the same reason nothing here counts votes.
+
+**There is no approve tool and no request-changes tool**, on any surface, now or
+later. ADR-0017 §6 carries the argument. `protection:I-17` pins it against the
+**catalogue** rather than a list of names — anything that could record an
+approval would have to appear there to be callable — and until this PR the
+invariant held vacuously, because the plugin contributed no tools at all.
+
 ## Not here yet
 
-Deliberately, and each is its own PR:
+Deliberately:
 
-- **Everything in the admin** — the publish-button states, the bypass dialog,
-  the rail section, the settings tab, the reviews page. The server says 409 with
-  the numbers; nothing yet renders them.
-- **The three agent tools** (`review_status`, `review_diff`, `request_review`),
-  and with them the `surfaces` decision each has to declare.
 - **Scheduled publishing.** The rule must be evaluated when the timer fires
   rather than when the schedule is set, and a fired timer has no human, so a
   bypass cannot apply to it. That needs the scheduler to exist (ORT-210).
 - **Mail on a review request.** After the mail port (ORT-207). Until then the
-  queue page is the only way a reviewer learns there is work.
+  reviews page is the only way a reviewer learns there is work.
+- **`transfer` on a protected type** is not an open question so much as an
+  unreachable one: `ImportEntriesUseCase` calls only `writer.create`/`.update`,
+  and a create on a publishable type is stamped `draft`, so an import cannot
+  publish and never meets the guard. It becomes a real question the day import
+  gains a publish step.

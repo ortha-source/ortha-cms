@@ -68,6 +68,49 @@ export class ReviewApprovalRepository {
     }
 
     /**
+     * Every vote on **many** entries, keyed by entry id — the batched form of
+     * {@link listForEntry}, for a whole records page.
+     *
+     * One query whatever the page holds. The approvals table carries
+     * `entry_id` denormalised for exactly this: the alternative is a join to
+     * revisions per row, which is the N+1 the batched read exists to avoid.
+     *
+     * An entry with no votes is **absent** from the map rather than present
+     * with an empty array — the caller reads a missing key as "nobody has
+     * voted", which is the same answer and costs no allocation per row.
+     */
+    async listForEntries(
+        workspaceId: string,
+        entryIds: readonly string[]
+    ): Promise<Map<string, StoredApproval[]>> {
+        if (!entryIds.length) return new Map();
+        const rows = await this.exec
+            .select()
+            .from(reviewApprovals)
+            .where(
+                and(
+                    eq(reviewApprovals.workspaceId, workspaceId),
+                    inArray(reviewApprovals.entryId, [...entryIds])
+                )
+            )
+            .orderBy(reviewApprovals.createdAt);
+        const byEntry = new Map<string, StoredApproval[]>();
+        for (const row of rows) {
+            const list = byEntry.get(row.entryId) ?? [];
+            list.push({
+                id: row.id,
+                revisionId: row.revisionId,
+                userId: row.userId,
+                decision: row.decision as Approval['decision'],
+                note: row.note,
+                createdAt: row.createdAt
+            });
+            byEntry.set(row.entryId, list);
+        }
+        return byEntry;
+    }
+
+    /**
      * Records this person's vote on this revision, replacing whatever they said
      * before.
      *

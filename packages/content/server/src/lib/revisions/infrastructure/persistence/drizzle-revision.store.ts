@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { and, count, desc, eq, max, ne, sql } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, max, ne, sql } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@orthacms/database';
 import type {
     RevisionExecutor,
+    RevisionHead,
     RevisionStore
 } from '../../application/ports/revision-store';
 import type { Revision } from '../../domain/revision';
@@ -165,6 +166,49 @@ export class DrizzleRevisionStore implements RevisionStore {
             ),
             total: Number(total)
         };
+    }
+
+    /**
+     * One query for a whole page's heads, whatever the page holds.
+     *
+     * `DISTINCT ON (entry_id) … ORDER BY entry_id, revision_number DESC` is
+     * Postgres' own "greatest row per group": the planner walks the
+     * `(entry_id, revision_number)` unique index and takes the first row of each
+     * group, so the cost is one index scan rather than a scan per entry. The
+     * ordering clause is not cosmetic — `DISTINCT ON` keeps whichever row sorts
+     * first, so dropping the `DESC` would silently return version 1 of every
+     * entry.
+     */
+    async heads(
+        contentType: string,
+        entryIds: readonly string[],
+        workspaceId: string
+    ): Promise<RevisionHead[]> {
+        // An empty `IN ()` is not valid SQL, and asking about no entries is a
+        // question with an answer — the caller's page held no rows.
+        if (!entryIds.length) return [];
+        const rows = await this.db
+            .selectDistinctOn([revisions.entryId], {
+                entryId: revisions.entryId,
+                id: revisions.id,
+                number: revisions.revisionNumber,
+                authorId: revisions.createdBy
+            })
+            .from(revisions)
+            .where(
+                and(
+                    eq(revisions.contentType, contentType),
+                    eq(revisions.workspaceId, workspaceId),
+                    inArray(revisions.entryId, [...entryIds])
+                )
+            )
+            .orderBy(revisions.entryId, desc(revisions.revisionNumber));
+        return rows.map((row) => ({
+            entryId: row.entryId,
+            id: row.id,
+            number: row.number,
+            authorId: row.authorId ?? null
+        }));
     }
 
     async get(

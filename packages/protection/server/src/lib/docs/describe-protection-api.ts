@@ -24,8 +24,10 @@ import {
 } from './openapi-writer';
 import {
     ENTRY_REVIEW_SCHEMA,
+    PROTECTION_INSIGHTS_SCHEMA,
     PROTECTION_RULE_SCHEMA,
     REVIEW_QUEUE_SCHEMA,
+    REVIEW_STATUS_MAP_SCHEMA,
     buildProtectionSchemas
 } from './protection-schemas';
 
@@ -63,6 +65,14 @@ const ROUTES = {
                 'The entry is not reachable from this workspace under this content type. One answer for all its causes — an ungranted type, a missing entry, another workspace’s entry — so one workspace cannot probe another’s ids.'
         }
     },
+    '/entries/{typeName}/status': {
+        get: {
+            list: false,
+            schema: REVIEW_STATUS_MAP_SCHEMA,
+            description:
+                'Where each named entry stands, keyed by entry id — the batched read behind the records list’s Review column. One request per page, never one per row: the server answers it in three queries whatever the page holds.'
+        }
+    },
     '/queue': {
         get: {
             list: false,
@@ -98,6 +108,23 @@ export function describeProtectionApi(document: OpenApiDocument): void {
                 addErrorResponse(operation, '404', spec.notFound);
             }
         }
+    }
+
+    // The Insights card's aggregate is mounted under `insights/` rather than
+    // `protection/`, because that is where the dashboard's other aggregates
+    // live — so it cannot ride the suffix-keyed table above and is written
+    // here instead. The plugin still owns the route and the numbers.
+    const insights = (
+        document.paths['/api/insights/protection/reviews'] as
+            | Record<string, Operation>
+            | undefined
+    )?.get;
+    if (insights) {
+        setSuccessResponse(
+            insights,
+            ref(PROTECTION_INSIGHTS_SCHEMA),
+            'Open review requests in this workspace, and how many have waited longer than the reported threshold. No time window: a request waiting a fortnight is waiting whether it was asked this morning or last spring.'
+        );
     }
 
     // The `204`s get no body — the writer would refuse one anyway — but each has

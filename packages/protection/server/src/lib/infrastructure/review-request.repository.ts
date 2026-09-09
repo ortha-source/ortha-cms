@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { and, count, desc, eq, isNull } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { UnitOfWork, type Database } from '@orthacms/database';
 import { reviewRequests } from './schema/review-requests';
 
@@ -100,6 +100,32 @@ export class ReviewRequestRepository {
             )
             .limit(1);
         return row ? toRequest(row) : null;
+    }
+
+    /**
+     * Which of the named entries have an **open** request, keyed by entry id.
+     *
+     * One query for a whole page, and only the entry ids — the column shows
+     * that a review was asked for, not who asked or when. The partial unique
+     * index on `entry_id where resolved_at is null` makes at most one row per
+     * entry, so the set is a set rather than a count.
+     */
+    async openByEntries(
+        workspaceId: string,
+        entryIds: readonly string[]
+    ): Promise<Set<string>> {
+        if (!entryIds.length) return new Set();
+        const rows = await this.exec
+            .select({ entryId: reviewRequests.entryId })
+            .from(reviewRequests)
+            .where(
+                and(
+                    eq(reviewRequests.workspaceId, workspaceId),
+                    inArray(reviewRequests.entryId, [...entryIds]),
+                    isNull(reviewRequests.resolvedAt)
+                )
+            );
+        return new Set(rows.map((row) => row.entryId));
     }
 
     /**

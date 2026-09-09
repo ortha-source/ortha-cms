@@ -247,3 +247,33 @@ export function splitQueue(
     }
     return { waitingOnMe, mine };
 }
+
+/**
+ * Where one entry stands, as the records column reads it.
+ *
+ * Narrower than {@link EntryReview}, which carries every vote with its author
+ * for a panel that lists people. A cell has room for a number.
+ */
+export type EntryReviewStatus = {
+    /** Whether a rule applies to this entry's type at all. */
+    protected: boolean;
+    /** How many approvals the rule asks for; `0` when unprotected. */
+    required: number;
+    /** How many count toward the current version. */
+    given: number;
+    /** How many people's only approval sits on an earlier version. */
+    stale: number;
+    /** Whether somebody asked for changes on the current version. */
+    changesRequested: boolean;
+    /** Whether a review has been asked for and not yet resolved. */
+    requested: boolean;
+    /** Whether publishing is currently held. */
+    blocked: boolean;
+};
+
+/** The Insights card's two figures, and the threshold the second was counted against. */
+export type ProtectionInsights = {
+    open: number;
+    overdue: number;
+    overdueAfterDays: number;
+};

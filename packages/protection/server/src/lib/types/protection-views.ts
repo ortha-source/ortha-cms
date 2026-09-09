@@ -121,3 +121,49 @@ export interface ReviewQueueView {
     items: ReviewQueueItemView[];
     total: number;
 }
+
+/**
+ * Where one entry stands, as the records column and the agent tools read it.
+ *
+ * Narrower than {@link EntryReviewView} on purpose: that one carries every vote
+ * with its author and staleness, for a panel that lists people. This is a page
+ * of rows, so it carries only what a cell can show.
+ */
+export interface EntryReviewStatusView {
+    /** Whether a rule applies to this entry's type at all. */
+    protected: boolean;
+    /** How many approvals the rule asks for; `0` on an unprotected type. */
+    required: number;
+    /** How many count toward the head revision right now. */
+    given: number;
+    /** How many people's only approval sits on an earlier revision. */
+    stale: number;
+    /** Whether somebody asked for changes on the current version. */
+    changesRequested: boolean;
+    /** Whether a review has been asked for and not yet resolved. */
+    requested: boolean;
+    /** Whether publishing is currently held by the rule. */
+    blocked: boolean;
+}
+
+/** The batched column read, keyed by entry id. */
+export interface EntryReviewStatusMapView {
+    byEntry: Record<string, EntryReviewStatusView>;
+}
+
+/**
+ * The Insights card's figures.
+ *
+ * Two numbers and no time window, for the reason content's `unshipped` takes
+ * none: a request that has been open for a fortnight is open whether it was
+ * asked this morning or last spring, so windowing it would answer a different
+ * question under the same name.
+ */
+export interface ProtectionInsightsView {
+    /** Open review requests across every protected type in the workspace. */
+    open: number;
+    /** How many of those have been waiting longer than `overdueAfterDays`. */
+    overdue: number;
+    /** The threshold `overdue` was counted against, so the card can say it. */
+    overdueAfterDays: number;
+}

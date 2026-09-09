@@ -1,7 +1,8 @@
 # 0017 — Publication is protected per content type, and an approval belongs to a revision
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-09-07
+- **Accepted:** 2026-09-09
 - **Deciders:** Engineering
 
 > The technical description this record deliberately does not carry — tables,

@@ -34,13 +34,16 @@ Layered per [ADR-0003](../../../docs/adr/0003-tactical-ddd-inside-plugins.md).
 
 ## What it contributes
 
-| Surface         | Where                         | What it says                       |
-| --------------- | ----------------------------- | ---------------------------------- |
-| Review chip     | `ENTRY_HEADER_SLOT`           | "Needs review · 0 of 2"            |
-| Review block    | `ENTRY_SIDEBAR_WIDGET_SLOT`   | who approved what, and the actions |
-| Publish verdict | `ENTRY_PUBLISH_GUARD_SLOT`    | whether Publish is held, and why   |
-| Protection tab  | `WORKSPACE_SETTINGS_TAB_SLOT` | which types are protected, and how |
-| Reviews page    | `WORKSPACE_ROUTE_SLOT` + nav  | what is waiting, and on whom       |
+| Surface         | Where                         | What it says                                |
+| --------------- | ----------------------------- | ------------------------------------------- |
+| Review chip     | `ENTRY_HEADER_SLOT`           | "Needs review · 0 of 2"                     |
+| Review block    | `ENTRY_SIDEBAR_WIDGET_SLOT`   | who approved what, and the actions          |
+| Publish verdict | `ENTRY_PUBLISH_GUARD_SLOT`    | whether Publish is held, and why            |
+| Protection tab  | `WORKSPACE_SETTINGS_TAB_SLOT` | which types are protected, and how          |
+| Review column   | `RECORDS_COLUMN_SLOT`         | where each row stands, one request per page |
+| `reviewState`   | `RECORDS_FILTER_FIELDS_SLOT`  | waiting on review / not requested           |
+| Insights card   | `INSIGHTS_WIDGET_SLOT`        | how much review is outstanding              |
+| Reviews page    | `WORKSPACE_ROUTE_SLOT` + nav  | what is waiting, and on whom                |
 
 **The three entry contributions render nothing on an unprotected type**, on a
 create form, and on a non-publishable one. `reviewScopeOf` is the single place
@@ -186,3 +189,39 @@ the rounding.
 about the workspace; saying it when the truth is "we could not ask" tells a
 reviewer they are free when they are not, which is the one thing this page must
 never do.
+
+## The records column and its filter
+
+**The column counts nothing.** The numbers arrive from
+`GET /protection/entries/:type/status`, which reads them through the same kernel
+call the publish gate obeys — so a row saying "2 of 2" beside a Publish button
+that then refuses cannot happen. It is one request for the **page**, never one
+per row, and only when the column is switched on: extension columns are hidden
+by default and `useRowsData` runs on every render regardless, so ignoring
+`isVisible` fetches on every page of every list for numbers nobody is looking
+at. The entry ids are part of the query key, because paging changes which rows
+are on screen and a key that ignored them would serve the previous page's
+numbers against the new page's rows — wrong in a way that looks plausible.
+
+Every state carries its meaning in **text** and its own `aria-label`: a bare
+"1 of 2" in a row of numbers says nothing about what was counted, and a reader
+arrives at the cell with only a column header for context. An **absent** status
+renders nothing rather than a placeholder — "we have not asked" and "this type is
+unprotected" are different facts.
+
+**The filter's operator set is the subquery's, not a column's.** The server
+answers `eq` and `in` and refuses the rest, and an operator the resolver refuses
+reaches the user as "couldn't load this collection" over a rule the drawer itself
+proposed — so the two lists are narrowed together or not at all. Negation is
+absent for the reason it is absent from i18n's fields: `ne` would negate _inside_
+the EXISTS. "Not waiting" is its own value in the enum, which is the honest
+spelling.
+
+## The Insights card
+
+**The four-branch state ladder is `WidgetCard`'s, not the card's.** That is why
+the shell owns it: "nothing is waiting on a review" and "we could not ask" look
+identical and mean opposite things, and the second one tells a reviewer they are
+free when they are not. The overdue threshold arrives **with** the figure rather
+than being restated here, so the caption cannot come to say "3 days" over a
+number counted against something else.

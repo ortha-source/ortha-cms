@@ -3,8 +3,16 @@ import type { AdminPlugin } from '@orthacms/bootstrap-admin';
 import {
     ENTRY_HEADER_SLOT,
     ENTRY_PUBLISH_GUARD_SLOT,
-    ENTRY_SIDEBAR_WIDGET_SLOT
+    ENTRY_SIDEBAR_WIDGET_SLOT,
+    RECORDS_COLUMN_SLOT,
+    RECORDS_FILTER_FIELDS_SLOT,
+    type ContentTypeDetail,
+    type EntryRecord
 } from '@orthacms/content-admin';
+import {
+    INSIGHTS_SECTION_IDS,
+    INSIGHTS_WIDGET_SLOT
+} from '@orthacms/insights-admin';
 import {
     WORKSPACE_NAV_SLOT,
     WORKSPACE_ROUTE_SLOT,
@@ -16,6 +24,10 @@ import { ReviewsSkeleton } from '../components/ReviewsSkeleton';
 import { ReviewChip } from '../components/ReviewChip';
 import { ReviewSection } from '../components/ReviewSection';
 import { usePublishProtectionVerdict } from '../slots/publishGuard';
+import { ReviewColumnCell } from '../components/ReviewColumnCell';
+import { ProtectionInsightsCard } from '../components/ProtectionInsightsCard';
+import { useReviewStateFilterFields } from '../../application/useReviewStateFilterFields';
+import { useReviewStatusByEntry } from '../../application/hooks';
 
 // Lazy so the Reviews page is its own chunk, fetched when somebody first opens
 // it — every other surface this plugin has is a slot contribution that rides
@@ -32,7 +44,7 @@ export type ProtectionAdminPlugin = AdminPlugin;
 /**
  * Creates the admin-side protection plugin.
  *
- * **Five contributions and one route of its own.** Almost everything this plugin
+ * **Eight contributions and one route of its own.** Almost everything this plugin
  * shows lives inside somebody else's screen — three in the entry editor, where
  * the requirement is met or missed, and one in workspace settings, where a rule
  * is made. The Reviews page is the exception, and it has to be: an ask arrives
@@ -97,6 +109,74 @@ export function ProtectionPlugin(): ProtectionAdminPlugin {
                     {
                         id: 'protection.approvals',
                         useVerdict: usePublishProtectionVerdict
+                    }
+                ]
+            },
+            {
+                slot: RECORDS_COLUMN_SLOT,
+                items: [
+                    {
+                        id: 'protection.records.review',
+                        label: {
+                            id: 'protection.column.label',
+                            defaultMessage: 'Review'
+                        },
+                        // Every publishable type: any of them can be given a
+                        // rule, and a column that appeared and vanished with a
+                        // settings toggle would lose whatever column order the
+                        // person had arranged.
+                        appliesTo: (schema: ContentTypeDetail) =>
+                            !!schema.publishable,
+                        // One request for the whole page, and **only when the
+                        // column is switched on**. Extension columns are hidden
+                        // by default and this hook runs regardless, so ignoring
+                        // `isVisible` would fetch on every page of every list
+                        // for numbers nobody is looking at.
+                        useRowsData: (
+                            entries: EntryRecord[],
+                            schema: ContentTypeDetail,
+                            workspaceId: string,
+                            isVisible: boolean
+                        ) =>
+                            useReviewStatusByEntry(
+                                workspaceId,
+                                schema.name,
+                                entries.map((entry: EntryRecord) => entry.id),
+                                isVisible
+                            ),
+                        Cell: ReviewColumnCell
+                    }
+                ]
+            },
+            {
+                // `reviewState` in the records list's own filter tree. Saved
+                // views and alarms' "Save as rule" both read that tree, so this
+                // one contribution reaches all three surfaces.
+                slot: RECORDS_FILTER_FIELDS_SLOT,
+                items: [
+                    {
+                        id: 'protection.records.filterFields',
+                        useFields: useReviewStateFilterFields
+                    }
+                ]
+            },
+            {
+                slot: INSIGHTS_WIDGET_SLOT,
+                items: [
+                    {
+                        id: 'insights.protection.reviews',
+                        // Beside content's own debts — half of what Insights
+                        // reports is work outstanding, and a stalled review is
+                        // one more of those.
+                        section: INSIGHTS_SECTION_IDS.Content,
+                        order: 40,
+                        size: 'xs',
+                        // Matches the route's own guard, so the card is not
+                        // rendered for somebody the request would then refuse.
+                        permission: 'content:read',
+                        titleId: 'protection.insights.title',
+                        defaultTitle: 'Waiting on review',
+                        Component: ProtectionInsightsCard
                     }
                 ]
             },
