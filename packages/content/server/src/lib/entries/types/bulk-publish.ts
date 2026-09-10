@@ -19,7 +19,22 @@ export const BULK_VERDICT = {
     /** Has validation issues — cannot publish until fixed. */
     Blocked: 'blocked',
     /** No live row with this id (unknown or soft-deleted). */
-    NotFound: 'not-found'
+    NotFound: 'not-found',
+    /**
+     * A registered publish guard refused it — approvals outstanding, typically.
+     *
+     * Only ever produced by the **commit**, never by the dry run: a guard's
+     * answer needs the database and the preview is a pure function over rows
+     * already loaded. That asymmetry is the reason bulk publish has always been
+     * partial-success and re-validates server-side rather than trusting the
+     * client's copy.
+     *
+     * It is also how *publish every locale* answers per locale: the i18n menu
+     * sends the sibling ids as one bulk publish, so a per-id verdict **is** a
+     * per-locale verdict, and the caller learns which translations are held up
+     * instead of watching the whole action refuse.
+     */
+    GuardRefused: 'guard-refused'
 } as const;
 
 /** One row's dry-run verdict. */

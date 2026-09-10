@@ -13,11 +13,13 @@ export type {
 export {
     WORKSPACE_NAV_SLOT,
     WORKSPACE_SECTION_SLOT,
-    WORKSPACE_ROUTE_SLOT
+    WORKSPACE_ROUTE_SLOT,
+    WORKSPACE_SETTINGS_TAB_SLOT
 } from './lib/presentation/slots/workspaceSlots';
 export type {
     WorkspaceNavItem,
     WorkspaceSectionItem,
-    WorkspaceRoute
+    WorkspaceRoute,
+    WorkspaceSettingsTab
 } from './lib/presentation/slots/workspaceSlots';
 export { useCurrentWorkspace } from './lib/presentation/currentWorkspace';

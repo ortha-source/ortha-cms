@@ -40,8 +40,8 @@ describe('SYSTEM_ROLES', () => {
     });
 
     describe('the permission catalogue', () => {
-        it('enumerates 32 distinct keys', () => {
-            expect(PERMISSION_KEYS).toHaveLength(32);
+        it('enumerates 33 distinct keys', () => {
+            expect(PERMISSION_KEYS).toHaveLength(34);
             expect(new Set(PERMISSION_KEYS).size).toBe(PERMISSION_KEYS.length);
         });
 
@@ -70,6 +70,7 @@ describe('SYSTEM_ROLES', () => {
                     PERMISSIONS.CONTENT_CREATE,
                     PERMISSIONS.CONTENT_UPDATE,
                     PERMISSIONS.CONTENT_PUBLISH,
+                    PERMISSIONS.CONTENT_APPROVE,
                     PERMISSIONS.CONTENT_DELETE,
                     PERMISSIONS.CONTENT_EXPORT,
                     PERMISSIONS.CONTENT_IMPORT,
@@ -92,7 +93,10 @@ describe('SYSTEM_ROLES', () => {
             PERMISSIONS.USERS_CREATE,
             PERMISSIONS.TOKENS_CREATE,
             PERMISSIONS.WEBHOOKS_READ,
-            PERMISSIONS.WEBHOOKS_MANAGE
+            PERMISSIONS.WEBHOOKS_MANAGE,
+            // Writing a protection rule decides who may ship a content type
+            // for everybody — configuration, not editing.
+            PERMISSIONS.PROTECTION_MANAGE
         ])('does not grant the configuration permission %p', (permission) => {
             expect(grants('contributor')).not.toContain(permission);
         });
@@ -115,11 +119,14 @@ describe('SYSTEM_ROLES', () => {
 
         // Bulk egress is not the same capability as reading the library a page
         // at a time; sharing a view and renaming an audience are editorial and
-        // configuration decisions a viewer does not make.
+        // configuration decisions a viewer does not make. Approving is the
+        // most editorial act of the lot — it is the statement that a second
+        // person read the thing, and it unlocks a publication.
         it.each([
             PERMISSIONS.CONTENT_EXPORT,
             PERMISSIONS.VIEWS_SHARE,
-            PERMISSIONS.SEGMENTS_MANAGE
+            PERMISSIONS.SEGMENTS_MANAGE,
+            PERMISSIONS.CONTENT_APPROVE
         ])('does not grant %p', (permission) => {
             expect(grants('viewer')).not.toContain(permission);
         });

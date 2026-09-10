@@ -12,6 +12,29 @@ import type {
 export type RevisionExecutor = Database | DbTransaction;
 
 /**
+ * One entry's current version, as {@link RevisionStore.heads} reports it.
+ *
+ * Deliberately narrower than {@link RevisionSummary}: the batched read answers
+ * "which version is live and who wrote it" for a page of entries, and the
+ * summary's derived flags (`isLatest`, `isPublished`) each cost a second query
+ * per entry to compute — which is the cost this read exists to avoid.
+ */
+export interface RevisionHead {
+    /** The live `content_<name>` row this head belongs to. */
+    entryId: string;
+    /** The revision row id — what an approval binds to. */
+    id: string;
+    /** Its 1-based version number within the entry. */
+    number: number;
+    /**
+     * The acting user, or `null` for a write with nobody behind it — a bearer
+     * token, an import, a migration. Absent means "nobody to exclude" to a
+     * caller applying a four-eyes rule.
+     */
+    authorId: string | null;
+}
+
+/**
  * The persistence port for entry revisions. Write primitives are
  * **executor-parameterized** so `EntryWriterService` can append a revision on
  * its own save transaction (atomic with the row + relation writes); reads run on
@@ -87,6 +110,32 @@ export interface RevisionStore {
         page: number,
         pageSize: number
     ): Promise<RevisionListView>;
+
+    /**
+     * The head revision of **many** entries at once, scoped to the content type
+     * + workspace.
+     *
+     * The batched form of "page 1, size 1" of {@link list}. It exists because a
+     * caller that wants the head of a whole records page — a contributed column,
+     * a per-page aggregate — would otherwise issue one `list` per row, and
+     * `list` is three queries: an N+1 that grows with the page size. This is one
+     * query whatever the page holds, and `revision-heads.spec.ts` pins that.
+     *
+     * Returns **one row per entry that has a revision**, in no guaranteed order.
+     * An id with no revision under this type in this workspace is simply
+     * **absent** rather than an error or a null entry: to a caller the two
+     * reasons are the same fact — there is no head here to read — and reporting
+     * them apart would let a caller distinguish "the entry is not yours" from
+     * "the entry does not exist". An empty `entryIds` reads nothing at all.
+     *
+     * See {@link list} for why `contentType` is part of the key, and not
+     * decoration: every content type's rows share one table.
+     */
+    heads(
+        contentType: string,
+        entryIds: readonly string[],
+        workspaceId: string
+    ): Promise<RevisionHead[]>;
 
     /**
      * One revision (with its snapshot) by version number, scoped to the content

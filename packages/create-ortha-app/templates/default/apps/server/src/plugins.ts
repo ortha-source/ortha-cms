@@ -35,6 +35,7 @@ import { createVercelBlobStorageProvider } from '@orthacms/media-provider-vercel
 import { UsersPlugin } from '@orthacms/users-server';
 import { AlarmsPlugin } from '@orthacms/alarms-server';
 import { SegmentsPlugin } from '@orthacms/segments-server';
+import { ProtectionPlugin } from '@orthacms/protection-server';
 import { TransferPlugin } from '@orthacms/transfer-server';
 import { WebhooksPlugin } from '@orthacms/webhooks-server';
 // ortha:if graphql
@@ -280,6 +281,15 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
         // is a function you write, not an environment value, so it lives in
         // `config/segments.ts`.
         SegmentsPlugin(config.plugins.segments),
+        // Publication protection: a per-content-type rule requiring N
+        // approvals before an entry may be published. Registered after
+        // content, whose `CONTENT_PUBLISH_GUARD` port it fills — with no
+        // rule in any workspace the port resolves to always-allowed and
+        // publication behaves byte for byte as it does with the plugin
+        // uninstalled. It takes no configuration: the rule table is the
+        // whole configuration surface, and its empty state is the off
+        // state.
+        ProtectionPlugin(),
         // Registered after workspaces (runs are workspace-scoped) and identity
         // (runs execute as the calling user, gated on `copilot:use`). The
         // composition root is the single place that selects a backend: the

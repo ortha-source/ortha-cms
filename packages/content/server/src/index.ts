@@ -88,6 +88,23 @@ export type {
     ContentReadScopeContext
 } from './lib/extension/read-scope';
 
+// The publish-guard port — how a plugin refuses a publish without this package
+// knowing why. A registry for the same reason the read scope is one: Nest has no
+// multi-provider, and a silently-replaced publish rule is a rule the
+// installation that bought it would never notice was gone.
+export {
+    ContentPublishGuardRegistry,
+    contentPublishGuardRegistrar
+} from './lib/extension/publish-guard';
+export type {
+    ContentPublishGuard,
+    ContentPublishGuardContext,
+    PublishActor,
+    PublishAllowed,
+    PublishRefused,
+    PublishVerdict
+} from './lib/extension/publish-guard';
+
 // The entry-write extension port — how a plugin stores state *about* an entry
 // inside the entry's own write transaction, and has it captured by (and restored
 // from) the entry's own version history.
@@ -141,6 +158,35 @@ export type {
     SerializedContentTypeSummary,
     SerializedField
 } from './lib/registry/content-type-registry';
+
+// The revision store, exported for `@orthacms/protection-server`: an approval is
+// bound to a **revision**, so a plugin recording one has to be able to ask which
+// version is currently the head and who wrote it. `content_entry_revisions` is
+// host-owned and belongs to content, so the alternative was protection querying
+// a table it does not own — which would make its correctness depend on content's
+// unpublished column names rather than on a contract. Reads only; the write
+// primitives are executor-parameterized for `EntryWriterService`'s own save
+// transaction and are no use to anyone else.
+export {
+    REVISION_STORE,
+    InjectRevisionStore
+} from './lib/revisions/application/ports/revision-store';
+export type {
+    RevisionHead,
+    RevisionStore
+} from './lib/revisions/application/ports/revision-store';
+
+// The snapshot comparison the revision-diff tools answer with. Exported rather
+// than reimplemented by a second caller: the rules it encodes (empties collapse,
+// link sets compare order-sensitively) are the ones the admin's own diff dialog
+// shows, and a second copy would disagree the first time either moved.
+export { diffSnapshots } from './lib/copilot/diff-snapshots';
+export type { SnapshotFieldChange } from './lib/copilot/diff-snapshots';
+export type { RevisionSnapshot } from './lib/revisions/types/revision-view';
+export type {
+    RevisionListView,
+    RevisionSummary
+} from './lib/revisions/types/revision-view';
 
 // Filter evaluation over a content type, exported for `@orthacms/alarms-server`:
 // an alarm rule IS a records-list filter, so it must be parsed and translated

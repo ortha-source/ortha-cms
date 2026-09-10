@@ -11,6 +11,7 @@ import { AlarmsPlugin } from '@orthacms/alarms-server';
 import { IdentityPlugin } from '@orthacms/identity-server';
 import { McpPlugin } from '@orthacms/mcp-server';
 import { SegmentsPlugin } from '@orthacms/segments-server';
+import { ProtectionPlugin } from '@orthacms/protection-server';
 import { createLocalStorageProvider } from '@orthacms/media-provider-local';
 import { MediaServerPlugin } from '@orthacms/media-server';
 import { UsersPlugin } from '@orthacms/users-server';
@@ -218,6 +219,10 @@ export function buildTestPlugins(
         // is reachable) rather than a test hook beside one: with no header
         // every reader is anonymous, which is what a fresh install is.
         SegmentsPlugin({ resolver: headerSegmentResolver }),
+        // Publication protection. Takes no configuration, and is inert until a
+        // suite writes a rule — which is exactly the state it has to keep for
+        // every other suite in this app.
+        ProtectionPlugin(),
         // Webhooks. Its sender is switched off in `test-config` for the same
         // reason the alarms sweep is — a background timer must not act while a
         // test is asserting — so the suites claim and send a batch explicitly.

@@ -206,6 +206,12 @@
         },
         {
             "path": "./packages/protection/domain"
+        },
+        {
+            "path": "./packages/protection/server"
+        },
+        {
+            "path": "./packages/protection/admin"
         }
     ]
 }

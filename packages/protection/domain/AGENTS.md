@@ -7,10 +7,31 @@ recorded against it. No NestJS, no Drizzle, no React.
 It is the **third** gate on publish, after the `content:publish` permission and
 after the publish gate. It answers _who_, never _what_.
 
-| File                     | What lives there                                             |
-| ------------------------ | ------------------------------------------------------------ |
-| `protection-rule.ts`     | The rule's six fields, a vote, the actor, and the input.     |
-| `evaluate-protection.ts` | `evaluateProtection` and `ProtectionDecision`. The decision. |
+| File                     | What lives there                                                            |
+| ------------------------ | --------------------------------------------------------------------------- |
+| `protection-rule.ts`     | The rule's six fields, a vote, the actor, and the input.                    |
+| `evaluate-protection.ts` | `evaluateProtection` and `ProtectionDecision` — plus `countApprovals`.      |
+
+## Two entry points, one implementation of counting
+
+`evaluateProtection` answers *may this ship*; `countApprovals` answers *where
+does the count stand*. The second exists because `ProtectionDecision` carries
+`given`/`stale` only on its refusal branch — a satisfied publish has nothing to
+explain — while the entry editor has to draw "2 of 2" whether or not it is
+enough.
+
+The alternative is a surface that counts votes for itself, and it does not stay
+wrong quietly: a panel and a gate that each implement the count agree until
+somebody switches on `countStaleApprovals` or the four-eyes exclusion bites, and
+then the button says one thing and the API refusing it says another. So
+`evaluateProtection` calls `countApprovals`, and a caller that only wants the
+numbers calls it directly rather than asking the gate a question it is rigged to
+refuse.
+
+With no rule, `countApprovals` uses the documented defaults — the head author
+excluded, stale approvals not counted — which is what a type shows before
+anybody protects it. Votes on an unprotected type are worth showing: asking for
+a second pair of eyes is allowed there, it just does not block.
 
 ## Do not call it `canPublish`
 

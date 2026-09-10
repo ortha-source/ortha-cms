@@ -35,6 +35,7 @@ const EXPECTED_PLUGINS = [
     'alarms',
     'copilot',
     'segments',
+    'protection',
     'users',
     'activity',
     'api-tokens',

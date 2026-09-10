@@ -134,12 +134,24 @@ test.describe('Workspaces keyboard accessibility', () => {
             // A `<nav>` of links, not a Radix tablist: every tab is its own tab
             // stop and Enter follows it. Asserting the run in order is what
             // would catch a stray focusable slipped between two tabs.
+            //
+            // **Protection is a plugin's tab**, contributed through
+            // `WORKSPACE_SETTINGS_TAB_SLOT`, and it is in this list because
+            // contributed tabs land between Content and Danger zone — Danger
+            // zone stays last, because it is where a workspace is destroyed.
+            // A second contributor would extend this run rather than reorder
+            // it.
             await workspaceSettingsPage.navItem('General').focus();
             await expect(
                 workspaceSettingsPage.navItem('General')
             ).toBeFocused();
 
-            for (const next of ['Members', 'Content', 'Danger zone']) {
+            for (const next of [
+                'Members',
+                'Content',
+                'Protection',
+                'Danger zone'
+            ]) {
                 await page.keyboard.press('Tab');
                 await expect(workspaceSettingsPage.navItem(next)).toBeFocused();
             }

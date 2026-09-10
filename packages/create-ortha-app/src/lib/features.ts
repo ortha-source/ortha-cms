@@ -114,6 +114,9 @@ export const CORE_PACKAGES: readonly string[] = [
     '@orthacms/media-admin',
     '@orthacms/media-domain',
     '@orthacms/media-server',
+    '@orthacms/protection-admin',
+    '@orthacms/protection-domain',
+    '@orthacms/protection-server',
     '@orthacms/query-builder-admin',
     '@orthacms/segments-admin',
     '@orthacms/segments-domain',
@@ -150,14 +153,6 @@ export const CORE_DEV_PACKAGES: readonly string[] = ['@orthacms/cli'];
  * upload on restart. The testkit is the contract suite those providers run
  * against.
  *
- * `protection-domain` is the publication-protection kernel, published ahead of
- * the plugin that will call it: `protection-server` does not exist yet, so
- * declaring the kernel in a generated app would install a package with nothing
- * to import it. It becomes an extension point in `CORE_PACKAGES`, on the same
- * reasoning as `segments-domain`, in the release that ships the plugin — and
- * this guard is what will force that decision rather than leaving the template
- * a release behind.
- *
  * Everything else a generated app can reach is in its own manifest, so "it
  * resolves because npm hoisted it" is never the answer to why an import works.
  * Putting a package here is a decision the coverage guard accepts; forgetting
@@ -165,8 +160,7 @@ export const CORE_DEV_PACKAGES: readonly string[] = ['@orthacms/cli'];
  */
 export const TRANSITIVE_PACKAGES: readonly string[] = [
     '@orthacms/media-provider-memory',
-    '@orthacms/media-provider-testkit',
-    '@orthacms/protection-domain'
+    '@orthacms/media-provider-testkit'
 ];
 
 /**

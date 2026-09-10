@@ -20,6 +20,7 @@ import { MediaServerPlugin } from '@orthacms/media-server';
 import { TransferPlugin } from '@orthacms/transfer-server';
 import { AlarmsPlugin } from '@orthacms/alarms-server';
 import { SegmentsPlugin } from '@orthacms/segments-server';
+import { ProtectionPlugin } from '@orthacms/protection-server';
 import { WebhooksPlugin } from '@orthacms/webhooks-server';
 import { createLocalStorageProvider } from '@orthacms/media-provider-local';
 import { UsersPlugin } from '@orthacms/users-server';
@@ -272,6 +273,20 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
         // means every reader is anonymous, which serves unrestricted content
         // and nothing else.
         SegmentsPlugin(config.plugins.segments),
+        // Publication protection — a per-content-type rule requiring N
+        // approvals before an entry may be published. After content, whose
+        // registry and workspace grants it reads to decide which types a
+        // workspace may write a rule for.
+        //
+        // Registering it changes nothing on its own: with no rule written in
+        // the admin, publication behaves byte for byte as it does with the
+        // plugin uninstalled. It takes no configuration — the rule table is the
+        // whole configuration surface and its empty state is the off state.
+        //
+        // Its migration order is free: all three of its tables carry plain
+        // uuids with no foreign key into another plugin's schema, including
+        // `revision_id`, because `content_entry_revisions` is host-owned.
+        ProtectionPlugin(),
         // Last of the content-adjacent plugins: it only subscribes to the
         // outbox and owns no port anything else binds, so nothing depends on
         // it being registered earlier.

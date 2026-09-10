@@ -870,7 +870,11 @@ const RESET_SQL = [
         // reloaded by writes through its own service, so a suite that
         // truncates these must also call `reloadSegmentCatalogue` —
         // see `support/segments.ts`.
-        'segments, entry_access ' +
+        'segments, entry_access, ' +
+        // Protection's three. None has a foreign key into another plugin's
+        // schema, so nothing else's truncate reaches them — and left out, a
+        // rule written by one suite would still be in force for the next.
+        'protection_rules, review_requests, review_approvals ' +
         'RESTART IDENTITY CASCADE',
     // After the TRUNCATE: `users` is gone, so nothing references these any
     // more. `role_permissions` is ON DELETE CASCADE.

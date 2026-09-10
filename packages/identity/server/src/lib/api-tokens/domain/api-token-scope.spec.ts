@@ -48,6 +48,27 @@ describe('scopePermissions', () => {
         expect(read.has('segments:manage')).toBe(false);
     });
 
+    /**
+     * An approval is not a database write, it is a person's statement that they
+     * looked. ADR-0017 §6 withholds an `approve` tool from every agent surface
+     * for that reason — and that refusal buys nothing if the same act can be
+     * performed by minting a key, which is anonymous by construction: a token
+     * has no `users` row, so a vote from one would satisfy the count while
+     * naming nobody in the log and nobody in the four-eyes check.
+     *
+     * `full` already carries `content:publish`, so adding `content:approve`
+     * beside it "for symmetry" is the obvious future mistake. This is the test
+     * that stops it, and the reason lives next to the assertion rather than
+     * only in a design document.
+     */
+    it('never lets any token approve content [protection:I-12]', () => {
+        for (const scope of ['read', 'full'] as const) {
+            expect(
+                new Set(scopePermissions(scope)).has('content:approve')
+            ).toBe(false);
+        }
+    });
+
     it('never lets any token curate the media library [media:I-26]', () => {
         // Attaching an asset to a record is content authoring; renaming or
         // deleting somebody else's library asset is administration, and nothing

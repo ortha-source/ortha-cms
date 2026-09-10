@@ -354,6 +354,57 @@ rides `RelationTargetVisibility` alongside `publishedOnly` — one flag, because
 they answer one question and are needed at exactly the same call sites — so the
 restriction goes _inside_ the window and the count.
 
+### The publish-guard port (`CONTENT_PUBLISH_GUARD`)
+
+`src/lib/extension/publish-guard.ts` declares a fourth port: how a downstream
+plugin **refuses a publish**, without this package learning why.
+`@orthacms/protection-server` is the first implementation (approval rules over
+the `@orthacms/protection-domain` kernel).
+
+**It is the third gate, and the order is load-bearing.** The
+`content:publish` permission answers first (403, and the admin never rendered
+the button); the **publish gate** answers second, inside `Entry.publish` (422,
+with the failing checks); this port answers last (409 by default). A guard is
+therefore never asked about an entry that would fail validation anyway — and a
+guard's **bypass**, which is a caller-supplied `bypassReason` the port forwards
+without interpreting, passes only the third. An incomplete entry stays
+unpublishable for an administrator, which is the whole difference between
+authorizing and validating (ADR-0015).
+
+Consulted from `PublishEntryUseCase` and `BulkPublishEntriesUseCase`, which is
+why one registration covers the admin route, the public REST write, the GraphQL
+mutation and the MCP tool at once. Nothing enumerates them.
+
+- **A registry, not a token**, for the reason `CONTENT_READ_SCOPE` documents —
+  and more sharply here: a silently-replaced read scope makes content visible, a
+  silently-replaced publish guard makes a rule _stop applying_, and the
+  installation that bought the rule is the one that would never notice. Register
+  with `contentPublishGuardRegistrar('<label>', <Class>)`. Several guards AND
+  together: the first refusal wins and no later guard is asked.
+- **With nothing registered it returns without awaiting anything.** Not "the same
+  outcome after one extra query" — the same path. That is `protection:I-01`, and
+  `publish-guard.spec.ts` asserts it directly.
+- **A refusal carries its own status, code and details, and content relays
+  them.** Content has no vocabulary for what makes a publish refusable, so the
+  guard names it. `409` is the default because `403` would be
+  indistinguishable from lacking `content:publish` — the caller has to be able to
+  tell "ask an administrator for a permission" from "ask a colleague for an
+  approval".
+- **An allowing verdict may carry domain events**, which the use-case appends to
+  the outbox alongside its own and stamps with the actor. That is how a bypass's
+  audit row commits in the same transaction as the publish it excuses, without
+  content knowing what a bypass is.
+- **A guard runs inside the publish transaction** and must authorize rather than
+  validate. One that inspected field values would be the second authority
+  ADR-0015 refuses.
+
+On the bulk path each id is asked **separately** — on a localized type those ids
+are one record's translations, and a rule is satisfied per locale — and a refused
+one becomes a `skipped` entry with the `guard-refused` verdict rather than
+failing the batch. That is also the server half of "publish every locale": the
+i18n menu sends the sibling ids as one bulk publish, so a per-id verdict is a
+per-locale verdict.
+
 ### The entry-write extension port (`ENTRY_WRITE_EXTENSION`)
 
 `src/lib/extension/entry-write-extension.ts` declares a third port: how a
@@ -1635,6 +1686,21 @@ a browsable version history and can be restored. Layered per ADR-0003
   save appends a version equal to the live row again. Composes the existing
   restore + entry-publish use-cases; publishing re-validates through the publish
   gate (a `422` leaves the content re-applied as a draft, a recoverable state).
+- **The batched head read (`RevisionStore.heads`).** `list` answers for one
+  entry in three queries, so a caller wanting the head of a whole records page —
+  a contributed column, a per-page aggregate — would issue one `list` per row:
+  an N+1 that grows with the page size the _user_ chose. `heads(contentType,
+entryIds, workspaceId)` answers the same question for many entries in **one**
+  query (`DISTINCT ON (entry_id) … ORDER BY entry_id, revision_number DESC`,
+  riding the `(entry_id, revision_number)` unique index). It is a batched
+  variant of an existing read on an existing port, **not** a new seam — the
+  contrast with `ENTRY_PUBLISH_GUARD_SLOT` and `WORKSPACE_SETTINGS_TAB_SLOT`,
+  which are extension points and are counted as such. Rows come back in no
+  guaranteed order and an id with no revision is simply **absent**: to a caller
+  "not yours", "wrong type" and "does not exist" are one fact, and reporting
+  them apart would be an enumeration signal. `@orthacms/protection-server`'s
+  records column is the first consumer, and `review-status.spec.ts` pins its
+  query count flat as the page grows.
 - **HTTP** (workspace-scoped, same guards as the entry routes):
   `GET :typeName/:id/revisions` (timeline, newest first), `.../revisions/:number`
   (one snapshot), `POST .../revisions/:number/restore` (`content:update`). The

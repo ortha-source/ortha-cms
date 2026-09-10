@@ -11,6 +11,7 @@ import { GetContentSchemaController } from './content-types/controllers/get-cont
 import { GetFilterFieldsController } from './content-types/controllers/get-filter-fields.controller';
 import { WorkspaceGrantsQuery } from './content-types/queries/workspace-grants.query';
 import { ContentReadScopeRegistry } from './extension/read-scope';
+import { ContentPublishGuardRegistry } from './extension/publish-guard';
 import { EntryWriteExtensionRegistry } from './extension/entry-write-extension';
 import { EntryFilterProviderRegistry } from './extension/entry-filter-provider';
 import { ContentGrantGuard } from './entries/http/guards/content-grant.guard';
@@ -166,6 +167,7 @@ export class ContentModule {
                 // installation with no scoping plugin has, and it costs a
                 // length check per read.
                 ContentReadScopeRegistry,
+                ContentPublishGuardRegistry,
                 EntryWriteExtensionRegistry,
                 EntryFilterProviderRegistry,
                 // Every registry-driven `content/:typeName` route is guarded by
@@ -273,6 +275,7 @@ export class ContentModule {
                 // implementation of that check, not one per binder.
                 WorkspaceGrantsQuery,
                 ContentReadScopeRegistry,
+                ContentPublishGuardRegistry,
                 EntryWriteExtensionRegistry,
                 EntryFilterProviderRegistry,
                 PublicEntriesQuery,
@@ -294,7 +297,17 @@ export class ContentModule {
                 // records-list filter, and it has to keep meaning exactly what
                 // the list showed when it was saved. Sharing the query is what
                 // makes that structural instead of aspirational.
-                EntryMatchQuery
+                EntryMatchQuery,
+                // The revision store, for the protection plugin: an approval is
+                // bound to a **revision**, so recording one means asking which
+                // version is currently the head and who wrote it. The
+                // alternative was protection querying `content_entry_revisions`
+                // itself — a host-owned table it cannot migrate and has no
+                // business knowing the columns of. Reads are what it needs; the
+                // write primitives are executor-parameterized for
+                // `EntryWriterService`'s own save transaction and are no use to
+                // anyone outside it.
+                REVISION_STORE
             ]
         };
     }

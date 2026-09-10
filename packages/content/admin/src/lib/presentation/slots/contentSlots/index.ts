@@ -188,6 +188,85 @@ export const ENTRY_HEADER_SLOT = createSlot<EntryHeaderItem>(
     'content.entry.header'
 );
 
+/**
+ * The way through a refusal, when the contribution offers one.
+ *
+ * Content renders it as the primary button, relabelled and in a warning tone,
+ * and hands the click over — it does **not** publish. Whatever ceremony comes
+ * first (a dialog naming a rule, a mandatory reason, an audit row) belongs to
+ * the contribution, which is the only party that knows there is one.
+ */
+export type EntryPublishAction = {
+    /** The button's label while the override stands (e.g. "Publish anyway"). */
+    label: string;
+    /** Ran instead of the publish. */
+    onSelect: () => void;
+};
+
+/** What a {@link EntryPublishGuardItem} reports about the open entry. */
+export type EntryPublishVerdict = {
+    /** Whether publishing is refused. */
+    blocked: boolean;
+    /**
+     * Why — one short sentence, already localized. Rendered as the button's
+     * tooltip **and** voiced as its description, so it reaches a reader who
+     * never hovers. Required in practice whenever `blocked`; a refusal with
+     * nothing to say is a dead button.
+     */
+    reason?: string;
+    /** Offered when the person may proceed anyway. See {@link EntryPublishAction}. */
+    action?: EntryPublishAction;
+    /**
+     * An overlay (a dialog) the action opens, rendered **outside** the actions
+     * cluster — the same rule `ENTRY_MENU_SLOT` items follow, and here for a
+     * second reason: the button it hangs off is relabelled and re-rendered as
+     * the verdict changes, and a dialog mounted inside it would close with it.
+     */
+    overlay?: ReactNode;
+};
+
+/** One contribution to the entry editor's publish decision. */
+export type EntryPublishGuardItem = {
+    /** Stable id (used as the React key). */
+    id: string;
+    /**
+     * Hook, mounted once per `EntryActions` render and called unconditionally
+     * in slot order — rules-of-hooks-safe for the reason every hook-style item
+     * here is (slot items are boot-frozen). Return `null` for "no opinion",
+     * which is how a contribution stays silent **without skipping its hook**.
+     */
+    useVerdict: (context: EntrySlotContext) => EntryPublishVerdict | null;
+};
+
+/**
+ * Contributions to the entry editor's **publish decision** — the admin-side
+ * counterpart of content-server's `CONTENT_PUBLISH_GUARD` port, and the same
+ * division of labour.
+ *
+ * A contribution reports that publishing is refused, why, and optionally the way
+ * through. It does **not** draw a button: `EntryActions` keeps rendering the
+ * primary control, because it already computes the publish gate's half of that
+ * button's state and a second component drawing a second button would drift from
+ * the first on every state neither of them owns alone.
+ *
+ * Content learns nothing about *what* refused it. It receives a sentence to show
+ * and, when offered, a label and a callback — which is what lets
+ * `@orthacms/protection-server`'s admin half supply an approval rule, its
+ * bypass dialog and its audit row without a word of any of it reaching here.
+ *
+ * **The first refusal wins**, mirroring the server port: later guards are still
+ * *asked* (they are hooks — skipping one would change the call order between
+ * renders) but their verdicts are not read.
+ *
+ * With nothing registered the button is exactly what the publish gate alone made
+ * it — invariant `protection:I-03`, pinned by `EntryActions`' own spec, because
+ * an empty slot is the state this seam spends almost all of its life in and
+ * nothing else would record that it was a decision.
+ */
+export const ENTRY_PUBLISH_GUARD_SLOT = createSlot<EntryPublishGuardItem>(
+    'content.entry.publishGuard'
+);
+
 /** One always-mounted overlay contribution for the content library. */
 export type ContentOverlayItem = {
     /** Stable id (used as the React key). */

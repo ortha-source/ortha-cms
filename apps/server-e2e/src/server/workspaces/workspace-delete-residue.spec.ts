@@ -40,7 +40,7 @@ const CASCADE_TABLES = [
 ] as const;
 
 const PURGED_TABLES = [
-    // These eight carry a plain `workspace_id` with no FK — a cross-plugin
+    // These eleven carry a plain `workspace_id` with no FK — a cross-plugin
     // foreign key is exactly what the plugin split exists to avoid — so a
     // registered `WorkspacePurger` deletes them inside the delete transaction.
     'media_asset',
@@ -50,7 +50,14 @@ const PURGED_TABLES = [
     'alarm_findings',
     'entry_access',
     'content_entry_revisions',
-    'webhook_endpoint_workspaces'
+    'webhook_endpoint_workspaces',
+    // Protection's three. `review_approvals.revision_id` points at
+    // `content_entry_revisions`, which is host-owned and therefore un-FK-able
+    // from a plugin, so these rows survive the entries and the revisions alike
+    // and only a purger reaches them. [protection:I-16]
+    'protection_rules',
+    'review_requests',
+    'review_approvals'
 ] as const;
 
 const ALL_TABLES = [...CASCADE_TABLES, ...PURGED_TABLES];
@@ -250,6 +257,28 @@ describe('Deleting a workspace leaves no residue', () => {
              values ($1, 'test_article', $2, 1, 'draft', '{}'::jsonb)`,
             [workspaceId, randomUUID()]
         );
+        // Protection: a rule on the type, one open review request, and one
+        // approval against a revision id that already names nothing — which is
+        // the state every one of these rows is in by the time a workspace can
+        // be deleted at all, since deletion requires the entries to be gone.
+        await pool.query(
+            `insert into protection_rules (workspace_id, kind, slug, enabled, required_approvals)
+             values ($1, 'collection', 'test_article', true, 2)`,
+            [workspaceId]
+        );
+        await pool.query(
+            `insert into review_requests
+                 (workspace_id, content_type, entry_id, revision_id, requested_by, note)
+             values ($1, 'test_article', $2, $3, $4, 'Numbers in the revenue table')`,
+            [workspaceId, randomUUID(), randomUUID(), userId]
+        );
+        await pool.query(
+            `insert into review_approvals
+                 (workspace_id, content_type, entry_id, revision_id, user_id, decision)
+             values ($1, 'test_article', $2, $3, $4, 'approved')`,
+            [workspaceId, randomUUID(), randomUUID(), userId]
+        );
+
         // An endpoint subscribed to this workspace *and* another one, so a
         // purge that deleted by endpoint rather than by workspace would take
         // the sibling row with it and the sweep would still read zero here.

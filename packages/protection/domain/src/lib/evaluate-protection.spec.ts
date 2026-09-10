@@ -1,4 +1,4 @@
-import { evaluateProtection } from './evaluate-protection';
+import { countApprovals, evaluateProtection } from './evaluate-protection';
 import type {
     Approval,
     ProtectionInput,
@@ -650,6 +650,105 @@ describe('degenerate rules', () => {
             { allowed: true, reason: 'satisfied' }
         );
     });
+});
+
+describe('countApprovals', () => {
+    /** The counts alone, for a surface that has to render "2 of 2". */
+    const count = (input: Partial<ProtectionInput>) =>
+        countApprovals({
+            headRevisionId: HEAD,
+            headAuthorId: 'anna',
+            approvals: [],
+            actor: person(),
+            ...input
+        });
+
+    it('counts the head revision and reports what a save left behind', () => {
+        expect(
+            count({
+                rule: ruleWith(),
+                approvals: [approved('boris', HEAD), approved('dmitry', OLDER)]
+            })
+        ).toEqual({ given: 1, stale: 1 });
+    });
+
+    it('follows count_stale_approvals', () => {
+        expect(
+            count({
+                rule: ruleWith({ countStaleApprovals: true }),
+                approvals: [approved('boris', HEAD), approved('dmitry', OLDER)]
+            })
+        ).toEqual({ given: 2, stale: 0 });
+    });
+
+    it('follows require_other_person', () => {
+        const approvals = [approved('anna'), approved('boris')];
+
+        expect(count({ rule: ruleWith(), approvals })).toEqual({
+            given: 1,
+            stale: 0
+        });
+        expect(
+            count({ rule: ruleWith({ requireOtherPerson: false }), approvals })
+        ).toEqual({ given: 2, stale: 0 });
+    });
+
+    /**
+     * An unprotected type still has votes worth showing: a request for review
+     * is allowed on one, so the panel has something to draw. The defaults are
+     * what the type would count by if a rule were switched on as it stands.
+     */
+    it('counts by the documented defaults when there is no rule', () => {
+        expect(
+            count({
+                rule: undefined,
+                approvals: [
+                    approved('anna'),
+                    approved('boris'),
+                    approved('dmitry', OLDER)
+                ]
+            })
+        ).toEqual({ given: 1, stale: 1 });
+    });
+
+    /**
+     * The property this function exists for. The editor's "1 of 2" and the API's
+     * refusal must be one implementation, or they agree until somebody switches
+     * on `countStaleApprovals` and then quietly do not.
+     */
+    it.each([
+        ['plain', ruleWith({ requiredApprovals: 3 })],
+        [
+            'stale counted',
+            ruleWith({ requiredApprovals: 3, countStaleApprovals: true })
+        ],
+        [
+            'author allowed',
+            ruleWith({ requiredApprovals: 3, requireOtherPerson: false })
+        ]
+    ])(
+        'agrees with the refusal evaluateProtection reports (%s)',
+        (_label, rule) => {
+            const input = {
+                rule,
+                approvals: [
+                    approved('anna'),
+                    approved('boris', HEAD),
+                    approved('dmitry', OLDER),
+                    changesRequested('igor', HEAD)
+                ]
+            };
+            const decision = evaluate(input);
+
+            expect(decision).toMatchObject({
+                reason: 'insufficient-approvals'
+            });
+            expect(count(input)).toEqual({
+                given: (decision as { given: number }).given,
+                stale: (decision as { stale: number }).stale
+            });
+        }
+    );
 });
 
 describe('the function itself', () => {

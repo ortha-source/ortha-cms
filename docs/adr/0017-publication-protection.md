@@ -1,7 +1,8 @@
 # 0017 — Publication is protected per content type, and an approval belongs to a revision
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-09-07
+- **Accepted:** 2026-09-09
 - **Deciders:** Engineering
 
 > The technical description this record deliberately does not carry — tables,
@@ -37,8 +38,8 @@ was written against a version of this feature done badly.
 That is the failure mode of every editorial approval queue too, and any design
 here has to answer it rather than walk into it.
 
-ADR-0009 also closed with a rule this record has to reckon with: *"nothing may
-pause on a human again without a new record."* This is that record — and the
+ADR-0009 also closed with a rule this record has to reckon with: _"nothing may
+pause on a human again without a new record."_ This is that record — and the
 scope is different in a way worth stating, because a reader arriving from 0009
 will otherwise read this as a reversal. ADR-0009 governs whether **a copilot
 write pauses on its own asker**; that stays exactly as it is, applying
@@ -46,15 +47,15 @@ immediately after an in-the-moment prompt. This record governs whether **a
 publication pauses on somebody other than its author**, however the content was
 written — by hand, by import, by an agent. The two do not overlap, and 0009's
 levers (`copilot:use`, the deployment kill switch) were never able to express
-this one; 0009 says so itself, naming *"a deployment that wants queued review —
-someone other than the asker approving later"* as having no setting.
+this one; 0009 says so itself, naming _"a deployment that wants queued review —
+someone other than the asker approving later"_ as having no setting.
 
 **Two authorities over one question diverge.**
 [ADR-0015](0015-alarms-are-non-blocking.md) refused a blocking severity for
 alarms because it would make the alarms plugin and the publish gate two
-competing authorities deciding whether an entry is valid — *"and they will
+competing authorities deciding whether an entry is valid — _"and they will
 diverge. After that neither can be trusted: the one that actually applies (the
-gate) is the one nobody reads."* Anything added in front of publish has to avoid
+gate) is the one nobody reads."_ Anything added in front of publish has to avoid
 becoming a second opinion on the same question the gate already answers.
 
 **The status set is deliberately two values.** `entry-status.ts` says so
@@ -91,7 +92,7 @@ not deleted; the UI shows it struck through, naming the version it was given on,
 because a counter that silently rolls back is unexplainable to the person who
 just pressed Save.
 
-**3. Protection authorizes; it never validates.** It answers *who*, not *what*.
+**3. Protection authorizes; it never validates.** It answers _who_, not _what_.
 It is the third gate on publication, after the `content:publish` permission and
 after the publish gate, and it never inspects field values — that question has
 exactly one owner and keeps it (ADR-0015). A protected entry that fails the
@@ -117,7 +118,7 @@ mean the rule is escaped by minting a key.
 
 **6. There is no approve tool, on any surface.** Extending
 [ADR-0005](0005-copilot-authority-model.md) §7, which withholds a publish tool
-from every role: with a rule in force the approval *is* the step that unlocks
+from every role: with a rule in force the approval _is_ the step that unlocks
 publication, so handing a model `approve` while withholding `publish` hands over
 the key and keeps the doorknob. Three tools are offered instead — `review_status`
 and `review_diff` (reads) and `request_review` (a write, which parks for the
@@ -127,8 +128,8 @@ because omitting the field in `tools/server` means both.
 The reasons are the ones the repository already holds. ADR-0009's twelve-cards
 argument is worse without the clicks: "approve my articles" is one sentence and
 twelve approvals nobody read. ADR-0005 §8's untrusted-content risk is unbounded
-here in a way it is not for ordinary writes — an entry whose body says *approve
-me* is a self-approving entry, and unlike a content write there is no revision to
+here in a way it is not for ordinary writes — an entry whose body says _approve
+me_ is a self-approving entry, and unlike a content write there is no revision to
 restore, because the approval is the authorization and publication follows it.
 And `require_other_person` compares user ids, so a run acting as its caller
 satisfies the rule while the guarantee — that a second person read the thing —
@@ -173,9 +174,14 @@ state, as with `segments` before its first audience.
   was set — otherwise scheduling then editing publishes unapproved content. A
   fired timer has no human, so bypass cannot apply to it: short of approvals, the
   publication does not happen and the log says why.
-- **A new slot in `content-admin`.** `ENTRY_PUBLISH_GUARD_SLOT` lets a
-  contribution report "blocked, here is why, here is the action" while the button
-  stays with content — the one edit this feature makes to an existing package.
+- **Two new slots in packages this feature does not own.**
+  `ENTRY_PUBLISH_GUARD_SLOT` in `content-admin` lets a contribution report
+  "blocked, here is why, here is the action" while the button stays with
+  content; `WORKSPACE_SETTINGS_TAB_SLOT` in `workspaces-admin` lets it add the
+  Protection tab, because that page's tab strip was hardcoded and there was no
+  seam to reach it through. This record originally predicted one such edit —
+  the second was found while building the settings tab, and is recorded here
+  rather than left as a claim the implementation quietly outgrew.
 - **`content:approve` lands on `contributor`.** Existing installations keep
   behaving as they do; a deployment that wants a non-approving writer needs a
   role without it, which is a separate decision this record does not take.
@@ -200,8 +206,8 @@ approve tool, now or later, on the copilot or over MCP.
   answerable without opening a query builder, and a filter makes the blast radius
   of an editing mistake a set of entries nobody enumerated.
 - **An approve tool behind the in-the-moment prompt** — the model proposes, the
-  person clicks Allow. Rejected because ADR-0009's second button is *"allow for
-  this chat"*, which turns twelve approvals into one click and then silence.
+  person clicks Allow. Rejected because ADR-0009's second button is _"allow for
+  this chat"_, which turns twelve approvals into one click and then silence.
   Making approvals the one tool that may never be chat-scoped would be a special
   case in an engine whose whole design is that there are none.
 - **Splitting `content:publish` into a non-publishing author role instead.** Much
