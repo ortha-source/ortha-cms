@@ -11,14 +11,9 @@ import {
     Field,
     FieldError,
     FieldLabel,
-    Textarea,
-    toast
+    Textarea
 } from '@orthacms/design-system';
-import type { EntryReview } from '../../../domain/types';
-import {
-    useBypassPublish,
-    type EntryReviewScope
-} from '../../../application/hooks';
+import type { PublishOutlook } from '../../../domain/types';
 
 const messages = defineMessages({
     title: {
@@ -51,14 +46,6 @@ const messages = defineMessages({
     confirm: {
         id: 'protection.bypass.confirm',
         defaultMessage: 'Publish anyway'
-    },
-    done: {
-        id: 'protection.bypass.done',
-        defaultMessage: 'Published past the rule. The reason is in the log.'
-    },
-    failed: {
-        id: 'protection.bypass.failed',
-        defaultMessage: 'That publish did not go through.'
     }
 });
 
@@ -78,6 +65,13 @@ const messages = defineMessages({
  * overrides and no account of any of them — which is indistinguishable from
  * having had no rule.
  *
+ * **It does not publish.** Confirming hands the reason to `onConfirm` and
+ * closes; the publish itself is the editor's own, run through
+ * `ENTRY_PUBLISH_GUARD_SLOT`'s callback — which is what saves the edits on
+ * screen first, creates the record on a create form, and puts up the same busy
+ * cover and toasts an ordinary publish gets. A publish of its own from here
+ * would ship the stored record and silently drop whatever was being edited.
+ *
  * Focus trap and focus return to the trigger come from the Radix `Dialog`;
  * the field is labelled through `Field`/`FieldLabel` rather than a placeholder,
  * which is not a label.
@@ -85,14 +79,16 @@ const messages = defineMessages({
 export function BypassDialog({
     open,
     onOpenChange,
-    scope,
-    review,
+    outlook,
+    onConfirm,
     returnFocusTo
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    scope: EntryReviewScope;
-    review: EntryReview;
+    /** The verdict being bypassed — its numbers are what the body states. */
+    outlook: PublishOutlook;
+    /** Publish with this reason. Called with the trimmed, non-empty reason. */
+    onConfirm: (reason: string) => void;
     /**
      * The control that opened this, so closing puts focus back on it.
      *
@@ -108,7 +104,6 @@ export function BypassDialog({
     const reasonId = useId();
     const [reason, setReason] = useState('');
     const [touched, setTouched] = useState(false);
-    const publish = useBypassPublish(scope);
 
     const empty = reason.trim().length === 0;
     const showError = touched && empty;
@@ -127,20 +122,11 @@ export function BypassDialog({
             setTouched(true);
             return;
         }
-        publish.mutate(
-            {
-                typeName: scope.typeName,
-                entryId: scope.entryId,
-                bypassReason: reason.trim()
-            },
-            {
-                onSuccess: () => {
-                    toast.success(intl.formatMessage(messages.done));
-                    close();
-                },
-                onError: () => toast.error(intl.formatMessage(messages.failed))
-            }
-        );
+        const confirmed = reason.trim();
+        // Closed first: the publish puts the editor's busy cover up, and a
+        // dialog left open above it would be one more layer over the result.
+        close();
+        onConfirm(confirmed);
     };
 
     return (
@@ -166,8 +152,8 @@ export function BypassDialog({
                     </DialogTitle>
                     <DialogDescription>
                         {intl.formatMessage(messages.body, {
-                            required: review.required,
-                            given: review.given
+                            required: outlook.required,
+                            given: outlook.given
                         })}
                     </DialogDescription>
                 </DialogHeader>
@@ -199,19 +185,13 @@ export function BypassDialog({
                 </p>
 
                 <DialogFooter>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={close}
-                        disabled={publish.isPending}
-                    >
+                    <Button type="button" variant="outline" onClick={close}>
                         {intl.formatMessage(messages.cancel)}
                     </Button>
                     <Button
                         type="button"
                         variant="destructive"
                         onClick={submit}
-                        disabled={publish.isPending}
                     >
                         {intl.formatMessage(messages.confirm)}
                     </Button>

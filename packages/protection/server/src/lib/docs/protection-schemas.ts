@@ -6,6 +6,36 @@ export const PROTECTION_RULE_SCHEMA = 'ProtectionRule';
 /** Component name for one entry's whole review state. */
 export const ENTRY_REVIEW_SCHEMA = 'EntryReview';
 
+/** Component name for what publishing a new entry of a type would meet. */
+export const NEW_ENTRY_PROTECTION_SCHEMA = 'NewEntryProtection';
+
+/**
+ * The verdict for a version that is not the stored head — shared by
+ * `EntryReview.afterSave` and `NewEntryProtection`, so the two cannot describe
+ * one shape two ways.
+ */
+const PUBLISH_OUTLOOK_PROPERTIES: Record<string, OpenApiSchema> = {
+    required: {
+        type: 'integer',
+        description: 'Approvals the rule wants. 0 when the type is unprotected.'
+    },
+    given: {
+        type: 'integer',
+        description:
+            'Distinct people whose approval would still count once that version is written — the caller never among them while the four-eyes switch is on.'
+    },
+    blocked: {
+        type: 'boolean',
+        description:
+            'Whether the publish would be held. Always false on an unprotected type.'
+    },
+    bypassable: {
+        type: 'boolean',
+        description:
+            'Whether the caller could publish past the rule. Reported, never applied.'
+    }
+};
+
 /** Component name for the records column's batched status map. */
 export const REVIEW_STATUS_MAP_SCHEMA = 'EntryReviewStatusMap';
 
@@ -108,6 +138,7 @@ export function buildProtectionSchemas(): Record<string, OpenApiSchema> {
                 'changesRequested',
                 'blocked',
                 'bypassable',
+                'afterSave',
                 'headRevisionId',
                 'headRevisionNumber',
                 'callerWroteHead',
@@ -149,6 +180,13 @@ export function buildProtectionSchemas(): Record<string, OpenApiSchema> {
                     type: 'boolean',
                     description:
                         'Whether the caller could publish past the rule. Reported, never applied — taking a bypass costs a mandatory reason, which only the publish route can demand.'
+                },
+                afterSave: {
+                    type: 'object',
+                    description:
+                        'The same verdict for the version a save by the caller would write now. A save moves the head, so the approvals on the current version stop counting and the caller becomes its author — this is what a Publish that saves unsaved changes first will meet.',
+                    required: ['required', 'given', 'blocked', 'bypassable'],
+                    properties: PUBLISH_OUTLOOK_PROPERTIES
                 },
                 headRevisionId: {
                     type: 'string',
@@ -228,6 +266,25 @@ export function buildProtectionSchemas(): Record<string, OpenApiSchema> {
                         createdAt: { type: 'string', format: 'date-time' }
                     }
                 }
+            }
+        },
+
+        [NEW_ENTRY_PROTECTION_SCHEMA]: {
+            type: 'object',
+            required: [
+                'protected',
+                'required',
+                'given',
+                'blocked',
+                'bypassable'
+            ],
+            properties: {
+                protected: {
+                    type: 'boolean',
+                    description:
+                        'Whether a rule is in force for this content type.'
+                },
+                ...PUBLISH_OUTLOOK_PROPERTIES
             }
         },
 

@@ -5,11 +5,11 @@ import {
     useQueryClient,
     type QueryClient
 } from '@tanstack/react-query';
-import { refreshEntryCaches } from '@orthacms/content-admin';
 import { type ApiError } from '@orthacms/utils-admin';
 import type {
     EntryReview,
     EntryReviewStatus,
+    NewEntryProtection,
     ProtectionInsights,
     ProtectionRule,
     ProtectionRuleRecord,
@@ -18,13 +18,14 @@ import type {
 import {
     entryReviewKey,
     insightsKey,
+    newEntryProtectionKey,
+    newEntryProtectionPrefix,
     queueKey,
     reviewStatusKey,
     rulesKey
 } from '../infrastructure/protectionKeys';
 import {
     httpProtectionGateway,
-    type BypassPublishInput,
     type EntryRef,
     type RequestReviewInput,
     type ReviewQueueParams,
@@ -168,30 +169,21 @@ export function useWithdrawVote(scope: EntryReviewScope) {
 }
 
 /**
- * Publishes past the rule, with a mandatory reason.
+ * What publishing a **new** entry of `typeName` would meet — the create form's
+ * answer, where {@link useEntryReview} has no entry to ask about.
  *
- * The one mutation here that **does** refresh content's caches, because it is
- * the one that writes the entry: the record's status moves to published, its
- * revision timeline gains a live version, and the records list behind the
- * editor is now wrong. `refreshEntryCaches` is content's own single pass over
- * that set, exported for exactly this — hand-rolling it silently no-ops, since
- * the cache roots are `content-entries` / `content-entry` rather than
- * `content`.
- *
- * The review read is invalidated too: publishing resolves the open request.
+ * Enabled only by the caller for a create form on a publishable type: every
+ * other editor has an entry and reads its review instead.
  */
-export function useBypassPublish(scope: EntryReviewScope) {
-    const queryClient = useQueryClient();
-    return useMutation<void, ApiError, BypassPublishInput>({
-        mutationFn: (input) => httpProtectionGateway.bypassPublish(input),
-        onSuccess: async () => {
-            await refreshEntryCaches(
-                queryClient,
-                scope.workspaceId,
-                scope.typeName
-            );
-            await refreshReview(queryClient, scope);
-        }
+export function useNewEntryProtection(
+    workspaceId: string,
+    typeName: string,
+    enabled: boolean
+) {
+    return useQuery<NewEntryProtection, ApiError>({
+        queryKey: newEntryProtectionKey(workspaceId, typeName),
+        queryFn: () => httpProtectionGateway.getNewEntryProtection(typeName),
+        enabled
     });
 }
 
@@ -216,12 +208,13 @@ export type SaveRuleInput = RuleAddress & { rule: ProtectionRule };
 /**
  * Writes one rule.
  *
- * Invalidates **only** the rules key. A rule changes which entries are held,
- * but every entry panel reads its own `entryReviewKey`, and those are keyed by
- * the entry's `updatedAt` rather than by anything this write moves — so
- * clearing them would refetch every open editor to learn a number none of them
- * is showing. An editor opened after the change reads the new rule on its first
- * request, which is the only moment it can matter.
+ * Invalidates the rules key and the create forms' answers, and **not** the entry
+ * reviews. A rule changes which entries are held, but every entry panel reads
+ * its own `entryReviewKey`, and those are keyed by the entry's `updatedAt`
+ * rather than by anything this write moves — so clearing them would refetch
+ * every open editor to learn a number none of them is showing. An editor opened
+ * after the change reads the new rule on its first request, which is the only
+ * moment it can matter.
  */
 export function useSaveProtectionRule(workspaceId: string) {
     const queryClient = useQueryClient();
@@ -241,9 +234,19 @@ export function useDeleteProtectionRule(workspaceId: string) {
     });
 }
 
-/** Refreshes the workspace's rule list after a write. */
+/**
+ * Refreshes the workspace's rule list after a write — and the create forms'
+ * answers, which are a rule read in all but name. Those are keyed by nothing a
+ * rule write moves, so without this an open create form would keep offering an
+ * ordinary publish of a type that has just been protected.
+ */
 function invalidateRules(queryClient: QueryClient, workspaceId: string) {
-    return queryClient.invalidateQueries({ queryKey: rulesKey(workspaceId) });
+    return Promise.all([
+        queryClient.invalidateQueries({ queryKey: rulesKey(workspaceId) }),
+        queryClient.invalidateQueries({
+            queryKey: newEntryProtectionPrefix(workspaceId)
+        })
+    ]);
 }
 
 /**

@@ -36,6 +36,8 @@ export { ReviewApprovalRepository } from './lib/infrastructure/review-approval.r
 export { ReviewRequestRepository } from './lib/infrastructure/review-request.repository';
 export type {
     EntryReviewView,
+    NewEntryProtectionView,
+    PublishOutlookView,
     ReviewApprovalView,
     ReviewQueueItemView,
     ReviewQueueView,

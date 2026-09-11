@@ -294,10 +294,19 @@ export const httpContentGateway: ContentGateway = {
         }
     },
 
-    async publish(name: string, id: string): Promise<EntryRecord> {
+    async publish(
+        name: string,
+        id: string,
+        options?: { bypassReason?: string }
+    ): Promise<EntryRecord> {
         try {
             const { data } = await apiClient.post<EntryRecord>(
-                `/content/${name}/${id}/publish`
+                `/content/${name}/${id}/publish`,
+                // No body at all without a reason, so an ordinary publish is
+                // byte-for-byte the request it always was.
+                options?.bypassReason !== undefined
+                    ? { bypassReason: options.bypassReason }
+                    : undefined
             );
             return data;
         } catch (error) {

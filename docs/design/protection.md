@@ -211,18 +211,19 @@ prefix ambiguous to read and to guard.
 
 All entry routes take `WorkspaceGuard` and `X-Workspace-Id`.
 
-| Method & path                       | Guard               | In             | Out / failures                                                                                                                                         |
-| ----------------------------------- | ------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `GET /rules`                        | `protection:manage` | —              | Every rule in the workspace.                                                                                                                           |
-| `PUT /rules/:kind/:slug`            | `protection:manage` | The six fields | Upsert. `404` if the type is not granted to the workspace — a rule on an ungranted type is meaningless.                                                |
-| `DELETE /rules/:kind/:slug`         | `protection:manage` | —              | `204`. Same as `enabled: false` but leaves no row.                                                                                                     |
-| `GET /entries/:type/:id`            | `content:read`      | —              | The effective requirement, the approvals (with staleness), the open request. Readable without `protection:manage` — the editor has to render "0 of 2". |
-| `POST /entries/:type/:id/request`   | `content:update`    | `note?`        | Opens or updates the request.                                                                                                                          |
-| `DELETE /entries/:type/:id/request` | `content:update`    | —              | Withdraws it. Only the requester or an administrator.                                                                                                  |
-| `POST /entries/:type/:id/approve`   | `content:approve`   | `note?`        | Upserts this user's vote on the head. `409` when `require_other_person` and the caller wrote the head.                                                 |
-| `POST /entries/:type/:id/changes`   | `content:approve`   | `note`         | Same row, `decision = 'changes_requested'`.                                                                                                            |
-| `DELETE /entries/:type/:id/approve` | `content:approve`   | —              | Withdraws own vote.                                                                                                                                    |
-| `GET /queue`                        | `content:read`      | `?mine=1`      | Open requests across every type in the workspace, for the reviewer page.                                                                               |
+| Method & path                       | Guard               | In             | Out / failures                                                                                                                                                                                                        |
+| ----------------------------------- | ------------------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /rules`                        | `protection:manage` | —              | Every rule in the workspace.                                                                                                                                                                                          |
+| `PUT /rules/:kind/:slug`            | `protection:manage` | The six fields | Upsert. `404` if the type is not granted to the workspace — a rule on an ungranted type is meaningless.                                                                                                               |
+| `DELETE /rules/:kind/:slug`         | `protection:manage` | —              | `204`. Same as `enabled: false` but leaves no row.                                                                                                                                                                    |
+| `GET /entries/:type/:id`            | `content:read`      | —              | The effective requirement, the approvals (with staleness), the open request, and `afterSave` — the verdict a save by the caller would meet. Readable without `protection:manage` — the editor has to render "0 of 2". |
+| `GET /types/:type`                  | `content:read`      | —              | What publishing a new entry of the type would meet, for the create form. `404` for an ungranted or unknown type.                                                                                                      |
+| `POST /entries/:type/:id/request`   | `content:update`    | `note?`        | Opens or updates the request.                                                                                                                                                                                         |
+| `DELETE /entries/:type/:id/request` | `content:update`    | —              | Withdraws it. Only the requester or an administrator.                                                                                                                                                                 |
+| `POST /entries/:type/:id/approve`   | `content:approve`   | `note?`        | Upserts this user's vote on the head. `409` when `require_other_person` and the caller wrote the head.                                                                                                                |
+| `POST /entries/:type/:id/changes`   | `content:approve`   | `note`         | Same row, `decision = 'changes_requested'`.                                                                                                                                                                           |
+| `DELETE /entries/:type/:id/approve` | `content:approve`   | —              | Withdraws own vote.                                                                                                                                                                                                   |
+| `GET /queue`                        | `content:read`      | `?mine=1`      | Open requests across every type in the workspace, for the reviewer page.                                                                                                                                              |
 
 ### The refusal is 409, not 403
 
@@ -301,9 +302,16 @@ built-ins.
     - Actions: _Request review_ for the author; _Approve_ / _Request changes_ for
       anyone else holding `content:approve`.
 - **Button states** — disabled with the requirement in its tooltip; enabled and
-  ordinary when satisfied; relabelled _Publish anyway_ in a warning tone for an
-  administrator with bypass. The bypass dialog demands a non-empty reason and
-  says, before the click, that it will appear in the activity log.
+  ordinary when satisfied; for an administrator with bypass, **still an ordinary
+  Publish** whose click opens the bypass dialog. The dialog demands a non-empty
+  reason and says, before the click, that it will appear in the activity log;
+  its reason then rides the editor's own publish, so unsaved edits are saved (or
+  the record created) with it.
+- **The verdict is for the version Publish ships.** Publish saves unsaved edits
+  first, and a create form creates the entry — both write a version no approval
+  is bound to. So a dirty editor reads the review's `afterSave` projection and a
+  create form reads `GET /types/:type`; an unchanged record publishes without
+  saving, which would otherwise move the head off the approved version.
 
 ### Workspace settings
 
@@ -418,6 +426,25 @@ package's own data.
 - **I-16** Deleting a workspace leaves zero rows in all three tables.
 - **I-17** No tool in the registry can record an approval, on any surface.
 
+The last four are about the editor's Publish button, which is not one request
+but up to two — a save, then the publish — and whose verdict has to be about
+what that pair will actually do.
+
+- **I-18** The editor's verdict agrees with the guard for the version Publish
+  ships: the stored head for an unchanged record, `afterSave` when there are
+  unsaved changes, `GET /types/:type` on a create form. Every number in all
+  three comes from `evaluateProtection`, so a prediction that says "allowed" is
+  a publish the guard allows, and one that says "held" is a publish it refuses.
+- **I-19** Publishing an unchanged record appends no revision. The head — and
+  the approvals bound to it — stays where the reviewers left it. A record
+  carrying any unsaved field, staged link or plugin state is still saved first.
+- **I-20** A bypass publishes what is on screen. Its reason rides the editor's
+  own publish, so unsaved changes are saved, and a create form's record created,
+  in the same press — never a publish of the stored record behind the editor.
+- **I-21** Every way to publish from the editor obeys the verdict: the primary
+  button and the ⋯ menu's _Save & publish_ are held together, and an offered
+  bypass opens the same dialog from either.
+
 ## Testing checklist
 
 | Action                                                             | Expected                                                                                              |
@@ -438,6 +465,13 @@ package's own data.
 | Boot a host that never registers the plugin, publish               | Succeeds; the port resolves to always-allowed                                                         |
 | Register the plugin, write no rule, publish                        | Succeeds, and the approvals store is never queried                                                    |
 | Render the entry editor with nothing in `ENTRY_PUBLISH_GUARD_SLOT` | The button is the publish gate's own state, unchanged — a `content-admin` test, written with the slot |
+| Read `afterSave`, save the entry, publish                          | 409 exactly when `afterSave.blocked` said so, 200 otherwise (I-18)                                    |
+| Read `GET /types/:type`, create an entry, publish                  | 409 exactly when the read said `blocked` (I-18)                                                       |
+| Approve, open the editor, press Publish without editing            | No save request, no new revision; the publish succeeds (I-19)                                         |
+| Stage only a link (or an audience), press Publish                  | The save goes out first, carrying the staged change (I-19)                                            |
+| Edit a field as an administrator, press Publish, give a reason     | The save goes out, then the publish carrying `bypassReason` (I-20)                                    |
+| Same, on a create form                                             | The create goes out, then the publish carrying `bypassReason` (I-20)                                  |
+| Open ⋯ on a held entry                                             | _Save & publish_ is disabled; with a bypass offered it opens the reason dialog (I-21)                 |
 
 ## What this does not do
 

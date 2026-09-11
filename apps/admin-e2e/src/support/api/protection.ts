@@ -11,6 +11,14 @@ export type ApprovalSeed = {
     createdAt?: string;
 };
 
+/** A verdict for a version not yet written, as the protection routes return it. */
+export type PublishOutlookSeed = {
+    required?: number;
+    given?: number;
+    blocked?: boolean;
+    bypassable?: boolean;
+};
+
 /** One entry's review state, as the same route returns it. */
 export type EntryReviewSeed = {
     protected?: boolean;
@@ -23,6 +31,11 @@ export type EntryReviewSeed = {
     headRevisionId?: string;
     headRevisionNumber?: number;
     callerWroteHead?: boolean;
+    /**
+     * The verdict a save by the caller would meet. Defaults to what the default
+     * rule gives: every approval off the new head, so held whenever a rule is.
+     */
+    afterSave?: PublishOutlookSeed;
     approvals?: ApprovalSeed[];
     request?: {
         id: string;
@@ -39,7 +52,8 @@ export const UNPROTECTED: EntryReviewSeed = {
     required: 0,
     given: 0,
     blocked: false,
-    bypassable: false
+    bypassable: false,
+    afterSave: { required: 0, given: 0, blocked: false, bypassable: false }
 };
 
 /**
@@ -53,14 +67,23 @@ export async function mockEntryReview(
     page: Page,
     seed: EntryReviewSeed = {}
 ): Promise<void> {
+    const isProtected = seed.protected ?? true;
+    const required = seed.required ?? 2;
+    const bypassable = seed.bypassable ?? false;
     const body = {
-        protected: seed.protected ?? true,
-        required: seed.required ?? 2,
+        protected: isProtected,
+        required,
         given: seed.given ?? 0,
         stale: seed.stale ?? 0,
         changesRequested: seed.changesRequested ?? 0,
         blocked: seed.blocked ?? true,
-        bypassable: seed.bypassable ?? false,
+        bypassable,
+        afterSave: {
+            required: seed.afterSave?.required ?? required,
+            given: seed.afterSave?.given ?? 0,
+            blocked: seed.afterSave?.blocked ?? (isProtected && required > 0),
+            bypassable: seed.afterSave?.bypassable ?? bypassable
+        },
         headRevisionId: seed.headRevisionId ?? 'rev-7',
         headRevisionNumber: seed.headRevisionNumber ?? 7,
         callerWroteHead: seed.callerWroteHead ?? false,
@@ -81,6 +104,33 @@ export async function mockEntryReview(
             await route.fulfill({ status: 204, body: '' });
             return;
         }
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify(body)
+        });
+    });
+}
+
+/**
+ * Serves `GET /api/protection/types/:type` — what a new entry would meet, the
+ * create form's read. Defaults describe a protected type an ordinary member may
+ * not publish past, for the reason {@link mockEntryReview}'s do.
+ */
+export async function mockNewEntryProtection(
+    page: Page,
+    seed: PublishOutlookSeed & { protected?: boolean } = {}
+): Promise<void> {
+    const isProtected = seed.protected ?? true;
+    const required = seed.required ?? (isProtected ? 2 : 0);
+    const body = {
+        protected: isProtected,
+        required,
+        given: seed.given ?? 0,
+        blocked: seed.blocked ?? (isProtected && required > 0),
+        bypassable: seed.bypassable ?? false
+    };
+    await page.route('**/api/protection/types/*', async (route) => {
         await route.fulfill({
             status: 200,
             contentType: 'application/json',

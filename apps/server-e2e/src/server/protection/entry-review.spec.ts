@@ -117,6 +117,21 @@ describe('/api/protection/entries', () => {
             .expect(200);
     }
 
+    /**
+     * Save the entry with every value the publish gate requires, so a publish
+     * that follows is judged by the guard alone.
+     */
+    async function saveComplete(
+        agent: ReturnType<typeof request.agent>,
+        id: string,
+        text: string
+    ): Promise<void> {
+        await agent
+            .patch(`/api/content/test_article/${id}`)
+            .send({ values: { text, select: 'article' } })
+            .expect(200);
+    }
+
     /** The entry's revisions, oldest first. */
     async function revisionsOf(
         entryId: string
@@ -200,6 +215,12 @@ describe('/api/protection/entries', () => {
                 given: 0,
                 stale: 0,
                 blocked: false,
+                afterSave: {
+                    required: 0,
+                    given: 0,
+                    blocked: false,
+                    bypassable: false
+                },
                 approvals: [],
                 request: null
             });
@@ -229,6 +250,132 @@ describe('/api/protection/entries', () => {
 
             // The same person cannot read the workspace's rules.
             await agent.get('/api/protection/rules').expect(403);
+        });
+
+        /**
+         * The editor's Publish saves unsaved changes first, and that save moves
+         * the head — so the verdict on the stored head is not the one such a
+         * publish meets. `afterSave` is that second verdict, and it is what
+         * stops the button offering an ordinary publish the API then refuses.
+         */
+        /**
+         * ⭐ The prediction is only worth anything if the guard then agrees
+         * with it — in both directions, because a prediction that always said
+         * "held" would pass a one-sided check.
+         */
+        it('[protection:I-18] predicts the guard when a save will hold the publish', async () => {
+            await protect({ enabled: true, requiredApprovals: 1 });
+            const { agent: author } = await member(AUTHOR, 'contributor');
+            const { agent: reviewer } = await member(REVIEWER, 'contributor');
+            const id = await createEntry(author);
+            await reviewer
+                .post(`/api/protection/entries/test_article/${id}/approve`)
+                .send({})
+                .expect(201);
+
+            const state = await author
+                .get(`/api/protection/entries/test_article/${id}`)
+                .expect(200);
+            expect(state.body.afterSave.blocked).toBe(true);
+
+            // The only approval is on the version this save replaces. The
+            // whole document, so the publish gate passes and the answer is the
+            // guard's — the admin PATCH replaces rather than merges.
+            await saveComplete(author, id, 'Edited after approval');
+            await author
+                .post(`/api/content/test_article/${id}/publish`)
+                .expect(409);
+        });
+
+        it('[protection:I-18] predicts the guard when a save will let the publish through', async () => {
+            // A stale-counting rule, so the reviewer's vote survives the save.
+            await protect({
+                enabled: true,
+                requiredApprovals: 1,
+                countStaleApprovals: true
+            });
+            const { agent: author } = await member(AUTHOR, 'contributor');
+            const { agent: reviewer } = await member(REVIEWER, 'contributor');
+            const id = await createEntry(author);
+            await reviewer
+                .post(`/api/protection/entries/test_article/${id}/approve`)
+                .send({})
+                .expect(201);
+
+            const state = await author
+                .get(`/api/protection/entries/test_article/${id}`)
+                .expect(200);
+            expect(state.body.afterSave.blocked).toBe(false);
+
+            await saveComplete(author, id, 'Edited, still approved');
+            await author
+                .post(`/api/content/test_article/${id}/publish`)
+                .expect(201);
+        });
+
+        it('[protection:I-18] reports the verdict a save by the caller would meet', async () => {
+            await protect({ enabled: true, requiredApprovals: 1 });
+            const { agent: author } = await member(AUTHOR, 'contributor');
+            const id = await createEntry(author);
+            const { agent: reviewer } = await member(REVIEWER, 'contributor');
+            await reviewer
+                .post(`/api/protection/entries/test_article/${id}/approve`)
+                .send({})
+                .expect(201);
+
+            const state = await author
+                .get(`/api/protection/entries/test_article/${id}`)
+                .expect(200);
+            expect(state.body).toMatchObject({ given: 1, blocked: false });
+            expect(state.body.afterSave).toEqual({
+                required: 1,
+                given: 0,
+                blocked: true,
+                bypassable: false
+            });
+
+            // The same prediction offers an administrator the way through.
+            const { agent: admin } = await member(ADMIN, 'admin');
+            const asAdmin = await admin
+                .get(`/api/protection/entries/test_article/${id}`)
+                .expect(200);
+            expect(asAdmin.body.afterSave).toMatchObject({
+                blocked: true,
+                bypassable: true
+            });
+        });
+
+        it('[protection:I-18] keeps stale-counted votes in that prediction, minus the caller’s own', async () => {
+            await protect({
+                enabled: true,
+                requiredApprovals: 1,
+                countStaleApprovals: true
+            });
+            const { agent: author } = await member(AUTHOR, 'contributor');
+            const id = await createEntry(author);
+            const { agent: reviewer } = await member(REVIEWER, 'contributor');
+            await reviewer
+                .post(`/api/protection/entries/test_article/${id}/approve`)
+                .send({})
+                .expect(201);
+
+            const byAuthor = await author
+                .get(`/api/protection/entries/test_article/${id}`)
+                .expect(200);
+            expect(byAuthor.body.afterSave).toMatchObject({
+                given: 1,
+                blocked: false
+            });
+
+            // Were the reviewer to save, they would write the head — and the
+            // four-eyes switch takes their own vote out of the count.
+            const byReviewer = await reviewer
+                .get(`/api/protection/entries/test_article/${id}`)
+                .expect(200);
+            expect(byReviewer.body.afterSave).toMatchObject({
+                given: 0,
+                blocked: true
+            });
         });
 
         it('is refused without a session', async () => {

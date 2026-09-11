@@ -24,6 +24,7 @@ import {
 } from './openapi-writer';
 import {
     ENTRY_REVIEW_SCHEMA,
+    NEW_ENTRY_PROTECTION_SCHEMA,
     PROTECTION_INSIGHTS_SCHEMA,
     PROTECTION_RULE_SCHEMA,
     REVIEW_QUEUE_SCHEMA,
@@ -63,6 +64,16 @@ const ROUTES = {
                 'The entry’s review state: the requirement, every vote with its staleness, and the open request. Readable with `content:read` — the editor has to render “0 of 2” for a contributor, who cannot read the workspace’s rule table.',
             notFound:
                 'The entry is not reachable from this workspace under this content type. One answer for all its causes — an ungranted type, a missing entry, another workspace’s entry — so one workspace cannot probe another’s ids.'
+        }
+    },
+    '/types/{type}': {
+        get: {
+            list: false,
+            schema: NEW_ENTRY_PROTECTION_SCHEMA,
+            description:
+                'What publishing a brand-new entry of this content type would meet for the caller — the create form’s answer, where there is no entry to read a review of.',
+            notFound:
+                'The workspace was not granted this content type — which is also the answer for a type that does not exist.'
         }
     },
     '/entries/{typeName}/status': {

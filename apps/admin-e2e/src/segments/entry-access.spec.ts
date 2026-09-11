@@ -129,7 +129,9 @@ test.describe('Entry editor — Access tab', () => {
         ).toHaveCount(0);
     });
 
-    test('marks a staged change, and sends it with the entry’s save', async ({
+    // Also `protection:I-19`: the form's fields are untouched here, so it is the
+    // staged audience alone that makes Publish save before it publishes.
+    test('marks a staged change, and sends it with the entry’s save [protection:I-19]', async ({
         contentLibraryPage,
         segmentsPage
     }) => {
@@ -156,8 +158,11 @@ test.describe('Entry editor — Access tab', () => {
         contentLibraryPage
     }) => {
         // What keeps the feature inert: an editor who never opens this tab
-        // changes nothing and pays no request.
+        // changes nothing and pays no request. A field is edited so that there
+        // is a save to inspect at all — Publish on an unchanged record publishes
+        // it without saving.
         await contentLibraryPage.gotoEntry(WS, 'article', ENTRY);
+        await contentLibraryPage.fieldTextbox('Title').fill('Getting started!');
         await contentLibraryPage.editorSave.click();
 
         await expect.poll(() => saves.bodies.length).toBeGreaterThan(0);

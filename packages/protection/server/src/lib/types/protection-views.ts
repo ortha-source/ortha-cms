@@ -62,6 +62,38 @@ export interface ReviewRequestView {
 }
 
 /**
+ * What a publish would meet for a version that is **not** the stored head — the
+ * one a save is about to write, or the first one a create writes.
+ *
+ * It exists because the editor's Publish button saves before it publishes
+ * whenever there is anything unsaved, and that save moves the head: the head's
+ * approvals stop counting, and the caller becomes the head's author. A button
+ * that read only the stored head's verdict would offer an ordinary publish the
+ * API then refuses. These numbers come from `evaluateProtection` too, handed a
+ * head no vote is bound to and authored by the caller — so they are the
+ * kernel's answer to that question rather than a count restated here.
+ */
+export interface PublishOutlookView {
+    /** How many approvals the rule wants. `0` when unprotected. */
+    required: number;
+    /** How many would still count once the new version is written. */
+    given: number;
+    /** Whether the publish would be held. Always `false` when unprotected. */
+    blocked: boolean;
+    /** Whether the caller could publish past the rule. See {@link EntryReviewView.bypassable}. */
+    bypassable: boolean;
+}
+
+/**
+ * What publishing a **new** entry of one content type would meet, for the
+ * caller — the create form's answer, where there is no entry to review yet.
+ */
+export interface NewEntryProtectionView extends PublishOutlookView {
+    /** Whether a rule is in force for this type. */
+    protected: boolean;
+}
+
+/**
  * Everything the entry editor needs to render review, in one read.
  *
  * It is `evaluateProtection`'s decision plus the people behind the numbers. The
@@ -89,6 +121,11 @@ export interface EntryReviewView {
      * administrator, and for every rule with `adminBypass` off.
      */
     bypassable: boolean;
+    /**
+     * The same verdict for the version a save would write now — what the
+     * editor's Publish button meets when it has unsaved changes to save first.
+     */
+    afterSave: PublishOutlookView;
     /** The entry's current version — what an approval would be bound to. */
     headRevisionId: string;
     /** Its 1-based number. */

@@ -37,6 +37,8 @@ export type {
     EntryPresaveResult,
     EntryPublishAction,
     EntryPublishGuardItem,
+    EntryPublishGuardState,
+    EntryPublishOptions,
     EntryPublishVerdict,
     EntrySlotContext,
     EntrySidebarWidgetItem,

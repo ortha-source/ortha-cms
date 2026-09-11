@@ -3,8 +3,10 @@ import type {
     EntryReviewStatus,
     ProtectionInsights,
     EntryReview,
+    NewEntryProtection,
     ProtectionRule,
     ProtectionRuleRecord,
+    PublishOutlook,
     ReviewApproval,
     ReviewQueue,
     ReviewQueueItem
@@ -30,15 +32,6 @@ export type VoteInput = EntryRef & {
     note?: string;
 };
 
-/** Publishing past a rule that would refuse it. */
-export type BypassPublishInput = EntryRef & {
-    /**
-     * Why this publish should proceed anyway. Non-empty — the dialog will not
-     * submit a blank one, and the server records it with the actor and the rule.
-     */
-    bypassReason: string;
-};
-
 /**
  * The port over the protection API — the one seam this plugin talks to instead
  * of `apiClient` directly.
@@ -48,11 +41,12 @@ export type BypassPublishInput = EntryRef & {
  * the workspace id explicitly: the header is not sent on a cache hit, so
  * without it one workspace would read another's answer.
  *
- * `bypassPublish` is the odd one out — it posts to **content's** publish route,
- * not to `/protection`. That is not a layering slip: a bypass is an ordinary
- * publish carrying a reason, content-server's own `PublishEntryDto` says so,
- * and routing it through a protection endpoint would make protection a second
- * way to publish. What protection owns is the ceremony in front of it.
+ * There is no publish here, bypass included. A bypass is an ordinary publish
+ * carrying a reason — content-server's own `PublishEntryDto` says so — and the
+ * editor's publish is content's to run: it saves the edits on screen first, or
+ * creates the record on a create form. The bypass dialog hands its reason to
+ * that publish through `ENTRY_PUBLISH_GUARD_SLOT`; what protection owns is the
+ * ceremony in front of it.
  */
 export type ProtectionGateway = {
     /**
@@ -61,6 +55,12 @@ export type ProtectionGateway = {
      * because an ordinary contributor has to see "0 of 2" on their own draft.
      */
     getEntryReview(ref: EntryRef): Promise<EntryReview>;
+    /**
+     * What publishing a **new** entry of a type would meet, for the caller —
+     * the create form's read, where there is no entry id to ask about yet.
+     * `content:read`, like the entry read.
+     */
+    getNewEntryProtection(typeName: string): Promise<NewEntryProtection>;
     /** Open the ask, or update the one already open. */
     requestReview(input: RequestReviewInput): Promise<void>;
     /** Withdraw it. Only the requester or an administrator. */
@@ -71,8 +71,6 @@ export type ProtectionGateway = {
     requestChanges(input: VoteInput): Promise<void>;
     /** Withdraw this person's own vote. */
     withdrawVote(ref: EntryRef): Promise<void>;
-    /** Publish past the rule, with a reason bound for the activity log. */
-    bypassPublish(input: BypassPublishInput): Promise<void>;
     /**
      * One page of the workspace's open review requests, across every content
      * type — what the Reviews page reads. `content:read`, not
@@ -159,6 +157,19 @@ type ApprovalResponse = {
     createdAt: string;
 };
 
+/** A verdict for a not-yet-written version, as the wire returns it. */
+type PublishOutlookResponse = {
+    required: number;
+    given: number;
+    blocked: boolean;
+    bypassable: boolean;
+};
+
+/** `GET /protection/types/:type`, as the wire returns it. */
+type NewEntryProtectionResponse = PublishOutlookResponse & {
+    protected: boolean;
+};
+
 /** One entry's review state as the wire returns it. */
 type EntryReviewResponse = {
     protected: boolean;
@@ -168,6 +179,7 @@ type EntryReviewResponse = {
     changesRequested: number;
     blocked: boolean;
     bypassable: boolean;
+    afterSave: PublishOutlookResponse;
     headRevisionId: string;
     headRevisionNumber: number;
     callerWroteHead: boolean;
@@ -206,6 +218,16 @@ function toApproval(dto: ApprovalResponse): ReviewApproval | null {
     };
 }
 
+/** Maps a not-yet-written version's verdict from the wire, as given. */
+function toOutlook(dto: PublishOutlookResponse): PublishOutlook {
+    return {
+        required: dto.required,
+        given: dto.given,
+        blocked: dto.blocked,
+        bypassable: dto.bypassable
+    };
+}
+
 /** Maps one entry's review state from the wire. The counts travel as given. */
 function toEntryReview(dto: EntryReviewResponse): EntryReview {
     return {
@@ -216,6 +238,7 @@ function toEntryReview(dto: EntryReviewResponse): EntryReview {
         changesRequested: dto.changesRequested,
         blocked: dto.blocked,
         bypassable: dto.bypassable,
+        afterSave: toOutlook(dto.afterSave),
         headRevisionId: dto.headRevisionId,
         headRevisionNumber: dto.headRevisionNumber,
         callerWroteHead: dto.callerWroteHead,
@@ -301,6 +324,17 @@ export const httpProtectionGateway: ProtectionGateway = {
         }
     },
 
+    async getNewEntryProtection(typeName: string): Promise<NewEntryProtection> {
+        try {
+            const { data } = await apiClient.get<NewEntryProtectionResponse>(
+                `/protection/types/${encodeURIComponent(typeName)}`
+            );
+            return { protected: data.protected, ...toOutlook(data) };
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
     async requestReview({ note, ...ref }: RequestReviewInput): Promise<void> {
         try {
             await apiClient.post(`${entryPath(ref)}/request`, { note });
@@ -354,21 +388,6 @@ export const httpProtectionGateway: ProtectionGateway = {
     async withdrawVote(ref: EntryRef): Promise<void> {
         try {
             await apiClient.delete(`${entryPath(ref)}/approve`);
-        } catch (error) {
-            throw toApiError(error);
-        }
-    },
-
-    async bypassPublish({
-        typeName,
-        entryId,
-        bypassReason
-    }: BypassPublishInput): Promise<void> {
-        try {
-            await apiClient.post(
-                `/content/${encodeURIComponent(typeName)}/${encodeURIComponent(entryId)}/publish`,
-                { bypassReason }
-            );
         } catch (error) {
             throw toApiError(error);
         }

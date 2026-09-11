@@ -17,6 +17,14 @@ export const entryReviewKey = (
     entryId: string
 ) => ['protection', 'entry-review', workspaceId, typeName, entryId] as const;
 
+/** Every create form's answer in one workspace — what a rule write refreshes. */
+export const newEntryProtectionPrefix = (workspaceId: string) =>
+    ['protection', 'new-entry', workspaceId] as const;
+
+/** What a new entry of one type would meet — the create form's read. */
+export const newEntryProtectionKey = (workspaceId: string, typeName: string) =>
+    [...newEntryProtectionPrefix(workspaceId), typeName] as const;
+
 /**
  * Every rule the workspace holds.
  *

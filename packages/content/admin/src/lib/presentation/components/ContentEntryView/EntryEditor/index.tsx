@@ -19,7 +19,7 @@ import type {
     RelationDelta,
     StagedRelation
 } from '../../../../domain/types/contentType';
-import { useUnsavedChanges } from '@orthacms/utils-admin';
+import { ApiError, useUnsavedChanges } from '@orthacms/utils-admin';
 import { useHasPermission } from '@orthacms/identity-admin';
 import { PageActionsPortal, RightPanelPortal } from '@orthacms/shell-admin';
 import {
@@ -38,6 +38,7 @@ import {
     ENTRY_HEADER_SLOT,
     ENTRY_TAB_SLOT,
     type EntryFieldControlContext,
+    type EntryPublishOptions,
     type EntryTabContext
 } from '../../../slots/contentSlots';
 import { useEntryRelations } from '../../../../application/useEntryRelations';
@@ -116,8 +117,34 @@ const messages = defineMessages({
         id: 'content.editor.serverBlocked',
         defaultMessage:
             'The server refused “{field}”: {message}. That field isn’t editable in this form — ask an administrator to change the content type.'
+    },
+    publishRefused: {
+        id: 'content.editor.publishRefused',
+        defaultMessage: 'Not published: {message}'
+    },
+    saveRefused: {
+        id: 'content.editor.saveRefused',
+        defaultMessage: 'Not saved: {message}'
+    },
+    writeFailed: {
+        id: 'content.editor.writeFailed',
+        defaultMessage: 'That didn’t go through. Try again.'
     }
 });
+
+/**
+ * The server's own sentence for a refused write, when it sent one.
+ *
+ * A refusal that is not a field problem — a publish guard's 409 above all —
+ * carries the only explanation there is in its body, and the transport error's
+ * own message is "Request failed with status code 409".
+ */
+function serverMessage(error: unknown): string | undefined {
+    if (!(error instanceof ApiError)) return undefined;
+    const message = (error.details as { message?: unknown } | undefined)
+        ?.message;
+    return typeof message === 'string' && message.trim() ? message : undefined;
+}
 
 /** A field is hidden when its admin hints say so. */
 function isHidden(field: ContentField): boolean {
@@ -199,6 +226,14 @@ export function EntryEditor({
              * judges the same value set the form did.
              */
             ignoreFields?: ReadonlySet<string>;
+            /**
+             * Whether the form holds anything unsaved — so a publish of an
+             * unchanged record can skip a save that would only move its head
+             * version off the one reviewers approved.
+             */
+            dirty?: boolean;
+            /** A publish guard's reason for publishing past it, forwarded as is. */
+            bypassReason?: string;
         }
     ) => Promise<void>;
     /** Revert a published entry to draft — only on a saved publishable entry. */
@@ -539,6 +574,15 @@ export function EntryEditor({
         return slugs;
     }, [form.errors, visible, validationIgnored, relationGate]);
 
+    // Whether anything at all is unsaved — a dirty field value or staged
+    // relation links. Handed to slot widgets so a locale switch can confirm
+    // before discarding the work instead of dropping it silently (#36), to the
+    // publish guards (a save moves the version an approval is bound to), and to
+    // the save itself (an unchanged record publishes without one).
+    const isDirty =
+        visible.some((field) => isFieldDirty(field.name)) ||
+        Object.values(relationDeltas).some(isStagedDirty);
+
     // The staged relation deltas to send with the save — only fields with a
     // pending change, serialized to the wire shape. Undefined when nothing staged.
     const relationsPayload = (): Record<string, RelationDelta> | undefined => {
@@ -553,16 +597,36 @@ export function EntryEditor({
     // other failures fall through to the mutation's own error handling. On
     // success the staging is cleared (the saved links are now the server set).
     const submitWith =
-        (publish: boolean) => (values: Record<string, unknown>) =>
+        (publish: boolean, options: EntryPublishOptions = {}) =>
+        (values: Record<string, unknown>) =>
             onSave(values, {
                 publish,
                 relations: relationsPayload(),
-                ignoreFields: validationIgnored
+                ignoreFields: validationIgnored,
+                dirty: isDirty,
+                bypassReason: options.bypassReason
             })
                 .then(() => setRelationDeltas({}))
                 .catch((error) => {
                     const issues = entryIssuesFrom(error);
                     form.setServerErrors(issues);
+                    // Not a field problem at all — a publish guard's refusal, a
+                    // conflict, a lost connection. Without this the cover lifts
+                    // and nothing on screen says the write did not happen.
+                    if (issues.length === 0) {
+                        const message = serverMessage(error);
+                        toast.error(
+                            message
+                                ? intl.formatMessage(
+                                      publish && publishable
+                                          ? messages.publishRefused
+                                          : messages.saveRefused,
+                                      { message }
+                                  )
+                                : intl.formatMessage(messages.writeFailed)
+                        );
+                        return;
+                    }
                     // An issue on a field the editor renders no control for
                     // (`admin.hidden`, or a relation target this workspace
                     // isn't granted) has nowhere inline to land, so the busy
@@ -623,7 +687,7 @@ export function EntryEditor({
         });
     };
 
-    const runSave = (publish: boolean) => {
+    const runSave = (publish: boolean, options?: EntryPublishOptions) => {
         // A reader without write permission has no Save button, but the form's
         // own `onSubmit` (Enter in a text field) is a second way in — so the
         // guard lives here, at the one point every save path funnels through,
@@ -633,8 +697,8 @@ export function EntryEditor({
         // gate); publishing — or any save of an always-live type — is strict.
         const strict = publish || !publishable;
         const submitted = strict
-            ? form.submit(submitWith(publish))
-            : form.submitDraft(submitWith(publish));
+            ? form.submit(submitWith(publish, options))
+            : form.submitDraft(submitWith(publish, options));
         if (!submitted) announceBlocked(strict, publish);
     };
 
@@ -656,7 +720,12 @@ export function EntryEditor({
     const needsSharedWarning =
         hasLocalizedFields && !isCreate && dirtySharedFields.length > 0;
 
-    const [pendingPublish, setPendingPublish] = useState<boolean | null>(null);
+    // The save the shared-fields warning is holding, with whatever the publish
+    // carried — a bypass reason collected before the warning must survive it.
+    const [pendingPublish, setPendingPublish] = useState<{
+        publish: boolean;
+        options?: EntryPublishOptions;
+    } | null>(null);
 
     // --- the expanded field ------------------------------------------------
     // A control whose slot item declares a `FullView` can take the work area
@@ -709,21 +778,14 @@ export function EntryEditor({
           }
         : undefined;
 
-    const save = (publish: boolean) => () => {
+    const save = (publish: boolean, options?: EntryPublishOptions) => {
         if (readOnly) return;
         if (needsSharedWarning) {
-            setPendingPublish(publish);
+            setPendingPublish({ publish, options });
             return;
         }
-        runSave(publish);
+        runSave(publish, options);
     };
-
-    // Whether anything at all is unsaved — a dirty field value or staged
-    // relation links. Handed to slot widgets so a locale switch can confirm
-    // before discarding the work instead of dropping it silently (#36).
-    const isDirty =
-        visible.some((field) => isFieldDirty(field.name)) ||
-        Object.values(relationDeltas).some(isStagedDirty);
 
     // Register with the app-wide guard, so *any* navigation away from a dirty
     // editor — a sidebar link, a breadcrumb, "Back to records", a browser
@@ -763,7 +825,7 @@ export function EntryEditor({
                         // Submitting (e.g. Enter) runs the primary action — publish for
                         // a publishable type, otherwise a plain save — so it matches the
                         // visually-primary button rather than silently saving a draft.
-                        save(publishable)();
+                        save(publishable);
                     }}
                 >
                     {/* The write actions and the Properties panel render in the **app
@@ -781,8 +843,9 @@ export function EntryEditor({
                             isCreate={isCreate}
                             saving={saving}
                             mutating={mutating}
-                            onSaveDraft={save(false)}
-                            onPublish={save(true)}
+                            dirty={isDirty}
+                            onSaveDraft={() => save(false)}
+                            onPublish={(options) => save(true, options)}
                             onUnpublish={onUnpublish}
                             onDelete={onDelete}
                         />
@@ -1124,9 +1187,10 @@ export function EntryEditor({
                         )}
                         cancelLabel={intl.formatMessage(messages.cancel)}
                         onConfirm={() => {
-                            const publish = pendingPublish ?? false;
+                            const pending = pendingPublish;
                             setPendingPublish(null);
-                            runSave(publish);
+                            if (pending)
+                                runSave(pending.publish, pending.options);
                         }}
                     />
                 </form>

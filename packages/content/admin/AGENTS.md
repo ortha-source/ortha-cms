@@ -647,6 +647,16 @@ a third state with no column value spelling it made unavoidable.
   pass `initialDataUpdatedAt` (the age of the _list_ read), so a stale row still
   refetches. Invalidation ignores `staleTime`, so nothing this app writes goes
   unnoticed.
+- **Publishing an unchanged record does not save it first.** When the form,
+  its staged links and every presave step's `extensions` are all clean,
+  `usePublishEntryFlow` calls the publish endpoint alone. A save is not free
+  even when it changes nothing — every save appends a version, and a version is
+  what a review approval is bound to — so saving first moved the head off the
+  version reviewers had just approved and the publish was refused for it.
+- **A refusal that is not a field problem is toasted with the server's own
+  sentence** (`Not published: …`). A publish guard's 409 carries its only
+  explanation in the body; without the toast the busy cover lifted and nothing
+  on screen said the write had not happened.
 - **`EntryBusyOverlay`** covers the editor for the whole write — a blur +
   spinner + "Saving…"/"Publishing…", mirroring i18n's locale-switch flourish. Two
   differences from that one: **no delay** (nothing changes until the server
@@ -931,9 +941,22 @@ fetching internally.
   switch, and a file staged there must not die with it.
 - **`ENTRY_PUBLISH_GUARD_SLOT`** — the **third gate** on the editor's publish
   button, and the admin-side counterpart of content-server's
-  `CONTENT_PUBLISH_GUARD` port. `useVerdict(context)` returns
+  `CONTENT_PUBLISH_GUARD` port. `useVerdict(context, { dirty })` returns
   `{ blocked, reason?, action?, overlay? }`, or `null` for no opinion.
   `@orthacms/protection-server`'s admin half fills it with an approval rule.
+    - **`dirty` is part of the question.** Publish saves anything unsaved
+      first, and a save is a new version — so a guard whose verdict is bound
+      to a version has to answer for the one about to be written.
+    - **An action keeps the button an ordinary Publish.** No relabel, no
+      warning tone: the way through is explained by the ceremony the click
+      opens. `action.onSelect(publish)` receives the editor's own publish, and
+      the contribution calls `publish({ bypassReason })` when its ceremony is
+      done — which is what saves the edits on screen, or creates the record on
+      a create form, before the reason reaches the publish request. Content
+      forwards `bypassReason` uninterpreted, as the server's use-case does.
+    - **The ⋯ menu's "Save & publish" goes through the same handler**, and is
+      disabled when the primary button is held with no way through — otherwise
+      the menu is the door a refusal forgot to close.
     - **Content keeps rendering the button.** It already computes the publish
       gate's half of that button's state, and a contributed second button would
       drift from the first on every state neither owns alone — the same reason

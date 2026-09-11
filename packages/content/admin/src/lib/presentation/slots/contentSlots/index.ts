@@ -189,18 +189,46 @@ export const ENTRY_HEADER_SLOT = createSlot<EntryHeaderItem>(
 );
 
 /**
+ * What a contribution may add to the publish it lets through.
+ *
+ * `bypassReason` is carried to the publish request verbatim, for the server's
+ * `CONTENT_PUBLISH_GUARD` registrations to judge. Content neither validates nor
+ * interprets it — the same discipline the server-side use-case keeps.
+ */
+export type EntryPublishOptions = {
+    bypassReason?: string;
+};
+
+/**
  * The way through a refusal, when the contribution offers one.
  *
- * Content renders it as the primary button, relabelled and in a warning tone,
- * and hands the click over — it does **not** publish. Whatever ceremony comes
- * first (a dialog naming a rule, a mandatory reason, an audit row) belongs to
- * the contribution, which is the only party that knows there is one.
+ * Content keeps the primary button looking and reading exactly as an ordinary
+ * **Publish** — the refusal is explained by the ceremony the click opens, not by
+ * restyling the control — and hands the click over. Whatever comes first (a
+ * dialog naming a rule, a mandatory reason) belongs to the contribution, which
+ * is the only party that knows there is any.
+ *
+ * The contribution publishes by calling `publish`, which runs the editor's own
+ * publish — client validation, saving anything unsaved (or creating the record
+ * on a create form), the busy cover, the toasts — with its options attached.
+ * Publishing any other way would skip the edits on screen, and on a create form
+ * there would be no record to publish at all.
  */
 export type EntryPublishAction = {
-    /** The button's label while the override stands (e.g. "Publish anyway"). */
-    label: string;
     /** Ran instead of the publish. */
-    onSelect: () => void;
+    onSelect: (publish: (options: EntryPublishOptions) => void) => void;
+};
+
+/**
+ * The editor's state a verdict may depend on beyond the {@link EntrySlotContext}.
+ */
+export type EntryPublishGuardState = {
+    /**
+     * Whether the form holds unsaved changes, which Publish saves first. A save
+     * writes a new version, and a guard whose verdict is bound to a version —
+     * an approval rule — has to answer for that one rather than the stored one.
+     */
+    dirty: boolean;
 };
 
 /** What a {@link EntryPublishGuardItem} reports about the open entry. */
@@ -219,8 +247,8 @@ export type EntryPublishVerdict = {
     /**
      * An overlay (a dialog) the action opens, rendered **outside** the actions
      * cluster — the same rule `ENTRY_MENU_SLOT` items follow, and here for a
-     * second reason: the button it hangs off is relabelled and re-rendered as
-     * the verdict changes, and a dialog mounted inside it would close with it.
+     * second reason: the button it hangs off is re-rendered as the verdict
+     * changes, and a dialog mounted inside it would close with it.
      */
     overlay?: ReactNode;
 };
@@ -235,7 +263,10 @@ export type EntryPublishGuardItem = {
      * here is (slot items are boot-frozen). Return `null` for "no opinion",
      * which is how a contribution stays silent **without skipping its hook**.
      */
-    useVerdict: (context: EntrySlotContext) => EntryPublishVerdict | null;
+    useVerdict: (
+        context: EntrySlotContext,
+        state: EntryPublishGuardState
+    ) => EntryPublishVerdict | null;
 };
 
 /**

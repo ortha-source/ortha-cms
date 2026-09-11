@@ -37,6 +37,28 @@ export type ReviewRequest = {
 };
 
 /** Everything the editor needs to render review, in one read. */
+/**
+ * What a publish would meet for a version that is not the stored head: the one
+ * a save is about to write, or a new entry's first. Computed by the server's
+ * kernel, never here.
+ */
+export type PublishOutlook = {
+    /** How many approvals the rule wants. `0` when unprotected. */
+    required: number;
+    /** How many would still count once that version is written. */
+    given: number;
+    /** Whether the publish would be held. */
+    blocked: boolean;
+    /** Whether the caller could publish past the rule. */
+    bypassable: boolean;
+};
+
+/** What publishing a new entry of a type would meet — the create form's read. */
+export type NewEntryProtection = PublishOutlook & {
+    /** Whether a rule is in force for this type. */
+    protected: boolean;
+};
+
 export type EntryReview = {
     /** Whether a rule is in force for this type. */
     protected: boolean;
@@ -52,6 +74,11 @@ export type EntryReview = {
     blocked: boolean;
     /** Whether an administrator could publish past the rule. */
     bypassable: boolean;
+    /**
+     * The same verdict for the version a save would write now — what Publish
+     * meets when the form has unsaved changes it saves first.
+     */
+    afterSave: PublishOutlook;
     headRevisionId: string;
     headRevisionNumber: number;
     /** Whether the caller wrote the head, and so cannot approve it. */

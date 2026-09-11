@@ -78,6 +78,7 @@ export function EntryMenu({
     busy,
     showSaveDraft,
     showPublish,
+    publishBlocked = false,
     showUnpublish,
     showDelete,
     onSaveDraft,
@@ -93,6 +94,11 @@ export function EntryMenu({
     busy: boolean;
     showSaveDraft: boolean;
     showPublish: boolean;
+    /**
+     * Whether a publish guard refused with no way through. The primary button
+     * carries the reason; the menu item only must not be a second door past it.
+     */
+    publishBlocked?: boolean;
     showUnpublish: boolean;
     showDelete: boolean;
     onSaveDraft: () => void;
@@ -132,7 +138,8 @@ export function EntryMenu({
             order: -1,
             label: intl.formatMessage(messages.publishAndSave),
             icon: Send,
-            onSelect: onPublish
+            disabled: publishBlocked,
+            onSelect: () => onPublish()
         });
     if (showUnpublish && onUnpublish)
         groups[ENTRY_MENU_GROUP.Publish].push({

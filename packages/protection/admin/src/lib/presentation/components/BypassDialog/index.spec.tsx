@@ -1,21 +1,8 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { IntlProvider } from 'react-intl';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { EntryReview } from '../../../domain/types';
+import type { PublishOutlook } from '../../../domain/types';
 import { BypassDialog } from './index';
-
-const bypassPublish = vi.fn();
-
-vi.mock('../../../infrastructure/protectionGateway', () => ({
-    httpProtectionGateway: {
-        bypassPublish: (...args: unknown[]) => bypassPublish(...args)
-    }
-}));
-
-vi.mock('@orthacms/content-admin', () => ({
-    refreshEntryCaches: () => Promise.resolve()
-}));
 
 // jsdom implements none of the browser APIs Radix's dialog reaches for.
 if (!window.matchMedia) {
@@ -44,50 +31,36 @@ if (!globalThis.ResizeObserver) {
     } as unknown as typeof ResizeObserver;
 }
 
-const scope = {
-    workspaceId: 'ws',
-    typeName: 'article',
-    entryId: 'e1',
-    updatedAt: '2026-09-09T10:00:00.000Z'
-};
-
-const review: EntryReview = {
-    protected: true,
+const outlook: PublishOutlook = {
     required: 2,
     given: 0,
-    stale: 0,
-    changesRequested: 0,
     blocked: true,
-    bypassable: true,
-    headRevisionId: 'rev-7',
-    headRevisionNumber: 7,
-    callerWroteHead: false,
-    approvals: [],
-    request: null
+    bypassable: true
 };
 
+const onConfirm = vi.fn();
+const onOpenChange = vi.fn();
+
 function draw() {
-    const client = new QueryClient({
-        defaultOptions: { mutations: { retry: false } }
-    });
     return render(
-        <QueryClientProvider client={client}>
-            <IntlProvider locale="en">
-                <BypassDialog
-                    open
-                    onOpenChange={() => undefined}
-                    scope={scope}
-                    review={review}
-                />
-            </IntlProvider>
-        </QueryClientProvider>
+        <IntlProvider locale="en">
+            <BypassDialog
+                open
+                onOpenChange={onOpenChange}
+                outlook={outlook}
+                onConfirm={onConfirm}
+            />
+        </IntlProvider>
     );
 }
 
 const confirm = () => screen.getByRole('button', { name: /publish anyway/i });
 
 describe('BypassDialog', () => {
-    beforeEach(() => bypassPublish.mockReset());
+    beforeEach(() => {
+        onConfirm.mockReset();
+        onOpenChange.mockReset();
+    });
 
     it('says how far short the count is', () => {
         draw();
@@ -113,7 +86,7 @@ describe('BypassDialog', () => {
         expect(confirm().hasAttribute('disabled')).toBe(false);
         fireEvent.click(confirm());
 
-        expect(bypassPublish).not.toHaveBeenCalled();
+        expect(onConfirm).not.toHaveBeenCalled();
         expect(screen.getByRole('alert').textContent).toMatch(
             /reason is required/i
         );
@@ -127,11 +100,14 @@ describe('BypassDialog', () => {
         });
         fireEvent.click(confirm());
 
-        expect(bypassPublish).not.toHaveBeenCalled();
+        expect(onConfirm).not.toHaveBeenCalled();
     });
 
-    it('publishes with the trimmed reason once one is given', async () => {
-        bypassPublish.mockResolvedValue(undefined);
+    /**
+     * It hands the reason over rather than publishing: the editor's own publish
+     * is what saves the edits on screen, or creates the record on a create form.
+     */
+    it('hands the trimmed reason to the editor’s publish and closes', () => {
         draw();
 
         fireEvent.change(screen.getByLabelText(/reason/i), {
@@ -139,13 +115,10 @@ describe('BypassDialog', () => {
         });
         fireEvent.click(confirm());
 
-        // `mutate` schedules; the call lands on the next microtask.
-        await waitFor(() => expect(bypassPublish).toHaveBeenCalled());
-        expect(bypassPublish).toHaveBeenCalledWith({
-            typeName: 'article',
-            entryId: 'e1',
-            bypassReason: 'numbers corrected before the send'
-        });
+        expect(onConfirm).toHaveBeenCalledWith(
+            'numbers corrected before the send'
+        );
+        expect(onOpenChange).toHaveBeenCalledWith(false);
     });
 
     it('labels the reason field rather than relying on its placeholder', () => {

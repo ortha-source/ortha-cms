@@ -6,6 +6,13 @@ import { contentEntryKey } from '../../infrastructure/contentKeys';
 import { httpContentGateway } from '../../infrastructure/httpContentGateway';
 import { refreshEntryCaches } from '../refreshEntryCaches';
 
+/** One entry to publish, and — when a publish guard offered a way past — why. */
+export type PublishEntryInput = {
+    id: string;
+    /** Forwarded to the server's publish guards uninterpreted. */
+    bypassReason?: string;
+};
+
 /**
  * Single-entry lifecycle mutations over the content gateway, shared by the records
  * row menu and the editor sidebar: publish / unpublish (publishable types), and
@@ -34,8 +41,9 @@ export function useEntryStatusActions(typeName: string) {
         });
     };
 
-    const publish = useMutation<EntryRecord, ApiError, string>({
-        mutationFn: (id) => httpContentGateway.publish(typeName, id),
+    const publish = useMutation<EntryRecord, ApiError, PublishEntryInput>({
+        mutationFn: ({ id, bypassReason }) =>
+            httpContentGateway.publish(typeName, id, { bypassReason }),
         onSuccess: syncFrom
     });
 

@@ -41,6 +41,24 @@ export type SubmitEntryInput = {
      * by the kernel itself.)
      */
     ignoreFields?: ReadonlySet<string>;
+    /**
+     * Whether the submit carries nothing the stored record does not already
+     * hold — no edited value, no staged link, no plugin state. A publish of an
+     * **unchanged, saved** record then publishes it without saving first.
+     *
+     * The save is not free even when it changes nothing: every save appends a
+     * version, and a version is what a review approval is bound to. Saving
+     * before publishing moved the head off the version reviewers had just
+     * approved, so the publish that followed was refused for the approval it
+     * had itself made stale.
+     */
+    unchanged?: boolean;
+    /**
+     * The reason a publish guard's contribution collected for publishing past
+     * it, forwarded to the publish request uninterpreted. See
+     * `ENTRY_PUBLISH_GUARD_SLOT`.
+     */
+    bypassReason?: string;
 };
 
 /** The classified outcome of one submit, for the caller's toast + navigation. */
@@ -140,6 +158,21 @@ export function usePublishEntryFlow(
                 input.publishable &&
                 canPublish(fields, input.values);
 
+            // Nothing to write: publish the stored record as it stands, which
+            // leaves its head version — and the approvals bound to it — alone.
+            if (willPublish && input.unchanged && existingId) {
+                const published = await status.publish.mutateAsync({
+                    id: existingId,
+                    bypassReason: input.bypassReason
+                });
+                return {
+                    saved: published,
+                    wasCreate: false,
+                    published: true,
+                    unpublished: false
+                };
+            }
+
             const saved = await save.mutateAsync({
                 id: existingId,
                 values: input.values,
@@ -168,7 +201,10 @@ export function usePublishEntryFlow(
 
             if (willPublish) {
                 try {
-                    await status.publish.mutateAsync(saved.id);
+                    await status.publish.mutateAsync({
+                        id: saved.id,
+                        bypassReason: input.bypassReason
+                    });
                 } catch (error) {
                     // The save landed even though the publish didn't (a 422 from
                     // the server-side gate). Run the refresh the save deferred to

@@ -436,6 +436,10 @@ export function ContentEntryView({
             relations?: Record<string, RelationDelta>;
             /** Fields the editor hid/skipped, so the flow's gate matches the form. */
             ignoreFields?: ReadonlySet<string>;
+            /** Whether the editor holds anything unsaved (values or staged links). */
+            dirty?: boolean;
+            /** A publish guard's reason for publishing past it, forwarded as is. */
+            bypassReason?: string;
         }
     ) => {
         // Slot-contributed create-body params (e.g. the target locale), from the
@@ -490,7 +494,15 @@ export function ContentEntryView({
                 entry: resolved.entry,
                 bodyExtra,
                 extensions,
-                ignoreFields: options.ignoreFields
+                ignoreFields: options.ignoreFields,
+                // Unchanged means the form, its staged links **and** every
+                // presave step's plugin state — an edited audience is a change
+                // the form's own dirty flag cannot see.
+                unchanged:
+                    options.dirty === false &&
+                    !options.relations &&
+                    Object.keys(extensions).length === 0,
+                bypassReason: options.bypassReason
             });
             // The write landed, so every presave step can drop what it consumed
             // (the media plugin revokes its preview URLs and forgets the staged

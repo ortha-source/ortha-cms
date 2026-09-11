@@ -21,6 +21,8 @@ import {
 import { useEntrySlotContext } from '../../../../hooks/useEntrySlotContext';
 import {
     ENTRY_PUBLISH_GUARD_SLOT,
+    type EntryPublishGuardState,
+    type EntryPublishOptions,
     type EntryPublishVerdict,
     type EntrySlotContext
 } from '../../../../slots/contentSlots';
@@ -53,7 +55,10 @@ const PRIMARY_META = {
  * that has just published through its own action still has a dialog on screen
  * for the moment its verdict flips.
  */
-function usePublishVerdict(context: EntrySlotContext | null) {
+function usePublishVerdict(
+    context: EntrySlotContext | null,
+    state: EntryPublishGuardState
+) {
     const items = ENTRY_PUBLISH_GUARD_SLOT.getItems();
     const verdicts: (EntryPublishVerdict | null)[] = [];
     for (const item of items) {
@@ -62,7 +67,7 @@ function usePublishVerdict(context: EntrySlotContext | null) {
         // list never changes length between renders. The call is
         // unconditional — a contribution with nothing to say returns `null`
         // rather than being skipped.
-        verdicts.push(context ? item.useVerdict(context) : null);
+        verdicts.push(context ? item.useVerdict(context, state) : null);
     }
 
     const blocking = verdicts.find((verdict) => verdict?.blocked) ?? null;
@@ -100,6 +105,7 @@ export function EntryActions({
     isCreate,
     saving,
     mutating = false,
+    dirty = false,
     onSaveDraft,
     onPublish,
     onUnpublish,
@@ -113,10 +119,15 @@ export function EntryActions({
     saving: boolean;
     /** Whether an unpublish/delete action is in flight (disables the bar). */
     mutating?: boolean;
+    /** Whether the form holds unsaved changes — handed to the publish guards. */
+    dirty?: boolean;
     /** Save without publishing (the default submit). */
     onSaveDraft: () => void;
-    /** Save and mark published — only wired for publishable types. */
-    onPublish: () => void;
+    /**
+     * Save (when anything is unsaved) and mark published — only wired for
+     * publishable types. Options come from a guard's action, never from here.
+     */
+    onPublish: (options?: EntryPublishOptions) => void;
     /** Revert a published entry to draft — only on a saved publishable entry. */
     onUnpublish?: () => void;
     /** Delete the entry — only on a saved entry. */
@@ -138,26 +149,7 @@ export function EntryActions({
     const busy = saving || mutating;
     const published = entry?.status === ENTRY_STATUS.Published;
 
-    // The primary button: Publish for a publishable type the user may publish,
-    // else a plain Save (draft / live). Null when the user can't write at all.
-    const primary =
-        publishable && canPublish && canSave
-            ? { kind: 'publish' as const, onClick: onPublish }
-            : canSave
-              ? {
-                    kind: (publishable ? 'saveDraft' : 'save') as
-                        | 'saveDraft'
-                        | 'save',
-                    onClick: onSaveDraft
-                }
-              : null;
-
-    const { blocking, overlays } = usePublishVerdict(slotContext);
-    // A guard speaks about publishing, so it says nothing about a Save button.
-    // Without this a refusal would silently disable the draft save on a type
-    // whose drafts are explicitly still editable.
-    const guard = primary?.kind === 'publish' ? blocking : null;
-    const override = guard?.action;
+    const { blocking, overlays } = usePublishVerdict(slotContext, { dirty });
 
     const showSaveDraft = publishable && canSave;
     const showPublish = publishable && canPublish && canSave;
@@ -165,8 +157,11 @@ export function EntryActions({
         !isCreate && publishable && published && canPublish && !!onUnpublish;
     const showDelete = !isCreate && canDelete && !!onDelete;
 
-    const primaryMeta = primary ? PRIMARY_META[primary.kind] : null;
-    const PrimaryIcon = primaryMeta?.icon;
+    // A guard speaks about publishing, so it says nothing about a Save button.
+    // Without this a refusal would silently disable the draft save on a type
+    // whose drafts are explicitly still editable.
+    const guard = showPublish ? blocking : null;
+    const override = guard?.action;
 
     // Blocked with no way through: the control stays in the tab order and
     // carries its reason as a description, rather than going `disabled`.
@@ -175,31 +170,44 @@ export function EntryActions({
     // the treatment `GuardedMenuItem` already uses for the same problem.
     const inert = !!guard && !override;
 
-    const label = override
-        ? override.label
-        : primaryMeta
-          ? intl.formatMessage(primaryMeta.label)
-          : '';
+    // Every way to publish from this bar — the primary button and the menu's
+    // "Save & publish" — goes through this one handler, so the menu cannot be
+    // the door a refusal forgot to close. An override keeps the button an
+    // ordinary Publish and hands the click to the contribution, which publishes
+    // through `onPublish` once its own ceremony is done.
+    const publish = override
+        ? () => override.onSelect((options) => onPublish(options))
+        : () => onPublish();
+
+    // The primary button: Publish for a publishable type the user may publish,
+    // else a plain Save (draft / live). Null when the user can't write at all.
+    const primary = showPublish
+        ? { kind: 'publish' as const, onClick: publish }
+        : canSave
+          ? {
+                kind: (publishable ? 'saveDraft' : 'save') as
+                    | 'saveDraft'
+                    | 'save',
+                onClick: onSaveDraft
+            }
+          : null;
+
+    const primaryMeta = primary ? PRIMARY_META[primary.kind] : null;
+    const PrimaryIcon = primaryMeta?.icon;
+    const label = primaryMeta ? intl.formatMessage(primaryMeta.label) : '';
 
     const button =
         primary && primaryMeta && PrimaryIcon ? (
             <Button
                 type="button"
                 size="sm"
-                variant={override ? 'outline' : 'default'}
-                className={cn(
-                    inert && 'opacity-60',
-                    // An override is not an ordinary publish and must never
-                    // look like one.
-                    override &&
-                        'border-warning text-warning-soft-foreground hover:bg-warning-soft'
-                )}
+                className={cn(inert && 'opacity-60')}
                 aria-disabled={inert || undefined}
                 aria-describedby={guard?.reason ? reasonId : undefined}
                 onClick={
                     inert
                         ? (event) => event.preventDefault()
-                        : (override?.onSelect ?? primary.onClick)
+                        : () => primary.onClick()
                 }
                 disabled={busy}
             >
@@ -241,10 +249,11 @@ export function EntryActions({
                     busy={busy}
                     showSaveDraft={showSaveDraft}
                     showPublish={showPublish}
+                    publishBlocked={inert}
                     showUnpublish={showUnpublish}
                     showDelete={showDelete}
                     onSaveDraft={onSaveDraft}
-                    onPublish={onPublish}
+                    onPublish={publish}
                     onUnpublish={onUnpublish}
                     onDelete={onDelete}
                 />

@@ -303,7 +303,10 @@ export function CollectionRecordsRowActions({
                                                   'unpublished'
                                               )
                                             : run(
-                                                  actions.publish.mutateAsync,
+                                                  (id) =>
+                                                      actions.publish.mutateAsync(
+                                                          { id }
+                                                      ),
                                                   'published',
                                                   () =>
                                                       toast.error(

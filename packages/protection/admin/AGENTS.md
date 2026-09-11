@@ -11,7 +11,7 @@ src/lib/
   infrastructure/
     protectionGateway.ts       the port over /api/protection + its HTTP impl
     protectionKeys.ts          query keys — every one carries the workspace id
-  application/hooks.ts         the read, the four votes, and the bypass publish
+  application/hooks.ts         the reads and the four votes
   presentation/
     protectionPlugin/          the factory
     components/
@@ -45,11 +45,22 @@ Layered per [ADR-0003](../../../docs/adr/0003-tactical-ddd-inside-plugins.md).
 | Insights card   | `INSIGHTS_WIDGET_SLOT`        | how much review is outstanding              |
 | Reviews page    | `WORKSPACE_ROUTE_SLOT` + nav  | what is waiting, and on whom                |
 
-**The three entry contributions render nothing on an unprotected type**, on a
-create form, and on a non-publishable one. `reviewScopeOf` is the single place
-that decides, so the three cannot disagree about when the feature applies at
-all. An installation with no rule is the entry editor it was before this
-package existed.
+**The three entry contributions render nothing on an unprotected type** and on a
+non-publishable one. `reviewScopeOf` is the single place that decides, so the
+three cannot disagree about when the feature applies at all. An installation
+with no rule is the entry editor it was before this package existed.
+
+**A create form is the one place the verdict speaks and the chip and rail do
+not.** There is no entry to review, but its Publish creates one and publishes it
+in the same press, so the verdict reads `GET /protection/types/:type` — what a
+new entry of the type would meet — instead of the entry review. The chip and the
+rail stay silent: "0 of 2" about a record that does not exist is noise.
+
+**The verdict answers for the version Publish will ship, not the stored one.**
+Publish saves anything unsaved first, and that save is a new version with none
+of the head's approvals and the caller as its author. So a dirty editor reads
+the review's `afterSave` projection, a clean one the review itself, a create
+form the new-entry read — all three computed by the server's kernel.
 
 **The settings tab is the deliberate exception.** It is where a workspace with
 no rule goes to get one, so it has to be visible before there is anything to
@@ -78,12 +89,15 @@ learns protection exists. A vote, by contrast, invalidates **only** the review
 key: it moves no value, no relation and no revision, so refreshing the editor
 would refetch a record and a whole timeline to learn one number.
 
-**The bypass posts to content's publish route, not to a protection one.** A
-bypass is an ordinary publish carrying a reason — content-server's own
-`PublishEntryDto` says exactly that — and a protection endpoint that published
-would be a second way to publish. What this package owns is the ceremony in
-front of it. It is also the one mutation here that calls content's exported
-`refreshEntryCaches`, because it is the one that writes the entry.
+**The bypass does not publish anything itself.** An administrator who may pass
+a rule sees an ordinary **Publish** — same label, same style — and the click
+opens the dialog. Its reason goes back through the `publish` callback
+`ENTRY_PUBLISH_GUARD_SLOT` hands the action, which runs the editor's own publish
+with `bypassReason` attached: client validation, saving the edits on screen (or
+creating the record), the busy cover and the toasts. The dialog used to post to
+content's publish route directly, which shipped the stored record and silently
+dropped whatever was being edited — and on a create form had no record to
+publish at all.
 
 **The bypass dialog's confirm button is not disabled, and the reason is still
 mandatory.** Those are the same decision: a disabled control explains nothing to

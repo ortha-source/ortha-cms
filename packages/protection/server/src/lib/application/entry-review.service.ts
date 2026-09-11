@@ -21,13 +21,15 @@ import {
     APPROVAL_DECISION,
     countApprovals,
     evaluateProtection,
-    type Approval
+    type Approval,
+    type ProtectionInput
 } from '@orthacms/protection-domain';
 import {
     ReviewableEntryNotFoundError,
     ReviewRequestNotFoundError,
     ReviewRequestNotYoursError,
-    SelfApprovalRefusedError
+    SelfApprovalRefusedError,
+    UnknownProtectedContentTypeError
 } from '../domain/errors';
 import {
     HeadRevisionQuery,
@@ -42,6 +44,8 @@ import { ReviewRequestRepository } from '../infrastructure/review-request.reposi
 import { PROTECTION_EVENT_KINDS, reviewEvent } from '../protection.events';
 import type {
     EntryReviewView,
+    NewEntryProtectionView,
+    PublishOutlookView,
     ReviewApprovalView
 } from '../types/protection-views';
 
@@ -148,6 +152,13 @@ export class EntryReviewService {
         };
         const decision = evaluateProtection(input);
         const counts = countApprovals(input);
+        // The version a save would write now: bound to by no vote yet, and
+        // written by the caller — which is what the four-eyes exclusion reads.
+        const afterSave = outlook({
+            ...input,
+            headRevisionId: UNWRITTEN_REVISION,
+            headAuthorId: actor.id
+        });
         const request = await this.requests.findOpen(workspaceId, entryId);
         const numbers = await this.revisionNumbers(entry, votes);
 
@@ -163,6 +174,7 @@ export class EntryReviewService {
             ).length,
             blocked: !decision.allowed,
             bypassable: 'bypassable' in decision ? decision.bypassable : false,
+            afterSave,
             headRevisionId: entry.head.id,
             headRevisionNumber: entry.head.number,
             callerWroteHead: entry.head.authorId === actor.id,
@@ -179,6 +191,48 @@ export class EntryReviewService {
                   }
                 : null
         };
+    }
+
+    /**
+     * What publishing a **new** entry of `contentType` would meet, for `actor`
+     * — the create form's answer, where there is no entry to read a review of.
+     *
+     * A new entry has no revision and no votes, so this is the kernel handed
+     * exactly that rather than a shortcut reading `rule.enabled`: a rule is
+     * free to grow a field that changes the answer for an unreviewed entry,
+     * and a second reading of it here would not notice.
+     *
+     * Unknown and ungranted types answer with the same error, for the reason
+     * {@link resolve} gives.
+     */
+    async forNewEntry(
+        workspaceId: string,
+        contentType: string,
+        actor: ReviewActor
+    ): Promise<NewEntryProtectionView> {
+        const type = this.registry.get(contentType);
+        const granted = await this.grants.grantedSlugs(workspaceId);
+        if (!type || !granted.has(contentType)) {
+            throw new UnknownProtectedContentTypeError(
+                type?.kind ?? 'collection',
+                contentType
+            );
+        }
+        const rule =
+            (await this.rules.find(workspaceId, type.kind, contentType)) ??
+            undefined;
+        const view = outlook({
+            rule,
+            headRevisionId: UNWRITTEN_REVISION,
+            headAuthorId: actor.id,
+            approvals: [],
+            actor: {
+                userId: actor.id,
+                isAdmin: actor.managesProtection,
+                isToken: false
+            }
+        });
+        return { protected: !!rule?.enabled, ...view };
     }
 
     /**
@@ -414,6 +468,25 @@ export class EntryReviewService {
         const principal: EventActor = { id: actor.id, email: actor.email };
         await this.outbox.append(attachActor([event], principal));
     }
+}
+
+/**
+ * The head id handed to the kernel for a version that has not been written yet.
+ *
+ * Every stored vote names a real revision uuid, so no vote can be bound to this
+ * — which is the whole of what a not-yet-written version means to the count.
+ */
+const UNWRITTEN_REVISION = '';
+
+/** The kernel's verdict and counts for one input, as a {@link PublishOutlookView}. */
+function outlook(input: ProtectionInput): PublishOutlookView {
+    const decision = evaluateProtection(input);
+    return {
+        required: input.rule?.enabled ? input.rule.requiredApprovals : 0,
+        given: countApprovals(input).given,
+        blocked: !decision.allowed,
+        bypassable: 'bypassable' in decision ? decision.bypassable : false
+    };
 }
 
 /** One stored vote → the view, with its staleness resolved against the head. */

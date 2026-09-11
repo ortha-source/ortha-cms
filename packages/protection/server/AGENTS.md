@@ -30,6 +30,7 @@ src/lib/
   http/controllers/
     protection-rules.controller.ts  /api/protection/rules
     entry-review.controller.ts      /api/protection/entries/:type/:id
+    new-entry-protection.controller.ts  /api/protection/types/:type
     review-queue.controller.ts      /api/protection/queue
   docs/                       the OpenAPI pass — the view is an interface
 ```
@@ -42,6 +43,7 @@ src/lib/
 | `PUT /protection/rules/:kind/:slug`          | workspace | `protection:manage` |
 | `DELETE /protection/rules/:kind/:slug`       | workspace | `protection:manage` |
 | `GET /protection/entries/:type/:id`          | workspace | `content:read`      |
+| `GET /protection/types/:type`                | workspace | `content:read`      |
 | `POST /protection/entries/:type/:id/request` | workspace | `content:update`    |
 | `DELETE …/request`                           | workspace | `content:update`    |
 | `POST …/approve`                             | workspace | `content:approve`   |
@@ -148,6 +150,31 @@ the count stand_, over one implementation. The panel asks for the numbers rather
 than asking the gate a question rigged to be refused. `PublishProtectionGuard`
 takes the same route in the other direction — it reads the decision, never the
 counts — so the button and the refusal are the same arithmetic.
+
+## Verdicts for a version that does not exist yet
+
+The editor's Publish saves whatever is unsaved before it publishes, and on a
+create form it creates the entry. Both write a version **no vote is bound to,
+authored by the person pressing the button** — so the stored head's verdict is
+not the one that publish meets. A button reading only the head offered an
+ordinary publish the guard then refused.
+
+Two reads answer for that version, and neither counts anything itself: each
+hands `evaluateProtection` a head id no stored vote can match (the empty
+string — every vote names a real revision uuid) with the caller as its author.
+
+- **`EntryReviewView.afterSave`** — the entry's votes against that hypothetical
+  head. The four-eyes exclusion then removes the caller's own approvals, and
+  `countStaleApprovals` keeps everybody else's, exactly as they would after a
+  real save.
+- **`GET /protection/types/:type`** (`NewEntryProtectionController`) — the same
+  with no votes at all, for a create form. Unknown and ungranted types are one
+  404, for the reason every route here gives.
+
+The admin also stopped saving an **unchanged** record before publishing it
+(content's `usePublishEntryFlow`). That save used to move the head off the
+version reviewers had just approved, and the publish that followed was refused
+for the approval it had itself made stale.
 
 ## The decisions that are easy to get wrong
 

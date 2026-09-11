@@ -2,6 +2,7 @@ import type { OpenApiDocument } from '@orthacms/bootstrap-server';
 import { describeProtectionApi } from './describe-protection-api';
 import {
     ENTRY_REVIEW_SCHEMA,
+    NEW_ENTRY_PROTECTION_SCHEMA,
     PROTECTION_RULE_SCHEMA,
     REVIEW_QUEUE_SCHEMA
 } from './protection-schemas';
@@ -182,6 +183,30 @@ describe('describeProtectionApi', () => {
         ).toBeDefined();
         expect(
             document.components?.schemas?.[REVIEW_QUEUE_SCHEMA]
+        ).toBeDefined();
+    });
+
+    it('points the new-entry read at its own schema, with the 404', () => {
+        const document = scanned();
+        document.paths['/api/protection/types/{type}'] = {
+            get: { responses: { '200': { description: '' } } }
+        };
+
+        describeProtectionApi(document);
+
+        expect(
+            success(document, '/api/protection/types/{type}', 'get')
+        ).toMatchObject({
+            content: {
+                'application/json': {
+                    schema: {
+                        $ref: `#/components/schemas/${NEW_ENTRY_PROTECTION_SCHEMA}`
+                    }
+                }
+            }
+        });
+        expect(
+            success(document, '/api/protection/types/{type}', 'get', '404')
         ).toBeDefined();
     });
 

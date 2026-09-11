@@ -10,6 +10,7 @@ import { HeadRevisionQuery } from './infrastructure/head-revision.query';
 import { ReviewApprovalRepository } from './infrastructure/review-approval.repository';
 import { ReviewRequestRepository } from './infrastructure/review-request.repository';
 import { EntryReviewController } from './http/controllers/entry-review.controller';
+import { NewEntryProtectionController } from './http/controllers/new-entry-protection.controller';
 import { ReviewQueueController } from './http/controllers/review-queue.controller';
 import { ProtectionRuleRepository } from './infrastructure/protection-rule.repository';
 import { ProtectionWorkspacePurger } from './infrastructure/purge/protection-workspace.purger';
@@ -56,6 +57,7 @@ export class ProtectionModule {
                 // is registered ahead of the `:id` routes for the same reason.
                 ReviewStatusController,
                 EntryReviewController,
+                NewEntryProtectionController,
                 ProtectionInsightsController
             ],
             providers: [

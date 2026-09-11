@@ -172,19 +172,24 @@ describe('with a contribution that blocks', () => {
         expect(onPublish).not.toHaveBeenCalled();
     });
 
-    it('relabels the button and hands the click over when an action is offered', () => {
-        const onSelect = vi.fn();
+    it('keeps an ordinary Publish and hands the click over when an action is offered [protection:I-20]', () => {
+        const publishes: ((options: { bypassReason?: string }) => void)[] = [];
+        const onSelect = vi.fn((publish) => {
+            publishes.push(publish);
+        });
         useGuards({
             id: 'protection',
             useVerdict: () => ({
                 blocked: true,
                 reason: '2 approvals required, 0 given',
-                action: { label: 'Publish anyway', onSelect }
+                action: { onSelect }
             })
         });
 
         const { onPublish } = renderActions();
-        const button = screen.getByRole('button', { name: 'Publish anyway' });
+        // Not relabelled and not restyled: the way through is explained by the
+        // ceremony the click opens, not by a second kind of Publish button.
+        const button = screen.getByRole('button', { name: 'Publish' });
 
         // An override is operable — it is the way through, not a refusal.
         expect(button.hasAttribute('aria-disabled')).toBe(false);
@@ -192,8 +197,40 @@ describe('with a contribution that blocks', () => {
         fireEvent.click(button);
         expect(onSelect).toHaveBeenCalledTimes(1);
         // Content never publishes behind the contribution's back: the action
-        // owns whatever ceremony comes first.
+        // owns whatever ceremony comes first…
         expect(onPublish).not.toHaveBeenCalled();
+
+        // …and then publishes through the editor's own publish, options intact.
+        expect(publishes).toHaveLength(1);
+        publishes[0]({ bypassReason: 'embargo lifted early' });
+        expect(onPublish).toHaveBeenCalledWith({
+            bypassReason: 'embargo lifted early'
+        });
+    });
+
+    it('hands the unsaved state to every guard [protection:I-18]', () => {
+        const useVerdict = vi.fn(() => null);
+        useGuards({ id: 'probe', useVerdict });
+
+        render(
+            <IntlProvider locale="en">
+                <TooltipProvider>
+                    <EntrySlotContextProvider value={SLOT_CONTEXT}>
+                        <EntryActions
+                            publishable
+                            paranoid={false}
+                            isCreate
+                            saving={false}
+                            dirty
+                            onSaveDraft={vi.fn()}
+                            onPublish={vi.fn()}
+                        />
+                    </EntrySlotContextProvider>
+                </TooltipProvider>
+            </IntlProvider>
+        );
+
+        expect(useVerdict).toHaveBeenCalledWith(SLOT_CONTEXT, { dirty: true });
     });
 
     it('renders a contributed overlay outside the button', () => {
@@ -231,6 +268,60 @@ describe('with a contribution that blocks', () => {
         // Every hook still runs — they are hooks, and skipping one would change
         // the call order between renders.
         expect(second).toHaveBeenCalled();
+    });
+});
+
+/** Open the ⋯ menu the way a keyboard does — Radix opens on Enter. */
+function openMenu() {
+    const trigger = screen.getByRole('button', { name: 'More actions' });
+    fireEvent.keyDown(trigger, { key: 'Enter' });
+    return screen.getByRole('menuitem', { name: 'Save & publish' });
+}
+
+/**
+ * The menu is a second way to publish, and the easy one to forget: it was, until
+ * `Save & publish` published straight past a refusal the primary button was
+ * holding.
+ */
+describe('the ⋯ menu’s Save & publish [protection:I-21]', () => {
+    it('is held along with the button when a guard refuses with no way through', () => {
+        useGuards({
+            id: 'protection',
+            useVerdict: () => ({ blocked: true, reason: '1 approval required' })
+        });
+
+        const { onPublish } = renderActions();
+        const item = openMenu();
+
+        expect(item.getAttribute('aria-disabled')).toBe('true');
+        fireEvent.click(item);
+        expect(onPublish).not.toHaveBeenCalled();
+    });
+
+    it('opens the same ceremony as the button when a way through is offered', () => {
+        const onSelect = vi.fn();
+        useGuards({
+            id: 'protection',
+            useVerdict: () => ({
+                blocked: true,
+                reason: '1 approval required',
+                action: { onSelect }
+            })
+        });
+
+        const { onPublish } = renderActions();
+        fireEvent.click(openMenu());
+
+        expect(onSelect).toHaveBeenCalledTimes(1);
+        expect(onPublish).not.toHaveBeenCalled();
+    });
+
+    it('publishes plainly when nothing objects', () => {
+        const { onPublish } = renderActions();
+        fireEvent.click(openMenu());
+
+        // Called with no options — a menu event must never leak in as one.
+        expect(onPublish.mock.calls).toEqual([[]]);
     });
 });
 
