@@ -1,44 +1,27 @@
 import { useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { Check, MessageSquarePlus, Send } from 'lucide-react';
-import { Button, Textarea, toast } from '@orthacms/design-system';
+import { Check, UserPlus } from 'lucide-react';
+import { Button, toast } from '@orthacms/design-system';
 import type { EntryReview } from '../../../../domain/types';
 import {
     useApprove,
-    useRequestChanges,
-    useRequestReview,
     type EntryReviewScope
 } from '../../../../application/hooks';
+import { RequestReviewDialog } from '../RequestReviewDialog';
 
 const messages = defineMessages({
     requestReview: {
         id: 'protection.actions.requestReview',
         defaultMessage: 'Request review'
     },
-    requestedToast: {
-        id: 'protection.actions.requestedToast',
-        defaultMessage: 'Review requested.'
+    changeReviewers: {
+        id: 'protection.actions.changeReviewers',
+        defaultMessage: 'Change reviewers'
     },
     approve: { id: 'protection.actions.approve', defaultMessage: 'Approve' },
     approvedToast: {
         id: 'protection.actions.approvedToast',
         defaultMessage: 'Approved — {given} of {required} on this version.'
-    },
-    requestChanges: {
-        id: 'protection.actions.requestChanges',
-        defaultMessage: 'Request changes'
-    },
-    changesToast: {
-        id: 'protection.actions.changesToast',
-        defaultMessage: 'Changes requested.'
-    },
-    noteLabel: {
-        id: 'protection.actions.noteLabel',
-        defaultMessage: 'Note (optional)'
-    },
-    notePlaceholder: {
-        id: 'protection.actions.notePlaceholder',
-        defaultMessage: 'What should be looked at?'
     },
     wroteHead: {
         id: 'protection.actions.wroteHead',
@@ -52,87 +35,68 @@ const messages = defineMessages({
 });
 
 /**
- * The controls under the review list.
+ * The controls under the reviewer list: ask people, and approve.
  *
- * Who is offered what is the four-eyes rule made visible. The person who wrote
- * the head revision is told **in a sentence** why they cannot approve it — not
- * shown a disabled button, which explains nothing to anybody and nothing at all
- * to a screen reader. Anybody else holding `content:approve` gets the vote.
+ * **Approve disappears once you have approved this version.** Your row already
+ * carries the green check, and a button that does nothing further is noise. It
+ * comes back after a save, because your approval is then on a version nobody is
+ * publishing.
  *
- * Every outcome is announced through `toast`, because approving moves a number
- * in a panel the person may not be looking at and nothing else on the screen
- * jumps.
+ * The person who wrote the head revision is told **in a sentence** why they
+ * cannot approve it — not shown a disabled button, which explains nothing to
+ * anybody and nothing at all to a screen reader.
+ *
+ * **Request review opens a picker**, and on an entry that already has a request
+ * the same button reads "Change reviewers": the request route replaces who is
+ * asked. There are no notes and no "request changes" — a reviewer who is not
+ * satisfied simply does not approve.
  */
 export function ReviewActions({
     scope,
     review,
-    canApprove
+    canApprove,
+    canRequest
 }: {
     scope: EntryReviewScope;
     review: EntryReview;
     /** Whether the signed-in person holds `content:approve`. */
     canApprove: boolean;
+    /** Whether the signed-in person holds `content:update`, which asking takes. */
+    canRequest: boolean;
 }) {
     const intl = useIntl();
-    const [note, setNote] = useState('');
-    const requestReview = useRequestReview(scope);
+    const [picking, setPicking] = useState(false);
     const approve = useApprove(scope);
-    const requestChanges = useRequestChanges(scope);
 
-    const ref = { typeName: scope.typeName, entryId: scope.entryId };
-    const trimmed = () => note.trim() || undefined;
-    const busy =
-        requestReview.isPending ||
-        approve.isPending ||
-        requestChanges.isPending;
+    const canVote =
+        canApprove && !review.callerWroteHead && !review.callerApprovedHead;
+    const toldWhy = canApprove && review.callerWroteHead;
 
-    /** Nobody has asked yet, so asking is the useful thing to offer. */
-    const canAsk = !review.request;
-    /** The vote, withheld from the head's own author whatever else they hold. */
-    const canVote = canApprove && !review.callerWroteHead;
-
-    if (!canAsk && !canVote) {
-        return review.callerWroteHead ? (
-            <p className="text-xs text-muted-foreground">
-                {intl.formatMessage(messages.wroteHead)}
-            </p>
-        ) : null;
-    }
-
-    const failed = () => toast.error(intl.formatMessage(messages.failed));
-    const done = (message: string) => () => {
-        setNote('');
-        toast.success(message);
-    };
+    if (!canVote && !canRequest && !toldWhy) return null;
 
     return (
         <div className="flex flex-col gap-2">
-            {review.callerWroteHead && canApprove ? (
+            {toldWhy ? (
                 <p className="text-xs text-muted-foreground">
                     {intl.formatMessage(messages.wroteHead)}
                 </p>
             ) : null}
 
-            <Textarea
-                aria-label={intl.formatMessage(messages.noteLabel)}
-                placeholder={intl.formatMessage(messages.notePlaceholder)}
-                value={note}
-                rows={2}
-                onChange={(event) => setNote(event.target.value)}
-            />
-
             <div className="flex flex-wrap gap-2">
                 {canVote ? (
-                    <>
-                        <Button
-                            type="button"
-                            size="sm"
-                            disabled={busy}
-                            onClick={() =>
-                                approve.mutate(
-                                    { ...ref, note: trimmed() },
-                                    {
-                                        onSuccess: done(
+                    <Button
+                        type="button"
+                        size="sm"
+                        disabled={approve.isPending}
+                        onClick={() =>
+                            approve.mutate(
+                                {
+                                    typeName: scope.typeName,
+                                    entryId: scope.entryId
+                                },
+                                {
+                                    onSuccess: () =>
+                                        toast.success(
                                             intl.formatMessage(
                                                 messages.approvedToast,
                                                 {
@@ -141,64 +105,44 @@ export function ReviewActions({
                                                 }
                                             )
                                         ),
-                                        onError: failed
-                                    }
-                                )
-                            }
-                        >
-                            <Check aria-hidden />
-                            {intl.formatMessage(messages.approve)}
-                        </Button>
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            disabled={busy}
-                            onClick={() =>
-                                requestChanges.mutate(
-                                    { ...ref, note: trimmed() },
-                                    {
-                                        onSuccess: done(
-                                            intl.formatMessage(
-                                                messages.changesToast
-                                            )
-                                        ),
-                                        onError: failed
-                                    }
-                                )
-                            }
-                        >
-                            <MessageSquarePlus aria-hidden />
-                            {intl.formatMessage(messages.requestChanges)}
-                        </Button>
-                    </>
-                ) : null}
-
-                {canAsk ? (
-                    <Button
-                        type="button"
-                        size="sm"
-                        variant={canVote ? 'outline' : 'default'}
-                        disabled={busy}
-                        onClick={() =>
-                            requestReview.mutate(
-                                { ...ref, note: trimmed() },
-                                {
-                                    onSuccess: done(
-                                        intl.formatMessage(
-                                            messages.requestedToast
+                                    onError: () =>
+                                        toast.error(
+                                            intl.formatMessage(messages.failed)
                                         )
-                                    ),
-                                    onError: failed
                                 }
                             )
                         }
                     >
-                        <Send aria-hidden />
-                        {intl.formatMessage(messages.requestReview)}
+                        <Check aria-hidden />
+                        {intl.formatMessage(messages.approve)}
+                    </Button>
+                ) : null}
+
+                {canRequest ? (
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant={canVote ? 'outline' : 'default'}
+                        onClick={() => setPicking(true)}
+                    >
+                        <UserPlus aria-hidden />
+                        {intl.formatMessage(
+                            review.request
+                                ? messages.changeReviewers
+                                : messages.requestReview
+                        )}
                     </Button>
                 ) : null}
             </div>
+
+            {canRequest ? (
+                <RequestReviewDialog
+                    open={picking}
+                    onOpenChange={setPicking}
+                    scope={scope}
+                    currentReviewerIds={review.request?.reviewerIds ?? []}
+                />
+            ) : null}
         </div>
     );
 }

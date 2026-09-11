@@ -17,10 +17,8 @@ export type {
     ProtectionDecision
 } from './lib/evaluate-protection';
 
-export { APPROVAL_DECISION } from './lib/protection-rule';
 export type {
     Approval,
-    ApprovalDecision,
     ProtectionActor,
     ProtectionInput,
     ProtectionRule

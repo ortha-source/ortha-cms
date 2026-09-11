@@ -54,8 +54,6 @@ function draw() {
     );
 }
 
-const confirm = () => screen.getByRole('button', { name: /publish anyway/i });
-
 describe('BypassDialog', () => {
     beforeEach(() => {
         onConfirm.mockReset();
@@ -75,55 +73,30 @@ describe('BypassDialog', () => {
         expect(screen.getByText(/entry\.publish_bypassed/)).toBeTruthy();
     });
 
-    /**
-     * The two halves of one decision: an empty reason must not publish, and the
-     * refusal must be something a person *hears*. A disabled button would do the
-     * first and none of the second.
-     */
-    it('refuses an empty reason without publishing, and says why', () => {
+    /** Reasons were removed with review notes: there is nothing to fill in. */
+    it('asks for no reason', () => {
         draw();
 
-        expect(confirm().hasAttribute('disabled')).toBe(false);
-        fireEvent.click(confirm());
-
-        expect(onConfirm).not.toHaveBeenCalled();
-        expect(screen.getByRole('alert').textContent).toMatch(
-            /reason is required/i
-        );
+        expect(screen.queryByRole('textbox')).toBeNull();
     });
 
-    it('treats whitespace as empty', () => {
+    it('confirms and closes', () => {
         draw();
 
-        fireEvent.change(screen.getByLabelText(/reason/i), {
-            target: { value: '   ' }
-        });
-        fireEvent.click(confirm());
-
-        expect(onConfirm).not.toHaveBeenCalled();
-    });
-
-    /**
-     * It hands the reason over rather than publishing: the editor's own publish
-     * is what saves the edits on screen, or creates the record on a create form.
-     */
-    it('hands the trimmed reason to the editor’s publish and closes', () => {
-        draw();
-
-        fireEvent.change(screen.getByLabelText(/reason/i), {
-            target: { value: '  numbers corrected before the send  ' }
-        });
-        fireEvent.click(confirm());
-
-        expect(onConfirm).toHaveBeenCalledWith(
-            'numbers corrected before the send'
+        fireEvent.click(
+            screen.getByRole('button', { name: /publish anyway/i })
         );
+
+        expect(onConfirm).toHaveBeenCalledTimes(1);
         expect(onOpenChange).toHaveBeenCalledWith(false);
     });
 
-    it('labels the reason field rather than relying on its placeholder', () => {
+    it('cancels without confirming', () => {
         draw();
 
-        expect(screen.getByLabelText(/reason/i)).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+
+        expect(onConfirm).not.toHaveBeenCalled();
+        expect(onOpenChange).toHaveBeenCalledWith(false);
     });
 });

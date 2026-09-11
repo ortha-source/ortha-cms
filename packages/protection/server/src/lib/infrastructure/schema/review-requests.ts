@@ -38,8 +38,19 @@ export const reviewRequests = pgTable(
         /** The head revision when the request was opened. Trail only. */
         revisionId: uuid('revision_id').notNull(),
         requestedBy: uuid('requested_by').notNull(),
-        /** What the author wants looked at. */
-        note: text('note'),
+        /**
+         * The people asked to review, in the order they were picked.
+         *
+         * An array on the request rather than a table of its own: the set is
+         * small, it is always read and written whole with its request, and it
+         * never changes whose approval counts — anyone holding
+         * `content:approve` may still approve. It says who was asked, which is
+         * what the entry panel shows and what "Waiting on me" filters by.
+         */
+        reviewerIds: uuid('reviewer_ids')
+            .array()
+            .notNull()
+            .default(sql`'{}'::uuid[]`),
         createdAt: timestamp('created_at', { withTimezone: true })
             .notNull()
             .defaultNow(),
@@ -47,7 +58,7 @@ export const reviewRequests = pgTable(
         resolvedAt: timestamp('resolved_at', { withTimezone: true })
     },
     (table) => [
-        // One *open* request per entry: asking twice updates the note rather
+        // One *open* request per entry: asking twice updates the reviewers rather
         // than stacking a second row into the reviewer's queue. Partial, so a
         // resolved request stays as history and does not block the next ask.
         uniqueIndex('review_requests_open_entry_unique')

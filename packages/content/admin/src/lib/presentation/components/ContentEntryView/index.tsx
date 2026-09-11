@@ -438,8 +438,8 @@ export function ContentEntryView({
             ignoreFields?: ReadonlySet<string>;
             /** Whether the editor holds anything unsaved (values or staged links). */
             dirty?: boolean;
-            /** A publish guard's reason for publishing past it, forwarded as is. */
-            bypassReason?: string;
+            /** Whether to publish past a publish guard, forwarded as is. */
+            bypass?: boolean;
         }
     ) => {
         // Slot-contributed create-body params (e.g. the target locale), from the
@@ -502,7 +502,7 @@ export function ContentEntryView({
                     options.dirty === false &&
                     !options.relations &&
                     Object.keys(extensions).length === 0,
-                bypassReason: options.bypassReason
+                bypass: options.bypass
             });
             // The write landed, so every presave step can drop what it consumed
             // (the media plugin revokes its preview URLs and forgets the staged

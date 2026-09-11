@@ -88,9 +88,9 @@ export class BulkPublishEntriesUseCase {
                     entryId: id,
                     workspaceId,
                     actor: toPublishActor(actor)
-                    // No `bypassReason`: a bypass is a deliberate act on one
-                    // entry with a reason attached to it, and a reason typed
-                    // once to excuse fifty publishes is not a reason.
+                    // No `bypass`: a bypass is a deliberate, confirmed act on
+                    // one entry, and one confirmation to excuse fifty publishes
+                    // is not a decision about any of them.
                 })) ?? { allowed: true as const };
                 if (verdict.allowed) {
                     published.push(id);

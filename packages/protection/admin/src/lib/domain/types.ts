@@ -11,18 +11,15 @@
  * and then quietly stop.
  */
 
-/** One recorded vote, as the panel renders it. */
+/** One recorded approval, as the panel renders it. */
 export type ReviewApproval = {
-    /** Who voted. The panel resolves the name from the workspace's members. */
+    /** Who approved. The panel resolves the name from the workspace's members. */
     userId: string;
-    decision: 'approved' | 'changes_requested';
-    /** Their reason, when they left one. */
-    note: string | null;
-    /** The revision they voted on. */
+    /** The revision they approved. */
     revisionId: string;
     /** Its 1-based version number — what a struck-through line points at. */
     revisionNumber: number | null;
-    /** Whether the vote sits off the head, and so no longer counts. */
+    /** Whether the approval sits off the head, and so no longer counts. */
     isStale: boolean;
     createdAt: string;
 };
@@ -31,7 +28,8 @@ export type ReviewApproval = {
 export type ReviewRequest = {
     id: string;
     requestedBy: string;
-    note: string | null;
+    /** The people asked, in the order they were picked. */
+    reviewerIds: string[];
     revisionId: string;
     createdAt: string;
 };
@@ -68,8 +66,6 @@ export type EntryReview = {
     given: number;
     /** How many people's only approval sits on an earlier version. */
     stale: number;
-    /** How many asked for changes on the head. Never lowers `given`. */
-    changesRequested: number;
     /** Whether publication is held. Always `false` when unprotected. */
     blocked: boolean;
     /** Whether an administrator could publish past the rule. */
@@ -83,7 +79,9 @@ export type EntryReview = {
     headRevisionNumber: number;
     /** Whether the caller wrote the head, and so cannot approve it. */
     callerWroteHead: boolean;
-    /** Every vote on the entry, stale ones included. */
+    /** Whether the caller already approved the head — nothing left to press. */
+    callerApprovedHead: boolean;
+    /** Every approval on the entry, stale ones included. */
     approvals: ReviewApproval[];
     /** The open ask, or `null`. */
     request: ReviewRequest | null;
@@ -106,8 +104,14 @@ export function toneOf(review: EntryReview): ReviewTone {
     return review.given === 0 ? 'blocked' : 'partial';
 }
 
+/** Somebody who may be asked to review — the request dialog's list. */
+export type ReviewerCandidate = {
+    userId: string;
+    email: string;
+};
+
 /**
- * Whether this person may cast a vote on the head revision.
+ * Whether this person may approve the head revision.
  *
  * Two things withhold it, and they are different refusals: not holding
  * `content:approve` is a permission the operator can grant, while having
@@ -142,7 +146,7 @@ export type ProtectionRule = {
     requireOtherPerson: boolean;
     /** Count approvals given on earlier revisions. Not recommended. */
     countStaleApprovals: boolean;
-    /** An administrator may publish past the rule, with a mandatory reason. */
+    /** An administrator may publish past the rule, after confirming. */
     adminBypass: boolean;
     /** A bearer token may publish this type — still meeting the count. */
     allowTokenPublish: boolean;
@@ -216,8 +220,8 @@ export type ReviewQueueItem = {
     entryId: string;
     /** Who asked. The page resolves the name; the API stays id-only. */
     requestedBy: string;
-    /** What they wanted looked at, when they said. */
-    note: string | null;
+    /** The people asked — what "Waiting on me" is filtered by. */
+    reviewerIds: string[];
     /** How many approvals the type's rule wants; `0` when unprotected. */
     required: number;
     /** How many count on the entry's current head. */
@@ -235,7 +239,7 @@ export type ReviewQueue = {
 
 /** The queue split into the two questions the page asks. */
 export type ReviewQueueTabs = {
-    /** Work somebody else asked for — what a reviewer can pick up. */
+    /** Asks that name this person as a reviewer. */
     waitingOnMe: ReviewQueueItem[];
     /** Asks this person sent, and how far each has got. */
     mine: ReviewQueueItem[];
@@ -244,20 +248,19 @@ export type ReviewQueueTabs = {
 /**
  * Splits one page of the queue into the page's two tabs.
  *
- * **"Waiting on me" is every open ask this person did not open themselves** —
- * not an assignment. The feature has no reviewer lists by design (ADR-0017):
- * anyone holding `content:approve` may review anything except their own head
- * revision, so "could I pick this up" is the only question with a true answer,
- * and "somebody else asked for it" is that answer.
+ * **"Waiting on me" is every open ask that names this person as a reviewer.** A
+ * request names who is asked, so that is the true answer to the question; an
+ * ask that names somebody else is not waiting on me, even though anyone holding
+ * `content:approve` may still approve it.
  *
- * The narrower reading — *minus the ones I have already voted on* — is not
+ * The narrower reading — *minus the ones I have already approved* — is not
  * available here and is deliberately not faked: the queue line carries the
- * tally but not **who** voted, so a client cannot tell its own approval from a
- * colleague's. Guessing from `given > 0` would hide a two-approval rule from
- * the second reviewer the rule exists to involve. Returning it would mean the
- * queue read carrying every voter per line, which is a payload the column does
- * not need; it is worth doing when somebody asks for it, and wrong to
- * approximate before then.
+ * tally but not **who** approved, so a client cannot tell its own approval from
+ * a colleague's.
+ *
+ * It is no longer a partition: an ask I neither sent nor was named on belongs
+ * to neither tab. My own ask is only ever mine — asking yourself is refused by
+ * the server anyway.
  *
  * Pure, and split from one page rather than two requests: both tabs are views
  * of the same fetched window, so their counts cannot disagree with each other
@@ -269,8 +272,10 @@ export function splitQueue(
 ): ReviewQueueTabs {
     const waitingOnMe: ReviewQueueItem[] = [];
     const mine: ReviewQueueItem[] = [];
+    if (!callerId) return { waitingOnMe, mine };
     for (const item of items) {
-        (item.requestedBy === callerId ? mine : waitingOnMe).push(item);
+        if (item.requestedBy === callerId) mine.push(item);
+        else if (item.reviewerIds.includes(callerId)) waitingOnMe.push(item);
     }
     return { waitingOnMe, mine };
 }
@@ -290,8 +295,6 @@ export type EntryReviewStatus = {
     given: number;
     /** How many people's only approval sits on an earlier version. */
     stale: number;
-    /** Whether somebody asked for changes on the current version. */
-    changesRequested: boolean;
     /** Whether a review has been asked for and not yet resolved. */
     requested: boolean;
     /** Whether publishing is currently held. */

@@ -191,12 +191,12 @@ export const ENTRY_HEADER_SLOT = createSlot<EntryHeaderItem>(
 /**
  * What a contribution may add to the publish it lets through.
  *
- * `bypassReason` is carried to the publish request verbatim, for the server's
- * `CONTENT_PUBLISH_GUARD` registrations to judge. Content neither validates nor
- * interprets it — the same discipline the server-side use-case keeps.
+ * `bypass` is carried to the publish request as is, for the server's
+ * `CONTENT_PUBLISH_GUARD` registrations to judge. Content does not interpret
+ * it — the same discipline the server-side use-case keeps.
  */
 export type EntryPublishOptions = {
-    bypassReason?: string;
+    bypass?: boolean;
 };
 
 /**

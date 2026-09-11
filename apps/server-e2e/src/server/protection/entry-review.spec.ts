@@ -132,6 +132,30 @@ describe('/api/protection/entries', () => {
             .expect(200);
     }
 
+    /**
+     * The id of the administrator `protect()` seeded — a member holding
+     * `content:approve`, so somebody a request may name without seeding a
+     * reviewer the test is not about.
+     */
+    async function ruleAdminId(): Promise<string> {
+        const { rows } = await getPool().query<{ id: string }>(
+            'SELECT id FROM users WHERE email = $1',
+            [RULE_ADMIN]
+        );
+        return rows[0].id;
+    }
+
+    /** Ask `reviewerIds` to review, as `agent`. */
+    function ask(
+        agent: ReturnType<typeof request.agent>,
+        id: string,
+        reviewerIds: string[]
+    ) {
+        return agent
+            .post(`/api/protection/entries/test_article/${id}/request`)
+            .send({ reviewerIds });
+    }
+
     /** The entry's revisions, oldest first. */
     async function revisionsOf(
         entryId: string
@@ -167,9 +191,9 @@ describe('/api/protection/entries', () => {
     /** Approval rows for one entry. */
     async function approvalRows(
         entryId: string
-    ): Promise<{ userId: string; revisionId: string; decision: string }[]> {
+    ): Promise<{ userId: string; revisionId: string }[]> {
         const { rows } = await getPool().query(
-            `SELECT user_id AS "userId", revision_id AS "revisionId", decision
+            `SELECT user_id AS "userId", revision_id AS "revisionId"
              FROM review_approvals WHERE entry_id = $1 ORDER BY created_at`,
             [entryId]
         );
@@ -270,7 +294,6 @@ describe('/api/protection/entries', () => {
             const id = await createEntry(author);
             await reviewer
                 .post(`/api/protection/entries/test_article/${id}/approve`)
-                .send({})
                 .expect(201);
 
             const state = await author
@@ -299,7 +322,6 @@ describe('/api/protection/entries', () => {
             const id = await createEntry(author);
             await reviewer
                 .post(`/api/protection/entries/test_article/${id}/approve`)
-                .send({})
                 .expect(201);
 
             const state = await author
@@ -320,7 +342,6 @@ describe('/api/protection/entries', () => {
             const { agent: reviewer } = await member(REVIEWER, 'contributor');
             await reviewer
                 .post(`/api/protection/entries/test_article/${id}/approve`)
-                .send({})
                 .expect(201);
 
             const state = await author
@@ -356,7 +377,6 @@ describe('/api/protection/entries', () => {
             const { agent: reviewer } = await member(REVIEWER, 'contributor');
             await reviewer
                 .post(`/api/protection/entries/test_article/${id}/approve`)
-                .send({})
                 .expect(201);
 
             const byAuthor = await author
@@ -432,61 +452,99 @@ describe('/api/protection/entries', () => {
         });
     });
 
+    describe('GET /entries/:type/:id/reviewers', () => {
+        /**
+         * One list for both ends of the request: exactly who the request route
+         * accepts. A viewer is not on it — they could never approve — and
+         * neither is the person asking.
+         */
+        it('[protection:I-22] lists the other members who can approve, and nobody else', async () => {
+            await protect({ enabled: true });
+            const { agent, user: author } = await member(AUTHOR, 'contributor');
+            const { user: reviewer } = await member(REVIEWER, 'contributor');
+            const { user: viewer } = await member(VIEWER, 'viewer');
+            const id = await createEntry(agent);
+
+            const response = await agent
+                .get(`/api/protection/entries/test_article/${id}/reviewers`)
+                .expect(200);
+            const ids = response.body.candidates.map(
+                (candidate: { userId: string }) => candidate.userId
+            );
+
+            expect(ids).toEqual(
+                expect.arrayContaining([reviewer.id, await ruleAdminId()])
+            );
+            expect(ids).not.toContain(author.id);
+            expect(ids).not.toContain(viewer.id);
+            expect(response.body.candidates[0]).toEqual({
+                userId: expect.any(String),
+                email: expect.any(String)
+            });
+        });
+
+        it('is refused to a viewer, who cannot ask for review', async () => {
+            await protect({ enabled: true });
+            const { agent: authorAgent } = await member(AUTHOR, 'contributor');
+            const id = await createEntry(authorAgent);
+            const { agent } = await member(VIEWER, 'viewer');
+
+            await agent
+                .get(`/api/protection/entries/test_article/${id}/reviewers`)
+                .expect(403);
+        });
+    });
+
     describe('POST /entries/:type/:id/request', () => {
-        it('opens a request and records who asked', async () => {
+        it('opens a request naming its reviewers, and records who asked', async () => {
             await protect({ enabled: true, requiredApprovals: 1 });
             const { agent, user } = await member(AUTHOR, 'contributor');
             const id = await createEntry(agent);
+            const reviewer = await ruleAdminId();
 
-            await agent
-                .post(`/api/protection/entries/test_article/${id}/request`)
-                .send({ note: 'Please check the revenue table' })
-                .expect(201);
+            await ask(agent, id, [reviewer]).expect(201);
 
             const state = await agent
                 .get(`/api/protection/entries/test_article/${id}`)
                 .expect(200);
             expect(state.body.request).toMatchObject({
                 requestedBy: user.id,
-                note: 'Please check the revenue table'
+                reviewerIds: [reviewer]
             });
+            expect(state.body.request).not.toHaveProperty('note');
             expect(await openRequests(id)).toBe(1);
         });
 
         /**
          * The partial unique index means a second ask is an update. A 409 here
-         * would make "send it again, I added something" a thing the product
-         * refuses for no reason a person would recognise.
+         * would make "I forgot to ask Anna too" a thing the product refuses for
+         * no reason a person would recognise.
          */
-        it('updates the open request rather than stacking a second', async () => {
+        it('replaces the reviewers on the open request rather than stacking a second', async () => {
             await protect({ enabled: true });
             const { agent } = await member(AUTHOR, 'contributor');
+            const { user: reviewer } = await member(REVIEWER, 'contributor');
             const id = await createEntry(agent);
+            const admin = await ruleAdminId();
 
-            await agent
-                .post(`/api/protection/entries/test_article/${id}/request`)
-                .send({ note: 'first' })
-                .expect(201);
-            await agent
-                .post(`/api/protection/entries/test_article/${id}/request`)
-                .send({ note: 'second' })
-                .expect(201);
+            await ask(agent, id, [admin]).expect(201);
+            await ask(agent, id, [reviewer.id, admin]).expect(201);
 
             expect(await openRequests(id)).toBe(1);
             const state = await agent
                 .get(`/api/protection/entries/test_article/${id}`)
                 .expect(200);
-            expect(state.body.request.note).toBe('second');
+            expect(state.body.request.reviewerIds).toEqual([
+                reviewer.id,
+                admin
+            ]);
         });
 
         it('survives a save — the request outlives the revision it was opened on', async () => {
             await protect({ enabled: true });
             const { agent } = await member(AUTHOR, 'contributor');
             const id = await createEntry(agent);
-            await agent
-                .post(`/api/protection/entries/test_article/${id}/request`)
-                .send({})
-                .expect(201);
+            await ask(agent, id, [await ruleAdminId()]).expect(201);
 
             await editEntry(agent, id, 'A typo fixed after asking');
 
@@ -501,56 +559,93 @@ describe('/api/protection/entries', () => {
             const id = await createEntry(authorAgent);
 
             const { agent } = await member(VIEWER, 'viewer');
-            await agent
-                .post(`/api/protection/entries/test_article/${id}/request`)
-                .send({})
-                .expect(403);
+            await ask(agent, id, [await ruleAdminId()]).expect(403);
         });
 
         it('is refused from a disallowed origin', async () => {
             await protect({ enabled: true });
             const { agent } = await member(AUTHOR, 'contributor');
             const id = await createEntry(agent);
+            const reviewerIds = [await ruleAdminId()];
 
             await agent
                 .post(`/api/protection/entries/test_article/${id}/request`)
                 .set('Origin', 'https://evil.example')
-                .send({})
+                .send({ reviewerIds })
                 .expect(403);
 
             await agent
                 .post(`/api/protection/entries/test_article/${id}/request`)
                 .set('Origin', TEST_ALLOWED_ORIGIN)
-                .send({})
+                .send({ reviewerIds })
                 .expect(201);
         });
 
-        it('rejects an unknown field', async () => {
+        /** Notes are gone: a body carrying one is a body this route does not take. */
+        it('rejects a note, and any other unknown field', async () => {
+            await protect({ enabled: true });
+            const { agent } = await member(AUTHOR, 'contributor');
+            const id = await createEntry(agent);
+            const reviewerIds = [await ruleAdminId()];
+
+            await agent
+                .post(`/api/protection/entries/test_article/${id}/request`)
+                .send({ reviewerIds, note: 'have a look' })
+                .expect(400);
+            await agent
+                .post(`/api/protection/entries/test_article/${id}/request`)
+                .send({ reviewerIds, urgency: 'high' })
+                .expect(400);
+        });
+
+        it('rejects a request naming nobody', async () => {
             await protect({ enabled: true });
             const { agent } = await member(AUTHOR, 'contributor');
             const id = await createEntry(agent);
 
+            await ask(agent, id, []).expect(400);
             await agent
                 .post(`/api/protection/entries/test_article/${id}/request`)
-                .send({ note: 'ok', urgency: 'high' })
+                .send({})
                 .expect(400);
+            expect(await openRequests(id)).toBe(0);
         });
 
-        it('writes a review.requested audit row against the entry', async () => {
+        /**
+         * Nobody may be left in a request as a pending reviewer with no way to
+         * approve: a viewer, the person asking, or somebody outside the
+         * workspace. One 422 for all three, naming nobody.
+         */
+        it('[protection:I-22] 422s a reviewer who could never approve it', async () => {
+            await protect({ enabled: true });
+            const { agent, user: author } = await member(AUTHOR, 'contributor');
+            const { user: viewer } = await member(VIEWER, 'viewer');
+            const id = await createEntry(agent);
+            const stranger = '00000000-0000-4000-8000-000000000001';
+
+            for (const reviewerIds of [[viewer.id], [author.id], [stranger]]) {
+                const response = await ask(agent, id, reviewerIds).expect(422);
+                expect(response.body.code).toBe(
+                    'protection.reviewer_not_eligible'
+                );
+            }
+            expect(await openRequests(id)).toBe(0);
+        });
+
+        it('writes a review.requested audit row naming the reviewers', async () => {
             await protect({ enabled: true });
             const { agent, user } = await member(AUTHOR, 'contributor');
             const id = await createEntry(agent);
+            const reviewer = await ruleAdminId();
 
-            await agent
-                .post(`/api/protection/entries/test_article/${id}/request`)
-                .send({ note: 'have a look' })
-                .expect(201);
+            await ask(agent, id, [reviewer]).expect(201);
 
             const rows = await auditFor(id, ['review.requested']);
             expect(rows).toHaveLength(1);
             expect(rows[0].actorId).toBe(user.id);
             expect(rows[0].meta).toMatchObject({
-                contentType: 'test_article'
+                contentType: 'test_article',
+                reviewerIds: [reviewer]
             });
         });
     });
@@ -560,10 +655,7 @@ describe('/api/protection/entries', () => {
             await protect({ enabled: true });
             const { agent } = await member(AUTHOR, 'contributor');
             const id = await createEntry(agent);
-            await agent
-                .post(`/api/protection/entries/test_article/${id}/request`)
-                .send({})
-                .expect(201);
+            await ask(agent, id, [await ruleAdminId()]).expect(201);
 
             await agent
                 .delete(`/api/protection/entries/test_article/${id}/request`)
@@ -578,10 +670,7 @@ describe('/api/protection/entries', () => {
             await protect({ enabled: true });
             const { agent: author } = await member(AUTHOR, 'contributor');
             const id = await createEntry(author);
-            await author
-                .post(`/api/protection/entries/test_article/${id}/request`)
-                .send({})
-                .expect(201);
+            await ask(author, id, [await ruleAdminId()]).expect(201);
 
             const { agent: admin } = await member(ADMIN, 'admin');
             await admin
@@ -594,10 +683,7 @@ describe('/api/protection/entries', () => {
             await protect({ enabled: true });
             const { agent: author } = await member(AUTHOR, 'contributor');
             const id = await createEntry(author);
-            await author
-                .post(`/api/protection/entries/test_article/${id}/request`)
-                .send({})
-                .expect(201);
+            await ask(author, id, [await ruleAdminId()]).expect(201);
 
             const { agent: other } = await member(REVIEWER, 'contributor');
             await other
@@ -618,7 +704,7 @@ describe('/api/protection/entries', () => {
     });
 
     describe('POST /entries/:type/:id/approve', () => {
-        it('records a vote and satisfies the rule', async () => {
+        it('records an approval and satisfies the rule', async () => {
             await protect({ enabled: true, requiredApprovals: 1 });
             const { agent: author } = await member(AUTHOR, 'contributor');
             const id = await createEntry(author);
@@ -629,7 +715,6 @@ describe('/api/protection/entries', () => {
             );
             await reviewer
                 .post(`/api/protection/entries/test_article/${id}/approve`)
-                .send({ note: 'reads fine' })
                 .expect(201);
 
             const state = await author
@@ -644,10 +729,10 @@ describe('/api/protection/entries', () => {
             expect(state.body.approvals).toHaveLength(1);
             expect(state.body.approvals[0]).toMatchObject({
                 userId: user.id,
-                decision: 'approved',
-                isStale: false,
-                note: 'reads fine'
+                isStale: false
             });
+            expect(state.body.approvals[0]).not.toHaveProperty('note');
+            expect(state.body.approvals[0]).not.toHaveProperty('decision');
         });
 
         /**
@@ -663,7 +748,6 @@ describe('/api/protection/entries', () => {
             const { agent: reviewer } = await member(REVIEWER, 'contributor');
             await reviewer
                 .post(`/api/protection/entries/test_article/${id}/approve`)
-                .send({})
                 .expect(201);
 
             const before = await author
@@ -701,7 +785,6 @@ describe('/api/protection/entries', () => {
             const { agent: reviewer } = await member(REVIEWER, 'contributor');
             await reviewer
                 .post(`/api/protection/entries/test_article/${id}/approve`)
-                .send({})
                 .expect(201);
 
             await editEntry(author, id, 'Second draft');
@@ -728,7 +811,6 @@ describe('/api/protection/entries', () => {
 
             const response = await author
                 .post(`/api/protection/entries/test_article/${id}/approve`)
-                .send({})
                 .expect(409);
             expect(response.body.code).toBe('protection.self_approval_refused');
             expect(await approvalRows(id)).toHaveLength(0);
@@ -741,7 +823,6 @@ describe('/api/protection/entries', () => {
 
             await agent
                 .post(`/api/protection/entries/test_article/${id}/approve`)
-                .send({})
                 .expect(409);
         });
 
@@ -756,7 +837,6 @@ describe('/api/protection/entries', () => {
 
             await agent
                 .post(`/api/protection/entries/test_article/${id}/approve`)
-                .send({})
                 .expect(201);
         });
 
@@ -778,28 +858,64 @@ describe('/api/protection/entries', () => {
 
             await author
                 .post(`/api/protection/entries/test_article/${id}/approve`)
-                .send({})
                 .expect(201);
         });
 
-        it('changes a vote rather than adding a second row', async () => {
+        it('keeps one row when the same person approves twice', async () => {
             await protect({ enabled: true, requiredApprovals: 1 });
             const { agent: author } = await member(AUTHOR, 'contributor');
             const id = await createEntry(author);
             const { agent: reviewer } = await member(REVIEWER, 'contributor');
 
-            await reviewer
-                .post(`/api/protection/entries/test_article/${id}/changes`)
-                .send({ note: 'numbers are off' })
-                .expect(201);
+            for (let attempt = 0; attempt < 2; attempt += 1) {
+                await reviewer
+                    .post(`/api/protection/entries/test_article/${id}/approve`)
+                    .expect(201);
+            }
+
+            expect(await approvalRows(id)).toHaveLength(1);
+        });
+
+        /** Approving takes no body now; a note is refused rather than dropped. */
+        it('rejects a note', async () => {
+            await protect({ enabled: true });
+            const { agent: author } = await member(AUTHOR, 'contributor');
+            const id = await createEntry(author);
+            const { agent: reviewer } = await member(REVIEWER, 'contributor');
+
             await reviewer
                 .post(`/api/protection/entries/test_article/${id}/approve`)
-                .send({ note: 'fixed' })
-                .expect(201);
+                .send({ note: 'reads fine' })
+                .expect(400);
+        });
 
-            const rows = await approvalRows(id);
-            expect(rows).toHaveLength(1);
-            expect(rows[0].decision).toBe('approved');
+        /** Asking for approval is how the rail knows there is nothing left to press. */
+        it('tells the caller they already approved the current version', async () => {
+            await protect({ enabled: true, requiredApprovals: 2 });
+            const { agent: author } = await member(AUTHOR, 'contributor');
+            const id = await createEntry(author);
+            const { agent: reviewer } = await member(REVIEWER, 'contributor');
+
+            const before = await reviewer
+                .get(`/api/protection/entries/test_article/${id}`)
+                .expect(200);
+            expect(before.body.callerApprovedHead).toBe(false);
+
+            await reviewer
+                .post(`/api/protection/entries/test_article/${id}/approve`)
+                .expect(201);
+            const after = await reviewer
+                .get(`/api/protection/entries/test_article/${id}`)
+                .expect(200);
+            expect(after.body.callerApprovedHead).toBe(true);
+
+            // A save moves the head: their approval is on a version nobody is
+            // publishing, and there is something to press again.
+            await editEntry(author, id, 'Second draft');
+            const edited = await reviewer
+                .get(`/api/protection/entries/test_article/${id}`)
+                .expect(200);
+            expect(edited.body.callerApprovedHead).toBe(false);
         });
 
         it('needs content:approve, which a viewer does not hold', async () => {
@@ -810,7 +926,6 @@ describe('/api/protection/entries', () => {
             const { agent } = await member(VIEWER, 'viewer');
             await agent
                 .post(`/api/protection/entries/test_article/${id}/approve`)
-                .send({})
                 .expect(403);
         });
 
@@ -825,7 +940,6 @@ describe('/api/protection/entries', () => {
 
             await reviewer
                 .post(`/api/protection/entries/test_article/${id}/approve`)
-                .send({})
                 .expect(201);
 
             const rows = await auditFor(id, ['review.approved']);
@@ -841,42 +955,8 @@ describe('/api/protection/entries', () => {
     });
 
     describe('POST /entries/:type/:id/changes', () => {
-        /**
-         * ⭐ Requesting changes is zero votes plus an explanation, never a
-         * veto. A reviewer who wants to block simply does not approve — which
-         * is what stops one person on holiday holding a workspace hostage.
-         */
-        it('does not lower a count the approvals already gave', async () => {
-            await protect({ enabled: true, requiredApprovals: 1 });
-            const { agent: author } = await member(AUTHOR, 'contributor');
-            const id = await createEntry(author);
-
-            const { agent: approver } = await member(REVIEWER, 'contributor');
-            await approver
-                .post(`/api/protection/entries/test_article/${id}/approve`)
-                .send({})
-                .expect(201);
-
-            const { agent: objector } = await member(
-                SECOND_REVIEWER,
-                'contributor'
-            );
-            await objector
-                .post(`/api/protection/entries/test_article/${id}/changes`)
-                .send({ note: 'I disagree' })
-                .expect(201);
-
-            const state = await author
-                .get(`/api/protection/entries/test_article/${id}`)
-                .expect(200);
-            expect(state.body).toMatchObject({
-                given: 1,
-                blocked: false,
-                changesRequested: 1
-            });
-        });
-
-        it('writes a review.changes_requested audit row with the note', async () => {
+        /** Requesting changes was removed with notes; the route is gone. */
+        it('no longer exists', async () => {
             await protect({ enabled: true });
             const { agent: author } = await member(AUTHOR, 'contributor');
             const id = await createEntry(author);
@@ -884,14 +964,7 @@ describe('/api/protection/entries', () => {
 
             await reviewer
                 .post(`/api/protection/entries/test_article/${id}/changes`)
-                .send({ note: 'March does not add up' })
-                .expect(201);
-
-            const rows = await auditFor(id, ['review.changes_requested']);
-            expect(rows).toHaveLength(1);
-            expect(rows[0].meta).toMatchObject({
-                note: 'March does not add up'
-            });
+                .expect(404);
         });
     });
 
@@ -903,7 +976,6 @@ describe('/api/protection/entries', () => {
             const { agent: reviewer } = await member(REVIEWER, 'contributor');
             await reviewer
                 .post(`/api/protection/entries/test_article/${id}/approve`)
-                .send({})
                 .expect(201);
 
             await reviewer
@@ -928,11 +1000,9 @@ describe('/api/protection/entries', () => {
             );
             await first
                 .post(`/api/protection/entries/test_article/${id}/approve`)
-                .send({})
                 .expect(201);
             await second
                 .post(`/api/protection/entries/test_article/${id}/approve`)
-                .send({})
                 .expect(201);
 
             await first
@@ -967,7 +1037,6 @@ describe('/api/protection/entries', () => {
             const { agent: reviewer } = await member(REVIEWER, 'contributor');
             await reviewer
                 .post(`/api/protection/entries/test_article/${id}/approve`)
-                .send({})
                 .expect(201);
 
             await editEntry(author, id, 'Second draft');
@@ -991,15 +1060,14 @@ describe('/api/protection/entries', () => {
         it('accepts a request and an approval, and blocks nothing', async () => {
             const { agent: author } = await member(AUTHOR, 'contributor');
             const id = await createEntry(author);
-            await author
-                .post(`/api/protection/entries/test_article/${id}/request`)
-                .send({})
-                .expect(201);
+            const { agent: reviewer, user } = await member(
+                REVIEWER,
+                'contributor'
+            );
+            await ask(author, id, [user.id]).expect(201);
 
-            const { agent: reviewer } = await member(REVIEWER, 'contributor');
             await reviewer
                 .post(`/api/protection/entries/test_article/${id}/approve`)
-                .send({})
                 .expect(201);
 
             const state = await author

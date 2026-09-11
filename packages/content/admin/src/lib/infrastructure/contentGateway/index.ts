@@ -148,15 +148,14 @@ export type ContentGateway = {
         number: number
     ): Promise<EntryRecord>;
     /**
-     * Publishes one entry via `POST /content/:name/:id/publish`. `bypassReason`
-     * is forwarded verbatim for a registered publish guard to judge — this
-     * package neither validates nor interprets it, exactly as the server's own
-     * use-case does not.
+     * Publishes one entry via `POST /content/:name/:id/publish`. `bypass` is
+     * forwarded for a registered publish guard to judge — this package does not
+     * interpret it, exactly as the server's own use-case does not.
      */
     publish(
         name: string,
         id: string,
-        options?: { bypassReason?: string }
+        options?: { bypass?: boolean }
     ): Promise<EntryRecord>;
     /** Unpublishes one entry via `POST /content/:name/:id/unpublish`. */
     unpublish(name: string, id: string): Promise<EntryRecord>;

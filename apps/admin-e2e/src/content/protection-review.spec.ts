@@ -20,6 +20,8 @@ const WS = LIBRARY_WORKSPACE.id;
 const TYPE = 'blog_post';
 /** The first row of the fabricated page — the record whose editor is opened. */
 const ENTRY = 'blog_post-01';
+/** The signed-in admin `mockSignedIn` seeds by default. */
+const ME = '00000000-0000-0000-0000-000000000001';
 
 /**
  * Publication protection **inside the entry editor** — the three surfaces an
@@ -76,8 +78,8 @@ test.describe('Publication protection in the entry editor', () => {
     });
 
     /**
-     * ⭐ The line the whole feature turns on. The strike-through is decoration;
-     * the sentence beside it is the fact, and it must be real text on the page.
+     * ⭐ The line the whole feature turns on: somebody whose approval a save
+     * left behind is pending again, and the sentence saying why is real text.
      */
     test('explains a stale approval in words, not only in decoration', async ({
         page,
@@ -88,10 +90,9 @@ test.describe('Publication protection in the entry editor', () => {
             given: 1,
             stale: 1,
             approvals: [
-                { userId: 'u-anna', decision: 'approved', revisionNumber: 7 },
+                { userId: 'u-anna', revisionNumber: 7 },
                 {
                     userId: 'u-dmitry',
-                    decision: 'approved',
                     revisionNumber: 4,
                     revisionId: 'rev-4',
                     isStale: true
@@ -100,12 +101,131 @@ test.describe('Publication protection in the entry editor', () => {
         });
         await contentLibraryPage.gotoEntry(WS, TYPE, ENTRY);
 
-        await expect(page.getByText(/approved version 7/)).toBeVisible();
         await expect(
             page.getByText(
                 /approved version 4 .* the entry has changed since, so this no longer counts/
             )
         ).toBeVisible();
+    });
+
+    /**
+     * Who was asked, and where each of them stands: a green check once they
+     * approved this version, a yellow dot while that is pending — each with its
+     * state written out, so colour is never the only signal.
+     */
+    test('lists the requested reviewers with a check or a pending dot', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        await mockEntryReview(page, {
+            required: 2,
+            given: 1,
+            approvals: [{ userId: 'u_ada', revisionNumber: 7 }],
+            request: {
+                id: 'req-1',
+                requestedBy: ME,
+                reviewerIds: ['u_ada', 'u_gone'],
+                revisionId: 'rev-7',
+                createdAt: '2026-09-09T09:00:00.000Z'
+            }
+        });
+        await contentLibraryPage.gotoEntry(WS, TYPE, ENTRY);
+
+        const ada = page
+            .getByRole('listitem')
+            .filter({ hasText: 'Ada Lovelace' });
+        await expect(ada).toContainText('Approved');
+        await expect(ada.locator('[data-state="approved"] svg')).toBeVisible();
+
+        const pending = page
+            .getByRole('listitem')
+            .filter({ hasText: 'A former member' });
+        await expect(pending).toContainText('Pending');
+        await expect(pending.locator('[data-state="pending"] svg')).toHaveCount(
+            0
+        );
+
+        // Asked already, so the button changes who is asked.
+        await expect(
+            page.getByRole('button', { name: 'Change reviewers' })
+        ).toBeVisible();
+    });
+
+    /**
+     * Request review opens a picker of the people who can approve; the request
+     * carries who was picked, and nothing else — there are no notes.
+     */
+    test('requests review from the people picked in the dialog', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        const writes = await mockEntryReview(page, {
+            required: 1,
+            given: 0,
+            candidates: [{ userId: 'u_ada', email: 'ada@ortha.dev' }]
+        });
+        await contentLibraryPage.gotoEntry(WS, TYPE, ENTRY);
+
+        await page.getByRole('button', { name: 'Request review' }).click();
+        const dialog = page.getByRole('dialog', { name: 'Request review' });
+        await expect(dialog).toBeVisible();
+        await expect(dialog.getByRole('textbox')).toHaveCount(0);
+
+        // Nobody picked is refused out loud rather than with a dead button.
+        await dialog.getByRole('button', { name: 'Request' }).click();
+        await expect(dialog.getByRole('alert')).toContainText(
+            /at least one reviewer/i
+        );
+        expect(writes).toHaveLength(0);
+
+        await dialog.getByRole('checkbox', { name: /Ada Lovelace/ }).click();
+        await dialog.getByRole('button', { name: 'Request' }).click();
+
+        await expect(dialog).toHaveCount(0);
+        expect(writes).toEqual([
+            {
+                method: 'POST',
+                action: 'request',
+                body: { reviewerIds: ['u_ada'] }
+            }
+        ]);
+    });
+
+    /** Once you approved this version there is nothing left to press. */
+    test('offers no Approve button to somebody who already approved', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        await mockEntryReview(page, {
+            required: 2,
+            given: 1,
+            callerApprovedHead: true,
+            approvals: [{ userId: 'u_ada', revisionNumber: 7 }]
+        });
+        await contentLibraryPage.gotoEntry(WS, TYPE, ENTRY);
+
+        await expect(
+            page.getByRole('listitem').filter({ hasText: 'Ada Lovelace' })
+        ).toContainText('Approved');
+        await expect(page.getByRole('button', { name: 'Approve' })).toHaveCount(
+            0
+        );
+    });
+
+    test('offers Approve to a reviewer who has not approved this version', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        const writes = await mockEntryReview(page, { required: 2, given: 0 });
+        await contentLibraryPage.gotoEntry(WS, TYPE, ENTRY);
+
+        await page.getByRole('button', { name: 'Approve' }).click();
+
+        await expect
+            .poll(() => writes.map((w) => w.action))
+            .toEqual(['approve']);
+        // No note travels with it.
+        expect(writes[0].body).toBeNull();
     });
 
     test('holds the publish button and says how far short it is', async ({
@@ -126,9 +246,9 @@ test.describe('Publication protection in the entry editor', () => {
     /**
      * The button an administrator meets is an ordinary Publish — the bypass is
      * announced by the dialog the click opens, which names the rule and demands
-     * a reason, not by a second kind of button.
+     * a confirmation, not by a second kind of button.
      */
-    test('keeps an ordinary Publish for an administrator and asks for a reason on click [protection:I-20]', async ({
+    test('keeps an ordinary Publish for an administrator and asks to confirm on click [protection:I-20]', async ({
         page,
         contentLibraryPage
     }) => {
@@ -217,7 +337,7 @@ test.describe('Publication protection in the entry editor', () => {
         ).toBeAttached();
     });
 
-    test('sends the bypass reason with the publish itself [protection:I-20]', async ({
+    test('sends the bypass with the publish itself, once confirmed [protection:I-20]', async ({
         page,
         contentLibraryPage
     }) => {
@@ -231,7 +351,8 @@ test.describe('Publication protection in the entry editor', () => {
 
         await page.getByRole('button', { name: /^publish$/i }).click();
         const dialog = page.getByRole('dialog');
-        await dialog.getByLabel(/reason/i).fill('Legal signed off by phone');
+        // A confirmation: nothing to write, only the rule and the log row.
+        await expect(dialog.getByRole('textbox')).toHaveCount(0);
 
         const published = page.waitForRequest(
             (request) =>
@@ -240,19 +361,17 @@ test.describe('Publication protection in the entry editor', () => {
         );
         await dialog.getByRole('button', { name: /publish anyway/i }).click();
 
-        expect((await published).postDataJSON()).toEqual({
-            bypassReason: 'Legal signed off by phone'
-        });
+        expect((await published).postDataJSON()).toEqual({ bypass: true });
         await expect(dialog).toHaveCount(0);
     });
 
     /**
      * ⭐ The half of the bypass fix nothing else sees: the edits on screen go
-     * out **before** the publish that carries the reason. The dialog used to
+     * out **before** the publish that carries the bypass. The dialog used to
      * post the publish itself, shipping the stored record and dropping the
      * edit.
      */
-    test('saves the edits on screen, then publishes with the reason [protection:I-20]', async ({
+    test('saves the edits on screen, then publishes past the rule [protection:I-20]', async ({
         page,
         contentLibraryPage
     }) => {
@@ -279,7 +398,6 @@ test.describe('Publication protection in the entry editor', () => {
 
         await page.getByRole('button', { name: /^publish$/i }).click();
         const dialog = page.getByRole('dialog');
-        await dialog.getByLabel(/reason/i).fill('Correction must go out');
         await dialog.getByRole('button', { name: /publish anyway/i }).click();
 
         await expect.poll(() => writes.length).toBe(2);
@@ -292,7 +410,7 @@ test.describe('Publication protection in the entry editor', () => {
         expect(writes[1]).toEqual({
             method: 'POST',
             path: `/api/content/${TYPE}/${ENTRY}/publish`,
-            body: { bypassReason: 'Correction must go out' }
+            body: { bypass: true }
         });
     });
 
@@ -313,7 +431,7 @@ test.describe('Publication protection in the entry editor', () => {
         ).toHaveAttribute('aria-disabled', 'true');
     });
 
-    test('opens the reason dialog from the menu when a bypass is offered [protection:I-21]', async ({
+    test('opens the bypass confirmation from the menu when a bypass is offered [protection:I-21]', async ({
         page,
         contentLibraryPage
     }) => {
@@ -365,12 +483,8 @@ test.describe('Publication protection in the entry editor', () => {
         ).toBeVisible();
     });
 
-    /**
-     * ⭐ The refusal a person can hear. The confirm stays operable — a disabled
-     * control announces nothing — so an empty reason must be answered, not
-     * ignored.
-     */
-    test('refuses a bypass with no reason, out loud', async ({
+    /** Cancelling the confirmation publishes nothing. */
+    test('publishes nothing when the bypass is cancelled', async ({
         page,
         contentLibraryPage
     }) => {
@@ -380,23 +494,20 @@ test.describe('Publication protection in the entry editor', () => {
             blocked: true,
             bypassable: true
         });
+        const publishes: string[] = [];
+        page.on('request', (request) => {
+            if (request.url().endsWith('/publish'))
+                publishes.push(request.url());
+        });
         await contentLibraryPage.gotoEntry(WS, TYPE, ENTRY);
 
         await page.getByRole('button', { name: /^publish$/i }).click();
         const dialog = page.getByRole('dialog');
-        await expect(dialog).toBeVisible();
         await expect(dialog.getByText(/entry\.publish_bypassed/)).toBeVisible();
+        await dialog.getByRole('button', { name: 'Cancel' }).click();
 
-        const confirm = dialog.getByRole('button', {
-            name: /publish anyway/i
-        });
-        await expect(confirm).toBeEnabled();
-        await confirm.click();
-
-        await expect(dialog).toBeVisible();
-        await expect(dialog.getByRole('alert')).toContainText(
-            /reason is required/i
-        );
+        await expect(dialog).toHaveCount(0);
+        expect(publishes).toHaveLength(0);
     });
 
     test('returns focus to the trigger when the dialog closes', async ({
@@ -421,11 +532,11 @@ test.describe('Publication protection in the entry editor', () => {
 
     /**
      * A create form has no entry to read a review of, so it asks what a new
-     * entry of the type would meet — and an administrator is asked for the
-     * reason **before** anything is written, then the record is created and
-     * published in the one press.
+     * entry of the type would meet — and an administrator is asked to confirm
+     * **before** anything is written, then the record is created and published
+     * in the one press.
      */
-    test('asks an administrator for a reason on a create form, then creates and publishes [protection:I-20]', async ({
+    test('asks an administrator to confirm on a create form, then creates and publishes [protection:I-20]', async ({
         page,
         contentLibraryPage
     }) => {
@@ -443,7 +554,6 @@ test.describe('Publication protection in the entry editor', () => {
 
         const dialog = page.getByRole('dialog');
         await expect(dialog).toBeVisible();
-        await dialog.getByLabel(/reason/i).fill('Launch cannot wait');
 
         const created = page.waitForRequest(
             (request) =>
@@ -460,9 +570,7 @@ test.describe('Publication protection in the entry editor', () => {
         await dialog.getByRole('button', { name: /publish anyway/i }).click();
 
         await created;
-        expect((await published).postDataJSON()).toEqual({
-            bypassReason: 'Launch cannot wait'
-        });
+        expect((await published).postDataJSON()).toEqual({ bypass: true });
     });
 
     test('holds Publish on a create form for a member who may not bypass [protection:I-18]', async ({
@@ -492,10 +600,9 @@ test.describe('Publication protection in the entry editor', () => {
             stale: 1,
             bypassable: true,
             approvals: [
-                { userId: 'u-anna', decision: 'approved', revisionNumber: 7 },
+                { userId: 'u-anna', revisionNumber: 7 },
                 {
                     userId: 'u-dmitry',
-                    decision: 'approved',
                     revisionNumber: 4,
                     isStale: true
                 }

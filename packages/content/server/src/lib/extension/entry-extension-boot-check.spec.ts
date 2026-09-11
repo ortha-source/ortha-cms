@@ -50,7 +50,12 @@ describe('EntryExtensionBootCheck', () => {
                 EntryExtensionBootCheck,
                 { provide: CONTENT_REGISTRY, useValue: registry },
                 ...(extension
-                    ? [{ provide: CONTENT_ENTRY_EXTENSION, useValue: extension }]
+                    ? [
+                          {
+                              provide: CONTENT_ENTRY_EXTENSION,
+                              useValue: extension
+                          }
+                      ]
                     : [])
             ]
         }).compile();

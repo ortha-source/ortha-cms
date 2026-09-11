@@ -84,11 +84,11 @@ export interface ContentPublishGuardContext {
     readonly workspaceId: string;
     readonly actor: PublishActor;
     /**
-     * The caller's stated reason for publishing past a guard, when they sent
-     * one. Content does not interpret it: whether a bypass exists at all, who
-     * may take one, and what makes a reason acceptable are the guard's rules.
+     * Whether the caller explicitly asked to publish past a guard that would
+     * refuse. Content does not interpret it: whether a bypass exists at all
+     * and who may take one are the guard's rules.
      */
-    readonly bypassReason?: string;
+    readonly bypass?: boolean;
 }
 
 /** The publish may proceed. */

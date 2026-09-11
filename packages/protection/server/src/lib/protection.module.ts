@@ -11,6 +11,7 @@ import { ReviewApprovalRepository } from './infrastructure/review-approval.repos
 import { ReviewRequestRepository } from './infrastructure/review-request.repository';
 import { EntryReviewController } from './http/controllers/entry-review.controller';
 import { NewEntryProtectionController } from './http/controllers/new-entry-protection.controller';
+import { ReviewerCandidatesQuery } from './infrastructure/reviewer-candidates.query';
 import { ReviewQueueController } from './http/controllers/review-queue.controller';
 import { ProtectionRuleRepository } from './infrastructure/protection-rule.repository';
 import { ProtectionWorkspacePurger } from './infrastructure/purge/protection-workspace.purger';
@@ -71,6 +72,9 @@ export class ProtectionModule {
                 // `content_entry_revisions` directly would tie this package to
                 // a table it does not own and cannot migrate.
                 HeadRevisionQuery,
+                // Who may be asked to review — one list for the picker and for
+                // the check the request route makes.
+                ReviewerCandidatesQuery,
                 // Clears this workspace's rules, requests and approvals on
                 // delete. All three carry a plain `workspace_id` with no FK, so
                 // without this they outlive the workspace — the exact residue a

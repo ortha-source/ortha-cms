@@ -15,8 +15,9 @@ import {
 } from '@orthacms/content-server';
 import { PERMISSIONS } from '@orthacms/identity-server';
 import { ReviewStatusQuery } from '../application/review-status.query';
+import { EntryReviewService } from '../application/entry-review.service';
 import { ReviewApprovalRepository } from '../infrastructure/review-approval.repository';
-import { ReviewRequestRepository } from '../infrastructure/review-request.repository';
+import { ReviewerCandidatesQuery } from '../infrastructure/reviewer-candidates.query';
 import { HeadRevisionQuery } from '../infrastructure/head-revision.query';
 
 /** What `protection_review_status` answers with. */
@@ -25,7 +26,6 @@ interface ReviewStatusToolView {
     required: number;
     given: number;
     stale: number;
-    changesRequested: boolean;
     requested: boolean;
     blocked: boolean;
     headRevisionNumber: number;
@@ -48,7 +48,7 @@ interface ReviewDiffToolView {
  * request about a review.
  *
  * **Three tools, and the fourth is absent on purpose.** There is no
- * `protection_approve` and no `protection_request_changes`, on the copilot or
+ * `protection_approve`, on the copilot or
  * over MCP, now or later. ADR-0017 §6 carries the argument and it is settled;
  * the short form is that with a rule in force the approval *is* the step that
  * unlocks publication, so handing a model `approve` while withholding `publish`
@@ -84,7 +84,8 @@ export class ProtectionToolProvider implements ToolProvider, OnModuleInit {
     constructor(
         private readonly status: ReviewStatusQuery,
         private readonly approvals: ReviewApprovalRepository,
-        private readonly requests: ReviewRequestRepository,
+        private readonly review: EntryReviewService,
+        private readonly candidates: ReviewerCandidatesQuery,
         private readonly heads: HeadRevisionQuery,
         @InjectRevisionStore() private readonly revisions: RevisionStore,
         @InjectContentRegistry() private readonly types: ContentTypeRegistry,
@@ -158,7 +159,7 @@ export class ProtectionToolProvider implements ToolProvider, OnModuleInit {
                 'since they last looked. When the caller has never approved this entry, ' +
                 '`fromRevisionNumber` is null and no changes are reported — there is no ' +
                 'earlier point of theirs to compare against. ' +
-                'You cannot approve or request changes; a person does that in the editor.',
+                'You cannot approve; a person does that in the editor.',
             inputSchema: {
                 type: 'object',
                 properties: {
@@ -192,11 +193,14 @@ export class ProtectionToolProvider implements ToolProvider, OnModuleInit {
             name: 'protection_request_review',
             title: 'Request review',
             description:
-                'Ask for a review of an entry, optionally with a note saying what to look ' +
-                'at. This records a request; it does not approve anything and does not ' +
-                'publish. Asking twice updates the open request rather than creating a ' +
-                'second one. Allowed on an unprotected type too — wanting a second pair of ' +
-                'eyes does not require a rule.',
+                'Ask named people to review an entry. Name each reviewer by email address ' +
+                '(or user id); they must be other members of this workspace who can ' +
+                'approve content, and an error lists who can be asked when a name is not ' +
+                'one of them. This records a request; it does not approve anything and does ' +
+                'not publish, and who is asked does not change whose approval counts. ' +
+                'Asking twice replaces the reviewers on the open request rather than ' +
+                'creating a second one. Allowed on an unprotected type too — wanting a ' +
+                'second pair of eyes does not require a rule.',
             inputSchema: {
                 type: 'object',
                 properties: {
@@ -208,14 +212,16 @@ export class ProtectionToolProvider implements ToolProvider, OnModuleInit {
                         type: 'string',
                         description: 'The entry to ask about.'
                     },
-                    note: {
-                        type: 'string',
+                    reviewers: {
+                        type: 'array',
                         description:
-                            'What the reviewer should look at. Optional.',
-                        maxLength: 1000
+                            'Who to ask: email addresses (or user ids) of workspace members who can approve content.',
+                        items: { type: 'string' },
+                        minItems: 1,
+                        maxItems: 50
                     }
                 },
-                required: ['typeName', 'entryId'],
+                required: ['typeName', 'entryId', 'reviewers'],
                 additionalProperties: false
             },
             requires: [PERMISSIONS.CONTENT_UPDATE],
@@ -229,7 +235,9 @@ export class ProtectionToolProvider implements ToolProvider, OnModuleInit {
                 this.runRequest(
                     String(input['typeName']),
                     String(input['entryId']),
-                    typeof input['note'] === 'string' ? input['note'] : null,
+                    Array.isArray(input['reviewers'])
+                        ? input['reviewers'].map(String)
+                        : [],
                     ctx
                 )
         };
@@ -271,11 +279,7 @@ export class ProtectionToolProvider implements ToolProvider, OnModuleInit {
         // identity `require_other_person` compares, and the reason the tool is
         // useful without being a way to act as somebody else.
         const mine = votes
-            .filter(
-                (vote) =>
-                    vote.userId === ctx.actor.userId &&
-                    vote.decision === 'approved'
-            )
+            .filter((vote) => vote.userId === ctx.actor.userId)
             .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
         const last = mine[0];
         if (!last || last.revisionId === head.id) {
@@ -327,28 +331,50 @@ export class ProtectionToolProvider implements ToolProvider, OnModuleInit {
         };
     }
 
-    /** The request write. */
+    /**
+     * The request write — through `EntryReviewService`, the route's own path,
+     * so a run cannot ask somebody the picker would not offer and the request
+     * lands in the log like one made in the editor.
+     */
     private async runRequest(
         typeName: string,
         entryId: string,
-        note: string | null,
+        reviewers: readonly string[],
         ctx: ToolContext
     ): Promise<{ requested: true; headRevisionNumber: number }> {
         const head = await this.assertReachable(typeName, entryId, ctx);
-        if (!ctx.actor.userId) {
+        const userId = ctx.actor.userId;
+        if (!userId) {
             // A bearer token names nobody, and a request records who asked.
             throw new Error(
                 'Only a signed-in user can request a review — a request records who asked.'
             );
         }
-        await this.requests.open({
-            workspaceId: ctx.workspaceId,
-            contentType: typeName,
+        const candidates = await this.candidates.list(ctx.workspaceId, userId);
+        const byName = new Map<string, string>();
+        for (const candidate of candidates) {
+            byName.set(candidate.userId, candidate.userId);
+            byName.set(candidate.email.toLowerCase(), candidate.userId);
+        }
+        const reviewerIds = reviewers.map((name) =>
+            byName.get(name.trim().toLowerCase())
+        );
+        if (!reviewerIds.length || reviewerIds.some((id) => !id)) {
+            // Naming who *can* be asked is what lets a model correct itself in
+            // one turn. The caller holds `content:update`, which is all the
+            // editor's picker asks of them to see the same list.
+            throw new Error(
+                'Every reviewer must be another member of this workspace who can approve content. ' +
+                    `Who can be asked: ${candidates.map((c) => c.email).join(', ') || 'nobody'}.`
+            );
+        }
+        await this.review.requestReview(
+            ctx.workspaceId,
+            typeName,
             entryId,
-            revisionId: head.id,
-            requestedBy: ctx.actor.userId,
-            note
-        });
+            reviewerIds as string[],
+            { id: userId, email: null, managesProtection: false }
+        );
         return { requested: true, headRevisionNumber: head.number };
     }
 

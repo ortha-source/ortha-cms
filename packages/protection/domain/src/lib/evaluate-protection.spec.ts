@@ -22,14 +22,7 @@ const ruleWith = (overrides: Partial<ProtectionRule> = {}): ProtectionRule => ({
 
 const approved = (userId: string, revisionId = HEAD): Approval => ({
     revisionId,
-    userId,
-    decision: 'approved'
-});
-
-const changesRequested = (userId: string, revisionId = HEAD): Approval => ({
-    revisionId,
-    userId,
-    decision: 'changes_requested'
+    userId
 });
 
 const person = (userId = 'publisher') => ({
@@ -390,65 +383,6 @@ describe('the four-eyes switch', () => {
     });
 });
 
-describe('changes_requested', () => {
-    /**
-     * The deliberate difference from every code-review tool people arrive with:
-     * requesting changes is zero votes plus an explanation, not a veto. A
-     * reviewer who wants to block simply does not approve — and one who logs
-     * off for a fortnight cannot hold the rest of the workspace hostage.
-     */
-    // covers: protection:I-09
-    it('does not subtract from what the approvals give', () => {
-        expect(
-            evaluate({
-                rule: ruleWith({ requiredApprovals: 1 }),
-                approvals: [approved('boris'), changesRequested('igor')]
-            })
-        ).toEqual({ allowed: true, reason: 'satisfied' });
-    });
-
-    // covers: protection:I-09
-    it('contributes nothing of its own', () => {
-        expect(
-            evaluate({
-                rule: ruleWith({ requiredApprovals: 1 }),
-                approvals: [changesRequested('igor')]
-            })
-        ).toEqual({
-            allowed: false,
-            reason: 'insufficient-approvals',
-            required: 1,
-            given: 0,
-            stale: 0,
-            bypassable: false
-        });
-    });
-
-    /**
-     * The consequence nobody expects, and the reason the editor labels
-     * `count_stale_approvals` as not recommended: with it on, Igor's approval
-     * of version 4 counts even though his latest word, on version 7, is
-     * "changes requested". Pinned rather than fixed — I-09 says a
-     * changes_requested never lowers the count, and a rule that let it do so
-     * here would contradict it in one branch only.
-     */
-    // covers: protection:I-09
-    it('does not retract that person’s earlier approval under count_stale_approvals', () => {
-        expect(
-            evaluate({
-                rule: ruleWith({
-                    requiredApprovals: 1,
-                    countStaleApprovals: true
-                }),
-                approvals: [
-                    approved('igor', OLDER),
-                    changesRequested('igor', HEAD)
-                ]
-            })
-        ).toEqual({ allowed: true, reason: 'satisfied' });
-    });
-});
-
 describe('the stale count', () => {
     /**
      * `stale` exists for one sentence in the interface: "the count moved
@@ -526,22 +460,6 @@ describe('the stale count', () => {
             reason: 'insufficient-approvals',
             required: 3,
             given: 2,
-            stale: 0,
-            bypassable: false
-        });
-    });
-
-    it('ignores a changes_requested on an older revision', () => {
-        expect(
-            evaluate({
-                rule: ruleWith({ requiredApprovals: 1 }),
-                approvals: [changesRequested('igor', OLDER)]
-            })
-        ).toEqual({
-            allowed: false,
-            reason: 'insufficient-approvals',
-            required: 1,
-            given: 0,
             stale: 0,
             bypassable: false
         });
@@ -734,8 +652,7 @@ describe('countApprovals', () => {
                 approvals: [
                     approved('anna'),
                     approved('boris', HEAD),
-                    approved('dmitry', OLDER),
-                    changesRequested('igor', HEAD)
+                    approved('dmitry', OLDER)
                 ]
             };
             const decision = evaluate(input);

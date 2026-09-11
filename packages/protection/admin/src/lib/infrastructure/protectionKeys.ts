@@ -17,6 +17,20 @@ export const entryReviewKey = (
     entryId: string
 ) => ['protection', 'entry-review', workspaceId, typeName, entryId] as const;
 
+/** Who may be asked to review one entry. */
+export const reviewerCandidatesKey = (
+    workspaceId: string,
+    typeName: string,
+    entryId: string
+) =>
+    [
+        'protection',
+        'reviewer-candidates',
+        workspaceId,
+        typeName,
+        entryId
+    ] as const;
+
 /** Every create form's answer in one workspace — what a rule write refreshes. */
 export const newEntryProtectionPrefix = (workspaceId: string) =>
     ['protection', 'new-entry', workspaceId] as const;

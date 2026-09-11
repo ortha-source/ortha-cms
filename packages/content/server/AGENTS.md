@@ -366,7 +366,7 @@ the `@orthacms/protection-domain` kernel).
 the button); the **publish gate** answers second, inside `Entry.publish` (422,
 with the failing checks); this port answers last (409 by default). A guard is
 therefore never asked about an entry that would fail validation anyway — and a
-guard's **bypass**, which is a caller-supplied `bypassReason` the port forwards
+guard's **bypass**, which is a caller-supplied `bypass: true` the port forwards
 without interpreting, passes only the third. An incomplete entry stays
 unpublishable for an administrator, which is the whole difference between
 authorizing and validating (ADR-0015).

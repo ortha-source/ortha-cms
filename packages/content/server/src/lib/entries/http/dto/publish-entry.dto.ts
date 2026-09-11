@@ -1,8 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, MaxLength } from 'class-validator';
-
-/** The longest bypass reason accepted, so a log row stays readable. */
-export const BYPASS_REASON_MAX = 500;
+import { IsBoolean, IsOptional } from 'class-validator';
 
 /**
  * The optional body of `POST /api/content/:typeName/:id/publish`.
@@ -11,22 +8,18 @@ export const BYPASS_REASON_MAX = 500;
  * than the entry's own contents. It stays optional: an ordinary publish sends
  * nothing, exactly as before.
  *
- * **Deliberately permissive.** The only rule enforced here is the length cap —
- * whether a bypass exists at all, who may take one and what makes a reason
- * acceptable belong to the guard that is being bypassed, and validating
- * emptiness here would answer a caller who may not bypass at all with `400`
- * ("your reason was blank") instead of `403` ("this is not yours to do"),
- * telling them the shape of a door they cannot open.
+ * **Deliberately permissive.** Whether a bypass exists at all and who may take
+ * one belong to the guard that is being bypassed; content only carries the
+ * caller's explicit request to take it.
  */
 export class PublishEntryDto {
     @ApiPropertyOptional({
+        type: Boolean,
         description:
-            'Why this publish should proceed past a guard that would refuse it — an outstanding approval requirement, typically. Recorded in the activity log with the actor and the rule. Sending one when nothing would have refused the publish does nothing.',
-        maxLength: BYPASS_REASON_MAX,
-        example: 'Numbers corrected ahead of the 18:00 send'
+            'Publish past a guard that would refuse it — an outstanding approval requirement, typically — when the caller is allowed to. Recorded in the activity log with the actor and the rule. Sending it when nothing would have refused the publish does nothing.',
+        example: true
     })
     @IsOptional()
-    @IsString()
-    @MaxLength(BYPASS_REASON_MAX)
-    bypassReason?: string;
+    @IsBoolean()
+    bypass?: boolean;
 }

@@ -54,11 +54,11 @@ export type SubmitEntryInput = {
      */
     unchanged?: boolean;
     /**
-     * The reason a publish guard's contribution collected for publishing past
-     * it, forwarded to the publish request uninterpreted. See
+     * Whether to publish past a publish guard, as its contribution confirmed —
+     * forwarded to the publish request uninterpreted. See
      * `ENTRY_PUBLISH_GUARD_SLOT`.
      */
-    bypassReason?: string;
+    bypass?: boolean;
 };
 
 /** The classified outcome of one submit, for the caller's toast + navigation. */
@@ -163,7 +163,7 @@ export function usePublishEntryFlow(
             if (willPublish && input.unchanged && existingId) {
                 const published = await status.publish.mutateAsync({
                     id: existingId,
-                    bypassReason: input.bypassReason
+                    bypass: input.bypass
                 });
                 return {
                     saved: published,
@@ -203,7 +203,7 @@ export function usePublishEntryFlow(
                 try {
                     await status.publish.mutateAsync({
                         id: saved.id,
-                        bypassReason: input.bypassReason
+                        bypass: input.bypass
                     });
                 } catch (error) {
                     // The save landed even though the publish didn't (a 422 from

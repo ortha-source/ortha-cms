@@ -36,6 +36,9 @@ const PUBLISH_OUTLOOK_PROPERTIES: Record<string, OpenApiSchema> = {
     }
 };
 
+/** Component name for the reviewer picker's list. */
+export const REVIEWER_CANDIDATES_SCHEMA = 'ReviewerCandidates';
+
 /** Component name for the records column's batched status map. */
 export const REVIEW_STATUS_MAP_SCHEMA = 'EntryReviewStatusMap';
 
@@ -135,13 +138,13 @@ export function buildProtectionSchemas(): Record<string, OpenApiSchema> {
                 'required',
                 'given',
                 'stale',
-                'changesRequested',
                 'blocked',
                 'bypassable',
                 'afterSave',
                 'headRevisionId',
                 'headRevisionNumber',
                 'callerWroteHead',
+                'callerApprovedHead',
                 'approvals',
                 'request'
             ],
@@ -165,11 +168,6 @@ export function buildProtectionSchemas(): Record<string, OpenApiSchema> {
                     type: 'integer',
                     description:
                         'Distinct people whose only approval sits on an earlier revision. This is why the count moved after a save; the votes themselves are still listed, struck through.'
-                },
-                changesRequested: {
-                    type: 'integer',
-                    description:
-                        'How many people asked for changes on the current revision. Never lowers `given`: requesting changes is zero votes plus an explanation, not a veto.'
                 },
                 blocked: {
                     type: 'boolean',
@@ -200,16 +198,19 @@ export function buildProtectionSchemas(): Record<string, OpenApiSchema> {
                     description:
                         'Whether the caller wrote the current version, and so cannot approve it while the four-eyes switch is on.'
                 },
+                callerApprovedHead: {
+                    type: 'boolean',
+                    description:
+                        'Whether the caller has already approved the current version.'
+                },
                 approvals: {
                     type: 'array',
                     description:
-                        'Every vote on the entry, stale ones included — a counter that silently rolls back after a save is unexplainable without them.',
+                        'Every approval on the entry, stale ones included — a counter that silently rolls back after a save is unexplainable without them.',
                     items: {
                         type: 'object',
                         required: [
                             'userId',
-                            'decision',
-                            'note',
                             'revisionId',
                             'revisionNumber',
                             'isStale',
@@ -217,11 +218,6 @@ export function buildProtectionSchemas(): Record<string, OpenApiSchema> {
                         ],
                         properties: {
                             userId: { type: 'string', format: 'uuid' },
-                            decision: {
-                                type: 'string',
-                                enum: ['approved', 'changes_requested']
-                            },
-                            note: { type: 'string', nullable: true },
                             revisionId: { type: 'string', format: 'uuid' },
                             revisionNumber: {
                                 type: 'integer',
@@ -249,14 +245,19 @@ export function buildProtectionSchemas(): Record<string, OpenApiSchema> {
                     required: [
                         'id',
                         'requestedBy',
-                        'note',
+                        'reviewerIds',
                         'revisionId',
                         'createdAt'
                     ],
                     properties: {
                         id: { type: 'string', format: 'uuid' },
                         requestedBy: { type: 'string', format: 'uuid' },
-                        note: { type: 'string', nullable: true },
+                        reviewerIds: {
+                            type: 'array',
+                            items: { type: 'string', format: 'uuid' },
+                            description:
+                                'The people asked, in the order they were picked. Who was asked never changes whose approval counts.'
+                        },
                         revisionId: {
                             type: 'string',
                             format: 'uuid',
@@ -288,6 +289,26 @@ export function buildProtectionSchemas(): Record<string, OpenApiSchema> {
             }
         },
 
+        [REVIEWER_CANDIDATES_SCHEMA]: {
+            type: 'object',
+            required: ['candidates'],
+            properties: {
+                candidates: {
+                    type: 'array',
+                    description:
+                        'The workspace’s members holding `content:approve`, other than the caller — exactly who the request route accepts.',
+                    items: {
+                        type: 'object',
+                        required: ['userId', 'email'],
+                        properties: {
+                            userId: { type: 'string', format: 'uuid' },
+                            email: { type: 'string', format: 'email' }
+                        }
+                    }
+                }
+            }
+        },
+
         [REVIEW_STATUS_MAP_SCHEMA]: {
             type: 'object',
             required: ['byEntry'],
@@ -303,7 +324,6 @@ export function buildProtectionSchemas(): Record<string, OpenApiSchema> {
                             'required',
                             'given',
                             'stale',
-                            'changesRequested',
                             'requested',
                             'blocked'
                         ],
@@ -327,11 +347,6 @@ export function buildProtectionSchemas(): Record<string, OpenApiSchema> {
                                 type: 'integer',
                                 description:
                                     'People whose only approval sits on an earlier revision.'
-                            },
-                            changesRequested: {
-                                type: 'boolean',
-                                description:
-                                    'Whether somebody asked for changes on the current version. It never lowers `given`.'
                             },
                             requested: {
                                 type: 'boolean',
@@ -383,7 +398,7 @@ export function buildProtectionSchemas(): Record<string, OpenApiSchema> {
                             'contentType',
                             'entryId',
                             'requestedBy',
-                            'note',
+                            'reviewerIds',
                             'required',
                             'given',
                             'createdAt'
@@ -396,7 +411,12 @@ export function buildProtectionSchemas(): Record<string, OpenApiSchema> {
                             },
                             entryId: { type: 'string', format: 'uuid' },
                             requestedBy: { type: 'string', format: 'uuid' },
-                            note: { type: 'string', nullable: true },
+                            reviewerIds: {
+                                type: 'array',
+                                items: { type: 'string', format: 'uuid' },
+                                description:
+                                    'The people asked — what “Waiting on me” filters by.'
+                            },
                             required: {
                                 type: 'integer',
                                 description:

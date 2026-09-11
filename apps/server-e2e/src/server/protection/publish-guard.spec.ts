@@ -35,8 +35,8 @@ const RULE_ADMIN = 'guard-rule-admin@example.com';
  * - **The reach.** One port, consulted from the publish path, so the admin
  *   button and the token-authenticated public API meet the same rule without
  *   either being wired up individually.
- * - **The trail.** A bypass writes exactly one row, carrying the reason, or the
- *   publish does not happen — the auditor is the buyer.
+ * - **The trail.** A bypass writes exactly one row, or the publish does not
+ *   happen — the auditor is the buyer.
  */
 describe('the publish guard', () => {
     let harness: TestApp;
@@ -121,7 +121,6 @@ describe('the publish guard', () => {
         const { agent } = await member(email, 'contributor');
         await agent
             .post(`/api/protection/entries/test_article/${entryId}/approve`)
-            .send({})
             .expect(201);
     }
 
@@ -267,9 +266,13 @@ describe('the publish guard', () => {
         it('closes the open review request when the entry goes out', async () => {
             const { agent } = await member(AUTHOR, 'contributor');
             const id = await createEntry(agent);
+            const { rows } = await getPool().query<{ id: string }>(
+                'SELECT id FROM users WHERE email = $1',
+                [RULE_ADMIN]
+            );
             await agent
                 .post(`/api/protection/entries/test_article/${id}/request`)
-                .send({ note: 'ready' })
+                .send({ reviewerIds: [rows[0].id] })
                 .expect(201);
             expect(await openRequests(id)).toBe(1);
 
@@ -308,7 +311,7 @@ describe('the publish guard', () => {
 
             const res = await agent
                 .post(`/api/content/test_article/${id}/publish`)
-                .send({ bypassReason: 'shipping anyway' })
+                .send({ bypass: true })
                 .expect(422);
 
             expect(res.body.message).toBe('Entry validation failed');
@@ -323,15 +326,13 @@ describe('the publish guard', () => {
             await protect({ enabled: true, requiredApprovals: 2 });
         });
 
-        it('publishes and writes exactly one row carrying the reason [protection:I-13]', async () => {
+        it('publishes and writes exactly one row [protection:I-13]', async () => {
             const { user, agent } = await member(ADMIN, 'admin');
             const id = await createEntry(agent);
 
             await agent
                 .post(`/api/content/test_article/${id}/publish`)
-                .send({
-                    bypassReason: 'Numbers corrected before the 18:00 send'
-                })
+                .send({ bypass: true })
                 .expect(201);
 
             expect(await statusOf(id)).toBe('published');
@@ -339,20 +340,18 @@ describe('the publish guard', () => {
             const rows = await auditFor(id, 'entry.publish_bypassed');
             expect(rows).toHaveLength(1);
             expect(rows[0].actorId).toBe(user.id);
-            expect(rows[0].meta).toMatchObject({
-                reason: 'Numbers corrected before the 18:00 send',
-                required: 2,
-                given: 0
-            });
+            expect(rows[0].meta).toMatchObject({ required: 2, given: 0 });
+            expect(rows[0].meta).not.toHaveProperty('reason');
         });
 
-        it('is 400 on an empty reason, and publishes and logs nothing', async () => {
+        /** The reason field is gone; a client still sending one has to hear so. */
+        it('rejects a bypass reason, and publishes and logs nothing', async () => {
             const { agent } = await member(ADMIN, 'admin');
             const id = await createEntry(agent);
 
             await agent
                 .post(`/api/content/test_article/${id}/publish`)
-                .send({ bypassReason: '   ' })
+                .send({ bypass: true, bypassReason: 'numbers corrected' })
                 .expect(400);
 
             expect(await statusOf(id)).toBe('draft');
@@ -365,7 +364,7 @@ describe('the publish guard', () => {
 
             await agent
                 .post(`/api/content/test_article/${id}/publish`)
-                .send({ bypassReason: 'let me through' })
+                .send({ bypass: true })
                 .expect(403);
 
             expect(await statusOf(id)).toBe('draft');
@@ -382,7 +381,7 @@ describe('the publish guard', () => {
 
             await agent
                 .post(`/api/content/test_article/${id}/publish`)
-                .send({ bypassReason: 'still no' })
+                .send({ bypass: true })
                 .expect(403);
 
             expect(await statusOf(id)).toBe('draft');

@@ -68,12 +68,12 @@ export class PublishEntryUseCase {
          */
         revisionNumber?: number,
         /**
-         * The caller's stated reason for publishing past a registered guard.
-         * Content neither validates nor interprets it — whether a bypass exists,
-         * who may take one and what makes a reason acceptable are the guard's
-         * rules, and content has no way to have an opinion about them.
+         * Whether the caller explicitly asked to publish past a registered
+         * guard. Content does not interpret it — whether a bypass exists and
+         * who may take one are the guard's rules, and content has no way to
+         * have an opinion about them.
          */
-        bypassReason?: string
+        bypass = false
     ): Promise<EntryRecord> {
         if (!type.publishable) {
             throw new BadRequestException(
@@ -135,7 +135,7 @@ export class PublishEntryUseCase {
                 entryId: id,
                 workspaceId,
                 actor: toPublishActor(actor),
-                bypassReason
+                bypass
             })) ?? { allowed: true as const };
             if (!verdict.allowed) throw refusalToHttp(verdict);
 

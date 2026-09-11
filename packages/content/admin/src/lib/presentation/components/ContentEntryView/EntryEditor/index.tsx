@@ -232,8 +232,8 @@ export function EntryEditor({
              * version off the one reviewers approved.
              */
             dirty?: boolean;
-            /** A publish guard's reason for publishing past it, forwarded as is. */
-            bypassReason?: string;
+            /** Whether to publish past a publish guard, forwarded as is. */
+            bypass?: boolean;
         }
     ) => Promise<void>;
     /** Revert a published entry to draft — only on a saved publishable entry. */
@@ -604,7 +604,7 @@ export function EntryEditor({
                 relations: relationsPayload(),
                 ignoreFields: validationIgnored,
                 dirty: isDirty,
-                bypassReason: options.bypassReason
+                bypass: options.bypass
             })
                 .then(() => setRelationDeltas({}))
                 .catch((error) => {
@@ -721,7 +721,7 @@ export function EntryEditor({
         hasLocalizedFields && !isCreate && dirtySharedFields.length > 0;
 
     // The save the shared-fields warning is holding, with whatever the publish
-    // carried — a bypass reason collected before the warning must survive it.
+    // carried — a bypass confirmed before the warning must survive it.
     const [pendingPublish, setPendingPublish] = useState<{
         publish: boolean;
         options?: EntryPublishOptions;

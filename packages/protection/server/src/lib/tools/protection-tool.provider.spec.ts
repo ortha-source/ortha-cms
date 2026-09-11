@@ -8,6 +8,7 @@ function provider(): ProtectionToolProvider {
         {} as never,
         {} as never,
         {} as never,
+        {} as never,
         {} as never
     );
 }

@@ -28,8 +28,7 @@ const messages = defineMessages({
      */
     blockedLabel: {
         id: 'protection.column.blockedLabel',
-        defaultMessage:
-            '{given} of {required} approvals; publishing is held{changes, select, true { and changes were requested} other {}}'
+        defaultMessage: '{given} of {required} approvals; publishing is held'
     },
     readyLabel: {
         id: 'protection.column.readyLabel',
@@ -118,10 +117,7 @@ export function ReviewColumnCell({ entry, data }: RecordsColumnCellContext) {
                     ? 'border-destructive text-destructive'
                     : 'border-warning text-warning-soft-foreground'
             }
-            aria-label={intl.formatMessage(messages.blockedLabel, {
-                ...values,
-                changes: String(status.changesRequested)
-            })}
+            aria-label={intl.formatMessage(messages.blockedLabel, values)}
         >
             {intl.formatMessage(messages.blocked, values)}
         </Badge>

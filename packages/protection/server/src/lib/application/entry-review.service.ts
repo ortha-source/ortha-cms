@@ -18,19 +18,22 @@ import {
     type PublicUser
 } from '@orthacms/identity-server';
 import {
-    APPROVAL_DECISION,
     countApprovals,
     evaluateProtection,
-    type Approval,
     type ProtectionInput
 } from '@orthacms/protection-domain';
 import {
     ReviewableEntryNotFoundError,
+    ReviewerNotEligibleError,
     ReviewRequestNotFoundError,
     ReviewRequestNotYoursError,
     SelfApprovalRefusedError,
     UnknownProtectedContentTypeError
 } from '../domain/errors';
+import {
+    ReviewerCandidatesQuery,
+    type ReviewerCandidate
+} from '../infrastructure/reviewer-candidates.query';
 import {
     HeadRevisionQuery,
     type HeadRevision
@@ -79,7 +82,8 @@ interface ResolvedEntry {
 }
 
 /**
- * Review on one entry: what the state is, and the four writes that change it.
+ * Review on one entry: what the state is, who may be asked, and the writes that
+ * change it.
  *
  * **The counting is not here.** Every number this service reports comes from
  * `evaluateProtection` in `@orthacms/protection-domain`, handed the rule, the
@@ -102,6 +106,7 @@ export class EntryReviewService {
         private readonly requests: ReviewRequestRepository,
         private readonly approvals: ReviewApprovalRepository,
         private readonly heads: HeadRevisionQuery,
+        private readonly candidates: ReviewerCandidatesQuery,
         private readonly grants: WorkspaceGrantsQuery,
         private readonly permissions: PermissionsService,
         private readonly accessPolicy: AccessPolicy,
@@ -167,17 +172,17 @@ export class EntryReviewService {
             required: rule?.enabled ? rule.requiredApprovals : 0,
             given: counts.given,
             stale: counts.stale,
-            changesRequested: votes.filter(
-                (vote) =>
-                    vote.decision === APPROVAL_DECISION.ChangesRequested &&
-                    vote.revisionId === entry.head.id
-            ).length,
             blocked: !decision.allowed,
             bypassable: 'bypassable' in decision ? decision.bypassable : false,
             afterSave,
             headRevisionId: entry.head.id,
             headRevisionNumber: entry.head.number,
             callerWroteHead: entry.head.authorId === actor.id,
+            callerApprovedHead: votes.some(
+                (vote) =>
+                    vote.userId === actor.id &&
+                    vote.revisionId === entry.head.id
+            ),
             approvals: votes.map((vote) =>
                 toApprovalView(vote, entry, numbers)
             ),
@@ -185,7 +190,7 @@ export class EntryReviewService {
                 ? {
                       id: request.id,
                       requestedBy: request.requestedBy,
-                      note: request.note,
+                      reviewerIds: request.reviewerIds,
                       revisionId: request.revisionId,
                       createdAt: request.createdAt.toISOString()
                   }
@@ -236,7 +241,29 @@ export class EntryReviewService {
     }
 
     /**
-     * Opens the review request, or updates the one already open.
+     * Who the caller may ask to review this entry — the picker's list.
+     *
+     * Resolving the entry first is the authorization check, as on every route
+     * here: an entry this workspace cannot reach has no reviewers to offer.
+     */
+    async reviewerCandidates(
+        workspaceId: string,
+        contentType: string,
+        entryId: string,
+        actor: ReviewActor
+    ): Promise<ReviewerCandidate[]> {
+        await this.resolve(workspaceId, contentType, entryId);
+        return this.candidates.list(workspaceId, actor.id);
+    }
+
+    /**
+     * Opens the review request naming who is asked, or replaces the reviewers
+     * on the one already open.
+     *
+     * Every reviewer must be somebody {@link reviewerCandidates} offers — a
+     * member who can approve, other than the caller — so nobody can be left in
+     * a request as a pending reviewer with no way to approve. Asking names
+     * people; it never changes whose approval counts.
      *
      * Allowed on an **unprotected** type too. Asking for a second pair of eyes
      * on something nobody protected is a reasonable thing to want, and refusing
@@ -247,10 +274,19 @@ export class EntryReviewService {
         workspaceId: string,
         contentType: string,
         entryId: string,
-        note: string | null,
+        reviewerIds: readonly string[],
         actor: ReviewActor
     ): Promise<void> {
         const entry = await this.resolve(workspaceId, contentType, entryId);
+        const eligible = new Set(
+            (await this.candidates.list(workspaceId, actor.id)).map(
+                (candidate) => candidate.userId
+            )
+        );
+        const reviewers = [...new Set(reviewerIds)];
+        if (!reviewers.length || reviewers.some((id) => !eligible.has(id))) {
+            throw new ReviewerNotEligibleError();
+        }
         await this.uow.run(async () => {
             const request = await this.requests.open({
                 workspaceId,
@@ -258,7 +294,7 @@ export class EntryReviewService {
                 entryId: entry.entryId,
                 revisionId: entry.head.id,
                 requestedBy: actor.id,
-                note
+                reviewerIds: reviewers
             });
             await this.emit(
                 reviewEvent(
@@ -269,7 +305,7 @@ export class EntryReviewService {
                         contentType: entry.contentType,
                         requestId: request.id,
                         revisionNumber: entry.head.number,
-                        note
+                        reviewerIds: reviewers
                     }
                 ),
                 actor
@@ -301,7 +337,7 @@ export class EntryReviewService {
     }
 
     /**
-     * Records `decision` as this person's vote on the entry's head revision.
+     * Records this person's approval of the entry's head revision.
      *
      * The four-eyes check happens **here** rather than only at publish time, and
      * it is the one rule this service enforces itself. It has to: the kernel
@@ -310,19 +346,16 @@ export class EntryReviewService {
      * list, the number does not move, and nothing anywhere says why. Refusing
      * the write says it once, at the moment it can be explained.
      */
-    async vote(
+    async approve(
         workspaceId: string,
         contentType: string,
         entryId: string,
-        decision: Approval['decision'],
-        note: string | null,
         actor: ReviewActor
     ): Promise<void> {
         const entry = await this.resolve(workspaceId, contentType, entryId);
         const rule = await this.ruleFor(entry);
 
         if (
-            decision === APPROVAL_DECISION.Approved &&
             rule?.enabled &&
             rule.requireOtherPerson &&
             entry.head.authorId !== null &&
@@ -337,15 +370,11 @@ export class EntryReviewService {
                 contentType: entry.contentType,
                 entryId: entry.entryId,
                 revisionId: entry.head.id,
-                userId: actor.id,
-                decision,
-                note
+                userId: actor.id
             });
             await this.emit(
                 reviewEvent(
-                    decision === APPROVAL_DECISION.Approved
-                        ? PROTECTION_EVENT_KINDS.REVIEW_APPROVED
-                        : PROTECTION_EVENT_KINDS.REVIEW_CHANGES_REQUESTED,
+                    PROTECTION_EVENT_KINDS.REVIEW_APPROVED,
                     entry.entryId,
                     {
                         workspaceId,
@@ -355,8 +384,7 @@ export class EntryReviewService {
                         // "version 7", and "approved" with nothing saying what
                         // was approved is not a trail.
                         revisionNumber: entry.head.number,
-                        revisionId: entry.head.id,
-                        note
+                        revisionId: entry.head.id
                     }
                 ),
                 actor
@@ -497,8 +525,6 @@ function toApprovalView(
 ): ReviewApprovalView {
     return {
         userId: vote.userId,
-        decision: vote.decision,
-        note: vote.note,
         revisionId: vote.revisionId,
         revisionNumber: numbers.get(vote.revisionId) ?? null,
         isStale: vote.revisionId !== entry.head.id,

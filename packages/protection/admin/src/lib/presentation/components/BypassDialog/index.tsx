@@ -1,4 +1,4 @@
-import { useId, useState, type RefObject } from 'react';
+import type { RefObject } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import {
     Button,
@@ -7,11 +7,7 @@ import {
     DialogDescription,
     DialogFooter,
     DialogHeader,
-    DialogTitle,
-    Field,
-    FieldError,
-    FieldLabel,
-    Textarea
+    DialogTitle
 } from '@orthacms/design-system';
 import type { PublishOutlook } from '../../../domain/types';
 
@@ -25,22 +21,10 @@ const messages = defineMessages({
         defaultMessage:
             'This type is protected: it needs {required, plural, one {# approval} other {# approvals}}, and has {given}. You are publishing past the rule as an administrator.'
     },
-    reasonLabel: {
-        id: 'protection.bypass.reasonLabel',
-        defaultMessage: 'Reason'
-    },
-    reasonPlaceholder: {
-        id: 'protection.bypass.reasonPlaceholder',
-        defaultMessage: 'Why is this going out without review?'
-    },
     trail: {
         id: 'protection.bypass.trail',
         defaultMessage:
-            'This will appear in the activity log as entry.publish_bypassed, with your name, the rule and this reason.'
-    },
-    required: {
-        id: 'protection.bypass.required',
-        defaultMessage: 'A reason is required — the log row is the point.'
+            'This will appear in the activity log as entry.publish_bypassed, with your name and the rule.'
     },
     cancel: { id: 'protection.bypass.cancel', defaultMessage: 'Cancel' },
     confirm: {
@@ -50,31 +34,27 @@ const messages = defineMessages({
 });
 
 /**
- * The bypass dialog.
+ * The bypass dialog — a confirmation, and nothing to fill in.
  *
  * It belongs to this plugin and not to `content-admin` because everything it
  * says is protection's: which rule is in force, how far short the count is, and
  * what the log row will be called. Content only knows that a contribution
  * offered a way through — see `ENTRY_PUBLISH_GUARD_SLOT`.
  *
- * **The reason is mandatory, and the confirm button is not disabled.** Those
- * are the same decision, not opposite ones: a disabled control explains nothing
- * to anybody and nothing at all to a screen reader, so pressing Publish anyway
- * with an empty box refuses the publish and *says why*, through a `FieldError`
- * that announces. Without the reason, three months later the log holds twenty
- * overrides and no account of any of them — which is indistinguishable from
- * having had no rule.
+ * **There is no reason field.** Review notes and bypass reasons were removed
+ * together: the log row names who published past which rule and how far short
+ * it was, and a free-text box beside that was a second place for an
+ * explanation that belongs with the people involved. What stays is the pause —
+ * publishing past a rule is still something a person confirms, told beforehand
+ * that it is logged.
  *
- * **It does not publish.** Confirming hands the reason to `onConfirm` and
- * closes; the publish itself is the editor's own, run through
- * `ENTRY_PUBLISH_GUARD_SLOT`'s callback — which is what saves the edits on
- * screen first, creates the record on a create form, and puts up the same busy
- * cover and toasts an ordinary publish gets. A publish of its own from here
- * would ship the stored record and silently drop whatever was being edited.
+ * **It does not publish.** Confirming calls `onConfirm` and closes; the publish
+ * itself is the editor's own, run through `ENTRY_PUBLISH_GUARD_SLOT`'s callback
+ * — which is what saves the edits on screen first, creates the record on a
+ * create form, and puts up the same busy cover and toasts an ordinary publish
+ * gets.
  *
- * Focus trap and focus return to the trigger come from the Radix `Dialog`;
- * the field is labelled through `Field`/`FieldLabel` rather than a placeholder,
- * which is not a label.
+ * Focus trap comes from the Radix `Dialog`; focus return is taken over below.
  */
 export function BypassDialog({
     open,
@@ -87,8 +67,8 @@ export function BypassDialog({
     onOpenChange: (open: boolean) => void;
     /** The verdict being bypassed — its numbers are what the body states. */
     outlook: PublishOutlook;
-    /** Publish with this reason. Called with the trimmed, non-empty reason. */
-    onConfirm: (reason: string) => void;
+    /** Publish past the rule. */
+    onConfirm: () => void;
     /**
      * The control that opened this, so closing puts focus back on it.
      *
@@ -101,39 +81,16 @@ export function BypassDialog({
     returnFocusTo?: RefObject<HTMLElement | null>;
 }) {
     const intl = useIntl();
-    const reasonId = useId();
-    const [reason, setReason] = useState('');
-    const [touched, setTouched] = useState(false);
 
-    const empty = reason.trim().length === 0;
-    const showError = touched && empty;
-
-    const close = () => {
-        setReason('');
-        setTouched(false);
-        onOpenChange(false);
-    };
-
-    const submit = () => {
-        if (empty) {
-            // Refuse, and say so. The button stays operable so the refusal is
-            // something the person hears rather than something that silently
-            // does nothing.
-            setTouched(true);
-            return;
-        }
-        const confirmed = reason.trim();
+    const confirm = () => {
         // Closed first: the publish puts the editor's busy cover up, and a
         // dialog left open above it would be one more layer over the result.
-        close();
-        onConfirm(confirmed);
+        onOpenChange(false);
+        onConfirm();
     };
 
     return (
-        <Dialog
-            open={open}
-            onOpenChange={(next) => (next ? onOpenChange(true) : close())}
-        >
+        <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent
                 onCloseAutoFocus={(event) => {
                     const target = returnFocusTo?.current;
@@ -158,40 +115,23 @@ export function BypassDialog({
                     </DialogDescription>
                 </DialogHeader>
 
-                <Field>
-                    <FieldLabel htmlFor={reasonId}>
-                        {intl.formatMessage(messages.reasonLabel)}
-                    </FieldLabel>
-                    <Textarea
-                        id={reasonId}
-                        rows={3}
-                        value={reason}
-                        aria-invalid={showError || undefined}
-                        placeholder={intl.formatMessage(
-                            messages.reasonPlaceholder
-                        )}
-                        onChange={(event) => setReason(event.target.value)}
-                    />
-                    {showError ? (
-                        <FieldError>
-                            {intl.formatMessage(messages.required)}
-                        </FieldError>
-                    ) : null}
-                </Field>
-
                 {/* Said before the click, not after it. */}
                 <p className="text-xs text-muted-foreground">
                     {intl.formatMessage(messages.trail)}
                 </p>
 
                 <DialogFooter>
-                    <Button type="button" variant="outline" onClick={close}>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => onOpenChange(false)}
+                    >
                         {intl.formatMessage(messages.cancel)}
                     </Button>
                     <Button
                         type="button"
                         variant="destructive"
-                        onClick={submit}
+                        onClick={confirm}
                     >
                         {intl.formatMessage(messages.confirm)}
                     </Button>

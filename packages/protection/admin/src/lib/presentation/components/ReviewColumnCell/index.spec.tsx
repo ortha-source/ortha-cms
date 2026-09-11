@@ -15,7 +15,6 @@ function show(status?: Partial<EntryReviewStatus>) {
                   required: 2,
                   given: 0,
                   stale: 0,
-                  changesRequested: false,
                   requested: false,
                   blocked: true,
                   ...status
@@ -74,22 +73,6 @@ describe('the records list review column', () => {
 
         expect(
             screen.getByLabelText('1 of 2 approvals; publishing is held')
-        ).toBeTruthy();
-    });
-
-    /**
-     * `changes_requested` never lowers the count, so it is reported beside the
-     * tally rather than folded into it — the number still says how far the
-     * approvals got, and the label says somebody asked for something.
-     */
-    it('mentions requested changes in the label without changing the count', () => {
-        show({ given: 1, requested: true, changesRequested: true });
-
-        expect(screen.getByText('1 of 2')).toBeTruthy();
-        expect(
-            screen.getByLabelText(
-                '1 of 2 approvals; publishing is held and changes were requested'
-            )
         ).toBeTruthy();
     });
 

@@ -13,6 +13,7 @@ import type {
     ProtectionInsights,
     ProtectionRule,
     ProtectionRuleRecord,
+    ReviewerCandidate,
     ReviewQueue
 } from '../domain/types';
 import {
@@ -21,6 +22,7 @@ import {
     newEntryProtectionKey,
     newEntryProtectionPrefix,
     queueKey,
+    reviewerCandidatesKey,
     reviewStatusKey,
     rulesKey
 } from '../infrastructure/protectionKeys';
@@ -29,8 +31,7 @@ import {
     type EntryRef,
     type RequestReviewInput,
     type ReviewQueueParams,
-    type RuleAddress,
-    type VoteInput
+    type RuleAddress
 } from '../infrastructure/protectionGateway';
 
 /** What the entry surfaces need to address and cache one entry's review. */
@@ -107,7 +108,7 @@ export function useEntryReview(scope: EntryReviewScope | null, enabled = true) {
 /**
  * Refreshes only what a vote changed.
  *
- * A vote moves the review state and nothing else: the entry's own values, its
+ * A vote or a request moves the review state and nothing else: the entry's own values, its
  * relations, its media and its version timeline are all exactly as they were.
  * Refetching the editor through `refreshEntryCaches` would re-read a record and
  * a whole revision list to learn a number this one query already carries — the
@@ -123,7 +124,35 @@ function refreshReview(
     });
 }
 
-/** Opens the ask for review, or updates the one already open. */
+/**
+ * Who the caller may ask to review this entry.
+ *
+ * Enabled by the caller — the request dialog asks only while it is open, so an
+ * editor that never opens it pays nothing.
+ */
+export function useReviewerCandidates(
+    scope: EntryReviewScope | null,
+    enabled: boolean
+) {
+    const target = scope as EntryReviewScope;
+    return useQuery<ReviewerCandidate[], ApiError>({
+        queryKey: scope
+            ? reviewerCandidatesKey(
+                  scope.workspaceId,
+                  scope.typeName,
+                  scope.entryId
+              )
+            : ['protection', 'reviewer-candidates', 'idle'],
+        queryFn: () =>
+            httpProtectionGateway.listReviewerCandidates({
+                typeName: target.typeName,
+                entryId: target.entryId
+            }),
+        enabled: enabled && !!scope
+    });
+}
+
+/** Opens the ask naming its reviewers, or replaces who the open one names. */
 export function useRequestReview(scope: EntryReviewScope) {
     const queryClient = useQueryClient();
     return useMutation<void, ApiError, RequestReviewInput>({
@@ -144,22 +173,13 @@ export function useWithdrawRequest(scope: EntryReviewScope) {
 /** Approves the head revision. */
 export function useApprove(scope: EntryReviewScope) {
     const queryClient = useQueryClient();
-    return useMutation<void, ApiError, VoteInput>({
-        mutationFn: (input) => httpProtectionGateway.approve(input),
+    return useMutation<void, ApiError, EntryRef>({
+        mutationFn: (ref) => httpProtectionGateway.approve(ref),
         onSuccess: () => refreshReview(queryClient, scope)
     });
 }
 
-/** Asks for changes on the head revision. */
-export function useRequestChanges(scope: EntryReviewScope) {
-    const queryClient = useQueryClient();
-    return useMutation<void, ApiError, VoteInput>({
-        mutationFn: (input) => httpProtectionGateway.requestChanges(input),
-        onSuccess: () => refreshReview(queryClient, scope)
-    });
-}
-
-/** Withdraws this person's own vote. */
+/** Withdraws this person's own approval. */
 export function useWithdrawVote(scope: EntryReviewScope) {
     const queryClient = useQueryClient();
     return useMutation<void, ApiError, EntryRef>({

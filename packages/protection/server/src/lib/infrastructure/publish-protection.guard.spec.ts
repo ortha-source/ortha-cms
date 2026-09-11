@@ -33,8 +33,6 @@ const approved = (userId: string, revisionId = HEAD.id): StoredApproval => ({
     id: `vote-${userId}-${revisionId}`,
     revisionId,
     userId,
-    decision: 'approved',
-    note: null,
     createdAt: new Date('2026-01-01T00:00:00.000Z')
 });
 
@@ -219,44 +217,29 @@ describe('a protected type', () => {
 describe('the bypass', () => {
     const blocked = { rule: ruleWith({ requiredApprovals: 2 }) };
 
-    it('allows the publish and returns the row that excuses it [protection:I-13]', async () => {
+    it('allows the publish and returns the row that records it [protection:I-13]', async () => {
         const { guard } = build({ ...blocked, manages: true });
 
-        const verdict = await guard.check(
-            context({ bypassReason: '  Numbers corrected before the send  ' })
-        );
+        const verdict = await guard.check(context({ bypass: true }));
 
         expect(verdict.allowed).toBe(true);
         expect(verdict.allowed && verdict.events).toHaveLength(1);
         expect(verdict.allowed && verdict.events?.[0]).toMatchObject({
             kind: 'entry.publish_bypassed',
             aggregateId: 'entry-1',
-            payload: {
-                ruleId: 'rule-1',
-                required: 2,
-                given: 0,
-                // Trimmed, so a reason of spaces cannot masquerade as one.
-                reason: 'Numbers corrected before the send'
-            }
+            payload: { ruleId: 'rule-1', required: 2, given: 0 }
         });
     });
 
-    /**
-     * Authorization before shape. A member who may not bypass is told that
-     * whatever they typed — a 400 would describe the shape of a door that is
-     * not theirs to open.
-     */
-    it('is 403 for a caller without protection:manage, blank reason or not', async () => {
+    it('is 403 for a caller without protection:manage', async () => {
         const { guard } = build({ ...blocked, manages: false });
 
-        for (const reason of ['a real reason', '', '   ']) {
-            expect(
-                refusalOf(await guard.check(context({ bypassReason: reason })))
-            ).toMatchObject({
-                status: 403,
-                code: PROTECTION_REFUSAL.BypassRefused
-            });
-        }
+        expect(
+            refusalOf(await guard.check(context({ bypass: true })))
+        ).toMatchObject({
+            status: 403,
+            code: PROTECTION_REFUSAL.BypassRefused
+        });
     });
 
     it('is 403 when the rule allows no bypass, even for an administrator', async () => {
@@ -266,25 +249,23 @@ describe('the bypass', () => {
         });
 
         expect(
-            refusalOf(await guard.check(context({ bypassReason: 'because' })))
+            refusalOf(await guard.check(context({ bypass: true })))
         ).toMatchObject({
             status: 403,
             message: expect.stringContaining('no bypass')
         });
     });
 
-    it('is 400 when an entitled caller sends nothing usable', async () => {
+    /** Being allowed to bypass is not asking to: the refusal still comes first. */
+    it('refuses an entitled caller who did not ask to bypass', async () => {
         const { guard } = build({ ...blocked, manages: true });
 
         expect(
-            refusalOf(await guard.check(context({ bypassReason: '   ' })))
-        ).toMatchObject({
-            status: 400,
-            code: PROTECTION_REFUSAL.BypassReasonRequired
-        });
+            refusalOf(await guard.check(context({ bypass: false })))
+        ).toMatchObject({ status: 409 });
     });
 
-    /** Nothing to bypass, nothing recorded — a reason is not a way to add a row. */
+    /** Nothing to bypass, nothing recorded — asking is not a way to add a row. */
     it('records nothing when the publish was not blocked anyway', async () => {
         const { guard } = build({
             rule: ruleWith({ requiredApprovals: 1 }),
@@ -292,9 +273,9 @@ describe('the bypass', () => {
             manages: true
         });
 
-        await expect(
-            guard.check(context({ bypassReason: 'just in case' }))
-        ).resolves.toEqual({ allowed: true });
+        await expect(guard.check(context({ bypass: true }))).resolves.toEqual({
+            allowed: true
+        });
     });
 
     it('reports bypassable to a caller who has not asked for one', async () => {

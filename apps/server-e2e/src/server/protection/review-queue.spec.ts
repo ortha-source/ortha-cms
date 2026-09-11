@@ -18,6 +18,8 @@ const PASSWORD = 'SecurePass123!';
 const AUTHOR = 'queue-author@example.com';
 const OTHER_AUTHOR = 'queue-other-author@example.com';
 const REVIEWER = 'queue-reviewer@example.com';
+/** Asked on every request — a member who can approve, never logged in. */
+const STANDING_REVIEWER = 'queue-standing-reviewer@example.com';
 
 /**
  * `GET /api/protection/queue` — how a reviewer learns there is work.
@@ -29,6 +31,7 @@ const REVIEWER = 'queue-reviewer@example.com';
 describe('/api/protection/queue', () => {
     let harness: TestApp;
     let workspace: SeededWorkspace;
+    let standingReviewerId: string;
 
     beforeAll(async () => {
         harness = await createTestApp();
@@ -42,6 +45,13 @@ describe('/api/protection/queue', () => {
         await resetDb();
         workspace = await seedWorkspace({ name: 'Press', slug: 'press' });
         await seedContentGrants(workspace.id, ['test_article', 'test_author']);
+        const standing = await seedActiveUser(harness.app, {
+            email: STANDING_REVIEWER,
+            password: PASSWORD,
+            role: 'contributor'
+        });
+        await seedMembership(standing.id, workspace.id);
+        standingReviewerId = standing.id;
     });
 
     async function member(
@@ -77,7 +87,7 @@ describe('/api/protection/queue', () => {
         const id = created.body.id as string;
         await agent
             .post(`/api/protection/entries/${type}/${id}/request`)
-            .send({})
+            .send({ reviewerIds: [standingReviewerId] })
             .expect(201);
         return id;
     }
@@ -114,18 +124,19 @@ describe('/api/protection/queue', () => {
             'entryId',
             'given',
             'id',
-            'note',
             'requestedBy',
-            'required'
+            'required',
+            'reviewerIds'
+        ]);
+        expect(response.body.items[0].reviewerIds).toEqual([
+            standingReviewerId
         ]);
     });
 
     /**
      * `?mine=1` is "what did I send", not "what is waiting on me". The second
-     * question has no server-side answer worth trusting: anyone with
-     * `content:approve` may review anything, so "waiting on me" is everything
-     * minus what I already voted on — which the client computes from `given`
-     * and its own identity.
+     * is answered by the client from each line's `reviewerIds` and its own
+     * identity, over the same window.
      */
     it('narrows to the caller’s own requests with ?mine=1', async () => {
         const { agent: mine } = await member(AUTHOR, 'contributor');

@@ -10,16 +10,6 @@
  * nowhere in the input to put one.
  */
 
-/** How a reviewer voted on one revision. */
-export const APPROVAL_DECISION = {
-    Approved: 'approved',
-    ChangesRequested: 'changes_requested'
-} as const;
-
-/** A reviewer's vote. The runtime object above is the source of truth. */
-export type ApprovalDecision =
-    (typeof APPROVAL_DECISION)[keyof typeof APPROVAL_DECISION];
-
 /**
  * The rule on one `(workspace, content type)` pair.
  *
@@ -43,8 +33,8 @@ export interface ProtectionRule {
      */
     readonly countStaleApprovals: boolean;
     /**
-     * An administrator may publish past the rule, with a mandatory reason.
-     * Off makes the rule absolute, administrators included.
+     * An administrator may publish past the rule, after confirming they mean
+     * to. Off makes the rule absolute, administrators included.
      */
     readonly adminBypass: boolean;
     /** Off means a bearer token cannot publish this type at all. */
@@ -52,7 +42,11 @@ export interface ProtectionRule {
 }
 
 /**
- * One vote, on one version.
+ * One approval, on one version.
+ *
+ * There is only one kind of vote. "Request changes" was removed with review
+ * notes: without a sentence saying what to change it carried nothing, and a
+ * reviewer who is not satisfied simply does not approve.
  *
  * `revisionId` is what makes an approval expire: a save writes a new revision,
  * so a vote recorded against the previous one stops counting toward the head
@@ -64,9 +58,8 @@ export interface ProtectionRule {
 export interface Approval {
     /** The revision this vote was cast against. */
     readonly revisionId: string;
-    /** Who cast it. One vote per person per revision. */
+    /** Who gave it. One approval per person per revision. */
     readonly userId: string;
-    readonly decision: ApprovalDecision;
 }
 
 /** Who is asking to publish. */

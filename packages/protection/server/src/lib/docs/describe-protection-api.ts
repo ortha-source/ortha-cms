@@ -27,6 +27,7 @@ import {
     NEW_ENTRY_PROTECTION_SCHEMA,
     PROTECTION_INSIGHTS_SCHEMA,
     PROTECTION_RULE_SCHEMA,
+    REVIEWER_CANDIDATES_SCHEMA,
     REVIEW_QUEUE_SCHEMA,
     REVIEW_STATUS_MAP_SCHEMA,
     buildProtectionSchemas
@@ -64,6 +65,16 @@ const ROUTES = {
                 'The entry’s review state: the requirement, every vote with its staleness, and the open request. Readable with `content:read` — the editor has to render “0 of 2” for a contributor, who cannot read the workspace’s rule table.',
             notFound:
                 'The entry is not reachable from this workspace under this content type. One answer for all its causes — an ungranted type, a missing entry, another workspace’s entry — so one workspace cannot probe another’s ids.'
+        }
+    },
+    '/entries/{type}/{id}/reviewers': {
+        get: {
+            list: false,
+            schema: REVIEWER_CANDIDATES_SCHEMA,
+            description:
+                'Who the caller may ask to review: the workspace’s members holding `content:approve`, other than the caller. The request route accepts exactly these people.',
+            notFound:
+                'The entry is not reachable from this workspace under this content type.'
         }
     },
     '/types/{type}': {
@@ -157,12 +168,25 @@ export function describeProtectionApi(document: OpenApiDocument): void {
         document,
         '/api/protection/entries/{type}/{id}/approve',
         'delete',
-        'Your vote on the current revision is gone. Idempotent, and it reaches no further back: a vote on an earlier version is already not counting, and removing it would erase the struck-through line that explains why the number moved.'
+        'Your approval of the current revision is gone. Idempotent, and it reaches no further back: an approval of an earlier version is already not counting, and removing it would erase the struck-through line that explains why the number moved.'
     );
 
     // The one refusal a client has to branch on: it is a 409, not a 403,
     // because the caller does hold `content:approve` — what refuses them is the
     // state of this entry.
+    const request = (
+        document.paths['/api/protection/entries/{type}/{id}/request'] as
+            | Record<string, Operation>
+            | undefined
+    )?.post;
+    if (request) {
+        addErrorResponse(
+            request,
+            '422',
+            '`protection.reviewer_not_eligible` — a requested reviewer is not another member of this workspace who can approve content.'
+        );
+    }
+
     for (const suffix of ['/entries/{type}/{id}/approve']) {
         const operation = (
             document.paths[`/api/protection${suffix}`] as

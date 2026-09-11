@@ -92,15 +92,6 @@ export class ReviewStatusQuery {
                 required,
                 given,
                 stale,
-                // `changes_requested` never lowers the count (I-09), so this is
-                // reported beside the tally rather than folded into it — the
-                // column shows a reviewer asked for something, and the number
-                // still says how far the approvals got.
-                changesRequested: votes.some(
-                    (vote) =>
-                        vote.decision === 'changes_requested' &&
-                        vote.revisionId === head.id
-                ),
                 requested: openRequests.has(head.entryId),
                 blocked: !!rule && given < required
             });

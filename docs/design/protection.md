@@ -44,7 +44,7 @@ Three properties carry the whole design, and the rest follows from them:
        └─ publish gate — required field values     ← 422, button disabled with the failing checks
             └─ CONTENT_PUBLISH_GUARD port          ← 409, blocked: "2 approvals required, 0 given"
                  ├─ no rule, or enough approvals ──┐
-                 └─ blocked + bypass allowed       │  admin only, reason mandatory,
+                 └─ blocked + bypass allowed       │  admin only, confirmed,
                       └─ entry.publish_bypassed ───┤  entry.publish_bypassed to activity
                                                    ▼
                                             status → published
@@ -93,7 +93,7 @@ word, and the word is the type.
 | `required_approvals`    | `1`     | How many approvals on the head revision unlock publication.                                                                           |
 | `require_other_person`  | `true`  | The author of the head revision cannot approve it. This is the four-eyes switch.                                                      |
 | `count_stale_approvals` | `false` | When on, approvals given on earlier revisions still count. Offered because someone will ask; the editor labels it as not recommended. |
-| `admin_bypass`          | `true`  | An administrator may publish past the rule, with a mandatory reason. Off makes the rule absolute.                                     |
+| `admin_bypass`          | `true`  | An administrator may publish past the rule, after confirming. Off makes the rule absolute.                                            |
 | `allow_token_publish`   | `false` | Off means a bearer token cannot publish this type at all.                                                                             |
 
 ## Data model
@@ -125,12 +125,12 @@ Index on `workspace_id`.
 | `entry_id`     | `uuid` not null | The live row, one per locale.                                                                    |
 | `revision_id`  | `uuid` not null | The head at the moment of asking. Kept for the trail; the request stays open across later saves. |
 | `requested_by` | `uuid` not null |                                                                                                  |
-| `note`         | `text`          | What the author wants looked at.                                                                 |
+| `reviewer_ids` | `uuid[]`        | The people asked, in the order picked. Never changes whose approval counts.                      |
 | `created_at`   | `timestamptz`   |                                                                                                  |
 | `resolved_at`  | `timestamptz`   | Set when the entry publishes, or when the requester withdraws.                                   |
 
 Partial unique index on `entry_id` where `resolved_at is null` — one open request
-per entry, so asking twice updates rather than piles up.
+per entry, so asking twice replaces the reviewers rather than piling up.
 
 ### `review_approvals`
 
@@ -140,12 +140,11 @@ per entry, so asking twice updates rather than piles up.
 | `workspace_id`, `content_type`, `entry_id` |                 | Denormalised so the queue and the records column need no join to revisions. |
 | `revision_id`                              | `uuid` not null | **What makes an approval expire.**                                          |
 | `user_id`                                  | `uuid` not null |                                                                             |
-| `decision`                                 | `text` not null | `approved` \| `changes_requested`.                                          |
-| `note`                                     | `text`          | Required in practice for `changes_requested`; the API does not force it.    |
 | `created_at`                               | `timestamptz`   |                                                                             |
 
-`unique (revision_id, user_id)` — one vote per person per version, changeable by
-upsert. Index on `(workspace_id, entry_id)`.
+A row **is** an approval — there is no decision column since _request changes_
+was removed (migration `0001` deletes those votes before dropping it).
+`unique (revision_id, user_id)` — one approval per person per version. Index on `(workspace_id, entry_id)`.
 
 ### Why no foreign key to revisions
 
@@ -193,15 +192,16 @@ Counting rules, in order:
 
 1. A token: allowed only when `allow_token_publish`; otherwise `token-refused`,
    regardless of approvals.
-2. Approvals with `decision = 'approved'`, on `headRevisionId` — or on any
-   revision when `count_stale_approvals` is on.
+2. Approvals on `headRevisionId` — or on any revision when
+   `count_stale_approvals` is on.
 3. Minus the head author's own, when `require_other_person`.
 4. Distinct by `user_id`.
-5. `changes_requested` does **not** subtract. It is zero votes plus an
-   explanation; a reviewer who wants to block simply does not approve.
+
+There is one kind of vote: a reviewer who is not satisfied simply does not
+approve. Who a request names is not an input.
 
 `bypassable` is reported, never applied: the decision says a bypass is possible,
-the caller must still pass a reason to take it.
+the caller must still ask for it.
 
 ## HTTP API
 
@@ -218,10 +218,10 @@ All entry routes take `WorkspaceGuard` and `X-Workspace-Id`.
 | `DELETE /rules/:kind/:slug`         | `protection:manage` | —              | `204`. Same as `enabled: false` but leaves no row.                                                                                                                                                                    |
 | `GET /entries/:type/:id`            | `content:read`      | —              | The effective requirement, the approvals (with staleness), the open request, and `afterSave` — the verdict a save by the caller would meet. Readable without `protection:manage` — the editor has to render "0 of 2". |
 | `GET /types/:type`                  | `content:read`      | —              | What publishing a new entry of the type would meet, for the create form. `404` for an ungranted or unknown type.                                                                                                      |
-| `POST /entries/:type/:id/request`   | `content:update`    | `note?`        | Opens or updates the request.                                                                                                                                                                                         |
+| `GET /entries/:type/:id/reviewers`  | `content:update`    | —              | Who can be asked: the other members holding `content:approve`. The request route accepts exactly these people.                                                                                                        |
+| `POST /entries/:type/:id/request`   | `content:update`    | `reviewerIds`  | Opens the request naming at least one reviewer, or replaces who the open one names. `422 protection.reviewer_not_eligible` for anybody outside the list above.                                                        |
 | `DELETE /entries/:type/:id/request` | `content:update`    | —              | Withdraws it. Only the requester or an administrator.                                                                                                                                                                 |
-| `POST /entries/:type/:id/approve`   | `content:approve`   | `note?`        | Upserts this user's vote on the head. `409` when `require_other_person` and the caller wrote the head.                                                                                                                |
-| `POST /entries/:type/:id/changes`   | `content:approve`   | `note`         | Same row, `decision = 'changes_requested'`.                                                                                                                                                                           |
+| `POST /entries/:type/:id/approve`   | `content:approve`   | —              | Upserts this user's approval of the head. `409` when `require_other_person` and the caller wrote the head. A body (a `note`) is `400`.                                                                                |
 | `DELETE /entries/:type/:id/approve` | `content:approve`   | —              | Withdraws own vote.                                                                                                                                                                                                   |
 | `GET /queue`                        | `content:read`      | `?mine=1`      | Open requests across every type in the workspace, for the reviewer page.                                                                                                                                              |
 
@@ -234,9 +234,9 @@ has to tell those apart to know whether to show "ask an administrator for the
 permission" or "ask a colleague for an approval". A token refusal is
 `409 protection.token_refused` for the same reason.
 
-Publishing with a bypass is the ordinary publish call plus
-`{ bypassReason: string }` — non-empty, trimmed, capped. Sending it without
-`admin_bypass`, or without being an administrator, is `403`.
+Publishing with a bypass is the ordinary publish call plus `{ bypass: true }`.
+Sending it without `admin_bypass`, or without being an administrator, is `403`.
+There is no reason field; a body still carrying `bypassReason` is `400`.
 
 ## Permissions, and the role question
 
@@ -296,17 +296,20 @@ built-ins.
   Publish gate → Details → Revisions, because slot widgets render last.
     - Header action mirrors the publish gate's: `0 of 2` in destructive, `1 of 2`
       in warning, `2 of 2` in success.
-    - Each approver with the version they approved. **A stale approval stays
-      visible, struck through, naming its version** — a counter that silently rolls
-      back after a save is unexplainable otherwise.
-    - Actions: _Request review_ for the author; _Approve_ / _Request changes_ for
-      anyone else holding `content:approve`.
+    - **People, not votes**: everybody the request names, then anybody else who
+      approved — a green check with "Approved" once they approved the current
+      version, a yellow dot with "Pending" otherwise. **An approval a save left
+      behind is explained in words**, naming its version — a counter that
+      silently rolls back after a save is unexplainable otherwise.
+    - Actions: _Request review_ (or _Change reviewers_ once asked) opens a picker
+      of who can approve; _Approve_ for anyone else holding `content:approve`,
+      and gone once they approved the current version. No notes anywhere.
 - **Button states** — disabled with the requirement in its tooltip; enabled and
   ordinary when satisfied; for an administrator with bypass, **still an ordinary
-  Publish** whose click opens the bypass dialog. The dialog demands a non-empty
-  reason and says, before the click, that it will appear in the activity log;
-  its reason then rides the editor's own publish, so unsaved edits are saved (or
-  the record created) with it.
+  Publish** whose click opens the bypass confirmation. It says, before the
+  click, that the publish will appear in the activity log; confirming rides the
+  editor's own publish, so unsaved edits are saved (or the record created) with
+  it.
 - **The verdict is for the version Publish ships.** Publish saves unsaved edits
   first, and a create form creates the entry — both write a version no approval
   is bound to. So a dirty editor reads the review's `afterSave` projection and a
@@ -344,7 +347,7 @@ tool to MCP by accident.
 | --------------------------- | ------------ | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
 | `protection_review_status`  | copilot, mcp | `content:read`   | The requirement, the approvals, who and on which version.                                                                                    |
 | `protection_review_diff`    | copilot, mcp | `content:read`   | What changed between the head revision and the last one this caller approved. The most useful of the three: revisions make the answer exact. |
-| `protection_request_review` | copilot, mcp | `content:update` | Opens a request. A write, so it parks for the in-the-moment prompt like any other.                                                           |
+| `protection_request_review` | copilot, mcp | `content:update` | Opens a request naming reviewers by email (or id). A write, so it parks for the in-the-moment prompt like any other.                         |
 
 **There is no approve tool, and no changes-requested tool.** ADR-0017 §6 carries
 the argument. The tool descriptions — written for a model, not a person — say so
@@ -352,15 +355,16 @@ directly, so a model spends no turns trying.
 
 ## What reaches the activity log
 
-Five kinds, in the existing `noun.verb_phrase` shape:
+Four kinds, in the existing `noun.verb_phrase` shape. (`review.changes_requested`
+rows written before _request changes_ was removed stay in the log and still
+render.)
 
-| Kind                       | When                                                                                                                            |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `review.requested`         | An author asks.                                                                                                                 |
-| `review.approved`          | With the revision number, so the trail survives later edits.                                                                    |
-| `review.changes_requested` | With the note.                                                                                                                  |
-| `entry.publish_bypassed`   | **The auditor's row.** Actor, rule, reason.                                                                                     |
-| `protection.rule_changed`  | Enabling, disabling, or lowering the count. Without it the bypass is not a button but a settings tab left open for two minutes. |
+| Kind                      | When                                                                                                                            |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `review.requested`        | An author asks, naming the reviewers.                                                                                           |
+| `review.approved`         | With the revision number, so the trail survives later edits.                                                                    |
+| `entry.publish_bypassed`  | **The auditor's row.** Actor, rule, required and given.                                                                         |
+| `protection.rule_changed` | Enabling, disabling, or lowering the count. Without it the bypass is not a button but a settings tab left open for two minutes. |
 
 Raised as domain events through the outbox in the same transaction as the write,
 with a mapper in `activity-server` — a log row appears only if a mapper for the
@@ -408,8 +412,9 @@ package's own data.
 - **I-07** With `require_other_person`, the head revision's author is excluded
   from the count, whoever they are — administrators included.
 - **I-08** One user contributes at most one vote per revision.
-- **I-09** `changes_requested` never lowers the count below what `approved`
-  votes give.
+- **I-09** _Retired._ It pinned that `changes_requested` never lowered the
+  count; the vote no longer exists. The number is kept so later ones do not
+  shift.
 - **I-10** Protection never inspects field values, and never overrides the
   publish gate. A bypass passes protection only.
 - **I-11** A bearer token cannot publish a protected type unless
@@ -418,7 +423,7 @@ package's own data.
   and "no approve tool on any surface" ([ADR-0017](../adr/0017-publication-protection.md) §6)
   buys nothing if minting a key casts the vote the tool may not.
 - **I-13** Every successful bypass writes exactly one `entry.publish_bypassed`
-  row carrying a non-empty reason.
+  row naming the rule and how far short the count was.
 - **I-14** Disabling a rule or lowering `required_approvals` writes
   `protection.rule_changed`.
 - **I-15** `status` takes no value other than `draft` or `published`, and no
@@ -438,12 +443,15 @@ what that pair will actually do.
 - **I-19** Publishing an unchanged record appends no revision. The head — and
   the approvals bound to it — stays where the reviewers left it. A record
   carrying any unsaved field, staged link or plugin state is still saved first.
-- **I-20** A bypass publishes what is on screen. Its reason rides the editor's
+- **I-20** A bypass publishes what is on screen. It rides the editor's
   own publish, so unsaved changes are saved, and a create form's record created,
   in the same press — never a publish of the stored record behind the editor.
 - **I-21** Every way to publish from the editor obeys the verdict: the primary
   button and the ⋯ menu's _Save & publish_ are held together, and an offered
   bypass opens the same dialog from either.
+- **I-22** A review request names only people who could approve it — other
+  members of the workspace holding `content:approve` — and whom it names never
+  changes whose approval counts.
 
 ## Testing checklist
 
@@ -455,7 +463,9 @@ what that pair will actually do.
 | Author approves own head with `require_other_person`               | 409, and the button is not offered                                                                    |
 | Same author approves, then someone else saves                      | The approval now counts — the head author changed                                                     |
 | Publish with a bearer token, `allow_token_publish` off             | 409 `protection.token_refused`                                                                        |
-| Bypass with an empty reason                                        | 400; nothing published, nothing logged                                                                |
+| Bypass sending a `bypassReason`                                    | 400; nothing published, nothing logged — the field is gone                                            |
+| Request review naming a viewer, yourself, or a non-member          | 422 `protection.reviewer_not_eligible`; no request opened                                             |
+| Approve the current version, reopen the editor                     | Your row carries the green check; no Approve button                                                   |
 | Bypass by a non-administrator                                      | 403                                                                                                   |
 | Bypass while the publish gate fails                                | 422 from the gate — protection is not reached                                                         |
 | Publish an entry whose German locale lacks approvals               | German refused by name, the others proceed                                                            |
@@ -469,18 +479,20 @@ what that pair will actually do.
 | Read `GET /types/:type`, create an entry, publish                  | 409 exactly when the read said `blocked` (I-18)                                                       |
 | Approve, open the editor, press Publish without editing            | No save request, no new revision; the publish succeeds (I-19)                                         |
 | Stage only a link (or an audience), press Publish                  | The save goes out first, carrying the staged change (I-19)                                            |
-| Edit a field as an administrator, press Publish, give a reason     | The save goes out, then the publish carrying `bypassReason` (I-20)                                    |
-| Same, on a create form                                             | The create goes out, then the publish carrying `bypassReason` (I-20)                                  |
-| Open ⋯ on a held entry                                             | _Save & publish_ is disabled; with a bypass offered it opens the reason dialog (I-21)                 |
+| Edit a field as an administrator, press Publish, confirm           | The save goes out, then the publish carrying `bypass: true` (I-20)                                    |
+| Same, on a create form                                             | The create goes out, then the publish carrying `bypass: true` (I-20)                                  |
+| Open ⋯ on a held entry                                             | _Save & publish_ is disabled; with a bypass offered it opens the confirmation (I-21)                  |
+| List reviewers, then request from somebody off the list            | The list excludes you and viewers; the request is 422 (I-22)                                          |
 
 ## What this does not do
 
 - **No workflow.** No stages, no assignment, no transitions, no third status.
-- **No reviewer lists.** No assignees, groups or code owners: anyone with
-  `content:approve` except the head author. Reviewer lists are roles inside a
-  workspace, which membership deliberately does not have.
-- **No inline comments.** _Request changes_ is one note per version, not a thread
-  on a paragraph.
+- **No reviewer gate.** A request names people, but no assignment, group or code
+  owner decides whose approval counts: anyone with `content:approve` except the
+  head author. Reviewer roles inside a workspace would need attributes on
+  membership, which it deliberately does not have.
+- **No comments or notes.** No thread, no message on a request, a vote or a
+  bypass; a reviewer who is not satisfied does not approve.
 - **It does not protect editing.** Drafts on a protected type are edited freely.
   Publication is protected; saving unfinished work is what drafts are for.
 - **It does not cover delete or unpublish.** Only `draft → published`. Extending

@@ -10,6 +10,7 @@ import {
     Param,
     ParseUUIDPipe,
     Post,
+    UnprocessableEntityException,
     UseGuards
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -22,16 +23,20 @@ import {
     type PublicUser
 } from '@orthacms/identity-server';
 import { CurrentWorkspace, WorkspaceGuard } from '@orthacms/workspaces-server';
-import { APPROVAL_DECISION } from '@orthacms/protection-domain';
 import { EntryReviewService } from '../../application/entry-review.service';
-import { ReviewNoteDto } from '../../application/dto/review-note.dto';
+import { RequestReviewDto } from '../../application/dto/request-review.dto';
+import { NoBodyDto } from '../../application/dto/no-body.dto';
 import {
     ReviewableEntryNotFoundError,
+    ReviewerNotEligibleError,
     ReviewRequestNotFoundError,
     ReviewRequestNotYoursError,
     SelfApprovalRefusedError
 } from '../../domain/errors';
-import type { EntryReviewView } from '../../types/protection-views';
+import type {
+    EntryReviewView,
+    ReviewerCandidatesView
+} from '../../types/protection-views';
 
 /**
  * The review surface: `/api/protection/entries/:type/:id`.
@@ -46,8 +51,8 @@ import type { EntryReviewView } from '../../types/protection-views';
  * "0 of 2" on the entry they are editing. The rule is configuration; this is the
  * entry's own state.
  *
- * The writes split three ways. Asking for review is `content:update` — it is
- * something the author of the entry does. Voting is `content:approve`, which
+ * The writes split two ways. Asking for review is `content:update` — it is
+ * something the author of the entry does. Approving is `content:approve`, which
  * contributor and admin hold and viewer does not, because approving is an
  * editorial act. And **no API token holds `content:approve` at all**
  * (`protection:I-12`): a token names nobody, so a vote from one would satisfy
@@ -89,14 +94,44 @@ export class EntryReviewController {
         );
     }
 
-    /** Ask for the entry to be looked at. */
+    /** Who the caller may ask to review. */
+    @ApiOperation({
+        summary: 'List who can be asked to review',
+        description:
+            'The members of this workspace holding `content:approve`, other ' +
+            'than the caller — exactly the people the request route accepts. ' +
+            '`content:update`, the permission asking for review takes.'
+    })
+    @RequirePermissions(PERMISSIONS.CONTENT_UPDATE)
+    @Get('reviewers')
+    async reviewers(
+        @CurrentWorkspace() workspaceId: string,
+        @Param('type') type: string,
+        @Param('id', ParseUUIDPipe) id: string,
+        @CurrentUser() user: PublicUser
+    ): Promise<ReviewerCandidatesView> {
+        return mapErrors(async () => ({
+            candidates: await this.review.reviewerCandidates(
+                workspaceId,
+                type,
+                id,
+                await this.review.actorFor(user)
+            )
+        }));
+    }
+
+    /** Ask named people to look at the entry. */
     @ApiOperation({
         summary: 'Request review',
         description:
-            'Opens the request, or updates the one already open — asking ' +
-            'twice is an update, not a conflict. The request survives later ' +
-            'saves: what a save invalidates is an **approval**, not the ask. ' +
-            'Allowed on an unprotected type, which simply never blocks.'
+            'Opens the request naming who is asked, or replaces the reviewers ' +
+            'on the one already open — asking twice is an update, not a ' +
+            'conflict. The request survives later saves: what a save ' +
+            'invalidates is an **approval**, not the ask. Who is asked never ' +
+            'changes whose approval counts. `422 ' +
+            '`protection.reviewer_not_eligible`` when a reviewer is not ' +
+            'another member who can approve. Allowed on an unprotected type, ' +
+            'which simply never blocks.'
     })
     @UseGuards(OriginGuard)
     @RequirePermissions(PERMISSIONS.CONTENT_UPDATE)
@@ -106,7 +141,7 @@ export class EntryReviewController {
         @CurrentWorkspace() workspaceId: string,
         @Param('type') type: string,
         @Param('id', ParseUUIDPipe) id: string,
-        @Body() body: ReviewNoteDto,
+        @Body() body: RequestReviewDto,
         @CurrentUser() user: PublicUser
     ): Promise<void> {
         await mapErrors(async () =>
@@ -114,7 +149,7 @@ export class EntryReviewController {
                 workspaceId,
                 type,
                 id,
-                body.note ?? null,
+                body.reviewerIds,
                 await this.review.actorFor(user)
             )
         );
@@ -154,7 +189,7 @@ export class EntryReviewController {
         summary: 'Approve an entry',
         description:
             'Records the caller’s approval **of the current revision**, ' +
-            'replacing whatever they said before. The next save leaves it off ' +
+            'idempotently. The next save leaves it off ' +
             'the head with no dismissal logic. `409 ' +
             '`protection.self_approval_refused`` when the rule requires ' +
             'somebody else and the caller wrote the head — administrators ' +
@@ -168,49 +203,15 @@ export class EntryReviewController {
         @CurrentWorkspace() workspaceId: string,
         @Param('type') type: string,
         @Param('id', ParseUUIDPipe) id: string,
-        @Body() body: ReviewNoteDto,
+        // Declared only so a `note` is refused rather than dropped.
+        @Body() _body: NoBodyDto,
         @CurrentUser() user: PublicUser
     ): Promise<void> {
         await mapErrors(async () =>
-            this.review.vote(
+            this.review.approve(
                 workspaceId,
                 type,
                 id,
-                APPROVAL_DECISION.Approved,
-                body.note ?? null,
-                await this.review.actorFor(user)
-            )
-        );
-    }
-
-    /** Ask for changes instead of approving. */
-    @ApiOperation({
-        summary: 'Request changes on an entry',
-        description:
-            'Zero votes plus an explanation, never a veto: it lowers no ' +
-            'count. A reviewer who wants to hold publication simply does not ' +
-            'approve — which is what stops one person on holiday holding a ' +
-            'workspace hostage. The note is optional here, and expected in ' +
-            'practice; the editor is what insists on it.'
-    })
-    @UseGuards(OriginGuard)
-    @RequirePermissions(PERMISSIONS.CONTENT_APPROVE)
-    @Post('changes')
-    @HttpCode(201)
-    async requestChanges(
-        @CurrentWorkspace() workspaceId: string,
-        @Param('type') type: string,
-        @Param('id', ParseUUIDPipe) id: string,
-        @Body() body: ReviewNoteDto,
-        @CurrentUser() user: PublicUser
-    ): Promise<void> {
-        await mapErrors(async () =>
-            this.review.vote(
-                workspaceId,
-                type,
-                id,
-                APPROVAL_DECISION.ChangesRequested,
-                body.note ?? null,
                 await this.review.actorFor(user)
             )
         );
@@ -266,6 +267,13 @@ async function mapErrors<T>(run: () => Promise<T>): Promise<T> {
         }
         if (error instanceof ReviewRequestNotYoursError) {
             throw new ForbiddenException(error.message);
+        }
+        if (error instanceof ReviewerNotEligibleError) {
+            throw new UnprocessableEntityException({
+                statusCode: 422,
+                code: 'protection.reviewer_not_eligible',
+                message: error.message
+            });
         }
         if (error instanceof SelfApprovalRefusedError) {
             throw new ConflictException({

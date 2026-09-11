@@ -12,7 +12,7 @@
  * exists to prevent.
  */
 
-import { APPROVAL_DECISION, type ProtectionInput } from './protection-rule';
+import type { ProtectionInput } from './protection-rule';
 
 /**
  * What the gate decided.
@@ -61,10 +61,6 @@ function approvers(
     const users = new Set<string>();
 
     for (const approval of input.approvals) {
-        // A `changes_requested` is zero votes plus an explanation, never a
-        // subtraction: a reviewer who wants to block simply does not approve.
-        // Otherwise one reviewer going on holiday holds the workspace hostage.
-        if (approval.decision !== APPROVAL_DECISION.Approved) continue;
         if (headOnly && approval.revisionId !== input.headRevisionId) continue;
         // A head author we cannot name excludes nobody. Refusing every approval
         // on the entry instead would block on something there is nothing to

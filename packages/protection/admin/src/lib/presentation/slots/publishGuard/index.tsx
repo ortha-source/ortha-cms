@@ -48,7 +48,7 @@ const messages = defineMessages({
  * button offer an ordinary publish that the API then refused.
  *
  * Where an administrator may bypass, the button stays an ordinary **Publish**
- * and the click opens the dialog; the dialog's reason goes back through the
+ * and the click opens the confirmation; confirming goes back through the
  * editor's own publish, so the edits on screen are saved with it.
  *
  * It returns `null` — no opinion — whenever protection has nothing to say: a
@@ -91,8 +91,8 @@ export function usePublishProtectionVerdict(
     );
 
     const closeBypass = useCallback((open: boolean) => setBypassOpen(open), []);
-    const confirmBypass = useCallback((reason: string) => {
-        publish.current?.({ bypassReason: reason });
+    const confirmBypass = useCallback(() => {
+        publish.current?.({ bypass: true });
     }, []);
 
     let outlook: PublishOutlook | null = null;

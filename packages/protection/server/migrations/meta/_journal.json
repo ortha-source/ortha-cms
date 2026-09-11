@@ -8,6 +8,20 @@
       "when": 1788885221668,
       "tag": "0000_init_protection",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789133582679,
+      "tag": "0001_drop_review_notes",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789133601175,
+      "tag": "0002_review_request_reviewers",
+      "breakpoints": true
     }
   ]
 }

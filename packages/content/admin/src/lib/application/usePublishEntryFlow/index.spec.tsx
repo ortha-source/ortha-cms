@@ -14,7 +14,7 @@ import { usePublishEntryFlow, type SubmitEntryInput } from './index';
  * Every save appends a version, and a review approval is bound to a version. So
  * the two invariants pinned here are protection's, stated where the decision is
  * made (`docs/design/protection.md`): an unchanged record publishes without a
- * save (I-19), and a publish guard's reason rides whichever request actually
+ * save (I-19), and a publish guard's bypass rides whichever request actually
  * publishes, after the save when there is one (I-20). Content does not know that
  * protection exists — which is why only a test here can hold it to either.
  */
@@ -104,7 +104,7 @@ describe('usePublishEntryFlow — publishing an unchanged record [protection:I-1
         expect(calls.order).toEqual(['publish']);
         expect(publish.mutateAsync).toHaveBeenCalledWith({
             id: 'entry-1',
-            bypassReason: undefined
+            bypass: undefined
         });
         expect(result).toMatchObject({ published: true, wasCreate: false });
     });
@@ -130,49 +130,47 @@ describe('usePublishEntryFlow — publishing an unchanged record [protection:I-1
     });
 });
 
-describe('usePublishEntryFlow — a guard’s reason [protection:I-20]', () => {
-    it('sends the reason with the publish that follows the save', async () => {
+describe('usePublishEntryFlow — a guard’s bypass [protection:I-20]', () => {
+    it('sends the bypass with the publish that follows the save', async () => {
         await submit({
             entry: ENTRY,
             unchanged: false,
-            bypassReason: 'Embargo lifted'
+            bypass: true
         });
 
         expect(calls.order).toEqual(['save', 'publish']);
         expect(publish.mutateAsync).toHaveBeenCalledWith({
             id: 'entry-1',
-            bypassReason: 'Embargo lifted'
+            bypass: true
         });
-        // The reason is the publish's business, never the save's.
-        expect(save.mutateAsync.mock.calls[0][0]).not.toHaveProperty(
-            'bypassReason'
-        );
+        // The bypass is the publish's business, never the save's.
+        expect(save.mutateAsync.mock.calls[0][0]).not.toHaveProperty('bypass');
     });
 
-    it('sends the reason with the only request an unchanged record makes', async () => {
+    it('sends the bypass with the only request an unchanged record makes', async () => {
         await submit({
             entry: ENTRY,
             unchanged: true,
-            bypassReason: 'Embargo lifted'
+            bypass: true
         });
 
         expect(publish.mutateAsync).toHaveBeenCalledWith({
             id: 'entry-1',
-            bypassReason: 'Embargo lifted'
+            bypass: true
         });
     });
 
-    it('publishes the record a create form just wrote, with the reason', async () => {
+    it('publishes the record a create form just wrote, with the bypass', async () => {
         save.mutateAsync.mockImplementation(async () => {
             calls.order.push('save');
             return { ...ENTRY, id: 'entry-new' };
         });
 
-        await submit({ entry: undefined, bypassReason: 'Launch' });
+        await submit({ entry: undefined, bypass: true });
 
         expect(publish.mutateAsync).toHaveBeenCalledWith({
             id: 'entry-new',
-            bypassReason: 'Launch'
+            bypass: true
         });
     });
 });

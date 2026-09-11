@@ -10,7 +10,8 @@ export interface StoredReviewRequest {
     entryId: string;
     revisionId: string;
     requestedBy: string;
-    note: string | null;
+    /** The people asked to review, in the order they were picked. */
+    reviewerIds: string[];
     createdAt: Date;
 }
 
@@ -21,7 +22,7 @@ export interface OpenRequestInput {
     entryId: string;
     revisionId: string;
     requestedBy: string;
-    note: string | null;
+    reviewerIds: string[];
 }
 
 /** One page of the reviewer queue. */
@@ -132,8 +133,8 @@ export class ReviewRequestRepository {
      * Opens the request, or updates the one already open.
      *
      * `onConflictDoUpdate` on the partial unique index rather than
-     * find-then-branch: asking twice is an ordinary thing to do — "sorry, I
-     * meant to add a note" — and the alternative is a 409 for something nobody
+     * find-then-branch: asking twice is an ordinary thing to do — "I forgot to
+     * ask Anna too" — and the alternative is a 409 for something nobody
      * would recognise as an error, or a race between two tabs that ends in a
      * 500 on the constraint.
      *
@@ -152,7 +153,7 @@ export class ReviewRequestRepository {
                 entryId: input.entryId,
                 revisionId: input.revisionId,
                 requestedBy: input.requestedBy,
-                note: input.note
+                reviewerIds: input.reviewerIds
             })
             .onConflictDoUpdate({
                 target: reviewRequests.entryId,
@@ -160,7 +161,7 @@ export class ReviewRequestRepository {
                 set: {
                     revisionId: input.revisionId,
                     requestedBy: input.requestedBy,
-                    note: input.note,
+                    reviewerIds: input.reviewerIds,
                     createdAt: new Date()
                 }
             })
@@ -222,7 +223,7 @@ function toRequest(
         entryId: row.entryId,
         revisionId: row.revisionId,
         requestedBy: row.requestedBy,
-        note: row.note,
+        reviewerIds: row.reviewerIds,
         createdAt: row.createdAt
     };
 }

@@ -9,6 +9,31 @@
 > the port, the API, the screens, the invariants and the test checklist — is
 > [`docs/design/protection.md`](../design/protection.md).
 
+> **Update (2026-09-11).** Three amendments from the first round of use, none of
+> which changes what gates a publish.
+>
+> **A review request names people.** Asking opens a picker of the workspace's
+> members who hold `content:approve`, and the request stores who was picked; the
+> editor lists them with a pending or approved mark and "Waiting on me" filters
+> by them. This is **not** the assigned-reviewer model rejected below: who was
+> asked never changes whose approval counts — anyone holding `content:approve`
+> except the head's author may still approve — and nothing is added to
+> membership. "Approval is coarse" still describes the gate.
+>
+> **No notes, and no _request changes_.** Review notes, vote notes and the
+> changes-requested vote were removed together: a refusal with no sentence
+> attached carried nothing, and a reviewer who is not satisfied simply does not
+> approve. There is one kind of vote.
+>
+> **A bypass is confirmed, not reasoned.** §5's mandatory reason is gone. The
+> bypass is still an explicit request (`{ bypass: true }`), still administrator
+> only, still refusable per rule, and still writes exactly one
+> `entry.publish_bypassed` row naming the actor, the rule and how far short the
+> count was; the editor asks for a confirmation that says so before the click.
+> The editor's Publish button also stays an ordinary Publish rather than
+> changing its label and tone — the confirmation is where the bypass is
+> announced.
+
 ## Context
 
 There is no editorial review in the CMS, and there is no way to arrange one out

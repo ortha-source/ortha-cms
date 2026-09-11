@@ -1,5 +1,4 @@
 import {
-    check,
     index,
     pgTable,
     text,
@@ -7,10 +6,14 @@ import {
     unique,
     uuid
 } from 'drizzle-orm/pg-core';
-import { sql } from 'drizzle-orm';
 
 /**
- * One reviewer's vote, on one **revision**.
+ * One reviewer's approval, on one **revision**.
+ *
+ * A row **is** an approval: there is no decision column. _Request changes_ and
+ * the notes that went with it were removed — a refusal with no sentence saying
+ * what to change carried nothing, and a reviewer who is not satisfied simply
+ * does not approve.
  *
  * `revisionId` is the column the whole feature turns on. An approval bound to
  * the entry would outlive the edit it approved — the mistake every CMS that
@@ -42,21 +45,12 @@ export const reviewApprovals = pgTable(
         /** What makes an approval expire. */
         revisionId: uuid('revision_id').notNull(),
         userId: uuid('user_id').notNull(),
-        /** `approved` or `changes_requested` — see the check constraint. */
-        decision: text('decision').notNull(),
-        /**
-         * Why. Required in practice for `changes_requested` — a refusal with
-         * no reason is not review — but the column does not force it, because
-         * the rule belongs to the route that writes it, where the message can
-         * say so.
-         */
-        note: text('note'),
         createdAt: timestamp('created_at', { withTimezone: true })
             .notNull()
             .defaultNow()
     },
     (table) => [
-        // One vote per person per version, changed by upsert rather than by a
+        // One approval per person per version, refreshed by upsert rather than a
         // second row. It is also what lets the domain count distinct people
         // cheaply on the head — and what makes the *stale* count meaningful,
         // since a person approving five versions in a row is still one person.
@@ -68,10 +62,6 @@ export const reviewApprovals = pgTable(
         index('review_approvals_workspace_entry_idx').on(
             table.workspaceId,
             table.entryId
-        ),
-        check(
-            'review_approvals_decision_check',
-            sql`${table.decision} in ('approved', 'changes_requested')`
         )
     ]
 );

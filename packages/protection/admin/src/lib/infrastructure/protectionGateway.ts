@@ -8,6 +8,7 @@ import type {
     ProtectionRuleRecord,
     PublishOutlook,
     ReviewApproval,
+    ReviewerCandidate,
     ReviewQueue,
     ReviewQueueItem
 } from '../domain/types';
@@ -20,16 +21,10 @@ export type EntryRef = {
     entryId: string;
 };
 
-/** Opening or updating the ask for review. */
+/** Opening the ask for review, or replacing who it names. */
 export type RequestReviewInput = EntryRef & {
-    /** What the author wants looked at. */
-    note?: string;
-};
-
-/** Casting or changing a vote. */
-export type VoteInput = EntryRef & {
-    /** Why. Required in practice for a change request; the API does not force it. */
-    note?: string;
+    /** The people asked — at least one, each from `listReviewerCandidates`. */
+    reviewerIds: string[];
 };
 
 /**
@@ -61,15 +56,18 @@ export type ProtectionGateway = {
      * `content:read`, like the entry read.
      */
     getNewEntryProtection(typeName: string): Promise<NewEntryProtection>;
-    /** Open the ask, or update the one already open. */
+    /**
+     * Who the caller may ask to review this entry: the other members holding
+     * `content:approve`. The request route accepts exactly these people.
+     */
+    listReviewerCandidates(ref: EntryRef): Promise<ReviewerCandidate[]>;
+    /** Open the ask naming its reviewers, or replace who the open one names. */
     requestReview(input: RequestReviewInput): Promise<void>;
     /** Withdraw it. Only the requester or an administrator. */
     withdrawRequest(ref: EntryRef): Promise<void>;
     /** Approve the head revision. */
-    approve(input: VoteInput): Promise<void>;
-    /** Ask for changes on the head revision. */
-    requestChanges(input: VoteInput): Promise<void>;
-    /** Withdraw this person's own vote. */
+    approve(ref: EntryRef): Promise<void>;
+    /** Withdraw this person's own approval. */
     withdrawVote(ref: EntryRef): Promise<void>;
     /**
      * One page of the workspace's open review requests, across every content
@@ -134,7 +132,7 @@ type ReviewQueueItemResponse = {
     contentType: string;
     entryId: string;
     requestedBy: string;
-    note: string | null;
+    reviewerIds: string[];
     required: number;
     given: number;
     createdAt: string;
@@ -146,11 +144,9 @@ type ReviewQueueResponse = {
     total: number;
 };
 
-/** One vote as the wire returns it. */
+/** One approval as the wire returns it. */
 type ApprovalResponse = {
     userId: string;
-    decision: string;
-    note: string | null;
     revisionId: string;
     revisionNumber: number | null;
     isStale: boolean;
@@ -176,41 +172,27 @@ type EntryReviewResponse = {
     required: number;
     given: number;
     stale: number;
-    changesRequested: number;
     blocked: boolean;
     bypassable: boolean;
     afterSave: PublishOutlookResponse;
     headRevisionId: string;
     headRevisionNumber: number;
     callerWroteHead: boolean;
+    callerApprovedHead: boolean;
     approvals: ApprovalResponse[];
     request: {
         id: string;
         requestedBy: string;
-        note: string | null;
+        reviewerIds: string[];
         revisionId: string;
         createdAt: string;
     } | null;
 };
 
-/**
- * Maps one vote from the wire.
- *
- * `decision` is narrowed rather than defaulted: anything but the two known
- * values is dropped by the caller, because a vote the panel cannot name is one
- * it must not render as an approval. A mapper fallback here would silently
- * promote an unknown decision into the count the person reads.
- */
-function toApproval(dto: ApprovalResponse): ReviewApproval | null {
-    const decision =
-        dto.decision === 'approved' || dto.decision === 'changes_requested'
-            ? dto.decision
-            : null;
-    if (!decision) return null;
+/** Maps one approval from the wire. */
+function toApproval(dto: ApprovalResponse): ReviewApproval {
     return {
         userId: dto.userId,
-        decision,
-        note: dto.note,
         revisionId: dto.revisionId,
         revisionNumber: dto.revisionNumber,
         isStale: dto.isStale,
@@ -235,16 +217,14 @@ function toEntryReview(dto: EntryReviewResponse): EntryReview {
         required: dto.required,
         given: dto.given,
         stale: dto.stale,
-        changesRequested: dto.changesRequested,
         blocked: dto.blocked,
         bypassable: dto.bypassable,
         afterSave: toOutlook(dto.afterSave),
         headRevisionId: dto.headRevisionId,
         headRevisionNumber: dto.headRevisionNumber,
         callerWroteHead: dto.callerWroteHead,
-        approvals: (dto.approvals ?? [])
-            .map(toApproval)
-            .filter((vote): vote is NonNullable<typeof vote> => vote !== null),
+        callerApprovedHead: dto.callerApprovedHead,
+        approvals: (dto.approvals ?? []).map(toApproval),
         request: dto.request
     };
 }
@@ -291,7 +271,7 @@ function toQueueItem(dto: ReviewQueueItemResponse): ReviewQueueItem {
         contentType: dto.contentType,
         entryId: dto.entryId,
         requestedBy: dto.requestedBy,
-        note: dto.note,
+        reviewerIds: dto.reviewerIds,
         required: dto.required,
         given: dto.given,
         createdAt: dto.createdAt
@@ -335,9 +315,26 @@ export const httpProtectionGateway: ProtectionGateway = {
         }
     },
 
-    async requestReview({ note, ...ref }: RequestReviewInput): Promise<void> {
+    async listReviewerCandidates(ref: EntryRef): Promise<ReviewerCandidate[]> {
         try {
-            await apiClient.post(`${entryPath(ref)}/request`, { note });
+            const { data } = await apiClient.get<{
+                candidates: ReviewerCandidate[];
+            }>(`${entryPath(ref)}/reviewers`);
+            return data.candidates.map((candidate) => ({
+                userId: candidate.userId,
+                email: candidate.email
+            }));
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async requestReview({
+        reviewerIds,
+        ...ref
+    }: RequestReviewInput): Promise<void> {
+        try {
+            await apiClient.post(`${entryPath(ref)}/request`, { reviewerIds });
         } catch (error) {
             throw toApiError(error);
         }
@@ -369,17 +366,9 @@ export const httpProtectionGateway: ProtectionGateway = {
         }
     },
 
-    async approve({ note, ...ref }: VoteInput): Promise<void> {
+    async approve(ref: EntryRef): Promise<void> {
         try {
-            await apiClient.post(`${entryPath(ref)}/approve`, { note });
-        } catch (error) {
-            throw toApiError(error);
-        }
-    },
-
-    async requestChanges({ note, ...ref }: VoteInput): Promise<void> {
-        try {
-            await apiClient.post(`${entryPath(ref)}/changes`, { note });
+            await apiClient.post(`${entryPath(ref)}/approve`);
         } catch (error) {
             throw toApiError(error);
         }

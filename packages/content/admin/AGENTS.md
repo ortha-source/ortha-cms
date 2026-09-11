@@ -950,10 +950,10 @@ fetching internally.
     - **An action keeps the button an ordinary Publish.** No relabel, no
       warning tone: the way through is explained by the ceremony the click
       opens. `action.onSelect(publish)` receives the editor's own publish, and
-      the contribution calls `publish({ bypassReason })` when its ceremony is
+      the contribution calls `publish({ bypass: true })` when its ceremony is
       done — which is what saves the edits on screen, or creates the record on
-      a create form, before the reason reaches the publish request. Content
-      forwards `bypassReason` uninterpreted, as the server's use-case does.
+      a create form, before the bypass reaches the publish request. Content
+      forwards `bypass` uninterpreted, as the server's use-case does.
     - **The ⋯ menu's "Save & publish" goes through the same handler**, and is
       disabled when the primary button is held with no way through — otherwise
       the menu is the door a refusal forgot to close.
@@ -963,11 +963,10 @@ fetching internally.
       `ENTRY_FIELD_CONTROL_SLOT` keeps the label row and `REVISION_EXTRA_SLOT`
       keeps the two-column layout.
     - **Content learns nothing about what refused it.** It gets a sentence to
-      show and, when the contribution offers a way through, a label and a
-      callback. That is what lets a bypass dialog, its mandatory reason and its
-      audit row live entirely in the contributing plugin — the discipline the
-      server-side port follows when it forwards a `bypassReason` without
-      interpreting it.
+      show and, when the contribution offers a way through, a callback. That is
+      what lets a bypass confirmation and its audit row live entirely in the
+      contributing plugin — the discipline the server-side port follows when it
+      forwards `bypass` without interpreting it.
     - **The first refusal wins**, as on the server. Later items are still
       _asked_ — they are hooks, and skipping one would change the call order —
       but their verdicts are not read. Overlays are collected from every item.

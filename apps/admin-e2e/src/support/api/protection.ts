@@ -1,10 +1,8 @@
 import type { Page } from '@playwright/test';
 
-/** One vote, as `GET /api/protection/entries/:type/:id` returns it. */
+/** One approval, as `GET /api/protection/entries/:type/:id` returns it. */
 export type ApprovalSeed = {
     userId: string;
-    decision: 'approved' | 'changes_requested';
-    note?: string | null;
     revisionId?: string;
     revisionNumber?: number | null;
     isStale?: boolean;
@@ -25,12 +23,12 @@ export type EntryReviewSeed = {
     required?: number;
     given?: number;
     stale?: number;
-    changesRequested?: number;
     blocked?: boolean;
     bypassable?: boolean;
     headRevisionId?: string;
     headRevisionNumber?: number;
     callerWroteHead?: boolean;
+    callerApprovedHead?: boolean;
     /**
      * The verdict a save by the caller would meet. Defaults to what the default
      * rule gives: every approval off the new head, so held whenever a rule is.
@@ -40,10 +38,20 @@ export type EntryReviewSeed = {
     request?: {
         id: string;
         requestedBy: string;
-        note: string | null;
+        reviewerIds: string[];
         revisionId: string;
         createdAt: string;
     } | null;
+    /** Who `GET …/reviewers` offers the request dialog. */
+    candidates?: { userId: string; email: string }[];
+};
+
+/** What the review routes were sent — the request dialog's POST, above all. */
+export type CapturedReviewWrite = {
+    method: string;
+    /** The route's last segment: `request`, `approve`, … */
+    action: string;
+    body: unknown;
 };
 
 /** An unprotected type — the state every installation is in until a rule exists. */
@@ -57,7 +65,8 @@ export const UNPROTECTED: EntryReviewSeed = {
 };
 
 /**
- * Serves one entry's review state, plus the vote routes.
+ * Serves one entry's review state, its reviewer candidates, and the write
+ * routes — and returns every write it answered.
  *
  * Every field has a default so a test states only what it is about; the
  * defaults describe a **protected, unreviewed** entry, because that is the
@@ -66,7 +75,8 @@ export const UNPROTECTED: EntryReviewSeed = {
 export async function mockEntryReview(
     page: Page,
     seed: EntryReviewSeed = {}
-): Promise<void> {
+): Promise<CapturedReviewWrite[]> {
+    const writes: CapturedReviewWrite[] = [];
     const isProtected = seed.protected ?? true;
     const required = seed.required ?? 2;
     const bypassable = seed.bypassable ?? false;
@@ -75,7 +85,6 @@ export async function mockEntryReview(
         required,
         given: seed.given ?? 0,
         stale: seed.stale ?? 0,
-        changesRequested: seed.changesRequested ?? 0,
         blocked: seed.blocked ?? true,
         bypassable,
         afterSave: {
@@ -87,10 +96,9 @@ export async function mockEntryReview(
         headRevisionId: seed.headRevisionId ?? 'rev-7',
         headRevisionNumber: seed.headRevisionNumber ?? 7,
         callerWroteHead: seed.callerWroteHead ?? false,
+        callerApprovedHead: seed.callerApprovedHead ?? false,
         approvals: (seed.approvals ?? []).map((vote) => ({
             userId: vote.userId,
-            decision: vote.decision,
-            note: vote.note ?? null,
             revisionId: vote.revisionId ?? 'rev-7',
             revisionNumber: vote.revisionNumber ?? 7,
             isStale: vote.isStale ?? false,
@@ -100,16 +108,31 @@ export async function mockEntryReview(
     };
 
     await page.route('**/api/protection/entries/**', async (route) => {
-        if (route.request().method() !== 'GET') {
+        const request = route.request();
+        const action = new URL(request.url()).pathname.split('/').pop() ?? '';
+        if (request.method() !== 'GET') {
+            let sent: unknown = null;
+            try {
+                sent = request.postDataJSON();
+            } catch {
+                sent = null;
+            }
+            writes.push({ method: request.method(), action, body: sent });
             await route.fulfill({ status: 204, body: '' });
             return;
         }
         await route.fulfill({
             status: 200,
             contentType: 'application/json',
-            body: JSON.stringify(body)
+            body: JSON.stringify(
+                action === 'reviewers'
+                    ? { candidates: seed.candidates ?? [] }
+                    : body
+            )
         });
     });
+
+    return writes;
 }
 
 /**
@@ -217,7 +240,8 @@ export type ReviewQueueSeed = {
     entryId?: string;
     /** Who asked. Match the signed-in user's id to land it in "My requests". */
     requestedBy: string;
-    note?: string | null;
+    /** Who was asked. Include the signed-in user's id to land it in "Waiting on me". */
+    reviewerIds?: string[];
     required?: number;
     given?: number;
     /** ISO-8601. Defaults to now, so a seed is "fresh" unless it says otherwise. */
@@ -260,7 +284,7 @@ export async function mockReviewQueue(
                     contentType: item.contentType ?? 'blog_post',
                     entryId: item.entryId ?? `entry-${item.id}`,
                     requestedBy: item.requestedBy,
-                    note: item.note ?? null,
+                    reviewerIds: item.reviewerIds ?? [],
                     required: item.required ?? 2,
                     given: item.given ?? 0,
                     createdAt: item.createdAt ?? new Date().toISOString()
@@ -277,7 +301,6 @@ export type ReviewStatusSeed = {
     required?: number;
     given?: number;
     stale?: number;
-    changesRequested?: boolean;
     requested?: boolean;
     blocked?: boolean;
 };
@@ -340,8 +363,6 @@ export async function mockReviewStatusByEntry(
                                 required: seed.required ?? 2,
                                 given: seed.given ?? 0,
                                 stale: seed.stale ?? 0,
-                                changesRequested:
-                                    seed.changesRequested ?? false,
                                 requested: seed.requested ?? false,
                                 blocked:
                                     seed.blocked ??

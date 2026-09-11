@@ -34,6 +34,8 @@ export { HeadRevisionQuery } from './lib/infrastructure/head-revision.query';
 export type { HeadRevision } from './lib/infrastructure/head-revision.query';
 export { ReviewApprovalRepository } from './lib/infrastructure/review-approval.repository';
 export { ReviewRequestRepository } from './lib/infrastructure/review-request.repository';
+export { ReviewerCandidatesQuery } from './lib/infrastructure/reviewer-candidates.query';
+export type { ReviewerCandidate } from './lib/infrastructure/reviewer-candidates.query';
 export type {
     EntryReviewView,
     NewEntryProtectionView,
@@ -41,12 +43,14 @@ export type {
     ReviewApprovalView,
     ReviewQueueItemView,
     ReviewQueueView,
+    ReviewerCandidatesView,
+    ReviewerCandidateView,
     ReviewRequestView
 } from './lib/types/protection-views';
 export {
-    ReviewNoteDto,
-    REVIEW_NOTE_MAX
-} from './lib/application/dto/review-note.dto';
+    RequestReviewDto,
+    REVIEWERS_MAX
+} from './lib/application/dto/request-review.dto';
 export {
     ReviewQueueQueryDto,
     REVIEW_QUEUE_PAGE_MAX
@@ -65,6 +69,7 @@ export {
     ReviewableEntryNotFoundError,
     ReviewRequestNotFoundError,
     ReviewRequestNotYoursError,
+    ReviewerNotEligibleError,
     SelfApprovalRefusedError
 } from './lib/domain/errors';
 

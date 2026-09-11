@@ -6,11 +6,11 @@ import { contentEntryKey } from '../../infrastructure/contentKeys';
 import { httpContentGateway } from '../../infrastructure/httpContentGateway';
 import { refreshEntryCaches } from '../refreshEntryCaches';
 
-/** One entry to publish, and — when a publish guard offered a way past — why. */
+/** One entry to publish, and whether to take a publish guard's way past. */
 export type PublishEntryInput = {
     id: string;
     /** Forwarded to the server's publish guards uninterpreted. */
-    bypassReason?: string;
+    bypass?: boolean;
 };
 
 /**
@@ -42,8 +42,8 @@ export function useEntryStatusActions(typeName: string) {
     };
 
     const publish = useMutation<EntryRecord, ApiError, PublishEntryInput>({
-        mutationFn: ({ id, bypassReason }) =>
-            httpContentGateway.publish(typeName, id, { bypassReason }),
+        mutationFn: ({ id, bypass }) =>
+            httpContentGateway.publish(typeName, id, { bypass }),
         onSuccess: syncFrom
     });
 

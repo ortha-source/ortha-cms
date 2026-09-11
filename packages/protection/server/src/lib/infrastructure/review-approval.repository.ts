@@ -4,22 +4,19 @@ import { UnitOfWork, type Database } from '@orthacms/database';
 import type { Approval } from '@orthacms/protection-domain';
 import { reviewApprovals } from './schema/review-approvals';
 
-/** One stored vote, with the addressing the interface needs around it. */
+/** One stored approval, with the addressing the interface needs around it. */
 export interface StoredApproval extends Approval {
     id: string;
-    note: string | null;
     createdAt: Date;
 }
 
-/** What a vote is written with. */
+/** What an approval is written with. */
 export interface CastVoteInput {
     workspaceId: string;
     contentType: string;
     entryId: string;
     revisionId: string;
     userId: string;
-    decision: Approval['decision'];
-    note: string | null;
 }
 
 /**
@@ -61,8 +58,6 @@ export class ReviewApprovalRepository {
             id: row.id,
             revisionId: row.revisionId,
             userId: row.userId,
-            decision: row.decision as Approval['decision'],
-            note: row.note,
             createdAt: row.createdAt
         }));
     }
@@ -101,8 +96,6 @@ export class ReviewApprovalRepository {
                 id: row.id,
                 revisionId: row.revisionId,
                 userId: row.userId,
-                decision: row.decision as Approval['decision'],
-                note: row.note,
                 createdAt: row.createdAt
             });
             byEntry.set(row.entryId, list);
@@ -111,14 +104,12 @@ export class ReviewApprovalRepository {
     }
 
     /**
-     * Records this person's vote on this revision, replacing whatever they said
-     * before.
+     * Records this person's approval of this revision.
      *
      * `onConflictDoUpdate` against `unique (revision_id, user_id)` rather than a
-     * read followed by a write: changing your mind is the ordinary case — a
-     * reviewer asks for changes, the author fixes them on the same version, the
-     * reviewer approves — and a read-then-write would let two clicks in quick
-     * succession collide on the constraint with a 500.
+     * read followed by a write: approving twice is harmless and should stay so,
+     * and a read-then-write would let two clicks in quick succession collide on
+     * the constraint with a 500.
      */
     async cast(input: CastVoteInput): Promise<void> {
         await this.exec
@@ -128,17 +119,11 @@ export class ReviewApprovalRepository {
                 contentType: input.contentType,
                 entryId: input.entryId,
                 revisionId: input.revisionId,
-                userId: input.userId,
-                decision: input.decision,
-                note: input.note
+                userId: input.userId
             })
             .onConflictDoUpdate({
                 target: [reviewApprovals.revisionId, reviewApprovals.userId],
-                set: {
-                    decision: input.decision,
-                    note: input.note,
-                    createdAt: new Date()
-                }
+                set: { createdAt: new Date() }
             });
     }
 
@@ -198,7 +183,6 @@ export class ReviewApprovalRepository {
             .where(
                 and(
                     eq(reviewApprovals.workspaceId, workspaceId),
-                    eq(reviewApprovals.decision, 'approved'),
                     inArray(reviewApprovals.revisionId, [...revisionIds])
                 )
             )

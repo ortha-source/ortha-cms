@@ -19,6 +19,10 @@ const messages = defineMessages({
         id: 'protection.queue.col.requestedBy',
         defaultMessage: 'Asked by'
     },
+    reviewers: {
+        id: 'protection.queue.col.reviewers',
+        defaultMessage: 'Reviewers'
+    },
     waiting: { id: 'protection.queue.col.waiting', defaultMessage: 'Waiting' },
     approvals: {
         id: 'protection.queue.col.approvals',
@@ -69,6 +73,9 @@ export function ReviewQueueTable({
                         {intl.formatMessage(messages.requestedBy)}
                     </TableHead>
                     <TableHead scope="col">
+                        {intl.formatMessage(messages.reviewers)}
+                    </TableHead>
+                    <TableHead scope="col">
                         {intl.formatMessage(messages.waiting)}
                     </TableHead>
                     <TableHead scope="col">
@@ -103,6 +110,18 @@ export function ReviewQueueTable({
                                 userId={item.requestedBy}
                                 currentUserId={currentUserId}
                             />
+                        </TableCell>
+                        <TableCell>
+                            <ul className="flex flex-col gap-1">
+                                {item.reviewerIds.map((userId) => (
+                                    <li key={userId}>
+                                        <ReviewerLabel
+                                            userId={userId}
+                                            currentUserId={currentUserId}
+                                        />
+                                    </li>
+                                ))}
+                            </ul>
                         </TableCell>
                         <TableCell>
                             <RequestAge createdAt={item.createdAt} />

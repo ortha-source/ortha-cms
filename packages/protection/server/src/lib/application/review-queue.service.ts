@@ -85,7 +85,7 @@ export class ReviewQueueService {
                 contentType: item.contentType,
                 entryId: item.entryId,
                 requestedBy: item.requestedBy,
-                note: item.note,
+                reviewerIds: item.reviewerIds,
                 required: requiredBy.get(item.contentType) ?? 0,
                 // An entry whose revisions have gone reports zero rather than
                 // dropping the line: the request is still open and still the

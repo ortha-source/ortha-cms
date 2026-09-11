@@ -26,8 +26,8 @@ import { UNPROTECTED, mockEntryReview } from '../support/api/protection';
  * `protection-review.spec.ts` holds the rest. Both files pin the invariants at
  * the end of `docs/design/protection.md`: an unchanged record publishes without
  * a save (I-19), and anything that is not unchanged is saved first — including
- * by a bypass, whose reason has to survive whatever stands between the click
- * and the publish (I-20).
+ * by a bypass, which has to survive whatever stands between the click and the
+ * publish (I-20).
  */
 test.describe('Publish, with a staged link and nothing else', () => {
     /** The article the relations seed already provides an editor for. */
@@ -110,12 +110,11 @@ test.describe('A bypass on a localized record with shared-field edits', () => {
 
     /**
      * Two dialogs stand between the click and the publish here: the bypass
-     * reason, then the warning that a shared field changes every locale. The
-     * reason is collected by the first and has to reach the publish after the
-     * second — dropping it there would publish a refused request, or worse,
-     * nothing the person could see.
+     * confirmation, then the warning that a shared field changes every locale.
+     * The bypass is confirmed in the first and has to reach the publish after
+     * the second — dropping it there would send a publish the guard refuses.
      */
-    test('carries the reason through the shared-fields warning [protection:I-20]', async ({
+    test('carries the bypass through the shared-fields warning [protection:I-20]', async ({
         page,
         contentLibraryPage
     }) => {
@@ -131,7 +130,6 @@ test.describe('A bypass on a localized record with shared-field edits', () => {
 
         await page.getByRole('button', { name: /^publish$/i }).click();
         const bypass = page.getByRole('dialog');
-        await bypass.getByLabel(/reason/i).fill('Price error on the live page');
         await bypass.getByRole('button', { name: /publish anyway/i }).click();
 
         await expect(
@@ -143,8 +141,6 @@ test.describe('A bypass on a localized record with shared-field edits', () => {
             .poll(() => writes.map((write) => write.method))
             .toEqual(['PATCH', 'POST']);
         expect(writes[1].path).toMatch(/\/publish$/);
-        expect(writes[1].body).toEqual({
-            bypassReason: 'Price error on the live page'
-        });
+        expect(writes[1].body).toEqual({ bypass: true });
     });
 });

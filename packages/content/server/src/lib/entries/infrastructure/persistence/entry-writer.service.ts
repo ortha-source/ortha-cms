@@ -58,12 +58,7 @@ import type {
 } from '../../types/entry-list-view';
 import type { BulkActionResult } from '../../types/bulk-publish';
 import { snakeCase } from '../../../collection/table-builder';
-import {
-    coerceValues,
-    entryTitle,
-    toColumns,
-    toRecord
-} from './entry-row';
+import { coerceValues, entryTitle, toColumns, toRecord } from './entry-row';
 import {
     assertSameLocale,
     RelationLinkService,
@@ -682,7 +677,11 @@ export class EntryWriterService {
                         [
                             entryCreated(
                                 id,
-                                this.subjectOf(type, workspaceId, inserted as Row)
+                                this.subjectOf(
+                                    type,
+                                    workspaceId,
+                                    inserted as Row
+                                )
                             )
                         ],
                         actor

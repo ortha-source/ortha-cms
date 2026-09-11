@@ -268,14 +268,14 @@ describe('Deleting a workspace leaves no residue', () => {
         );
         await pool.query(
             `insert into review_requests
-                 (workspace_id, content_type, entry_id, revision_id, requested_by, note)
-             values ($1, 'test_article', $2, $3, $4, 'Numbers in the revenue table')`,
+                 (workspace_id, content_type, entry_id, revision_id, requested_by, reviewer_ids)
+             values ($1, 'test_article', $2, $3, $4, array[$4]::uuid[])`,
             [workspaceId, randomUUID(), randomUUID(), userId]
         );
         await pool.query(
             `insert into review_approvals
-                 (workspace_id, content_type, entry_id, revision_id, user_id, decision)
-             values ($1, 'test_article', $2, $3, $4, 'approved')`,
+                 (workspace_id, content_type, entry_id, revision_id, user_id)
+             values ($1, 'test_article', $2, $3, $4)`,
             [workspaceId, randomUUID(), randomUUID(), userId]
         );
 

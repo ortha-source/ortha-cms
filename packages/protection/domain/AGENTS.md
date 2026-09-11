@@ -7,15 +7,15 @@ recorded against it. No NestJS, no Drizzle, no React.
 It is the **third** gate on publish, after the `content:publish` permission and
 after the publish gate. It answers _who_, never _what_.
 
-| File                     | What lives there                                                            |
-| ------------------------ | --------------------------------------------------------------------------- |
-| `protection-rule.ts`     | The rule's six fields, a vote, the actor, and the input.                    |
-| `evaluate-protection.ts` | `evaluateProtection` and `ProtectionDecision` — plus `countApprovals`.      |
+| File                     | What lives there                                                       |
+| ------------------------ | ---------------------------------------------------------------------- |
+| `protection-rule.ts`     | The rule's six fields, a vote, the actor, and the input.               |
+| `evaluate-protection.ts` | `evaluateProtection` and `ProtectionDecision` — plus `countApprovals`. |
 
 ## Two entry points, one implementation of counting
 
-`evaluateProtection` answers *may this ship*; `countApprovals` answers *where
-does the count stand*. The second exists because `ProtectionDecision` carries
+`evaluateProtection` answers _may this ship_; `countApprovals` answers _where
+does the count stand_. The second exists because `ProtectionDecision` carries
 `given`/`stale` only on its refusal branch — a satisfied publish has nothing to
 explain — while the entry editor has to draw "2 of 2" whether or not it is
 enough.
@@ -61,14 +61,16 @@ to the person who just pressed Save.
    the rule sets `allowTokenPublish`. A token holds `content:publish` in the
    `full` scope and names nobody in the log, so a rule that let one through by
    default would be escaped by minting a key.
-3. **Count the distinct people** with an `approved` vote on the head revision —
-   or on any revision when `countStaleApprovals` is on.
+3. **Count the distinct people** who approved the head revision — or any
+   revision when `countStaleApprovals` is on.
 4. **Minus the head revision's author**, when `requireOtherPerson`. Whoever they
    are, administrators included.
-5. **`changes_requested` never subtracts.** It is zero votes plus an
-   explanation; a reviewer who wants to block simply does not approve.
 
-## Four things worth not re-deriving
+There is one kind of vote. _Request changes_ was removed together with review
+notes: without a sentence saying what to change it carried nothing, and a
+reviewer who is not satisfied simply does not approve.
+
+## Three things worth not re-deriving
 
 **`allowTokenPublish` lets a token reach the count, it does not exempt it from
 one.** The design doc is genuinely ambiguous here — its table says a token
@@ -91,27 +93,23 @@ one person voting twice on one version, but nothing stops them approving five
 versions in a row — and a naive sum would turn one reviewer into five the moment
 stale approvals are counted.
 
-**With `countStaleApprovals` on, an older approval survives its author's later
-`changes_requested`.** Surprising, pinned rather than fixed: rule 5 says a
-`changes_requested` never lowers the count, and special-casing it in this one
-branch would contradict that. It is one more reason the editor labels the flag
-as not recommended.
-
 ## What is deliberately not here
 
 No field values, so protection **cannot** validate content even by accident —
 there is nowhere in the input to put one. No locale handling: revisions are
 already per-locale, so `headRevisionId` carries it and the caller's query does
-the scoping. No reviewer lists, no assignment, no statuses.
+the scoping. No statuses, and no reviewer lists: a review request names the
+people asked, but whom somebody asked never changes whose approval counts, so
+the requested reviewers are not part of this input.
 
-`bypassable` is **reported, never applied**. Taking a bypass costs a mandatory
-reason and only the caller can supply one, so a decision that returned
-`allowed: true` here would publish without the log row that is the whole reason
-bypassing is permitted at all.
+`bypassable` is **reported, never applied**. Taking a bypass is the caller's
+explicit act, confirmed by a person, so a decision that returned
+`allowed: true` here would publish past the rule without anybody having chosen
+to — and without the log row that is the whole reason bypassing is permitted.
 
 ## Invariants covered here
 
 The full list is in
 [`docs/design/protection.md`](../../../docs/design/protection.md). This package's
-tests carry the domain half of **I-04** through **I-09** and **I-11**, tagged in
+tests carry the domain half of **I-04** through **I-08** and **I-11**, tagged in
 the test names. The rest belong to the server, the admin and the host.

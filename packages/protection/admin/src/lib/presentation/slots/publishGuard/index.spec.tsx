@@ -98,13 +98,13 @@ function review(overrides: Partial<EntryReview> = {}): EntryReview {
         required: 1,
         given: 1,
         stale: 0,
-        changesRequested: 0,
         blocked: false,
         bypassable: false,
         afterSave: { required: 1, given: 0, blocked: true, bypassable: false },
         headRevisionId: 'rev-2',
         headRevisionNumber: 2,
         callerWroteHead: false,
+        callerApprovedHead: false,
         approvals: [],
         request: null,
         ...overrides
@@ -234,7 +234,7 @@ describe('usePublishProtectionVerdict — the way through [protection:I-20]', ()
         expect(latest?.action).toBeUndefined();
     });
 
-    it('publishes through the editor’s own publish, with the reason', () => {
+    it('publishes through the editor’s own publish, once confirmed', () => {
         reads.review = review({
             afterSave: {
                 required: 1,
@@ -254,18 +254,27 @@ describe('usePublishProtectionVerdict — the way through [protection:I-20]', ()
         const dialog = screen.getByRole('dialog');
         expect(publish).not.toHaveBeenCalled();
 
-        fireEvent.change(screen.getByLabelText(/reason/i), {
-            target: { value: 'Signed off by phone' }
-        });
         fireEvent.click(
             screen.getByRole('button', { name: /publish anyway/i })
         );
 
         // Through the editor's publish — which saves the edits on screen first —
         // and never a publish of the stored record from here.
-        expect(publish).toHaveBeenCalledWith({
-            bypassReason: 'Signed off by phone'
-        });
+        expect(publish).toHaveBeenCalledWith({ bypass: true });
         expect(dialog.isConnected).toBe(false);
+    });
+
+    it('publishes nothing when the confirmation is cancelled', () => {
+        reads.review = review({ blocked: true, given: 0, bypassable: true });
+        draw(SAVED, false);
+
+        const action = latest?.action;
+        if (!action) throw new Error('expected a way through to be offered');
+        const publish = vi.fn<(options: EntryPublishOptions) => void>();
+
+        act(() => action.onSelect(publish));
+        fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+
+        expect(publish).not.toHaveBeenCalled();
     });
 });

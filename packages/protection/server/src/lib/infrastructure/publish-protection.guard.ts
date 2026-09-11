@@ -16,9 +16,6 @@ import { ReviewApprovalRepository } from './review-approval.repository';
 import { HeadRevisionQuery } from './head-revision.query';
 import { bypassEvent } from '../protection.events';
 
-/** The longest bypass reason recorded, matching the DTO's cap. */
-const REASON_MAX = 500;
-
 /**
  * The refusal codes this guard emits. Stable strings a client branches on, so
  * they live in one place rather than inline at three call sites.
@@ -29,9 +26,7 @@ export const PROTECTION_REFUSAL = {
     /** A bearer token asked to publish a protected type that refuses tokens. */
     TokenRefused: 'protection.token_refused',
     /** A bypass was attempted by someone, or under a rule, that does not allow one. */
-    BypassRefused: 'protection.bypass_refused',
-    /** A bypass was attempted with no usable reason. */
-    BypassReasonRequired: 'protection.bypass_reason_required'
+    BypassRefused: 'protection.bypass_refused'
 } as const;
 
 /**
@@ -67,7 +62,7 @@ export class PublishProtectionGuard implements ContentPublishGuard {
     ) {}
 
     async check(context: ContentPublishGuardContext): Promise<PublishVerdict> {
-        const { type, entryId, workspaceId, actor, bypassReason } = context;
+        const { type, entryId, workspaceId, actor, bypass } = context;
 
         // Invariant I-02, and the reason it is the first thing here: an
         // installation with the plugin registered but no rule on this type must
@@ -111,15 +106,12 @@ export class PublishProtectionGuard implements ContentPublishGuard {
             };
         }
 
-        // Short of approvals. A caller who sent no reason is simply told so; the
-        // rest of this is the bypass, which is the only way past.
-        if (bypassReason === undefined) {
+        // Short of approvals. A caller who did not ask to bypass is simply told
+        // so; the rest of this is the bypass, which is the only way past.
+        if (!bypass) {
             return this.insufficient(type.name, decision);
         }
 
-        // Authorization before shape. A member who may not bypass is told that,
-        // whatever they typed — answering "your reason was blank" would describe
-        // the shape of a door that is not theirs to open.
         if (!decision.bypassable) {
             return {
                 allowed: false,
@@ -131,20 +123,9 @@ export class PublishProtectionGuard implements ContentPublishGuard {
             };
         }
 
-        const reason = bypassReason.trim();
-        if (!reason) {
-            return {
-                allowed: false,
-                status: 400,
-                code: PROTECTION_REFUSAL.BypassReasonRequired,
-                message:
-                    'A bypass needs a reason — it is written to the activity log.'
-            };
-        }
-
         // Allowed, and it says so out loud. The event rides content's own outbox
-        // append, so the row that excuses this publish commits with it or not at
-        // all.
+        // append, so the row that records this publish went past the rule
+        // commits with it or not at all.
         return {
             allowed: true,
             events: [
@@ -152,8 +133,7 @@ export class PublishProtectionGuard implements ContentPublishGuard {
                     contentType: type.name,
                     ruleId: rule.id,
                     required: decision.required,
-                    given: decision.given,
-                    reason: reason.slice(0, REASON_MAX)
+                    given: decision.given
                 })
             ]
         };

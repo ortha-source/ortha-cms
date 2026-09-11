@@ -23,15 +23,11 @@ export interface ProtectionRuleView extends ProtectionRule {
     updatedAt: string;
 }
 
-/** One recorded vote, as the entry panel renders it. */
+/** One recorded approval, as the entry panel renders it. */
 export interface ReviewApprovalView {
-    /** Who voted. The panel resolves the name; the API stays id-only. */
+    /** Who approved. The panel resolves the name; the API stays id-only. */
     userId: string;
-    /** `approved` or `changes_requested`. */
-    decision: string;
-    /** Their reason, when they left one. */
-    note: string | null;
-    /** The revision they voted on. */
+    /** The revision they approved. */
     revisionId: string;
     /**
      * Its 1-based version number — what the panel prints beside a struck-through
@@ -54,7 +50,12 @@ export interface ReviewApprovalView {
 export interface ReviewRequestView {
     id: string;
     requestedBy: string;
-    note: string | null;
+    /**
+     * The people asked, in the order they were picked. Who was asked never
+     * changes whose approval counts — anyone holding `content:approve` may
+     * still approve.
+     */
+    reviewerIds: string[];
     /** The head at the moment of asking — trail only; the ask outlives it. */
     revisionId: string;
     /** ISO-8601. */
@@ -109,16 +110,14 @@ export interface EntryReviewView {
     given: number;
     /** How many people's only approval sits on an earlier version. */
     stale: number;
-    /** How many people asked for changes on the head. Never lowers `given`. */
-    changesRequested: number;
     /** Whether publication is currently held. Always `false` when unprotected. */
     blocked: boolean;
     /**
      * Whether an administrator could publish past the rule.
      *
-     * Reported, never applied: taking a bypass costs a mandatory reason, which
-     * only the publish route can demand. It is `false` for everybody but an
-     * administrator, and for every rule with `adminBypass` off.
+     * Reported, never applied: taking a bypass is an explicit request on the
+     * publish route. It is `false` for everybody but an administrator, and for
+     * every rule with `adminBypass` off.
      */
     bypassable: boolean;
     /**
@@ -132,10 +131,24 @@ export interface EntryReviewView {
     headRevisionNumber: number;
     /** Whether the caller wrote the head, and so cannot approve it. */
     callerWroteHead: boolean;
+    /** Whether the caller has already approved the head — nothing left to press. */
+    callerApprovedHead: boolean;
     /** Every vote on the entry, stale ones included. */
     approvals: ReviewApprovalView[];
     /** The open ask, or `null`. */
     request: ReviewRequestView | null;
+}
+
+/** Somebody the caller may ask to review an entry. */
+export interface ReviewerCandidateView {
+    userId: string;
+    /** For a caller with no roster to put a name to the id. */
+    email: string;
+}
+
+/** `GET /protection/entries/:type/:id/reviewers`. */
+export interface ReviewerCandidatesView {
+    candidates: ReviewerCandidateView[];
 }
 
 /** One line of the reviewer queue. */
@@ -144,7 +157,8 @@ export interface ReviewQueueItemView {
     contentType: string;
     entryId: string;
     requestedBy: string;
-    note: string | null;
+    /** The people asked — what "Waiting on me" filters by. */
+    reviewerIds: string[];
     /** How many approvals the type's rule wants; `0` when unprotected. */
     required: number;
     /** Distinct approvals on the entry's current head. */
@@ -175,8 +189,6 @@ export interface EntryReviewStatusView {
     given: number;
     /** How many people's only approval sits on an earlier revision. */
     stale: number;
-    /** Whether somebody asked for changes on the current version. */
-    changesRequested: boolean;
     /** Whether a review has been asked for and not yet resolved. */
     requested: boolean;
     /** Whether publishing is currently held by the rule. */

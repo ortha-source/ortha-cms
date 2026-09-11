@@ -19,13 +19,14 @@ src/lib/
     protection-rules.service.ts  which types a workspace may protect, + defaults
     entry-review.service.ts      the state of one entry, and the four writes
     review-queue.service.ts      every open request in the workspace
-    dto/                         save-rule · review-note · queue-query
+    dto/                         save-rule · request-review · no-body · queue-query
   infrastructure/
     schema/                   protection_rules · review_requests · review_approvals
     protection-rule.repository.ts  storage, and the upsert
     review-request.repository.ts   the ask; resolved, never deleted
     review-approval.repository.ts  the votes; every revision, not just the head
     head-revision.query.ts         asks content which version is the head
+    reviewer-candidates.query.ts   who may be asked: other members holding content:approve
     purge/                    clears all three when a workspace is deleted
   http/controllers/
     protection-rules.controller.ts  /api/protection/rules
@@ -46,8 +47,8 @@ src/lib/
 | `GET /protection/types/:type`                | workspace | `content:read`      |
 | `POST /protection/entries/:type/:id/request` | workspace | `content:update`    |
 | `DELETE …/request`                           | workspace | `content:update`    |
+| `GET …/reviewers`                            | workspace | `content:update`    |
 | `POST …/approve`                             | workspace | `content:approve`   |
-| `POST …/changes`                             | workspace | `content:approve`   |
 | `DELETE …/approve`                           | workspace | `content:approve`   |
 | `GET /protection/queue`                      | workspace | `content:read`      |
 
@@ -91,10 +92,10 @@ revision and the votes read.
 **A refusal is 409, never 403.** A 403 is indistinguishable from lacking
 `content:publish`, and the caller has to tell "ask an administrator for the
 permission" from "ask a colleague for an approval". The two 403s the guard does
-emit are about the **bypass** — a thing the caller may not do — and the 400 is a
-bypass with no usable reason. Authorization is checked before the reason's shape,
-so a member who may not bypass is told that whatever they typed rather than being
-handed the shape of a door that is not theirs.
+emit are about the **bypass** — a thing the caller may not do. A bypass is an
+explicit `{ bypass: true }` on content's publish route and carries no reason:
+bypass reasons were removed with review notes, and the row records the actor,
+the rule and how far short the count was.
 
 **`isAdmin` is `protection:manage`, not the role key** — the same reading
 `EntryReviewService` uses to tell the panel a bypass is available. If they
@@ -208,10 +209,27 @@ filter by the current grants.
 Withdrawing a request frees the partial unique index for the next ask while
 leaving the row as history, so "sent for review on Tuesday, pulled back an hour
 later" stays answerable and the audit row still points at something. Withdrawing
-a _vote_ removes it outright — and only on the head. A vote on an earlier
+an _approval_ removes it outright — and only on the head. A vote on an earlier
 version is already not counting, and deleting that one would erase the
 struck-through line that is the only explanation for why the number moved after
 a save.
+
+**A request names people; it never gates.** `review_requests.reviewer_ids` is who
+was asked, in the order they were picked — the editor lists them and "Waiting on
+me" filters by them — but it is not an input to `evaluateProtection`: anyone
+holding `content:approve` except the head's author may still approve
+(`protection:I-22`). Every named reviewer must come from
+`ReviewerCandidatesQuery` — another member holding `content:approve` — so nobody
+sits in a request as a pending reviewer with no way to approve; anybody else is
+one 422 that names nobody. It is an array on the row, not a table: always read and
+written whole with its request, and small.
+
+**There are no notes and no _request changes_.** Review notes, approval notes and
+the changes-requested vote were removed together (migration `0001` deletes those
+votes before dropping `decision`, so none of them turns into an approval). A row
+in `review_approvals` is an approval. The approve route declares an empty body
+so a client still sending `note` is told with a 400 instead of believing it was
+stored. Historic `review.changes_requested` rows stay in the activity log.
 
 **The four-eyes check refuses the write, not just the count.** The kernel
 excludes the head author from the count, so a stored self-approval would be a row
@@ -255,7 +273,7 @@ enum belongs to `workspaces`' schema, and importing another plugin's schema
 object to share a type is a dependency this package should not take.
 
 `review_requests` has a **partial** unique index on `entry_id where resolved_at
-is null` — one _open_ request per entry, so asking twice updates the note rather
+is null` — one _open_ request per entry, so asking twice replaces the reviewers rather
 than stacking a second row into the reviewer's queue, while a resolved request
 stays as history and does not block the next ask.
 
@@ -312,7 +330,13 @@ paraphrase, and it is the question a returning reviewer actually has. It compare
 through content's own `diffSnapshots` rather than a second comparison written
 here, for the same reason nothing here counts votes.
 
-**There is no approve tool and no request-changes tool**, on any surface, now or
+`protection_request_review` names reviewers **by email** (or id): a model has no
+roster to read ids from. It resolves them against `ReviewerCandidatesQuery` and
+writes through `EntryReviewService.requestReview`, the route's own path, so a run
+cannot ask somebody the picker would not offer; an unknown name fails with the
+list of who can be asked, which is what lets a model correct itself in one turn.
+
+**There is no approve tool**, on any surface, now or
 later. ADR-0017 §6 carries the argument. `protection:I-17` pins it against the
 **catalogue** rather than a list of names — anything that could record an
 approval would have to appear there to be callable — and until this PR the

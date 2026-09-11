@@ -6,7 +6,7 @@ import { createDomainEvent, type DomainEvent } from '@orthacms/database';
  * Two families, and they take different subjects on purpose.
  *
  * The **`review.*`** kinds are facts about an *entry* — who asked for it to be
- * looked at, who said yes, who said not yet. They belong in that entry's own
+ * looked at, and who said yes. They belong in that entry's own
  * history beside its edits and its publishes, because that is where somebody
  * asking "why has this not gone out" actually looks. `segments` keys its
  * `entry_access_changed` event the same way and for the same reason.
@@ -26,7 +26,7 @@ import { createDomainEvent, type DomainEvent } from '@orthacms/database';
  * outlive or be lost by the publish it excused.
  */
 export const PROTECTION_EVENT_KINDS = {
-    /** An author asked for their entry to be reviewed. */
+    /** An author asked named people to review their entry. */
     REVIEW_REQUESTED: 'review.requested',
     /**
      * A reviewer approved a version.
@@ -38,13 +38,6 @@ export const PROTECTION_EVENT_KINDS = {
      */
     REVIEW_APPROVED: 'review.approved',
     /**
-     * A reviewer asked for changes, with their note.
-     *
-     * Not a veto — it lowers no count — so the row is the only lasting record
-     * that somebody objected, and the note is the only record of why.
-     */
-    REVIEW_CHANGES_REQUESTED: 'review.changes_requested',
-    /**
      * A protection rule was written or removed.
      *
      * One kind rather than created/updated/deleted: what a reviewer of the log
@@ -54,7 +47,7 @@ export const PROTECTION_EVENT_KINDS = {
      */
     RULE_CHANGED: 'protection.rule_changed',
     /**
-     * An administrator published past a rule, with their reason.
+     * An administrator published past a rule, having confirmed they meant to.
      *
      * The payload carries what was demanded and what had actually been given,
      * not just the reason: "bypassed" alone does not tell a reader whether one

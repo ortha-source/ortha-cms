@@ -1,0 +1,1 @@
+ALTER TABLE "review_requests" ADD COLUMN "reviewer_ids" uuid[] DEFAULT '{}'::uuid[] NOT NULL;

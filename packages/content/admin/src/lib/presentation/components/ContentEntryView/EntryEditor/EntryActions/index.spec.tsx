@@ -173,7 +173,7 @@ describe('with a contribution that blocks', () => {
     });
 
     it('keeps an ordinary Publish and hands the click over when an action is offered [protection:I-20]', () => {
-        const publishes: ((options: { bypassReason?: string }) => void)[] = [];
+        const publishes: ((options: { bypass?: boolean }) => void)[] = [];
         const onSelect = vi.fn((publish) => {
             publishes.push(publish);
         });
@@ -202,10 +202,8 @@ describe('with a contribution that blocks', () => {
 
         // …and then publishes through the editor's own publish, options intact.
         expect(publishes).toHaveLength(1);
-        publishes[0]({ bypassReason: 'embargo lifted early' });
-        expect(onPublish).toHaveBeenCalledWith({
-            bypassReason: 'embargo lifted early'
-        });
+        publishes[0]({ bypass: true });
+        expect(onPublish).toHaveBeenCalledWith({ bypass: true });
     });
 
     it('hands the unsaved state to every guard [protection:I-18]', () => {

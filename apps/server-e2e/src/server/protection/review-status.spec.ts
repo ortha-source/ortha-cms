@@ -102,7 +102,6 @@ describe('/api/protection/entries/:typeName/status', () => {
                 stale: number;
                 requested: boolean;
                 blocked: boolean;
-                changesRequested: boolean;
             }
         >;
     }
@@ -180,9 +179,10 @@ describe('/api/protection/entries/:typeName/status', () => {
         const { agent } = await member(AUTHOR, 'contributor');
         const asked = await createEntry(agent, 'Asked');
         const quiet = await createEntry(agent, 'Quiet');
+        const { user: reviewer } = await member(REVIEWER, 'contributor');
         await agent
             .post(`/api/protection/entries/test_article/${asked}/request`)
-            .send({})
+            .send({ reviewerIds: [reviewer.id] })
             .expect(201);
 
         const unknown = '11111111-1111-4111-8111-111111111111';

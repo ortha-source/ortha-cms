@@ -6,8 +6,9 @@ import {
 import { useAuth, useHasPermission } from '@orthacms/identity-admin';
 import { SkeletonRegion, Skeleton, cn } from '@orthacms/design-system';
 import { toneOf } from '../../../domain/types';
+import { reviewerRows } from '../../../domain/reviewerRows';
 import { reviewScopeOf, useEntryReview } from '../../../application/hooks';
-import { ApprovalRow } from './ApprovalRow';
+import { ReviewerRow } from './ReviewerRow';
 import { ReviewActions } from './ReviewActions';
 
 const messages = defineMessages({
@@ -28,7 +29,7 @@ const messages = defineMessages({
     },
     none: {
         id: 'protection.review.none',
-        defaultMessage: 'Nobody has reviewed this version yet.'
+        defaultMessage: 'Nobody has been asked to review this yet.'
     },
     loading: {
         id: 'protection.review.loading',
@@ -53,6 +54,10 @@ const messages = defineMessages({
  * non-publishable one. With no rule the feature is inert server-side, and a
  * block describing a requirement that does not exist would be an invention.
  *
+ * It lists **people**, not votes: everybody asked, then anybody else who
+ * approved, each with a green check once they approved the current version or
+ * a yellow dot while that is pending (`reviewerRows`).
+ *
  * The heading's count is the same "{given} of {required}" the chip and the
  * publish button say, and it is **text**: the tone beside it is a second
  * signal, never the only one.
@@ -61,6 +66,7 @@ export function ReviewSection(context: EntrySlotContext) {
     const intl = useIntl();
     const auth = useAuth();
     const canApprove = useHasPermission('content:approve');
+    const canRequest = useHasPermission('content:update');
     const scope = reviewScopeOf(context);
     const { data, isPending, isError } = useEntryReview(scope);
 
@@ -94,6 +100,7 @@ export function ReviewSection(context: EntrySlotContext) {
     if (!data.protected) return null;
 
     const tone = toneOf(data);
+    const rows = reviewerRows(data);
 
     return (
         <EntrySidebarSection
@@ -119,16 +126,16 @@ export function ReviewSection(context: EntrySlotContext) {
             )}
         >
             <div className="flex flex-col gap-3">
-                {data.approvals.length === 0 ? (
+                {rows.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
                         {intl.formatMessage(messages.none)}
                     </p>
                 ) : (
                     <ul className="flex flex-col gap-3">
-                        {data.approvals.map((approval) => (
-                            <ApprovalRow
-                                key={`${approval.userId}:${approval.revisionId}`}
-                                approval={approval}
+                        {rows.map((row) => (
+                            <ReviewerRow
+                                key={row.userId}
+                                row={row}
                                 currentUserId={auth.user?.id}
                             />
                         ))}
@@ -138,6 +145,7 @@ export function ReviewSection(context: EntrySlotContext) {
                     scope={scope}
                     review={data}
                     canApprove={canApprove}
+                    canRequest={canRequest}
                 />
             </div>
         </EntrySidebarSection>

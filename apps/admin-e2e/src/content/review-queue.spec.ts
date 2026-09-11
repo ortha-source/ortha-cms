@@ -34,9 +34,15 @@ test.describe('Review queue', () => {
         page
     }) => {
         await mockReviewQueue(page, [
-            { id: 'r1', requestedBy: SOMEBODY_ELSE },
-            { id: 'r2', requestedBy: SOMEBODY_ELSE },
-            { id: 'r3', requestedBy: ME }
+            { id: 'r1', requestedBy: SOMEBODY_ELSE, reviewerIds: [ME] },
+            { id: 'r2', requestedBy: SOMEBODY_ELSE, reviewerIds: [ME] },
+            { id: 'r3', requestedBy: ME, reviewerIds: [SOMEBODY_ELSE] },
+            // Asked of somebody else: waiting on them, not on me.
+            {
+                id: 'r4',
+                requestedBy: SOMEBODY_ELSE,
+                reviewerIds: [SOMEBODY_ELSE]
+            }
         ]);
         await page.goto(REVIEWS);
 
@@ -44,9 +50,8 @@ test.describe('Review queue', () => {
         const mine = page.getByRole('radio', { name: /my requests/i });
         await expect(waiting).toBeVisible();
 
-        // The counts are the split, and they have to add up to the window —
-        // a tab that quietly dropped a line would hide work from the only
-        // page that reports it.
+        // "Waiting on me" is the asks that name me — a request says who was
+        // asked, so an ask naming somebody else is in neither tab.
         await expect(waiting).toContainText('2');
         await expect(mine).toContainText('1');
 
@@ -62,7 +67,12 @@ test.describe('Review queue', () => {
      */
     test('says an overdue request is overdue, in words', async ({ page }) => {
         await mockReviewQueue(page, [
-            { id: 'old', requestedBy: SOMEBODY_ELSE, createdAt: daysAgo(5) }
+            {
+                id: 'old',
+                requestedBy: SOMEBODY_ELSE,
+                reviewerIds: [ME],
+                createdAt: daysAgo(5)
+            }
         ]);
         await page.goto(REVIEWS);
 
@@ -72,7 +82,12 @@ test.describe('Review queue', () => {
 
     test('does not call a recent request overdue', async ({ page }) => {
         await mockReviewQueue(page, [
-            { id: 'new', requestedBy: SOMEBODY_ELSE, createdAt: daysAgo(1) }
+            {
+                id: 'new',
+                requestedBy: SOMEBODY_ELSE,
+                reviewerIds: [ME],
+                createdAt: daysAgo(1)
+            }
         ]);
         await page.goto(REVIEWS);
 
@@ -113,7 +128,7 @@ test.describe('Review queue', () => {
 
     test('the tab strip is operable from the keyboard', async ({ page }) => {
         await mockReviewQueue(page, [
-            { id: 'r1', requestedBy: SOMEBODY_ELSE },
+            { id: 'r1', requestedBy: SOMEBODY_ELSE, reviewerIds: [ME] },
             { id: 'r2', requestedBy: ME }
         ]);
         await page.goto(REVIEWS);
@@ -153,8 +168,13 @@ test.describe('Review queue', () => {
 
     test('has no accessibility violations', async ({ page, makeAxe }) => {
         await mockReviewQueue(page, [
-            { id: 'r1', requestedBy: SOMEBODY_ELSE, createdAt: daysAgo(5) },
-            { id: 'r2', requestedBy: ME }
+            {
+                id: 'r1',
+                requestedBy: SOMEBODY_ELSE,
+                reviewerIds: [ME],
+                createdAt: daysAgo(5)
+            },
+            { id: 'r2', requestedBy: ME, reviewerIds: [SOMEBODY_ELSE] }
         ]);
         await page.goto(REVIEWS);
         await expect(

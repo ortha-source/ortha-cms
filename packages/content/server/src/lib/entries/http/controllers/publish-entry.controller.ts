@@ -59,7 +59,7 @@ export class PublishEntryController {
             workspaceId,
             toActor(user),
             undefined,
-            body?.bypassReason
+            body?.bypass === true
         );
     }
 
