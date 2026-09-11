@@ -12,7 +12,7 @@
 - [`CONTEXT-MAP.md`](CONTEXT-MAP.md) — glossary + the full project map (every app & package, one line each)
 - [`DESIGN.md`](DESIGN.md) — product & design intent (owned by Design; partly `TODO:`)
 - [`docs/adr/`](docs/adr/README.md) — Architecture Decision Records (why things are the way they are)
-- [`docs/design/`](docs/design/) — engineering design docs for work that is proposed but not yet built (currently: [`copilot.md`](docs/design/copilot.md), [`graphql-api.md`](docs/design/graphql-api.md), [`mail.md`](docs/design/mail.md), [`protection.md`](docs/design/protection.md), [`sso.md`](docs/design/sso.md)) — plus [`alarms.md`](docs/design/alarms.md) and [`webhooks.md`](docs/design/webhooks.md), which document shipped behaviour rather than proposals
+- [`docs/design/`](docs/design/) — engineering design docs for work that is proposed but not yet built (currently: [`copilot.md`](docs/design/copilot.md), [`graphql-api.md`](docs/design/graphql-api.md), [`mail.md`](docs/design/mail.md), [`sso.md`](docs/design/sso.md)) — plus [`alarms.md`](docs/design/alarms.md), [`protection.md`](docs/design/protection.md) and [`webhooks.md`](docs/design/webhooks.md), which document shipped behaviour rather than proposals
 - [`README.md`](README.md) — human-facing project overview & getting started
 - `.cursor/BUGBOT.md` — recurring bug-patterns reviewers and agents must watch for
 
@@ -109,6 +109,23 @@
   language: it stores the **records-list filter tree verbatim** and is evaluated
   through content's own `EntryMatchQuery`, so it can only ever mean what the
   list means by the same filter. Severity orders and colours; it never gates.
+- `packages/protection/*` — publication **protection**: a per-content-type rule
+  requiring N approvals before an entry may be published
+  ([ADR-0017](docs/adr/0017-publication-protection.md)). `domain` is the
+  framework-free kernel — the third gate on publish, one pure function over a
+  rule, the head revision and the votes recorded against it. It answers _may
+  this person ship it now_, never whether the entry is complete. `server` owns
+  three tables — the rule, the review request and the vote — plus the publish
+  guard, the two permissions (`protection:read` approves, `protection:manage`
+  writes rules and bypasses) and the agent tools; `admin` is the entry editor's
+  review chip, the rail's **Review** block and the publish verdict with its
+  bypass dialog, the workspace **Reviews** page, the settings tab where a rule
+  is written, a records column and its filter, and an Insights card. An approval
+  belongs to a **revision**, so the next save stops it counting — there is no
+  dismissal logic anywhere. Addressed `(workspace, kind, slug)`, the same
+  coordinate as `workspace_content`. It takes **no configuration**: the rule
+  table is the whole configuration surface and its empty state is the off state,
+  so registering it changes nothing until a workspace writes a rule.
 - `packages/webhooks/*` — outgoing **webhooks** on content changes. `domain` is
   the framework-free kernel — the subscribable event catalogue, the subscription
   filter (workspaces × event kinds × content types, where an **empty set means
