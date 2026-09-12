@@ -116,7 +116,7 @@
   rule, the head revision and the votes recorded against it. It answers _may
   this person ship it now_, never whether the entry is complete. `server` owns
   three tables — the rule, the review request and the vote — plus the publish
-  guard, the two permissions (`protection:read` approves, `protection:manage`
+  guard, the two permissions (`content:approve` approves, `protection:manage`
   writes rules and bypasses) and the agent tools; `admin` is the entry editor's
   review chip, the rail's **Review** block and the publish verdict with its
   bypass dialog, the workspace **Reviews** page, the settings tab where a rule

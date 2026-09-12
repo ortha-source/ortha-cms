@@ -82,9 +82,9 @@ export class SaveProtectionRuleDto {
         type: Boolean,
         default: true,
         description:
-            'Whether an administrator may publish past the rule with a ' +
-            'mandatory reason. Off makes the rule absolute, administrators ' +
-            'included.'
+            'Whether an administrator may publish past the rule, having ' +
+            'confirmed they mean to. Off makes the rule absolute, ' +
+            'administrators included.'
     })
     @IsOptional()
     @IsBoolean()

@@ -30,6 +30,7 @@ will diverge from these.
 | i18n             | [i18n.md](i18n.md)                         |
 | wysiwyg          | [wysiwyg.md](wysiwyg.md)                   |
 | alarms           | [alarms.md](alarms.md)                     |
+| protection       | [protection.md](protection.md)             |
 | transfer         | [transfer.md](transfer.md)                 |
 | copilot          | [copilot.md](copilot.md)                   |
 | tools            | [tools.md](tools.md)                       |
