@@ -9,24 +9,34 @@ import {
     mockContentEntries,
     mockContentEntryWrites
 } from '../support/api/content';
+import { mockNewEntryProtection } from '../support/api/protection';
 
 /**
- * The **publish-guard slot's empty state**, in a real browser — invariant
- * `protection:I-03`.
+ * The publish button **with the guard contributed but silent** — the client half
+ * of invariant `protection:I-04`: with no rule on the type, the editor is the
+ * one it was before the plugin was installed.
  *
- * `ENTRY_PUBLISH_GUARD_SLOT` exists for one plugin, and no plugin fills it in
- * this app yet. So the only thing there is to test here is also the thing worth
- * testing most: that adding the seam changed nothing. The component spec beside
- * `EntryActions` pins the same rule against a registry it can populate; this
- * pins it against the app as it actually boots, where the registry is empty
- * because nobody contributed rather than because a test cleared it.
+ * This file used to claim it tested the *empty* slot (`protection:I-03`), and
+ * that was false from the day it was written: `apps/admin/src/plugins.ts`
+ * registers `ProtectionPlugin()`, in the same commit as this spec. The slot is
+ * filled, `usePublishProtectionVerdict` runs, and it reads
+ * `GET /api/protection/types/blog_post` — which nothing here mocked, so the
+ * request fell through to the dev proxy, failed, and the hook returned `null`.
+ * The assertions below passed because the read **broke**, not because the slot
+ * was empty: a guard that blocked the button on a failed read would have been
+ * caught by nothing. So the read is mocked now, as an unprotected type, which is
+ * the state the assertions are actually about.
  *
- * Both halves matter. A `disabled` attribute or an `aria-disabled` appearing on
- * the primary button would be the regression; so would the button quietly
- * losing its keyboard route, which is the failure the slot's design was shaped
- * to avoid in the first place.
+ * I-03 — the slot carrying no contribution at all — cannot be expressed against
+ * an app that registers the plugin. It is pinned where it can be, against a
+ * registry a test can empty: `EntryActions/index.spec.tsx`.
+ *
+ * Both halves matter here. A `disabled` attribute or an `aria-disabled`
+ * appearing on the primary button would be the regression; so would the button
+ * quietly losing its keyboard route, which is the failure the slot's design was
+ * shaped to avoid in the first place.
  */
-test.describe('Entry editor publish button, with no guard contributed', () => {
+test.describe('Entry editor publish button, with no rule on the type', () => {
     test.beforeEach(async ({ page }) => {
         await mockSignedIn(page);
         await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
@@ -34,9 +44,13 @@ test.describe('Entry editor publish button, with no guard contributed', () => {
         await mockContentSchemaDetail(page);
         await mockContentEntries(page);
         await mockContentEntryWrites(page);
+        // The create form's protection read. Unprotected, so the verdict is
+        // "no opinion" for the reason the type has no rule — not because the
+        // request failed.
+        await mockNewEntryProtection(page, { protected: false });
     });
 
-    test('carries no refusal and no description [protection:I-03]', async ({
+    test('carries no refusal and no description [protection:I-04]', async ({
         contentLibraryPage
     }) => {
         await contentLibraryPage.gotoNewEntry(

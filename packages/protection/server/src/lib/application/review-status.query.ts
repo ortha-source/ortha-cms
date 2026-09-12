@@ -10,19 +10,24 @@ import { ProtectionRuleRepository } from '../infrastructure/protection-rule.repo
 import type { EntryReviewStatusView } from '../types/protection-views';
 
 /**
- * Where each of a page's entries stands, in **three queries whatever the page
+ * Where each of a page's entries stands, in **four queries whatever the page
  * holds**.
  *
  * This is the read behind the records column, and the shape of it is the whole
  * point: a column asking the single-entry review route per row would be an N+1
  * over a page of twenty-five, and the page size is the user's to choose. The
- * three reads are the head revisions (one, through content's batched
+ * four reads are the head revisions (one, through content's batched
  * `RevisionStore.heads`), every vote on those entries (one, over the
- * denormalised `entry_id`), and the workspace's rules (one, and the rule set is
- * one row per protected type — small enough to read whole rather than per row).
+ * denormalised `entry_id`), the open requests over those same ids (one, for the
+ * `requested` flag), and the workspace's rules (one, and the rule set is one row
+ * per protected type — small enough to read whole rather than per row).
  *
- * `review-status-batching.spec.ts` pins the count flat, and it is that test
- * rather than this comment that keeps it true.
+ * `review-status.spec.ts`'s "issues the same number of queries for 1 entry and
+ * 10" pins the count **flat**, and it is that test rather than this comment that
+ * keeps it true. Note what it does not pin: it compares one page against
+ * another rather than asserting a number, so this paragraph's "four" is
+ * documentation, not an assertion — it said "three" for as long as the open-
+ * requests read has existed, and nothing failed.
  *
  * **It counts through the kernel.** `countApprovals` is the same function
  * `evaluateProtection` calls, so the number in the column is the number the

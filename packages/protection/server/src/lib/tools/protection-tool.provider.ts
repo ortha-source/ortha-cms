@@ -67,9 +67,14 @@ interface ReviewDiffToolView {
  *   so the rule would be satisfied while the guarantee — that a second person
  *   read the thing — quietly would not be. No check can tell those apart.
  *
- * `protection:I-17` pins the absence, and it is pinned against the **registry**
- * rather than against this file: a tool with an approve effect must not appear
- * for any role on any surface, wherever it were contributed from.
+ * `protection:I-17` says the absence must hold **registry-wide**: a tool with an
+ * approve effect must not appear for any role on any surface, wherever it were
+ * contributed from. What is actually pinned today is narrower — the spec beside
+ * this file scans the catalogue *this provider* returns, so a tool contributed
+ * from another package would pass it. The invariant is stated at the altitude it
+ * should be enforced at; the assertion that would enforce it belongs in
+ * `apps/server-e2e/src/server/tools/tool-registry.spec.ts`, which boots the real
+ * registry on both surfaces and does not have one yet.
  *
  * ## What a model does instead
  *

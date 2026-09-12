@@ -453,9 +453,10 @@ retry loop over a committed publish is worse than a stale queue row.
 
 - A **Review column** is contributed for every publishable type, hidden by default like every
   extension column. When switched on it makes **one** request per page:
-  `GET /api/protection/entries/:type/status?ids=…`, answered in three queries whatever the
-  page holds — batched heads, every vote over the denormalised `entry_id`, and the
-  workspace's rules. The hook is skipped entirely when the column is not visible.
+  `GET /api/protection/entries/:type/status?ids=…`, answered in four queries whatever the
+  page holds — batched heads, every vote over the denormalised `entry_id`, the open requests
+  over those same ids, and the workspace's rules. The hook is skipped entirely when the
+  column is not visible.
 - A **`reviewState` filter field** (`awaiting` / `not_requested`) joins the records list's own
   filter tree, which is what makes saved views and alarms' "Save as rule" work over review
   state with no code of their own.
@@ -815,18 +816,18 @@ Existing suites: `apps/server-e2e/src/server/protection/` (`publish-guard`, `ent
 
 ### Reads, permissions, isolation
 
-| Action                                                       | Expected                                                         |
-| ------------------------------------------------------------ | ---------------------------------------------------------------- |
-| `GET /protection/rules` as a contributor                     | 403                                                              |
-| `GET /protection/queue` as a viewer                          | 200 — the read is `content:read`                                 |
-| Status for a page of 25 entries                              | Three queries, whatever the page size                            |
-| Status for an entry of another workspace                     | Absent from `byEntry`                                            |
-| `?ids=` with 101 ids                                         | 400                                                              |
-| Filter `reviewState = awaiting`                              | Only entries with an open request **in this workspace**          |
-| `reviewState` with an unsupported operator, or an empty `in` | 400                                                              |
-| Ask `scopePermissions` for either token scope                | `content:approve` in neither                                     |
-| Offer the tool catalogue to any role                         | No tool with an approve effect appears                           |
-| Delete the workspace                                         | All three tables count zero (`workspace-delete-residue.spec.ts`) |
+| Action                                                       | Expected                                                                  |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------- |
+| `GET /protection/rules` as a contributor                     | 403                                                                       |
+| `GET /protection/queue` as a viewer                          | 200 — the read is `content:read`                                          |
+| Status for a page of 25 entries                              | The same count as for one entry — four, and flat. Only flatness is pinned |
+| Status for an entry of another **real** workspace            | Absent from `byEntry` — unpinned today, see §16                           |
+| `?ids=` with 101 ids                                         | 400                                                                       |
+| Filter `reviewState = awaiting`                              | Only entries with an open request **in this workspace**                   |
+| `reviewState` with an unsupported operator, or an empty `in` | 400                                                                       |
+| Ask `scopePermissions` for either token scope                | `content:approve` in neither                                              |
+| Offer the tool catalogue to any role                         | No tool with an approve effect appears                                    |
+| Delete the workspace                                         | All three tables count zero (`workspace-delete-residue.spec.ts`)          |
 
 ### The editor
 
@@ -898,6 +899,33 @@ archive:
 - `save-protection-rule.dto.ts` described `adminBypass` as a bypass "with a mandatory reason".
   There is no reason field, and sending one is a 400 — and that string is user-visible in the
   OpenAPI reference at `/reference`.
+
+A coverage audit run after this dossier landed found three more, two of them the same shape
+as the pair above — a comment naming a test as the thing that keeps a property true, where the
+test does not exist or does not reach that far. All three are corrected in the commit that adds
+this paragraph:
+
+- `review-status.query.ts` said **"three queries"** and sent the reader to
+  `review-status-batching.spec.ts`. There are four reads — the open-requests read behind the
+  `requested` flag was added without updating the prose — and that filename appears nowhere in
+  the repository but in that sentence. The test that does pin the property is
+  `review-status.spec.ts`'s _"issues the same number of queries for 1 entry and 10"_, and it
+  asserts **flatness, never a number**, which is exactly why the drift survived. **This dossier
+  repeated the wrong count** in §10 and §14.
+- `review-state-filter.provider.spec.ts` says _"a recorder beats a live database here, and the
+  e2e covers the rendering"_. There is no e2e for `reviewState`; `grep -rn reviewState
+apps/server-e2e` returns nothing.
+- `protection-tool.provider.ts` claimed I-17 was pinned **against the registry**. The spec
+  beside it reads the catalogue that one provider returns, so an approve-effect tool
+  contributed from another package would pass it. The comment now separates the altitude the
+  invariant is stated at from the one it is enforced at.
+
+Two more claims were stronger than any test behind them, and are corrected rather than
+recorded: the cross-workspace status read is exercised with an id that exists in no workspace,
+and `apps/admin-e2e/src/content/entry-publish-guard.spec.ts` claimed to test an **empty**
+publish-guard slot in an app that registers the plugin — it passed because its unmocked
+protection read failed, which means a guard that blocked on a failed read would have been
+caught by nothing.
 
 What is still open, none of it behavioural:
 
