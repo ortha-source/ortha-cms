@@ -67,6 +67,12 @@ export interface AdminProps {
     widget?: string;
     /** Hide from the default form (still served by the API). */
     hidden?: boolean;
+    /**
+     * Put this field on one line of the form with every other field carrying
+     * the same key (up to three). For fields that are read together — a start
+     * and an end, an amount and its unit. Fields without it get a line each.
+     */
+    row?: string;
     /** Project-specific extras — passed through untouched. */
     [key: string]: unknown;
 }

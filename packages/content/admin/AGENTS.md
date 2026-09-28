@@ -229,9 +229,12 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   the list endpoint, else blank — then renders **`EntryEditor`**. The editor owns the
   form state (`useEntryForm`, with client validation in `presentation/entryValidation`
   (the kernel-backed i18n ACL, not a hand-mirror of the server rules)) and lays out a title header, a **full-width**
-  tabbed body (**General** = `EntryFieldSections`, which groups fields into titled
-  `Card`s by control shape — short scalars in a grid, long-form/JSON stacked,
-  toggles/multi-choice — **media fields are excluded from General**, rendering on
+  tabbed body (**General** = `EntryFieldSections`, one column ordered by control
+  shape; each field drawn at the width its value needs and fields sharing an
+  `admin.row` key put on one wrapping line — `domain/fieldLayout` decides both,
+  `FieldStack` renders them. A row is **declared, never inferred**: auto-pairing
+  short fields would sit unrelated ones side by side — **media fields are
+  excluded from General**, rendering on
   the Media tab instead; **Relations** = relation fields via the **`RelationField`**
   picker (empty state otherwise); **`ENTRY_TAB_SLOT` tabs** — contributed editor
   tabs (the media plugin's **Media** tab) render between Relations and History

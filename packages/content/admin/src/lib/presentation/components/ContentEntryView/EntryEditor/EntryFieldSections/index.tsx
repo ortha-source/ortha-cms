@@ -3,8 +3,8 @@ import { Separator } from '@orthacms/design-system';
 import type { ContentField } from '../../../../../domain/types/contentType';
 import { CONTENT_FIELD_TYPE } from '../../../../../domain/constants';
 import type { EntryFormState } from '../../../../hooks/useEntryForm';
-import { EntryFieldInput } from '../../../EntryFieldInput';
 import { FieldGroup } from './FieldGroup';
+import { FieldStack } from './FieldStack';
 
 const messages = defineMessages({
     translatedTitle: {
@@ -89,7 +89,9 @@ const rankFor = (type: string) => FIELD_RANK[type] ?? DEFAULT_RANK;
  * control shape — simple inputs (text, number, dates) first, then choice
  * controls (select, boolean, multi-select), then the large fields (rich text,
  * JSON) last. No section headers: the order alone groups like with like. One
- * field per row — a single stacked column the user works through step by step.
+ * field per line — a single stacked column the user works through step by
+ * step — except where the schema declared a row (`admin.row`); each lone field
+ * is drawn at the width its value needs. See `FieldStack`.
  * Relation fields are handled by their own tab and excluded by the caller.
  */
 export function EntryFieldSections({
@@ -140,17 +142,11 @@ export function EntryFieldSections({
         return (
             <div className="flex flex-col gap-5">
                 <RequiredLegend fields={ordered} />
-                {ordered.map((field) => (
-                    <EntryFieldInput
-                        key={field.name}
-                        field={field}
-                        value={form.values[field.name]}
-                        error={form.errorFor(field.name)}
-                        changed={isChanged?.(field.name) ?? false}
-                        onChange={(value) => form.setValue(field.name, value)}
-                        onBlur={() => form.touch(field.name)}
-                    />
-                ))}
+                <FieldStack
+                    fields={ordered}
+                    form={form}
+                    isChanged={isChanged}
+                />
             </div>
         );
     }

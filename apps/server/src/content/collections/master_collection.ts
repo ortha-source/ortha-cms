@@ -78,8 +78,13 @@ export const master_collection = collection('master_collection', {
         }),
 
         // ---- number: float, integer, bounded ------------------------------
-        score: field.number({ min: 0, max: 100 }),
-        viewCount: field.number({ integer: true, min: 0 }),
+        // `admin.row` puts the pair on one line of the form
+        score: field.number({ min: 0, max: 100, admin: { row: 'metrics' } }),
+        viewCount: field.number({
+            integer: true,
+            min: 0,
+            admin: { row: 'metrics' }
+        }),
 
         // ---- money (integer minor units) ----------------------------------
         price: field.money({ min: 0, max: 1_000_000 }),
@@ -88,8 +93,8 @@ export const master_collection = collection('master_collection', {
         featured: field.boolean({ required: true }),
 
         // ---- temporal -----------------------------------------------------
-        eventDate: field.date(),
-        startsAt: field.datetime(),
+        eventDate: field.date({ admin: { row: 'schedule' } }),
+        startsAt: field.datetime({ admin: { row: 'schedule' } }),
 
         // ---- enumerations -------------------------------------------------
         status_choice: field.select({
