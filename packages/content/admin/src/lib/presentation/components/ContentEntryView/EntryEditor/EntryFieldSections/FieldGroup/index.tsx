@@ -1,6 +1,6 @@
 import type { ContentField } from '../../../../../../domain/types/contentType';
 import type { EntryFormState } from '../../../../../hooks/useEntryForm';
-import { EntryFieldInput } from '../../../../EntryFieldInput';
+import { FieldStack } from '../FieldStack';
 
 /**
  * One titled run of fields in the General tab — the translated set or the
@@ -50,18 +50,8 @@ export function FieldGroup({
                 Field *labels* do still inherit it — marking each control
                 individually needs a `lang` pass-through in every branch of
                 `EntryFieldInput`, which is tracked separately. */}
-            <div className="flex flex-col gap-5" lang={lang} dir={dir}>
-                {fields.map((field) => (
-                    <EntryFieldInput
-                        key={field.name}
-                        field={field}
-                        value={form.values[field.name]}
-                        error={form.errorFor(field.name)}
-                        changed={isChanged?.(field.name) ?? false}
-                        onChange={(value) => form.setValue(field.name, value)}
-                        onBlur={() => form.touch(field.name)}
-                    />
-                ))}
+            <div lang={lang} dir={dir}>
+                <FieldStack fields={fields} form={form} isChanged={isChanged} />
             </div>
         </section>
     );

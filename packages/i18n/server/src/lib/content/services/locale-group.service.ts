@@ -1,7 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { and, eq, inArray, isNull, type AnyColumn } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@orthacms/database';
-import type { AnyContentType, EntryStatus } from '@orthacms/content-server';
+import {
+    entryTitle,
+    type AnyContentType,
+    type EntryStatus
+} from '@orthacms/content-server';
 import type { LocaleDir } from '../../i18n.constants';
 import { LocaleRegistryService } from '../../locales/services/locale-registry.service';
 
@@ -25,6 +29,14 @@ export interface EntryLocaleItem {
     /** The group's row in this locale, or null when not yet translated. */
     entry: {
         id: string;
+        /**
+         * The row's display title in its own language — the same field the
+         * relation picker labels a record with. Absent when the row has none
+         * yet (a draft saved before its title), rather than the id standing in:
+         * the locale menu lists these side by side, and a uuid there reads as
+         * content.
+         */
+        title?: string;
         /** Publish state — publishable types only. */
         status?: EntryStatus;
         /**
@@ -123,6 +135,7 @@ export class LocaleGroupService {
                     entry: sibling
                         ? {
                               id: sibling['id'] as string,
+                              ...this.titleOf(type, sibling),
                               ...(type.publishable
                                   ? {
                                         status: sibling[
@@ -139,6 +152,16 @@ export class LocaleGroupService {
                 };
             })
         };
+    }
+
+    /** `{ title }` when the row has a real one, else nothing. */
+    private titleOf(
+        type: AnyContentType,
+        row: Record<string, unknown>
+    ): { title?: string } {
+        const title = entryTitle(type, row);
+        // `entryTitle` falls back to the id; that is not a title.
+        return title === row['id'] ? {} : { title };
     }
 
     /**

@@ -373,6 +373,18 @@ export class ContentLibraryPage extends BasePage {
     }
 
     /**
+     * A schema-declared form section's toggle, by the section's label. The
+     * section's counts ("1 to fix before publishing", "2 fields") are inside
+     * the button and part of its name, so the match is on the leading label;
+     * `aria-expanded` on it is the section's open state.
+     */
+    formSectionToggle(label: string): Locator {
+        return this.page.getByRole('button', {
+            name: new RegExp(`^${label}\\b`)
+        });
+    }
+
+    /**
      * The rule between the General tab's translated and shared field groups.
      *
      * Anchored on a testid rather than a role because it is **decorative** by
@@ -819,6 +831,14 @@ export class ContentLibraryPage extends BasePage {
     async closeLocaleMenu(): Promise<void> {
         await this.page.keyboard.press('Escape');
         await this.localeMenu.waitFor({ state: 'hidden' });
+    }
+
+    /**
+     * The locale menu's summary sentence ("2 of 4 published · 50%"). The chip
+     * strip and progress bar beside it are `aria-hidden`; this is what is read.
+     */
+    get localeMenuSummary(): Locator {
+        return this.localeMenu.getByText(/\d+ of \d+ (published|translated)/);
     }
 
     /** One row of the locale menu, by whatever it is named. */

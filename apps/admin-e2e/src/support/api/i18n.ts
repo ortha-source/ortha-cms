@@ -546,6 +546,12 @@ export async function mockI18n(page: Page): Promise<I18nMock> {
                     entry: member
                         ? {
                               id: member.id,
+                              // The server's `entryTitle`: the first non-empty
+                              // text field, absent rather than the id.
+                              ...(typeof member.values.title === 'string' &&
+                              member.values.title
+                                  ? { title: member.values.title }
+                                  : {}),
                               status: member.status,
                               publishedAt: member.publishedAt,
                               updatedAt: member.updatedAt

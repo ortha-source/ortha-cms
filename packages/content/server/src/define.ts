@@ -24,6 +24,8 @@ export type {
     ContentTypeKind,
     ContentTypeOptions,
     EntryEnvelope,
+    FieldGroup,
+    FieldGroupOptions,
     InferEntry,
     InferValues,
     SingleOptions

@@ -5,16 +5,9 @@
         "module": "nodenext",
         "moduleResolution": "nodenext",
         "tsBuildInfoFile": "./out-tsc/jest/tsconfig.spec.tsbuildinfo",
-        "types": [
-            "jest",
-            "node"
-        ]
+        "types": ["jest", "node"]
     },
-    "include": [
-        "src/**/*.spec.ts",
-        "src/**/*.test.ts",
-        "src/**/*.d.ts"
-    ],
+    "include": ["src/**/*.spec.ts", "src/**/*.test.ts", "src/**/*.d.ts"],
     "references": [
         {
             "path": "./tsconfig.lib.json"

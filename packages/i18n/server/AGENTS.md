@@ -254,8 +254,9 @@ and permission-gated; a `:typeName` that isn't localized is a **400**
 - `GET /api/i18n/locales` — the configured locales (session only; no
   per-workspace data).
 - `GET /api/i18n/content/:typeName/:id/locales` — one entry's **locale panel**:
-  one item per configured locale with the group's row (id, status,
-  **publishedAt**, updatedAt) or null (`content:read`).
+  one item per configured locale with the group's row (id, **title**, status,
+  **publishedAt**, updatedAt) or null (`content:read`). `title` is content's own
+  `entryTitle` — omitted, never the id, when the row has none yet.
 - `GET /api/insights/i18n/coverage` — localization coverage for the Insights
   card (`content:read`). Under `insights/` rather than `i18n/` on purpose — see
   the section below.

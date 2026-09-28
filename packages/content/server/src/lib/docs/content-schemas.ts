@@ -611,6 +611,21 @@ function sharedSchemas(): Record<string, OpenApiSchema> {
                 {
                     type: 'object',
                     properties: {
+                        groups: {
+                            type: 'array',
+                            description:
+                                'Entry-form sections, in display order. A field joins one through `admin.group`. Present only when the type declares any.',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    key: { type: 'string' },
+                                    label: { type: 'string' },
+                                    description: { type: 'string' },
+                                    collapsed: { type: 'boolean' }
+                                },
+                                required: ['key', 'label', 'collapsed']
+                            }
+                        },
                         fields: {
                             type: 'array',
                             items: ref('ContentFieldSchema')

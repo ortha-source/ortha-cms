@@ -229,9 +229,23 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   the list endpoint, else blank — then renders **`EntryEditor`**. The editor owns the
   form state (`useEntryForm`, with client validation in `presentation/entryValidation`
   (the kernel-backed i18n ACL, not a hand-mirror of the server rules)) and lays out a title header, a **full-width**
-  tabbed body (**General** = `EntryFieldSections`, which groups fields into titled
-  `Card`s by control shape — short scalars in a grid, long-form/JSON stacked,
-  toggles/multi-choice — **media fields are excluded from General**, rendering on
+  tabbed body (**General** = `EntryFieldSections`, ordered by control shape on a
+  **two-column grid**: every field takes the whole line unless the schema asks
+  for one column with `admin.width: 'half'` (a boolean shrinks to its segments),
+  and two fields sharing an `admin.row` key share a line — `domain/fieldLayout`
+  decides, `FieldStack` renders. The width is **never inferred from the type**:
+  a type-based rule was tried and put an email in half a column while an
+  equally short slug spanned the form. A row is **declared, never
+  inferred**: auto-pairing would sit unrelated fields side by side. A type that
+  declares **form sections** (`groups`, joined by `admin.group`) is laid out by
+  them instead of Translated / Shared: ungrouped fields on top, then one
+  collapsible `FieldSection` per group in declaration order. A folded section
+  must not hide a problem — its header counts the fields still blocking publish
+  (from `form.errors`, the rail gate's own set) and the changed ones, and it opens
+  itself whenever a save/publish is refused while it shows an error
+  (`EntryFormState.refusals`). The fold is remembered per type in `localStorage`
+  (`useSectionOpen`), since tabs are routes and remount the form — **media fields are
+  excluded from General**, rendering on
   the Media tab instead; **Relations** = relation fields via the **`RelationField`**
   picker (empty state otherwise); **`ENTRY_TAB_SLOT` tabs** — contributed editor
   tabs (the media plugin's **Media** tab) render between Relations and History

@@ -32,7 +32,7 @@ export type SidebarItem = {
     /**
      * Optional accent class for the icon (e.g. `text-nav-orange`), applied
      * only while the row is **active** — the rest of the time the icon stays
-     * neutral. The `text-nav-*` utilities are tuned for contrast on the dark
+     * neutral. The `text-nav-*` utilities are tuned for contrast on the
      * sidebar. Omit for an always-neutral icon.
      */
     iconColor?: string;

@@ -67,6 +67,23 @@ export interface AdminProps {
     widget?: string;
     /** Hide from the default form (still served by the API). */
     hidden?: boolean;
+    /**
+     * Put this field on one line of the form with every other field carrying
+     * the same key (up to two — the form is a two-column grid). For fields that are read together — a start
+     * and an end, an amount and its unit. Fields without it get a line each.
+     */
+    row?: string;
+    /**
+     * How much of the entry form's two-column grid the field takes. Every
+     * field is `'full'` unless it asks for `'half'` — the admin never infers a
+     * width from the field's type. Any other value fails at define time.
+     */
+    width?: 'half' | 'full';
+    /**
+     * The form section this field is drawn in — a key of the type's `groups`.
+     * An unknown key fails at define time.
+     */
+    group?: string;
     /** Project-specific extras — passed through untouched. */
     [key: string]: unknown;
 }

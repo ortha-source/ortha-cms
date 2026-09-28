@@ -49,6 +49,13 @@ interface ContentFieldSchema {
 
 /** A content type with its full field schema (the `:name` detail route). */
 interface ContentTypeDetail extends ContentTypeSummary {
+    /** Collapsible entry-form sections; a field joins one via `admin.group`. */
+    groups?: {
+        key: string;
+        label: string;
+        description?: string;
+        collapsed: boolean;
+    }[];
     fields: ContentFieldSchema[];
 }
 
@@ -208,6 +215,45 @@ export const MEDIA_FIELDS_SCHEMA_SEED: ContentTypeSummary[] = [
         publishable: true
     }
 ];
+
+/**
+ * The seed catalogue with `blog_post` laid out in **form sections**: `Title`
+ * and `Excerpt` stay above them, `Category` + `Published at` sit in an open
+ * "Details" section, and a now **required** `Price` sits in "Pricing", which
+ * starts folded — so a fresh create form opens with a publish blocker hidden
+ * inside a closed section, the case the section header has to surface.
+ */
+export const SECTIONED_DETAIL_SEED: Record<string, ContentTypeDetail> = {
+    ...CONTENT_DETAIL_SEED,
+    blog_post: {
+        ...CONTENT_DETAIL_SEED['blog_post'],
+        groups: [
+            { key: 'details', label: 'Details', collapsed: false },
+            {
+                key: 'pricing',
+                label: 'Pricing',
+                description: 'What the post costs to read.',
+                collapsed: true
+            }
+        ],
+        fields: CONTENT_DETAIL_SEED['blog_post'].fields.map((field) => {
+            if (field.name === 'price') {
+                return {
+                    ...field,
+                    required: true,
+                    admin: { ...field.admin, group: 'pricing' }
+                };
+            }
+            if (field.name === 'category' || field.name === 'publishedAt') {
+                return {
+                    ...field,
+                    admin: { ...field.admin, group: 'details' }
+                };
+            }
+            return field;
+        })
+    }
+};
 
 /**
  * Full field schema for the media-fields suite: a required title, a **single**

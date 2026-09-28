@@ -57,6 +57,17 @@ slots the content plugin owns).
   locale is resolved by `resolveActiveLocale` (`entry.locale ?? ?locale= ??
   defaultLocale`) — the plugin's single decision point, which the menu must not
   duplicate (`i18n:I-05`, `I-06`).
+    - **The menu opens on a summary**, `LocaleMenuHeader`: a strip of locale
+      codes (filled = live on a publishable type / exists otherwise, tinted =
+      draft, outlined = missing, dashed = unknown), "N of M published · P%", and
+      a progress bar. It is an overview, not a control — the strip and bar are
+      `aria-hidden`, the sentence is read — and it is **sticky** while the rows
+      scroll under it, since a deployment may run two dozen locales. Each row
+      leads with that locale's **record title** (served as `entry.title` by the
+      locale panel), the language name beneath it, and its state on the right;
+      "Not translated" is claimed only when the members are known
+      (`i18n:I-30`). Radix type-ahead matches the language **name**
+      (`textValue`), not the code or the title the row starts with.
     - **The count costs no request.** Edit mode counts the `useEntryLocales`
       items that have an `entry` against all of them; create mode counts the
       group's live summary members against **`useLocales().locales.length`** — a

@@ -72,12 +72,17 @@ const ENTRY_ROW_SCHEMA: OpenApiSchema = {
     type: 'object',
     nullable: true,
     description:
-        'The group’s row in this locale, or `null` when it has not been translated yet. Enough to route to the row and render its state — not its values.',
+        'The group’s row in this locale, or `null` when it has not been translated yet. Enough to route to the row, name it and render its state — not its values.',
     properties: {
         id: {
             type: 'string',
             format: 'uuid',
             description: 'The entry id of this locale’s row.'
+        },
+        title: {
+            type: 'string',
+            description:
+                'The row’s display title in its own language. Absent when it has none yet.'
         },
         status: STATUS_SCHEMA,
         publishedAt: PUBLISHED_AT_SCHEMA,

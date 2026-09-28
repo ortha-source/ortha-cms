@@ -32,6 +32,16 @@ export const post = collection('post', {
 - `field.*` field builders (`text`/`richtext`/`number`/`money`/`boolean`/`date`/
   `datetime`/`select`/`multiselect`/`json`/`relation`/`media`) each return a JSON-serializable
   `FieldSpec` carrying its value type as a phantom generic (for `InferEntry`).
+- **Form layout hints** are presentation only and cost no migration.
+  `admin.row` puts two fields on one line of the entry form; `admin.width:
+'half'` gives a lone field one column (every field is full width otherwise, and
+  any other value fails at define time); `groups` on
+  `collection()` / `single()` declares collapsible form sections
+  (`{ key: { label, description?, collapsed? } }`, display order = declaration
+  order) and a field joins one with `admin.group`. `normalizeGroups` checks the
+  references at **define time** — a field naming an undeclared group, or a group
+  no field joins, fails boot rather than silently dropping out of the form.
+  Served as `groups` on `GET /content-schema/:name`, omitted when empty.
 - Every builder takes an optional **`lang`** — the BCP-47 language this field's
   content is written in, when it is not the entry's own (WCAG 3.1.2). A
   malformed tag is rejected at **define time**, since a `lang` no user agent can

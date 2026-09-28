@@ -15,6 +15,7 @@ import {
     type SingleOptions
 } from '../types/content-type';
 import { buildTables, snakeCase } from './table-builder';
+import { assertFieldWidths, normalizeGroups } from './field-groups';
 
 /** Valid machine names: snake_case, starting with a letter. */
 const NAME_RE = /^[a-z][a-z0-9_]*$/;
@@ -213,6 +214,8 @@ export function collection<TFields extends Record<string, AnyFieldSpec>>(
     const paranoid = options.paranoid ?? false;
     const i18n = options.i18n ?? false;
     assertFields(name, options.fields, i18n);
+    assertFieldWidths(name, options.fields);
+    const groups = normalizeGroups(name, options.groups, options.fields);
     const { table, joinTables } = buildTables(name, options.fields, {
         publishable,
         paranoid,
@@ -226,6 +229,7 @@ export function collection<TFields extends Record<string, AnyFieldSpec>>(
         publishable,
         paranoid,
         i18n,
+        groups,
         fields: options.fields,
         table,
         joinTables
@@ -250,6 +254,8 @@ export function single<TFields extends Record<string, AnyFieldSpec>>(
     const paranoid = options.paranoid ?? false;
     const i18n = options.i18n ?? false;
     assertFields(name, options.fields, i18n);
+    assertFieldWidths(name, options.fields);
+    const groups = normalizeGroups(name, options.groups, options.fields);
     const { table, joinTables } = buildTables(name, options.fields, {
         publishable,
         paranoid,
@@ -264,6 +270,7 @@ export function single<TFields extends Record<string, AnyFieldSpec>>(
         publishable,
         paranoid,
         i18n,
+        groups,
         fields: options.fields,
         table,
         joinTables
