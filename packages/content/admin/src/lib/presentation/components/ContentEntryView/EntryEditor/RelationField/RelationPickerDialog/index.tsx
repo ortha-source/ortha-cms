@@ -20,6 +20,7 @@ import {
     Spinner
 } from '@orthacms/design-system';
 import { countRules, type FilterGroup } from '@orthacms/query-builder-admin';
+import type { EntrySourceScope } from '../../../../../../domain/types/contentType';
 import { useContentSchema } from '../../../../../../application/useContentSchema';
 import {
     useRelationCandidates,
@@ -118,6 +119,10 @@ export function RelationPickerDialog({
     const [search, setSearch] = useState('');
     const [filter, setFilter] = useState<FilterGroup | null>(null);
     const [filtersOpen, setFiltersOpen] = useState(false);
+    // Which workspaces' records are offered. Defaults to **all**: a record in
+    // a shared workspace is as linkable as one of this workspace's own, and the
+    // badge on each row already says which is which.
+    const [source, setSource] = useState<EntrySourceScope>('all');
     // "Select all" in progress: pulls the remaining pages, then checks them.
     const [selectingAll, setSelectingAll] = useState(false);
     const [pagesPulled, setPagesPulled] = useState(0);
@@ -154,6 +159,7 @@ export function RelationPickerDialog({
             setPagesPulled(0);
             setFilter(null);
             setFiltersOpen(false);
+            setSource('all');
         }
         wasOpen.current = open;
     }, [open]);
@@ -201,6 +207,7 @@ export function RelationPickerDialog({
         {
             search,
             filter,
+            source,
             ...(Object.keys(extraParams).length ? { extra: extraParams } : {})
         },
         open
@@ -222,7 +229,11 @@ export function RelationPickerDialog({
         }
     };
 
-    const filtersActive = !!search.trim() || countRules(filter) > 0;
+    // A narrowed source is a filter too: the empty state should say "nothing
+    // matches" rather than "nothing exists" when only shared records are asked
+    // for and none are.
+    const filtersActive =
+        !!search.trim() || countRules(filter) > 0 || source !== 'all';
 
     const pick = (candidate: RelationCandidate) => {
         if (many) {
@@ -344,6 +355,8 @@ export function RelationPickerDialog({
                     portalContainer={dialogEl}
                     fieldsError={filterFieldsError}
                     onRetryFields={refetchFilterFields}
+                    source={source}
+                    onSourceChange={setSource}
                     renderRelationValue={(props) => (
                         <RelationValuePicker {...props} />
                     )}

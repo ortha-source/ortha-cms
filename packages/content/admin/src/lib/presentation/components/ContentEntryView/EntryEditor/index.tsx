@@ -54,6 +54,7 @@ import { EntrySidebar, type PublishGateItem } from './EntrySidebar';
 import { EntryTabIssues } from './EntryTabIssues';
 import { HistoryTimeline } from './HistoryTimeline';
 import { ReadOnlyNotice } from './ReadOnlyNotice';
+import { SharedEntryNotice } from './SharedEntryNotice';
 import { RelationFieldSection } from './RelationFieldSection';
 
 const messages = defineMessages({
@@ -316,7 +317,21 @@ export function EntryEditor({
     const canWrite = useHasPermission(
         isCreate ? CONTENT_CREATE : CONTENT_UPDATE
     );
-    const readOnly = !canWrite;
+    // A record read from a **shared** workspace: the server says it cannot be
+    // written from here (every write route answers its id with a 404), so the
+    // editor is a preview regardless of permission — and a stricter one than a
+    // reader's: no actions at all, no contributed tabs or rail widgets (each
+    // reaches for this workspace's copy of state the record doesn't have here),
+    // and no History (a shared record's drafts never leave its workspace).
+    // Edits happen in the source workspace, which the banner links to.
+    const foreign = entry?.readOnly === true;
+    const readOnly = !canWrite || foreign;
+    // The tabs a foreign record keeps. A deep link to any other lands on
+    // General rather than on a tab strip with nothing selected.
+    const shownTab =
+        foreign && tab !== ENTRY_TAB.General && tab !== ENTRY_TAB.Relations
+            ? ENTRY_TAB.General
+            : tab;
     // Slot-contributed title-row add-ons (e.g. the i18n plugin's locale chip),
     // rendered beside the heading with the surrounding editor's context.
     const slotContext = useEntrySlotContext();
@@ -457,7 +472,7 @@ export function EntryEditor({
 
     // Contributed editor tabs (e.g. media-admin's Media tab), applicable to this
     // type, ordered. Rendered between the built-in Relations and History tabs.
-    const tabItems = useMemo(
+    const contributedTabs = useMemo(
         () =>
             ENTRY_TAB_SLOT.getItems()
                 .filter((item) => item.appliesTo(schema))
@@ -481,9 +496,17 @@ export function EntryEditor({
                 .sort((a, b) => a.order - b.order),
         [schema]
     );
+    // A foreign record gets none: a contributed tab reads and writes this
+    // workspace's view of the record (its media, its audiences), which a shared
+    // record doesn't have here.
+    const tabItems = foreign ? [] : contributedTabs;
     // The saved entry's media fields resolved to refs (thumbnails/names), for
     // any media tab. One request per entry open; disabled in create mode.
-    const mediaQuery = useEntryMedia(schema.name, entryId, !!entryId);
+    const mediaQuery = useEntryMedia(
+        schema.name,
+        entryId,
+        !!entryId && !foreign
+    );
     const mediaRefs = mediaQuery.data ?? {};
     // Only *pending* counts as "wait": a failed read must resolve to "nothing
     // here" so a contributed tab falls back instead of waiting forever.
@@ -935,21 +958,26 @@ export function EntryEditor({
                 this React tree: they read the editor's handlers and busy state,
                 the entry slot context, and the open workspace, none of which
                 exist at the shell's position. */}
-                    <PageActionsPortal>
-                        <EntryActions
-                            entry={entry}
-                            publishable={publishable}
-                            paranoid={schema.paranoid ?? false}
-                            isCreate={isCreate}
-                            saving={saving}
-                            mutating={mutating}
-                            dirty={willWriteVersion}
-                            onSaveDraft={() => save(false)}
-                            onPublish={(options) => save(true, options)}
-                            onUnpublish={onUnpublish}
-                            onDelete={onDelete}
-                        />
-                    </PageActionsPortal>
+                    {/* A foreign record has no actions at all — not even the
+                        menu: every write route refuses its id, and a bar of
+                        buttons that can only fail is worse than none. */}
+                    {foreign ? null : (
+                        <PageActionsPortal>
+                            <EntryActions
+                                entry={entry}
+                                publishable={publishable}
+                                paranoid={schema.paranoid ?? false}
+                                isCreate={isCreate}
+                                saving={saving}
+                                mutating={mutating}
+                                dirty={willWriteVersion}
+                                onSaveDraft={() => save(false)}
+                                onPublish={(options) => save(true, options)}
+                                onUnpublish={onUnpublish}
+                                onDelete={onDelete}
+                            />
+                        </PageActionsPortal>
+                    )}
 
                     <RightPanelPortal
                         title={intl.formatMessage(messages.propertiesPanel)}
@@ -959,6 +987,7 @@ export function EntryEditor({
                             publishable={publishable}
                             isCreate={isCreate}
                             gate={gate}
+                            foreign={foreign}
                         />
                     </RightPanelPortal>
 
@@ -1016,7 +1045,13 @@ export function EntryEditor({
                                     // truthy — so a record with no
                                     // contributions has to hand it `undefined`
                                     // rather than `[]`.
-                                    slotContext && headerItems.length > 0
+                                    slotContext &&
+                                    headerItems.length > 0 &&
+                                    // A contributed header control can act
+                                    // on the record (i18n's locale menu
+                                    // creates a translation) — none of which
+                                    // a shared record can take from here.
+                                    !foreign
                                         ? headerItems.map((item) => (
                                               <item.Component
                                                   key={item.id}
@@ -1027,7 +1062,15 @@ export function EntryEditor({
                                 }
                             />
 
-                            {readOnly ? <ReadOnlyNotice /> : null}
+                            {foreign && entry?.source ? (
+                                <SharedEntryNotice
+                                    source={entry.source}
+                                    typeName={schema.name}
+                                    entryId={entry.id}
+                                />
+                            ) : readOnly ? (
+                                <ReadOnlyNotice />
+                            ) : null}
 
                             {/* The record changed underneath this form and the
                                 incoming values were refused rather than seeded
@@ -1052,7 +1095,7 @@ export function EntryEditor({
                             ) : (
                                 <div className="min-w-0">
                                     <Tabs
-                                        value={tab}
+                                        value={shownTab}
                                         onValueChange={onTabChange}
                                     >
                                         <TabsList className="mb-4">
@@ -1095,13 +1138,15 @@ export function EntryEditor({
                                                     />
                                                 </TabsTrigger>
                                             ))}
-                                            <TabsTrigger
-                                                value={ENTRY_TAB.History}
-                                            >
-                                                {intl.formatMessage(
-                                                    messages.tabHistory
-                                                )}
-                                            </TabsTrigger>
+                                            {foreign ? null : (
+                                                <TabsTrigger
+                                                    value={ENTRY_TAB.History}
+                                                >
+                                                    {intl.formatMessage(
+                                                        messages.tabHistory
+                                                    )}
+                                                </TabsTrigger>
+                                            )}
                                         </TabsList>
 
                                         <TabsContent value={ENTRY_TAB.General}>
@@ -1274,13 +1319,17 @@ export function EntryEditor({
                                               ))
                                             : null}
 
-                                        <TabsContent value={ENTRY_TAB.History}>
-                                            <HistoryTimeline
-                                                typeName={schema.name}
-                                                entryId={entry?.id}
-                                                schema={schema}
-                                            />
-                                        </TabsContent>
+                                        {foreign ? null : (
+                                            <TabsContent
+                                                value={ENTRY_TAB.History}
+                                            >
+                                                <HistoryTimeline
+                                                    typeName={schema.name}
+                                                    entryId={entry?.id}
+                                                    schema={schema}
+                                                />
+                                            </TabsContent>
+                                        )}
                                     </Tabs>
                                 </div>
                             )}

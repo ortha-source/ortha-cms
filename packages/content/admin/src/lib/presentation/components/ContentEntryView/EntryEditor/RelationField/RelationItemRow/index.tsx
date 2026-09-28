@@ -2,8 +2,12 @@ import type { CSSProperties, ReactNode, Ref } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { ChevronDown, ChevronUp, ExternalLink, X } from 'lucide-react';
 import { Badge, Button, buttonVariants, cn } from '@orthacms/design-system';
-import type { EntryStatus } from '../../../../../../domain/types/contentType';
+import type {
+    EntrySource,
+    EntryStatus
+} from '../../../../../../domain/types/contentType';
 import { ENTRY_STATUS } from '../../../../../../domain/constants';
+import { SharedSourceBadge } from '../../../../SharedSourceBadge';
 
 /** Co-located labels for the row's status badge and the Replace control. */
 const messages = defineMessages({
@@ -44,6 +48,13 @@ export type RelationItemRowProps = {
     handle?: string;
     /** Publish status of the linked record — renders a badge when present. */
     status?: EntryStatus;
+    /**
+     * The shared workspace the linked record lives in — renders a
+     * "Shared · {workspace}" badge. `null`/absent for the open workspace's own.
+     * The row's open link still points into the **open** workspace, which
+     * shows a shared record read-only.
+     */
+    source?: EntrySource | null;
     /** Leading visual: an initials avatar (single) or an index chip (many). */
     leading?: ReactNode;
     onRemove: () => void;
@@ -86,6 +97,7 @@ export function RelationItemRow({
     title,
     handle,
     status,
+    source,
     leading,
     onRemove,
     removeLabel,
@@ -129,6 +141,7 @@ export function RelationItemRow({
                     </span>
                 ) : null}
             </div>
+            <SharedSourceBadge source={source} />
             {status ? (
                 <Badge
                     variant={

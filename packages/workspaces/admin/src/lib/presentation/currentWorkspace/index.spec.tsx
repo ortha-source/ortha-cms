@@ -18,7 +18,8 @@ const workspace: Workspace = {
     color: 'violet',
     status: 'Active',
     members: [],
-    content: []
+    content: [],
+    isShared: false
 };
 
 /**

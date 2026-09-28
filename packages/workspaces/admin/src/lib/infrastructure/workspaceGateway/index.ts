@@ -19,6 +19,11 @@ export type UpdateWorkspaceInput = {
     description?: string;
     /** New accent color. */
     color?: AvatarColor;
+    /**
+     * Share (or stop sharing) the workspace's published records with every
+     * workspace granted the same content type.
+     */
+    isShared?: boolean;
 };
 
 /** The target lifecycle status for a workspace. */

@@ -16,12 +16,14 @@ const messages = defineMessages({
     created: { id: 'content.sidebar.created', defaultMessage: 'Created' },
     updated: { id: 'content.sidebar.updated', defaultMessage: 'Last updated' },
     entryId: { id: 'content.sidebar.entryId', defaultMessage: 'Entry ID' },
+    source: { id: 'content.sidebar.source', defaultMessage: 'Source' },
     empty: { id: 'content.sidebar.empty', defaultMessage: '—' }
 });
 
 /**
  * The static **Details** section of the entry editor's right rail: the entry's
- * publish status (the shared {@link EntryStatusBadge}), created / last-updated
+ * publish status (the shared {@link EntryStatusBadge}), the source workspace
+ * of a record read from a shared workspace, created / last-updated
  * timestamps, its id, and then any `ENTRY_DETAILS_ROW_SLOT` row a plugin
  * contributes (the i18n plugin's translation-group id).
  *
@@ -71,6 +73,16 @@ export function DetailsBlock({
                         label={intl.formatMessage(messages.status)}
                     >
                         <EntryStatusBadge entry={entry} isCreate={isCreate} />
+                    </EntrySidebarRow>
+                ) : null}
+                {/* Only a record from another (shared) workspace says where
+                    it lives — for the open workspace's own, "here" is not
+                    information. */}
+                {entry?.source ? (
+                    <EntrySidebarRow
+                        label={intl.formatMessage(messages.source)}
+                    >
+                        {entry.source.workspaceName}
                     </EntrySidebarRow>
                 ) : null}
                 <EntrySidebarRow label={intl.formatMessage(messages.created)}>

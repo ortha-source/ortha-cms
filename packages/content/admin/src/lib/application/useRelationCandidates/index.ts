@@ -4,7 +4,11 @@ import {
     type FilterGroup
 } from '@orthacms/query-builder-admin';
 import { useCurrentWorkspace } from '@orthacms/workspaces-admin';
-import type { ContentField } from '../../domain/types/contentType';
+import type {
+    ContentField,
+    EntrySource,
+    EntrySourceScope
+} from '../../domain/types/contentType';
 import { relationLabel } from '../../domain/relationLabel';
 import { relationCandidatesKey } from '../../infrastructure/contentKeys';
 import { httpContentGateway } from '../../infrastructure/httpContentGateway';
@@ -24,6 +28,11 @@ export type RelationCandidate = {
     status?: 'draft' | 'published';
     /** The record's field values, keyed by field name. */
     values: Record<string, unknown>;
+    /**
+     * The shared workspace the record lives in, or `null` for the open
+     * workspace's own — what the row's "Shared · {workspace}" badge reads.
+     */
+    source: EntrySource | null;
 };
 
 /** Params narrowing the candidate list — the picker's search + query builder. */
@@ -37,6 +46,11 @@ export type RelationCandidatesParams = {
      * slot), forwarded to the request verbatim and keyed into the cache.
      */
     extra?: Record<string, string>;
+    /**
+     * Which workspaces' records to offer (`?source=`). Omitted, the request
+     * carries no `source` and the server lists the open workspace's own.
+     */
+    source?: EntrySourceScope;
 };
 
 /** The paginated candidate envelope: the loaded matches, the full count, more-flag. */
@@ -78,7 +92,7 @@ export function useRelationCandidates(
     params: RelationCandidatesParams,
     enabled = true
 ): RelationCandidatesResult {
-    const { search = '', filter = null, extra = {} } = params;
+    const { search = '', filter = null, extra = {}, source } = params;
     const workspace = useCurrentWorkspace();
     // Serialize the query-builder tree to the `?filter=` wire JSON the server
     // parses (null when the tree has no complete rules).
@@ -88,7 +102,8 @@ export function useRelationCandidates(
         queryKey: relationCandidatesKey(workspace.id, targetName, {
             search,
             filter: filterJson,
-            ...(Object.keys(extra).length ? { extra } : {})
+            ...(Object.keys(extra).length ? { extra } : {}),
+            ...(source ? { source } : {})
         }),
         enabled: enabled && !!targetName,
         placeholderData: keepPreviousData,
@@ -98,7 +113,8 @@ export function useRelationCandidates(
                 search,
                 filter: filterJson,
                 page: pageParam,
-                extra
+                extra,
+                ...(source ? { source } : {})
             }),
         // Another page exists while fewer rows are loaded than the total match
         // count; the next page is the following offset.
@@ -113,7 +129,8 @@ export function useRelationCandidates(
         id: record.id,
         title: relationLabel(record.values, schemaFields, record.id),
         status: record.status,
-        values: record.values
+        values: record.values,
+        source: record.source ?? null
     }));
     const total = query.data?.pages[0]?.total ?? 0;
 

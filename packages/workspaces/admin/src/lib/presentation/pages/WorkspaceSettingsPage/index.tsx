@@ -8,6 +8,7 @@ import { useDocumentTitle } from '@orthacms/utils-admin';
 import { WorkspaceSettingsTopBar } from '../../components/WorkspaceSettingsTopBar';
 import { useRedirectNotice } from '../../hooks/useRedirectNotice';
 import { WorkspaceGeneralSettings } from '../../components/WorkspaceGeneralSettings';
+import { WorkspaceSharingSettings } from '../../components/WorkspaceSharingSettings';
 import { WorkspaceMembersSettings } from '../../components/WorkspaceMembersSettings';
 import { WorkspaceContentSettings } from '../../components/WorkspaceContentSettings';
 import { WorkspaceDangerSettings } from '../../components/WorkspaceDangerSettings';
@@ -108,16 +109,27 @@ export function WorkspaceSettingsPage() {
                             <Route
                                 path="general"
                                 element={
-                                    <WorkspaceGeneralSettings
-                                        // Re-key on the editable fields so an
-                                        // external change (e.g. another admin's edit
-                                        // arriving via a list refetch) re-baselines
-                                        // the form + color state instead of leaving
-                                        // stale values a Save would overwrite.
-                                        key={`${workspace.id}:${workspace.name}:${workspace.description}:${workspace.color}`}
-                                        workspace={workspace}
-                                        canUpdate={canUpdate}
-                                    />
+                                    <div className="flex flex-col gap-6">
+                                        <WorkspaceGeneralSettings
+                                            // Re-key on the editable fields so an
+                                            // external change (e.g. another admin's edit
+                                            // arriving via a list refetch) re-baselines
+                                            // the form + color state instead of leaving
+                                            // stale values a Save would overwrite.
+                                            key={`${workspace.id}:${workspace.name}:${workspace.description}:${workspace.color}`}
+                                            workspace={workspace}
+                                            canUpdate={canUpdate}
+                                        />
+                                        {/* A sibling, not part of the form
+                                            above: the switch applies on its
+                                            own, and sits outside that key so
+                                            a profile save doesn't remount it
+                                            mid-toggle. */}
+                                        <WorkspaceSharingSettings
+                                            workspace={workspace}
+                                            canUpdate={canUpdate}
+                                        />
+                                    </div>
                                 }
                             />
                             <Route

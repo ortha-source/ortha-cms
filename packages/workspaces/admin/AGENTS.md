@@ -175,6 +175,25 @@ exist", mirroring the API's flat 403.
     - **An empty slot changes nothing**, and `WorkspaceSettingsTabs`' spec pins
       it — that is the state the seam spends almost all of its life in, and
       nothing else would record that the default was a decision.
+- **Sharing** (`components/WorkspaceSharingSettings`, mounted by the page on the
+  General route as a **sibling** of `WorkspaceGeneralSettings` — outside that
+  component's re-key, so a profile save can't remount it mid-toggle). One
+  "Shared workspace" switch: a shared workspace's **published** records can be
+  linked from (and viewed read-only in) any workspace granted the same content
+  type. The switch applies on its own — no Save — through
+  `useSetWorkspaceSharing`, which PATCHes `{ isShared }` **alone** and writes the
+  returned workspace into the `workspacesKey` list (`setQueryData`, falling
+  back to invalidating that one key when nothing is cached) rather than
+  refetching the list for one boolean. Turning it **off** confirms first
+  (`ConfirmDialog`, focus put back on the switch by `onCloseAutoFocus`, since
+  Radix's own restore lands on `<body>` when the dialog opens from a change
+  handler); on is additive and applies directly. Disabled while pending and
+  without `workspaces:update`. `Workspace.isShared` is mapped `?? false`, so an
+  older server reads as not shared. The sidebar reads it back: the switcher's
+  sub-line says **Shared workspace** (and its `aria-label` says so too), the
+  popover rows carry a **Shared** badge — and `WorkspaceShell`'s
+  `useSidebarContent` deps name `isShared`, or the switcher would keep the old
+  label for the session. Pinned by `apps/admin-e2e/src/workspaces/sharing.spec.ts`.
 - Each area owns its mutation hook under `lib/application/` — `useUpdateWorkspace`,
   `useSetWorkspaceStatus`, `useDeleteWorkspace`, `useAddWorkspaceMember` /
   `useRemoveWorkspaceMember`, `useAddWorkspaceContent` /

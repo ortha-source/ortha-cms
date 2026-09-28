@@ -9,6 +9,7 @@ import type {
     EntryMedia,
     EntryRecord,
     EntryRelations,
+    EntryUsage,
     FilterFieldsResponse,
     MediaRef,
     RelationFieldView,
@@ -17,7 +18,12 @@ import type {
     WireFilterField
 } from '../../domain/types/contentType';
 import type { ContentEntriesParams } from '../contentKeys';
-import { toContentType } from '../contentMapper';
+import {
+    toContentType,
+    toEntryRecord,
+    toEntryUsage,
+    toRelationFieldView
+} from '../contentMapper';
 import type {
     ContentEntriesResult,
     ContentGateway,
@@ -117,7 +123,7 @@ export const httpContentGateway: ContentGateway = {
                     }
                 }
             );
-            return data;
+            return { ...data, items: data.items.map(toEntryRecord) };
         } catch (error) {
             throw toApiError(error);
         }
@@ -128,7 +134,7 @@ export const httpContentGateway: ContentGateway = {
             const { data } = await apiClient.get<EntryRecord>(
                 `/content/${name}/${id}`
             );
-            return data;
+            return toEntryRecord(data);
         } catch (error) {
             throw toApiError(error);
         }
@@ -142,7 +148,12 @@ export const httpContentGateway: ContentGateway = {
             const { data } = await apiClient.get<EntryRelations>(
                 `/content/${name}/${id}/relations`
             );
-            return data.relations;
+            return Object.fromEntries(
+                Object.entries(data.relations).map(([field, view]) => [
+                    field,
+                    toRelationFieldView(view)
+                ])
+            );
         } catch (error) {
             throw toApiError(error);
         }
@@ -173,7 +184,18 @@ export const httpContentGateway: ContentGateway = {
                 `/content/${name}/${id}/relations/${field}`,
                 { params: { page, pageSize: RELATION_LINKS_PAGE_SIZE } }
             );
-            return data;
+            return toRelationFieldView(data);
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async getEntryUsages(name: string, id: string): Promise<EntryUsage[]> {
+        try {
+            const { data } = await apiClient.get<{ items: EntryUsage[] }>(
+                `/content/${name}/${id}/usages`
+            );
+            return data.items.map(toEntryUsage);
         } catch (error) {
             throw toApiError(error);
         }
@@ -181,7 +203,7 @@ export const httpContentGateway: ContentGateway = {
 
     async listRelationCandidates(
         targetName: string,
-        { search, filter, page, extra }: RelationCandidatesPageParams
+        { search, filter, page, extra, source }: RelationCandidatesPageParams
     ): Promise<RelationCandidatesPage> {
         try {
             const { data } = await apiClient.get<RelationCandidatesPage>(
@@ -191,6 +213,7 @@ export const httpContentGateway: ContentGateway = {
                         ...extra,
                         ...(search ? { search } : {}),
                         ...(filter ? { filter } : {}),
+                        ...(source ? { source } : {}),
                         page,
                         // Never exceed the server's hard cap — an over-cap
                         // pageSize is a 400, not a clamp.
@@ -201,7 +224,7 @@ export const httpContentGateway: ContentGateway = {
                     }
                 }
             );
-            return data;
+            return { ...data, items: data.items.map(toEntryRecord) };
         } catch (error) {
             throw toApiError(error);
         }

@@ -128,7 +128,8 @@ export function RelationField({
                 id: linkedId,
                 title: candidate.title,
                 ...(slug ? { slug } : {}),
-                ...(candidate.status ? { status: candidate.status } : {})
+                ...(candidate.status ? { status: candidate.status } : {}),
+                source: candidate.source
             };
         }
         const ref = refsById.get(linkedId);
@@ -139,7 +140,8 @@ export function RelationField({
                 id: linkedId,
                 title: relationLabel(resolved.values, targetFields, linkedId),
                 ...(slug ? { slug } : {}),
-                ...(resolved.status ? { status: resolved.status } : {})
+                ...(resolved.status ? { status: resolved.status } : {}),
+                source: resolved.source ?? null
             };
         }
         return { id: linkedId, title: linkedId };
@@ -183,6 +185,7 @@ export function RelationField({
                     title={detail.title}
                     handle={handleFor(detail.title, detail.slug)}
                     status={detail.status}
+                    source={detail.source}
                     leading={
                         <Avatar className="size-8 shrink-0">
                             <AvatarFallback className="text-xs">

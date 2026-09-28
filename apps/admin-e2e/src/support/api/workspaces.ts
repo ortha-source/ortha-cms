@@ -18,6 +18,12 @@ export interface WorkspaceView {
     members: WorkspaceMemberView[];
     /** Granted content-type slugs; the Content Library scopes itself to these. */
     content?: string[];
+    /**
+     * Whether the workspace is **shared** — its published records linkable from
+     * other workspaces granted the same type. Absent reads as not shared, which
+     * is also what a server predating the flag sends.
+     */
+    isShared?: boolean;
 }
 
 const member = (
@@ -428,6 +434,14 @@ export interface WorkspaceSettingsApiOptions {
      * never succeed, so the client has to say why rather than invite a retry.
      */
     memberRemoveStatus?: number;
+    /**
+     * Hold `PATCH /:id` open this long before answering, so a test can observe
+     * a control's in-flight state (the sharing switch disables while its write
+     * is pending).
+     */
+    patchDelayMs?: number;
+    /** Answer `PATCH /:id` with this status instead of applying it. */
+    patchStatus?: number;
 }
 
 /**
@@ -453,7 +467,9 @@ export async function mockWorkspaceSettingsApi(
         workspaceEntryCount = {},
         entryCountDelayMs,
         entryCountStatus,
-        memberRemoveStatus
+        memberRemoveStatus,
+        patchDelayMs,
+        patchStatus
     }: WorkspaceSettingsApiOptions = {}
 ): Promise<void> {
     const store = initial.map((w) => ({
@@ -601,6 +617,14 @@ export async function mockWorkspaceSettingsApi(
         const request = route.request();
         const id = segments(request.url())[3];
         if (request.method() === 'PATCH') {
+            if (patchDelayMs) {
+                await new Promise((resolve) =>
+                    setTimeout(resolve, patchDelayMs)
+                );
+            }
+            if (patchStatus) {
+                return route.fulfill(jsonError(patchStatus, 'Update refused'));
+            }
             const workspace = find(id);
             if (!workspace) return route.fulfill(jsonError(404, 'Not found'));
             Object.assign(
@@ -647,4 +671,27 @@ export async function mockWorkspaceSettingsApi(
             })
         );
     });
+}
+
+/** The bodies of every `PATCH /api/workspaces/:id` the page sent. */
+export interface WorkspacePatchSpy {
+    /** Each captured body, in send order. */
+    readonly bodies: Record<string, unknown>[];
+}
+
+/**
+ * Record every workspace `PATCH` body without answering it — a listener, not a
+ * route, so whichever mock is registered still owns the response. For asserting
+ * *what* a control wrote (the sharing switch sends `isShared` and nothing else)
+ * and that a cancelled confirmation wrote nothing at all.
+ */
+export function spyWorkspacePatches(page: Page): WorkspacePatchSpy {
+    const bodies: Record<string, unknown>[] = [];
+    page.on('request', (request) => {
+        if (request.method() !== 'PATCH') return;
+        if (!/\/api\/workspaces\/[^/?]+$/.test(new URL(request.url()).pathname))
+            return;
+        bodies.push((request.postDataJSON() ?? {}) as Record<string, unknown>);
+    });
+    return { bodies };
 }

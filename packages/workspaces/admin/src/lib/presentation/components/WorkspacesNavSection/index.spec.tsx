@@ -69,6 +69,7 @@ function workspace(overrides: Partial<Workspace> = {}): Workspace {
         status: 'Active',
         members: [],
         content: [],
+        isShared: false,
         ...overrides
     };
 }

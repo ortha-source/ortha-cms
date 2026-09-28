@@ -5,6 +5,8 @@ import type {
     ContentType,
     ContentTypeDetail,
     EntryRecord,
+    EntrySourceScope,
+    EntryUsage,
     MediaRef,
     RelationDelta,
     RelationFieldView,
@@ -39,6 +41,11 @@ export type RelationCandidatesPageParams = {
     page: number;
     /** Slot-contributed list params (e.g. locale scoping), forwarded verbatim. */
     extra: Record<string, string>;
+    /**
+     * Which workspaces' records to offer — the picker's Source select, sent as
+     * `?source=`. Omitted, the server lists the open workspace's own.
+     */
+    source?: EntrySourceScope;
 };
 
 /** What a save submits: the field values, staged relation deltas, and the id. */
@@ -120,6 +127,12 @@ export type ContentGateway = {
         field: string,
         page: number
     ): Promise<RelationFieldView>;
+    /**
+     * Lists the other workspaces linking to one entry via
+     * `GET /content/:name/:id/usages` — one row per workspace with its link
+     * count. Only meaningful for a record of a shared workspace.
+     */
+    getEntryUsages(name: string, id: string): Promise<EntryUsage[]>;
     /** Loads one candidate page of a relation's target type via `GET /content/:type`. */
     listRelationCandidates(
         targetName: string,

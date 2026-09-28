@@ -4,6 +4,7 @@ import { Badge, Checkbox, buttonVariants, cn } from '@orthacms/design-system';
 import { useCurrentWorkspace } from '@orthacms/workspaces-admin';
 import type { RelationCandidate } from '../../../../../../../../application/useRelationCandidates';
 import { contentEntryPath } from '../../../../../../../../domain/contentEntryPath';
+import { SharedSourceBadge } from '../../../../../../SharedSourceBadge';
 
 const messages = defineMessages({
     open: {
@@ -20,8 +21,10 @@ function meta(targetName: string, id: string): string {
 /**
  * One selectable candidate in the {@link RelationCandidateList}: an accessible
  * checkbox (many-relation) or radio (single) whose label is the record's title +
- * a muted meta line, plus an optional status badge. Presentational — the parent
- * owns selection state and `onPick`.
+ * a muted meta line, plus an optional status badge and — for a record of
+ * another (shared) workspace — a "Shared · {workspace}" badge. Presentational —
+ * the parent owns selection state and `onPick`. The open link targets the
+ * **open** workspace's route either way; a shared record opens read-only there.
  */
 export function RelationCandidateRow({
     candidate,
@@ -77,6 +80,7 @@ export function RelationCandidateRow({
                     {meta(targetName, candidate.id)}
                 </span>
             </span>
+            <SharedSourceBadge source={candidate.source} />
             {candidate.status ? (
                 <Badge variant="outline" className="shrink-0 capitalize">
                     {candidate.status}

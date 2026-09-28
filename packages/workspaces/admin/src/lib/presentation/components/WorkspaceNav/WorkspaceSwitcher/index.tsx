@@ -4,6 +4,7 @@ import { defineMessages, useIntl } from 'react-intl';
 import { Check, ChevronsUpDown, Plus } from 'lucide-react';
 import { useHasPermission } from '@orthacms/identity-admin';
 import {
+    Badge,
     Popover,
     PopoverContent,
     PopoverTrigger,
@@ -23,9 +24,21 @@ const messages = defineMessages({
         id: 'workspaces.switcher.trigger',
         defaultMessage: 'Switch workspace, current: {name}'
     },
+    triggerShared: {
+        id: 'workspaces.switcher.triggerShared',
+        defaultMessage: 'Switch workspace, current: {name}, shared workspace'
+    },
     role: {
         id: 'workspaces.switcher.role',
         defaultMessage: 'Workspace'
+    },
+    roleShared: {
+        id: 'workspaces.switcher.roleShared',
+        defaultMessage: 'Shared workspace'
+    },
+    sharedBadge: {
+        id: 'workspaces.switcher.sharedBadge',
+        defaultMessage: 'Shared'
     },
     currentWorkspace: {
         id: 'workspaces.switcher.currentWorkspace',
@@ -55,8 +68,9 @@ type WorkspaceSwitcherProps = {
 
 /**
  * The workspace sidebar's header control: a full-width row showing the current
- * workspace (avatar + name + "Workspace" label) that opens a popover listing
- * every workspace to jump to, plus a "New workspace" action. Switching
+ * workspace (avatar + name + a "Workspace" / "Shared workspace" label) that
+ * opens a popover listing every workspace to jump to — a shared one marked
+ * with a "Shared" badge — plus a "New workspace" action. Switching
  * navigates to the target's base, which redirects to its first section.
  */
 export function WorkspaceSwitcher({
@@ -81,9 +95,15 @@ export function WorkspaceSwitcher({
                     <PopoverTrigger asChild>
                         <SidebarMenuButton
                             size="lg"
-                            aria-label={intl.formatMessage(messages.trigger, {
-                                name: current.name
-                            })}
+                            // The visible "Shared workspace" line is not
+                            // part of this `aria-label`, so the name says it
+                            // too — otherwise only sighted users learn it.
+                            aria-label={intl.formatMessage(
+                                current.isShared
+                                    ? messages.triggerShared
+                                    : messages.trigger,
+                                { name: current.name }
+                            )}
                         >
                             <WorkspaceAvatar
                                 initials={initialsOf(current.name)}
@@ -95,7 +115,11 @@ export function WorkspaceSwitcher({
                                     {current.name}
                                 </span>
                                 <span className="truncate text-xs text-sidebar-foreground/70">
-                                    {intl.formatMessage(messages.role)}
+                                    {intl.formatMessage(
+                                        current.isShared
+                                            ? messages.roleShared
+                                            : messages.role
+                                    )}
                                 </span>
                             </span>
                             <ChevronsUpDown className="ml-auto" aria-hidden />
@@ -191,6 +215,16 @@ export function WorkspaceSwitcher({
                                                 )}
                                             </span>
                                         </span>
+                                        {workspace.isShared ? (
+                                            <Badge
+                                                variant="info"
+                                                className="shrink-0 px-1.5 py-0 text-[11px]"
+                                            >
+                                                {intl.formatMessage(
+                                                    messages.sharedBadge
+                                                )}
+                                            </Badge>
+                                        ) : null}
                                         {isCurrent ? (
                                             <>
                                                 <Check

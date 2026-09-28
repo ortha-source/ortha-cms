@@ -145,5 +145,15 @@ export const relationCandidatesKey = (
         search: string;
         filter: string | null;
         extra?: Record<string, string>;
+        /** The picker's Source scope (`own` / `shared` / `all`). */
+        source?: string;
     }
 ) => ['relation-candidates', workspaceId, targetName, params] as const;
+
+/**
+ * One entry's inbound links from other workspaces (`GET …/:id/usages`),
+ * workspace-scoped. Its own root: nothing this admin writes changes another
+ * workspace's links, so no entry write has a reason to invalidate it.
+ */
+export const entryUsagesKey = (workspaceId: string, name: string, id: string) =>
+    ['content-entry-usages', workspaceId, name, id] as const;
