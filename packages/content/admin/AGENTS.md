@@ -234,7 +234,15 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   and two fields sharing an `admin.row` key share a line — `domain/fieldLayout`
   decides, `FieldStack` renders. Two sizes, not a width per type: per-type
   widths gave nearly every line its own right edge. A row is **declared, never
-  inferred**: auto-pairing would sit unrelated fields side by side — **media fields are
+  inferred**: auto-pairing would sit unrelated fields side by side. A type that
+  declares **form sections** (`groups`, joined by `admin.group`) is laid out by
+  them instead of Translated / Shared: ungrouped fields on top, then one
+  collapsible `FieldSection` per group in declaration order. A folded section
+  must not hide a problem — its header counts the fields still blocking publish
+  (from `form.errors`, the rail gate's own set) and the changed ones, and it opens
+  itself whenever a save/publish is refused while it shows an error
+  (`EntryFormState.refusals`). The fold is remembered per type in `localStorage`
+  (`useSectionOpen`), since tabs are routes and remount the form — **media fields are
   excluded from General**, rendering on
   the Media tab instead; **Relations** = relation fields via the **`RelationField`**
   picker (empty state otherwise); **`ENTRY_TAB_SLOT` tabs** — contributed editor

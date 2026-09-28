@@ -207,6 +207,8 @@ export type {
     EntryStatus,
     ContentTypeOptions,
     EntryEnvelope,
+    FieldGroup,
+    FieldGroupOptions,
     InferEntry,
     InferValues,
     SingleOptions

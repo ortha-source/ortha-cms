@@ -73,6 +73,11 @@ export interface AdminProps {
      * and an end, an amount and its unit. Fields without it get a line each.
      */
     row?: string;
+    /**
+     * The form section this field is drawn in — a key of the type's `groups`.
+     * An unknown key fails at define time.
+     */
+    group?: string;
     /** Project-specific extras — passed through untouched. */
     [key: string]: unknown;
 }

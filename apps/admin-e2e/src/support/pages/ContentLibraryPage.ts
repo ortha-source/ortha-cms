@@ -373,6 +373,18 @@ export class ContentLibraryPage extends BasePage {
     }
 
     /**
+     * A schema-declared form section's toggle, by the section's label. The
+     * section's counts ("1 to fix before publishing", "2 fields") are inside
+     * the button and part of its name, so the match is on the leading label;
+     * `aria-expanded` on it is the section's open state.
+     */
+    formSectionToggle(label: string): Locator {
+        return this.page.getByRole('button', {
+            name: new RegExp(`^${label}\\b`)
+        });
+    }
+
+    /**
      * The rule between the General tab's translated and shared field groups.
      *
      * Anchored on a testid rather than a role because it is **decorative** by

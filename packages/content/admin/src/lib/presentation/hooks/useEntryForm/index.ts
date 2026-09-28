@@ -52,6 +52,15 @@ export type EntryFormState = {
      */
     setServerErrors: (issues: EntryValidationIssue[]) => void;
     /**
+     * How many times a save or publish has been **refused with errors** — a
+     * `submit`/`submitDraft` that found some, or a server 422 — in this editing
+     * session. Only ever grows; its value means nothing, a change means "the
+     * author just tried and was turned back". A folded form section watches it
+     * to open itself on every such attempt, not only on the first error it
+     * ever showed.
+     */
+    refusals: number;
+    /**
      * What the form is currently seeded **from** — the values it started this
      * editing session with.
      *
@@ -164,6 +173,8 @@ export function useEntryForm(
     const [edited, setEdited] = useState(false);
     // Whether an incoming seed was turned away because of that.
     const [seedRefused, setSeedRefused] = useState(false);
+    // Saves/publishes turned back with errors — see `EntryFormState.refusals`.
+    const [refusals, setRefusals] = useState(0);
 
     // What this form was last seeded from, and for which record.
     const [seed, setSeed] = useState<{
@@ -241,6 +252,7 @@ export function useEntryForm(
 
     const setServerErrors = useCallback((issues: EntryValidationIssue[]) => {
         setSubmitted(true);
+        setRefusals((count) => count + 1);
         setServerErrorState(
             issues.reduce<Record<string, string>>((map, issue) => {
                 // First message per field wins (matches the inline single-error UI).
@@ -282,7 +294,10 @@ export function useEntryForm(
     const submit = useCallback(
         (onValid: (values: Record<string, unknown>) => void) => {
             setSubmitted(true);
-            if (Object.keys(errors).length > 0) return false;
+            if (Object.keys(errors).length > 0) {
+                setRefusals((count) => count + 1);
+                return false;
+            }
             onValid(values);
             return true;
         },
@@ -292,7 +307,10 @@ export function useEntryForm(
     const submitDraft = useCallback(
         (onValid: (values: Record<string, unknown>) => void) => {
             setDraftSubmitted(true);
-            if (Object.keys(draftErrors).length > 0) return false;
+            if (Object.keys(draftErrors).length > 0) {
+                setRefusals((count) => count + 1);
+                return false;
+            }
             onValid(values);
             return true;
         },
@@ -309,6 +327,7 @@ export function useEntryForm(
         submit,
         submitDraft,
         setServerErrors,
+        refusals,
         seedValues: seededFrom,
         seedRefused,
         acceptSeed

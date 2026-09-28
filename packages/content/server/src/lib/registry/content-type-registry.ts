@@ -78,7 +78,18 @@ export interface SerializedContentTypeSummary {
 
 /** Wire shape of a content type with its full field schema. */
 export interface SerializedContentType extends SerializedContentTypeSummary {
+    /** Entry-form sections, in display order — present only when declared. */
+    groups?: SerializedFieldGroup[];
     fields: SerializedField[];
+}
+
+/** Wire shape of one entry-form section. */
+export interface SerializedFieldGroup {
+    key: string;
+    label: string;
+    description?: string;
+    /** Starts folded until the reader opens it. */
+    collapsed: boolean;
 }
 
 export class ContentTypeRegistry {
@@ -243,6 +254,9 @@ export class ContentTypeRegistry {
     private serializeType(type: AnyContentType): SerializedContentType {
         return {
             ...this.summaryOf(type),
+            ...(type.groups?.length
+                ? { groups: type.groups.map((group) => ({ ...group })) }
+                : {}),
             fields: Object.entries(type.fields).map(([fieldName, spec]) =>
                 this.serializeField(type, fieldName, spec)
             )

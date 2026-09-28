@@ -21,4 +21,6 @@ type AdminHints = {
      * carrying the same key. Read loosely — it arrives from the open bag.
      */
     row?: unknown;
+    /** The form section (a key of the type's `groups`) the field is drawn in. */
+    group?: unknown;
 };

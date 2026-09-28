@@ -36,6 +36,22 @@ export const master_collection = collection('master_collection', {
     publishable: true,
     paranoid: true,
     i18n: true,
+    // Collapsible sections of the entry form; a field joins one with
+    // `admin.group`. Fields naming none stay above every section.
+    groups: {
+        details: { label: 'Details', description: 'Contact and taxonomy.' },
+        schedule: { label: 'Schedule' },
+        metrics: {
+            label: 'Metrics & pricing',
+            description: 'Numbers the site reports.',
+            collapsed: true
+        },
+        advanced: {
+            label: 'Advanced',
+            description: 'Raw data for integrations.',
+            collapsed: true
+        }
+    },
     fields: {
         // ---- text: required + all validations + localized -----------------
         plainText: field.text({
@@ -52,7 +68,7 @@ export const master_collection = collection('master_collection', {
         // text + regex pattern + email widget
         email: field.text({
             pattern: '^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$',
-            admin: { widget: 'email' }
+            admin: { widget: 'email', group: 'details' }
         }),
         // text + slug widget (marks the type's slug field)
         slug: field.text({
@@ -62,7 +78,9 @@ export const master_collection = collection('master_collection', {
             admin: { widget: 'slug' }
         }),
         // text + color widget
-        brandColor: field.text({ admin: { widget: 'color' } }),
+        brandColor: field.text({
+            admin: { widget: 'color', group: 'details' }
+        }),
         // text + textarea widget + custom pass-through admin prop
         summary: field.text({
             localized: true,
@@ -79,34 +97,50 @@ export const master_collection = collection('master_collection', {
 
         // ---- number: float, integer, bounded ------------------------------
         // `admin.row` puts the pair on one line of the form
-        score: field.number({ min: 0, max: 100, admin: { row: 'metrics' } }),
+        score: field.number({
+            min: 0,
+            max: 100,
+            admin: { row: 'metrics', group: 'metrics' }
+        }),
         viewCount: field.number({
             integer: true,
             min: 0,
-            admin: { row: 'metrics' }
+            admin: { row: 'metrics', group: 'metrics' }
         }),
 
         // ---- money (integer minor units) ----------------------------------
-        price: field.money({ min: 0, max: 1_000_000 }),
+        price: field.money({
+            min: 0,
+            max: 1_000_000,
+            admin: { group: 'metrics' }
+        }),
 
         // ---- boolean (required ⇒ DEFAULT false) ---------------------------
-        featured: field.boolean({ required: true }),
+        featured: field.boolean({
+            required: true,
+            admin: { group: 'details' }
+        }),
 
         // ---- temporal -----------------------------------------------------
-        eventDate: field.date({ admin: { row: 'schedule' } }),
-        startsAt: field.datetime({ admin: { row: 'schedule' } }),
+        eventDate: field.date({
+            admin: { row: 'schedule', group: 'schedule' }
+        }),
+        startsAt: field.datetime({
+            admin: { row: 'schedule', group: 'schedule' }
+        }),
 
         // ---- enumerations -------------------------------------------------
         status_choice: field.select({
             options: ['alpha', 'beta', 'ga'],
-            admin: { label: 'Release channel' }
+            admin: { label: 'Release channel', group: 'details' }
         }),
         topics: field.multiselect({
-            options: ['news', 'tutorial', 'opinion', 'reference']
+            options: ['news', 'tutorial', 'opinion', 'reference'],
+            admin: { group: 'details' }
         }),
 
         // ---- json escape hatch --------------------------------------------
-        metadata: field.json(),
+        metadata: field.json({ admin: { group: 'advanced' } }),
 
         // ---- media: single/multiple, localized/shared, restricted ---------
         // localized single image (per-locale hero)

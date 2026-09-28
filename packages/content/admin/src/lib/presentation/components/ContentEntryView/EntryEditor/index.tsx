@@ -1107,6 +1107,8 @@ export function EntryEditor({
                                         <TabsContent value={ENTRY_TAB.General}>
                                             <EntryFieldSections
                                                 fields={generalFields}
+                                                groups={schema.groups}
+                                                typeName={schema.name}
                                                 form={form}
                                                 isChanged={isFieldDirty}
                                                 contentLocale={entry?.locale}

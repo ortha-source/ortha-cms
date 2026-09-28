@@ -157,8 +157,22 @@ export type MediaRef = {
  * `GET /api/content-schema/:name`. Mirrors the server's `SerializedContentType`.
  */
 export type ContentTypeDetail = ContentType & {
+    /**
+     * Collapsible sections of the entry form, in display order — present only
+     * when the type declares any. A field joins one through `admin.group`.
+     */
+    groups?: ContentFieldGroup[];
     /** The type's fields, in declaration order. */
     fields: ContentField[];
+};
+
+/** One section of the entry form. Mirrors the server's `SerializedFieldGroup`. */
+export type ContentFieldGroup = {
+    key: string;
+    label: string;
+    description?: string;
+    /** Starts folded until the reader opens it. */
+    collapsed: boolean;
 };
 
 /**

@@ -65,8 +65,32 @@ export interface ContentTypeOptions<
      * package only provides the storage shape.
      */
     i18n?: boolean;
+    /**
+     * Named, collapsible sections of the admin's entry form, in display order.
+     * A field joins one with `admin: { group: '<key>' }`; fields naming no
+     * group are drawn above every group. Presentation only — no storage.
+     */
+    groups?: Record<string, FieldGroupOptions>;
     /** The field map — keys become column names (snake_cased). */
     fields: TFields;
+}
+
+/** One section of the entry form, as declared on `collection()` / `single()`. */
+export interface FieldGroupOptions {
+    /** Section heading. */
+    label: string;
+    /** One line under the heading saying what the section holds. */
+    description?: string;
+    /** Start folded. The editor remembers each reader's own choice after. */
+    collapsed?: boolean;
+}
+
+/** A normalized form section: its key plus its options. */
+export interface FieldGroup {
+    readonly key: string;
+    readonly label: string;
+    readonly description?: string;
+    readonly collapsed: boolean;
 }
 
 /** Extra options for `single()` (pages). */
@@ -97,6 +121,8 @@ export interface ContentType<
     readonly paranoid: boolean;
     /** Row-per-locale via `locale` + `locale_group_id` envelope columns. */
     readonly i18n: boolean;
+    /** Entry-form sections, in display order; absent or empty when none. */
+    readonly groups?: readonly FieldGroup[];
     readonly fields: TFields;
     /** The generated Postgres table (`content_<name>`). */
     readonly table: PgTable;

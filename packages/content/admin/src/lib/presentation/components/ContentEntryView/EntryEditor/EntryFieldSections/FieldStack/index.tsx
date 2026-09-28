@@ -29,12 +29,20 @@ const GRID_LINE = 'grid grid-cols-1 items-start gap-5 @lg:grid-cols-2';
 export function FieldStack({
     fields,
     form,
-    isChanged
+    isChanged,
+    localizedLang
 }: {
     /** The fields, already in display order. */
     fields: ContentField[];
     form: EntryFormState;
     isChanged?: (name: string) => boolean;
+    /**
+     * BCP-47 tag put on each **localized** field's cell — for a stack that
+     * mixes localized and shared fields (a schema-declared section), where no
+     * wrapper can claim one language for the whole run. A shared field gets
+     * none: it holds one value for every locale.
+     */
+    localizedLang?: string;
 }) {
     const renderField = (field: ContentField) => (
         <div
@@ -43,6 +51,9 @@ export function FieldStack({
             // intrinsic width; `w-fit` shrinks the boolean segments to
             // themselves instead of framing an empty column.
             className={fieldWidth(field) === 'fit' ? 'w-fit' : 'min-w-0'}
+            {...(localizedLang && field.localized
+                ? { lang: localizedLang }
+                : {})}
         >
             <EntryFieldInput
                 field={field}

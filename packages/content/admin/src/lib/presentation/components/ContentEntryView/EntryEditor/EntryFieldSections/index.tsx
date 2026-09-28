@@ -1,9 +1,14 @@
 import { defineMessages, useIntl } from 'react-intl';
 import { Separator } from '@orthacms/design-system';
-import type { ContentField } from '../../../../../domain/types/contentType';
+import type {
+    ContentField,
+    ContentFieldGroup
+} from '../../../../../domain/types/contentType';
 import { CONTENT_FIELD_TYPE } from '../../../../../domain/constants';
+import { sectionFields } from '../../../../../domain/fieldSections';
 import type { EntryFormState } from '../../../../hooks/useEntryForm';
 import { FieldGroup } from './FieldGroup';
+import { FieldSection } from './FieldSection';
 import { FieldStack } from './FieldStack';
 
 const messages = defineMessages({
@@ -96,12 +101,18 @@ const rankFor = (type: string) => FIELD_RANK[type] ?? DEFAULT_RANK;
  */
 export function EntryFieldSections({
     fields,
+    groups,
+    typeName,
     form,
     isChanged,
     contentLocale,
     prefilledFromLocale
 }: {
     fields: ContentField[];
+    /** The type's declared form sections, when it has any. */
+    groups?: readonly ContentFieldGroup[];
+    /** The open content type — keys each section's remembered open state. */
+    typeName: string;
     form: EntryFormState;
     /** Whether a field has unsaved edits (drives its "Changed" badge). */
     isChanged?: (name: string) => boolean;
@@ -129,6 +140,44 @@ export function EntryFieldSections({
     );
 
     if (ordered.length === 0) return null;
+
+    // A type that declares form sections is laid out by them instead of by
+    // locale scope: the schema author's arrangement wins, and a section will
+    // usually hold translated and shared fields together ("Schedule" has a
+    // localized title and a shared date). Nothing about locale scope is lost —
+    // each localized field keeps its globe mark and its own `lang`, and saving
+    // a shared field still asks before it changes every locale.
+    const { ungrouped, sections } = sectionFields(fields, groups);
+    if (sections.length > 0) {
+        // Fields above the sections keep the tab's shape ordering; each
+        // section keeps its own declaration order (see `sectionFields`).
+        const loose = new Set(ungrouped);
+        return (
+            <div className="flex flex-col gap-6" dir="auto">
+                <RequiredLegend fields={ordered} />
+                {ungrouped.length > 0 && (
+                    <FieldStack
+                        fields={ordered.filter((field) => loose.has(field))}
+                        form={form}
+                        isChanged={isChanged}
+                        localizedLang={contentLocale}
+                    />
+                )}
+                <div className="flex flex-col gap-4">
+                    {sections.map((section) => (
+                        <FieldSection
+                            key={section.group.key}
+                            section={section}
+                            typeName={typeName}
+                            form={form}
+                            isChanged={isChanged}
+                            localizedLang={contentLocale}
+                        />
+                    ))}
+                </div>
+            </div>
+        );
+    }
 
     // On a localized type, per-locale and shared fields behave very differently
     // on save — editing a shared field changes it for *every* locale — so they
