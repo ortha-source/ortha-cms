@@ -69,7 +69,7 @@ export interface AdminProps {
     hidden?: boolean;
     /**
      * Put this field on one line of the form with every other field carrying
-     * the same key (up to three). For fields that are read together — a start
+     * the same key (up to two — the form is a two-column grid). For fields that are read together — a start
      * and an end, an amount and its unit. Fields without it get a line each.
      */
     row?: string;

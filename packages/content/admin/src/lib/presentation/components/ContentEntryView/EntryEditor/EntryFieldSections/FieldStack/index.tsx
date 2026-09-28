@@ -1,37 +1,27 @@
 import type { ContentField } from '../../../../../../domain/types/contentType';
-import {
-    fieldWidth,
-    layoutFields,
-    type FieldWidth
-} from '../../../../../../domain/fieldLayout';
+import { fieldWidth, layoutFields } from '../../../../../../domain/fieldLayout';
 import type { EntryFormState } from '../../../../../hooks/useEntryForm';
 import { EntryFieldInput } from '../../../../EntryFieldInput';
 
 /**
- * The width a field takes, on a line of its own and inside a row alike — so
- * a number reads the same size wherever it sits. The fixed widths give way
- * (`max-w-full`) on a form narrower than they are; `full` fills its line,
- * and inside a row shares it with its neighbours down to a floor of 16rem;
- * `fit` shrinks to the control, so the boolean segments stop drawing a frame
- * the width of the form around two words.
+ * One line of the form's two-column grid. Collapses to a single column when
+ * the form itself (a container query, not the viewport — the sidebar and the
+ * Properties panel decide how wide the form is) is too narrow for two.
+ * `items-start`: a cell showing a hint or an error is taller than its
+ * neighbour, and stretching the neighbour would float its control away from
+ * its own label.
  */
-const WIDTH_CLASS: Record<FieldWidth, string> = {
-    narrow: 'w-60 max-w-full',
-    medium: 'w-96 max-w-full',
-    fit: 'w-fit max-w-full',
-    full: 'min-w-64 flex-1'
-};
+const GRID_LINE = 'grid grid-cols-1 items-start gap-5 @lg:grid-cols-2';
 
 /**
- * A run of General-tab fields, one line per field — except where the schema
- * put fields on a line together with `admin.row` (see `layoutFields`).
+ * A run of General-tab fields on a two-column grid.
  *
- * Every field is drawn at the width its value needs (`fieldWidth`), so a
- * number stops looking like a paragraph. A row is a wrapping flex line: when
- * the form is too narrow for its fields side by side they drop onto the next
- * line on their own, with no breakpoint to tune — which matters because the
- * Properties panel and the sidebar, not the window, decide how wide the form
- * is.
+ * Every field takes a column or the whole line (`fieldWidth`), so the form
+ * has exactly two right edges however many field types it mixes. A field
+ * still gets a line of its own — a short one simply leaves the other column
+ * empty — unless the schema put it on a line with another through
+ * `admin.row` (see `layoutFields`): side by side means "read together", so
+ * only the schema may claim it.
  *
  * DOM order is display order either way, so tab order runs left to right
  * across a row and then down.
@@ -46,45 +36,48 @@ export function FieldStack({
     form: EntryFormState;
     isChanged?: (name: string) => boolean;
 }) {
-    const renderField = (field: ContentField, inRow = false) => {
-        const width = fieldWidth(field);
-        // A lone `full` field is simply the stack's width. `flex-1` belongs to
-        // the row's horizontal line only — in the column it would grow the
-        // field vertically instead.
-        const className =
-            width === 'full' && !inRow ? undefined : WIDTH_CLASS[width];
-        return (
-            <div key={field.name} className={className}>
-                <EntryFieldInput
-                    field={field}
-                    value={form.values[field.name]}
-                    error={form.errorFor(field.name)}
-                    changed={isChanged?.(field.name) ?? false}
-                    onChange={(value) => form.setValue(field.name, value)}
-                    onBlur={() => form.touch(field.name)}
-                />
-            </div>
-        );
-    };
+    const renderField = (field: ContentField) => (
+        <div
+            key={field.name}
+            // `min-w-0` lets a grid cell shrink below its content's
+            // intrinsic width; `w-fit` shrinks the boolean segments to
+            // themselves instead of framing an empty column.
+            className={fieldWidth(field) === 'fit' ? 'w-fit' : 'min-w-0'}
+        >
+            <EntryFieldInput
+                field={field}
+                value={form.values[field.name]}
+                error={form.errorFor(field.name)}
+                changed={isChanged?.(field.name) ?? false}
+                onChange={(value) => form.setValue(field.name, value)}
+                onBlur={() => form.touch(field.name)}
+            />
+        </div>
+    );
 
     return (
-        <div className="flex flex-col gap-5">
-            {layoutFields(fields).map((block) =>
-                block.kind === 'single' ? (
-                    renderField(block.field)
-                ) : (
-                    <div
-                        key={`row:${block.key}:${block.fields[0].name}`}
-                        // `items-start`: a cell showing a hint or an error is
-                        // taller than its neighbour, and stretching the
-                        // neighbour to match would float its control away
-                        // from its own label.
-                        className="flex flex-wrap items-start gap-5"
-                    >
-                        {block.fields.map((field) => renderField(field, true))}
+        <div className="@container flex flex-col gap-5">
+            {layoutFields(fields).map((block) => {
+                if (block.kind === 'row') {
+                    return (
+                        <div
+                            key={`row:${block.key}:${block.fields[0].name}`}
+                            className={GRID_LINE}
+                        >
+                            {block.fields.map(renderField)}
+                        </div>
+                    );
+                }
+                // A lone half field sits in the first column of an otherwise
+                // empty line, so its right edge is the grid's middle.
+                return fieldWidth(block.field) === 'half' ? (
+                    <div key={block.field.name} className={GRID_LINE}>
+                        {renderField(block.field)}
                     </div>
-                )
-            )}
+                ) : (
+                    renderField(block.field)
+                );
+            })}
         </div>
     );
 }

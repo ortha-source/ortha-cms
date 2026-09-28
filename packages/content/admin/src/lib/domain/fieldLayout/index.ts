@@ -3,43 +3,40 @@ import { CONTENT_FIELD_TYPE } from '../constants';
 import { adminProps } from '../adminProps';
 
 /**
- * How wide a field's control is drawn when it stands on a line of its own.
+ * How much of the form's two-column grid a field takes.
  *
- * - `narrow` — a short scalar whose value is a handful of characters: a
- *   number, an amount, a date, a colour.
- * - `medium` — a value longer than that but still bounded: a date with a
- *   time, a single choice, an email address.
+ * - `half` — a bounded value: a number, an amount, a date, a date with a
+ *   time, a single choice, a colour, an email address.
  * - `fit` — a control that sizes itself to its content (the boolean
- *   segments), so a full-width frame would only draw an empty box.
+ *   segments), so a frame the width of a column would only draw an empty box.
  * - `full` — prose and anything else whose length is the author's: text,
  *   rich text, JSON, multi-choice chips, relations.
  *
- * The width is an affordance, not decoration: a box as wide as a paragraph
- * tells the author a paragraph is expected.
+ * Two sizes, not one per type. Widths tuned to each value (240px for a
+ * number, 384 for an email, …) were tried and gave the form a different
+ * right edge on nearly every line; snapped to a grid there are exactly two
+ * edges, the middle and the full width, and the column still says "short
+ * answer" to the author.
  */
-export type FieldWidth = 'narrow' | 'medium' | 'fit' | 'full';
+export type FieldWidth = 'half' | 'fit' | 'full';
 
-/** Text widgets whose value is bounded, mapped to the width that fits it. */
-const TEXT_WIDGET_WIDTH: Record<string, FieldWidth> = {
-    color: 'narrow',
-    email: 'medium'
-};
+/** Text widgets whose value is bounded, so a half column holds it. */
+const HALF_TEXT_WIDGETS = new Set(['color', 'email']);
 
-/** The width a field's control takes on a line of its own. */
+/** How much of the form's grid a field takes. */
 export function fieldWidth(field: ContentField): FieldWidth {
     switch (field.type) {
         case CONTENT_FIELD_TYPE.Number:
         case CONTENT_FIELD_TYPE.Money:
         case CONTENT_FIELD_TYPE.Date:
-            return 'narrow';
         case CONTENT_FIELD_TYPE.Datetime:
         case CONTENT_FIELD_TYPE.Select:
-            return 'medium';
+            return 'half';
         case CONTENT_FIELD_TYPE.Boolean:
             return 'fit';
         case CONTENT_FIELD_TYPE.Text: {
             const widget = adminProps(field).widget;
-            return (widget && TEXT_WIDGET_WIDTH[widget]) || 'full';
+            return widget && HALF_TEXT_WIDGETS.has(widget) ? 'half' : 'full';
         }
         default:
             return 'full';
@@ -54,8 +51,12 @@ export type FieldBlock =
     | { kind: 'single'; field: ContentField }
     | { kind: 'row'; key: string; fields: ContentField[] };
 
-/** The most fields one row holds; a row past it wraps onto the next line. */
-export const MAX_ROW_FIELDS = 3;
+/**
+ * The most fields one row holds; a further member starts a line of its own.
+ * Two, because the form is a two-column grid: a row of three would add a
+ * third set of column edges that no other line shares.
+ */
+export const MAX_ROW_FIELDS = 2;
 
 /**
  * Lays the ordered fields out as lines.

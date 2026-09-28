@@ -21,11 +21,11 @@ function shape(fields: ContentField[]) {
 
 describe('fieldWidth', () => {
     it.each([
-        ['number', 'narrow'],
-        ['money', 'narrow'],
-        ['date', 'narrow'],
-        ['datetime', 'medium'],
-        ['select', 'medium'],
+        ['number', 'half'],
+        ['money', 'half'],
+        ['date', 'half'],
+        ['datetime', 'half'],
+        ['select', 'half'],
         ['boolean', 'fit'],
         ['text', 'full'],
         ['richtext', 'full'],
@@ -36,12 +36,12 @@ describe('fieldWidth', () => {
         expect(fieldWidth(field('f', type))).toBe(width);
     });
 
-    it('sizes a bounded text widget to its value', () => {
+    it('gives a bounded text widget half the form', () => {
         expect(fieldWidth(field('c', 'text', { widget: 'color' }))).toBe(
-            'narrow'
+            'half'
         );
         expect(fieldWidth(field('e', 'text', { widget: 'email' }))).toBe(
-            'medium'
+            'half'
         );
         expect(fieldWidth(field('s', 'text', { widget: 'slug' }))).toBe('full');
     });
@@ -100,9 +100,9 @@ describe('layoutFields', () => {
     });
 
     it(`caps a row at ${MAX_ROW_FIELDS} fields and starts a new line`, () => {
-        const fields = ['a', 'b', 'c', 'd'].map((name) =>
+        const fields = ['a', 'b', 'c'].map((name) =>
             field(name, 'number', { row: 'r' })
         );
-        expect(shape(fields)).toEqual([['a', 'b', 'c'], 'd']);
+        expect(shape(fields)).toEqual([['a', 'b'], 'c']);
     });
 });

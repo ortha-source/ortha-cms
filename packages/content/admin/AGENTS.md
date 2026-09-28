@@ -229,11 +229,12 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   the list endpoint, else blank — then renders **`EntryEditor`**. The editor owns the
   form state (`useEntryForm`, with client validation in `presentation/entryValidation`
   (the kernel-backed i18n ACL, not a hand-mirror of the server rules)) and lays out a title header, a **full-width**
-  tabbed body (**General** = `EntryFieldSections`, one column ordered by control
-  shape; each field drawn at the width its value needs and fields sharing an
-  `admin.row` key put on one wrapping line — `domain/fieldLayout` decides both,
-  `FieldStack` renders them. A row is **declared, never inferred**: auto-pairing
-  short fields would sit unrelated ones side by side — **media fields are
+  tabbed body (**General** = `EntryFieldSections`, ordered by control shape on a
+  **two-column grid**: a bounded field takes one column, prose the whole line,
+  and two fields sharing an `admin.row` key share a line — `domain/fieldLayout`
+  decides, `FieldStack` renders. Two sizes, not a width per type: per-type
+  widths gave nearly every line its own right edge. A row is **declared, never
+  inferred**: auto-pairing would sit unrelated fields side by side — **media fields are
   excluded from General**, rendering on
   the Media tab instead; **Relations** = relation fields via the **`RelationField`**
   picker (empty state otherwise); **`ENTRY_TAB_SLOT` tabs** — contributed editor
