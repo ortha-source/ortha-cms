@@ -669,18 +669,20 @@ describe('motion', () => {
  * disjunction ending in "or deliberately" is satisfied by every token, so an
  * assertion over the two sets passes by construction. That is a wording
  * problem, not an unobservable one. What makes it testable is naming the
- * inheritors — three families that are the same colour in both themes on
+ * inheritors — the families that are the same colour in both themes on
  * purpose — so that everything *else* must be paired, and a new unpaired token
  * has to be argued for here instead of merely appearing.
  *
- * The list is short and each family has a reason:
+ * The list is one family long, and it has a reason:
  *
- * - `--color-sidebar-*` — the panel's chrome is authored dark in both themes,
- *   so the shell keeps one identity while the content canvas flips.
- * - `--color-nav-*` — the nav-icon accents are tuned for contrast against that
- *   permanently dark chrome, so a dark-mode variant would be the same colour.
  * - `--color-avatar-*` — identity anchors. An avatar that changed hue with the
  *   theme would stop being recognisable, which is the one job it has.
+ *
+ * The sidebar chrome (`--color-sidebar-*`) and its nav-icon accents
+ * (`--color-nav-*`) used to be on the list: the chrome was near-black in both
+ * themes. It is a light gray panel in the light theme now, near-black in the
+ * dark one, so both families are paired like everything else — and this list
+ * failing on their new `.dark` overrides is how that change was noticed.
  *
  * `--radius` is excluded rather than allow-listed: it is not a palette token.
  */
@@ -693,7 +695,7 @@ describe('the admin palette', () => {
     };
 
     /** Token prefixes that are the same colour in both themes, on purpose. */
-    const INHERITED = ['--color-sidebar', '--color-nav-', '--color-avatar-'];
+    const INHERITED = ['--color-avatar-'];
 
     /** Declarations that are not colours and so are outside the rule. */
     const NOT_A_COLOUR = ['--radius'];
@@ -735,7 +737,7 @@ describe('the admin palette', () => {
     }
 
     it.each(Object.entries(PALETTES))(
-        '%s overrides every light token in .dark, bar the three inherited families [design-system:I-04]',
+        '%s overrides every light token in .dark, bar the inherited family [design-system:I-04]',
         (_name, path) => {
             const css = readFileSync(join(repoRoot, path), 'utf8');
             const light = declared(css, ['@theme', ':root']);
