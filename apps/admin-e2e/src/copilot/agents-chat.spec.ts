@@ -160,9 +160,14 @@ test.describe('Agents view — asking', () => {
         // to the dock as a live pill and keeps streaming.
         await agentsPage.switchView('CMS');
 
-        await expect(agentsPage.dockPill(/finished/)).toBeVisible({
-            timeout: 15_000
-        });
+        // The closed launcher already says a chat wants attention…
+        await expect(agentsPage.dockLauncher).toHaveAccessibleName(
+            /waiting for you or finished/,
+            { timeout: 15_000 }
+        );
+        // …and the list names which one.
+        await agentsPage.openDockList();
+        await expect(agentsPage.dockPill(/finished/)).toBeVisible();
         // …and the tab says so too, for a user who has switched to another one.
         await expect.poll(() => page.title()).toMatch(/^\(1\)/);
     });

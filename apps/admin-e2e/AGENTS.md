@@ -66,8 +66,9 @@ states.
   pass only `RunOptions`. Excluding the wrapper instead would drop the menu's
   subtree from every rule, losing the contrast and naming checks that run inside
   it. The two real findings `region` caught are pinned by name in
-  `host/host.spec.ts` (the sidebar and the copilot dock are `complementary`
-  landmarks) rather than left to the rule. `harness/axe-fixture.spec.ts` pins the
+  `host/host.spec.ts` (the sidebar is a `complementary` landmark; the copilot's
+  launcher has since moved into the top bar, inside `<main>`) rather than left to
+  the rule. `harness/axe-fixture.spec.ts` pins the
   list so it cannot quietly grow. Never exclude a rule anywhere else.
 - **`incomplete` is not a pass.** `expectNoA11yViolations` records axe's
   "could not decide" bucket as a test annotation (visible per case in the HTML

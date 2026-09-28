@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { createPortal } from 'react-dom';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { PanelLeftIcon } from 'lucide-react';
 import { Slot } from '@radix-ui/react-slot';
@@ -108,6 +109,18 @@ type SidebarContextProps = {
 };
 
 const SidebarContext = React.createContext<SidebarContextProps | null>(null);
+
+/**
+ * The host for **app-wide** controls at the right end of the inset's top-bar
+ * strip — the host element and its setter. Provided by {@link SidebarProvider},
+ * not by {@link SidebarInset}, because what fills it is usually mounted
+ * *outside* the inset (the copilot's launcher lives in the sidebar's footer
+ * slot). `null` outside a provider.
+ */
+const InsetBarEndContext = React.createContext<{
+    host: HTMLElement | null;
+    setHost: (host: HTMLElement | null) => void;
+} | null>(null);
 
 /** Reads the surrounding {@link SidebarProvider} state; throws outside one. */
 function useSidebar() {
@@ -256,33 +269,60 @@ function SidebarProvider({
         ]
     );
 
+    const [barEndHost, setBarEndHost] = React.useState<HTMLElement | null>(
+        null
+    );
+    const barEnd = React.useMemo(
+        () => ({ host: barEndHost, setHost: setBarEndHost }),
+        [barEndHost]
+    );
+
     return (
         <SidebarContext.Provider value={contextValue}>
-            <TooltipProvider delayDuration={0}>
-                <div
-                    data-slot="sidebar-wrapper"
-                    style={
-                        {
-                            '--sidebar-width': SIDEBAR_WIDTH,
-                            '--sidebar-width-icon': SIDEBAR_WIDTH_ICON,
-                            ...style
-                        } as React.CSSProperties
-                    }
-                    className={cn(
-                        // Bounded to the viewport, not `min-h-svh`: the document
-                        // itself never scrolls, so the page chrome (the sidebar,
-                        // the top bar, the right panel) stays put and only the
-                        // inset's content moves. `SidebarInset` is the scrollport.
-                        'group/sidebar-wrapper flex h-svh w-full overflow-hidden has-data-[variant=inset]:bg-sidebar',
-                        className
-                    )}
-                    {...props}
-                >
-                    {children}
-                </div>
-            </TooltipProvider>
+            <InsetBarEndContext.Provider value={barEnd}>
+                <TooltipProvider delayDuration={0}>
+                    <div
+                        data-slot="sidebar-wrapper"
+                        style={
+                            {
+                                '--sidebar-width': SIDEBAR_WIDTH,
+                                '--sidebar-width-icon': SIDEBAR_WIDTH_ICON,
+                                ...style
+                            } as React.CSSProperties
+                        }
+                        className={cn(
+                            // Bounded to the viewport, not `min-h-svh`: the document
+                            // itself never scrolls, so the page chrome (the sidebar,
+                            // the top bar, the right panel) stays put and only the
+                            // inset's content moves. `SidebarInset` is the scrollport.
+                            'group/sidebar-wrapper flex h-svh w-full overflow-hidden has-data-[variant=inset]:bg-sidebar',
+                            className
+                        )}
+                        {...props}
+                    >
+                        {children}
+                    </div>
+                </TooltipProvider>
+            </InsetBarEndContext.Provider>
         </SidebarContext.Provider>
     );
+}
+
+/**
+ * Renders its children at the **right end of the inset's top-bar strip**, on
+ * every page, whichever bar the page draws — the place for chrome that belongs
+ * to the app rather than to the page (the copilot's launcher). A portal, so the
+ * children keep their own React context; renders nothing until the inset has
+ * mounted the host, and nothing outside a {@link SidebarProvider}.
+ *
+ * It exists so such chrome never has to float over the page. The copilot's dock
+ * used to sit `fixed` in the bottom-right corner and reserve a bottom gutter in
+ * every scrollport to stay clear of the controls it would otherwise cover; a
+ * control in the bar covers nothing and needs no gutter.
+ */
+function InsetBarEnd({ children }: { children: React.ReactNode }) {
+    const host = React.useContext(InsetBarEndContext)?.host;
+    return host ? createPortal(children, host) : null;
 }
 
 /** The sidebar surface: a fixed left panel on desktop, a Sheet on mobile. */
@@ -550,6 +590,7 @@ function SidebarInset({
     scrollLabel?: string;
 }) {
     const [barHost, setBarHost] = React.useState<HTMLElement | null>(null);
+    const setBarEndHost = React.useContext(InsetBarEndContext)?.setHost;
 
     return (
         <main
@@ -561,7 +602,22 @@ function SidebarInset({
             )}
             {...props}
         >
-            <div data-slot="sidebar-inset-bar" ref={setBarHost} />
+            {/* The strip: the page's own bar (hoisted by `TopBar`) and, at its
+                right end, the app-wide controls `InsetBarEnd` portals in. The
+                end host carries the bar's height and bottom rule so the two read
+                as one band, and hides itself while nothing fills it. */}
+            <div data-slot="sidebar-inset-bar-row" className="flex min-w-0">
+                <div
+                    data-slot="sidebar-inset-bar"
+                    ref={setBarHost}
+                    className="min-w-0 flex-1"
+                />
+                <div
+                    data-slot="sidebar-inset-bar-end"
+                    ref={setBarEndHost}
+                    className="flex h-12 shrink-0 items-center gap-2 border-b bg-background pr-4 empty:hidden"
+                />
+            </div>
             <InsetTopBarContext.Provider value={barHost}>
                 {/* `tabIndex={0}` because this is the app's scroll container:
                     a region that scrolls must be reachable by keyboard (WCAG
@@ -594,13 +650,7 @@ function SidebarInset({
                     // replaced.
                     role={scrollLabel ? 'group' : undefined}
                     aria-label={scrollLabel}
-                    // The bottom gutter is reserved by whatever fixed chrome
-                    // the app floats over this scrollport — the copilot dock
-                    // sets it while it is mounted. Unset it is `0px`, which is
-                    // the layout an app without such chrome has: a scrollport
-                    // whose last row cannot be scrolled clear of a bar covering
-                    // it is a control a pointer cannot reach.
-                    className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-[var(--orthacms-fixed-bottom-gutter,0px)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset focus-visible:outline-none"
+                    className="flex min-h-0 flex-1 flex-col overflow-y-auto focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset focus-visible:outline-none"
                 >
                     {children}
                 </div>
@@ -1045,5 +1095,6 @@ export {
     SidebarTrigger,
     useSidebar,
     useOptionalSidebar,
-    useInsetTopBarHost
+    useInsetTopBarHost,
+    InsetBarEnd
 };

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useHasPermission } from '@orthacms/identity-admin';
+import { InsetBarEnd } from '@orthacms/design-system';
 import { isComposingText } from '@orthacms/utils-admin';
 import { useCopilotAvailable } from '../../application/useCopilotModels';
 import { useCopilotSessions } from '../../application/useCopilotSessions';
@@ -155,7 +156,7 @@ export function CopilotLauncher() {
     }
 
     // Nothing is rendered into the sidebar slot itself any more — only the
-    // portalled dock and its windows. The slot contribution stays because it is
+    // portalled windows and the launcher in the top bar. The slot contribution stays because it is
     // what mounts this component at all.
     return (
         <>
@@ -199,7 +200,15 @@ export function CopilotLauncher() {
                             onMinimize={() => sessions.minimize(session.id)}
                             onClose={() => {
                                 sessions.close(session.id);
-                                newChatRef.current?.focus();
+                                // Next frame, not now: closing the last chat
+                                // turns the launcher from the list's trigger
+                                // back into the start button — a different
+                                // element — so the ref must be read after
+                                // that render or focus lands on one that is
+                                // about to unmount.
+                                requestAnimationFrame(() =>
+                                    newChatRef.current?.focus()
+                                );
                             }}
                             onAdoptConversation={(conversationId, title) =>
                                 adoptConversation(
@@ -236,7 +245,17 @@ export function CopilotLauncher() {
                             }
                         />
                     ))}
-
+                </div>,
+                document.body
+            )}
+            {/* The launcher sits at the right end of the top bar, on every page
+                (`InsetBarEnd`). It is **not rendered** on the Agents view — the
+                page is the chat surface there, and a button offering to open a
+                chat over it would say the same thing twice. Unmounting it costs
+                nothing: the chats live in `copilotStore` and the sessions above
+                stay mounted (hidden), which is what keeps them reporting. */}
+            {dockStandsDown ? null : (
+                <InsetBarEnd>
                     <CopilotDock
                         sessions={sessions.dock}
                         onToggle={sessions.toggle}
@@ -244,8 +263,7 @@ export function CopilotLauncher() {
                         onNewChat={() => sessions.start()}
                         newChatRef={newChatRef}
                     />
-                </div>,
-                document.body
+                </InsetBarEnd>
             )}
         </>
     );

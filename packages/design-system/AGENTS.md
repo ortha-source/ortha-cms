@@ -38,6 +38,13 @@ hand-written):
   `<TopBar>` first in its tree and knows nothing about this. Because it's a
   portal, the bar keeps its page's React context — which is what lets the
   shell's page-actions region work from inside it.
+- **`InsetBarEnd`** portals its children to the **right end of the inset's bar strip**,
+  on every page, whichever bar the page draws — for chrome that belongs to the
+  app rather than the page (the copilot's launcher). Its host lives in
+  `SidebarProvider`'s context, not the inset's, because what fills it is usually
+  mounted outside the inset (the sidebar's footer slot). It hides while empty.
+  Nothing in the admin floats `fixed` over the page any more, so no scrollport
+  reserves a bottom gutter.
 
 ## Notes on specific components
 

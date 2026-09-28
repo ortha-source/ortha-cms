@@ -265,7 +265,8 @@ export {
     SidebarSeparator,
     SidebarTrigger,
     useSidebar,
-    useOptionalSidebar
+    useOptionalSidebar,
+    InsetBarEnd
 } from './lib/components/ui/sidebar';
 // The one breakpoint the chrome branches on (768px), so a consumer that must lay
 // out differently on a phone reads the *same* boundary the sidebar does instead

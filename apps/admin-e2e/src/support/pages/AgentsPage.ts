@@ -24,16 +24,22 @@ export class AgentsPage extends BasePage {
     readonly main: Locator;
     /** The thread column (md+). Below that the same list lives in a sheet. */
     readonly rail: Locator;
-    /** The bottom-right bar of chats the dock owns. */
+    /** The right end of the top bar, where the copilot launcher lives. */
     readonly dock: Locator;
+    /** The launcher — see `CopilotDockPage.launcher`. */
+    readonly dockLauncher: Locator;
+    /** The list of open chats the launcher opens. */
+    readonly dockList: Locator;
 
     constructor(page: Page) {
         super(page);
         this.main = page.getByRole('main');
         this.rail = page.getByRole('complementary', { name: 'Chats' });
-        // A `complementary`, not a `toolbar` or a bare `group` — see
-        // `CopilotDockPage` for both halves of why.
-        this.dock = page.getByRole('complementary', {
+        this.dock = page.locator('[data-slot="sidebar-inset-bar-end"]');
+        this.dockLauncher = this.dock.getByRole('button', {
+            name: /^Ortha CMS AI/
+        });
+        this.dockList = page.getByRole('dialog', {
             name: 'Ortha CMS AI chats'
         });
     }
@@ -679,9 +685,19 @@ export class AgentsPage extends BasePage {
 
     // --- the dock ---------------------------------------------------------
 
-    /** A chat's pill. Its name carries the marker ("— finished"). */
+    /**
+     * A chat's row in the launcher's list — open it first with
+     * {@link openDockList}. Its name carries the marker ("— finished").
+     */
     dockPill(name: string | RegExp): Locator {
-        return this.dock.getByRole('button', { name });
+        return this.dockList.getByRole('button', { name });
+    }
+
+    /** Open the launcher's chat list. */
+    async openDockList() {
+        if (await this.dockList.isVisible()) return;
+        await this.dockLauncher.click();
+        await this.dockList.waitFor();
     }
 
     // --- toasts -----------------------------------------------------------
