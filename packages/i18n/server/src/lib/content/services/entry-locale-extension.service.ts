@@ -149,7 +149,11 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
             .where(
                 and(
                     eq(s['localeGroupId'], table['localeGroupId']),
-                    eq(s['workspaceId'], workspaceId),
+                    // The row's OWN workspace, not the caller's: a list that
+                    // includes shared-workspace rows (ADR-0019) must find each
+                    // group's sibling where the group lives. For an own row the
+                    // two are the same value.
+                    eq(s['workspaceId'], table['workspaceId']),
                     eq(s['locale'], requested.slug),
                     ...(type.paranoid ? [isNull(s['deletedAt'])] : [])
                 )

@@ -46,6 +46,22 @@ import {
 } from '../http/dto/public-list-entries-query.dto';
 import type { PublicEntry, PublicEntryListView } from '../types/public-entry';
 import { toPublicEntry } from './public-entry-row';
+import { SharedSourcesQuery } from '../../entries/infrastructure/queries/shared-sources.query';
+
+/**
+ * Options for the reads a protocol adapter makes on the caller's behalf.
+ */
+export interface PublicReadOptions {
+    /**
+     * Also admit the visible entries of **shared workspaces** (ADR-0019) —
+     * published, live, the workspace active and shared, the caller granted the
+     * type. For **nested** reads only: GraphQL re-reads a linked record by id
+     * to expand its own relations, and that record may be a shared one. A
+     * top-level list or entry read never sets it, so a type's public listing
+     * stays the caller's own workspace.
+     */
+    includeShared?: boolean;
+}
 
 /** A generated content table seen as a bag of columns by property name. */
 type ContentTable = Record<string, AnyColumn>;
@@ -110,7 +126,9 @@ export class PublicEntriesQuery {
         // provided by this plugin's own module; optional so a unit test can
         // construct the query without one.
         @Optional()
-        private readonly readScopes?: ContentReadScopeRegistry
+        private readonly readScopes?: ContentReadScopeRegistry,
+        @Optional()
+        private readonly shared?: SharedSourcesQuery
     ) {}
 
     /**
@@ -121,7 +139,8 @@ export class PublicEntriesQuery {
         type: AnyContentType,
         query: PublicListEntriesQueryDto,
         workspaceId: string,
-        grantedTypes: ReadonlySet<string>
+        grantedTypes: ReadonlySet<string>,
+        options: PublicReadOptions = {}
     ): Promise<PublicEntryListView> {
         const page = query.page ?? 1;
         const pageSize = query.pageSize ?? DEFAULT_PAGE_SIZE;
@@ -140,7 +159,13 @@ export class PublicEntriesQuery {
                 : [];
         const translations = this.wantsTranslations(type, query);
         const where = and(
-            this.readableWhere(type, workspaceId, query.locale, query.status),
+            this.readableWhere(
+                type,
+                workspaceId,
+                query.locale,
+                query.status,
+                options.includeShared
+            ),
             buildSearchPredicate(type, query.search),
             await this.filterPredicate(
                 type,
@@ -412,6 +437,10 @@ export class PublicEntriesQuery {
         const table = type.table as unknown as ContentColumns;
         const columns: ContentColumns = {
             id: table['id'],
+            // Never serialized (`toPublicEntry` does not read it) — carried so
+            // a media expansion resolves a shared-workspace row's assets in its
+            // own workspace (ADR-0019).
+            workspaceId: table['workspaceId'],
             createdAt: table['createdAt'],
             updatedAt: table['updatedAt']
         };
@@ -584,7 +613,8 @@ export class PublicEntriesQuery {
         locator: EntryLocator,
         workspaceId: string,
         locale: string | undefined,
-        visibility: EntryVisibility | undefined
+        visibility: EntryVisibility | undefined,
+        includeShared = false
     ): SQL | undefined {
         const table = type.table as unknown as ContentTable;
         if ('id' in locator) {
@@ -593,7 +623,7 @@ export class PublicEntriesQuery {
             this.extension?.listScope(type, workspaceId, { locale });
             return and(
                 eq(table['id'], locator.id),
-                this.liveWhere(type, workspaceId, visibility)
+                this.liveWhere(type, workspaceId, visibility, includeShared)
             );
         }
         // A group locator is only meaningful on a localized type, and is a 400
@@ -603,7 +633,7 @@ export class PublicEntriesQuery {
         this.assertLocalized(type, 'localeGroupId');
         return and(
             eq(table['localeGroupId'], locator.localeGroupId),
-            this.liveWhere(type, workspaceId, visibility),
+            this.liveWhere(type, workspaceId, visibility, includeShared),
             this.extension?.listScope(type, workspaceId, { locale })
         );
     }
@@ -629,7 +659,8 @@ export class PublicEntriesQuery {
         workspaceId: string,
         grantedTypes: ReadonlySet<string>,
         locale?: string,
-        visibility?: EntryVisibility
+        visibility?: EntryVisibility,
+        options: PublicReadOptions = {}
     ): Promise<PublicRelationFieldView> {
         const spec = type.fields[field];
         if (
@@ -651,7 +682,8 @@ export class PublicEntriesQuery {
             locator,
             workspaceId,
             locale,
-            visibility
+            visibility,
+            options.includeShared
         );
         const view = await this.relationLinks.readField(
             type,
@@ -715,13 +747,21 @@ export class PublicEntriesQuery {
         locator: EntryLocator,
         workspaceId: string,
         locale?: string,
-        visibility?: EntryVisibility
+        visibility?: EntryVisibility,
+        includeShared = false
     ): Promise<Record<string, unknown>> {
         const [row] = await this.db
             .select()
             .from(type.table)
             .where(
-                this.entryWhere(type, locator, workspaceId, locale, visibility)
+                this.entryWhere(
+                    type,
+                    locator,
+                    workspaceId,
+                    locale,
+                    visibility,
+                    includeShared
+                )
             )
             .limit(1);
         if (!row) {
@@ -780,10 +820,11 @@ export class PublicEntriesQuery {
         type: AnyContentType,
         workspaceId: string,
         locale: string | undefined,
-        visibility: EntryVisibility = 'published'
+        visibility: EntryVisibility = 'published',
+        includeShared = false
     ): SQL | undefined {
         return and(
-            this.liveWhere(type, workspaceId, visibility),
+            this.liveWhere(type, workspaceId, visibility, includeShared),
             // No-op for types the extension doesn't apply to; for an i18n type
             // it scopes to the requested locale (rejecting an unknown one).
             this.extension?.listScope(type, workspaceId, { locale })
@@ -800,11 +841,18 @@ export class PublicEntriesQuery {
     private liveWhere(
         type: AnyContentType,
         workspaceId: string,
-        visibility: EntryVisibility = 'published'
+        visibility: EntryVisibility = 'published',
+        includeShared = false
     ): SQL | undefined {
         const table = type.table as unknown as ContentTable;
         return and(
-            eq(table['workspaceId'], workspaceId),
+            // `includeShared` (ADR-0019) admits the visible entries of shared
+            // workspaces — always published and live, whatever `visibility`
+            // asks of the caller's own rows. Only nested reads set it; a
+            // top-level public list stays own-workspace.
+            includeShared && this.shared
+                ? this.shared.visibleWhere(type, workspaceId)
+                : eq(table['workspaceId'], workspaceId),
             this.statusWhere(type, visibility),
             type.paranoid ? isNull(table['deletedAt']) : undefined,
             ...this.readScopeWhere(type, workspaceId)

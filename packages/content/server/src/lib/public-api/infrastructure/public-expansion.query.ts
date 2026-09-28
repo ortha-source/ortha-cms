@@ -13,10 +13,12 @@ import { ENTRY_STATUS, type AnyContentType } from '../../types/content-type';
 import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../../types/fields';
 import {
     InjectMediaAssetResolver,
-    type MediaAssetResolver
+    type MediaAssetResolver,
+    type ResolvedMediaAsset
 } from '../../extension/media-asset-resolver';
 import { ContentReadScopeRegistry } from '../../extension/read-scope';
 import { RelationLinkService } from '../../entries/infrastructure/persistence/relation-link.service';
+import { SharedSourcesQuery } from '../../entries/infrastructure/queries/shared-sources.query';
 import { DEFAULT_EXPANSION_LIMIT } from '../http/dto/public-list-entries-query.dto';
 import type {
     PublicMediaFieldView,
@@ -105,7 +107,12 @@ export class PublicExpansionQuery {
         // an entry is not thereby allowed to see everything it points at, and
         // an expansion that skipped this would be a way around the scope.
         @Optional()
-        private readonly readScopes?: ContentReadScopeRegistry
+        private readonly readScopes?: ContentReadScopeRegistry,
+        // Shared workspaces (ADR-0019): a linked record may live in a shared
+        // workspace, and is hydrated when it is visible there — published, not
+        // deleted, workspace active and shared, this workspace granted the type.
+        @Optional()
+        private readonly shared?: SharedSourcesQuery
     ) {}
 
     /**
@@ -313,7 +320,12 @@ export class PublicExpansionQuery {
                     .where(
                         and(
                             inArray(cols['id'], [...ids]),
-                            eq(cols['workspaceId'], workspaceId),
+                            // The same widening `previewForEntries` applied
+                            // inside its window, so every previewed link
+                            // hydrates: own rows, or visible shared ones.
+                            this.shared
+                                ? this.shared.visibleWhere(target, workspaceId)
+                                : eq(cols['workspaceId'], workspaceId),
                             target.publishable
                                 ? eq(cols['status'], ENTRY_STATUS.Published)
                                 : undefined,
@@ -361,26 +373,54 @@ export class PublicExpansionQuery {
         // `decorative` flag since `ORT-83`, and those are what a public consumer
         // needs to emit a correct `<img alt>` — the asset row's own description
         // is only the fallback.
+        //
+        // Grouped by the row's **own** workspace: an entry read from a shared
+        // workspace (ADR-0019) holds assets that live there, not in the
+        // caller's workspace, so resolving them against the caller's would
+        // find nothing. One resolver call per distinct owning workspace — a
+        // page of own rows is still exactly one.
         const idsByRowField = new Map<string, Map<string, MediaValueRef[]>>();
-        const all = new Set<string>();
+        const ownerOfRow = new Map<string, string>();
+        const idsByOwner = new Map<string, Set<string>>();
         for (const row of rows) {
             const entryId = row['id'];
             if (typeof entryId !== 'string') continue;
+            const owner =
+                typeof row['workspaceId'] === 'string'
+                    ? (row['workspaceId'] as string)
+                    : workspaceId;
+            ownerOfRow.set(entryId, owner);
             const byField = new Map<string, MediaValueRef[]>();
             for (const field of fields) {
                 const refs = mediaRefsOf(row[field]);
                 if (!refs.length) continue;
                 byField.set(field, refs);
-                for (const ref of refs) all.add(ref.id);
+                let ids = idsByOwner.get(owner);
+                if (!ids) {
+                    ids = new Set<string>();
+                    idsByOwner.set(owner, ids);
+                }
+                for (const ref of refs) ids.add(ref.id);
             }
             idsByRowField.set(entryId, byField);
         }
-        if (!all.size) {
+        if (!idsByOwner.size) {
             return out;
         }
 
-        const resolved = await this.media.resolve([...all], workspaceId);
+        const media = this.media;
+        const resolvedByOwner = new Map(
+            await Promise.all(
+                [...idsByOwner].map(
+                    async ([owner, ids]) =>
+                        [owner, await media.resolve([...ids], owner)] as const
+                )
+            )
+        );
         for (const [entryId, byField] of idsByRowField) {
+            const resolved =
+                resolvedByOwner.get(ownerOfRow.get(entryId) ?? workspaceId) ??
+                new Map<string, ResolvedMediaAsset>();
             const view: Record<string, PublicMediaFieldView> = {};
             for (const [field, refs] of byField) {
                 // An id the resolver didn't return names an asset that is gone

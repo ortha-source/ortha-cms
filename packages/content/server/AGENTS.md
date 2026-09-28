@@ -1516,6 +1516,41 @@ Three rules the mapping follows, each mirroring real behavior:
 pure and unit-tested; neither touches Nest, the registry, or a live document.
 Adding a field type means extending `valueSchema` there.
 
+## Shared workspaces — the one read-only exception to isolation ([ADR-0019](../../../docs/adr/0019-shared-workspaces.md))
+
+A workspace flagged `is_shared` exposes its **published, non-deleted** entries
+to every other workspace granted the entry's type — for reading and linking,
+**never** writing. The rule is `SharedSourcesQuery`
+(`entries/infrastructure/queries/shared-sources.query.ts`): `foreignVisibleWhere`
+(the foreign half) and `visibleWhere` (own **or** foreign), both SQL sub-selects
+so they compose into synchronous builders. **Do not restate it** — every read
+that crosses the boundary calls it:
+
+- `GET /content/:type?source=own|shared|all` (`EntriesService.sourceWhere`;
+  `own` is the default and the pre-sharing predicate) — every item carries
+  `source` (`null` = own);
+- `GET /content/:type/:id` and its `/relations` / `/media` siblings
+  (`EntryWriterService.getVisible` / `findVisible`) — `source` + `readOnly`; a
+  foreign entry's media resolve in **its** workspace;
+- `RelationLinkService` — `workspaceWhere` in `targetVisibleWhere`, the admin
+  join-window filter in `visibleTargetIds`, and `linkableWhere` for writes. The
+  inverse side of a many-to-many is `ownOnly` (its join row belongs to the
+  target), including `unlink`. A foreign target that stopped being visible is
+  **omitted** by `refsFor` (never `missing`) and filtered inside the window;
+- `EntryWriterService.assertRelationTargets` — owning single FKs may name a
+  visible foreign record, inverse arrays may not, and an **unchanged** FK is not
+  re-validated on update (so a hidden target never makes the consumer's entry
+  unsaveable);
+- `PublicExpansionQuery.linkedEntriesById` and `mediaForRows` (media grouped by
+  the row's own workspace), and `PublicEntriesQuery`'s `includeShared` option —
+  set **only** by GraphQL's nested `EntryLoader` / relation paging, never by a
+  top-level public route.
+
+Every write keeps `findLive` / `scope()` — a foreign id is a 404 everywhere.
+`GET /content/:type/:id/usages` (`EntryUsagesQuery`) counts links into an
+**own** entry from other workspaces, walking every storage-owning relation in
+the registry. Invariants: content dossier **I-41**–**I-47**.
+
 ## The `entries` feature — layered (ADR-0003)
 
 The **entries** feature is migrated to the tactical-DDD layering under

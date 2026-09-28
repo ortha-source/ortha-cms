@@ -13,6 +13,7 @@ import {
     inArray,
     isNull,
     max,
+    ne,
     notInArray,
     sql,
     type AnyColumn,
@@ -28,10 +29,12 @@ import {
 import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../../../types/fields';
 import { ContentReadScopeRegistry } from '../../../extension/read-scope';
 import type {
+    EntrySource,
     RelationDelta,
     RelationFieldView,
     RelationRef
 } from '../../types/entry-list-view';
+import { SharedSourcesQuery } from '../queries/shared-sources.query';
 import { entrySlug, entryTitle } from './entry-row';
 
 /** A generated content/join table seen as a bag of columns by property name. */
@@ -193,7 +196,12 @@ export class RelationLinkService {
         // public reads only. Optional so this service still resolves in a
         // context that binds no scope — an empty registry costs a length check.
         @Optional()
-        private readonly readScopes?: ContentReadScopeRegistry
+        private readonly readScopes?: ContentReadScopeRegistry,
+        // Shared workspaces (ADR-0019): which foreign rows a workspace may read
+        // and link. Optional so a context without it (the unit specs) degrades
+        // to strict isolation — never to a wider read.
+        @Optional()
+        private readonly shared?: SharedSourcesQuery
     ) {}
 
     // ---- reads -------------------------------------------------------------
@@ -418,8 +426,10 @@ export class RelationLinkService {
             // Under a visibility restriction an unresolvable target is one the
             // caller may not see, so the link is reported as absent rather than
             // as a `missing` ref — a public consumer must not learn that a
-            // hidden record is linked here, and `total` must not count it.
-            if (visibility?.publishedOnly && !refById.has(fk)) {
+            // hidden record is linked here, and `total` must not count it. The
+            // same holds on an admin read for a shared-workspace target that
+            // stopped being visible (ADR-0019): `refsFor` omits it outright.
+            if (!refById.has(fk)) {
                 out.set(sourceId, { items: [], total: 0 });
                 continue;
             }
@@ -619,21 +629,19 @@ export class RelationLinkService {
         if (!spec.relation.many && !spec.relation.inverse) {
             const fk = row[field];
             const ids = typeof fk === 'string' && fk ? [fk] : [];
-            const items =
-                page === 1
-                    ? await this.refsFor(
-                          spec.relation.to(),
-                          ids,
-                          workspaceId,
-                          visibility
-                      )
-                    : [];
+            const refs = await this.refsFor(
+                spec.relation.to(),
+                ids,
+                workspaceId,
+                visibility
+            );
             // Under a visibility restriction an unresolved target is hidden,
             // not `missing` — the link is reported as absent (see
-            // `previewSingle` for why `total` must not count it).
-            if (visibility?.publishedOnly && !items.some((ref) => !ref.missing))
+            // `previewSingle` for why `total` must not count it). `refsFor`
+            // already omits a shared target that is no longer visible.
+            if (visibility?.publishedOnly && !refs.some((ref) => !ref.missing))
                 return { items: [], total: 0 };
-            return { items, total: ids.length };
+            return { items: page === 1 ? refs : [], total: refs.length };
         }
 
         const join = this.joinPlanFor(type, field, spec);
@@ -697,8 +705,10 @@ export class RelationLinkService {
                     .where(where)
             ]);
             return {
-                items: (rows as Row[]).map((r) =>
-                    this.rowToRef(inverse.target, r)
+                items: await this.toRefs(
+                    inverse.target,
+                    rows as Row[],
+                    workspaceId
                 ),
                 total: Number(total)
             };
@@ -778,22 +788,46 @@ export class RelationLinkService {
                   )
                 : delta;
 
+        // The inverse side's "link" is a join row the *target* owns, so a
+        // foreign target there would mean writing another workspace's relation
+        // — shared workspaces are read-only to consumers (ADR-0019).
+        const ownOnly = join.ownCol === 'targetId';
         await this.assertTargets(
             tx,
             join.target,
             resolved.link ?? [],
             workspaceId,
             field,
-            sourceLocale
+            sourceLocale,
+            ownOnly
         );
         const cols = join.table as unknown as Columns;
         const own = cols[join.ownCol];
         const ref = cols[join.refCol];
 
         if (resolved.unlink?.length) {
-            await tx
-                .delete(join.table)
-                .where(and(eq(own, sourceId), inArray(ref, resolved.unlink)));
+            const targetCols = join.target
+                .table as unknown as SelectableColumns;
+            await tx.delete(join.table).where(
+                and(
+                    eq(own, sourceId),
+                    inArray(ref, resolved.unlink),
+                    // Same reason as `ownOnly`: unlinking on the inverse side
+                    // deletes the *target's* join row, so only a target this
+                    // workspace owns may lose one.
+                    ownOnly
+                        ? inArray(
+                              ref,
+                              tx
+                                  .select({ id: targetCols['id'] })
+                                  .from(join.target.table)
+                                  .where(
+                                      eq(targetCols['workspaceId'], workspaceId)
+                                  )
+                          )
+                        : undefined
+                )
+            );
         }
 
         // Append each new link at the end of its **source's** ordered list.
@@ -1054,16 +1088,69 @@ export class RelationLinkService {
                     this.targetVisibleWhere(target, workspaceId, visibility)
                 )
             )) as Row[];
-        const byId = new Map(
-            rows.map((row) => [row['id'] as string, this.rowToRef(target, row)])
+        const refs = await this.toRefs(target, rows, workspaceId);
+        const byId = new Map(refs.map((ref) => [ref.id, ref]));
+        const hidden = await this.hiddenForeignIds(
+            target,
+            ids.filter((id) => !byId.has(id)),
+            workspaceId
         );
-        // A ref is produced for *every* id, so a link is never silently
-        // dropped — `total` and `items` stay consistent. An id with no live row
-        // is flagged `missing` rather than passed off as a titled record: its
-        // `title` is only the raw id standing in, which the UI must not print.
-        return ids.map(
-            (id) => byId.get(id) ?? { id, title: id, missing: true as const }
-        );
+        // A ref is produced for every id of the caller's own workspace, so a
+        // link is never silently dropped — `total` and `items` stay consistent.
+        // An id with no live row is flagged `missing` rather than passed off as
+        // a titled record: its `title` is only the raw id standing in, which
+        // the UI must not print. The one exception is a link into a **shared
+        // workspace** whose target is no longer visible (unpublished, deleted,
+        // unshared, archived, grant revoked — ADR-0019): that link is hidden
+        // outright, since a consumer must not learn what became of it.
+        return ids
+            .filter((id) => byId.has(id) || !hidden.has(id))
+            .map(
+                (id) =>
+                    byId.get(id) ?? { id, title: id, missing: true as const }
+            );
+    }
+
+    /**
+     * Which of `ids` (targets that did not resolve) belong to **another**
+     * workspace — i.e. a shared-workspace target that is no longer visible, as
+     * opposed to one of the caller's own records that was soft-deleted. The
+     * former is hidden from a relation read; the latter stays a `missing` ref.
+     * No query when every id resolved.
+     */
+    private async hiddenForeignIds(
+        target: AnyContentType,
+        ids: string[],
+        workspaceId: string
+    ): Promise<Set<string>> {
+        if (!ids.length || !this.shared) return new Set();
+        const cols = target.table as unknown as SelectableColumns;
+        const rows = (await this.db
+            .select({ id: cols['id'] })
+            .from(target.table)
+            .where(
+                and(
+                    inArray(cols['id'], [...new Set(ids)]),
+                    ne(cols['workspaceId'], workspaceId)
+                )
+            )) as Row[];
+        return new Set(rows.map((row) => row['id'] as string));
+    }
+
+    /**
+     * Display refs for resolved target rows, each carrying its `source` — the
+     * shared workspace it was read from, or `null` for an own record. One name
+     * lookup for the whole batch, and none when every row is local.
+     */
+    private async toRefs(
+        target: AnyContentType,
+        rows: Row[],
+        workspaceId: string
+    ): Promise<RelationRef[]> {
+        const sourceOf = this.shared
+            ? await this.shared.sourcesFor(rows, workspaceId)
+            : () => null;
+        return rows.map((row) => this.rowToRef(target, row, sourceOf(row)));
     }
 
     /**
@@ -1087,13 +1174,47 @@ export class RelationLinkService {
     ) {
         const cols = target.table as unknown as Columns;
         return and(
-            eq(cols['workspaceId'], workspaceId),
+            this.workspaceWhere(target, workspaceId),
             cols['deletedAt'] ? isNull(cols['deletedAt']) : undefined,
             visibility?.publishedOnly && target.publishable
                 ? eq(cols['status'], ENTRY_STATUS.Published)
                 : undefined,
             ...this.readScopeWhere(target, workspaceId, visibility)
         );
+    }
+
+    /**
+     * The workspace half of every target read: the caller's own rows, or a
+     * visible row of a **shared workspace** (ADR-0019 — published, not
+     * deleted, the workspace active and shared, the caller granted the type).
+     * Without the shared-sources query bound it is the strict equality it
+     * always was.
+     */
+    private workspaceWhere(target: AnyContentType, workspaceId: string): SQL {
+        const cols = target.table as unknown as Columns;
+        return this.shared
+            ? this.shared.visibleWhere(target, workspaceId)
+            : eq(cols['workspaceId'], workspaceId);
+    }
+
+    /**
+     * The predicate a relation **write** checks a target id against — the
+     * rows `workspaceId` may link to. `ownOnly` (the inverse side of a
+     * many-to-many, whose "link" is a join row owned by the *target*) keeps the
+     * strict workspace equality: linking a foreign record there would write
+     * into another workspace's relation, and consumers never write foreign
+     * entries (ADR-0019). Public so the entry writer validates owning single
+     * FKs against the very same rule.
+     */
+    linkableWhere(
+        target: AnyContentType,
+        workspaceId: string,
+        options: { ownOnly?: boolean } = {}
+    ): SQL {
+        const cols = target.table as unknown as Columns;
+        return options.ownOnly
+            ? eq(cols['workspaceId'], workspaceId)
+            : this.workspaceWhere(target, workspaceId);
     }
 
     /**
@@ -1132,8 +1253,18 @@ export class RelationLinkService {
     ) {
         // `publishedOnly` is the public-read marker, so it also gates the read
         // scopes (see {@link targetVisibleWhere}) — one check covers both.
-        if (!visibility?.publishedOnly) return undefined;
         const cols = target.table as unknown as SelectableColumns;
+        if (!visibility?.publishedOnly) {
+            // An admin read keeps every own link — a soft-deleted own target
+            // still surfaces as `missing` — but drops a link into a shared
+            // workspace whose target is no longer visible (ADR-0019), inside
+            // the window so `total` does not count it either.
+            if (!this.shared) return undefined;
+            return this.db
+                .select({ id: cols['id'] })
+                .from(target.table)
+                .where(this.workspaceWhere(target, workspaceId));
+        }
         return this.db
             .select({ id: cols['id'] })
             .from(target.table)
@@ -1156,7 +1287,11 @@ export class RelationLinkService {
     }
 
     /** Build a display ref from a full target row. */
-    private rowToRef(target: AnyContentType, row: Row): RelationRef {
+    private rowToRef(
+        target: AnyContentType,
+        row: Row,
+        source: EntrySource | null = null
+    ): RelationRef {
         const ref: RelationRef = {
             id: row['id'] as string,
             title: entryTitle(target, row)
@@ -1164,6 +1299,7 @@ export class RelationLinkService {
         const slug = entrySlug(target, row);
         if (slug) ref.slug = slug;
         if (target.publishable) ref.status = row['status'] as EntryStatus;
+        ref.source = source;
         return ref;
     }
 
@@ -1208,7 +1344,7 @@ export class RelationLinkService {
             .where(
                 and(
                     inArray(cols['localeGroupId'], unique),
-                    eq(cols['workspaceId'], workspaceId),
+                    this.linkableWhere(target, workspaceId),
                     eq(cols['locale'], sourceLocale),
                     target.paranoid ? isNull(cols['deletedAt']) : undefined
                 )
@@ -1277,7 +1413,7 @@ export class RelationLinkService {
             .where(
                 and(
                     inArray(cols['id'], unique),
-                    eq(cols['workspaceId'], workspaceId)
+                    this.linkableWhere(target, workspaceId)
                 )
             )) as Row[];
         const groupOf = new Map(
@@ -1296,7 +1432,7 @@ export class RelationLinkService {
                 and(
                     inArray(cols['localeGroupId'], groups),
                     inArray(cols['locale'], [...locales]),
-                    eq(cols['workspaceId'], workspaceId),
+                    this.linkableWhere(target, workspaceId),
                     target.paranoid ? isNull(cols['deletedAt']) : undefined
                 )
             )) as Row[];
@@ -1444,9 +1580,11 @@ export class RelationLinkService {
 
     /**
      * Verify every id to be linked exists **in the same workspace** (the join FK
-     * has no workspace constraint of its own). A missing or cross-workspace id is
-     * a uniform 422 — indistinguishable from an invalid id, so no enumeration
-     * signal.
+     * has no workspace constraint of its own) — or, on an owning relation, is a
+     * visible record of a **shared workspace** (ADR-0019: published, not
+     * deleted, workspace active and shared, this workspace granted the type).
+     * A missing, cross-workspace, or not-visible id is a uniform 422 —
+     * indistinguishable from an invalid id, so no enumeration signal.
      *
      * When `sourceLocale` is given and the target type is localized, the link is
      * additionally required to stay **inside one locale**. Two i18n types linked
@@ -1467,7 +1605,8 @@ export class RelationLinkService {
         ids: string[],
         workspaceId: string,
         field: string,
-        sourceLocale?: string
+        sourceLocale?: string,
+        ownOnly = false
     ): Promise<void> {
         const unique = [...new Set(ids)].filter((id) => !!id);
         if (!unique.length) return;
@@ -1481,7 +1620,7 @@ export class RelationLinkService {
             .where(
                 and(
                     inArray(cols['id'], unique),
-                    eq(cols['workspaceId'], workspaceId)
+                    this.linkableWhere(target, workspaceId, { ownOnly })
                 )
             )) as Row[];
         const present = new Set(rows.map((r) => r['id'] as string));

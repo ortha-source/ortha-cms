@@ -42,5 +42,6 @@ routine, easily-reversed changes.
 - [0016 — Webhooks deliver from a queue, never from the outbox subscriber](0016-webhooks-deliver-from-a-queue.md)
 - [0017 — Publication is protected per content type, and an approval belongs to a revision](0017-publication-protection.md)
 - [0018 — One mail provider per deployment, and the message is built where the secret is](0018-mail-provider.md)
+- [0019 — Shared workspaces are a read-only exception to workspace isolation](0019-shared-workspaces.md)
 
 <!-- Add new ADRs to this index. -->

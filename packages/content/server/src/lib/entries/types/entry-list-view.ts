@@ -4,6 +4,17 @@ import type { EntryStatus } from '../../types/content-type';
 export type { EntryStatus };
 
 /**
+ * Where a record read across the workspace boundary lives — a **shared
+ * workspace** (ADR-0019). `null` on a record the caller's own workspace owns.
+ */
+export interface EntrySource {
+    /** The owning (shared) workspace's id. */
+    workspaceId: string;
+    /** The owning workspace's display name. */
+    workspaceName: string;
+}
+
+/**
  * One entry as served to the admin records table: the storage envelope plus a
  * `values` bag keyed by field name. Mirrors the admin's `EntryRecord` — the
  * wire contract the dynamic table renders from. `status` is present only on
@@ -48,6 +59,37 @@ export interface EntryRecord {
      * submits back.
      */
     relations?: Record<string, RelationFieldView>;
+    /**
+     * The workspace this record belongs to when it is read from a **shared
+     * workspace** (ADR-0019), `null` when it is the caller's own. Set by the
+     * list (`GET /content/:type`, every `?source=` mode) and the single-entry
+     * read; absent on write responses, which only ever concern own records.
+     */
+    source?: EntrySource | null;
+    /**
+     * `true` iff the record is foreign (read from a shared workspace) — every
+     * write route answers such an id with a 404. Set by the single-entry read.
+     */
+    readOnly?: boolean;
+}
+
+/**
+ * `GET /content/:type/:id/usages` — how often records in **other** workspaces
+ * link to one of this workspace's entries (ADR-0019), grouped by workspace and
+ * sorted by `count` descending.
+ */
+export interface EntryUsagesView {
+    items: EntryUsage[];
+}
+
+/** One workspace's links to an entry — see {@link EntryUsagesView}. */
+export interface EntryUsage {
+    /** The linking workspace's id. */
+    workspaceId: string;
+    /** The linking workspace's display name. */
+    workspaceName: string;
+    /** Relation links from that workspace's entries to this one. */
+    count: number;
 }
 
 /** The paginated envelope, matching the admin list-page convention. */
@@ -79,12 +121,20 @@ export interface RelationRef {
     /** Publish status — present only for publishable target types. */
     status?: EntryStatus;
     /**
-     * The link exists but its target row could not be resolved — soft-deleted,
-     * or outside the workspace. `title` then stands in as the raw id, which is
-     * not displayable, so the ref is flagged and the admin renders it as an
-     * unavailable record instead of printing an FK.
+     * The link exists but its target row — one of the workspace's **own**
+     * records — could not be resolved (soft-deleted). `title` then stands in as
+     * the raw id, which is not displayable, so the ref is flagged and the admin
+     * renders it as an unavailable record instead of printing an FK. A link
+     * into another workspace whose target is not visible is omitted instead,
+     * never flagged (ADR-0019).
      */
     missing?: true;
+    /**
+     * The workspace the linked record belongs to when it lives in a **shared
+     * workspace** (ADR-0019); `null` for the caller's own records. Present on
+     * every resolved ref of an admin relation read.
+     */
+    source?: EntrySource | null;
 }
 
 /**

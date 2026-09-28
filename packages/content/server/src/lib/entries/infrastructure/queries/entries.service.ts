@@ -23,6 +23,7 @@ import { CONTENT_FIELD_TYPE } from '../../../types/fields';
 import {
     DELETED_ONLY,
     RELATIONS_PREVIEW,
+    type EntrySourceMode,
     type ListEntriesQueryDto
 } from '../../http/dto/list-entries-query.dto';
 import type { EntryListView } from '../../types/entry-list-view';
@@ -32,6 +33,7 @@ import { buildEntryFilterSurface } from './entry-filter-surface';
 import { buildSearchPredicate } from './entry-search';
 import { toRecord } from '../persistence/entry-row';
 import { RelationLinkService } from '../persistence/relation-link.service';
+import { SharedSourcesQuery } from './shared-sources.query';
 
 /** A generated content table seen as a bag of columns by property name. */
 type ContentTable = Record<string, AnyColumn>;
@@ -82,7 +84,11 @@ export class EntriesService {
         // absent unless a downstream plugin binds it, hence optional.
         @Optional()
         @Inject(CONTENT_ENTRY_EXTENSION)
-        private readonly extension?: ContentEntryExtension
+        private readonly extension?: ContentEntryExtension,
+        // Shared workspaces (ADR-0019) — what `?source=shared|all` widens the
+        // list by. Optional: absent, every mode reads the own workspace only.
+        @Optional()
+        private readonly shared?: SharedSourcesQuery
     ) {}
 
     /**
@@ -90,7 +96,8 @@ export class EntriesService {
      * in SQL against the type's generated table, returned as the
      * `{ items, total, page, pageSize }` envelope the admin records table renders.
      * Scoped to `workspaceId` — only the calling workspace's entries are counted
-     * or listed.
+     * or listed — unless `?source=shared|all` asks for the visible entries of
+     * shared workspaces too (ADR-0019).
      */
     async list(
         type: AnyContentType,
@@ -116,9 +123,19 @@ export class EntriesService {
                 .offset((page - 1) * pageSize)
         ]);
 
-        const items = rows.map((row) =>
-            toRecord(type, row as Record<string, unknown>)
-        );
+        // Every item reports where it lives — `null` for the caller's own
+        // entries, the shared workspace otherwise — in every `?source=` mode,
+        // so the client never has to infer it.
+        const sourceOf = this.shared
+            ? await this.shared.sourcesFor(
+                  rows as Record<string, unknown>[],
+                  workspaceId
+              )
+            : () => null;
+        const items = rows.map((row) => ({
+            ...toRecord(type, row as Record<string, unknown>),
+            source: sourceOf(row as Record<string, unknown>)
+        }));
 
         // Opt-in relation preview for the records table's visible relation
         // columns. Batched across the whole page (a constant number of queries
@@ -149,7 +166,9 @@ export class EntriesService {
      * query-builder `?filter=` tree AND (for paranoid types) the not-deleted
      * guard. `and(undefined, …)` collapses empties, so an unfiltered list still
      * scans the workspace's whole table. The workspace predicate is always
-     * present, so an entry never leaks across workspaces. A malformed filter
+     * present, so an entry never leaks across workspaces — `?source=` widens
+     * it only to the read-only, published entries of shared workspaces
+     * (ADR-0019), through {@link sourceWhere}. A malformed filter
      * throws a `FilterException` (HTTP 400).
      */
     private async listWhere(
@@ -188,9 +207,8 @@ export class EntriesService {
                   filterExtension
               )
             : undefined;
-        const table = type.table as unknown as ContentTable;
         return and(
-            eq(table['workspaceId'], workspaceId),
+            this.sourceWhere(type, query.source, workspaceId),
             this.extension?.listScope(type, workspaceId, {
                 locale: query.locale,
                 localeFallback: query.localeFallback
@@ -199,6 +217,26 @@ export class EntriesService {
             filterSql,
             this.deletedPredicate(type, query)
         );
+    }
+
+    /**
+     * The workspace half of the list's WHERE, per `?source=` (ADR-0019):
+     * `own` — the caller's workspace, exactly the pre-sharing predicate;
+     * `shared` — only the visible entries of shared workspaces (published, not
+     * deleted, workspace active and shared, caller granted the type); `all` —
+     * either. Without the shared-sources query bound every mode is `own`.
+     */
+    private sourceWhere(
+        type: AnyContentType,
+        source: EntrySourceMode | undefined,
+        workspaceId: string
+    ): SQL | undefined {
+        const table = type.table as unknown as ContentTable;
+        const own = eq(table['workspaceId'], workspaceId);
+        if (!this.shared || !source || source === 'own') return own;
+        return source === 'shared'
+            ? this.shared.foreignVisibleWhere(type, workspaceId)
+            : this.shared.visibleWhere(type, workspaceId);
     }
 
     /**

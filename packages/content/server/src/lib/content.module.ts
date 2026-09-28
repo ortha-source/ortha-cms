@@ -36,6 +36,9 @@ import { EntryValidationService } from './validation/services/entry-validation.s
 import { EntriesService } from './entries/infrastructure/queries/entries.service';
 import { EntryMatchQuery } from './entries/infrastructure/queries/entry-match.query';
 import { MediaRefsQuery } from './entries/infrastructure/queries/media-refs.query';
+import { SharedSourcesQuery } from './entries/infrastructure/queries/shared-sources.query';
+import { EntryUsagesQuery } from './entries/infrastructure/queries/entry-usages.query';
+import { EntryUsagesController } from './entries/http/controllers/entry-usages.controller';
 import { EntryWriterService } from './entries/infrastructure/persistence/entry-writer.service';
 import { EntryCounterService } from './entries/infrastructure/persistence/entry-counter.service';
 import { RelationLinkService } from './entries/infrastructure/persistence/relation-link.service';
@@ -107,6 +110,9 @@ export class ContentModule {
                 ListEntriesController,
                 CreateEntryController,
                 GetEntryController,
+                // `GET :typeName/:id/usages` — a literal last segment, so it
+                // cannot collide with the single-item routes around it.
+                EntryUsagesController,
                 UpdateEntryController,
                 PublishEntryController,
                 DeleteEntryController,
@@ -202,6 +208,11 @@ export class ContentModule {
                 RevisionsWorkspacePurger,
                 EntryWriterService,
                 RelationLinkService,
+                // Shared workspaces (ADR-0019): the one read-side rule for which
+                // foreign entries a workspace may see and link, and the
+                // cross-workspace usage count built on the same tables.
+                SharedSourcesQuery,
+                EntryUsagesQuery,
                 // Entries feature, layered per ADR-0003: the publish-lifecycle
                 // use-cases (over the global UnitOfWork/OutboxWriter) + the
                 // bulk-publish dry-run query. CRUD writes stay on the
@@ -293,6 +304,9 @@ export class ContentModule {
                 // pipeline writes with — a second implementation of the join
                 // table's ordering and de-duplication is how the two drift.
                 RelationLinkService,
+                // The shared-workspace visibility rule, for the GraphQL adapter
+                // and any other protocol that must honour it (ADR-0019).
+                SharedSourcesQuery,
                 // Filter evaluation, for the alarms plugin: a stored rule is a
                 // records-list filter, and it has to keep meaning exactly what
                 // the list showed when it was saved. Sharing the query is what

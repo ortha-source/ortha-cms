@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
+    IsBoolean,
     IsIn,
     IsNotEmpty,
     IsOptional,
@@ -10,7 +11,7 @@ import { WORKSPACE_COLORS } from '../../domain/value-objects/workspace-color';
 
 /**
  * Body of `PATCH /api/workspaces/:id` — a partial edit of a workspace's
- * profile. Every field is optional; only the ones present are written. The slug
+ * profile and its shared flag. Every field is optional; only the ones present are written. The slug
  * is intentionally **not** editable here (it's the workspace's stable URL
  * identifier), and status changes go through the dedicated archive routes.
  */
@@ -47,4 +48,18 @@ export class UpdateWorkspaceDto {
     @IsOptional()
     @IsIn(WORKSPACE_COLORS)
     color?: string;
+
+    /**
+     * Whether the workspace is **shared** (ADR-0019): its published entries
+     * become readable and linkable — read-only — from every other workspace
+     * granted the same content type.
+     */
+    @ApiPropertyOptional({
+        type: Boolean,
+        description:
+            'Share this workspace: its published entries become readable and linkable (read-only) from every other workspace granted the same content type.'
+    })
+    @IsOptional()
+    @IsBoolean()
+    isShared?: boolean;
 }

@@ -183,6 +183,81 @@ describe('Update workspace (PATCH /api/workspaces/:id)', () => {
         );
     });
 
+    describe('the shared flag (ADR-0019)', () => {
+        it('toggles isShared, returns it, and records workspace.updated [workspaces:I-35]', async () => {
+            const { agent } = await loginAs('admin', ADMIN_EMAIL);
+            const id = await createWorkspace(agent);
+
+            const on = await agent
+                .patch(`/api/workspaces/${id}`)
+                .send({ isShared: true })
+                .expect(200);
+            expect(on.body).toMatchObject({ id, isShared: true });
+
+            const list = await agent.get('/api/workspaces').expect(200);
+            expect(
+                list.body.find((w: { id: string }) => w.id === id).isShared
+            ).toBe(true);
+
+            const updates = (await getActivityRows()).filter(
+                (row) => row.kind === 'workspace.updated'
+            );
+            expect(updates).toHaveLength(1);
+            expect(
+                (updates[0].meta as { fields?: string[] } | null)?.fields
+            ).toEqual(['isShared']);
+
+            const off = await agent
+                .patch(`/api/workspaces/${id}`)
+                .send({ isShared: false })
+                .expect(200);
+            expect(off.body.isShared).toBe(false);
+        });
+
+        it('is idempotent — re-sending the current value records nothing [workspaces:I-09]', async () => {
+            const { agent } = await loginAs('admin', ADMIN_EMAIL);
+            const id = await createWorkspace(agent);
+
+            const res = await agent
+                .patch(`/api/workspaces/${id}`)
+                .send({ isShared: false })
+                .expect(200);
+            expect(res.body.isShared).toBe(false);
+            expect(
+                (await getActivityRows()).filter(
+                    (row) => row.kind === 'workspace.updated'
+                )
+            ).toHaveLength(0);
+        });
+
+        it('400s a non-boolean isShared and leaves the flag alone', async () => {
+            const { agent } = await loginAs('admin', ADMIN_EMAIL);
+            const id = await createWorkspace(agent);
+
+            await agent
+                .patch(`/api/workspaces/${id}`)
+                .send({ isShared: 'yes' })
+                .expect(400);
+            const list = await agent.get('/api/workspaces').expect(200);
+            expect(
+                list.body.find((w: { id: string }) => w.id === id).isShared
+            ).toBe(false);
+        });
+
+        it('403s a contributor (lacks workspaces:update)', async () => {
+            const { agent: admin } = await loginAs('admin', ADMIN_EMAIL);
+            const id = await createWorkspace(admin);
+            const { agent } = await loginAs(
+                'contributor',
+                'wsu-share-contrib@example.com'
+            );
+            await agent
+                .patch(`/api/workspaces/${id}`)
+                .send({ isShared: true })
+                .expect(403);
+        });
+    });
+
     it('forbids a contributor (lacks workspaces:update) with 403', async () => {
         const { agent: admin } = await loginAs('admin', ADMIN_EMAIL);
         const id = await createWorkspace(admin);

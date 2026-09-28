@@ -84,6 +84,11 @@ export function buildWorkspaceSchemas(): Record<string, OpenApiSchema> {
                     description:
                         'Lifecycle state. Archiving is a soft state change; nothing is deleted.'
                 },
+                isShared: {
+                    type: 'boolean',
+                    description:
+                        'Whether the workspace is shared (ADR-0019): its published entries are readable and linkable, read-only, from every other workspace granted the same content type.'
+                },
                 members: {
                     type: 'array',
                     items: ref('WorkspaceMember'),
@@ -104,6 +109,7 @@ export function buildWorkspaceSchemas(): Record<string, OpenApiSchema> {
                 'description',
                 'color',
                 'status',
+                'isShared',
                 'members',
                 'content'
             ]

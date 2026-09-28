@@ -85,6 +85,9 @@ export class DrizzleWorkspaceRepository implements WorkspaceRepository {
             if (changes.statusChanged) {
                 patch.status = workspace.status.value;
             }
+            if (changes.sharedChanged) {
+                patch.isShared = workspace.isShared;
+            }
             if (Object.keys(patch).length > 0) {
                 await executor
                     .update(workspaces)

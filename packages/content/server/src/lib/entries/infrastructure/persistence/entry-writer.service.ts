@@ -78,6 +78,7 @@ import {
 } from '../../domain/events/entry-events';
 import { Revision } from '../../../revisions/domain/revision';
 import { buildSnapshot } from '../../../revisions/infrastructure/persistence/revision-snapshot';
+import { SharedSourcesQuery } from '../queries/shared-sources.query';
 
 /** A generated content table seen as a bag of values / columns by property name. */
 type Row = Record<string, unknown>;
@@ -147,7 +148,13 @@ export class EntryWriterService {
         // and store only (no existence/restriction check).
         @Optional()
         @InjectMediaAssetResolver()
-        private readonly mediaResolver?: MediaAssetResolver
+        private readonly mediaResolver?: MediaAssetResolver,
+        // Shared workspaces (ADR-0019) — consulted by the **read** paths only
+        // (`getVisible`, the relation reads of a foreign entry). Every write
+        // below keeps the strict `workspace_id = :workspace` scope. Optional so
+        // an absent binding degrades to isolation, never to a wider read.
+        @Optional()
+        private readonly shared?: SharedSourcesQuery
     ) {}
 
     /**
@@ -697,14 +704,16 @@ export class EntryWriterService {
      * First page (+ total) of every relation field's links for one live entry,
      * keyed by field name — what the editor loads on open. Each field is
      * paginated, so a relation with many links contributes only its first page.
-     * 404 if the entry is missing (or soft-deleted) in this workspace.
+     * 404 if the entry is missing (or soft-deleted) in this workspace and is not
+     * a visible shared-workspace entry either (ADR-0019) — a read-only foreign
+     * entry's links resolve under the **caller's** visibility rules.
      */
     async getRelations(
         type: AnyContentType,
         id: string,
         workspaceId: string
     ): Promise<Record<string, RelationFieldView>> {
-        const row = await this.findLive(type, id, workspaceId);
+        const row = await this.findVisible(type, id, workspaceId);
         if (!row) throw this.notFound(type, id);
         return this.relations.readAll(type, row, workspaceId);
     }
@@ -723,7 +732,7 @@ export class EntryWriterService {
         workspaceId: string
     ): Promise<RelationFieldView> {
         const spec = this.relationSpec(type, field);
-        const row = await this.findLive(type, id, workspaceId);
+        const row = await this.findVisible(type, id, workspaceId);
         if (!row) throw this.notFound(type, id);
         return this.relations.readField(
             type,
@@ -793,6 +802,64 @@ export class EntryWriterService {
         return spec;
     }
 
+    /**
+     * Read one entry the workspace may **see**, or 404: its own live entry, or
+     * — ADR-0019 — a visible entry of a shared workspace. Carries `source`
+     * (`null` for an own entry) and `readOnly` (`true` iff foreign). A foreign
+     * id is a 404 on every write, so `readOnly` only tells the client not to
+     * offer one.
+     */
+    async getVisible(
+        type: AnyContentType,
+        id: string,
+        workspaceId: string
+    ): Promise<EntryRecord & { workspaceId: string }> {
+        const row = await this.findVisible(type, id, workspaceId);
+        if (!row) throw this.notFound(type, id);
+        const record = toRecord(type, row);
+        const owner = row['workspaceId'] as string;
+        const source =
+            owner === workspaceId || !this.shared
+                ? null
+                : this.shared.sourceOf(
+                      row,
+                      workspaceId,
+                      await this.shared.workspaceNames([owner])
+                  );
+        return {
+            ...record,
+            source,
+            readOnly: source !== null,
+            workspaceId: owner
+        };
+    }
+
+    /**
+     * One row the workspace may read: its own live row, else a visible
+     * shared-workspace row (ADR-0019). **Read paths only** — every write keeps
+     * {@link findLive}.
+     */
+    private async findVisible(
+        type: AnyContentType,
+        id: string,
+        workspaceId: string
+    ): Promise<Row | undefined> {
+        const own = await this.findLive(type, id, workspaceId);
+        if (own || !this.shared) return own;
+        const t = this.columns(type);
+        const [row] = await this.db
+            .select()
+            .from(type.table)
+            .where(
+                and(
+                    eq(t['id'], id),
+                    this.shared.foreignVisibleWhere(type, workspaceId)
+                )
+            )
+            .limit(1);
+        return row as Row | undefined;
+    }
+
     /** Read one live entry in the workspace, or 404. */
     async getOne(
         type: AnyContentType,
@@ -857,7 +924,13 @@ export class EntryWriterService {
         );
         coerced = coerceValues(type, folded.values);
         relations = folded.relations;
-        await this.assertRelationTargets(type, coerced, workspaceId, rowLocale);
+        await this.assertRelationTargets(
+            type,
+            coerced,
+            workspaceId,
+            rowLocale,
+            await this.findLive(type, id, workspaceId)
+        );
         await this.assertUniqueRelations(
             type,
             coerced,
@@ -1751,12 +1824,15 @@ export class EntryWriterService {
         type: AnyContentType,
         values: Record<string, unknown>,
         workspaceId: string,
-        sourceLocale?: string
+        sourceLocale?: string,
+        current?: Row
     ): Promise<void> {
         // Group referenced ids by target content type so each type is probed once.
+        // `ownOnly` marks an inverse array: its links are join rows the target
+        // owns, so only this workspace's own records qualify (ADR-0019).
         const byTarget = new Map<
             AnyContentType,
-            { field: string; id: string }[]
+            { field: string; id: string; ownOnly: boolean }[]
         >();
         for (const [name, spec] of Object.entries(type.fields)) {
             if (spec.type !== CONTENT_FIELD_TYPE.Relation || !spec.relation)
@@ -1785,7 +1861,18 @@ export class EntryWriterService {
             const refs = byTarget.get(target) ?? [];
             for (const id of ids) {
                 if (typeof id !== 'string' || !id) continue;
-                refs.push({ field: name, id });
+                // An owning single FK the save leaves unchanged is not a new
+                // link, so it is not re-validated: a shared-workspace target
+                // that has since been unpublished is hidden from reads, and
+                // must not make the *consumer's* entry unsaveable (ADR-0019).
+                if (
+                    !relation.many &&
+                    !relation.inverse &&
+                    current &&
+                    current[name] === id
+                )
+                    continue;
+                refs.push({ field: name, id, ownOnly: !!relation.inverse });
             }
             if (refs.length) byTarget.set(target, refs);
         }
@@ -1819,6 +1906,9 @@ export class EntryWriterService {
             // pool cannot see the uncommitted author — so a link to a record
             // created moments earlier in the same unit of work was rejected as
             // "must reference an existing entry".
+            // Owning single FKs may name a visible shared-workspace record
+            // (ADR-0019); inverse arrays may not. One probe with the wider
+            // rule, then the inverse refs are held to their own workspace.
             const rows = (await this.uow
                 .current()
                 .select()
@@ -1826,12 +1916,20 @@ export class EntryWriterService {
                 .where(
                     and(
                         inArray(t['id'], ids),
-                        eq(t['workspaceId'], workspaceId)
+                        this.relations.linkableWhere(target, workspaceId)
                     )
                 )) as Row[];
             const present = new Set(rows.map((row) => row['id'] as string));
+            const local = new Set(
+                rows
+                    .filter((row) => row['workspaceId'] === workspaceId)
+                    .map((row) => row['id'] as string)
+            );
             for (const ref of refs) {
-                if (UUID_RE.test(ref.id) && !present.has(ref.id))
+                if (
+                    UUID_RE.test(ref.id) &&
+                    !(ref.ownOnly ? local : present).has(ref.id)
+                )
                     issues.push({
                         field: ref.field,
                         message: 'must reference an existing entry'

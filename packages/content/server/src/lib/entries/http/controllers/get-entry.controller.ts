@@ -33,6 +33,11 @@ import { resolveType } from './resolve-type';
  * soft-deleted), so the editor can open an entry by deep link without relying on
  * the records-list cache. `WorkspaceGuard` scopes it to a workspace the caller
  * belongs to; gated on `content:read`.
+ *
+ * Also answers for a visible entry of a **shared workspace** (ADR-0019), with
+ * `source` naming that workspace and `readOnly: true`; an own entry reports
+ * `source: null, readOnly: false`. The sibling `/media` and `/relations` reads
+ * follow the same rule, and every write route still 404s a foreign id.
  */
 @UseGuards(PermissionsGuard, WorkspaceGuard, ContentGrantGuard)
 @RequirePermissions(PERMISSIONS.CONTENT_READ)
@@ -46,13 +51,18 @@ export class GetEntryController {
     ) {}
 
     @Get(':typeName/:id')
-    getOne(
+    async getOne(
         @Param('typeName') typeName: string,
         @Param('id', ParseUUIDPipe) id: string,
         @CurrentWorkspace() workspaceId: string
     ): Promise<EntryRecord> {
         const type = resolveType(this.registry, typeName);
-        return this.writer.getOne(type, id, workspaceId);
+        // The owning workspace id is internal plumbing (the `/media` read
+        // needs it); the wire carries `source` instead.
+        const record: EntryRecord & { workspaceId?: string } =
+            await this.writer.getVisible(type, id, workspaceId);
+        delete record.workspaceId;
+        return record;
     }
 
     /**
@@ -70,12 +80,14 @@ export class GetEntryController {
     ): Promise<EntryMediaView> {
         const type = resolveType(this.registry, typeName);
         // 404s a missing/soft-deleted entry, and gives us its live values bag.
-        const entry = await this.writer.getOne(type, id, workspaceId);
+        // A shared-workspace entry (ADR-0019) resolves its assets in its OWN
+        // workspace — that is where they live — never the caller's.
+        const entry = await this.writer.getVisible(type, id, workspaceId);
         return {
             media: await this.mediaRefs.forValues(
                 type,
                 entry.values,
-                workspaceId
+                entry.workspaceId
             )
         };
     }

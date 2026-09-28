@@ -132,6 +132,10 @@ after changing cross-project dependencies to update TS project references.
    (`APP_GUARD`); the rest are declared per controller or route — including
    **`OriginGuard`** (CSRF defense), which every write route names explicitly
    rather than inheriting.
+   Every content read and write is then scoped to that one workspace, with a
+   single read-only exception: the published entries of a **shared workspace**,
+   which other workspaces granted the type may read and link to but never write
+   ([ADR-0019](docs/adr/0019-shared-workspaces.md)).
 4. The use case runs the mutation inside a `UnitOfWork` transaction and appends
    its **domain events** to the transactional outbox (`OutboxWriter.append`)
    **using that same transaction** — so an event commits if and only if the

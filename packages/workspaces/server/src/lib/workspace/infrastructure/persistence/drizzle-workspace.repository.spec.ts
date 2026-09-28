@@ -20,6 +20,7 @@ const ROW = {
     description: 'The marketing team',
     color: 'slate',
     status: 'active',
+    isShared: false,
     createdAt: new Date(0),
     updatedAt: new Date(0)
 };

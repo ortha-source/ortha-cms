@@ -23,6 +23,7 @@ function rehydrated(): Workspace {
         description: 'The marketing team',
         color: 'slate',
         status: 'active',
+        isShared: false,
         memberUserIds: [CREATOR],
         grants: [{ kind: 'collection', slug: 'blog_post' }]
     });
@@ -84,6 +85,38 @@ describe('Workspace aggregate', () => {
             const [event] = workspace.pullEvents();
             expect(event.kind).toBe(WORKSPACE_EVENT_KINDS.UPDATED);
             expect(event.payload).toEqual({ fields: ['name'] });
+        });
+    });
+
+    describe('setShared', () => {
+        it('is a no-op when the flag already matches', () => {
+            const workspace = rehydrated();
+            expect(workspace.setShared(false)).toBe(false);
+            expect(workspace.pullEvents()).toHaveLength(0);
+            expect(workspace.changes().sharedChanged).toBe(false);
+        });
+
+        it('flips the flag and raises workspace.updated naming isShared', () => {
+            const workspace = rehydrated();
+            expect(workspace.setShared(true)).toBe(true);
+            expect(workspace.isShared).toBe(true);
+            expect(workspace.changes().sharedChanged).toBe(true);
+            expect(workspace.changes().profileChanged).toBe(false);
+            const [event] = workspace.pullEvents();
+            expect(event.kind).toBe(WORKSPACE_EVENT_KINDS.UPDATED);
+            expect(event.payload).toEqual({ fields: ['isShared'] });
+        });
+
+        it('folds into one event alongside a profile edit', () => {
+            const workspace = rehydrated();
+            expect(
+                workspace.updateProfile({ name: 'Growth', isShared: true })
+            ).toBe(true);
+            const events = workspace.pullEvents();
+            expect(events).toHaveLength(1);
+            expect(events[0].payload).toEqual({
+                fields: ['name', 'isShared']
+            });
         });
     });
 

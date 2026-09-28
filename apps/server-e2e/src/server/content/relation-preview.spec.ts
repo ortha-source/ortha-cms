@@ -280,17 +280,20 @@ describe('Content relation preview (GET /api/content/:typeName?relations=preview
     });
 
     describe('workspace scoping', () => {
-        it('never surfaces the title of a target that lives in another workspace', async () => {
+        it('never surfaces a target that lives in another, non-shared workspace [content:I-44]', async () => {
             // The link rows are workspace-agnostic — only the target row
             // carries a `workspace_id` — so the preview's own target lookup has
             // to AND it. Two tags, one seeded into a foreign workspace, both
             // linked to the same article (a state the write path refuses to
             // create, but a moved or legacy row can leave behind).
             //
-            // The contract is *not* that the link vanishes: `items` and `total`
-            // stay consistent, so the foreign id comes back as a `missing` ref
-            // whose `title` is only the raw id standing in — no title, no
-            // content, and a flag the UI keys off so it never prints it.
+            // Since shared workspaces (ADR-0019), a link into another workspace
+            // whose target the reader may not see is **hidden** — out of
+            // `items` and out of `total` — rather than reported as a `missing`
+            // ref: a link into a shared workspace that stops being visible must
+            // not tell the consumer what became of it, and a legacy
+            // cross-workspace row is the same case. A `missing` ref stays the
+            // answer for the workspace's OWN soft-deleted targets.
             const foreign = await seedWorkspace({
                 name: 'WS Foreign',
                 slug: 'ws-foreign'
@@ -307,17 +310,17 @@ describe('Content relation preview (GET /api/content/:typeName?relations=preview
                 relationFields: 'tags'
             });
             const alpha = items.find((item) => item.values.text === 'Alpha');
-            const refs = alpha?.relations?.tags?.items ?? [];
-            expect(refs).toHaveLength(2);
-
-            const local = refs.find((ref) => ref.id === localTag);
-            expect(local).toMatchObject({ title: 'Local' });
-            expect(local?.missing).toBeUndefined();
-
-            const hidden = refs.find((ref) => ref.id === foreignTag);
-            expect(hidden).toMatchObject({ missing: true, title: foreignTag });
-            // The foreign tag's own name is nowhere in the response.
-            expect(JSON.stringify(refs)).not.toContain('Foreign');
+            const preview = alpha?.relations?.tags;
+            expect(preview?.total).toBe(1);
+            expect(preview?.items).toHaveLength(1);
+            expect(preview?.items[0]).toMatchObject({
+                id: localTag,
+                title: 'Local'
+            });
+            expect(preview?.items[0].missing).toBeUndefined();
+            // Neither the foreign tag's id nor its name is anywhere in it.
+            expect(JSON.stringify(preview)).not.toContain(foreignTag);
+            expect(JSON.stringify(preview)).not.toContain('Foreign');
         });
     });
 

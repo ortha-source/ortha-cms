@@ -150,6 +150,17 @@ function entrySchema(
             additionalProperties: ref('RelationFieldPage'),
             description:
                 'Capped relation preview, keyed by relation field — present only with `?relations=preview&relationFields=…`.'
+        },
+        source: {
+            ...ref('EntrySource'),
+            nullable: true,
+            description:
+                'The shared workspace this entry is read from, or `null` for an entry of the current workspace. Set on the list (every `?source=` mode) and the single-entry read.'
+        },
+        readOnly: {
+            type: 'boolean',
+            description:
+                '`true` iff the entry belongs to a shared workspace — every write route answers its id with a 404. Set on the single-entry read.'
         }
     };
 
@@ -197,7 +208,7 @@ function sharedSchemas(): Record<string, OpenApiSchema> {
         RelationRef: {
             type: 'object',
             description:
-                'One linked record, resolved for display. A link whose target cannot be resolved (soft-deleted, or outside the workspace) is returned id-only and flagged `missing`, so `items` never runs shorter than `total`.',
+                "One linked record, resolved for display. A link to one of the workspace's own records that cannot be resolved (soft-deleted) is returned id-only and flagged `missing`, so `items` never runs shorter than `total`; a link into another workspace whose target is not visible (ADR-0019) is left out of both.",
             properties: {
                 id: UUID,
                 title: {
@@ -218,9 +229,45 @@ function sharedSchemas(): Record<string, OpenApiSchema> {
                 missing: {
                     type: 'boolean',
                     description: 'The target could not be resolved.'
+                },
+                source: {
+                    ...ref('EntrySource'),
+                    nullable: true,
+                    description:
+                        'The shared workspace the linked record lives in, or `null` for a record of the current workspace.'
                 }
             },
             required: ['id', 'title']
+        },
+        EntrySource: {
+            type: 'object',
+            description:
+                'The shared workspace a record is read from (ADR-0019). Such records are read-only to every other workspace.',
+            properties: {
+                workspaceId: UUID,
+                workspaceName: { type: 'string' }
+            },
+            required: ['workspaceId', 'workspaceName']
+        },
+        EntryUsages: {
+            type: 'object',
+            description:
+                'How many relation links point at this entry from entries in **other** workspaces, grouped by workspace and sorted by `count` descending. Empty when nothing links to it.',
+            properties: {
+                items: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            workspaceId: UUID,
+                            workspaceName: { type: 'string' },
+                            count: { type: 'integer', minimum: 1 }
+                        },
+                        required: ['workspaceId', 'workspaceName', 'count']
+                    }
+                }
+            },
+            required: ['items']
         },
         MediaRef: {
             type: 'object',
