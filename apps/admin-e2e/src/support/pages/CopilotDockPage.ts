@@ -32,6 +32,8 @@ export class CopilotDockPage extends BasePage {
     readonly launcher: Locator;
     /** The list of open chats the launcher opens. */
     readonly chatList: Locator;
+    /** The launcher's tooltip: the product's name and the shortcut. */
+    readonly launcherTooltip: Locator;
 
     constructor(page: Page) {
         super(page);
@@ -42,6 +44,7 @@ export class CopilotDockPage extends BasePage {
         this.chatList = page.getByRole('dialog', {
             name: 'Ortha CMS AI chats'
         });
+        this.launcherTooltip = page.getByRole('tooltip');
     }
 
     // --- the dock ---------------------------------------------------------
@@ -54,14 +57,12 @@ export class CopilotDockPage extends BasePage {
      * own "New chat" row, so open the list first.
      */
     newChat(): Locator {
-        return this.dock
-            .getByRole('button', { name: 'new chat' })
-            .or(
-                this.chatList.getByRole('button', {
-                    name: 'New chat',
-                    exact: true
-                })
-            );
+        return this.dock.getByRole('button', { name: 'new chat' }).or(
+            this.chatList.getByRole('button', {
+                name: 'New chat',
+                exact: true
+            })
+        );
     }
 
     /** Open the chat list (a no-op while it is already open). */
@@ -102,11 +103,9 @@ export class CopilotDockPage extends BasePage {
 
     /** Every chat row and close control in the open list — for counting. */
     pills(): Locator {
-        return this.chatList
-            .getByRole('button')
-            .filter({
-                hasNot: this.page.getByText('New chat', { exact: true })
-            });
+        return this.chatList.getByRole('button').filter({
+            hasNot: this.page.getByText('New chat', { exact: true })
+        });
     }
 
     /** A chat's own Close control, named after the chat it discards. */

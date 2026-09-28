@@ -89,7 +89,7 @@ test.describe('CMS ⇄ Agents switcher', () => {
         await contentLibraryPage.goto(WORKSPACE_ID);
         // On the CMS the launcher is the entry point — with no chats open it is
         // a labelled Ortha CMS AI button at the end of the top bar.
-        await expect(agentsPage.dock).toContainText('Ortha CMS AI');
+        await expect(agentsPage.dockLauncher).toBeVisible();
 
         await agentsPage.switchView('Agents');
 

@@ -36,14 +36,14 @@ test.describe('Ortha CMS AI dock', () => {
     test('is the entry point, and opens a window focused on the composer [shell:I-13]', async ({
         copilotDockPage
     }) => {
-        // With nothing open the dock *is* the button, carrying the shortcut
-        // hint — which is where that shortcut is discoverable at all. The
-        // glyph is platform-derived; which one is right for *this* browser is
+        // With nothing open the launcher is an icon that starts a chat in one
+        // click. Its name says so; the shortcut is taught by its tooltip,
         // asserted on its own below.
-        await expect(copilotDockPage.dock).toContainText('Ortha CMS AI');
-        await expect(copilotDockPage.dock).toContainText(/(⌘|Ctrl)J/);
+        await expect(copilotDockPage.launcher).toHaveAccessibleName(
+            'Ortha CMS AI — new chat'
+        );
 
-        await copilotDockPage.startChat();
+        await copilotDockPage.launcher.click();
 
         await expect(copilotDockPage.panel()).toBeVisible();
         // The panel is opened to type into, so the cursor goes where it is
@@ -495,10 +495,9 @@ test.describe('Ortha CMS AI dock — regressions', () => {
     }) => {
         const start = copilotDockPage.newChat();
 
-        // 2.5.3 Label in Name: the visible text is "Ortha CMS AI" and the
-        // accessible name was the constant "New chat", so the two had nothing
-        // in common — "click Ortha CMS AI" did not work by voice.
-        await expect(start).toHaveText(/Ortha CMS AI/);
+        // An icon button: nothing visible to be in its name, so the name is
+        // the product's — "click Ortha CMS AI" works by voice — and the
+        // tooltip shows the same words to a sighted pointer user.
         await expect(start).toHaveAccessibleName(/Ortha CMS AI/);
 
         // Both accepted chords are advertised, so assistive tech announces the
@@ -518,7 +517,10 @@ test.describe('Ortha CMS AI dock — regressions', () => {
                 navigator.userAgentData?.platform ?? navigator.platform ?? ''
             );
         });
-        await expect(start).toContainText(isApple ? '⌘J' : 'CtrlJ');
+        await start.hover();
+        await expect(copilotDockPage.launcherTooltip).toContainText(
+            isApple ? '⌘J' : 'CtrlJ'
+        );
     });
 
     test('the transcript stops yanking a reader who has scrolled up', async ({

@@ -7,7 +7,10 @@ import {
     Kbd,
     Popover,
     PopoverContent,
-    PopoverTrigger
+    PopoverTrigger,
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger
 } from '@orthacms/design-system';
 import type { CopilotSession } from '../../application/sessions';
 import {
@@ -88,10 +91,14 @@ const messages = defineMessages({
  *
  * Two shapes:
  *
- * - **No chats:** one button, "Ortha CMS AI" with the shortcut hint, that
- *   starts one. It is the product's front door, so it names the product.
- * - **Chats open:** the same button, now with a count and a dot when a chat
- *   wants attention, opening a list of the chats. The list keeps everything the
+ * It is **an icon, not a labelled button**: the bar is the page's own chrome,
+ * and a word-and-shortcut chip at its end competed with the page's actions
+ * beside it. The name lives where an icon button keeps it — the accessible
+ * name and a tooltip, which also carries the shortcut.
+ *
+ * - **No chats:** clicking the icon opens a new chat straight away.
+ * - **Chats open:** the icon carries a count and a dot when a chat wants
+ *   attention, and opens a list of the chats. The list keeps everything the
  *   pill bar had to get right:
  *   - **a row for a chat you cannot see says something happened in it** — the
  *     dot, and the same words in its accessible name ("— finished", "— waiting
@@ -104,6 +111,18 @@ const messages = defineMessages({
  * `newChatRef` lands on the launcher either way: it is the one control
  * guaranteed to still be there when a window goes away.
  */
+/**
+ * The tooltip opens on **hover only**, never on focus. Focus is handed back to
+ * this icon every time a chat window collapses, and a tooltip opened by that
+ * would hang over the top of the window docked just beneath the bar — where it
+ * swallowed clicks on that window's own header buttons. A focused reader loses
+ * nothing: the button's name and `aria-keyshortcuts` say what the tooltip says.
+ * Radix skips its own focus handler when the event arrives default-prevented.
+ */
+function suppressFocusTooltip(event: React.FocusEvent) {
+    event.preventDefault();
+}
+
 export function CopilotDock({
     sessions,
     onToggle,
@@ -120,31 +139,45 @@ export function CopilotDock({
 }) {
     const intl = useIntl();
     const [open, setOpen] = useState(false);
+    const shortcutGlyph = `${shortcutModifierGlyph()}J`;
     const shortcut = (
-        <Kbd className="hidden md:inline-flex">{`${shortcutModifierGlyph()}J`}</Kbd>
+        <Kbd className="hidden md:inline-flex">{shortcutGlyph}</Kbd>
     );
+    // The tooltip names the product and teaches the shortcut — the two things
+    // the icon alone cannot say. `aria-hidden` on the glyph copy: the button's
+    // own name and `aria-keyshortcuts` already say both to assistive tech.
+    const tooltip = (
+        <TooltipContent side="bottom" className="flex items-center gap-2">
+            {intl.formatMessage(messages.start)}
+            <span aria-hidden className="opacity-70">
+                {shortcutGlyph}
+            </span>
+        </TooltipContent>
+    );
+    const iconButton =
+        'relative size-8 text-muted-foreground hover:text-foreground';
 
     if (sessions.length === 0) {
         return (
-            <Button
-                ref={newChatRef}
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={onNewChat}
-                aria-label={intl.formatMessage(messages.startFull)}
-                title={intl.formatMessage(messages.startFull)}
-                // Both accepted chords, so assistive tech announces the one its
-                // user can actually press rather than the glyph on the chip.
-                aria-keyshortcuts={NEW_CHAT_KEY_SHORTCUTS}
-                className="h-8 gap-1.5"
-            >
-                <Sparkles aria-hidden className="size-3.5" />
-                <span className="hidden sm:inline">
-                    {intl.formatMessage(messages.start)}
-                </span>
-                {shortcut}
-            </Button>
+            <Tooltip>
+                <TooltipTrigger asChild onFocus={suppressFocusTooltip}>
+                    <Button
+                        ref={newChatRef}
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={onNewChat}
+                        aria-label={intl.formatMessage(messages.startFull)}
+                        // Both accepted chords, so assistive tech announces the
+                        // one its user can actually press rather than a glyph.
+                        aria-keyshortcuts={NEW_CHAT_KEY_SHORTCUTS}
+                        className={iconButton}
+                    >
+                        <Sparkles aria-hidden className="size-4" />
+                    </Button>
+                </TooltipTrigger>
+                {tooltip}
+            </Tooltip>
         );
     }
 
@@ -159,36 +192,44 @@ export function CopilotDock({
         // Non-modal, like every other overlay a chat can be driven from: the
         // windows it opens sit over a page that stays live.
         <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger asChild>
-                <Button
-                    ref={newChatRef}
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    aria-label={launcherLabel}
-                    className="relative h-8 gap-1.5"
-                >
-                    <Sparkles aria-hidden className="size-3.5" />
-                    <span className="hidden sm:inline">
-                        {intl.formatMessage(messages.start)}
-                    </span>
-                    <span
-                        aria-hidden
-                        className="rounded-full bg-secondary px-1.5 text-xs font-medium tabular-nums text-secondary-foreground"
-                    >
-                        {sessions.length}
-                    </span>
-                    {attention > 0 && (
-                        <span
-                            aria-hidden
-                            className={cn(
-                                'absolute -top-0.5 -right-0.5 size-2 rounded-full ring-2 ring-background',
-                                anyAwaiting ? 'bg-warning' : 'bg-primary'
+            <Tooltip>
+                <TooltipTrigger asChild onFocus={suppressFocusTooltip}>
+                    <PopoverTrigger asChild>
+                        <Button
+                            ref={newChatRef}
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            aria-label={launcherLabel}
+                            className={iconButton}
+                        >
+                            <Sparkles aria-hidden className="size-4" />
+                            {/* The count sits on the icon's corner; the dot
+                                for a chat wanting attention on the other. Both
+                                are said in the button's name as well. */}
+                            <span
+                                aria-hidden
+                                className="absolute -right-1 -bottom-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[0.625rem] leading-none font-semibold tabular-nums text-background"
+                            >
+                                {sessions.length}
+                            </span>
+                            {attention > 0 && (
+                                <span
+                                    aria-hidden
+                                    className={cn(
+                                        'absolute -top-0.5 -right-0.5 size-2 rounded-full ring-2 ring-background',
+                                        anyAwaiting
+                                            ? 'bg-warning'
+                                            : 'bg-primary'
+                                    )}
+                                />
                             )}
-                        />
-                    )}
-                </Button>
-            </PopoverTrigger>
+                        </Button>
+                    </PopoverTrigger>
+                </TooltipTrigger>
+                {/* No tooltip over an open list — it would sit on top of it. */}
+                {open ? null : tooltip}
+            </Tooltip>
             <PopoverContent
                 align="end"
                 aria-label={intl.formatMessage(messages.label)}
