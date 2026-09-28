@@ -21,29 +21,50 @@ function shape(fields: ContentField[]) {
 
 describe('fieldWidth', () => {
     it.each([
-        ['number', 'half'],
-        ['money', 'half'],
-        ['date', 'half'],
-        ['datetime', 'half'],
-        ['select', 'half'],
-        ['boolean', 'fit'],
-        ['text', 'full'],
-        ['richtext', 'full'],
-        ['json', 'full'],
-        ['multiselect', 'full'],
-        ['relation', 'full']
-    ])('draws a %s field %s', (type, width) => {
-        expect(fieldWidth(field('f', type))).toBe(width);
+        'text',
+        'number',
+        'money',
+        'date',
+        'datetime',
+        'select',
+        'richtext',
+        'json',
+        'multiselect',
+        'relation'
+    ])('draws a %s field full width unless told otherwise', (type) => {
+        expect(fieldWidth(field('f', type))).toBe('full');
     });
 
-    it('gives a bounded text widget half the form', () => {
-        expect(fieldWidth(field('c', 'text', { widget: 'color' }))).toBe(
+    it('never infers a width from a widget', () => {
+        // The old type-based rule put an email in half a column and a slug,
+        // often as short, across the whole form. The schema decides now.
+        for (const widget of ['email', 'color', 'slug', 'textarea']) {
+            expect(fieldWidth(field('w', 'text', { widget }))).toBe('full');
+        }
+    });
+
+    it('gives half a column to any field whose schema asks', () => {
+        expect(fieldWidth(field('sku', 'text', { width: 'half' }))).toBe(
             'half'
         );
-        expect(fieldWidth(field('e', 'text', { widget: 'email' }))).toBe(
+        expect(fieldWidth(field('price', 'money', { width: 'half' }))).toBe(
             'half'
         );
-        expect(fieldWidth(field('s', 'text', { widget: 'slug' }))).toBe('full');
+    });
+
+    it('shrinks a boolean to its segments, unless the schema says otherwise', () => {
+        expect(fieldWidth(field('b', 'boolean'))).toBe('fit');
+        expect(fieldWidth(field('b', 'boolean', { width: 'half' }))).toBe(
+            'half'
+        );
+        expect(fieldWidth(field('b', 'boolean', { width: 'full' }))).toBe(
+            'full'
+        );
+    });
+
+    it('ignores a width it does not know', () => {
+        expect(fieldWidth(field('t', 'text', { width: 'third' }))).toBe('full');
+        expect(fieldWidth(field('t', 'text', { width: 50 }))).toBe('full');
     });
 });
 

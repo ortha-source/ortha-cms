@@ -1,6 +1,29 @@
 import type { AnyFieldSpec } from '../types/fields';
 import type { FieldGroup, FieldGroupOptions } from '../types/content-type';
 
+/** The widths `admin.width` accepts. */
+const FIELD_WIDTHS: ReadonlySet<unknown> = new Set(['half', 'full']);
+
+/**
+ * Rejects an `admin.width` the admin would not understand. The admin reads an
+ * unknown width as `full`, so a typo (`'halff'`) would otherwise pass boot and
+ * quietly lay the form out as if it had never been written.
+ */
+export function assertFieldWidths(
+    typeName: string,
+    fields: Record<string, AnyFieldSpec>
+): void {
+    for (const [fieldName, spec] of Object.entries(fields)) {
+        const width = spec.admin.width;
+        if (width !== undefined && !FIELD_WIDTHS.has(width)) {
+            throw new Error(
+                `Field "${typeName}.${fieldName}" has admin.width ` +
+                    `"${String(width)}" — use 'half' or 'full'.`
+            );
+        }
+    }
+}
+
 /** Valid group keys: the same shape as a field name. */
 const GROUP_KEY_RE = /^[a-zA-Z][a-zA-Z0-9_]*$/;
 

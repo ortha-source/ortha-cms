@@ -33,7 +33,9 @@ export const post = collection('post', {
   `datetime`/`select`/`multiselect`/`json`/`relation`/`media`) each return a JSON-serializable
   `FieldSpec` carrying its value type as a phantom generic (for `InferEntry`).
 - **Form layout hints** are presentation only and cost no migration.
-  `admin.row` puts two fields on one line of the entry form; `groups` on
+  `admin.row` puts two fields on one line of the entry form; `admin.width:
+'half'` gives a lone field one column (every field is full width otherwise, and
+  any other value fails at define time); `groups` on
   `collection()` / `single()` declares collapsible form sections
   (`{ key: { label, description?, collapsed? } }`, display order = declaration
   order) and a field joins one with `admin.group`. `normalizeGroups` checks the

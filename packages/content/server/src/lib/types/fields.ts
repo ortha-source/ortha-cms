@@ -74,6 +74,12 @@ export interface AdminProps {
      */
     row?: string;
     /**
+     * How much of the entry form's two-column grid the field takes. Every
+     * field is `'full'` unless it asks for `'half'` — the admin never infers a
+     * width from the field's type. Any other value fails at define time.
+     */
+    width?: 'half' | 'full';
+    /**
      * The form section this field is drawn in — a key of the type's `groups`.
      * An unknown key fails at define time.
      */

@@ -5,42 +5,27 @@ import { adminProps } from '../adminProps';
 /**
  * How much of the form's two-column grid a field takes.
  *
- * - `half` — a bounded value: a number, an amount, a date, a date with a
- *   time, a single choice, a colour, an email address.
- * - `fit` — a control that sizes itself to its content (the boolean
- *   segments), so a frame the width of a column would only draw an empty box.
- * - `full` — prose and anything else whose length is the author's: text,
- *   rich text, JSON, multi-choice chips, relations.
+ * - `full` — the whole line. The **default** for every field.
+ * - `half` — one column, only when the schema asks with `admin.width: 'half'`.
+ * - `fit` — the boolean segments, which size themselves to their two words;
+ *   a frame the width of the form would only draw an empty box around them.
  *
- * Two sizes, not one per type. Widths tuned to each value (240px for a
- * number, 384 for an email, …) were tried and gave the form a different
- * right edge on nearly every line; snapped to a grid there are exactly two
- * edges, the middle and the full width, and the column still says "short
- * answer" to the author.
+ * The width is the schema author's call, not inferred from the field type. A
+ * type-based rule was tried and guessed wrong in both directions — an email
+ * went half while a slug, often just as short, went full — because the type
+ * says what kind of value a field holds, not how long this project's values
+ * run. Only the author knows that a `text` is a SKU and not a headline.
  */
 export type FieldWidth = 'half' | 'fit' | 'full';
 
-/** Text widgets whose value is bounded, so a half column holds it. */
-const HALF_TEXT_WIDGETS = new Set(['color', 'email']);
+/** The widths a schema may ask for with `admin.width`. */
+const DECLARED_WIDTHS: ReadonlySet<unknown> = new Set(['half', 'full']);
 
 /** How much of the form's grid a field takes. */
 export function fieldWidth(field: ContentField): FieldWidth {
-    switch (field.type) {
-        case CONTENT_FIELD_TYPE.Number:
-        case CONTENT_FIELD_TYPE.Money:
-        case CONTENT_FIELD_TYPE.Date:
-        case CONTENT_FIELD_TYPE.Datetime:
-        case CONTENT_FIELD_TYPE.Select:
-            return 'half';
-        case CONTENT_FIELD_TYPE.Boolean:
-            return 'fit';
-        case CONTENT_FIELD_TYPE.Text: {
-            const widget = adminProps(field).widget;
-            return widget && HALF_TEXT_WIDGETS.has(widget) ? 'half' : 'full';
-        }
-        default:
-            return 'full';
-    }
+    const declared = adminProps(field).width;
+    if (DECLARED_WIDTHS.has(declared)) return declared as FieldWidth;
+    return field.type === CONTENT_FIELD_TYPE.Boolean ? 'fit' : 'full';
 }
 
 /**

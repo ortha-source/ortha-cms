@@ -68,7 +68,7 @@ export const master_collection = collection('master_collection', {
         // text + regex pattern + email widget
         email: field.text({
             pattern: '^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$',
-            admin: { widget: 'email', group: 'details' }
+            admin: { widget: 'email', group: 'details', width: 'half' }
         }),
         // text + slug widget (marks the type's slug field)
         slug: field.text({
@@ -79,7 +79,7 @@ export const master_collection = collection('master_collection', {
         }),
         // text + color widget
         brandColor: field.text({
-            admin: { widget: 'color', group: 'details' }
+            admin: { widget: 'color', group: 'details', width: 'half' }
         }),
         // text + textarea widget + custom pass-through admin prop
         summary: field.text({
@@ -96,7 +96,8 @@ export const master_collection = collection('master_collection', {
         }),
 
         // ---- number: float, integer, bounded ------------------------------
-        // `admin.row` puts the pair on one line of the form
+        // `admin.row` puts the pair on one line of the form; `admin.width:
+        // 'half'` gives a lone field one column (every field is full otherwise)
         score: field.number({
             min: 0,
             max: 100,
@@ -112,7 +113,7 @@ export const master_collection = collection('master_collection', {
         price: field.money({
             min: 0,
             max: 1_000_000,
-            admin: { group: 'metrics' }
+            admin: { group: 'metrics', width: 'half' }
         }),
 
         // ---- boolean (required ⇒ DEFAULT false) ---------------------------
@@ -132,7 +133,11 @@ export const master_collection = collection('master_collection', {
         // ---- enumerations -------------------------------------------------
         status_choice: field.select({
             options: ['alpha', 'beta', 'ga'],
-            admin: { label: 'Release channel', group: 'details' }
+            admin: {
+                label: 'Release channel',
+                group: 'details',
+                width: 'half'
+            }
         }),
         topics: field.multiselect({
             options: ['news', 'tutorial', 'opinion', 'reference'],

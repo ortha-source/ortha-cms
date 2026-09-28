@@ -230,10 +230,12 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   form state (`useEntryForm`, with client validation in `presentation/entryValidation`
   (the kernel-backed i18n ACL, not a hand-mirror of the server rules)) and lays out a title header, a **full-width**
   tabbed body (**General** = `EntryFieldSections`, ordered by control shape on a
-  **two-column grid**: a bounded field takes one column, prose the whole line,
+  **two-column grid**: every field takes the whole line unless the schema asks
+  for one column with `admin.width: 'half'` (a boolean shrinks to its segments),
   and two fields sharing an `admin.row` key share a line — `domain/fieldLayout`
-  decides, `FieldStack` renders. Two sizes, not a width per type: per-type
-  widths gave nearly every line its own right edge. A row is **declared, never
+  decides, `FieldStack` renders. The width is **never inferred from the type**:
+  a type-based rule was tried and put an email in half a column while an
+  equally short slug spanned the form. A row is **declared, never
   inferred**: auto-pairing would sit unrelated fields side by side. A type that
   declares **form sections** (`groups`, joined by `admin.group`) is laid out by
   them instead of Translated / Shared: ungrouped fields on top, then one

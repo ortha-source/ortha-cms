@@ -60,6 +60,26 @@ describe('form groups on collection() / single()', () => {
         ).toThrow(/needs a label/);
     });
 
+    it('accepts admin.width half and full, and rejects anything else', () => {
+        expect(() =>
+            collection('product', {
+                fields: {
+                    sku: field.text({ admin: { width: 'half' } }),
+                    name: field.text({ admin: { width: 'full' } })
+                }
+            })
+        ).not.toThrow();
+        expect(() =>
+            collection('product', {
+                fields: {
+                    // A JS host (or a cast) can still get here; the admin would
+                    // read the typo as full and the form would quietly ignore it.
+                    sku: field.text({ admin: { width: 'halff' as 'half' } })
+                }
+            })
+        ).toThrow(/"product.sku" has admin.width "halff"/);
+    });
+
     it('serves groups with the schema, and omits the key when there are none', () => {
         const grouped = collection('event', {
             groups: { schedule: { label: 'Schedule' } },
