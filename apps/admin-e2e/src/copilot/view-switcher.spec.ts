@@ -87,9 +87,9 @@ test.describe('CMS ⇄ Agents switcher', () => {
         contentLibraryPage
     }) => {
         await contentLibraryPage.goto(WORKSPACE_ID);
-        // On the CMS the dock *is* the entry point — with no chats open it is a
-        // labelled Ortha CMS AI button in the corner.
-        await expect(agentsPage.dock).toContainText('Ortha CMS AI');
+        // On the CMS the launcher is the entry point — with no chats open it is
+        // a labelled Ortha CMS AI button at the end of the top bar.
+        await expect(agentsPage.dockLauncher).toBeVisible();
 
         await agentsPage.switchView('Agents');
 
@@ -110,7 +110,8 @@ test.describe('CMS ⇄ Agents switcher', () => {
         await agentsPage.switchView('Agents');
 
         // The page is the chat surface now, so a floating window over it is a
-        // second one saying the same thing — the bar and the windows both go.
+        // second one saying the same thing — the launcher and the windows both
+        // go.
         await expect(agentsPage.dock).toBeHidden();
         await expect(copilotDockPage.panel()).toBeHidden();
 

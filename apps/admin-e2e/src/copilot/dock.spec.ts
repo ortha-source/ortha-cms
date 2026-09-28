@@ -18,7 +18,7 @@ const WORKSPACE_ID = 'ws_marketing';
  * What the page's suites already cover is the chat itself: transcript, composer,
  * steps, cards, model choice. Those components are literally shared, so this
  * suite deliberately does **not** re-assert them. What only exists here is the
- * window — several at once, tiled, collapsible to a pill, movable — and every
+ * window — several at once, tiled, collapsible into the launcher's list, movable — and every
  * case below is about that chrome, or about the one rule the whole design rests
  * on: **closing a chat is what ends its run, and nothing else is.**
  */
@@ -36,14 +36,14 @@ test.describe('Ortha CMS AI dock', () => {
     test('is the entry point, and opens a window focused on the composer [shell:I-13]', async ({
         copilotDockPage
     }) => {
-        // With nothing open the dock *is* the button, carrying the shortcut
-        // hint — which is where that shortcut is discoverable at all. The
-        // glyph is platform-derived; which one is right for *this* browser is
+        // With nothing open the launcher is an icon that starts a chat in one
+        // click. Its name says so; the shortcut is taught by its tooltip,
         // asserted on its own below.
-        await expect(copilotDockPage.dock).toContainText('Ortha CMS AI');
-        await expect(copilotDockPage.dock).toContainText(/(⌘|Ctrl)J/);
+        await expect(copilotDockPage.launcher).toHaveAccessibleName(
+            'Ortha CMS AI — new chat'
+        );
 
-        await copilotDockPage.startChat();
+        await copilotDockPage.launcher.click();
 
         await expect(copilotDockPage.panel()).toBeVisible();
         // The panel is opened to type into, so the cursor goes where it is
@@ -91,8 +91,10 @@ test.describe('Ortha CMS AI dock', () => {
 
         // The cap **minimizes rather than refuses**: the user asked for another
         // chat, and the one they stopped looking at is the cheapest to give up.
-        // It keeps running as a pill.
+        // It keeps running, listed under the launcher.
         await expect(copilotDockPage.windows()).toHaveCount(3);
+        await expect(copilotDockPage.launcher).toHaveAccessibleName(/4 chats/);
+        await copilotDockPage.openChatList();
         await expect(copilotDockPage.pill('Untitled chat')).toHaveCount(4);
     });
 
@@ -101,13 +103,16 @@ test.describe('Ortha CMS AI dock', () => {
     }) => {
         await copilotDockPage.startChat();
         const pill = copilotDockPage.pill('Untitled chat');
+        await copilotDockPage.openChatList();
         await expect(pill).toHaveAttribute('aria-pressed', 'true');
 
+        // A pick closes the list: it is a way to a window, not a place to stay.
         await pill.click();
-
+        await expect(copilotDockPage.chatList).toBeHidden();
         await expect(copilotDockPage.windows()).toHaveCount(0);
-        await expect(pill).toHaveAttribute('aria-pressed', 'false');
 
+        await copilotDockPage.openChatList();
+        await expect(pill).toHaveAttribute('aria-pressed', 'false');
         await pill.click();
 
         await expect(copilotDockPage.panel()).toBeVisible();
@@ -121,8 +126,9 @@ test.describe('Ortha CMS AI dock', () => {
         await copilotDockPage.composer().press('Escape');
 
         // Discarding a chat — and cancelling its run — is too much to hang off
-        // the key people press to dismiss things. The pill stays.
+        // the key people press to dismiss things. The chat stays listed.
         await expect(copilotDockPage.windows()).toHaveCount(0);
+        await copilotDockPage.openChatList();
         await expect(copilotDockPage.pill('Untitled chat')).toBeVisible();
     });
 
@@ -134,7 +140,10 @@ test.describe('Ortha CMS AI dock', () => {
         await copilotDockPage.headerButton('Close').click();
 
         await expect(copilotDockPage.windows()).toHaveCount(0);
-        await expect(copilotDockPage.pill('Untitled chat')).toHaveCount(0);
+        // No chats left, so the launcher is back to starting one.
+        await expect(copilotDockPage.launcher).toHaveAccessibleName(
+            'Ortha CMS AI — new chat'
+        );
         // Otherwise focus falls to `<body>`, which strands a keyboard user at
         // the top of the page they were working on.
         await expect(copilotDockPage.newChat()).toBeFocused();
@@ -148,6 +157,7 @@ test.describe('Ortha CMS AI dock', () => {
         // Two controls in one toolbar answering to the same name is ambiguous
         // by voice and in a screen reader's control list — and "New chat" is
         // the button sitting right beside it.
+        await copilotDockPage.openChatList();
         await expect(copilotDockPage.pill('Untitled chat')).toBeVisible();
         await expect(copilotDockPage.newChat()).toBeVisible();
     });
@@ -159,6 +169,7 @@ test.describe('Ortha CMS AI dock', () => {
 
         await copilotDockPage.ask('Set the summary please');
 
+        await copilotDockPage.openChatList();
         await expect(
             copilotDockPage.pill(/^Set the summary please/)
         ).toBeVisible();
@@ -179,12 +190,17 @@ test.describe('Ortha CMS AI dock', () => {
 
         // `unread` is edge-triggered off the run ending and only ever set on a
         // chat that is off screen — badging one the user is already reading
-        // trains them to ignore the badge.
+        // trains them to ignore the badge. The closed launcher says so first.
+        await expect(copilotDockPage.launcher).toHaveAccessibleName(
+            /waiting for you or finished/
+        );
+        await copilotDockPage.openChatList();
         await expect(copilotDockPage.pill(/— finished/)).toBeVisible();
         await expect.poll(() => page.title()).toMatch(/^\(1\)/);
 
         await copilotDockPage.pill(/— finished/).click();
 
+        await copilotDockPage.openChatList();
         await expect(copilotDockPage.pill(/— finished/)).toHaveCount(0);
         await expect.poll(() => page.title()).not.toMatch(/^\(1\)/);
     });
@@ -290,6 +306,7 @@ test.describe('Ortha CMS AI dock', () => {
         await expect(copilotDockPage.modelPicker()).toContainText('gpt-5.2');
 
         await copilotDockPage.composer().press('Escape');
+        await copilotDockPage.openChatList();
         await copilotDockPage.pill('Untitled chat').click();
 
         // It lived in the component that drew the picker, so collapsing a
@@ -334,6 +351,7 @@ test.describe('Ortha CMS AI dock — the attached page', () => {
         await expect(copilotDockPage.contextChip(`${TYPE} list`)).toBeVisible();
 
         await copilotDockPage.composer().press('Escape');
+        await copilotDockPage.openChatList();
         await copilotDockPage.pill('Untitled chat').click();
 
         // The gesture people use to go and *look* at the page they attached is
@@ -352,6 +370,7 @@ test.describe('Ortha CMS AI dock — the attached page', () => {
         await copilotDockPage.startChat();
         await copilotDockPage.addContext().click();
         await copilotDockPage.composer().press('Escape');
+        await copilotDockPage.openChatList();
         await copilotDockPage.pill('Untitled chat').click();
 
         await copilotDockPage.ask('Which of these is missing a summary?');
@@ -387,6 +406,7 @@ test.describe('Ortha CMS AI dock — the attached page', () => {
         await copilotDockPage.startChat();
         await copilotDockPage.addContext().click();
         await copilotDockPage.composer().press('Escape');
+        await copilotDockPage.openChatList();
         await copilotDockPage.pill('Untitled chat').click();
 
         await copilotDockPage.removeContext().click();
@@ -441,6 +461,7 @@ test.describe('Ortha CMS AI dock — regressions', () => {
         // transcript.
         await expect(copilotDockPage.panelTitle(0)).toHaveText(THREAD);
         await expect(copilotDockPage.panelTitle(1)).toHaveText('Ortha CMS AI');
+        await copilotDockPage.openChatList();
         await expect(copilotDockPage.pill(THREAD)).toHaveCount(1);
     });
 
@@ -456,15 +477,16 @@ test.describe('Ortha CMS AI dock — regressions', () => {
         // `<body>` and the next Tab restarted from the top of the document.
         await page.keyboard.press('Escape');
         await expect(copilotDockPage.windows()).toHaveCount(0);
-        await expect(copilotDockPage.newChat()).toBeFocused();
+        await expect(copilotDockPage.launcher).toBeFocused();
 
         // The Minimize button is the same path and was equally broken — worse,
         // because the button that had focus unmounts under the pointer.
+        await copilotDockPage.openChatList();
         await copilotDockPage.pills().first().click();
         await expect(copilotDockPage.composer()).toBeVisible();
         await copilotDockPage.headerButton('Minimize').click();
         await expect(copilotDockPage.windows()).toHaveCount(0);
-        await expect(copilotDockPage.newChat()).toBeFocused();
+        await expect(copilotDockPage.launcher).toBeFocused();
     });
 
     test('the start button announces the label it shows, and the shortcut its platform accepts', async ({
@@ -473,10 +495,9 @@ test.describe('Ortha CMS AI dock — regressions', () => {
     }) => {
         const start = copilotDockPage.newChat();
 
-        // 2.5.3 Label in Name: the visible text is "Ortha CMS AI" and the
-        // accessible name was the constant "New chat", so the two had nothing
-        // in common — "click Ortha CMS AI" did not work by voice.
-        await expect(start).toHaveText(/Ortha CMS AI/);
+        // An icon button: nothing visible to be in its name, so the name is
+        // the product's — "click Ortha CMS AI" works by voice — and the
+        // tooltip shows the same words to a sighted pointer user.
         await expect(start).toHaveAccessibleName(/Ortha CMS AI/);
 
         // Both accepted chords are advertised, so assistive tech announces the
@@ -496,7 +517,10 @@ test.describe('Ortha CMS AI dock — regressions', () => {
                 navigator.userAgentData?.platform ?? navigator.platform ?? ''
             );
         });
-        await expect(start).toContainText(isApple ? '⌘J' : 'CtrlJ');
+        await start.hover();
+        await expect(copilotDockPage.launcherTooltip).toContainText(
+            isApple ? '⌘J' : 'CtrlJ'
+        );
     });
 
     test('the transcript stops yanking a reader who has scrolled up', async ({
@@ -552,13 +576,9 @@ test.describe('Ortha CMS AI dock — regressions', () => {
         ).toBeLessThan(40);
     });
 
-    test('the dock is a group, and two windows have two names', async ({
+    test('the chat list is a named dialog, and two windows have two names', async ({
         copilotDockPage
     }) => {
-        // `toolbar` is a composite widget in the APG — one tab stop, arrow keys
-        // inside it. The dock implements neither, so the role told a
-        // screen-reader user to press arrows that do nothing. The POM resolving
-        // it as a `group` at all is half the assertion.
         await expect(copilotDockPage.dock).toBeVisible();
 
         await copilotDockPage.startChat();
@@ -580,6 +600,37 @@ test.describe('Ortha CMS AI dock — regressions', () => {
         await expect(copilotDockPage.panel(1)).toHaveAccessibleName(
             'Rewrite the pricing page intro'
         );
+
+        // The list the launcher opens is found by its own name, so a
+        // screen-reader user hears what it holds, not just "dialog".
+        await copilotDockPage.openChatList();
+        await expect(copilotDockPage.chatList).toBeVisible();
+    });
+
+    test('lives in the top bar and reserves no gutter under the page', async ({
+        page,
+        copilotDockPage
+    }) => {
+        // The dock used to float `fixed` over the bottom-right corner and
+        // publish a bottom gutter every scrollport reserved to stay clear of
+        // it: 66px of empty space under every page, and 24px on the Agents
+        // view where the bar was not even drawn. In the bar it covers nothing.
+        await expect(copilotDockPage.launcher).toBeVisible();
+        const bar = await page
+            .locator('[data-slot="sidebar-inset-bar-row"]')
+            .boundingBox();
+        const launcher = await copilotDockPage.launcher.boundingBox();
+        expect(bar && launcher).toBeTruthy();
+        expect(launcher!.y).toBeGreaterThanOrEqual(bar!.y);
+        expect(launcher!.y + launcher!.height).toBeLessThanOrEqual(
+            bar!.y + bar!.height
+        );
+
+        await copilotDockPage.startChat();
+        await expect(copilotDockPage.panel()).toBeVisible();
+        await expect(
+            page.locator('[data-slot="sidebar-inset-scroll"]')
+        ).toHaveCSS('padding-bottom', '0px');
     });
 });
 
@@ -606,6 +657,13 @@ test.describe('Ortha CMS AI dock accessibility (axe, WCAG 2.1 A/AA)', () => {
     }) => {
         await copilotDockPage.startChat();
         await expect(copilotDockPage.composer()).toBeFocused();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('the chat list, open', async ({ copilotDockPage, makeAxe }) => {
+        await copilotDockPage.startChat();
+        await copilotDockPage.composer().press('Escape');
+        await copilotDockPage.openChatList();
         await expectNoA11yViolations(makeAxe());
     });
 

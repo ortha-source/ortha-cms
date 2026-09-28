@@ -335,10 +335,10 @@ test.describe('the shell chrome is inside landmarks', () => {
      * note on `AXE_KNOWN_GAPS` — so the two findings are pinned by name instead,
      * which is a sharper assertion than the rule was making anyway.
      *
-     * The **dock** half is pinned where the dock actually mounts: it needs a
-     * workspace, so it never renders on this route, and `CopilotDockPage.dock` /
-     * `AgentsPage.dock` both resolve it by the same landmark role and name — a
-     * regression there fails every copilot suite rather than one assertion here.
+     * The **dock** half no longer applies: the copilot's launcher moved into
+     * the top bar, inside `<main>`, so it is reachable by landmark like the
+     * rest of the page, and its chat list is a named dialog
+     * (`CopilotDockPage.chatList`).
      */
     test('the sidebar is a named landmark [shell:I-29]', async ({
         page,

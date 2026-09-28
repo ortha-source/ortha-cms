@@ -11,10 +11,11 @@ The admin-side copilot plugin — **two surfaces onto one chat**.
 
 - **The docked panel**, from the shell's `SIDEBAR_FOOTER_SLOT` (or `⌘J`). The
   slot renders **nothing into the sidebar** — it is only what mounts the
-  component, which portals the dock and its windows to `<body>`. A chat is a
-  window over whatever page you are on, which is the point of it being a
-  persistent surface rather than a destination, and there can be **several at
-  once**, listed in a bar along the bottom right.
+  component, which portals the windows to `<body>` and the **launcher into the
+  right end of the top bar** (design-system `InsetBarEnd`). A chat is a window
+  over whatever page you are on, which is the point of it being a persistent
+  surface rather than a destination, and there can be **several at once**,
+  listed under the launcher.
 - **The Agents view**, a full page inside the workspace at
   `/workspaces/:id/agents` — history as a column, the transcript with the width
   to render a table or a diff. See [Agents view](#the-agents-view) below.
@@ -73,7 +74,7 @@ presentation/
     AgentsThread/          #   the conversation column
     AgentsWelcome/         #   the empty thread: greeting + four openers
   CopilotLauncher/         # ⌘J + the dock, permission-gated
-  CopilotDock/             # the bottom bar: one pill per chat, + new chat
+  CopilotDock/             # the top-bar launcher: start a chat, or list the open ones
   CopilotSession/          # a dock chat's window + its markers
   CopilotPanel/            # the window a visible chat renders in
   PanelResizeHandles/      # the eight grab strips
@@ -112,6 +113,21 @@ presentation/
   dozens of times per answer and must append to the _current_ last message, not
   a stale closure's. Keeping it pure also makes the interesting cases — a step
   resolving, a run erroring mid-answer — unit-testable without a socket.
+- **The launcher lives in the top bar, and reserves nothing under the page.**
+  It used to be a pill bar `fixed` over the bottom-right corner, and to keep it
+  off the records pagination and the Properties rail's buttons it published
+  `--orthacms-fixed-bottom-gutter`, which every scrollport reserved as bottom
+  padding: 66px of empty space under every page, and 24px on the Agents view,
+  where the bar was not even drawn. A control in the bar covers nothing, so the
+  gutter and the variable are gone. `InsetBarEnd` puts it at the right end of the
+  strip `SidebarInset` hoists every page's `TopBar` into, so it is there however
+  the page draws its bar. With no chats it is one "Ortha CMS AI" button that
+  starts one; with chats it carries a count and a dot and opens a **popover**
+  listing them — each row toggles its window (`aria-pressed`) and has its own
+  named Close, and the launcher's accessible name says when one finished or is
+  waiting, so a closed list hides nothing. Closing the last chat swaps the
+  trigger for the start button, a different element, so focus is handed back a
+  frame later.
 - **The dock is the only entry point to the _panel_.** It replaced the floating
   button, and then the sidebar row went too. A round button could only ever mean
   "the panel", singular; a sidebar row duplicated what the dock already says
@@ -381,14 +397,13 @@ rel=icon>`, a format the canvas refuses, a cross-origin taint) the dot is
   skipped and the title still carries the count. Degrading to the title alone is
   fine; blanking someone's favicon is not.
 
-### The dock stands down here — the bar only
+### The launcher stands down here
 
-On the Agents view the dock's button offers to open the page you are already on,
-so it is not rendered. **Only the bar**: every `CopilotSession` stays mounted
-regardless, because unmounting one is what cancels its run, and navigating
-between two copilot surfaces must never be a disguised Stop. If chats _are_
-already open their pills stay, since they are windows that have to remain
-reachable.
+On the Agents view the launcher would offer to open the page you are already
+on, so it is not rendered at all, and the windows are hidden. Every
+`CopilotSession` stays mounted regardless, because unmounting one is what
+cancels its run, and navigating between two copilot surfaces must never be a
+disguised Stop — back on the CMS the launcher lists them again.
 
 ## Several chats at once
 
