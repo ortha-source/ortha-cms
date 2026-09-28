@@ -833,6 +833,14 @@ export class ContentLibraryPage extends BasePage {
         await this.localeMenu.waitFor({ state: 'hidden' });
     }
 
+    /**
+     * The locale menu's summary sentence ("2 of 4 published · 50%"). The chip
+     * strip and progress bar beside it are `aria-hidden`; this is what is read.
+     */
+    get localeMenuSummary(): Locator {
+        return this.localeMenu.getByText(/\d+ of \d+ (published|translated)/);
+    }
+
     /** One row of the locale menu, by whatever it is named. */
     localeMenuItem(name: string | RegExp): Locator {
         return this.localeMenu.getByRole('menuitemradio', { name });

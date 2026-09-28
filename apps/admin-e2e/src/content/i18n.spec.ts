@@ -339,6 +339,17 @@ test.describe('Content i18n', () => {
         await expect(
             contentLibraryPage.createTranslation('Français')
         ).toBeVisible();
+        // The summary counts the group against every configured locale, and
+        // each existing row leads with that locale's own record title.
+        await expect(contentLibraryPage.localeMenuSummary).toHaveText(
+            /^\d of 4 published · \d+%$/
+        );
+        await expect(contentLibraryPage.switchLocale('Deutsch')).toContainText(
+            'Winterstiefel'
+        );
+        await expect(
+            contentLibraryPage.createTranslation('Français')
+        ).toContainText('Not translated');
         // Each existing sibling carries its publish state.
         await expect(contentLibraryPage.switchLocale('Deutsch')).toContainText(
             /Published|Draft|Modified/

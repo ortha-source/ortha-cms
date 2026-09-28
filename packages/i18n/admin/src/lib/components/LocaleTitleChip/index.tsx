@@ -38,6 +38,7 @@ import {
     beginLocaleSwitch,
     cancelPendingLocaleSwitch
 } from '../../utils/localeTransition';
+import { LocaleMenuHeader, type LocaleChipState } from './LocaleMenuHeader';
 import { LocaleMenuItem } from './LocaleMenuItem';
 
 const messages = defineMessages({
@@ -53,10 +54,6 @@ const messages = defineMessages({
     count: {
         id: 'i18n.localeMenu.count',
         defaultMessage: '{translated}/{total}'
-    },
-    heading: {
-        id: 'i18n.localeMenu.heading',
-        defaultMessage: 'Locales'
     },
     localesUnavailable: {
         id: 'i18n.localeMenu.localesUnavailable',
@@ -110,6 +107,8 @@ function readState(query: { isPending: boolean; isError: boolean }): ReadState {
 /** A group member resolved for one locale slug (its row id + publish status). */
 type Sibling = {
     id: string;
+    /** The row's title in its own language — edit mode only (see below). */
+    title?: string;
     status?: EntryStatus;
     /** When this locale last went live — read with `status` for the badge. */
     publishedAt?: string | null;
@@ -296,11 +295,28 @@ export function LocaleTitleChip({
         return item?.entry
             ? {
                   id: item.entry.id,
+                  title: item.entry.title,
                   status: item.entry.status,
                   publishedAt: item.entry.publishedAt
               }
             : undefined;
     };
+
+    // How each locale reads in the menu's summary strip, and how many count
+    // toward its figure: **live** on a publishable type (published, or
+    // Modified — live content with edits on top), merely existing otherwise.
+    const chipState = (slug: string): LocaleChipState => {
+        if (membersUnknown) return 'unknown';
+        const sibling = siblingFor(slug);
+        if (!sibling) return 'missing';
+        if (!schema.publishable) return 'done';
+        return sibling.status === 'published' || !!sibling.publishedAt
+            ? 'done'
+            : 'present';
+    };
+    const doneCount = locales.filter(
+        (locale) => chipState(locale.slug) === 'done'
+    ).length;
 
     const selectLocale = (slug: string, sibling?: Sibling) => {
         const name = localeName(locales, slug) ?? slug;
@@ -424,10 +440,26 @@ export function LocaleTitleChip({
                 `aria-labelledby` at the trigger, which names it better than a
                 bare "Locales" would — and `aria-labelledby` wins anyway, so one
                 would only be dead markup. */}
-            <DropdownMenuContent align="start" className="w-72">
-                <DropdownMenuLabel>
-                    {intl.formatMessage(messages.heading)}
-                </DropdownMenuLabel>
+            <DropdownMenuContent
+                align="end"
+                // Wide enough for a code, a translated title and a status on
+                // one line; capped so a long locale list scrolls inside the
+                // menu (under the sticky summary) instead of off the screen.
+                className="w-[34rem] max-w-[calc(100vw-2rem)] max-h-[min(32rem,var(--radix-dropdown-menu-content-available-height))]"
+            >
+                {localesState === 'known' && locales.length > 0 ? (
+                    <LocaleMenuHeader
+                        chips={locales.map((locale) => ({
+                            slug: locale.slug,
+                            state: chipState(locale.slug),
+                            isCurrent: locale.slug === currentLocale
+                        }))}
+                        done={doneCount}
+                        total={locales.length}
+                        publishable={!!schema.publishable}
+                        countKnown={!membersUnknown}
+                    />
+                ) : null}
                 {membersState === 'failed' ? (
                     <>
                         <DropdownMenuLabel className="font-normal text-destructive">
@@ -509,6 +541,7 @@ export function LocaleTitleChip({
                                     key={locale.slug}
                                     slug={locale.slug}
                                     name={locale.name}
+                                    title={sibling?.title}
                                     nameAttrs={localeAttrs(
                                         locales,
                                         locale.slug

@@ -142,6 +142,7 @@ export type {
 // Row ↔ record mappers, exported for extension plugins (e.g. i18n's
 // translation copy) so their wire shapes can't drift from the pipeline's.
 export {
+    entryTitle,
     toColumns,
     toRecord
 } from './lib/entries/infrastructure/persistence/entry-row';

@@ -24,6 +24,14 @@ const messages = defineMessages({
     pending: {
         id: 'i18n.widget.pendingReason',
         defaultMessage: 'Checking…'
+    },
+    missing: {
+        id: 'i18n.localeMenu.missing',
+        defaultMessage: 'Missing'
+    },
+    notTranslated: {
+        id: 'i18n.localeMenu.notTranslated',
+        defaultMessage: 'Not translated'
     }
 });
 
@@ -67,6 +75,7 @@ const REASON_LABEL: Record<
 export function LocaleMenuItem({
     slug,
     name,
+    title,
     nameAttrs,
     isCurrent,
     exists,
@@ -79,6 +88,11 @@ export function LocaleMenuItem({
     slug: string;
     /** Display name of the locale. */
     name: string;
+    /**
+     * The record's title in this locale, when the row exists and has one. It
+     * is written in that language, so it takes `nameAttrs` too.
+     */
+    title?: string;
     /**
      * `lang`/`dir` for the name — it is written *in* the locale it names, so a
      * screen reader needs its language to pronounce it (WCAG 3.1.2) and an RTL
@@ -106,6 +120,10 @@ export function LocaleMenuItem({
     const missing = !exists && !isCurrent;
     const inert = !!inertReason;
     const actionable = !!onSelect && !isCurrent && !inert;
+    // Missing *and* known to be: a pending or failed group read leaves every
+    // locale looking missing, which the row must not assert (`i18n:I-30`).
+    const knownMissing =
+        missing && inertReason !== 'pending' && inertReason !== 'unknown';
 
     return (
         <DropdownMenuRadioItem
@@ -122,7 +140,11 @@ export function LocaleMenuItem({
                     : undefined
             }
             aria-disabled={inert || undefined}
-            className="gap-2"
+            // Radix types ahead on the item's text, which here starts with
+            // the code and the record title; the locale **name** is what a
+            // reader types ("Deu…"), so it is the text to match.
+            textValue={name}
+            className="group/locale gap-3 py-2"
             onSelect={(event) => {
                 if (!actionable) {
                     // Keep the menu open: nothing happened, and closing it
@@ -133,14 +155,34 @@ export function LocaleMenuItem({
                 onSelect?.();
             }}
         >
-            <span
-                className={cn(
-                    'min-w-0 flex-1 truncate',
-                    missing && 'text-muted-foreground'
-                )}
-                {...nameAttrs}
-            >
-                {name}
+            <span className="w-8 shrink-0 font-mono text-xs font-semibold uppercase">
+                {slug}
+            </span>
+            <span className="min-w-0 flex-1">
+                {/* The record in this language — what a translator is looking
+                    for — over the language's own name. Without a title to show
+                    the name leads alone; "Not translated" is said only when it
+                    is known, never while the group is still loading. */}
+                <span
+                    className={cn(
+                        'block truncate',
+                        (missing || inert) && 'text-muted-foreground'
+                    )}
+                    {...(knownMissing ? {} : nameAttrs)}
+                >
+                    {title ??
+                        (knownMissing
+                            ? intl.formatMessage(messages.notTranslated)
+                            : name)}
+                </span>
+                {title || knownMissing ? (
+                    <span
+                        className="block truncate text-xs text-muted-foreground"
+                        {...nameAttrs}
+                    >
+                        {name}
+                    </span>
+                ) : null}
             </span>
             <span className="flex shrink-0 items-center gap-2">
                 {status ? (
@@ -154,10 +196,18 @@ export function LocaleMenuItem({
                     />
                 ) : null}
                 {missing && actionable ? (
-                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                        <Plus aria-hidden className="size-3" />
-                        {intl.formatMessage(messages.add)}
-                    </span>
+                    <>
+                        {/* "Add" replaces "Missing" on the highlighted row: the
+                            state while scanning, the action once it is the
+                            one a click would take. */}
+                        <span className="rounded-full bg-destructive-soft px-2 py-0.5 text-xs font-medium text-destructive-soft-foreground group-data-[highlighted]/locale:hidden">
+                            {intl.formatMessage(messages.missing)}
+                        </span>
+                        <span className="hidden items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium group-data-[highlighted]/locale:inline-flex">
+                            <Plus aria-hidden className="size-3" />
+                            {intl.formatMessage(messages.add)}
+                        </span>
+                    </>
                 ) : null}
                 {inertReason ? (
                     // Real text at full contrast, never `opacity-50` — halving

@@ -50,6 +50,8 @@ export type EntryLocaleItem = {
     /** The group's row in this locale, or null when not yet translated. */
     entry: {
         id: string;
+        /** The row's title in its own language — absent until it has one. */
+        title?: string;
         /** Publish state — publishable types only. */
         status?: EntryStatus;
         /**
