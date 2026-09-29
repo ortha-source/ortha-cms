@@ -115,11 +115,17 @@ export class GraphqlController {
         @CurrentApiToken() token: PublicApiToken,
         @CurrentWorkspace() workspaceId: string
     ): Promise<ExecutionResult> {
-        const granted = await this.grants.grantedSlugs(workspaceId);
+        // The schema is built over every type the workspace can *read* — own
+        // grants and types held only through a shared grant (ADR-0019,
+        // "Explicit per-source grants"); mutations re-check the own grant.
+        const [granted, owned] = await Promise.all([
+            this.grants.reachableSlugs(workspaceId),
+            this.grants.grantedSlugs(workspaceId)
+        ]);
         return executeOperation(
             this.schemas.get(granted),
             body,
-            this.contextFor(token, workspaceId, granted),
+            this.contextFor(token, workspaceId, granted, owned),
             this.config.limits,
             this.logger
         );
@@ -141,7 +147,7 @@ export class GraphqlController {
             'The SDL of the schema `POST /v1/graphql` will execute against. Scoped to the resolved workspace’s content grants, so an ungranted content type does not appear — the GraphQL equivalent of `/v1/content-types` pruning its list.'
     })
     async sdl(@CurrentWorkspace() workspaceId: string): Promise<string> {
-        const granted = await this.grants.grantedSlugs(workspaceId);
+        const granted = await this.grants.reachableSlugs(workspaceId);
         return printSchema(this.schemas.get(granted));
     }
 
@@ -154,7 +160,8 @@ export class GraphqlController {
     private contextFor(
         token: PublicApiToken,
         workspaceId: string,
-        granted: ReadonlySet<string>
+        granted: ReadonlySet<string>,
+        owned: ReadonlySet<string>
     ): GraphqlContext {
         const can = (permission: PermissionKey): boolean =>
             this.accessPolicy.can(
@@ -165,7 +172,8 @@ export class GraphqlController {
         // one document resolves many types, and they must all see one consistent
         // set — as well as not provoking a query each.
         const grants: ContentGrantsSource = {
-            grantedSlugs: async () => granted
+            grantedSlugs: async () => owned,
+            reachableSlugs: async () => granted
         };
         return {
             workspaceId,

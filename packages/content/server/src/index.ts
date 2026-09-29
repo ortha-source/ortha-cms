@@ -61,6 +61,23 @@ export { SharedSourcesQuery } from './lib/entries/infrastructure/queries/shared-
 // puts export and import routes beside the entries routes, and skipping this
 // would make either one a way to reach past the workspace's content surface.
 export { ContentGrantGuard } from './lib/entries/http/guards/content-grant.guard';
+// Marks a `:typeName` route as a read for `ContentGrantGuard` (reachable
+// type) rather than a write (own grant) — ADR-0019, explicit per-source grants.
+export {
+    ContentGrantAccess,
+    type ContentGrantAccessMode
+} from './lib/entries/http/guards/content-grant-access.decorator';
+export {
+    SharedOnlyContentTypeException,
+    sharedOnlyMessage
+} from './lib/content-types/errors/shared-only-content-type.exception';
+export {
+    resolveContentAccess,
+    visibleSources,
+    isReachable,
+    type ContentAccess,
+    type ContentAccessSource
+} from './lib/content-types/queries/content-access';
 
 export { CONTENT_ENTRY_EXTENSION } from './lib/extension/entry-extension';
 export type {
@@ -274,7 +291,8 @@ export { PublicEntryWritesService } from './lib/public-api/infrastructure/public
 export { resolveGrantedType } from './lib/public-api/http/controllers/resolve-granted-type';
 export type {
     ContentGrantsSource,
-    GrantedType
+    GrantedType,
+    GrantedTypeMode
 } from './lib/public-api/http/controllers/resolve-granted-type';
 export {
     PublicEntryQueryDto,

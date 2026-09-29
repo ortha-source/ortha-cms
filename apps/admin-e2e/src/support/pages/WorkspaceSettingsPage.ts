@@ -160,6 +160,33 @@ export class WorkspaceSettingsPage extends BasePage {
         return this.dialog.getByRole('checkbox', { name: new RegExp(label) });
     }
 
+    /**
+     * A shared type's checkbox in the add dialog — "{Type} · {Workspace}",
+     * anchored so it never matches the own type's row of the same name.
+     */
+    sharedContentCheckbox(label: string, workspaceName: string): Locator {
+        return this.dialog.getByRole('checkbox', {
+            name: new RegExp(`^${label} · ${workspaceName}`)
+        });
+    }
+
+    /** A "From {workspace}" group of shared types in the add dialog. */
+    addDialogGroup(name: string): Locator {
+        return this.dialog.getByRole('group', { name });
+    }
+
+    /** The add dialog's note that the shared sources could not be read. */
+    get addDialogSharedError(): Locator {
+        return this.dialog.getByText(/Couldn’t load the shared workspaces/);
+    }
+
+    /** One granted row by its label ("Tags" or "Tags · Travel Library"). */
+    grantedRow(label: string): Locator {
+        return this.page
+            .getByRole('listitem')
+            .filter({ has: this.page.getByText(label, { exact: true }) });
+    }
+
     /** The add dialog's Save button (label reflects the selected count). */
     get addContentSave(): Locator {
         return this.dialog.getByRole('button', { name: /^Add/ });
@@ -167,7 +194,10 @@ export class WorkspaceSettingsPage extends BasePage {
 
     /** The per-row remove control in the granted list. */
     contentRemoveButton(label: string): Locator {
-        return this.page.getByRole('button', { name: `Remove ${label}` });
+        return this.page.getByRole('button', {
+            name: `Remove ${label}`,
+            exact: true
+        });
     }
 
     /** The Remove button inside the remove-content confirm dialog. */

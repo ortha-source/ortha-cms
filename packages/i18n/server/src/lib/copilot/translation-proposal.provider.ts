@@ -5,7 +5,9 @@ import {
     InjectContentRegistry,
     WorkspaceGrantsQuery,
     type ContentTypeRegistry,
-    type SerializedField
+    type SerializedField,
+    isReachable,
+    SharedOnlyContentTypeException
 } from '@orthacms/content-server';
 import type { ProposalChange, ProposalDraft } from '@orthacms/copilot-domain';
 import { ToolRegistry } from '@orthacms/tools-server';
@@ -90,11 +92,16 @@ export class TranslationProposalToolProvider
      */
     private async resolveLocalizedType(typeName: string, workspaceId: string) {
         const type = this.registry.get(typeName);
-        const granted = await this.grants.grantedSlugs(workspaceId);
-        if (!type || !granted.has(type.name)) {
+        // A write: it needs the own grant. A type read only from shared
+        // workspaces is visible to the model, so it is told why (ADR-0019).
+        const access = (await this.grants.access(workspaceId)).get(typeName);
+        if (!type || !isReachable(access)) {
             throw new Error(
                 `Unknown content type "${typeName}" in this workspace.`
             );
+        }
+        if (!access?.own) {
+            throw new SharedOnlyContentTypeException(type);
         }
         if (!type.i18n) {
             throw new Error(

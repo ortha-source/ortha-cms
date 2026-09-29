@@ -225,7 +225,8 @@ export function CreateWorkspacePage() {
                       ...wizard.snapshot,
                       contentMode: 'specific',
                       collections: EMPTY_SELECTION,
-                      pages: EMPTY_SELECTION
+                      pages: EMPTY_SELECTION,
+                      sharedContent: []
                   }
                 : wizard.snapshot
         );
@@ -464,6 +465,10 @@ export function CreateWorkspacePage() {
                                         setCollections={wizard.setCollections}
                                         pages={wizard.pages}
                                         setPages={wizard.setPages}
+                                        sharedContent={wizard.sharedContent}
+                                        onToggleSharedContent={
+                                            wizard.toggleSharedContent
+                                        }
                                     />
                                 </CardContent>
                                 <CardFooter>

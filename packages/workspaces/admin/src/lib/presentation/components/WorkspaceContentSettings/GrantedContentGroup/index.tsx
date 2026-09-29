@@ -42,7 +42,7 @@ export function GrantedContentGroup({
             ) : (
                 <ul className="rounded-xl border">
                     {items.map((item, index) => (
-                        <li key={item.slug}>
+                        <li key={item.key}>
                             {index > 0 ? <Separator /> : null}
                             <GrantedContentRow
                                 granted={item}

@@ -77,6 +77,18 @@ export type ResourceSelection =
 /** Page-level content decision: full access vs. a specific selection. */
 export type ContentMode = 'all' | 'specific';
 
+/**
+ * One grant **from a shared workspace** picked in the wizard: the records of
+ * `slug` that `sourceWorkspaceId` publishes. Only sent in "Specific content"
+ * mode — "All content" means every type as this workspace's own.
+ */
+export type SharedContentChoice = {
+    /** The content-type slug. */
+    slug: string;
+    /** The shared workspace the records come from. */
+    sourceWorkspaceId: string;
+};
+
 /** The basics (step 1) form values. */
 export type WizardData = {
     /** Workspace display name. */
@@ -107,6 +119,11 @@ export type WizardSnapshot = {
     collections: ResourceSelection;
     /** Page selection (used only when `contentMode === 'specific'`). */
     pages: ResourceSelection;
+    /**
+     * Grants from shared workspaces (used only when `contentMode ===
+     * 'specific'`).
+     */
+    sharedContent: SharedContentChoice[];
 };
 
 /** The request body POSTed to `/api/workspaces`. */
@@ -127,5 +144,11 @@ export type CreateWorkspaceBody = {
               mode: 'specific';
               collections: ResourceSelection;
               pages: ResourceSelection;
+              /**
+               * Grants from shared workspaces, beside the own selections.
+               * Omitted when there are none; the wizard never sends them with
+               * "All content", which is own types only.
+               */
+              sharedContent?: SharedContentChoice[];
           };
 };

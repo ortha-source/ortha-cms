@@ -132,9 +132,13 @@ detail.
 - **Workspace** — a tenant/grouping. **Membership** — an M:N user↔workspace link.
 - **Shared workspace** — a workspace flagged `is_shared`: its published entries
   are readable and linkable — never writable — from every other workspace
-  granted the same content type. The one sanctioned, read-only exception to
-  workspace isolation; not transitive, and off while archived
-  ([ADR-0019](docs/adr/0019-shared-workspaces.md)).
+  holding a **shared grant** of the content type naming it. The one sanctioned,
+  read-only exception to workspace isolation; not transitive, and off while
+  archived ([ADR-0019](docs/adr/0019-shared-workspaces.md)).
+- **Own grant / shared grant** — the two kinds of `workspace_content` row. An
+  own grant ("Tags") lets a workspace author records of a type; a shared grant
+  ("Tags · Travel Library") lets it read and link one shared workspace's
+  records of it. A type is _reachable_ with either; writing needs the own one.
 - **API token / workspace bucket** — a long-lived bearer credential for the
   **public content API** (`/api/v1/...`), minted in the admin's API Tokens page.
   Its _bucket_ is the set of workspaces it may read (`api_token_workspaces`, one

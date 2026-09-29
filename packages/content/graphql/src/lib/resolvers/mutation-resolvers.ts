@@ -46,7 +46,7 @@ export function createResolver(
 ): GraphQLFieldResolver<unknown, GraphqlContext> {
     return async (_source, args, context) => {
         context.assert(PERMISSIONS.CONTENT_CREATE);
-        const { type, granted } = await resolveType(context, typeName);
+        const { type, granted } = await resolveType(context, typeName, 'write');
         const body = saveDtoFrom(args);
         if (typeof args['locale'] === 'string') {
             body.locale = args['locale'];
@@ -71,7 +71,7 @@ export function updateResolver(
 ): GraphQLFieldResolver<unknown, GraphqlContext> {
     return async (_source, args, context) => {
         context.assert(PERMISSIONS.CONTENT_UPDATE);
-        const { type, granted } = await resolveType(context, typeName);
+        const { type, granted } = await resolveType(context, typeName, 'write');
         const body = saveDtoFrom(args);
         assertValid(body);
         return context.writes.update(
@@ -93,7 +93,7 @@ export function publishResolver(
 ): GraphQLFieldResolver<unknown, GraphqlContext> {
     return async (_source, args, context) => {
         context.assert(PERMISSIONS.CONTENT_PUBLISH);
-        const { type, granted } = await resolveType(context, typeName);
+        const { type, granted } = await resolveType(context, typeName, 'write');
         const locator = locatorFrom(args);
         const locale = addressingLocale(args);
         const actor = toTokenActor(context.token);
@@ -130,7 +130,7 @@ export function deleteResolver(
 ): GraphQLFieldResolver<unknown, GraphqlContext> {
     return async (_source, args, context) => {
         context.assert(PERMISSIONS.CONTENT_DELETE);
-        const { type } = await resolveType(context, typeName);
+        const { type } = await resolveType(context, typeName, 'write');
         await context.writes.remove(
             type,
             locatorFrom(args),

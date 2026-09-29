@@ -172,6 +172,7 @@ describe('WorkspacesModule route guards', () => {
                 'DELETE /workspaces/:id/members/:userId',
                 'GET /workspaces/:id/content/:slug/entry-count',
                 'GET /workspaces/:id/entry-count',
+                'GET /workspaces/:id/shared-sources',
                 'PATCH /workspaces/:id',
                 'POST /workspaces/:id/archive',
                 'POST /workspaces/:id/content',

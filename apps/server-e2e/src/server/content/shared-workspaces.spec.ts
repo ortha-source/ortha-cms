@@ -10,6 +10,7 @@ import {
     resetDb,
     seedActiveUser,
     seedAllContentGrants,
+    seedAllSharedContentGrants,
     seedArticleTags,
     seedArticles,
     seedAuthors,
@@ -106,6 +107,12 @@ describe('Shared workspaces (content, session API)', () => {
             await seedMembership(admin.id, id);
             await seedAllContentGrants(id);
         }
+        // Explicit per-source grants (ADR-0019): the consumer reads the shared
+        // workspace's records through shared grants of every type — and holds
+        // the same grants of the private workspace, which stay inert because it
+        // is not shared.
+        await seedAllSharedContentGrants(consumerId, sharedId);
+        await seedAllSharedContentGrants(consumerId, privateId);
         [sharedTag, sharedDraftTag] = await seedTags(
             [{ name: 'Shared Design', ...PUBLISHED }, { name: 'Shared Draft' }],
             sharedId
@@ -532,6 +539,7 @@ describe('Shared workspaces (content, session API)', () => {
             ).id;
             await seedMembership(admin.id, secondId);
             await seedAllContentGrants(secondId);
+            await seedAllSharedContentGrants(secondId, sharedId);
 
             const [a1, a2] = await seedArticles(
                 [

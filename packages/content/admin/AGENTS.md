@@ -118,8 +118,10 @@ global ⌘K / Ctrl+K shortcut (both owned by `ContentNavSection`).
 - **Scoped to the workspace.** The schema list is global, so the page filters it
   to the open workspace's granted content slugs — `Workspace.content` from
   `@orthacms/workspaces-admin` (surfaced by `GET /api/workspaces`, sourced from
-  the `workspace_content` grants written by the create wizard). Only related
-  collections/pages show; an ungranted `:typeName` renders the not-found state.
+  the `workspace_content` grants written by the create wizard), plus the types
+  granted from shared workspaces (`access.sharedSources` — see _Per-source
+  grants_). Only related collections/pages show; an ungranted `:typeName`
+  renders the not-found state.
 - `useContentFavorites` (`presentation/hooks/useContentFavorites/`) persists pinned
   type-names in `localStorage`, **keyed per workspace** (`orthacms:content:
 favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
@@ -463,6 +465,45 @@ them is ever sent back on a save.
   courtesy, not something to raise an error about.
 
 Pinned by `apps/admin-e2e/src/content/shared-workspaces.spec.ts`.
+
+### Per-source grants
+
+Grants are explicit per source: a type is reached as the workspace's **own**
+records, from one or more **shared** workspaces, or both. The content-schema
+list and detail carry `access: { own, sharedSources }` for the open workspace,
+normalized by `toContentTypeAccess` (absent ≡ own, nothing shared). Because
+`access` is per workspace, `contentTypesKey(workspaceId)` is keyed by the
+route's workspace and built under workspaces' `workspaceContentAccessKey`, the
+root a grant change invalidates (it also stopped colliding with the
+workspaces plugin's own `['content-types']` catalogue key).
+`domain/contentTypeAccess.scopeContentTypes` scopes the catalogue — own needs
+both `access.own` and an own grant in `Workspace.content`; shared-only types
+stay with `own: false` — and every consumer reads `access.own` as "may create
+here".
+
+- **Sidebar** — own types under Workspace Content as before; one "From
+  {workspace}" group per source (`sharedSourceGroups`), a type granted both
+  ways in both places. A shared row links to
+  `:typeName/shared/:sourceId` (`SHARED_SEGMENT`; the static segment outranks
+  `:entryId/:tab`), where `ContentSharedRecordsView` renders
+  `CollectionRecordsView` in **read-only** mode:
+  `?source=shared&sourceWorkspaceId=<id>` (narrowed server-side, so totals
+  and pages are exact), no Add record, no selection/bulk, no row actions, no saved
+  views or contributed columns; a row opens the existing read-only entry
+  view under the type's own path. An unknown source is an explicit
+  not-available state.
+- **Shared-only types** — the own list hides Add record and the ⋯ menu and
+  shows `SharedOnlyNotice` linking each source; a single shows the notice
+  instead of its editor; `:typeName/new` redirects to the list, so the create
+  editor is unreachable. A write that still happens surfaces the server's 403
+  message through the editor's existing error toast.
+- **Relation picker** — Source offers All, "This workspace" only when the
+  target is own-granted, and each shared source by name (`sourceChoices`); a
+  named source asks `?source=shared&sourceWorkspaceId=<id>`. The editor
+  offers relations to every reachable type (`reachableTypeNames`), shared-only
+  targets included.
+
+Pinned by `apps/admin-e2e/src/content/per-source-grants.spec.ts`.
 
 ## Saved views — the switcher in the records toolbar
 

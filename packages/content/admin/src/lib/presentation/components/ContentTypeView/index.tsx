@@ -1,7 +1,9 @@
 import { useParams } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
+import { useCurrentWorkspace } from '@orthacms/workspaces-admin';
 import {
     Container,
+    ContainerHeader,
     Empty,
     EmptyDescription,
     EmptyHeader,
@@ -11,10 +13,13 @@ import {
 import { FileQuestion } from 'lucide-react';
 import type { ContentType } from '../../../domain/types/contentType';
 import {
+    CONTENT_SEGMENT,
     CONTENT_TYPE_KIND,
     ENTRY_MODE,
     TYPE_PARAM
 } from '../../../domain/constants';
+import { hasOwnAccess } from '../../../domain/contentTypeAccess';
+import { SharedOnlyNotice } from '../SharedOnlyNotice';
 import { CollectionRecordsView } from '../CollectionRecordsView';
 import { ContentEntryView } from '../ContentEntryView';
 
@@ -49,6 +54,7 @@ export function ContentTypeView({
     trashed = false
 }: ContentTypeViewProps) {
     const intl = useIntl();
+    const workspace = useCurrentWorkspace();
     const typeName = useParams()[TYPE_PARAM];
     const type = types.find((candidate) => candidate.name === typeName);
 
@@ -78,6 +84,21 @@ export function ContentTypeView({
     // collections only — a single has no records list.
     if (type.kind === CONTENT_TYPE_KIND.Collection) {
         return <CollectionRecordsView type={type} trashed={trashed} />;
+    }
+
+    // A page reached only from shared workspaces has no own row to open, and
+    // its editor would otherwise offer a blank create form this workspace may
+    // not submit. Point at the sources instead.
+    if (!hasOwnAccess(type)) {
+        return (
+            <Container className="max-w-none p-6 sm:p-6">
+                <ContainerHeader titleClassName="text-lg" title={type.label} />
+                <SharedOnlyNotice
+                    type={type}
+                    basePath={`/workspaces/${workspace.id}/${CONTENT_SEGMENT}`}
+                />
+            </Container>
+        );
     }
 
     return <ContentEntryView type={type} mode={ENTRY_MODE.Single} />;

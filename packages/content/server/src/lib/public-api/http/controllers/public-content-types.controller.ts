@@ -60,12 +60,14 @@ export class PublicContentTypesController {
     @ApiOperation({
         summary: 'List the content types this token can read',
         description:
-            'Summaries (name, kind, label, and the publishable/paranoid/i18n flags) of every content type granted to the requested workspace.'
+            'Summaries (name, kind, label, and the publishable/paranoid/i18n flags) of every content type the requested workspace can read — its own grants plus types it reads from shared workspaces.'
     })
     async list(
         @CurrentWorkspace() workspaceId: string
     ): Promise<PublicContentTypeListView> {
-        const granted = await this.grants.grantedSlugs(workspaceId);
+        // Every type the workspace can read — own grants and types held only
+        // through a shared grant alike (ADR-0019, "Explicit per-source grants").
+        const granted = await this.grants.reachableSlugs(workspaceId);
         return {
             items: this.registry
                 .summaries()

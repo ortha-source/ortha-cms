@@ -46,6 +46,11 @@ export type RelationCandidatesPageParams = {
      * `?source=`. Omitted, the server lists the open workspace's own.
      */
     source?: EntrySourceScope;
+    /**
+     * One shared workspace to narrow to (`?sourceWorkspaceId=`, with
+     * `source=shared|all`) — the picker's named-source option.
+     */
+    sourceWorkspaceId?: string;
 };
 
 /** What a save submits: the field values, staged relation deltas, and the id. */

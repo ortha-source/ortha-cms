@@ -15,6 +15,7 @@ import {
 } from '@orthacms/identity-server';
 import { CurrentWorkspace, WorkspaceGuard } from '@orthacms/workspaces-server';
 import { ContentGrantGuard } from '../../../entries/http/guards/content-grant.guard';
+import { ContentGrantAccess } from '../../../entries/http/guards/content-grant-access.decorator';
 import { clampInt } from '@orthacms/utils-server';
 import { MAX_PAGE_SIZE } from '../../../entries/entries.constants';
 import { InjectContentRegistry } from '../../../content.tokens';
@@ -39,6 +40,8 @@ import { REVISIONS_PAGE_SIZE } from '../../revisions.constants';
  * absent version.
  */
 @UseGuards(PermissionsGuard, WorkspaceGuard, ContentGrantGuard)
+// A read: a type reachable only through shared grants lists and opens here.
+@ContentGrantAccess('read')
 @RequirePermissions(PERMISSIONS.CONTENT_READ)
 @Controller('content')
 export class RevisionsController {

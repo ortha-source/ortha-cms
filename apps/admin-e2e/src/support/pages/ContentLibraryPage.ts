@@ -172,6 +172,47 @@ export class ContentLibraryPage extends BasePage {
         return this.sidebar.getByRole('link', { name: label, exact: true });
     }
 
+    /** A "From {workspace}" group of shared types in the sidebar. */
+    sharedGroup(workspaceName: string): Locator {
+        return this.sidebar.getByRole('group', {
+            name: `From ${workspaceName}`
+        });
+    }
+
+    /** A type row under a "From {workspace}" group. */
+    sharedTypeLink(workspaceName: string, label: string): Locator {
+        return this.sharedGroup(workspaceName).getByRole('link', {
+            name: label,
+            exact: true
+        });
+    }
+
+    /** Navigate straight to one shared source's read-only list of a type. */
+    async gotoSharedRecords(
+        workspaceId: string,
+        typeName: string,
+        sourceId: string
+    ) {
+        await this.page.goto(
+            `/workspaces/${workspaceId}/content/${typeName}/shared/${sourceId}`
+        );
+    }
+
+    /**
+     * The note a type reached only from shared workspaces shows where its own
+     * records would be.
+     */
+    sharedOnlyNotice(label: string): Locator {
+        return this.page.getByText(`${label} comes from shared workspaces.`);
+    }
+
+    /** The notice's link to one source's list of the type. */
+    sharedOnlyLink(label: string, workspaceName: string): Locator {
+        return this.page.getByRole('link', {
+            name: `View ${label} from ${workspaceName}`
+        });
+    }
+
     /** The pin / unpin toggle for a type row. */
     pinToggle(label: string, pinned = false): Locator {
         return this.sidebar.getByRole('button', {

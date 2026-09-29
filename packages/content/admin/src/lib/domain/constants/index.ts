@@ -56,6 +56,18 @@ export const SEARCH_SHORTCUT_KEY = 'k';
 export const NEW_SEGMENT = 'new';
 
 /**
+ * Sub-route segment for a type's **shared records** view — the read-only list
+ * of one shared workspace's published records of that type
+ * (`/workspaces/:id/content/:typeName/shared/:sourceId`). A static segment, so
+ * React Router ranks it above `:${ENTRY_PARAM}/:tab` (an entry id is a uuid,
+ * never `shared`).
+ */
+export const SHARED_SEGMENT = 'shared';
+
+/** Route param holding the shared source workspace's id, under {@link SHARED_SEGMENT}. */
+export const SOURCE_PARAM = 'sourceId';
+
+/**
  * Route param holding the selected entry's id, under a collection
  * (`/workspaces/:id/content/:typeName/:entryId`).
  */

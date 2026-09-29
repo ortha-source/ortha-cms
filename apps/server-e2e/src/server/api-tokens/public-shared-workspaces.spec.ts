@@ -8,6 +8,7 @@ import {
     resetDb,
     seedActiveUser,
     seedAllContentGrants,
+    seedAllSharedContentGrants,
     seedArticleTags,
     seedArticles,
     seedMembership,
@@ -51,6 +52,8 @@ describe('Shared workspaces (public REST + GraphQL)', () => {
     let articleId: string;
     let sharedTag: string;
     let sharedDraftTag: string;
+    /** A published article in the shared workspace. */
+    let sharedArticle: string;
 
     beforeAll(async () => {
         harness = await createTestApp();
@@ -81,6 +84,9 @@ describe('Shared workspaces (public REST + GraphQL)', () => {
             await seedMembership(admin.id, id);
             await seedAllContentGrants(id);
         }
+        // Explicit per-source grants (ADR-0019): the consumer reads the shared
+        // workspace's records through shared grants of every type.
+        await seedAllSharedContentGrants(consumerId, sharedId);
         [sharedTag, sharedDraftTag] = await seedTags(
             [{ name: 'Shared Design', ...PUBLISHED }, { name: 'Shared Draft' }],
             sharedId
@@ -92,7 +98,7 @@ describe('Shared workspaces (public REST + GraphQL)', () => {
         await seedArticleTags(articleId, [sharedTag, sharedDraftTag]);
         // A published article in the shared workspace, linked to the same tag
         // — the inverse side a nested GraphQL read walks back through.
-        const [sharedArticle] = await seedArticles(
+        [sharedArticle] = await seedArticles(
             [{ text: 'Library article', select: 'article', ...PUBLISHED }],
             sharedId
         );
@@ -129,24 +135,36 @@ describe('Shared workspaces (public REST + GraphQL)', () => {
         ).toEqual(['Shared Design']);
     });
 
-    it('keeps the top-level public list own-workspace [content:I-45]', async () => {
+    it('serves the union of visible sources on the top-level public list and entry reads, drafts excluded [content:I-45]', async () => {
+        // Explicit per-source grants (ADR-0019): a type's public listing is
+        // own records plus the published records of every source the
+        // workspace holds a shared grant of the type for.
         const secret = await consumerToken();
         const tags = await request(harness.server)
             .get('/api/v1/content/test_tag')
             .set('Authorization', `Bearer ${secret}`)
             .expect(200);
-        expect(tags.body.total).toBe(0);
+        expect(tags.body.total).toBe(1);
+        expect((tags.body.items as PublicItem[]).map((t) => t.id)).toEqual([
+            sharedTag
+        ]);
+        // `source` is not part of the public wire.
+        expect(tags.body.items[0]).not.toHaveProperty('source');
 
         const articles = await request(harness.server)
             .get('/api/v1/content/test_article')
             .set('Authorization', `Bearer ${secret}`)
             .expect(200);
-        expect((articles.body.items as PublicItem[]).map((a) => a.id)).toEqual([
-            articleId
-        ]);
+        expect(
+            (articles.body.items as PublicItem[]).map((a) => a.id).sort()
+        ).toEqual([articleId, sharedArticle].sort());
 
         await request(harness.server)
             .get(`/api/v1/content/test_tag/${sharedTag}`)
+            .set('Authorization', `Bearer ${secret}`)
+            .expect(200);
+        await request(harness.server)
+            .get(`/api/v1/content/test_tag/${sharedDraftTag}`)
             .set('Authorization', `Bearer ${secret}`)
             .expect(404);
     });

@@ -31,7 +31,7 @@ interface OperationSpec {
     slugConflict?: boolean;
 }
 
-/** `WorkspaceView`, which nine of the eleven described operations return. */
+/** `WorkspaceView`, which most of the described operations return. */
 function workspace(description: string): OperationSpec {
     return { schema: 'Workspace', description };
 }
@@ -71,13 +71,20 @@ const ROUTES: Record<string, Record<string, OperationSpec>> = {
     },
     '/{id}/content': {
         post: workspace(
-            'The workspace, with the granted content type in `content`. Idempotent — granting twice returns the same list.'
+            'The workspace, with the granted content type in `content` — or, with `sourceWorkspaceId`, the shared grant in `sharedContent`. Idempotent — granting twice returns the same lists. 422 when the source cannot serve the slug.'
         )
     },
     '/{id}/content/{slug}': {
         delete: workspace(
-            'The workspace, with the content type gone from `content`. Idempotent — revoking a type that was never granted is a 200, not a 404.'
+            'The workspace, with the content type gone from `content` — or, with `?source=`, that shared grant gone from `sharedContent`. Idempotent — revoking a grant that was never held is a 200, not a 404.'
         )
+    },
+    '/{id}/shared-sources': {
+        get: {
+            schema: 'WorkspaceSharedSources',
+            description:
+                'Every shared, non-archived workspace other than this one, with the content types it offers — the sources a shared grant may name.'
+        }
     },
     '/{id}/content/{slug}/entry-count': {
         get: {

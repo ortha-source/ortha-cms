@@ -1,8 +1,9 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useMatch } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { cn } from '@orthacms/design-system';
 import { Pin, PinOff } from 'lucide-react';
 import type { ContentType } from '../../../../domain/types/contentType';
+import { SHARED_SEGMENT } from '../../../../domain/constants';
 
 /** Intl descriptors for a sidebar content-type row, co-located here. */
 const messages = defineMessages({
@@ -21,10 +22,16 @@ type ContentSidebarItemProps = {
     type: ContentType;
     /** Absolute base path for the library (`/workspaces/:id/content`). */
     basePath: string;
+    /**
+     * Where the row links instead of the type's own records — a "From
+     * {workspace}" row's shared records view. Such a row has no pin: a
+     * favorite names a type, and pinning would pin the own list instead.
+     */
+    to?: string;
     /** Whether this type is currently pinned. */
-    pinned: boolean;
-    /** Pin / unpin this type. */
-    onTogglePin: (name: string) => void;
+    pinned?: boolean;
+    /** Pin / unpin this type; omitted, the row has no pin toggle. */
+    onTogglePin?: (name: string) => void;
 };
 
 /**
@@ -38,7 +45,8 @@ type ContentSidebarItemProps = {
 export function ContentSidebarItem({
     type,
     basePath,
-    pinned,
+    to,
+    pinned = false,
     onTogglePin
 }: ContentSidebarItemProps) {
     const intl = useIntl();
@@ -46,16 +54,23 @@ export function ContentSidebarItem({
         pinned ? messages.unpin : messages.pin,
         { label: type.label }
     );
+    // The own row's link is a prefix of the type's shared views
+    // (`…/tag/shared/:sourceId`), so NavLink alone would light it up there
+    // too; the "From {workspace}" row is the one that is open.
+    const onSharedView = useMatch(
+        `${basePath}/${type.name}/${SHARED_SEGMENT}/*`
+    );
 
     return (
         <div className="group/item relative">
             <NavLink
-                to={`${basePath}/${type.name}`}
+                to={to ?? `${basePath}/${type.name}`}
+                aria-current={!to && onSharedView ? 'false' : 'page'}
                 className={({ isActive }) =>
                     cn(
                         'flex h-7 min-w-0 -translate-x-px items-center overflow-hidden rounded-md px-2 text-sm outline-none transition-colors duration-[120ms] focus-visible:ring-2 focus-visible:ring-sidebar-ring',
                         pinned ? 'pr-8' : 'pr-2',
-                        isActive
+                        isActive && (to || !onSharedView)
                             ? 'bg-sidebar-accent font-medium text-sidebar-accent-foreground'
                             : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground'
                     )
@@ -63,24 +78,26 @@ export function ContentSidebarItem({
             >
                 <span className="truncate">{type.label}</span>
             </NavLink>
-            <button
-                type="button"
-                aria-label={pinLabel}
-                aria-pressed={pinned}
-                onClick={() => onTogglePin(type.name)}
-                className={cn(
-                    'absolute inset-y-0 right-1 my-auto flex size-6 items-center justify-center rounded-md text-sidebar-foreground/70 transition-opacity hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring',
-                    pinned
-                        ? 'opacity-100'
-                        : 'opacity-0 group-hover/item:opacity-100 group-focus-within/item:opacity-100'
-                )}
-            >
-                {pinned ? (
-                    <PinOff className="size-3.5" />
-                ) : (
-                    <Pin className="size-3.5" />
-                )}
-            </button>
+            {onTogglePin ? (
+                <button
+                    type="button"
+                    aria-label={pinLabel}
+                    aria-pressed={pinned}
+                    onClick={() => onTogglePin(type.name)}
+                    className={cn(
+                        'absolute inset-y-0 right-1 my-auto flex size-6 items-center justify-center rounded-md text-sidebar-foreground/70 transition-opacity hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring',
+                        pinned
+                            ? 'opacity-100'
+                            : 'opacity-0 group-hover/item:opacity-100 group-focus-within/item:opacity-100'
+                    )}
+                >
+                    {pinned ? (
+                        <PinOff className="size-3.5" />
+                    ) : (
+                        <Pin className="size-3.5" />
+                    )}
+                </button>
+            ) : null}
         </div>
     );
 }

@@ -19,9 +19,11 @@ import {
     HISTORY_SEGMENT,
     ENTRY_TAB_SLUGS,
     NEW_SEGMENT,
+    SHARED_SEGMENT,
     TRASH_SEGMENT,
     TYPE_PARAM
 } from '../../../domain/constants';
+import { sharedSourceOf } from '../../../domain/contentTypeAccess';
 import { EntryTitleCrumb } from './EntryTitleCrumb';
 
 /** Intl descriptors for {@link ContentTopBar}, co-located here. */
@@ -53,6 +55,10 @@ const messages = defineMessages({
     history: {
         id: 'content.topbar.history',
         defaultMessage: 'History'
+    },
+    sharedFrom: {
+        id: 'content.topbar.sharedFrom',
+        defaultMessage: 'From {workspace}'
     }
 });
 
@@ -142,6 +148,17 @@ export function ContentTopBar({
             crumbs.push({
                 key: TRASH_SEGMENT,
                 label: intl.formatMessage(messages.trash)
+            });
+        } else if (leaf === SHARED_SEGMENT) {
+            // A shared source's list (`…/shared/:sourceId`) — not a record,
+            // so never resolved as an entry id.
+            const sourceId = splat.split('/')[1];
+            const source = type ? sharedSourceOf(type, sourceId) : undefined;
+            crumbs.push({
+                key: SHARED_SEGMENT,
+                label: intl.formatMessage(messages.sharedFrom, {
+                    workspace: source?.workspaceName ?? sourceId ?? ''
+                })
             });
         } else if (leaf) {
             crumbs.push({

@@ -20,6 +20,8 @@ import { ContentLibraryError } from '../../components/ContentLibraryError';
 import { ContentLibraryEmpty } from '../../components/ContentLibraryEmpty';
 import { ContentLibraryPageSkeleton } from '../../components/ContentLibrarySkeleton';
 import { ContentOverlays } from '../../components/ContentOverlays';
+import { ContentSharedRecordsView } from '../../components/ContentSharedRecordsView';
+import { scopeContentTypes } from '../../../domain/contentTypeAccess';
 import {
     CONTENT_READ,
     CONTENT_SEGMENT,
@@ -28,6 +30,8 @@ import {
     ENTRY_TAB_SLUGS,
     HISTORY_SEGMENT,
     NEW_SEGMENT,
+    SHARED_SEGMENT,
+    SOURCE_PARAM,
     TAB_PARAM,
     TRASH_SEGMENT,
     TYPE_PARAM
@@ -121,10 +125,10 @@ export function ContentLibraryPage() {
         return <ContentLibraryPageSkeleton />;
     }
 
-    // Scope the global content-type catalogue to the slugs this workspace was
-    // granted at creation — collections and pages are linked per workspace.
-    const granted = new Set(workspace.content);
-    const scopedTypes = types.filter((type) => granted.has(type.name));
+    // Scope the global content-type catalogue to what this workspace reaches —
+    // its own grants and the types granted from shared workspaces (with
+    // `access.own` false when only the latter).
+    const scopedTypes = scopeContentTypes(types, workspace.content);
 
     if (scopedTypes.length === 0) {
         return (
@@ -187,6 +191,12 @@ export function ContentLibraryPage() {
                         element={<ContentTypeView types={scopedTypes} />}
                     />
                 ))}
+                {/* One shared workspace's records of the type, read-only. The
+                    static `shared` segment outranks `:entryId/:tab`. */}
+                <Route
+                    path={`:${TYPE_PARAM}/${SHARED_SEGMENT}/:${SOURCE_PARAM}`}
+                    element={<ContentSharedRecordsView types={scopedTypes} />}
+                />
                 {/* A collection's trash view. The static `trash` segment
                     outranks `:entryId`, so the order is safe. */}
                 <Route

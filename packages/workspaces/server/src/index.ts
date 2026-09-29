@@ -12,6 +12,9 @@ export { WORKSPACE_ID_PATTERN } from './lib/workspace/http/guards/workspace-acce
 // The `:id`-scoped sibling of `WorkspaceGuard`, for routes that name their
 // workspace in the path instead of the `X-Workspace-Id` header.
 export { WorkspaceMemberGuard } from './lib/workspace/http/guards/workspace-member.guard';
+// Header-optional: a global route that adds per-workspace detail when the
+// caller names a workspace it belongs to.
+export { OptionalWorkspaceGuard } from './lib/workspace/http/guards/optional-workspace.guard';
 export { CurrentWorkspace } from './lib/workspace/http/decorators/current-workspace.decorator';
 // The membership probe behind `WorkspaceGuard`, exported for the rare route
 // that must derive its workspace from the resource rather than the

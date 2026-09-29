@@ -61,7 +61,9 @@ export class GetFilterFieldsController {
         // Resolve the grants before the registry check so an ungranted type
         // and an unknown one are indistinguishable — same status, same body,
         // same work done.
-        const grantedTypes = await this.grants.grantedSlugs(workspaceId);
+        // Reachable, not owned: a type read only from shared workspaces is
+        // listed and filtered like any other (ADR-0019).
+        const grantedTypes = await this.grants.reachableSlugs(workspaceId);
         if (!type || !grantedTypes.has(name)) {
             throw new NotFoundException(`Unknown content type "${name}".`);
         }

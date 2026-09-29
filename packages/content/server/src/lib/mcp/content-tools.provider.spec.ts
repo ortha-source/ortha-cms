@@ -70,7 +70,8 @@ function world(registered: string[], granted: string[]): World {
     } as unknown as ContentTypeRegistry;
 
     const grants = {
-        grantedSlugs: async () => new Set(granted)
+        grantedSlugs: async () => new Set(granted),
+        reachableSlugs: async () => new Set(granted)
     } as unknown as WorkspaceGrantsQuery;
 
     // Neither entry service is reachable from the two paths under test:
@@ -295,7 +296,8 @@ function delegating() {
             name === 'article' ? serialized('article') : undefined
     } as unknown as ContentTypeRegistry;
     const grants = {
-        grantedSlugs: async () => new Set(['article'])
+        grantedSlugs: async () => new Set(['article']),
+        reachableSlugs: async () => new Set(['article'])
     } as unknown as WorkspaceGrantsQuery;
 
     return {
@@ -451,7 +453,8 @@ describe('ContentToolProvider and shared workspaces (ADR-0019)', () => {
             serialize: () => serialized('article')
         } as unknown as ContentTypeRegistry;
         const grants = {
-            grantedSlugs: async () => new Set(['article'])
+            grantedSlugs: async () => new Set(['article']),
+            reachableSlugs: async () => new Set(['article'])
         } as unknown as WorkspaceGrantsQuery;
         const entries = {
             list: async (...args: unknown[]) => {

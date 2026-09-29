@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { EntryRecord, RelationRef } from '../../domain/types/contentType';
 import {
+    toContentTypeAccess,
     toEntryRecord,
     toEntryUsage,
     toRelationFieldView,
@@ -52,5 +53,36 @@ describe('contentMapper — shared-workspace fallbacks', () => {
                 count: undefined as unknown as number
             }).count
         ).toBe(0);
+    });
+});
+
+describe('toContentTypeAccess', () => {
+    it('reads an absent access (an older server) as own, nothing shared', () => {
+        expect(toContentTypeAccess(undefined)).toEqual({
+            own: true,
+            sharedSources: []
+        });
+    });
+
+    it('reads a present access literally — a missing own is not own', () => {
+        expect(
+            toContentTypeAccess({
+                sharedSources: [
+                    {
+                        workspaceId: 'ws_travel',
+                        workspaceName: 'Travel Library'
+                    }
+                ]
+            })
+        ).toEqual({
+            own: false,
+            sharedSources: [
+                { workspaceId: 'ws_travel', workspaceName: 'Travel Library' }
+            ]
+        });
+        expect(toContentTypeAccess({ own: true })).toEqual({
+            own: true,
+            sharedSources: []
+        });
     });
 });

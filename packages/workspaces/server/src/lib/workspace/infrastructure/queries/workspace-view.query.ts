@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { desc, eq, inArray } from 'drizzle-orm';
+import { and, asc, desc, eq, exists, inArray, isNull, sql } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import { InjectDatabase, type Database } from '@orthacms/database';
 import { users } from '@orthacms/identity-server';
 import { workspaces } from '../schema/workspaces';
@@ -7,6 +8,7 @@ import { memberships } from '../schema/memberships';
 import { workspaceContent } from '../schema/workspace-content';
 import type {
     WorkspaceMemberView,
+    WorkspaceSharedContentView,
     WorkspaceView
 } from '../../application/queries/workspace.view';
 
@@ -78,10 +80,12 @@ export class WorkspaceViewQuery {
     /** Maps workspace rows to views, attaching each one's members and grants. */
     private async toViews(rows: WorkspaceRow[]): Promise<WorkspaceView[]> {
         const ids = rows.map((row) => row.id);
-        const [membersByWorkspace, grantsByWorkspace] = await Promise.all([
-            this.membersByWorkspace(ids),
-            this.grantsByWorkspace(ids)
-        ]);
+        const [membersByWorkspace, grantsByWorkspace, sharedByWorkspace] =
+            await Promise.all([
+                this.membersByWorkspace(ids),
+                this.grantsByWorkspace(ids),
+                this.sharedGrantsByWorkspace(ids)
+            ]);
         return rows.map((row) => ({
             id: row.id,
             name: row.name,
@@ -91,7 +95,8 @@ export class WorkspaceViewQuery {
             status: row.status,
             isShared: row.isShared,
             members: membersByWorkspace.get(row.id) ?? [],
-            content: grantsByWorkspace.get(row.id) ?? []
+            content: grantsByWorkspace.get(row.id) ?? [],
+            sharedContent: sharedByWorkspace.get(row.id) ?? []
         }));
     }
 
@@ -124,7 +129,7 @@ export class WorkspaceViewQuery {
         return byWorkspace;
     }
 
-    /** Groups each workspace's granted content slugs by workspace id. */
+    /** Groups each workspace's **own** granted content slugs by workspace id. */
     private async grantsByWorkspace(
         workspaceIds: string[]
     ): Promise<Map<string, string[]>> {
@@ -136,10 +141,77 @@ export class WorkspaceViewQuery {
                 slug: workspaceContent.slug
             })
             .from(workspaceContent)
-            .where(inArray(workspaceContent.workspaceId, workspaceIds));
+            .where(
+                and(
+                    inArray(workspaceContent.workspaceId, workspaceIds),
+                    isNull(workspaceContent.sourceWorkspaceId)
+                )
+            );
         for (const row of rows) {
             const list = byWorkspace.get(row.workspaceId) ?? [];
             list.push(row.slug);
+            byWorkspace.set(row.workspaceId, list);
+        }
+        return byWorkspace;
+    }
+
+    /**
+     * Groups each workspace's **shared** grants by workspace id, with the
+     * source's name and whether the grant is live: `available` is the same
+     * rule content's `SharedSourcesQuery` reads by — the source is shared,
+     * active, and still holds its own grant for the slug.
+     */
+    private async sharedGrantsByWorkspace(
+        workspaceIds: string[]
+    ): Promise<Map<string, WorkspaceSharedContentView[]>> {
+        const byWorkspace = new Map<string, WorkspaceSharedContentView[]>();
+        if (workspaceIds.length === 0) return byWorkspace;
+        const source = alias(workspaces, 'source');
+        const sourceGrant = alias(workspaceContent, 'source_grant');
+        const rows = await this.db
+            .select({
+                workspaceId: workspaceContent.workspaceId,
+                slug: workspaceContent.slug,
+                kind: workspaceContent.kind,
+                sourceWorkspaceId: source.id,
+                sourceWorkspaceName: source.name,
+                available: sql<boolean>`(${and(
+                    eq(source.isShared, true),
+                    eq(source.status, 'active'),
+                    exists(
+                        this.db
+                            .select({ one: sql`1` })
+                            .from(sourceGrant)
+                            .where(
+                                and(
+                                    eq(sourceGrant.workspaceId, source.id),
+                                    eq(sourceGrant.slug, workspaceContent.slug),
+                                    isNull(sourceGrant.sourceWorkspaceId)
+                                )
+                            )
+                    )
+                )})`
+            })
+            .from(workspaceContent)
+            .innerJoin(
+                source,
+                eq(source.id, workspaceContent.sourceWorkspaceId)
+            )
+            .where(inArray(workspaceContent.workspaceId, workspaceIds))
+            .orderBy(
+                asc(workspaceContent.slug),
+                asc(source.name),
+                asc(source.id)
+            );
+        for (const row of rows) {
+            const list = byWorkspace.get(row.workspaceId) ?? [];
+            list.push({
+                slug: row.slug,
+                kind: row.kind,
+                sourceWorkspaceId: row.sourceWorkspaceId,
+                sourceWorkspaceName: row.sourceWorkspaceName,
+                available: row.available === true
+            });
             byWorkspace.set(row.workspaceId, list);
         }
         return byWorkspace;

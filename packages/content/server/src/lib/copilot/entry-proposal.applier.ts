@@ -9,6 +9,7 @@ import type {
 import { InjectContentRegistry } from '../content.tokens';
 import type { ContentTypeRegistry } from '../registry/content-type-registry';
 import { EntryWriterService } from '../entries/infrastructure/persistence/entry-writer.service';
+import { resolveOwnedType } from './owned-type';
 import { WorkspaceGrantsQuery } from '../content-types/queries/workspace-grants.query';
 import { CONTENT_PROPOSAL_KINDS } from './proposal-kinds';
 import { SharedSourcesQuery } from '../entries/infrastructure/queries/shared-sources.query';
@@ -45,20 +46,18 @@ function assertStartsItsOwnGroup(localeGroupId: unknown): void {
     }
 }
 
-/** Resolves a granted, registered type or throws — shared by both appliers. */
-async function grantedType(
+/**
+ * Resolves an **owned**, registered type or throws — shared by both appliers.
+ * A shared-only type is refused with the 403 that says so (see
+ * {@link resolveOwnedType}).
+ */
+function grantedType(
     registry: ContentTypeRegistry,
     grants: WorkspaceGrantsQuery,
     typeName: unknown,
     workspaceId: string
 ) {
-    const name = typeof typeName === 'string' ? typeName : '';
-    const type = registry.get(name);
-    const granted = await grants.grantedSlugs(workspaceId);
-    if (!type || !granted.has(type.name)) {
-        throw new Error(`Unknown content type "${name}" in this workspace.`);
-    }
-    return type;
+    return resolveOwnedType(registry, grants, typeName, workspaceId);
 }
 
 /**

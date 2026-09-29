@@ -8,6 +8,7 @@ import { useContentFavorites } from '../../hooks/useContentFavorites';
 import { ContentSidebar } from '../ContentSidebar';
 import { ContentSidebarError } from '../ContentSidebarError';
 import { ContentSearchDialog } from '../ContentSearchDialog';
+import { scopeContentTypes } from '../../../domain/contentTypeAccess';
 import {
     CONTENT_READ,
     CONTENT_SEGMENT,
@@ -84,9 +85,9 @@ export function ContentNavSection() {
         );
     }
 
-    // Scope the global content-type catalogue to the workspace's granted slugs.
-    const granted = new Set(workspace.content);
-    const scopedTypes = (types ?? []).filter((type) => granted.has(type.name));
+    // Scope the global content-type catalogue to what the workspace reaches:
+    // its own grants, plus the types granted from shared workspaces.
+    const scopedTypes = scopeContentTypes(types ?? [], workspace.content);
     if (scopedTypes.length === 0) {
         return null;
     }

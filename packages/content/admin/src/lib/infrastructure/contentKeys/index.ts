@@ -1,3 +1,6 @@
+import { workspaceContentAccessKey } from '@orthacms/workspaces-admin';
+import type { EntrySourceScope } from '../../domain/types/contentType';
+
 /**
  * Query keys for every content cache, in one place so the reads, the mutation
  * invalidations, and the slot-contributor invalidations (re-exported through the
@@ -22,6 +25,18 @@ export type ContentEntriesParams = {
     /** `only` lists soft-deleted rows (the trash view) instead of live ones. */
     deleted?: 'only';
     /**
+     * Whose records (`?source=`): `shared` lists the published records of the
+     * shared workspaces granted this type — the read-only shared records view.
+     * Omitted, the server lists the open workspace's own.
+     */
+    source?: EntrySourceScope;
+    /**
+     * With `source: 'shared'`, the one shared workspace to list
+     * (`?sourceWorkspaceId=`) — the server narrows items, total and pages, so
+     * the shared records view paginates exactly.
+     */
+    sourceWorkspaceId?: string;
+    /**
      * `preview` asks the server to include a capped relation preview per row.
      * Opt-in: the records table sets it, the relation **picker** (which reuses
      * this endpoint for candidates) deliberately does not, so a keystroke there
@@ -42,8 +57,18 @@ export type ContentEntriesParams = {
     extra?: Record<string, string | undefined>;
 };
 
-/** The content-type catalogue list. Deliberately distinct from `content-schema`. */
-export const contentTypesKey = ['content-types'] as const;
+/**
+ * The content-type catalogue list, **per workspace**: each type's `access`
+ * (own / shared sources) is computed for the workspace the request is scoped
+ * to, so two workspaces must never share the entry. Built under workspaces'
+ * content-access key, which is what a grant change invalidates.
+ *
+ * Deliberately distinct from `content-schema`, and from the workspaces
+ * plugin's own `['content-types']` grant catalogue (`GET /content-types`),
+ * which a bare `['content-types']` here used to collide with.
+ */
+export const contentTypesKey = (workspaceId: string | null) =>
+    [...workspaceContentAccessKey(workspaceId), 'content-schema-list'] as const;
 
 /** One content type's full field schema. */
 export const contentSchemaKey = (name: string) =>
@@ -147,6 +172,8 @@ export const relationCandidatesKey = (
         extra?: Record<string, string>;
         /** The picker's Source scope (`own` / `shared` / `all`). */
         source?: string;
+        /** The named shared workspace, when the picker narrowed to one. */
+        sourceWorkspaceId?: string;
     }
 ) => ['relation-candidates', workspaceId, targetName, params] as const;
 

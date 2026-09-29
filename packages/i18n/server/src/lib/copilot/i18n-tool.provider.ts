@@ -136,7 +136,10 @@ export class I18nCopilotToolProvider implements ToolProvider, OnModuleInit {
                 // does not check grants — its callers are already behind a
                 // workspace-scoped controller reached from the admin's own UI.
                 const type = this.registry.get(args.typeName);
-                const granted = await this.grants.grantedSlugs(ctx.workspaceId);
+                // A read: reachable, own or shared (ADR-0019).
+                const granted = await this.grants.reachableSlugs(
+                    ctx.workspaceId
+                );
                 if (!type || !granted.has(type.name)) {
                     throw new Error(
                         `Unknown content type "${args.typeName}" in this workspace.`

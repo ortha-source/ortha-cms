@@ -19,7 +19,8 @@ const workspace: Workspace = {
     status: 'Active',
     members: [],
     content: [],
-    isShared: false
+    isShared: false,
+    sharedContent: []
 };
 
 /**

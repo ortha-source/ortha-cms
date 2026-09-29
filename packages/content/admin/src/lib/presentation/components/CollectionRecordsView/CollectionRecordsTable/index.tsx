@@ -187,6 +187,7 @@ export function CollectionRecordsTable({
     onToggleRow,
     onTogglePage,
     onRowGone,
+    readOnly = false,
     sort,
     onSort,
     relationsPending = false
@@ -229,6 +230,12 @@ export function CollectionRecordsTable({
      * would otherwise try to restore focus into a menu that has unmounted.
      */
     onRowGone?: (id: string) => void;
+    /**
+     * The read-only shared list: rows still open (read-only) on click, but
+     * there is no selection column and no row-actions column — nothing here
+     * acts on another workspace's records.
+     */
+    readOnly?: boolean;
     /** The active sort column + direction, or null for default order. */
     sort: TableSort;
     /** Cycle the sort on a column (asc → desc → off). */
@@ -297,17 +304,19 @@ export function CollectionRecordsTable({
             <Table aria-label={intl.formatMessage(messages.caption, { label })}>
                 <TableHeader>
                     <TableRow>
-                        <TableHead className="w-10">
-                            <Checkbox
-                                checked={headerChecked}
-                                onCheckedChange={(checked) =>
-                                    onTogglePage(pageIds, checked === true)
-                                }
-                                aria-label={intl.formatMessage(
-                                    messages.selectAll
-                                )}
-                            />
-                        </TableHead>
+                        {readOnly ? null : (
+                            <TableHead className="w-10">
+                                <Checkbox
+                                    checked={headerChecked}
+                                    onCheckedChange={(checked) =>
+                                        onTogglePage(pageIds, checked === true)
+                                    }
+                                    aria-label={intl.formatMessage(
+                                        messages.selectAll
+                                    )}
+                                />
+                            </TableHead>
+                        )}
                         {columns.map((column) => {
                             const active = sort?.key === column.id;
                             const ariaSort = active
@@ -367,9 +376,11 @@ export function CollectionRecordsTable({
                             );
                         })}
                         {/* Trailing, non-sortable actions column. */}
-                        <TableHead scope="col" className="w-10 text-right">
-                            {intl.formatMessage(messages.actions)}
-                        </TableHead>
+                        {readOnly ? null : (
+                            <TableHead scope="col" className="w-10 text-right">
+                                {intl.formatMessage(messages.actions)}
+                            </TableHead>
+                        )}
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -391,34 +402,19 @@ export function CollectionRecordsTable({
                                     trashed ? undefined : 'cursor-pointer'
                                 }
                             >
-                                <TableCell
-                                    onClick={(event) => event.stopPropagation()}
-                                >
-                                    <Checkbox
-                                        checked={selected}
-                                        onCheckedChange={() =>
-                                            onToggleRow(record.id)
+                                {readOnly ? null : (
+                                    <TableCell
+                                        onClick={(event) =>
+                                            event.stopPropagation()
                                         }
-                                        aria-label={intl.formatMessage(
-                                            messages.selectRow,
-                                            { label: rowLabel(record, columns) }
-                                        )}
-                                    />
-                                    {/* Every visible column renders its own
-                                        controls, so no cell can host the row's
-                                        link — keep one reachable here rather
-                                        than leaving the record openable only
-                                        through the row-actions menu. */}
-                                    {linkColumnIndex === -1 && !trashed ? (
-                                        <Link
-                                            to={`${typePath}/${record.id}${entryQuery}`}
-                                            className="sr-only"
-                                            onClick={(event) =>
-                                                event.stopPropagation()
+                                    >
+                                        <Checkbox
+                                            checked={selected}
+                                            onCheckedChange={() =>
+                                                onToggleRow(record.id)
                                             }
-                                        >
-                                            {intl.formatMessage(
-                                                messages.openRecord,
+                                            aria-label={intl.formatMessage(
+                                                messages.selectRow,
                                                 {
                                                     label: rowLabel(
                                                         record,
@@ -426,9 +422,33 @@ export function CollectionRecordsTable({
                                                     )
                                                 }
                                             )}
-                                        </Link>
-                                    ) : null}
-                                </TableCell>
+                                        />
+                                        {/* Every visible column renders its own
+                                        controls, so no cell can host the row's
+                                        link — keep one reachable here rather
+                                        than leaving the record openable only
+                                        through the row-actions menu. */}
+                                        {linkColumnIndex === -1 && !trashed ? (
+                                            <Link
+                                                to={`${typePath}/${record.id}${entryQuery}`}
+                                                className="sr-only"
+                                                onClick={(event) =>
+                                                    event.stopPropagation()
+                                                }
+                                            >
+                                                {intl.formatMessage(
+                                                    messages.openRecord,
+                                                    {
+                                                        label: rowLabel(
+                                                            record,
+                                                            columns
+                                                        )
+                                                    }
+                                                )}
+                                            </Link>
+                                        ) : null}
+                                    </TableCell>
+                                )}
                                 {columns.map((column, index) => {
                                     const interactive =
                                         isInteractiveColumn(column);
@@ -460,6 +480,31 @@ export function CollectionRecordsTable({
                                                     : undefined
                                             }
                                         >
+                                            {/* No selection cell to host
+                                                the fallback link in the
+                                                read-only list — the first
+                                                cell carries it instead. */}
+                                            {readOnly &&
+                                            index === 0 &&
+                                            linkColumnIndex === -1 ? (
+                                                <Link
+                                                    to={`${typePath}/${record.id}${entryQuery}`}
+                                                    className="sr-only"
+                                                    onClick={(event) =>
+                                                        event.stopPropagation()
+                                                    }
+                                                >
+                                                    {intl.formatMessage(
+                                                        messages.openRecord,
+                                                        {
+                                                            label: rowLabel(
+                                                                record,
+                                                                columns
+                                                            )
+                                                        }
+                                                    )}
+                                                </Link>
+                                            ) : null}
                                             {index === linkColumnIndex &&
                                             !trashed ? (
                                                 <Link
@@ -479,22 +524,26 @@ export function CollectionRecordsTable({
                                 })}
                                 {/* Row actions — stop propagation so opening the
                                     menu doesn't trigger the row's navigation. */}
-                                <TableCell
-                                    className="text-right"
-                                    onClick={(event) => event.stopPropagation()}
-                                >
-                                    <CollectionRecordsRowActions
-                                        record={record}
-                                        typePath={typePath}
-                                        entryQuery={entryQuery}
-                                        typeName={typeName}
-                                        publishable={publishable}
-                                        paranoid={paranoid}
-                                        trashed={trashed}
-                                        rowTitle={rowLabel(record, columns)}
-                                        onRowGone={handleRowGone}
-                                    />
-                                </TableCell>
+                                {readOnly ? null : (
+                                    <TableCell
+                                        className="text-right"
+                                        onClick={(event) =>
+                                            event.stopPropagation()
+                                        }
+                                    >
+                                        <CollectionRecordsRowActions
+                                            record={record}
+                                            typePath={typePath}
+                                            entryQuery={entryQuery}
+                                            typeName={typeName}
+                                            publishable={publishable}
+                                            paranoid={paranoid}
+                                            trashed={trashed}
+                                            rowTitle={rowLabel(record, columns)}
+                                            onRowGone={handleRowGone}
+                                        />
+                                    </TableCell>
+                                )}
                             </TableRow>
                         );
                     })}

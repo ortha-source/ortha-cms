@@ -9,6 +9,7 @@ import {
     resetDb,
     seedActiveUser,
     seedAllContentGrants,
+    seedAllSharedContentGrants,
     seedMembership,
     seedTags,
     seedWorkspace
@@ -78,6 +79,12 @@ describe('Copilot content tools — shared workspaces', () => {
         for (const id of [consumerId, sharedId, privateId]) {
             await seedAllContentGrants(id);
         }
+        // Explicit per-source grants (ADR-0019): the consumer reads the shared
+        // workspace's records through shared grants of every type — and holds
+        // the same grants of the private workspace, which stay inert because it
+        // is not shared.
+        await seedAllSharedContentGrants(consumerId, sharedId);
+        await seedAllSharedContentGrants(consumerId, privateId);
         [sharedTag, sharedDraftTag] = await seedTags(
             [{ name: 'Shared Design', ...PUBLISHED }, { name: 'Shared Draft' }],
             sharedId

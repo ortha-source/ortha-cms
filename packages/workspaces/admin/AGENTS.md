@@ -194,6 +194,30 @@ exist", mirroring the API's flat 403.
   popover rows carry a **Shared** badge — and `WorkspaceShell`'s
   `useSidebarContent` deps name `isShared`, or the switcher would keep the old
   label for the session. Pinned by `apps/admin-e2e/src/workspaces/sharing.spec.ts`.
+- **Per-source content grants.** A type is granted as the workspace's **own**
+  records (`Workspace.content`) and/or **from a shared workspace**
+  (`Workspace.sharedContent`, one row per type and source, mapped `?? []`;
+  its `available` flag reads absent as available). The Content tab lists a shared grant as its own row, "{Type} ·
+  {Workspace}" with a **Shared** badge and an **Unavailable** one while the
+  source no longer shares; the Add dialogs group what
+  `GET /workspaces/:id/shared-sources` (`useSharedSources`, fetched only with
+  `workspaces:update`) offers under "From {workspace}", minus grants already
+  held from that source, and post `{ slug, sourceWorkspaceId }`. Removal picks
+  the DELETE by row: a shared row sends `?source=<id>` behind a plain
+  `RemoveSharedContentDialog` (no entry-count pre-check — its records live at
+  the source), an own row the unchanged blocking dialog with no query. Grant
+  mutations invalidate `workspacesKey` **and** (unawaited)
+  `workspaceContentAccessKey(id)` — the root the Content Library builds its
+  per-workspace content-type list under, exported from the barrel; the sharing
+  toggle invalidates `workspaceContentAccessRoot`, since it changes what other
+  workspaces reach. The create wizard's "Specific content" mode lists the same
+  shared types (`SharedContentSection`) and sends them as
+  `content.sharedContent`; "All content" stays own types only. There is no
+  workspace yet to ask `shared-sources` about, so the wizard derives its
+  sources from the membership-scoped list (`useSharedSourceCandidates`: active,
+  shared workspaces and their own grants) — a shared workspace the creator
+  isn't a member of is grantable later from settings. Pinned by
+  `apps/admin-e2e/src/workspaces/shared-grants.spec.ts`.
 - Each area owns its mutation hook under `lib/application/` — `useUpdateWorkspace`,
   `useSetWorkspaceStatus`, `useDeleteWorkspace`, `useAddWorkspaceMember` /
   `useRemoveWorkspaceMember`, `useAddWorkspaceContent` /

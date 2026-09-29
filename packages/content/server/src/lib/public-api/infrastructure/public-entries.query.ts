@@ -56,11 +56,11 @@ import type { EntrySource } from '../../entries/types/entry-list-view';
 export interface PublicReadOptions {
     /**
      * Also admit the visible entries of **shared workspaces** (ADR-0019) —
-     * published, live, the workspace active and shared, the caller granted the
-     * type. For **nested** reads only: GraphQL re-reads a linked record by id
-     * to expand its own relations, and that record may be a shared one. A
-     * top-level list or entry read never sets it, so a type's public listing
-     * stays the caller's own workspace.
+     * published, live, from a source the caller holds an available shared
+     * grant of the type for. Set by every public REST and GraphQL read, top
+     * level and nested alike ("Explicit per-source grants"): a type's public
+     * listing is the union of its visible sources. Unlike {@link source} it
+     * stamps nothing on the wire.
      */
     includeShared?: boolean;
     /**
@@ -225,7 +225,7 @@ export class PublicEntriesQuery {
                 media: query.mediaLimit
             },
             selected,
-            options.source ? modeOf(options) : 'own'
+            modeOf(options)
         );
         if (options.source) {
             const sourceOf = this.shared
@@ -453,7 +453,7 @@ export class PublicEntriesQuery {
             [entry],
             workspaceId,
             selected,
-            options.source ? modeOf(options) : 'own'
+            modeOf(options)
         );
         return byEntry.get(entry.id) ?? [];
     }
@@ -605,7 +605,7 @@ export class PublicEntriesQuery {
             },
             { relation: query.relationLimit, media: query.mediaLimit },
             selected,
-            options.source ? modeOf(options) : 'own'
+            modeOf(options)
         );
         return entry;
     }

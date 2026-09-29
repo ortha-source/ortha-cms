@@ -1,8 +1,18 @@
 import { type Page } from '@playwright/test';
 import { type WorkspaceView } from './workspaces';
 
+/**
+ * Where the open workspace reaches a type from, as `access` on a
+ * `GET /api/content-schema` item sends it: its own records, and each shared
+ * workspace it was granted the type from. Absent reads as own-only.
+ */
+export interface ContentTypeAccessSeed {
+    own: boolean;
+    sharedSources: { workspaceId: string; workspaceName: string }[];
+}
+
 /** A content-type summary as `GET /api/content-schema` returns it. */
-interface ContentTypeSummary {
+export interface ContentTypeSummary {
     name: string;
     kind: 'collection' | 'single';
     label: string;
@@ -17,6 +27,8 @@ interface ContentTypeSummary {
      * on one with no translations.
      */
     i18n?: boolean;
+    /** The open workspace's access; absent reads as own-only. */
+    access?: ContentTypeAccessSeed;
 }
 
 /** One field as `GET /api/content-schema/:name` returns it. */

@@ -6,6 +6,8 @@ import {
 } from '@orthacms/query-builder-admin';
 import type {
     ContentType,
+    ContentTypeAccess,
+    ContentTypeAccessResponse,
     ContentTypeSummaryResponse,
     EntryRecord,
     EntryUsage,
@@ -22,6 +24,26 @@ import type {
  * summary mapper — but it keeps the seam explicit and in one place.
  */
 
+/**
+ * Normalizes a type's `access`. Absent (a server predating per-source grants)
+ * reads as own and nothing shared — the only thing such a server can mean; a
+ * present object missing `own` reads as not own, since a server that sends
+ * `access` at all is saying what it knows. Display-only: nothing writes
+ * `access` back, so neither fallback can overwrite a real value.
+ */
+export function toContentTypeAccess(
+    wire: ContentTypeAccessResponse | undefined
+): ContentTypeAccess {
+    if (!wire) return { own: true, sharedSources: [] };
+    return {
+        own: wire.own === true,
+        sharedSources: (wire.sharedSources ?? []).map((source) => ({
+            workspaceId: source.workspaceId,
+            workspaceName: source.workspaceName
+        }))
+    };
+}
+
 /** Maps one wire type summary to the admin `ContentType` model. */
 export function toContentType(
     summary: ContentTypeSummaryResponse
@@ -33,7 +55,8 @@ export function toContentType(
         description: summary.description,
         path: summary.path,
         publishable: summary.publishable,
-        paranoid: summary.paranoid
+        paranoid: summary.paranoid,
+        access: toContentTypeAccess(summary.access)
     };
 }
 

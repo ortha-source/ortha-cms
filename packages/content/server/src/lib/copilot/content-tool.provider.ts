@@ -77,7 +77,9 @@ export class ContentCopilotToolProvider implements ToolProvider, OnModuleInit {
      */
     private async resolveGranted(typeName: string, workspaceId: string) {
         const type = this.registry.get(typeName);
-        const granted = await this.grants.grantedSlugs(workspaceId);
+        // Reachable, not owned: these are reads, and a type read only from
+        // shared workspaces is searched and opened like any other (ADR-0019).
+        const granted = await this.grants.reachableSlugs(workspaceId);
         if (!type || !granted.has(type.name)) {
             throw new Error(
                 `Unknown content type "${typeName}" in this workspace.`
@@ -121,7 +123,9 @@ export class ContentCopilotToolProvider implements ToolProvider, OnModuleInit {
             surfaces: ['copilot'],
             handler: async (input, ctx) => {
                 const { typeName } = (input ?? {}) as { typeName?: string };
-                const granted = await this.grants.grantedSlugs(ctx.workspaceId);
+                const granted = await this.grants.reachableSlugs(
+                    ctx.workspaceId
+                );
 
                 if (typeName) {
                     const type = await this.resolveGranted(

@@ -87,7 +87,7 @@ export function buildWorkspaceSchemas(): Record<string, OpenApiSchema> {
                 isShared: {
                     type: 'boolean',
                     description:
-                        'Whether the workspace is shared (ADR-0019): its published entries are readable and linkable, read-only, from every other workspace granted the same content type.'
+                        'Whether the workspace is shared (ADR-0019): its published entries are readable and linkable, read-only, from every other workspace holding a shared grant of the type naming it.'
                 },
                 members: {
                     type: 'array',
@@ -99,7 +99,13 @@ export function buildWorkspaceSchemas(): Record<string, OpenApiSchema> {
                     type: 'array',
                     items: { type: 'string' },
                     description:
-                        'Machine names of the content types this workspace was granted (its `workspace_content` rows). The admin scopes its Content Library to these.'
+                        'Machine names of the content types this workspace holds an **own** grant for — the types it may author records of.'
+                },
+                sharedContent: {
+                    type: 'array',
+                    items: ref('WorkspaceSharedContent'),
+                    description:
+                        'Its **shared** grants (ADR-0019): read-and-link access to one shared workspace’s records of a type each.'
                 }
             },
             required: [
@@ -111,8 +117,68 @@ export function buildWorkspaceSchemas(): Record<string, OpenApiSchema> {
                 'status',
                 'isShared',
                 'members',
-                'content'
+                'content',
+                'sharedContent'
             ]
+        },
+        WorkspaceSharedContent: {
+            type: 'object',
+            title: 'WorkspaceSharedContent',
+            description:
+                'One shared content grant: the workspace may read and link `slug` records of the source workspace, never write them.',
+            properties: {
+                slug: {
+                    type: 'string',
+                    description: 'Content type machine name.'
+                },
+                kind: { type: 'string', enum: ['collection', 'single'] },
+                sourceWorkspaceId: { type: 'string', format: 'uuid' },
+                sourceWorkspaceName: { type: 'string' },
+                available: {
+                    type: 'boolean',
+                    description:
+                        'False when the grant is inert: the source is no longer shared, is archived, or no longer holds its own grant for the type.'
+                }
+            },
+            required: [
+                'slug',
+                'kind',
+                'sourceWorkspaceId',
+                'sourceWorkspaceName',
+                'available'
+            ]
+        },
+        WorkspaceSharedSources: {
+            type: 'object',
+            title: 'WorkspaceSharedSources',
+            properties: {
+                items: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            workspaceId: { type: 'string', format: 'uuid' },
+                            workspaceName: { type: 'string' },
+                            content: {
+                                type: 'array',
+                                items: {
+                                    type: 'object',
+                                    properties: {
+                                        slug: { type: 'string' },
+                                        kind: {
+                                            type: 'string',
+                                            enum: ['collection', 'single']
+                                        }
+                                    },
+                                    required: ['slug', 'kind']
+                                }
+                            }
+                        },
+                        required: ['workspaceId', 'workspaceName', 'content']
+                    }
+                }
+            },
+            required: ['items']
         },
         WorkspaceList: {
             type: 'array',

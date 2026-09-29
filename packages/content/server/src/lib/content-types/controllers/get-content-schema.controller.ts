@@ -12,11 +12,10 @@ import {
 } from '@orthacms/identity-server';
 import { CurrentWorkspace, WorkspaceGuard } from '@orthacms/workspaces-server';
 import { InjectContentRegistry } from '../../content.tokens';
-import type {
-    ContentTypeRegistry,
-    SerializedContentType
-} from '../../registry/content-type-registry';
+import type { ContentTypeRegistry } from '../../registry/content-type-registry';
 import { WorkspaceGrantsQuery } from '../queries/workspace-grants.query';
+import { isReachable } from '../queries/content-access';
+import type { ContentTypeWithAccess } from '../content-access.view';
 
 /**
  * `GET /api/content-schema/:name` — the full field schema of one content
@@ -26,12 +25,16 @@ import { WorkspaceGrantsQuery } from '../queries/workspace-grants.query';
  *
  * **Workspace-scoped**, like its `/filter-fields` sibling and unlike the
  * `GET /api/content-schema` catalogue: the schema of a type is the shape of
- * content this workspace may open, so a type the workspace was not granted
- * (`workspace_content`) answers with exactly the `404` an unknown name gets —
+ * content this workspace may open, so a type the workspace cannot reach — no
+ * own grant and no available shared grant (ADR-0019, "Explicit per-source
+ * grants") — answers with exactly the `404` an unknown name gets —
  * same status, same message, grants read before the registry decision — and
  * the route therefore discloses nothing about the content model outside the
  * caller's workspace. Serving it unconditionally was the read half of the
  * hole `ContentGrantGuard` closes on the entry routes.
+ *
+ * Carries the same `access` block as the catalogue's items, so an editor
+ * opening a shared-only type knows up front that it can link but not create.
  */
 @UseGuards(PermissionsGuard, WorkspaceGuard)
 @RequirePermissions(PERMISSIONS.CONTENT_READ)
@@ -47,14 +50,15 @@ export class GetContentSchemaController {
     async get(
         @Param('name') name: string,
         @CurrentWorkspace() workspaceId: string
-    ): Promise<SerializedContentType> {
+    ): Promise<ContentTypeWithAccess> {
         const serialized = this.registry.serialize(name);
-        // Read the grants before deciding, so an ungranted type and an unknown
-        // one are indistinguishable — same status, same body, same work done.
-        const granted = await this.grants.grantedSlugs(workspaceId);
-        if (!serialized || !granted.has(name)) {
+        // Read the grants before deciding, so an unreachable type and an
+        // unknown one are indistinguishable — same status, same body, same
+        // work done.
+        const access = (await this.grants.access(workspaceId)).get(name);
+        if (!serialized || !access || !isReachable(access)) {
             throw new NotFoundException(`Unknown content type "${name}".`);
         }
-        return serialized;
+        return { ...serialized, access };
     }
 }

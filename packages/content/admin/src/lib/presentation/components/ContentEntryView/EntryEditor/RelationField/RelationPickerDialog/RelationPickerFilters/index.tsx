@@ -20,7 +20,11 @@ import {
     type FilterGroup,
     type RelationValueEditor
 } from '@orthacms/query-builder-admin';
-import type { EntrySourceScope } from '../../../../../../../domain/types/contentType';
+import type { EntrySource } from '../../../../../../../domain/types/contentType';
+import {
+    sharedChoice,
+    type SourceChoice
+} from '../../../../../../../domain/contentTypeAccess';
 
 const messages = defineMessages({
     search: {
@@ -58,31 +62,13 @@ const messages = defineMessages({
     sourceOwn: {
         id: 'content.relations.picker.sourceOwn',
         defaultMessage: 'This workspace'
-    },
-    sourceShared: {
-        id: 'content.relations.picker.sourceShared',
-        defaultMessage: 'Shared'
     }
 });
 
-/** The Source select's options, in display order. */
-const SOURCE_OPTIONS = [
-    { value: 'all', label: messages.sourceAll },
-    { value: 'own', label: messages.sourceOwn },
-    { value: 'shared', label: messages.sourceShared }
-] as const satisfies readonly {
-    value: EntrySourceScope;
-    label: (typeof messages)[keyof typeof messages];
-}[];
-
-/** Narrows a Select value back to a scope (Radix hands back a plain string). */
-function isSourceScope(value: string): value is EntrySourceScope {
-    return SOURCE_OPTIONS.some((option) => option.value === value);
-}
-
 /**
- * The relation picker's search box, its **Source** select (this workspace /
- * shared workspaces / both), plus an **inline, collapsible** query-builder
+ * The relation picker's search box, its **Source** select (all / this
+ * workspace / each shared workspace by name — only the sources that exist for
+ * the target), plus an **inline, collapsible** query-builder
  * filter over the target type's schema — a disclosure *inside* the picker
  * dialog, deliberately not a nested modal/drawer (which would stack focus traps).
  * Controlled: the parent owns `search`/`filter`/`open` and re-runs the candidate
@@ -103,7 +89,9 @@ export function RelationPickerFilters({
     fieldsError = false,
     onRetryFields,
     source,
-    onSourceChange
+    onSourceChange,
+    ownAvailable,
+    sharedSources
 }: {
     targetLabel: string;
     search: string;
@@ -134,12 +122,16 @@ export function RelationPickerFilters({
     /** Retry the surface request; renders a Try again action when set. */
     onRetryFields?: () => void;
     /**
-     * Which workspaces' records are offered: this workspace's own, shared
-     * workspaces' published ones, or both.
+     * Which records are offered: every reachable source, this workspace's
+     * own, or one shared workspace's published ones.
      */
-    source: EntrySourceScope;
-    /** Change the source scope (the parent re-runs the candidate query). */
-    onSourceChange: (next: EntrySourceScope) => void;
+    source: SourceChoice;
+    /** Change the source (the parent re-runs the candidate query). */
+    onSourceChange: (next: SourceChoice) => void;
+    /** Whether the workspace holds its own records of the target. */
+    ownAvailable: boolean;
+    /** The shared workspaces the target is read from, each an option. */
+    sharedSources: readonly EntrySource[];
 }) {
     const intl = useIntl();
     const ruleCount = countRules(filter);
@@ -147,6 +139,23 @@ export function RelationPickerFilters({
         label: targetLabel
     });
     const sourceLabel = intl.formatMessage(messages.source);
+    // Only the sources that exist for this target: "This workspace" when it
+    // holds its own records, then each shared workspace by name.
+    const options: { value: SourceChoice; label: string }[] = [
+        { value: 'all', label: intl.formatMessage(messages.sourceAll) },
+        ...(ownAvailable
+            ? [
+                  {
+                      value: 'own' as const,
+                      label: intl.formatMessage(messages.sourceOwn)
+                  }
+              ]
+            : []),
+        ...sharedSources.map((shared) => ({
+            value: sharedChoice(shared.workspaceId),
+            label: shared.workspaceName
+        }))
+    ];
 
     return (
         <Collapsible open={open} onOpenChange={onOpenChange}>
@@ -176,7 +185,10 @@ export function RelationPickerFilters({
                 <Select
                     value={source}
                     onValueChange={(next) => {
-                        if (isSourceScope(next)) onSourceChange(next);
+                        // Radix hands back a plain string; accept only one of
+                        // the offered choices.
+                        const option = options.find((o) => o.value === next);
+                        if (option) onSourceChange(option.value);
                     }}
                 >
                     <SelectTrigger
@@ -186,9 +198,9 @@ export function RelationPickerFilters({
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                        {SOURCE_OPTIONS.map((option) => (
+                        {options.map((option) => (
                             <SelectItem key={option.value} value={option.value}>
-                                {intl.formatMessage(option.label)}
+                                {option.label}
                             </SelectItem>
                         ))}
                     </SelectContent>

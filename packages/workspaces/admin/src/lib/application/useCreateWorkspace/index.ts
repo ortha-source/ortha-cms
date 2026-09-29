@@ -43,7 +43,9 @@ export function useCreateWorkspace() {
                 // Grants are resolved server-side; reconciled when onSettled refetches.
                 content: [],
                 // A new workspace is never shared; sharing is a settings toggle.
-                isShared: false
+                isShared: false,
+                // Resolved server-side too; reconciled by the same refetch.
+                sharedContent: []
             };
             queryClient.setQueryData<Workspace[]>(workspacesKey, (old = []) => [
                 optimistic,

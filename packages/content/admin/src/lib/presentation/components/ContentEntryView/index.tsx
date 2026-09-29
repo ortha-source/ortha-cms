@@ -26,6 +26,7 @@ import {
     NEW_SEGMENT,
     type EntryMode
 } from '../../../domain/constants';
+import { reachableTypeNames } from '../../../domain/contentTypeAccess';
 import { entryTabFromPath } from '../../../domain/entryTab';
 import { listParamsQuery } from '../../../domain/listParamsQuery';
 import { useContentSchema } from '../../../application/useContentSchema';
@@ -721,7 +722,10 @@ export function ContentEntryView({
                             ? undefined
                             : `${typePath}${entryQuerySuffix}`
                     }
-                    availableTypeNames={workspace.content}
+                    // Relations are offered to every type the workspace
+                    // reaches — its own, and the ones granted from shared
+                    // workspaces (whose picker then offers only those).
+                    availableTypeNames={reachableTypeNames(workspace)}
                     {...(isCreate && translateFromLocale
                         ? { prefilledFromLocale: translateFromLocale }
                         : {})}

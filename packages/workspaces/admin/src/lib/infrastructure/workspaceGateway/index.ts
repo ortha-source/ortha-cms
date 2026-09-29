@@ -1,5 +1,9 @@
 import type { AvatarColor } from '@orthacms/design-system';
-import type { Workspace, WorkspaceStatus } from '../../domain/types/workspace';
+import type {
+    SharedSource,
+    Workspace,
+    WorkspaceStatus
+} from '../../domain/types/workspace';
 import type {
     ContentType,
     CreateWorkspaceBody,
@@ -50,20 +54,30 @@ export type RemoveWorkspaceMemberInput = {
     userId: string;
 };
 
-/** Grants a workspace access to one content type. */
+/**
+ * Grants a workspace access to one content type — as its **own** records
+ * (no `sourceWorkspaceId`), or to the records of one shared workspace.
+ */
 export type AddWorkspaceContentInput = {
     /** The workspace to grant. */
     workspaceId: string;
     /** The content-type slug to grant. */
     slug: string;
+    /** The shared workspace to grant it from; omitted for an own grant. */
+    sourceWorkspaceId?: string;
 };
 
-/** Revokes a workspace's access to one content type. */
+/**
+ * Revokes one grant: the own grant (no `sourceWorkspaceId`), or the grant of
+ * that type from one shared workspace.
+ */
 export type RemoveWorkspaceContentInput = {
     /** The workspace to revoke from. */
     workspaceId: string;
     /** The content-type slug to revoke. */
     slug: string;
+    /** The shared workspace the grant comes from; omitted for an own grant. */
+    sourceWorkspaceId?: string;
 };
 
 /**
@@ -90,8 +104,16 @@ export type WorkspaceGateway = {
     removeMember(input: RemoveWorkspaceMemberInput): Promise<void>;
     /** Grants a workspace access to a content type. */
     addContent(input: AddWorkspaceContentInput): Promise<Workspace>;
-    /** Revokes a workspace's access to a content type (`409` if non-empty). */
+    /**
+     * Revokes a grant: the own one (`409` if the workspace still holds entries
+     * of the type) or a shared one (`?source=`).
+     */
     removeContent(input: RemoveWorkspaceContentInput): Promise<Workspace>;
+    /**
+     * The shared workspaces `workspaceId` could be granted content from, with
+     * the types each holds, via `GET /api/workspaces/:id/shared-sources`.
+     */
+    listSharedSources(workspaceId: string): Promise<SharedSource[]>;
     /** Whether `slug` is free, via `GET /api/workspaces/slug-available`. */
     checkSlugAvailable(slug: string): Promise<boolean>;
     /** Entries of content type `slug` a workspace holds. */

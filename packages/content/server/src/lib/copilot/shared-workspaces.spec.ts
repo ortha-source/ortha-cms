@@ -38,7 +38,9 @@ const registry = {
 } as unknown as ContentTypeRegistry;
 
 const grants = {
-    grantedSlugs: async () => new Set(['article'])
+    grantedSlugs: async () => new Set(['article']),
+    reachableSlugs: async () => new Set(['article']),
+    access: async () => new Map([['article', { own: true, sharedSources: [] }]])
 } as unknown as WorkspaceGrantsQuery;
 
 const shared = {

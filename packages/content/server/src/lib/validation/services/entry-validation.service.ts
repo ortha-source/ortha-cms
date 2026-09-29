@@ -70,8 +70,8 @@ export class EntryValidationService {
 
     /**
      * The required relations of `type` that are **not** required in
-     * `workspaceId`, because the workspace holds no content grant for their
-     * target type (see `waivedRequiredRelations`). The one place requiredness
+     * `workspaceId`, because the workspace cannot reach their target type —
+     * neither an own grant nor an available shared grant (see `waivedRequiredRelations`). The one place requiredness
      * is decided per workspace: the values gate ({@link validate}), the
      * link-managed relation count and the publish gates all take their waiver
      * from here, so no path can require what another path excuses.
@@ -85,7 +85,9 @@ export class EntryValidationService {
         exec?: Pick<Database, 'select'>
     ): Promise<ReadonlySet<string>> {
         if (!this.grants || !hasRequiredRelation(type)) return NONE;
-        const granted = await this.grants.grantedSlugs(workspaceId, exec);
+        // Reachable, not owned: a relation into a type this workspace reads
+        // only from shared workspaces is pickable, so it stays required.
+        const granted = await this.grants.reachableSlugs(workspaceId, exec);
         return waivedRequiredRelations(type, granted);
     }
 }

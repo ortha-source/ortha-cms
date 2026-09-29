@@ -27,6 +27,27 @@ export type ContentTypeSummaryResponse = {
     paranoid?: boolean;
     /** Row-per-locale via `locale` + `localeGroupId` envelope columns. */
     i18n?: boolean;
+    /** Where the open workspace reaches this type from; absent on older servers. */
+    access?: ContentTypeAccessResponse;
+};
+
+/** Wire shape of a type's `access`, as the content-schema routes send it. */
+export type ContentTypeAccessResponse = {
+    own?: boolean;
+    sharedSources?: { workspaceId: string; workspaceName: string }[];
+};
+
+/**
+ * Where the **open workspace** reaches a content type from: its own records
+ * (`own` — it holds an own grant and may create), and/or the published records
+ * of each shared workspace it was granted the type from. A type can be reached
+ * both ways, one way, or — for a type the workspace was not granted — neither.
+ */
+export type ContentTypeAccess = {
+    /** The workspace holds an own grant: its own records, creatable here. */
+    own: boolean;
+    /** The shared workspaces whose records of this type it may read. */
+    sharedSources: EntrySource[];
 };
 
 /**
@@ -51,6 +72,14 @@ export type ContentType = {
     paranoid?: boolean;
     /** Row-per-locale via `locale` + `localeGroupId` envelope columns. */
     i18n?: boolean;
+    /**
+     * Where the open workspace reaches this type from. Normalized by the
+     * gateway (`toContentType`), so an older server reads as "own, nothing
+     * shared"; optional only so a type built outside the gateway (a fixture, a
+     * slot contributor's stub) still types — read it through
+     * `domain/contentTypeAccess`, never directly.
+     */
+    access?: ContentTypeAccess;
 };
 
 /**

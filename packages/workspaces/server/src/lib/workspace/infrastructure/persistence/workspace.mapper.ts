@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Workspace } from '../../domain/workspace';
-import type { ContentGrantKind } from '../../domain/content-grant';
+import { Workspace, type GrantState } from '../../domain/workspace';
 import type { workspaces } from '../schema/workspaces';
 
 /** A `workspaces` row as selected from the database. */
@@ -21,7 +20,7 @@ export class WorkspaceMapper {
     toDomain(
         row: WorkspaceRow,
         memberUserIds: string[],
-        grants: { kind: ContentGrantKind; slug: string }[]
+        grants: GrantState[]
     ): Workspace {
         return Workspace.rehydrate({
             id: row.id,

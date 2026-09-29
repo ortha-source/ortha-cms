@@ -10,3 +10,4 @@ export { InvalidSlugError } from './invalid-slug.error';
 export { InvalidWorkspaceIdError } from './invalid-workspace-id.error';
 export { InvalidWorkspaceColorError } from './invalid-workspace-color.error';
 export { InvalidWorkspaceStatusError } from './invalid-workspace-status.error';
+export { InvalidSharedSourceError } from './invalid-shared-source.error';

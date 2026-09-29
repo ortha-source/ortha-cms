@@ -6,7 +6,10 @@ import {
     Container,
     ContainerHeader
 } from '@orthacms/design-system';
-import type { ContentType } from '../../../domain/types/contentType';
+import type {
+    ContentType,
+    EntrySource
+} from '../../../domain/types/contentType';
 import { useContentSchema } from '../../../application/useContentSchema';
 import { CollectionRecordsSkeleton } from './CollectionRecordsSkeleton';
 import { LoadedRecordsView } from './LoadedRecordsView';
@@ -31,11 +34,18 @@ const messages = defineMessages({
  */
 export function CollectionRecordsView({
     type,
-    trashed = false
+    trashed = false,
+    sharedSource
 }: {
     type: ContentType;
     /** Render the trash view (soft-deleted rows) instead of the live list. */
     trashed?: boolean;
+    /**
+     * List this shared workspace's published records of the type instead of
+     * the open workspace's own — **read-only**: no create, no selection or
+     * bulk actions, no row actions, no saved views.
+     */
+    sharedSource?: EntrySource;
 }) {
     const intl = useIntl();
     const {
@@ -75,5 +85,12 @@ export function CollectionRecordsView({
         );
     }
 
-    return <LoadedRecordsView type={type} schema={schema} trashed={trashed} />;
+    return (
+        <LoadedRecordsView
+            type={type}
+            schema={schema}
+            trashed={trashed}
+            sharedSource={sharedSource}
+        />
+    );
 }

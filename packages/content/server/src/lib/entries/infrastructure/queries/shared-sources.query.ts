@@ -2,26 +2,25 @@ import { Injectable } from '@nestjs/common';
 import {
     and,
     eq,
-    exists,
     inArray,
     isNull,
     ne,
     or,
-    sql,
     type AnyColumn,
     type SQL
 } from 'drizzle-orm';
 import type { PgColumn, PgTable } from 'drizzle-orm/pg-core';
 import { InjectDatabase, type Database } from '@orthacms/database';
-import { workspaceContent, workspaces } from '@orthacms/workspaces-server';
+import { workspaces } from '@orthacms/workspaces-server';
 import { ENTRY_STATUS, type AnyContentType } from '../../../types/content-type';
 import type { EntrySource } from '../../types/entry-list-view';
+import {
+    ownGrantProbe,
+    servingSourceIds
+} from '../../../content-types/queries/shared-grant.sql';
 
 /** A generated content table seen as a bag of columns by property name. */
 type Columns = Record<string, AnyColumn>;
-
-/** The lifecycle value an archived workspace carries — it exposes nothing. */
-const ACTIVE = 'active' as const;
 
 /** A uuid, loosely — anything else can never name a row. */
 const UUID_RE =
@@ -32,10 +31,15 @@ const UUID_RE =
  * foreign entries a workspace may see.
  *
  * A workspace flagged `is_shared` exposes its **published, non-deleted**
- * entries to every **other** workspace that holds a `workspace_content` grant
- * for the entry's type. Exposure is read-only and not transitive: a shared
- * workspace exposes only its own rows, an archived one exposes nothing, and no
- * write path ever consults this class — every mutation keeps its strict
+ * entries of a type to every **other** workspace holding an explicit **shared
+ * grant** of that type naming it — `(W, slug, S)` in `workspace_content`
+ * ("Explicit per-source grants") — provided the source still holds its own
+ * grant for the type. W's own grant of the type is neither needed nor
+ * sufficient: it lets W author records, and exposes nothing foreign. The rule
+ * in full is `content-types/queries/content-access.ts`; the SQL here and there
+ * share `shared-grant.sql.ts`. Exposure is read-only and not transitive: a
+ * shared workspace exposes only its own rows, an archived one exposes nothing,
+ * and no write path ever consults this class — every mutation keeps its strict
  * `workspace_id = :workspace` predicate.
  *
  * Every read that crosses the boundary goes through here — the admin list's
@@ -55,8 +59,9 @@ export class SharedSourcesQuery {
 
     /**
      * The rows of `type` that `workspaceId` may read **from other workspaces**:
-     * `workspace_id` names an active, shared workspace other than the caller's,
-     * the caller holds a grant for `type`, and the row is live — published (on a
+     * `workspace_id` names a workspace other than the caller's that the caller
+     * holds a shared grant of `type` for, which is still shared, active and
+     * holding its own grant for `type` — and the row is live: published (on a
      * publishable type) and not soft-deleted (on a paranoid one).
      *
      * `table` defaults to `type.table`; pass an alias when the predicate must
@@ -70,8 +75,10 @@ export class SharedSourcesQuery {
         const cols = table as unknown as Columns;
         return and(
             ne(cols['workspaceId'], workspaceId),
-            inArray(cols['workspaceId'], this.sharedWorkspaceIds(workspaceId)),
-            exists(this.grantProbe(type, workspaceId)),
+            inArray(
+                cols['workspaceId'],
+                servingSourceIds(this.db, workspaceId, type.name)
+            ),
             type.publishable
                 ? eq(cols['status'], ENTRY_STATUS.Published)
                 : undefined,
@@ -99,21 +106,55 @@ export class SharedSourcesQuery {
     }
 
     /**
-     * The workspaces whose `typeSlug` entries `workspaceId` may read: itself,
-     * plus every active shared workspace other than itself — the latter only
-     * when `workspaceId` is granted `typeSlug`. Own id first.
+     * The own half of a read, per `?source=own`: the caller's rows of `type`,
+     * **provided it holds the own grant**. Without one the type is at most
+     * shared-only here and `own` is empty (ADR-0019, "Explicit per-source
+     * grants"). The grant probe is almost always redundant — a workspace
+     * cannot create rows of a type it does not own, nor revoke the own grant
+     * while rows remain — but it makes the rule true by construction.
+     */
+    ownWhere(
+        type: AnyContentType,
+        workspaceId: string,
+        table: PgTable = type.table
+    ): SQL {
+        const cols = table as unknown as Columns;
+        return and(
+            eq(cols['workspaceId'], workspaceId),
+            ownGrantProbe(this.db, workspaceId, type.name)
+        ) as SQL;
+    }
+
+    /**
+     * `visibleSources(W, slug)` — the workspaces whose `typeSlug` entries
+     * `workspaceId` may read: itself when it holds the own grant, plus every
+     * source of an available shared grant. Own id first.
      */
     async visibleSources(
         workspaceId: string,
         typeSlug: string
     ): Promise<string[]> {
-        const shared = await this.sharedSources(workspaceId, typeSlug);
-        return [workspaceId, ...shared.map((source) => source.workspaceId)];
+        const [own, shared] = await Promise.all([
+            this.db
+                .select({ id: workspaces.id })
+                .from(workspaces)
+                .where(
+                    and(
+                        eq(workspaces.id, workspaceId),
+                        ownGrantProbe(this.db, workspaceId, typeSlug)
+                    )
+                ),
+            this.sharedSources(workspaceId, typeSlug)
+        ]);
+        return [
+            ...own.map((row) => row.id),
+            ...shared.map((source) => source.workspaceId)
+        ];
     }
 
     /**
      * The foreign half of {@link visibleSources}, with display names — empty
-     * when `workspaceId` lacks the grant or nothing is shared.
+     * when `workspaceId` holds no available shared grant of `typeSlug`.
      */
     async sharedSources(
         workspaceId: string,
@@ -123,11 +164,9 @@ export class SharedSourcesQuery {
             .select({ id: workspaces.id, name: workspaces.name })
             .from(workspaces)
             .where(
-                and(
-                    eq(workspaces.isShared, true),
-                    eq(workspaces.status, ACTIVE),
-                    ne(workspaces.id, workspaceId),
-                    exists(this.grantProbeBySlug(typeSlug, workspaceId))
+                inArray(
+                    workspaces.id,
+                    servingSourceIds(this.db, workspaceId, typeSlug)
                 )
             )
             .orderBy(workspaces.name, workspaces.id);
@@ -239,37 +278,5 @@ export class SharedSourcesQuery {
                 }
             ])
         );
-    }
-
-    /** Ids of every active, shared workspace other than `workspaceId`. */
-    private sharedWorkspaceIds(workspaceId: string) {
-        return this.db
-            .select({ id: workspaces.id })
-            .from(workspaces)
-            .where(
-                and(
-                    eq(workspaces.isShared, true),
-                    eq(workspaces.status, ACTIVE),
-                    ne(workspaces.id, workspaceId)
-                )
-            );
-    }
-
-    /** `EXISTS` probe: does `workspaceId` hold a grant for `type`? */
-    private grantProbe(type: AnyContentType, workspaceId: string) {
-        return this.grantProbeBySlug(type.name, workspaceId);
-    }
-
-    /** `EXISTS` probe: does `workspaceId` hold a grant for `slug`? */
-    private grantProbeBySlug(slug: string, workspaceId: string) {
-        return this.db
-            .select({ one: sql`1` })
-            .from(workspaceContent)
-            .where(
-                and(
-                    eq(workspaceContent.workspaceId, workspaceId),
-                    eq(workspaceContent.slug, slug)
-                )
-            );
     }
 }
