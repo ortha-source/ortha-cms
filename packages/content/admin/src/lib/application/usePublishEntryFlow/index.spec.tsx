@@ -212,6 +212,34 @@ describe('usePublishEntryFlow — announcing a landed write [ORT-230]', () => {
         expect(landed).toHaveBeenCalledTimes(1);
     });
 
+    it('tells a landed create apart, even when its publish is refused', async () => {
+        // A create is the moment the record gains an address. The entry view
+        // moves to it on this call — waiting for the publish left a refused one
+        // on `/new`, where the re-armed form adopted a blank seed and every
+        // field of the saved draft read empty.
+        const landed = vi.fn();
+        publish.mutateAsync.mockRejectedValue(new Error('refused'));
+
+        await expect(
+            submit({ entry: undefined, onWriteLanded: landed })
+        ).rejects.toThrow('refused');
+
+        expect(landed).toHaveBeenCalledWith({
+            saved: expect.objectContaining({ id: 'entry-1' }),
+            created: true
+        });
+    });
+
+    it('reports an update as no create', async () => {
+        const landed = vi.fn();
+
+        await submit({ entry: ENTRY, unchanged: false, onWriteLanded: landed });
+
+        expect(landed).toHaveBeenCalledWith(
+            expect.objectContaining({ created: false })
+        );
+    });
+
     it('says nothing when the save itself fails', async () => {
         // Nothing was written, so nothing primed the cache and there is no seed
         // to adopt. Announcing here would make the editor replace the author's

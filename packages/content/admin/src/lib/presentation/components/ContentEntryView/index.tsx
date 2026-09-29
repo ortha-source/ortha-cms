@@ -34,10 +34,7 @@ import {
     contentEntriesPrefix,
     type ContentEntriesResult
 } from '../../../application/useContentEntries';
-import {
-    useContentEntry,
-    contentEntryKey
-} from '../../../application/useContentEntry';
+import { useContentEntry } from '../../../application/useContentEntry';
 import { usePublishEntryFlow } from '../../../application/usePublishEntryFlow';
 import { useCreatePrefill } from '../../hooks/useCreatePrefill';
 import { useSlotListParams } from '../../hooks/useSlotListParams';
@@ -533,7 +530,34 @@ export function ContentEntryView({
                     !options.relations &&
                     Object.keys(extensions).length === 0,
                 bypass: options.bypass,
-                onWriteLanded: options.onWriteLanded
+                onWriteLanded: ({ saved, created }) => {
+                    // Re-arm the form's seeding first, so the render the move
+                    // below causes adopts the record rather than refusing it.
+                    options.onWriteLanded?.();
+                    // A brand-new record (a create, incl. a translation
+                    // sibling) moves to its own editor URL **the moment the
+                    // create lands** — not once the whole submit succeeds. A
+                    // Publish on `/new` is a create then a publish, and the
+                    // publish can still be refused (a 422 from the server's
+                    // gate, a guard's 409). Waiting for it left the editor on
+                    // `/new` holding a draft that already existed: the re-armed
+                    // form adopted `/new`'s seed — a blank form — so every
+                    // field read empty, and a retry had no id in the URL.
+                    //
+                    // The save has already primed the read-one cache with the
+                    // record it returned (`useSaveEntry`), so `/:id` renders
+                    // it at once — no spinner, no "New {label}" → "{label}"
+                    // flash — and the changed `editorKey` makes the form adopt
+                    // it as a different record rather than a conflict. The
+                    // refused publish's field errors are applied after this,
+                    // onto the form that now holds the draft. A single stays
+                    // put — its `?locale=` re-resolves to the row just created.
+                    if (created && mode !== ENTRY_MODE.Single) {
+                        navigate(
+                            `${typePath}/${saved.id}${tabSegment}${entryQuerySuffix}`
+                        );
+                    }
+                }
             });
             // The write landed, so every presave step can drop what it consumed
             // (the media plugin revokes its preview URLs and forgets the staged
@@ -574,26 +598,9 @@ export function ContentEntryView({
             )
         );
         // Stay on the editor after a save — surface success via the toast, don't
-        // bounce back to the records list. A brand-new record (create, incl. a
-        // translation sibling) moves to its own editor URL so the id is in the
-        // URL and a further save updates it; an existing record is already there
-        // and its invalidated query refreshes in place. A single stays put — its
-        // `?locale=` re-resolves to the row just created.
-        if (mode !== ENTRY_MODE.Single && result.wasCreate) {
-            // Prime the edit-mode read with the record the save just returned.
-            // Without it the navigation below lands on `/:type/:id` with a cold
-            // query, so the editor swaps the form the user is looking at for a
-            // full-page spinner and a header that flips "New {label}" → "{label}"
-            // — a jarring flash on every create. The response *is* the canonical
-            // record, so there is nothing to wait for.
-            queryClient.setQueryData(
-                contentEntryKey(workspace.id, type.name, result.saved.id),
-                result.saved
-            );
-            navigate(
-                `${typePath}/${result.saved.id}${tabSegment}${entryQuerySuffix}`
-            );
-        }
+        // bounce back to the records list. A create has already moved to its
+        // own URL as it landed (see `onWriteLanded` above); an existing record
+        // is already there and its primed/invalidated query refreshes in place.
     };
 
     // Entry-level actions are available only when editing an existing collection

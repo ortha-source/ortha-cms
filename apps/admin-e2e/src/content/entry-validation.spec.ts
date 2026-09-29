@@ -19,6 +19,8 @@ import {
     mockContentSchemaDetail,
     mockContentEntries,
     mockContentEntryWrites,
+    mockEntryMedia,
+    mockEntryRelations,
     mockPublishRejection
 } from '../support/api/content';
 
@@ -75,6 +77,12 @@ test.describe('Entry editor validation', () => {
             contentLibraryPage
         }) => {
             await mockPublishRejection(page, { field: 'internalCode' });
+            // The create lands before the publish is refused, so the editor
+            // moves to the saved draft and reads its relations and media like
+            // any stored record — unmocked, those reads fail and retry under
+            // the busy cover, holding the toast back.
+            await mockEntryRelations(page);
+            await mockEntryMedia(page);
             await page.goto(
                 `/workspaces/${HIDDEN_FIELD_WORKSPACE.id}/content/gadget/new`
             );

@@ -1574,6 +1574,47 @@ function touchEntry(page: Page, type: string, id: string): string {
     return next;
 }
 
+/**
+ * The values each mocked record was last **written** with, per page and per
+ * `"<type>/<id>"` — the other half of what a real write leaves behind.
+ *
+ * The status routes (`publish`, `unpublish`, `restore`) carry no body, and the
+ * admin primes its read-one cache with their response. A mock that answered
+ * them with values fabricated from the schema therefore replaced whatever the
+ * author had just saved with `Title 01` — indistinguishable, on screen, from the
+ * editor losing the saved record after a publish. Shared by
+ * {@link mockContentEntryWrites} and {@link spyEntrySave} for the same reason
+ * the clock is: either may answer the save the next read has to agree with.
+ */
+const entryStores = new WeakMap<Page, Map<string, Record<string, unknown>>>();
+
+function storeOf(page: Page): Map<string, Record<string, unknown>> {
+    const existing = entryStores.get(page);
+    if (existing) return existing;
+    const store = new Map<string, Record<string, unknown>>();
+    entryStores.set(page, store);
+    return store;
+}
+
+/** Remember what a save wrote, so a later read or status write returns it. */
+function rememberEntryValues(
+    page: Page,
+    type: string,
+    id: string,
+    values: Record<string, unknown> | undefined
+): void {
+    if (values) storeOf(page).set(`${type}/${id}`, values);
+}
+
+/** The values a save in this test last wrote to the record, if any did. */
+function storedEntryValues(
+    page: Page,
+    type: string,
+    id: string
+): Record<string, unknown> | undefined {
+    return storeOf(page).get(`${type}/${id}`);
+}
+
 interface ContentEntryReadOptions {
     /**
      * Values per `"<type>/<id>"`, served by the read-one endpoint. Everything
@@ -1869,6 +1910,7 @@ export async function mockContentEntryWrites(
             updatedAt,
             values:
                 body.values ??
+                storedEntryValues(page, name, id) ??
                 detail?.fields.reduce<Record<string, unknown>>((acc, f) => {
                     acc[f.name] = valueFor(f, 0);
                     return acc;
@@ -1880,8 +1922,10 @@ export async function mockContentEntryWrites(
         // Every write stamps a new `updatedAt`, a status transition included —
         // the server's `markPublished` / `markDraft` set it too, and the review
         // key is keyed on it.
-        if (method === 'PATCH')
+        if (method === 'PATCH') {
+            rememberEntryValues(page, name, id, body.values);
             return json(route, record('draft', touchEntry(page, name, id)));
+        }
         if (method === 'DELETE')
             return route.fulfill({ status: 204, body: '' });
         if (method === 'POST') {
@@ -1910,6 +1954,7 @@ export async function mockContentEntryWrites(
         const body = (req.postDataJSON?.() ?? {}) as {
             values?: Record<string, unknown>;
         };
+        rememberEntryValues(page, name, `${name}-new`, body.values);
         return json(
             route,
             {
@@ -1980,6 +2025,7 @@ export async function spyEntrySave(page: Page): Promise<EntrySaveSpy> {
         const name = decodeURIComponent(
             new URL(req.url()).pathname.split('/').pop() ?? ''
         ).split('?')[0];
+        rememberEntryValues(page, name, `${name}-new`, body.values);
         await route.fulfill({
             status: 201,
             contentType: 'application/json',
@@ -2008,6 +2054,7 @@ export async function spyEntrySave(page: Page): Promise<EntrySaveSpy> {
                 .filter(Boolean);
             const name = decodeURIComponent(parts[2] ?? '');
             const id = decodeURIComponent(parts[3] ?? '');
+            rememberEntryValues(page, name, id, body.values);
             await route.fulfill({
                 status: 200,
                 contentType: 'application/json',
