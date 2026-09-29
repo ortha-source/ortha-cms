@@ -204,8 +204,10 @@ export class ProtectionToolProvider implements ToolProvider, OnModuleInit {
                 'one of them. This records a request; it does not approve anything and does ' +
                 'not publish, and who is asked does not change whose approval counts. ' +
                 'Asking twice replaces the reviewers on the open request rather than ' +
-                'creating a second one. Allowed on an unprotected type too — wanting a ' +
-                'second pair of eyes does not require a rule.',
+                'creating a second one. Refused on an entry that is published and ' +
+                'unchanged since — there is nothing to review until it is edited. ' +
+                'Allowed on an unprotected type too — wanting a second pair of eyes ' +
+                'does not require a rule.',
             inputSchema: {
                 type: 'object',
                 properties: {

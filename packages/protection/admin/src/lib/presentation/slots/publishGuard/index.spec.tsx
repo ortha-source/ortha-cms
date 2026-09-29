@@ -115,6 +115,7 @@ function review(overrides: Partial<EntryReview> = {}): EntryReview {
         afterSave: { required: 1, given: 0, blocked: true, bypassable: false },
         headRevisionId: 'rev-2',
         headRevisionNumber: 2,
+        headPublished: false,
         callerWroteHead: false,
         callerApprovedHead: false,
         approvals: [],

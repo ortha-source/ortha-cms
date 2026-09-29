@@ -129,6 +129,13 @@ export interface EntryReviewView {
     headRevisionId: string;
     /** Its 1-based number. */
     headRevisionNumber: number;
+    /**
+     * Whether the head is the entry's live version — published, with no save
+     * since. There is then nothing to review: an approval would be of what is
+     * already live, and the request route answers `409
+     * protection.nothing_to_review`. The next save turns it back off.
+     */
+    headPublished: boolean;
     /** Whether the caller wrote the head, and so cannot approve it. */
     callerWroteHead: boolean;
     /** Whether the caller has already approved the head — nothing left to press. */

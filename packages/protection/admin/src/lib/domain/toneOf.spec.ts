@@ -11,6 +11,7 @@ const review = (given: number, required: number): EntryReview => ({
     afterSave: { required, given: 0, blocked: required > 0, bypassable: false },
     headRevisionId: 'rev-7',
     headRevisionNumber: 7,
+    headPublished: false,
     callerWroteHead: false,
     callerApprovedHead: false,
     approvals: [],

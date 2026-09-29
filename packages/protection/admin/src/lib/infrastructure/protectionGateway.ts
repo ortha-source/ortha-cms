@@ -178,6 +178,8 @@ type EntryReviewResponse = {
     afterSave: PublishOutlookResponse;
     headRevisionId: string;
     headRevisionNumber: number;
+    /** Absent from a server that predates it — read as "not live", as before. */
+    headPublished?: boolean;
     callerWroteHead: boolean;
     callerApprovedHead: boolean;
     approvals: ApprovalResponse[];
@@ -223,6 +225,7 @@ function toEntryReview(dto: EntryReviewResponse): EntryReview {
         afterSave: toOutlook(dto.afterSave),
         headRevisionId: dto.headRevisionId,
         headRevisionNumber: dto.headRevisionNumber,
+        headPublished: dto.headPublished ?? false,
         callerWroteHead: dto.callerWroteHead,
         callerApprovedHead: dto.callerApprovedHead,
         approvals: (dto.approvals ?? []).map(toApproval),

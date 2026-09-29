@@ -24,6 +24,7 @@ const review = (over: Partial<EntryReview> = {}): EntryReview => ({
     afterSave: { required: 2, given: 0, blocked: true, bypassable: false },
     headRevisionId: 'rev-7',
     headRevisionNumber: 7,
+    headPublished: false,
     callerWroteHead: false,
     callerApprovedHead: false,
     approvals: [],

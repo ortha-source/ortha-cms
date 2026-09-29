@@ -555,6 +555,44 @@ describe('/api/protection/entries', () => {
             expect(await openRequests(id)).toBe(1);
         });
 
+        /**
+         * A published entry with no save since has no next version: an
+         * approval would be of what readers already have, and a request would
+         * sit in the queue until somebody published again — the only thing
+         * that closes one. The next save makes it reviewable again.
+         */
+        it('is refused while the head is live, and allowed again after a save', async () => {
+            await protect({ enabled: true, requiredApprovals: 1 });
+            const { agent: author } = await member(AUTHOR, 'contributor');
+            const { agent: reviewer } = await member(REVIEWER, 'contributor');
+            const id = await createEntry(author);
+            await reviewer
+                .post(`/api/protection/entries/test_article/${id}/approve`)
+                .expect(201);
+            await author
+                .post(`/api/content/test_article/${id}/publish`)
+                .expect(201);
+
+            const live = await author
+                .get(`/api/protection/entries/test_article/${id}`)
+                .expect(200);
+            expect(live.body.headPublished).toBe(true);
+            const refused = await ask(author, id, [await ruleAdminId()]).expect(
+                409
+            );
+            expect(refused.body.code).toBe('protection.nothing_to_review');
+            expect(await allRequests(id)).toBe(0);
+
+            await editEntry(author, id, 'An edit on top of the live version');
+
+            const edited = await author
+                .get(`/api/protection/entries/test_article/${id}`)
+                .expect(200);
+            expect(edited.body.headPublished).toBe(false);
+            await ask(author, id, [await ruleAdminId()]).expect(201);
+            expect(await openRequests(id)).toBe(1);
+        });
+
         it('is refused to a viewer, who cannot update content', async () => {
             await protect({ enabled: true });
             const { agent: authorAgent } = await member(AUTHOR, 'contributor');

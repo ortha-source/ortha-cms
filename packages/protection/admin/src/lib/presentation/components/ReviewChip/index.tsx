@@ -43,7 +43,9 @@ export function ReviewChip(context: EntrySlotContext) {
 
     // No rule, still loading, or nothing to review: say nothing. A chip that
     // appeared a beat after the title would move the heading under the reader.
-    if (!data?.protected) return null;
+    // A live head is "nothing to review" too — "Needs review · 0 of 1" on a
+    // record that is published and unchanged would claim it is held.
+    if (!data?.protected || data.headPublished) return null;
 
     const tone = toneOf(data);
     const values = { given: data.given, required: data.required };

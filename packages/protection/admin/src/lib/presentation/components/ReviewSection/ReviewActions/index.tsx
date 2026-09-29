@@ -50,6 +50,9 @@ const messages = defineMessages({
  * the same button reads "Change reviewers": the request route replaces who is
  * asked. There are no notes and no "request changes" — a reviewer who is not
  * satisfied simply does not approve.
+ *
+ * **Nothing renders on a live head** (published, no save since): there is no
+ * next version to approve or to ask about.
  */
 export function ReviewActions({
     scope,
@@ -67,6 +70,12 @@ export function ReviewActions({
     const intl = useIntl();
     const [picking, setPicking] = useState(false);
     const approve = useApprove(scope);
+
+    // A live head — published, no save since — has nothing to act on: an
+    // approval would be of what readers already have, and a request would sit
+    // in the queue until somebody published again (the server refuses one with
+    // `409 protection.nothing_to_review`). The next save brings both back.
+    if (review.headPublished) return null;
 
     const canVote =
         canApprove && !review.callerWroteHead && !review.callerApprovedHead;
