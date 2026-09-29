@@ -667,13 +667,29 @@ export function EntryEditor({
         return Object.keys(out).length ? out : undefined;
     };
 
+    // Drop the staging a landed save carried — those links are the server set
+    // now. Only the fields whose staging is still the one that was sent: an
+    // edit staged since is genuinely unsaved and stays marked.
+    const clearSentRelations = (sent: Record<string, StagedRelation>) =>
+        setRelationDeltas((current) => {
+            const next = { ...current };
+            for (const [name, staged] of Object.entries(sent)) {
+                if (next[name] === staged) delete next[name];
+            }
+            return next;
+        });
+
     // A 422 from the server is mapped back onto the form as inline field errors;
-    // other failures fall through to the mutation's own error handling. On
-    // success the staging is cleared (the saved links are now the server set).
+    // other failures fall through to the mutation's own error handling. Once the
+    // save has **landed** the staging it carried is cleared — on success, and
+    // equally when a chained publish is then refused, since the save wrote those
+    // links either way. A save that never landed keeps it, for the retry.
     const submitWith =
         (publish: boolean, options: EntryPublishOptions = {}) =>
-        (values: Record<string, unknown>) =>
-            onSave(values, {
+        (values: Record<string, unknown>) => {
+            const sent = relationDeltas;
+            let landed = false;
+            return onSave(values, {
                 publish,
                 relations: relationsPayload(),
                 ignoreFields: validationIgnored,
@@ -697,10 +713,18 @@ export function EntryEditor({
                 // and adopting the seed on a save that never landed would
                 // replace the author's values with the server's on a plain
                 // validation error.
-                onWriteLanded: () => form.acceptSeed()
+                onWriteLanded: () => {
+                    landed = true;
+                    form.acceptSeed();
+                }
             })
-                .then(() => setRelationDeltas({}))
+                .then(() => clearSentRelations(sent))
                 .catch((error) => {
+                    // Cleared here rather than in `onWriteLanded`: by now the
+                    // flow has run the refresh the save deferred to its publish,
+                    // so the tab swaps the staging for the refetched server set
+                    // instead of flashing the pre-save links in between.
+                    if (landed) clearSentRelations(sent);
                     const issues = entryIssuesFrom(error);
                     form.setServerErrors(issues);
                     // Not a field problem at all — a publish guard's refusal, a
@@ -737,6 +761,7 @@ export function EntryEditor({
                             })
                         );
                 });
+        };
 
     // A **draft** of a publishable type can be saved incomplete, so it uses the
     // relaxed (format-only) gate — required isn't enforced, but a malformed value

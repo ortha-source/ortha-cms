@@ -746,7 +746,9 @@ one) can't be checked by `EntryValidationService` — its links never travel in 
 `values` bag. `EntryWriterService.assertRequiredRelations` enforces it separately
 by **counting the entry's links**: eagerly for non-publishable creates/updates
 (inside the write transaction so it sees the just-written rows) and at publish
-against the stored links. A required such relation with zero links is the same
+against the stored links — single and bulk alike: bulk publish and its dry run
+use `requiredRelationIssuesBulk`, the same fields and predicate with one grouped
+count per field for the whole batch (content **I-51**). A required such relation with zero links is the same
 `422 is required`. A required single relation is still an FK in `values`,
 validated there; an inverse-of-single owns no writable link from this side, so it
 isn't enforced.

@@ -565,7 +565,10 @@ export type EntryPresaveResult = {
     schema: ContentTypeDetail;
     /** Whether this write created the record. */
     created: boolean;
-    /** Whether the record is live after this write. */
+    /**
+     * Whether the record is live after this submit — `false` when a publish
+     * chained after the save was refused.
+     */
     published: boolean;
 };
 
@@ -606,8 +609,12 @@ export type EntryPresave = {
      */
     extensions?: () => Record<string, unknown> | undefined;
     /**
-     * Called after the write succeeded — to drop whatever `commit` consumed, and
-     * to do the work that needed the saved record. It is **awaited**, still under
+     * Called once the save **landed** — to drop whatever `commit` consumed, and
+     * to do the work that needed the saved record. That includes a submit whose
+     * chained publish is then refused (a 422 from the server's gate, a guard's
+     * 409): the save wrote this step's state all the same, so it settles exactly
+     * as a plain Save draft would, before the refusal reaches the form. A submit
+     * whose write never landed does not settle. It is **awaited**, still under
      * the busy cover, so a step may finish a write of its own here: that is how
      * `@orthacms/segments-admin` applies an entry's audiences on Save, which is
      * impossible from `commit` because a create has no id yet.

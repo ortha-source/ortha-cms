@@ -343,8 +343,9 @@ staged.added`), not the values bag it doesn't live in — mirroring the server's
       Save**, which serializes each field's staging to a `{ link?, unlink?, order? }`
       delta and posts it in the entry body — one transaction, one request, a huge
       relation never sent whole. `seedRelationValues` **drops** these fields from
-      the form (a save can't wipe links it never loaded); a successful save clears
-      the staging and `useSaveEntry` invalidates the field queries. Owning
+      the form (a save can't wipe links it never loaded); a save that
+      **landed** clears the staging it sent (even when a publish chained after
+      it is refused) and `useSaveEntry` invalidates the field queries. Owning
       many-relations reorder (persisted via `position`); the inverse reads order
       but isn't sortable.
       A field with pending edits shows a **"Changed" badge** (`ChangedBadge`): general
@@ -1107,9 +1108,10 @@ fetching internally.
   `{ commit, settle?, handle? }`. `commit(values, publish)` runs after client
   validation and **before** the write, under the busy cover, and returns the
   values actually saved — throwing aborts the save (the step owns surfacing its
-  own failure). `settle(result)` is **awaited** once the write succeeded, still
-  under the cover, and is handed the saved `entry` + `schema` + `created` +
-  `published` — so a step may finish a write of its own there, which is the only
+  own failure). `settle(result)` is **awaited** once the save **landed** — including
+  when a publish chained after it is then refused, since the save wrote the
+  step's state regardless — still under the cover, and is handed the saved
+  `entry` + `schema` + `created` + `published` — so a step may finish a write of its own there, which is the only
   place it can: on a create there is no entry id until the row exists.
   `@orthacms/segments-admin` applies an entry's audiences from it. A `settle`
   that throws cannot abort anything (the entry is written), so the loop swallows

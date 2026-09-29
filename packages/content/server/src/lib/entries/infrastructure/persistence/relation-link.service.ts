@@ -1011,6 +1011,36 @@ export class RelationLinkService {
         return 0;
     }
 
+    /**
+     * {@link countLinks} for many entries at once, restricted to the
+     * **join-backed** relations (an owning many-to-many, or the inverse of
+     * one) — the only ones the publish gate counts. One grouped query for the
+     * whole batch rather than one per entry; the predicate is exactly
+     * `countLinks`'s, so a bulk publish cannot count a link set differently
+     * from the single publish. An id with no links is simply absent from the
+     * map (read it as 0). Returns an empty map for a relation that is not
+     * join-backed.
+     */
+    async countJoinLinksByOwner(
+        exec: Database | DbTransaction,
+        type: AnyContentType,
+        ids: readonly string[],
+        field: string,
+        spec: AnyFieldSpec
+    ): Promise<Map<string, number>> {
+        const out = new Map<string, number>();
+        const join = this.joinPlanFor(type, field, spec);
+        if (!join || ids.length === 0) return out;
+        const owner = (join.table as unknown as SelectableColumns)[join.ownCol];
+        const rows = await exec
+            .select({ owner, total: count() })
+            .from(join.table)
+            .where(inArray(owner, [...ids]))
+            .groupBy(owner);
+        for (const row of rows) out.set(String(row.owner), Number(row.total));
+        return out;
+    }
+
     // ---- helpers -----------------------------------------------------------
 
     /**
