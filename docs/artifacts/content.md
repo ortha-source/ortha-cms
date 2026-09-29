@@ -255,6 +255,7 @@ History is **append-only**: restoring version v2 goes through the ordinary `Entr
 - **A required link-managed relation** (an owning many-to-many or the inverse side of one) is not in the bag, so it is checked separately — `assertRequiredRelations` **counts the links**: eagerly inside the write transaction for non-publishable types, and against the stored links at publication. Zero links gives the same 422 `is required`.
 - **The order of the checks is load-bearing:** values first, and only if they pass, the required relations. Otherwise the set of issues in the 422 would change depending on which check failed first.
 - **The inverse side of a _single_ relation** (one-to-many) owns no writable link of its own, so it is not checked at all.
+- **A required relation whose target type the entry's workspace is not granted is not required there** (`content:I-50`). The admin UI hides such a field, and the public API and agent tools refuse the type, so nobody in that workspace could ever satisfy it. `EntryValidationService.waivedRequired(type, workspaceId)` is the one place that decides it — "reachable" means the workspace holds a `workspace_content` grant for the target, the same condition shared workspaces use (ADR-0019) — and every required check takes its waiver from there: the values gate, `requiredRelationIssues`, single and bulk publish (and the bulk dry run's checklist), and i18n's re-validation of a published sibling. A value supplied anyway is still validated and still held to the relation-target rules (**I-43**). The one exception is storage: on a **non-publishable** type a required owning single relation is a `NOT NULL` column, so it is never waived.
 
 ## 06. Scenarios — how it works, step by step
 
@@ -963,6 +964,7 @@ Statements that must always hold. Both a review list and a starting set of asser
 - **I-47** — A shared entry's media resolve in the entry's **own** workspace (the admin `/media` read and the public media expansion), never the reader's.
 - **I-48** — The agent tools read shared records through the same rule: `content_list` (MCP) and `admin_content_search` (copilot) take `source: 'own' | 'shared' | 'all'`, default `own` (the pre-sharing rows), with every item carrying `source` (`null` = own); `content_get` / `admin_content_get` return a visible foreign entry with `source` and `readOnly: true`. A foreign draft, a non-shared workspace's row and an ungranted type stay invisible whatever `status` asks. The copilot's revision tools stay own-workspace.
 - **I-49** — Every agent write tool (MCP `content_update`/`_publish`/`_unpublish`/`_delete`/`_bulk_*`, the copilot's `content_propose_*` and their appliers) keeps **I-42**; on a foreign id that is visible under **I-41** it fails with a 403 naming the shared workspace, saying the record is read-only here and to link it by id instead — computed only for an id the caller could read, so an unknown, draft or ungranted id keeps its plain not-found. A batch lifecycle tool naming one refuses the whole batch before writing anything.
+- **I-50** — A required relation whose target type is **not granted** to the entry's workspace is not required in that workspace: create, update, publish, bulk publish (and its dry run) and the i18n sibling re-validation all take one waiver from `EntryValidationService.waivedRequired`, so none of them answers `is required` for it. A granted target is required exactly as before, a value supplied for a waived field is still validated, and a required single relation on a **non-publishable** type (a `NOT NULL` column) is never waived.
 
 ## 12. Testing checklist
 
@@ -1009,6 +1011,7 @@ Phrased as “action → expected result”. Existing suites: `apps/server-e2e/s
 - **Publishing a draft with an empty required field** → 422 listing the fields; the entry stays a draft.
 - **Publishing with an empty required many-relation** → 422 `is required`, even when every scalar value is valid.
 - **A required scalar field _and_ an empty required relation at once** → only the scalar issues appear — relations are not counted while the values are invalid.
+- **A required relation to a type the workspace is not granted, left empty** → create, update and publish succeed; grant the target type and the same publish is a 422 `is required` again (`content:I-50`).
 - **Publishing on a non-publishable type** → 400, not a silent success.
 - **Re-publishing an already live entry** → idempotent, `published_at` re-stamped.
 - **`unpublish`** → `status = draft`, `published_at` **cleared**, the live version back to `draft`.

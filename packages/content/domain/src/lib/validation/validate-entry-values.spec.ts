@@ -152,6 +152,51 @@ describe('validateEntryValues', () => {
         ).not.toContain('tags');
     });
 
+    describe('waiveRequired', () => {
+        const withRequiredAuthor: EntryFieldSpecMap = {
+            title: { type: CONTENT_FIELD_TYPE.Text, required: true },
+            author: {
+                type: CONTENT_FIELD_TYPE.Relation,
+                required: true,
+                relation: { many: false }
+            }
+        };
+        const issuesFor = (
+            values: Record<string, unknown>,
+            waived?: ReadonlySet<string>
+        ) =>
+            validateEntryValues(withRequiredAuthor, values, {
+                waiveRequired: waived
+            }).issues;
+
+        it('still reports a missing required relation that is not waived', () => {
+            expect(issuesFor({ title: 'hello' })).toEqual([
+                { field: 'author', message: 'is required' }
+            ]);
+        });
+
+        it('does not report a waived required field as missing', () => {
+            expect(issuesFor({ title: 'hello' }, new Set(['author']))).toEqual(
+                []
+            );
+        });
+
+        it('still validates a value supplied for a waived field', () => {
+            expect(
+                issuesFor(
+                    { title: 'hello', author: 'nope' },
+                    new Set(['author'])
+                )
+            ).toEqual([{ field: 'author', message: 'must be an entry id' }]);
+        });
+
+        it('waives only the named fields', () => {
+            expect(issuesFor({}, new Set(['author']))).toEqual([
+                { field: 'title', message: 'is required' }
+            ]);
+        });
+    });
+
     it('skips a required many/inverse relation (link-managed, not in the bag)', () => {
         const linkManaged: EntryFieldSpecMap = {
             title: { type: CONTENT_FIELD_TYPE.Text, required: true },

@@ -561,7 +561,12 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
             ) {
                 const result = this.validation.validate(
                     type,
-                    toRecord(type, updated).values
+                    toRecord(type, updated).values,
+                    // A required relation to a type this workspace isn't
+                    // granted is not required here — the same waiver the
+                    // publish gate applies, or a sync could refuse what a
+                    // publish of that sibling would accept.
+                    await this.validation.waivedRequired(type, workspaceId, tx)
                 );
                 if (!result.valid) {
                     throw new UnprocessableEntityException({

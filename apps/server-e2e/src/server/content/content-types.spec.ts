@@ -17,7 +17,8 @@ const PASSWORD = 'SecurePass123!';
  * support/content/index.ts), sorted — the assertions compare a `.sort()`ed
  * list. `test_article` wires up the `test_author`/`test_seo`/`test_tag`/
  * `test_comment` reference collections, `test_landing` is the single, and
- * `test_page` is the self-referential tree.
+ * `test_page` is the self-referential tree, and `test_review` carries the
+ * required relations.
  */
 const REGISTRY_NAMES = [
     'test_article',
@@ -25,6 +26,7 @@ const REGISTRY_NAMES = [
     'test_comment',
     'test_landing',
     'test_page',
+    'test_review',
     'test_seo',
     'test_tag'
 ];

@@ -56,7 +56,7 @@ draft` is unpublish. There is **no** separate `unpublished`/`archived` status
   server's original `EntryValidationService`, operating on a serialized
   `EntryFieldSpec` map (`lib/fields/`).
 
-    Six rules here are **not** what a naive reading of JavaScript gives you, and
+    Seven rules here are **not** what a naive reading of JavaScript gives you, and
     each has a test that pins it:
     - **Own keys only.** Both the unknown-key check and the value read use
       `Object.hasOwn`, never `key in fields` / `values[name]`. `in` would accept
@@ -82,6 +82,9 @@ draft` is unpublish. There is **no** separate `unpublished`/`archived` status
     - **A field may declare its own `lang`** (`EntryFieldSpec.lang`), checked for
       BCP-47 well-formedness whether or not there is a value — the field-level
       half of language of parts; a passage inside a body carries its own.
+    - **`waiveRequired` excuses `is required` and nothing else.** The server
+      passes the required relations whose target type the entry's workspace was
+      not granted (`content:I-50`); a value supplied for one is still checked.
 
 - **The publish gate** (`lib/validation/publish-gate.ts`) — `canPublish`, the
   predicate derived from the same validator ("are the values complete + valid to

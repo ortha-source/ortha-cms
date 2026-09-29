@@ -111,14 +111,15 @@ describe('Content schema (GET /api/content-schema)', () => {
             const names = res.body.map((t: { name: string }) => t.name).sort();
             // Every e2e-owned type (see support/content/index.ts): test_article
             // plus its test_author/test_seo/test_tag/test_comment reference
-            // collections, the test_landing single, and the self-referential
-            // test_page tree.
+            // collections, the test_landing single, the self-referential
+            // test_page tree, and test_review (required relations).
             expect(names).toEqual([
                 'test_article',
                 'test_author',
                 'test_comment',
                 'test_landing',
                 'test_page',
+                'test_review',
                 'test_seo',
                 'test_tag'
             ]);

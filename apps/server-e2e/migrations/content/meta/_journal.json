@@ -71,6 +71,13 @@
       "when": 1787129060137,
       "tag": "0009_richtext_structured_documents",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790670012434,
+      "tag": "0010_test_review_required_relations",
+      "breakpoints": true
     }
   ]
 }

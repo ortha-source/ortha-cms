@@ -386,6 +386,14 @@ export interface ValidateEntryValuesOptions {
     rejectUnknownKeys?: boolean;
     /** The content-type name, used only in the unknown-key message. */
     typeName?: string;
+    /**
+     * Fields whose `required` flag does not apply to this validation — the
+     * value is still checked if present, but an empty one is not `is required`.
+     * The server passes the required relations whose target type the entry's
+     * workspace was not granted: nobody in that workspace can pick a target, so
+     * requiring one would make the entry unsaveable and unpublishable there.
+     */
+    waiveRequired?: ReadonlySet<string>;
 }
 
 /**
@@ -421,7 +429,11 @@ export function validateEntryValues(
         // inherited `Object.prototype` member as its value, so a *missing*
         // required value looks present and never trips `is required`.
         const value = Object.hasOwn(values, name) ? values[name] : undefined;
-        issues.push(...validateFieldValue(name, spec, value));
+        const effective =
+            spec.required && options.waiveRequired?.has(name)
+                ? { ...spec, required: false }
+                : spec;
+        issues.push(...validateFieldValue(name, effective, value));
     }
 
     return { valid: issues.length === 0, issues };

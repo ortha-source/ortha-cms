@@ -31,9 +31,16 @@ export class BulkPublishPreviewQuery {
             );
         }
         const byId = await this.writer.loadLiveByIds(type, ids, workspaceId);
+        // Same waiver as the committed publish, so the dry run cannot block
+        // what the publish would let through (or list it as a check).
+        const waived = await this.validation.waivedRequired(type, workspaceId);
         return {
-            items: computeBulkPublishVerdicts(type, ids, byId, (t, values) =>
-                this.validation.validate(t, values)
+            items: computeBulkPublishVerdicts(
+                type,
+                ids,
+                byId,
+                (t, values) => this.validation.validate(t, values, waived),
+                waived
             )
         };
     }
