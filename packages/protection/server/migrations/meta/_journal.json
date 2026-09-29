@@ -22,6 +22,13 @@
       "when": 1789133601175,
       "tag": "0002_review_request_reviewers",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790712054519,
+      "tag": "0003_review_request_resolution",
+      "breakpoints": true
     }
   ]
 }

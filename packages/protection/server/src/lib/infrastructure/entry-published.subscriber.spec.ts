@@ -23,13 +23,16 @@ function published(entryId: string | null = ENTRY): DomainEvent {
  */
 function store(openRequestId: string | null) {
     const resolved: string[] = [];
+    const resolutions: string[] = [];
     let open = openRequestId;
     return {
         resolved,
+        resolutions,
         repository: {
             findOpenByEntry: async () => (open ? { id: open } : null),
-            resolve: async (id: string) => {
+            resolve: async (id: string, resolution: string) => {
                 resolved.push(id);
+                resolutions.push(resolution);
                 // `resolve` is a conditional update in the real repository —
                 // `where resolved_at is null` — so the second delivery finds
                 // nothing open rather than closing the row twice.
@@ -71,6 +74,19 @@ describe('EntryPublishedSubscriber', () => {
         await subscriber.handle(published());
 
         expect(resolved).toEqual(['request-1']);
+    });
+
+    /**
+     * Closed as **satisfied**, not withdrawn — which is what lets the next
+     * edit reopen it for the same reviewers (`EntryEditedSubscriber`).
+     */
+    it('records that the request closed because the entry published', async () => {
+        const { repository, resolutions } = store('request-1');
+        const subscriber = new EntryPublishedSubscriber(repository, dispatcher);
+
+        await subscriber.handle(published());
+
+        expect(resolutions).toEqual(['published']);
     });
 
     /**

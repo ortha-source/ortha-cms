@@ -343,7 +343,9 @@ export class EntryReviewService {
         if (request.requestedBy !== actor.id && !actor.managesProtection) {
             throw new ReviewRequestNotYoursError(request.id);
         }
-        await this.uow.run(() => this.requests.resolve(request.id));
+        await this.uow.run(() =>
+            this.requests.resolve(request.id, 'withdrawn')
+        );
     }
 
     /**

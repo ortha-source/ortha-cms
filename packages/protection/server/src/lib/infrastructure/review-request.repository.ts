@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { and, count, desc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
 import { UnitOfWork, type Database } from '@orthacms/database';
-import { reviewRequests } from './schema/review-requests';
+import {
+    reviewRequests,
+    type ReviewRequestResolution
+} from './schema/review-requests';
 
 /** One open ask, as the entry panel and the queue read it. */
 export interface StoredReviewRequest {
@@ -13,6 +16,8 @@ export interface StoredReviewRequest {
     /** The people asked to review, in the order they were picked. */
     reviewerIds: string[];
     createdAt: Date;
+    /** How it closed, or `null` while open (and on rows closed before this was kept). */
+    resolution: ReviewRequestResolution | null;
 }
 
 /** What opening a request is written with. */
@@ -169,11 +174,41 @@ export class ReviewRequestRepository {
         return toRequest(row);
     }
 
-    /** Marks one request resolved. Reports whether it was still open. */
-    async resolve(id: string): Promise<boolean> {
+    /**
+     * The entry's most recently **closed** request, or `null` — what an edit
+     * after a publish reopens, if that is how it closed.
+     *
+     * By entry id alone, for the same reason as {@link findOpenByEntry}: it
+     * serves an outbox subscriber.
+     */
+    async lastResolvedByEntry(
+        entryId: string
+    ): Promise<StoredReviewRequest | null> {
+        const [row] = await this.exec
+            .select()
+            .from(reviewRequests)
+            .where(
+                and(
+                    eq(reviewRequests.entryId, entryId),
+                    isNotNull(reviewRequests.resolvedAt)
+                )
+            )
+            .orderBy(desc(reviewRequests.resolvedAt))
+            .limit(1);
+        return row ? toRequest(row) : null;
+    }
+
+    /**
+     * Marks one request resolved, saying how. Reports whether it was still
+     * open.
+     */
+    async resolve(
+        id: string,
+        resolution: ReviewRequestResolution
+    ): Promise<boolean> {
         const updated = await this.exec
             .update(reviewRequests)
-            .set({ resolvedAt: new Date() })
+            .set({ resolvedAt: new Date(), resolution })
             .where(
                 and(
                     eq(reviewRequests.id, id),
@@ -224,6 +259,7 @@ function toRequest(
         revisionId: row.revisionId,
         requestedBy: row.requestedBy,
         reviewerIds: row.reviewerIds,
-        createdAt: row.createdAt
+        createdAt: row.createdAt,
+        resolution: row.resolution ?? null
     };
 }

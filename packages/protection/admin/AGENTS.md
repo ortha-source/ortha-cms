@@ -25,6 +25,7 @@ src/lib/
       ProtectionSettings/      the settings tab (WORKSPACE_SETTINGS_TAB_SLOT)
         RuleEditorDialog/        the six fields, submitted whole
       ReviewQueueTable/        one tab's rows, as a real table
+      ReviewQueueTableSkeleton/  the same card and columns while it loads
       RequestAge/              how long an ask has waited, in words
       ReviewsSkeleton/         the lazy route's fallback
     pages/ReviewsPage/         the queue      (WORKSPACE_ROUTE_SLOT + NAV)
@@ -244,6 +245,12 @@ though anyone with `content:approve` may still approve it. The narrower reading
 — _minus what I have already approved_ — is deliberately **not approximated**:
 the queue line carries the tally but not who approved. The table has a
 _Reviewers_ column naming who each ask is waiting on.
+
+**It looks like every other list.** The table sits in the same bordered card
+as the members, tokens and webhooks tables, names each record by its title and
+its type by its label — both sent by the queue route, one read per line of a
+bounded page — and loads behind a skeleton of the same shape. A record with no
+title to show falls back to a fragment of its id, as "Open 1a2b3c4d".
 
 **The age says "overdue" in words, not only in colour.** A greyscale screen, a
 colour-blind reader and a screen reader all have to get the same fact — the rule

@@ -222,8 +222,12 @@ export type ReviewQueueItem = {
     id: string;
     /** The code-defined content type name; the queue spans every type. */
     contentType: string;
+    /** The type's display label — what the Type column shows. */
+    contentTypeLabel: string;
     /** The entry the ask is about — one row per locale. */
     entryId: string;
+    /** The entry's display title, or `null` when it has none to show. */
+    entryTitle: string | null;
     /** Who asked. The page resolves the name; the API stays id-only. */
     requestedBy: string;
     /** The people asked — what "Waiting on me" is filtered by. */

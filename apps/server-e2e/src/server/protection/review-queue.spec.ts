@@ -131,8 +131,10 @@ describe('/api/protection/queue', () => {
         expect(ids.sort()).toEqual([articleId, authorId].sort());
         expect(Object.keys(response.body.items[0]).sort()).toEqual([
             'contentType',
+            'contentTypeLabel',
             'createdAt',
             'entryId',
+            'entryTitle',
             'given',
             'id',
             'requestedBy',
@@ -142,6 +144,16 @@ describe('/api/protection/queue', () => {
         expect(response.body.items[0].reviewerIds).toEqual([
             standingReviewerId
         ]);
+        // Named as every other list names a record: its title, and its
+        // type's label rather than the machine name.
+        expect(
+            response.body.items.find(
+                (item: { entryId: string }) => item.entryId === articleId
+            )
+        ).toMatchObject({
+            contentTypeLabel: 'Articles',
+            entryTitle: 'Quarterly results'
+        });
     });
 
     /**

@@ -16,6 +16,7 @@ import { ShieldCheck } from 'lucide-react';
 import { useReviewQueue } from '../../../application/hooks';
 import { splitQueue } from '../../../domain/types';
 import { ReviewQueueTable } from '../../components/ReviewQueueTable';
+import { ReviewQueueTableSkeleton } from '../../components/ReviewQueueTableSkeleton';
 
 const messages = defineMessages({
     title: { id: 'protection.reviews.title', defaultMessage: 'Reviews' },
@@ -115,8 +116,8 @@ export function ReviewsPage() {
                     <SkeletonRegion
                         label={intl.formatMessage(messages.loading)}
                     >
-                        <Skeleton className="h-9 w-64" />
-                        <Skeleton className="mt-4 h-32 w-full" />
+                        <Skeleton className="mb-4 h-9 w-64" />
+                        <ReviewQueueTableSkeleton />
                     </SkeletonRegion>
                 ) : (
                     <>

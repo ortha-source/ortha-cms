@@ -128,6 +128,7 @@ Index on `workspace_id`.
 | `reviewer_ids` | `uuid[]`        | The people asked, in the order picked. Never changes whose approval counts.                      |
 | `created_at`   | `timestamptz`   |                                                                                                  |
 | `resolved_at`  | `timestamptz`   | Set when the entry publishes, or when the requester withdraws.                                   |
+| `resolution`   | `text`          | `published` or `withdrawn`. A request a publish closed reopens on the next save (I-24).          |
 
 Partial unique index on `entry_id` where `resolved_at is null` — one open request
 per entry, so asking twice replaces the reviewers rather than piling up.
@@ -456,6 +457,9 @@ what that pair will actually do.
   since — has nothing to review: the request route answers `409
 protection.nothing_to_review`, and the editor offers neither Approve nor
   Request review, nor a review chip. The next save makes it reviewable again.
+- **I-24** A request a publish closed reopens on the next save of a protected
+  entry — same requester, the same reviewers who can still approve, bound to the
+  new head. A withdrawn request never reopens.
 
 ## Testing checklist
 
