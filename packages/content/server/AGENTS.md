@@ -733,6 +733,24 @@ is unpublished working changes, while the entry's previously-published _version_
 stays live in history until the next publish (see Revisions). To make content
 live again you publish — the entry's latest, or any specific version.
 
+**The public API serves the live version, not the working copy.** A published
+read (REST, GraphQL, MCP — anything through `PublicEntriesQuery`, plus the
+relation target reads under `publishedOnly`) runs against the type's
+**published view** (`entries/infrastructure/queries/published-view.ts`): CTEs
+named exactly like the physical tables, so every predicate the read already
+builds applies to them unchanged. A Modified row (`draft` with a `published`
+revision) reads its field columns from that revision's snapshot `values`
+(cast back through `jsonb_populate_record` on the table's own row type),
+`status` as `published` and `updated_at` as the version's `created_at`; a join
+table reads a Modified owner's links from the snapshot's `relations`. Every
+other row passes through. So a Modified entry neither vanishes from the API
+nor leaks its edits — search, filter and sort cannot match them either
+(content **I-56**). Two rules to keep: the join-table views must precede the
+entry view in a `WITH` list (they read the entry table and must see the real
+one — a later sibling CTE is invisible to an earlier one), and only a
+`published` read attaches them — `?status=draft|any` and the admin read the
+working copy.
+
 `published_at` is **kept** across that edit — it records that the entry _has_ a
 live version, which editing doesn't retract; only `unpublish` clears it
 (`markDraft`). So the pair carries three states, not two: `published` = live and

@@ -19,6 +19,7 @@ import {
 import { ContentReadScopeRegistry } from '../../extension/read-scope';
 import { RelationLinkService } from '../../entries/infrastructure/persistence/relation-link.service';
 import { SharedSourcesQuery } from '../../entries/infrastructure/queries/shared-sources.query';
+import { publishedEntriesView } from '../../entries/infrastructure/queries/published-view';
 import { DEFAULT_EXPANSION_LIMIT } from '../http/dto/public-list-entries-query.dto';
 import type {
     PublicMediaFieldView,
@@ -314,7 +315,12 @@ export class PublicExpansionQuery {
                 const target = type.fields[field]?.relation?.to();
                 if (!target || !ids?.size) return;
                 const cols = target.table as unknown as ContentTable;
-                const rows = (await this.db
+                // Against the target's published view, like the preview that
+                // named these ids: a target edited since it was published is
+                // hydrated as its published version, never its working copy.
+                const view = publishedEntriesView(this.db, target);
+                const reader = view ? this.db.with(view) : this.db;
+                const rows = (await reader
                     .select()
                     .from(target.table)
                     .where(

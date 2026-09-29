@@ -17,7 +17,8 @@ import {
     notInArray,
     sql,
     type AnyColumn,
-    type SQL
+    type SQL,
+    type WithSubquery
 } from 'drizzle-orm';
 import type { PgColumn, PgTable } from 'drizzle-orm/pg-core';
 import { InjectDatabase, type Database } from '@orthacms/database';
@@ -35,6 +36,10 @@ import type {
     RelationRef
 } from '../../types/entry-list-view';
 import { SharedSourcesQuery } from '../queries/shared-sources.query';
+import {
+    publishedEntriesView,
+    publishedLinksView
+} from '../queries/published-view';
 import { entrySlug, entryTitle } from './entry-row';
 
 /** A generated content/join table seen as a bag of columns by property name. */
@@ -164,6 +169,9 @@ interface JoinPlan {
     refCol: 'sourceId' | 'targetId';
     /** The content type the linked ids belong to. */
     target: AnyContentType;
+    /** The type that owns the join table, and its many-relation field. */
+    owner: AnyContentType;
+    ownerField: string;
 }
 
 /** Where an inverse-of-single (one-to-many) field reads from: the owner table. */
@@ -466,7 +474,7 @@ export class RelationLinkService {
         const ref = cols[join.refCol];
         const position = cols['position'];
 
-        const ranked = this.db
+        const ranked = this.linksReader(join, visibility)
             .select({
                 own,
                 ref,
@@ -529,7 +537,7 @@ export class RelationLinkService {
     ): Promise<Map<string, RelationFieldView>> {
         const cols = inverse.table as unknown as SelectableColumns;
         const fk = cols[inverse.fkCol];
-        const ranked = this.db
+        const ranked = this.targetReader(inverse.target, visibility)
             .select({
                 own: fk,
                 ref: cols['id'],
@@ -659,15 +667,16 @@ export class RelationLinkService {
                     visibility
                 )
             );
+            const links = this.linksReader(join, visibility);
             const [rows, [{ total }]] = await Promise.all([
-                this.db
+                links
                     .select()
                     .from(join.table)
                     .where(linkWhere)
                     .orderBy(asc(cols['position']), asc(cols[join.refCol]))
                     .limit(pageSize)
                     .offset(offset),
-                this.db
+                links
                     .select({ total: count() })
                     .from(join.table)
                     .where(linkWhere)
@@ -691,15 +700,16 @@ export class RelationLinkService {
                 eq(cols[inverse.fkCol], row['id']),
                 this.targetVisibleWhere(inverse.target, workspaceId, visibility)
             );
+            const owners = this.targetReader(inverse.target, visibility);
             const [rows, [{ total }]] = await Promise.all([
-                this.db
+                owners
                     .select()
                     .from(inverse.table)
                     .where(where)
                     .orderBy(asc(cols['createdAt']), asc(cols['id']))
                     .limit(pageSize)
                     .offset(offset),
-                this.db
+                owners
                     .select({ total: count() })
                     .from(inverse.table)
                     .where(where)
@@ -1109,7 +1119,7 @@ export class RelationLinkService {
     ): Promise<RelationRef[]> {
         if (!ids.length) return [];
         const cols = target.table as unknown as Columns;
-        const rows = (await this.db
+        const rows = (await this.targetReader(target, visibility)
             .select()
             .from(target.table)
             .where(
@@ -1295,10 +1305,52 @@ export class RelationLinkService {
                 .from(target.table)
                 .where(this.workspaceWhere(target, workspaceId));
         }
-        return this.db
+        return this.targetReader(target, visibility)
             .select({ id: cols['id'] })
             .from(target.table)
             .where(this.targetVisibleWhere(target, workspaceId, visibility));
+    }
+
+    /**
+     * The query root for a read of `target`'s rows: under `publishedOnly` (a
+     * public read) it runs against the target's **published view**
+     * (`published-view.ts`), so a target edited since it was published stays
+     * reachable — as its published version, title and FKs included — instead
+     * of dropping out of the relation because its row went back to `draft`.
+     * {@link targetVisibleWhere}'s `status` clause then reads the view's
+     * column. An admin read keeps the working copy.
+     */
+    private targetReader(
+        target: AnyContentType,
+        visibility?: RelationTargetVisibility
+    ): Pick<Database, 'select'> {
+        return this.readerWith(
+            visibility,
+            publishedEntriesView(this.db, target)
+        );
+    }
+
+    /**
+     * The query root for a read of a join table's links: under
+     * `publishedOnly` the owner's **published** links — a Modified owner's
+     * come from its published snapshot, so a link added or removed in an
+     * unpublished edit is not served before it is published.
+     */
+    private linksReader(
+        join: JoinPlan,
+        visibility?: RelationTargetVisibility
+    ): Pick<Database, 'select'> {
+        return this.readerWith(
+            visibility,
+            publishedLinksView(this.db, join.owner, join.ownerField)
+        );
+    }
+
+    private readerWith(
+        visibility: RelationTargetVisibility | undefined,
+        view: WithSubquery | undefined
+    ): Pick<Database, 'select'> {
+        return visibility?.publishedOnly && view ? this.db.with(view) : this.db;
     }
 
     /**
@@ -1689,7 +1741,9 @@ export class RelationLinkService {
                 table: owner.joinTables[relation.inverse.field],
                 ownCol: 'targetId',
                 refCol: 'sourceId',
-                target: relation.to()
+                target: relation.to(),
+                owner,
+                ownerField: relation.inverse.field
             };
         }
         if (relation.many) {
@@ -1697,7 +1751,9 @@ export class RelationLinkService {
                 table: type.joinTables[field],
                 ownCol: 'sourceId',
                 refCol: 'targetId',
-                target: relation.to()
+                target: relation.to(),
+                owner: type,
+                ownerField: field
             };
         }
         return null;

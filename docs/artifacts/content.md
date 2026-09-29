@@ -226,16 +226,16 @@ There are exactly **two** stored `status` values — `draft` and `published`. A 
 
 ### Two stored values — four meanings
 
-| Stored                        | Shown             | What it means                              | What the public API sees                                                          |
-| ----------------------------- | ----------------- | ------------------------------------------ | --------------------------------------------------------------------------------- |
-| the creation form             | **Not saved yet** | Nothing has been saved                     | —                                                                                 |
-| draft · `published_at` = null | **Draft**         | Never published                            | Nothing (or only on a token with `?status=draft\|any`)                            |
-| draft · `published_at` ≠ null | **Modified**      | Live content with unpublished edits on top | Nothing by default — **but** a `published` version remains in the version history |
-| published                     | **Published**     | Live and current                           | Served                                                                            |
+| Stored                        | Shown             | What it means                              | What the public API sees                                                                                |
+| ----------------------------- | ----------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| the creation form             | **Not saved yet** | Nothing has been saved                     | —                                                                                                       |
+| draft · `published_at` = null | **Draft**         | Never published                            | Nothing (or only on a token with `?status=draft\|any`)                                                  |
+| draft · `published_at` ≠ null | **Modified**      | Live content with unpublished edits on top | The **published version** from the history — its values and links, `status: published`; never the edits |
+| published                     | **Published**     | Live and current                           | Served                                                                                                  |
 
 > **Editing a live entry returns it to draft**
 >
-> Saving a publishable entry always yields a **draft working copy**: `status → draft`. `published_at` is **preserved**, though — it records that the entry _has_ a live version, and an edit does not undo that; only `unpublish` clears it. The previously published _version_ in the history stays `published` and remains live. Hence a practical consequence for filters: `?filter=` on `publishedAt` means “when it last went live”, not “live right now” — for the latter, filter on `status`.
+> Saving a publishable entry always yields a **draft working copy**: `status → draft`. `published_at` is **preserved**, though — it records that the entry _has_ a live version, and an edit does not undo that; only `unpublish` clears it. The previously published _version_ in the history stays `published` and remains live. The public API (REST, GraphQL, MCP) keeps serving exactly that version until the next publish — reads, `?search=`, `?filter=`, sorting and relation previews all run against it, so an unpublished edit can be neither read nor probed (`content:I-56`). Hence a practical consequence for filters: `?filter=` on `publishedAt` means “when it last went live”, not “live right now” — for the latter, filter on `status`.
 
 ### Soft deletion
 
@@ -970,6 +970,7 @@ Statements that must always hold. Both a review list and a starting set of asser
 - **I-53** — Every **read** is gated on the type being **reachable** (the set above non-empty): `ContentGrantGuard` on routes marked `@ContentGrantAccess('read')`, the content-schema detail and filter fields, relation targets, saved-view scopes, the public REST and GraphQL surfaces (schema per reachable set), and the MCP / copilot read tools. An unreachable type is the unknown-type 404.
 - **I-54** — Every **write** of a type — create, update, publish, unpublish, delete, restore, purge, bulk, revision restore / publish, transfer import, public and GraphQL writes, MCP and copilot writes — needs the **own** grant. A reachable type without it is a 403 reading `This workspace can only use "<Type label>" records from shared workspaces; it cannot create its own.`; an unreachable one keeps the 404. `ContentGrantGuard` treats an unmarked route as a write.
 - **I-55** — `GET /content-schema` items carry `access: { own, sharedSources }` (available sources only) when `X-Workspace-Id` names a workspace the caller belongs to, and stay global without it; the detail carries the same `access`. The top-level public list and entry reads admit every visible source (foreign rows published only, no `source` on the wire).
+- **I-56** — A published read of the public API (REST, GraphQL, MCP) serves an entry edited since it was published (**Modified**) as its **published revision**: field values, single-relation FKs, media and many-to-many links from that version's snapshot, `status: published`, `updatedAt` = when the version was written. `?search=`, `?filter=`, `?sort=` and relation previews run against the same version, so an unpublished edit is never matched; a Modified relation target stays reachable. `?status=draft|any` and every admin read keep the working copy.
 
 ## 12. Testing checklist
 
