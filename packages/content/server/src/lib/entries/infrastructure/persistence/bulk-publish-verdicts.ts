@@ -37,13 +37,20 @@ export type ValidateEntry = (
  * (see `EntryValidationService.waivedRequired`) — `validate` already excuses
  * them; they are also left off the per-field checklist, which would otherwise
  * list a field the workspace cannot even see as a passed requirement.
+ *
+ * `relationIssues` holds, per id, the required **link-managed** relations with
+ * no links (`EntryWriterService.requiredRelationIssuesBulk`) — the half of the
+ * publish gate the `values` bag cannot carry. They are folded in exactly as the
+ * single publish folds them: only when the values already pass, so a blocked
+ * row reports the same issue set a single publish's 422 would.
  */
 export function computeBulkPublishVerdicts(
     type: AnyContentType,
     ids: string[],
     byId: Map<string, Row>,
     validate: ValidateEntry,
-    waived: ReadonlySet<string> = new Set()
+    waived: ReadonlySet<string> = new Set(),
+    relationIssues: ReadonlyMap<string, ValidationIssue[]> = new Map()
 ): BulkPublishVerdict[] {
     return ids.map((id): BulkPublishVerdict => {
         const row = byId.get(id);
@@ -75,17 +82,36 @@ export function computeBulkPublishVerdicts(
             };
         }
         const result = validate(type, toRecord(type, row).values);
+        // The single publish's short-circuit: links are only a verdict once
+        // the values pass, so the issue set matches its 422.
+        const issues = result.valid
+            ? (relationIssues.get(id) ?? [])
+            : result.issues;
         return {
             id,
             title,
             status,
-            verdict: result.valid
-                ? BULK_VERDICT.Publishable
-                : BULK_VERDICT.Blocked,
-            issues: result.issues,
-            checks: buildChecks(type, result.issues, waived)
+            verdict:
+                issues.length === 0
+                    ? BULK_VERDICT.Publishable
+                    : BULK_VERDICT.Blocked,
+            issues,
+            checks: buildChecks(type, issues, waived)
         };
     });
+}
+
+/**
+ * The loaded ids a publish would change — the rows not already published. The
+ * only ones whose required links are worth counting: an already-published row
+ * is not re-gated, and a missing one has nothing to count.
+ */
+export function draftIds(byId: ReadonlyMap<string, Row>): string[] {
+    const out: string[] = [];
+    for (const [id, row] of byId) {
+        if (row['status'] !== ENTRY_STATUS.Published) out.push(id);
+    }
+    return out;
 }
 
 /**

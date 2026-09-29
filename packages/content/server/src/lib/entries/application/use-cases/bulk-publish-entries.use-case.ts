@@ -10,7 +10,10 @@ import { ENTRY_STATUS } from '@orthacms/content-domain';
 import type { AnyContentType } from '../../../types/content-type';
 import { EntryValidationService } from '../../../validation/services/entry-validation.service';
 import { EntryWriterService } from '../../infrastructure/persistence/entry-writer.service';
-import { computeBulkPublishVerdicts } from '../../infrastructure/persistence/bulk-publish-verdicts';
+import {
+    computeBulkPublishVerdicts,
+    draftIds
+} from '../../infrastructure/persistence/bulk-publish-verdicts';
 import { BULK_VERDICT, type BulkPublishResult } from '../../types/bulk-publish';
 import { Entry } from '../../domain/entry';
 import { entryTitle } from '../../infrastructure/persistence/entry-row';
@@ -67,12 +70,23 @@ export class BulkPublishEntriesUseCase {
                 ids,
                 workspaceId
             );
+            // The other half of the single publish's gate: required
+            // link-managed relations, counted on the same transaction — one
+            // grouped query per such field for the whole batch.
+            const relationIssues = await this.writer.requiredRelationIssuesBulk(
+                exec,
+                type,
+                draftIds(byId),
+                workspaceId,
+                waived
+            );
             const items = computeBulkPublishVerdicts(
                 type,
                 ids,
                 byId,
                 (t, values) => this.validation.validate(t, values, waived),
-                waived
+                waived,
+                relationIssues
             );
             const candidates = items
                 .filter((item) => item.verdict === BULK_VERDICT.Publishable)

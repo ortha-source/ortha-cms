@@ -46,7 +46,7 @@ import { EntryWriteExtensionRegistry } from '../../../extension/entry-write-exte
 import { acceptsAsset, describeAccept } from './media-accept';
 import type { AnyContentType } from '../../../types/content-type';
 import { ENTRY_STATUS } from '../../../types/content-type';
-import { CONTENT_FIELD_TYPE } from '../../../types/fields';
+import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../../../types/fields';
 import {
     EntryValidationService,
     type ValidationIssue
@@ -2096,21 +2096,7 @@ export class EntryWriterService {
             waived ??
             (await this.validation.waivedRequired(type, workspaceId, exec));
         const issues: ValidationIssue[] = [];
-        for (const [name, spec] of Object.entries(type.fields)) {
-            if (
-                spec.type !== CONTENT_FIELD_TYPE.Relation ||
-                !spec.relation ||
-                !spec.required ||
-                excused.has(name)
-            )
-                continue;
-            const rel = spec.relation;
-            // Only relations this side owns writable links for are counted:
-            // an owning many-to-many, or the inverse of a many-to-many.
-            const writable = rel.inverse
-                ? !!rel.to().fields[rel.inverse.field]?.relation?.many
-                : !!rel.many;
-            if (!writable) continue;
+        for (const [name, spec] of requiredLinkRelations(type, excused)) {
             const total = await this.relations.countLinks(
                 exec,
                 type,
@@ -2123,6 +2109,47 @@ export class EntryWriterService {
                 issues.push({ field: name, message: 'is required' });
         }
         return issues;
+    }
+
+    /**
+     * {@link requiredRelationIssues} for a whole batch — what bulk publish and
+     * its dry run use, so they apply exactly the single publish's gate. The
+     * same fields are counted with the same predicate and the same `waived`
+     * set, but with **one grouped query per counted field** for every id at
+     * once rather than one query per entry and field.
+     *
+     * Returns the issues keyed by id; an id with nothing missing is absent.
+     * Reads nothing when the type has no counted relation (none required, or
+     * every one waived in this workspace).
+     */
+    async requiredRelationIssuesBulk(
+        exec: Database | DbTransaction,
+        type: AnyContentType,
+        ids: readonly string[],
+        workspaceId: string,
+        waived?: ReadonlySet<string>
+    ): Promise<Map<string, ValidationIssue[]>> {
+        const out = new Map<string, ValidationIssue[]>();
+        if (ids.length === 0) return out;
+        const excused =
+            waived ??
+            (await this.validation.waivedRequired(type, workspaceId, exec));
+        for (const [name, spec] of requiredLinkRelations(type, excused)) {
+            const totals = await this.relations.countJoinLinksByOwner(
+                exec,
+                type,
+                ids,
+                name,
+                spec
+            );
+            for (const id of ids) {
+                if ((totals.get(id) ?? 0) > 0) continue;
+                const list = out.get(id) ?? [];
+                list.push({ field: name, message: 'is required' });
+                out.set(id, list);
+            }
+        }
+        return out;
     }
 
     /** Throw 422 with the issue list when the values fail validation. */
@@ -2176,4 +2203,31 @@ function revisionActorId(actor?: EventActor | null): string | null {
     return (actor.type ?? EVENT_ACTOR_TYPE.User) === EVENT_ACTOR_TYPE.User
         ? actor.id
         : null;
+}
+
+/**
+ * The required relations the publish gate **counts links** for: required, not
+ * waived in the workspace (`excused`), and link-managed from this side — an
+ * owning many-to-many, or the inverse of a many-to-many. A single FK is checked
+ * in `values` already; an inverse-of-single owns no writable link from this
+ * side, so it can't be satisfied here and is skipped. One definition for the
+ * single and the bulk gate, so the two cannot count different fields.
+ */
+function requiredLinkRelations(
+    type: AnyContentType,
+    excused: ReadonlySet<string>
+): [string, AnyFieldSpec][] {
+    return Object.entries(type.fields).filter(([name, spec]) => {
+        if (
+            spec.type !== CONTENT_FIELD_TYPE.Relation ||
+            !spec.relation ||
+            !spec.required ||
+            excused.has(name)
+        )
+            return false;
+        const rel = spec.relation;
+        return rel.inverse
+            ? !!rel.to().fields[rel.inverse.field]?.relation?.many
+            : !!rel.many;
+    });
 }
