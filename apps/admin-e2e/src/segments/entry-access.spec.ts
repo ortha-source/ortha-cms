@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test';
 import { test, expect } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
 import { mockWorkspaces } from '../support/api/workspaces';
@@ -13,6 +14,7 @@ import {
     mockContentEntryWrites,
     mockContentEntryRead,
     mockEntryRelations,
+    mockPublishRejection,
     mockRelationFieldLinks,
     spyEntrySave,
     type EntrySaveSpy
@@ -23,7 +25,13 @@ import {
     type SegmentsApiSpy
 } from '../support/api/segments';
 import { mockEntryRevisionFlow } from '../support/api/revisions';
-import { mockEntryReview } from '../support/api/protection';
+import {
+    UNPROTECTED,
+    mockEntryReview,
+    mockNewEntryProtection
+} from '../support/api/protection';
+import type { ContentLibraryPage } from '../support/pages/ContentLibraryPage';
+import type { SegmentsPage } from '../support/pages/SegmentsPage';
 import { expectNoA11yViolations } from '../support/a11y';
 
 const WS = RELATIONS_WORKSPACE.id;
@@ -592,5 +600,147 @@ test.describe('Revision preview — who could read it', () => {
         const dialog = page.getByRole('dialog');
         await expect(dialog.getByText('Deleted audience')).toBeVisible();
         await expect(dialog.getByText(/seg-gone-since/)).toHaveCount(0);
+    });
+});
+
+/**
+ * A staged audience across a **refused publish**.
+ *
+ * Publish saves first and publishes second, and the second step can be refused
+ * — the server's gate 422s — after the first has landed. The audience rode the
+ * save body, so it is stored; what is left is the plugin's `settle` step, which
+ * seeds the tab with what was saved and drops the staging. It used to run only
+ * when the whole submit resolved, so a refused publish left the audience marked
+ * Changed on a record that already held it (and, on a create, the tab read the
+ * new record's access from the server rather than from the write that set it).
+ * The expected end state is exactly what a plain **Save draft** leaves.
+ */
+test.describe('Entry editor — Access across a refused publish', () => {
+    let saves: EntrySaveSpy;
+
+    test.beforeEach(async ({ page }) => {
+        await mockSignedIn(page);
+        await mockWorkspaces(page, [RELATIONS_WORKSPACE]);
+        await mockContentSchema(page, { types: RELATIONS_SCHEMA_SEED });
+        await mockContentSchemaDetail(page, { details: RELATIONS_DETAIL_SEED });
+        await mockContentEntries(page, {
+            details: RELATIONS_DETAIL_SEED,
+            entries: RELATIONS_ENTRIES_SEED
+        });
+        await mockContentEntryWrites(page, { details: RELATIONS_DETAIL_SEED });
+        await mockEntryRelations(page);
+        await mockRelationFieldLinks(page);
+        await mockContentEntryRead(page, {
+            records: {
+                [`article/${ENTRY}`]: {
+                    text: 'Getting started',
+                    author: null,
+                    seo: null
+                }
+            }
+        });
+        await mockNewEntryProtection(page, { protected: false });
+        await mockEntryReview(page, UNPROTECTED);
+        await mockSegmentsApi(page);
+        saves = await spyEntrySave(page);
+    });
+
+    /** Stage "Can see" for Acme on the open editor's Access tab. */
+    async function stageAcme(
+        contentLibraryPage: ContentLibraryPage,
+        segmentsPage: SegmentsPage
+    ) {
+        await contentLibraryPage.openEditorTab('Access');
+        await segmentsPage.setAccess('Acme Corp', 'Can see');
+        await expect(segmentsPage.accessChanged).toBeVisible();
+    }
+
+    /**
+     * From here on the server holds the audience for `id` — what its access
+     * read answers once the save wrote it, as the real one does.
+     */
+    async function serverHoldsAcme(page: Page, id: string) {
+        await mockSegmentsApi(page, {
+            access: { [id]: { allow: ['seg-acme'], deny: [] } }
+        });
+    }
+
+    /** The tab once the write landed: the saved audience, nothing staged. */
+    async function expectSavedAcme(segmentsPage: SegmentsPage) {
+        expect(saves.bodies).toHaveLength(1);
+        expect(saves.bodies[0].extensions).toEqual({
+            access: { allow: ['seg-acme'], deny: [] }
+        });
+        await expect(
+            segmentsPage.accessOption('Acme Corp', 'Can see')
+        ).toHaveAttribute('aria-checked', 'true');
+        await expect(segmentsPage.accessChanged).toHaveCount(0);
+    }
+
+    /** A new article with a title and a staged audience, on its Access tab. */
+    async function stageNewArticle(
+        page: Page,
+        contentLibraryPage: ContentLibraryPage,
+        segmentsPage: SegmentsPage
+    ) {
+        await contentLibraryPage.gotoNewEntry(WS, 'article');
+        await contentLibraryPage
+            .fieldTextbox('Title', { exact: true })
+            .fill('A new article');
+        await stageAcme(contentLibraryPage, segmentsPage);
+        await serverHoldsAcme(page, 'article-new');
+    }
+
+    test('a new record’s audience is settled by a refused publish', async ({
+        page,
+        contentLibraryPage,
+        segmentsPage
+    }) => {
+        await mockPublishRejection(page, { field: 'internalCode' });
+        await stageNewArticle(page, contentLibraryPage, segmentsPage);
+
+        await contentLibraryPage.editorSave.first().click();
+
+        await expect(
+            contentLibraryPage.toast(/The server refused “internalCode”/)
+        ).toBeVisible();
+        await expect(page).toHaveURL(/\/content\/article\/article-new\//);
+        await expectSavedAcme(segmentsPage);
+    });
+
+    // The control: what a plain draft save of the same form leaves behind,
+    // which the refused publish above must match.
+    test('a new record’s audience is settled by a plain Save draft', async ({
+        page,
+        contentLibraryPage,
+        segmentsPage
+    }) => {
+        await stageNewArticle(page, contentLibraryPage, segmentsPage);
+
+        await contentLibraryPage.saveDraft();
+
+        await expect(
+            contentLibraryPage.toast('Articles created.')
+        ).toBeVisible();
+        await expect(page).toHaveURL(/\/content\/article\/article-new\//);
+        await expectSavedAcme(segmentsPage);
+    });
+
+    test('an existing record’s audience is settled by a refused publish', async ({
+        page,
+        contentLibraryPage,
+        segmentsPage
+    }) => {
+        await mockPublishRejection(page, { field: 'internalCode' });
+        await contentLibraryPage.gotoEntry(WS, 'article', ENTRY);
+        await stageAcme(contentLibraryPage, segmentsPage);
+        await serverHoldsAcme(page, ENTRY);
+
+        await contentLibraryPage.editorSave.first().click();
+
+        await expect(
+            contentLibraryPage.toast(/The server refused “internalCode”/)
+        ).toBeVisible();
+        await expectSavedAcme(segmentsPage);
     });
 });

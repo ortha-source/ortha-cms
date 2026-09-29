@@ -35,7 +35,11 @@ import {
     type ContentEntriesResult
 } from '../../../application/useContentEntries';
 import { useContentEntry } from '../../../application/useContentEntry';
-import { usePublishEntryFlow } from '../../../application/usePublishEntryFlow';
+import {
+    usePublishEntryFlow,
+    type SubmitEntryResult,
+    type WriteLanded
+} from '../../../application/usePublishEntryFlow';
 import { useCreatePrefill } from '../../hooks/useCreatePrefill';
 import { useSlotListParams } from '../../hooks/useSlotListParams';
 import { EntrySlotContextProvider } from '../../hooks/useEntrySlotContext';
@@ -218,6 +222,20 @@ export function ContentEntryView({
     const extensionsStaged = presaves.some(
         (step) => Object.keys(step.extensions?.() ?? {}).length > 0
     );
+
+    // Hands a landed write to every presave step's `settle`, in slot order. The
+    // entry is already written, so a step's failure cannot abort anything — the
+    // step surfaces it itself, and swallowing it here is what keeps a landed
+    // save from being reported as a failure.
+    const settlePresaves = async (settled: EntryPresaveResult) => {
+        for (const step of presaves) {
+            try {
+                await step.settle?.(settled);
+            } catch {
+                /* the step owns its own failure */
+            }
+        }
+    };
 
     // The slot-owned list params (e.g. `?locale=de`) this editor was opened
     // under, as a query suffix. The records table puts them on every row link,
@@ -510,76 +528,87 @@ export function ContentEntryView({
             {},
             ...presaves.map((step) => step.extensions?.() ?? {})
         ) as Record<string, unknown>;
-        let result: Awaited<ReturnType<typeof flow.submit>>;
+        // The write this submit landed, if any — reported by the flow the
+        // moment it lands, which is **before** a chained publish that can still
+        // be refused. It, not the submit's resolution, is what the presave
+        // steps settle on (below).
+        let landed: WriteLanded | undefined;
+        let result: SubmitEntryResult | undefined;
         try {
-            result = await flow.submit({
-                schema,
-                publishable,
-                values: toSave,
-                publish: options.publish,
-                relations: options.relations,
-                entry: resolved.entry,
-                bodyExtra,
-                extensions,
-                ignoreFields: options.ignoreFields,
-                // Unchanged means the form, its staged links **and** every
-                // presave step's plugin state — an edited audience is a change
-                // the form's own dirty flag cannot see.
-                unchanged:
-                    options.dirty === false &&
-                    !options.relations &&
-                    Object.keys(extensions).length === 0,
-                bypass: options.bypass,
-                onWriteLanded: ({ saved, created }) => {
-                    // Re-arm the form's seeding first, so the render the move
-                    // below causes adopts the record rather than refusing it.
-                    options.onWriteLanded?.();
-                    // A brand-new record (a create, incl. a translation
-                    // sibling) moves to its own editor URL **the moment the
-                    // create lands** — not once the whole submit succeeds. A
-                    // Publish on `/new` is a create then a publish, and the
-                    // publish can still be refused (a 422 from the server's
-                    // gate, a guard's 409). Waiting for it left the editor on
-                    // `/new` holding a draft that already existed: the re-armed
-                    // form adopted `/new`'s seed — a blank form — so every
-                    // field read empty, and a retry had no id in the URL.
-                    //
-                    // The save has already primed the read-one cache with the
-                    // record it returned (`useSaveEntry`), so `/:id` renders
-                    // it at once — no spinner, no "New {label}" → "{label}"
-                    // flash — and the changed `editorKey` makes the form adopt
-                    // it as a different record rather than a conflict. The
-                    // refused publish's field errors are applied after this,
-                    // onto the form that now holds the draft. A single stays
-                    // put — its `?locale=` re-resolves to the row just created.
-                    if (created && mode !== ENTRY_MODE.Single) {
-                        navigate(
-                            `${typePath}/${saved.id}${tabSegment}${entryQuerySuffix}`
-                        );
+            try {
+                result = await flow.submit({
+                    schema,
+                    publishable,
+                    values: toSave,
+                    publish: options.publish,
+                    relations: options.relations,
+                    entry: resolved.entry,
+                    bodyExtra,
+                    extensions,
+                    ignoreFields: options.ignoreFields,
+                    // Unchanged means the form, its staged links **and** every
+                    // presave step's plugin state — an edited audience is a
+                    // change the form's own dirty flag cannot see.
+                    unchanged:
+                        options.dirty === false &&
+                        !options.relations &&
+                        Object.keys(extensions).length === 0,
+                    bypass: options.bypass,
+                    onWriteLanded: (write) => {
+                        landed = write;
+                        const { saved, created } = write;
+                        // Re-arm the form's seeding first, so the render the
+                        // move below causes adopts the record rather than
+                        // refusing it.
+                        options.onWriteLanded?.();
+                        // A brand-new record (a create, incl. a translation
+                        // sibling) moves to its own editor URL **the moment the
+                        // create lands** — not once the whole submit succeeds.
+                        // A Publish on `/new` is a create then a publish, and
+                        // the publish can still be refused (a 422 from the
+                        // server's gate, a guard's 409). Waiting for it left the
+                        // editor on `/new` holding a draft that already
+                        // existed: the re-armed form adopted `/new`'s seed — a
+                        // blank form — so every field read empty, and a retry
+                        // had no id in the URL.
+                        //
+                        // The save has already primed the read-one cache with
+                        // the record it returned (`useSaveEntry`), so `/:id`
+                        // renders it at once — no spinner, no "New {label}" →
+                        // "{label}" flash — and the changed `editorKey` makes
+                        // the form adopt it as a different record rather than a
+                        // conflict. The refused publish's field errors are
+                        // applied after this, onto the form that now holds the
+                        // draft. A single stays put — its `?locale=` re-resolves
+                        // to the row just created.
+                        if (created && mode !== ENTRY_MODE.Single) {
+                            navigate(
+                                `${typePath}/${saved.id}${tabSegment}${entryQuerySuffix}`
+                            );
+                        }
                     }
-                }
-            });
-            // The write landed, so every presave step can drop what it consumed
-            // (the media plugin revokes its preview URLs and forgets the staged
-            // files — the saved record now carries the real ids) and do the work
-            // that needed the saved record (the segments plugin writes the
-            // entry's audiences, which on a create has only just become
-            // addressable). Inside the cover, and awaited, because that second
-            // kind is a write of its own.
-            const settled: EntryPresaveResult = {
-                entry: result.saved,
-                schema,
-                created: result.wasCreate,
-                published: result.published
-            };
-            for (const step of presaves) {
-                // The entry is already written, so a failure here cannot abort
-                // anything — the step has surfaced it itself, and swallowing it
-                // is what keeps a landed save from being reported as a failure.
-                try {
-                    await step.settle?.(settled);
-                } catch {
-                    /* the step owns its own failure */
+                });
+            } finally {
+                // Once a write has landed, every presave step settles on it —
+                // **whether or not the submit then succeeded**. The media plugin
+                // drops what `commit` consumed (the saved record now carries the
+                // real ids) and the segments plugin adopts the audiences the
+                // save body carried; both are facts of the landed save, so a
+                // publish refused after it must not skip them — that left the
+                // staging in place over a record that already held it, marked
+                // Changed and sent again by the next save. Exactly what a plain
+                // Save draft of the same form settles. Inside the cover, and
+                // awaited, because a step may write of its own; before the
+                // rejection reaches the editor, so its field errors land on a
+                // settled screen. A submit whose write never landed settles
+                // nothing: the staging is what a retry resumes from.
+                if (landed) {
+                    await settlePresaves({
+                        entry: landed.saved,
+                        schema,
+                        created: landed.created,
+                        published: result?.published ?? false
+                    });
                 }
             }
         } finally {
