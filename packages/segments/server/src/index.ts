@@ -13,6 +13,10 @@ export { SegmentsModule } from './lib/segments.module';
 export { SEGMENTS_CONFIG } from './lib/segments.tokens';
 export type { SegmentsPluginConfig } from './lib/types/segments-config';
 
+// The ready-made resolver, so a host can turn the feature on with one env value
+// instead of a dependency on the kernel package.
+export { headerSegmentResolver } from '@orthacms/segments-domain';
+
 // The catalogue and the reader, for a host that wants to answer "who is
 // reading" from its own code — a preview route, a custom protocol.
 export { SegmentCatalogService } from './lib/application/segment-catalog.service';

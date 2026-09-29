@@ -43,6 +43,10 @@ export type {
 
 export {
     anonymousSegmentResolver,
+    headerSegmentResolver,
     staticSegmentResolver
 } from './lib/segment-resolver.port';
-export type { SegmentResolver } from './lib/segment-resolver.port';
+export type {
+    HeaderCarrier,
+    SegmentResolver
+} from './lib/segment-resolver.port';

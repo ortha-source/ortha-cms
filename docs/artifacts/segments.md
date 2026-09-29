@@ -564,7 +564,7 @@ Everything else is **data an administrator enters in the admin UI**: the audienc
 
 > **The example in apps/server/orthacms.config.ts**
 >
-> In this repository the `plugins.segments` section is left **empty**, with a commented-out resolver example. That is, the reference build runs in anonymous mode — and that is a deliberate choice: an audience nobody can be resolved into cannot be accidentally admitted. `apps/server-e2e` substitutes a `headerSegmentResolver` reading an `x-reader-tags` header — that is a **production seam** rather than a test hook alongside one: a real deployment writes exactly the same shape.
+> In this repository — and in a generated app — the host installs the kernel's `headerSegmentResolver` **by default**: the reader's tags arrive as a comma-separated `X-Reader-Tags` header (renamed by `SEGMENTS_READER_TAGS_HEADER`). A request without it is the anonymous reader, so a client that never sends the header gets exactly what it got before. `apps/server-e2e` uses the same resolver on the same header — the shipped code rather than a test copy of it. The header is trusted because the caller already holds the API token; it must be set by the backend that holds the token, never by a browser. The plugin's own default is unchanged: a host that passes no resolver runs in anonymous mode.
 
 <details>
 <summary>How the plugin is assembled and what happens at startup</summary>

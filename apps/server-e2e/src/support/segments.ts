@@ -1,7 +1,10 @@
 import type { INestApplication } from '@nestjs/common';
 import type { Request } from 'express';
 import type { SegmentResolver } from '@orthacms/segments-domain';
-import { SegmentCatalogService } from '@orthacms/segments-server';
+import {
+    headerSegmentResolver,
+    SegmentCatalogService
+} from '@orthacms/segments-server';
 
 /** The header the harness's reader resolver reads. */
 export const READER_TAGS_HEADER = 'x-reader-tags';
@@ -9,26 +12,13 @@ export const READER_TAGS_HEADER = 'x-reader-tags';
 /**
  * The harness's reader resolver: a comma-separated `X-Reader-Tags` header.
  *
- * A real deployment writes exactly this shape — the port hands over the Express
- * request precisely so a JWT claim or a header the CDN sets is reachable — so
- * driving it from a header is the production seam, not a test hook bolted
- * beside it. A request with no header resolves to the **anonymous** reader,
- * which is the state every public request is in until an operator configures
- * something, and the one the read scope must be safe in.
- *
- * It never throws, per the port's contract: a resolver that fell over would
- * take the site down over content most readers can see anyway.
+ * The one the host installs by default — the shipped resolver, not a test copy
+ * of it, so these suites exercise exactly what an operator gets. A request with
+ * no header resolves to the **anonymous** reader, which is what every caller
+ * that does not send it gets, and the state the read scope must be safe in.
  */
-export const headerSegmentResolver: SegmentResolver<Request> = {
-    resolve: async (request) => {
-        const raw = request.headers[READER_TAGS_HEADER];
-        const value = Array.isArray(raw) ? raw.join(',') : (raw ?? '');
-        return value
-            .split(',')
-            .map((tag) => tag.trim())
-            .filter(Boolean);
-    }
-};
+export const readerTagsResolver: SegmentResolver<Request> =
+    headerSegmentResolver<Request>(READER_TAGS_HEADER);
 
 /**
  * Re-read the segment catalogue from the database.

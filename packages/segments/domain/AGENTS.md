@@ -10,7 +10,7 @@ This is the reader-facing half of access. It is **not** RBAC and not
 | -------------------------- | -------------------------------------------------------------------- |
 | `segment.ts`               | A named set of reader tags, plus tag → id, plus where it is offered. |
 | `entry-access.ts`          | The two lists, and `canRead`. The decision.                          |
-| `segment-resolver.port.ts` | Where a reader's tags come from.                                     |
+| `segment-resolver.port.ts` | Where a reader's tags come from, plus the ready-made header adapter. |
 | `validation.ts`            | What a segment's fields may hold.                                    |
 
 ## The model, in full

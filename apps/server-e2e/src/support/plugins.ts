@@ -22,7 +22,7 @@ import type { OrthaCmsConfig } from '../../../server/orthacms.config';
 import { testContentTypes } from './content';
 import { fakeAltProvider, fakeProvider, testCodeSkills } from './copilot';
 import { fakeSsoProvider, ssoRoleResolver } from './sso';
-import { headerSegmentResolver } from './segments';
+import { readerTagsResolver } from './segments';
 import { testMailProvider } from './mail';
 import {
     createInMemoryStorageProvider,
@@ -256,7 +256,7 @@ export function buildTestPlugins(
         // (the port hands over the request precisely so a header the CDN sets
         // is reachable) rather than a test hook beside one: with no header
         // every reader is anonymous, which is what a fresh install is.
-        SegmentsPlugin({ resolver: headerSegmentResolver }),
+        SegmentsPlugin({ resolver: readerTagsResolver }),
         // Publication protection. Takes no configuration, and is inert until a
         // suite writes a rule — which is exactly the state it has to keep for
         // every other suite in this app.
