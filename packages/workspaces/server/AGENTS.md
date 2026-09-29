@@ -211,6 +211,18 @@ comes from the outbox write sharing the mutation's transaction — do **not** al
 call a recorder. The event `kind` strings match the audit kinds, which is why
 that move needed no data change.
 
+## Shared workspaces ([ADR-0019](../../../docs/adr/0019-shared-workspaces.md))
+
+`workspaces.is_shared` (default `false`) is the whole of this context's part:
+the aggregate's idempotent `setShared()` (reached through `updateProfile`'s
+`isShared` patch, so one PATCH raises one `workspace.updated`), the
+`isShared` field on every `WorkspaceView`, and the optional `isShared` on
+`UpdateWorkspaceDto`. **What sharing means is not decided here** — content's
+`SharedSourcesQuery` reads the flag (plus `status = 'active'` and the consumer's
+`workspace_content` grant) directly from this package's exported schema, the
+same one-way dependency `WorkspaceGrantsQuery` already uses. Sharing grants no
+membership: every `/workspaces/:id/…` route still 403s a non-member.
+
 ## Schema note
 
 `memberships.user_id` carries a cross-context FK to identity's `users(id)`. The

@@ -28,7 +28,7 @@ import {
 
 /**
  * `PATCH /api/workspaces/:id` — edits a workspace's profile (name, description,
- * color); requires `workspaces:update`. Only supplied fields are written; a
+ * color) and its shared flag (`isShared`, ADR-0019); requires `workspaces:update`. Only supplied fields are written; a
  * missing workspace maps to 404. Guarded by `OriginGuard` (CSRF).
  *
  * Also guarded by `WorkspaceMemberGuard`: a caller who isn't a member of

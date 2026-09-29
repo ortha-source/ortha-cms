@@ -23,6 +23,11 @@ import {
     type EntryWriteFanout
 } from '../extension/entry-extension';
 import { CONTENT_PROPOSAL_KINDS } from './proposal-kinds';
+import { SharedSourcesQuery } from '../entries/infrastructure/queries/shared-sources.query';
+import {
+    explainSharedNotFound,
+    sharedEntryProbe
+} from '../entries/infrastructure/queries/shared-read-only';
 
 /**
  * The content plugin's **write** tools — `content_propose_create`,
@@ -63,7 +68,12 @@ export class EntryProposalToolProvider implements ToolProvider, OnModuleInit {
         // the single-row edit it looks like.
         @Optional()
         @Inject(CONTENT_ENTRY_EXTENSION)
-        private readonly extension?: ContentEntryExtension
+        private readonly extension?: ContentEntryExtension,
+        // Shared workspaces (ADR-0019) — consulted only to explain why an edit
+        // of a visible shared record is refused; the edit is refused either
+        // way, since `getOne` and every write stay own-workspace.
+        @Optional()
+        private readonly shared?: SharedSourcesQuery
     ) {}
 
     /**
@@ -79,6 +89,19 @@ export class EntryProposalToolProvider implements ToolProvider, OnModuleInit {
     /** The three write tools, in the order the model sees them. */
     tools(): readonly ToolDefinition[] {
         return [this.proposeEntry(), this.proposeEdit(), this.proposeBulk()];
+    }
+
+    /**
+     * The workspace's own live entry an edit would change, or a tool error. A
+     * visible record of a **shared workspace** (ADR-0019) is refused with the
+     * read-only message — it can be linked, never edited, from here — while
+     * any other miss keeps the plain not-found.
+     */
+    private ownEntry(type: AnyContentType, id: string, workspaceId: string) {
+        return explainSharedNotFound(
+            () => this.writer.getOne(type, id, workspaceId),
+            sharedEntryProbe(this.shared, type, id, workspaceId)
+        );
     }
 
     /** Resolves a granted, registered type — the same uniform message as the reads. */
@@ -248,7 +271,8 @@ export class EntryProposalToolProvider implements ToolProvider, OnModuleInit {
                 'Propose creating a new entry. This does NOT create anything — it drafts the ' +
                 'change and asks the user to approve it, and the reply will say so. Call ' +
                 'admin_content_types for the type’s fields first; supply only fields you are ' +
-                'confident about, since the user reviews exactly what you send. On a ' +
+                'confident about, since the user reviews exactly what you send. To use a record ' +
+                'from a shared workspace, link its id — never create a local copy. On a ' +
                 'PUBLISHABLE type the entry lands as a draft, so a partial one saves fine and ' +
                 'you cannot publish it. On a type that is NOT publishable there is no draft — ' +
                 'the row is live immediately, so every field it marks `required` must be in ' +
@@ -265,8 +289,8 @@ export class EntryProposalToolProvider implements ToolProvider, OnModuleInit {
                         description:
                             'Field values keyed by field name, as admin_content_types describes ' +
                             'them. A many-relation (e.g. tags) takes an array of target entry ' +
-                            'ids — find them with admin_content_search. Back-references cannot ' +
-                            'be set here.'
+                            'ids — find them with admin_content_search (`source: "all"` includes ' +
+                            'shared records). Back-references cannot be set here.'
                     },
                     locale: {
                         type: 'string',
@@ -348,7 +372,8 @@ export class EntryProposalToolProvider implements ToolProvider, OnModuleInit {
                 'it drafts the change and asks the user to approve it, and the reply will say ' +
                 'so. Send only the fields you are changing: everything else is left alone. ' +
                 'The user sees a before/after for each field, so read the entry first ' +
-                '(admin_content_get) and change what actually needs changing.',
+                '(admin_content_get) and change what actually needs changing. Records of shared ' +
+                'workspaces (`readOnly: true`) cannot be edited here.',
             inputSchema: {
                 type: 'object',
                 properties: {
@@ -414,7 +439,7 @@ export class EntryProposalToolProvider implements ToolProvider, OnModuleInit {
                 // also fails here, at propose time, if the entry is gone or
                 // outside the workspace — which is a far better moment for the
                 // model to find out than after a human has approved.
-                const current = await this.writer.getOne(
+                const current = await this.ownEntry(
                     type,
                     args.id,
                     ctx.workspaceId
@@ -638,13 +663,8 @@ export class EntryProposalToolProvider implements ToolProvider, OnModuleInit {
                     // anything is happening, rather than halfway through the
                     // write.
                     const before = item.id
-                        ? ((
-                              await this.writer.getOne(
-                                  type,
-                                  item.id,
-                                  ctx.workspaceId
-                              )
-                          ).values ?? {})
+                        ? ((await this.ownEntry(type, item.id, ctx.workspaceId))
+                              .values ?? {})
                         : undefined;
 
                     // Fields that would not actually change are dropped, and

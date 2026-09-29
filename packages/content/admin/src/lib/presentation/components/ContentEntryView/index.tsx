@@ -597,8 +597,13 @@ export function ContentEntryView({
     };
 
     // Entry-level actions are available only when editing an existing collection
-    // row (not on create, not on a single page).
-    const editId = mode === ENTRY_MODE.Edit ? resolved.entry?.id : undefined;
+    // row (not on create, not on a single page) — and never on a record read
+    // from a shared workspace, which every write route answers with a 404. The
+    // editor already offers no actions for one; not wiring them is what keeps
+    // that true if a caller ever renders them anyway.
+    const foreign = resolved.entry?.readOnly === true;
+    const editId =
+        mode === ENTRY_MODE.Edit && !foreign ? resolved.entry?.id : undefined;
 
     const onActionError = () =>
         toast.error(intl.formatMessage(messages.actionError));

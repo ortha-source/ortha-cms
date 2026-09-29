@@ -41,4 +41,10 @@ export type Workspace = {
      * plugins (e.g. the Content Library) scope what they show to these.
      */
     content: string[];
+    /**
+     * Whether the workspace is **shared**: its published records can be linked
+     * (and viewed read-only) from any other workspace granted the same content
+     * type. Drafts never leave the workspace. Edits happen only here.
+     */
+    isShared: boolean;
 };

@@ -50,6 +50,10 @@ export { EntryWriterService } from './lib/entries/infrastructure/persistence/ent
 // across locale siblings and must write them through the same service the
 // entries pipeline does.
 export { RelationLinkService } from './lib/entries/infrastructure/persistence/relation-link.service';
+// The shared-workspace visibility rule (ADR-0019) — the one definition of
+// which foreign entries a workspace may read, for any protocol adapter that
+// must honour it rather than restate it.
+export { SharedSourcesQuery } from './lib/entries/infrastructure/queries/shared-sources.query';
 
 // The workspace's content-grant gate as a route guard, exported for the same
 // reason `ApiTokenGuard` is: a plugin adding a route over this same content
@@ -150,6 +154,9 @@ export type {
     EntryListView,
     EntryMediaView,
     EntryRecord,
+    EntrySource,
+    EntryUsage,
+    EntryUsagesView,
     MediaRef
 } from './lib/entries/types/entry-list-view';
 
@@ -256,7 +263,10 @@ export type {
 // what a token may see or write. Everything below is the *implementation* of
 // the public API rather than its wire contract: it is exported for that reuse,
 // and a change here is a change to both protocols at once.
-export { PublicEntriesQuery } from './lib/public-api/infrastructure/public-entries.query';
+export {
+    PublicEntriesQuery,
+    type PublicReadOptions
+} from './lib/public-api/infrastructure/public-entries.query';
 export type { EntryLocator } from './lib/public-api/infrastructure/public-entries.query';
 export { PublicEntryWritesService } from './lib/public-api/infrastructure/public-entry-writes.service';
 // `WorkspaceGrantsQuery` is exported above — the grant gate is shared with the

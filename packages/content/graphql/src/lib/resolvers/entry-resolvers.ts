@@ -204,7 +204,10 @@ async function loadRelationView(
         context.workspaceId,
         granted,
         entry.locale,
-        undefined
+        undefined,
+        // The parent may be a nested shared-workspace record (ADR-0019) that
+        // the caller already holds; re-finding it must not 404.
+        { includeShared: true }
     );
 }
 

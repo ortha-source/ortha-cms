@@ -22,6 +22,11 @@ export interface WorkspaceView {
     color: string;
     /** Lifecycle state. */
     status: 'active' | 'archived';
+    /**
+     * Whether the workspace is shared (ADR-0019): its published entries are
+     * readable and linkable, read-only, from other workspaces granted the type.
+     */
+    isShared: boolean;
     /** Members, in a stable order (earliest membership first). */
     members: WorkspaceMemberView[];
     /**

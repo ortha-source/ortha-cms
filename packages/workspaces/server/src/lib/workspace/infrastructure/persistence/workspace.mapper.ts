@@ -30,6 +30,7 @@ export class WorkspaceMapper {
             description: row.description ?? '',
             color: row.color,
             status: row.status,
+            isShared: row.isShared,
             memberUserIds,
             grants
         });
@@ -43,7 +44,8 @@ export class WorkspaceMapper {
             slug: workspace.slug.value,
             description: workspace.description,
             color: workspace.color.value,
-            status: workspace.status.value
+            status: workspace.status.value,
+            isShared: workspace.isShared
         };
     }
 }

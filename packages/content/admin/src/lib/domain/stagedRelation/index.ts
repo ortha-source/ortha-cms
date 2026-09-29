@@ -74,7 +74,8 @@ export function reconcileStaged(
                 {
                     id,
                     title: c?.title ?? id,
-                    ...(c?.status ? { status: c.status } : {})
+                    ...(c?.status ? { status: c.status } : {}),
+                    ...(c?.source ? { source: c.source } : {})
                 }
             ];
         }

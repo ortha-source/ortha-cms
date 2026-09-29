@@ -254,6 +254,39 @@ export type RevisionListView = {
     total: number;
 };
 
+/**
+ * Where a record that is not the open workspace's own lives — the **shared**
+ * workspace it was published from. Mirrors the server's `EntrySourceView`.
+ * `null` on every wire field that carries it means "this workspace's own".
+ */
+export type EntrySource = {
+    /** The source workspace's id — where the record can be edited. */
+    workspaceId: string;
+    /** The source workspace's display name. */
+    workspaceName: string;
+};
+
+/**
+ * Which workspaces a list read covers — `own` (the default, and the only
+ * scope before shared workspaces existed), `shared` (published records of
+ * shared workspaces granted the same type), or `all` (both). Sent as
+ * `?source=` on `GET /content/:type`.
+ */
+export type EntrySourceScope = 'own' | 'shared' | 'all';
+
+/**
+ * Inbound links to one record from **other** workspaces, one row per linking
+ * workspace — served by `GET /content/:type/:id/usages`.
+ */
+export type EntryUsage = {
+    /** The linking workspace's id. */
+    workspaceId: string;
+    /** The linking workspace's display name. */
+    workspaceName: string;
+    /** How many links that workspace holds to this record. */
+    count: number;
+};
+
 export type EntryRecord = {
     /** Entry id (the `:entryId` route segment). */
     id: string;
@@ -288,6 +321,19 @@ export type EntryRecord = {
      * which still carries an owning single relation's raw FK.
      */
     relations?: Record<string, RelationFieldView>;
+    /**
+     * The shared workspace this record belongs to, or `null` for the open
+     * workspace's own. Normalized by the gateway (`toEntryRecord`), so an
+     * older server that sends nothing reads as "own"; optional only so a
+     * record built outside the gateway (a cache seed, a test) still types.
+     */
+    source?: EntrySource | null;
+    /**
+     * The server's verdict that this record cannot be written from the open
+     * workspace — true for a record read from a shared workspace. Normalized
+     * to `false` when absent.
+     */
+    readOnly?: boolean;
 };
 
 /**
@@ -316,6 +362,11 @@ export type RelationRef = {
      * than printing that id. Mirrors the server's `RelationRef.missing`.
      */
     missing?: true;
+    /**
+     * The shared workspace the linked record lives in, or `null` when it is
+     * the open workspace's own. Normalized by the gateway.
+     */
+    source?: EntrySource | null;
 };
 
 /**

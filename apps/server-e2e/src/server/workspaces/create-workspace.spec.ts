@@ -88,11 +88,14 @@ describe('POST /api/workspaces', () => {
                 'content',
                 'description',
                 'id',
+                'isShared',
                 'members',
                 'name',
                 'slug',
                 'status'
             ]);
+            // A new workspace is never shared until someone decides so.
+            expect(res.body.isShared).toBe(false);
             expect(res.body).toEqual(
                 expect.objectContaining({
                     name: 'Marketing site',

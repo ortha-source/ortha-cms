@@ -1,4 +1,11 @@
-import { pgEnum, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import {
+    boolean,
+    pgEnum,
+    pgTable,
+    text,
+    timestamp,
+    uuid
+} from 'drizzle-orm/pg-core';
 
 /** Lifecycle state of a workspace. New workspaces start `active`. */
 export const workspaceStatus = pgEnum('workspace_status', [
@@ -29,6 +36,14 @@ export const workspaces = pgTable('workspaces', {
     color: text('color').notNull().default('slate'),
     /** Lifecycle state. */
     status: workspaceStatus('status').notNull().default('active'),
+    /**
+     * Whether this workspace is **shared** (ADR-0019): its published,
+     * non-deleted entries are readable and linkable — never writable — from
+     * any other workspace granted the same content type. Read by the content
+     * context's `SharedSourcesQuery`; an archived workspace exposes nothing
+     * regardless of this flag.
+     */
+    isShared: boolean('is_shared').notNull().default(false),
     /** Row creation timestamp. */
     createdAt: timestamp('created_at', { withTimezone: true })
         .notNull()

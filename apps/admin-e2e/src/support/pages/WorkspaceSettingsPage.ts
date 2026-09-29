@@ -222,7 +222,41 @@ export class WorkspaceSettingsPage extends BasePage {
         return this.page.getByText('Archived', { exact: true });
     }
 
+    // --- general: sharing ---
+
+    /** The Sharing card's `<h2>`. */
+    get sharingHeading(): Locator {
+        return this.page.getByRole('heading', { name: 'Sharing', level: 2 });
+    }
+
+    /**
+     * The "Shared workspace" switch. By role + name: Radix renders a
+     * `role="switch"` button, labelled by its `<label for>`.
+     */
+    get sharingSwitch(): Locator {
+        return this.page.getByRole('switch', { name: 'Shared workspace' });
+    }
+
+    /** The "Stop sharing?" confirmation, by its accessible name. */
+    get stopSharingDialog(): Locator {
+        return this.page.getByRole('dialog', { name: 'Stop sharing?' });
+    }
+
     // --- the workspace nav the shell injects into the app sidebar ---
+
+    /**
+     * The switcher trigger's visible sub-line — "Workspace" or "Shared
+     * workspace" — read off the DOM text, not the accessible name (which is the
+     * trigger's `aria-label`).
+     */
+    switcherSubline(text: 'Workspace' | 'Shared workspace'): Locator {
+        return this.workspaceSwitcher.getByText(text, { exact: true });
+    }
+
+    /** The "Shared" badge on one workspace row of the open switcher popover. */
+    switcherSharedBadge(name: string): Locator {
+        return this.switcherOption(name).getByText('Shared', { exact: true });
+    }
 
     /**
      * The sidebar's workspace switcher trigger. Its accessible name carries the

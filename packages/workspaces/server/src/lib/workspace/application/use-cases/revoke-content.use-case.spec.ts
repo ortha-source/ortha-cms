@@ -28,6 +28,7 @@ function rehydrated(): Workspace {
         description: '',
         color: 'slate',
         status: 'active',
+        isShared: false,
         memberUserIds: [MEMBER],
         grants: [{ kind: 'collection', slug: 'blog_post' }]
     });

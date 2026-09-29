@@ -156,7 +156,7 @@ The guards are asserted by `src/harness/harness-guards.spec.ts`.
   **`apps/server-e2e/.env.e2e` raises the ceiling to 4 GB**, and Nx loads
   `{projectRoot}/.env.<target>` for the `e2e` target, so `npx nx e2e server-e2e`
   carries it with no flag to remember. It is a ceiling, not a reservation. If
-  you invoke Jest another way, pass `NODE_OPTIONS=--max-old-space-size=4096`
+  you invoke Jest another way, pass `NODE_OPTIONS=--max-old-space-size=6144`
   yourself — `global-setup` warns when the ceiling is under 3 GB, and
   `harness-guards.spec.ts` asserts the headroom outright so a broken `.env.e2e`
   goes red in seconds instead of at minute 20.

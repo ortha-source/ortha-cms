@@ -311,6 +311,8 @@ export async function seedWorkspace(opts: {
     slug: string;
     description?: string;
     color?: string;
+    /** Flag the workspace shared (ADR-0019); defaults to the schema's `false`. */
+    isShared?: boolean;
 }): Promise<SeededWorkspace> {
     const [workspace] = await getDatabase()
         .insert(workspaces)
@@ -318,7 +320,8 @@ export async function seedWorkspace(opts: {
             name: opts.name,
             slug: opts.slug,
             description: opts.description ?? null,
-            ...(opts.color ? { color: opts.color } : {})
+            ...(opts.color ? { color: opts.color } : {}),
+            ...(opts.isShared !== undefined ? { isShared: opts.isShared } : {})
         })
         .returning();
     return {

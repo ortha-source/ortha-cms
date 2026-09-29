@@ -425,6 +425,44 @@ staged.added`), not the values bag it doesn't live in — mirroring the server's
   `multi-select` primitives this plugin relies on were added there via the
   shadcn skill (consumed from `@orthacms/design-system`).
 
+## Shared workspaces — linking and viewing another workspace's records
+
+A workspace flagged **shared** (`Workspace.isShared`, set on its General
+settings) offers its **published** records to every workspace granted the same
+content type. The admin side is four surfaces over the wire fields the content
+API grew for it — `source: { workspaceId, workspaceName } | null` on list items,
+the read-one and relation refs, `readOnly` on the read-one, `?source=own|shared|all`
+on the list, and `GET /content/:type/:id/usages`. The gateway normalizes them in
+`contentMapper` (`toEntryRecord` / `toRelationRef` / `toEntryUsage`: `source ??
+null`, `readOnly ?? false`), so an older server reads as "own, writable". None of
+them is ever sent back on a save.
+
+- **Relation picker** — a **Source** select beside Filters (All / This workspace
+  / Shared, default All → `?source=all`, keyed into `relationCandidatesKey`),
+  and a `SharedSourceBadge` ("Shared · {workspace}") on a foreign candidate. A
+  narrowed source counts as an active filter for the empty state.
+- **Linked rows** (`RelationItemRow`) carry the same badge; `source` rides the
+  picked candidate into the staged ref (`reconcileStaged`). The open link still
+  targets the **open** workspace's route — a foreign record opens read-only
+  there, and the reader may not belong to its source.
+- **Read-only view** — `entry.readOnly === true` makes the editor a preview
+  regardless of permission, and a stricter one than a reader's: no
+  `EntryActions` at all, no contributed tabs, rail widgets or header items (each
+  acts on this workspace's copy of the record), no History (a shared record's
+  drafts stay at its source; a deep link to another tab lands on General), no
+  media read. `SharedEntryNotice` replaces `ReadOnlyNotice` and links **Open in
+  source** only for a member of the source workspace (the `useWorkspaces` list);
+  Details gains a **Source** row. `ContentEntryView` wires no unpublish/delete
+  for it either.
+- **Used in** (`EntrySidebar/UsedInBlock`) — between the publish gate and
+  Details, for the open workspace's own saved record **when that workspace is
+  shared**: one row per linking workspace ("N links") and a warning-soft
+  "Publishing updates {n} workspaces" note. It renders nothing while loading,
+  when empty, or when the read fails (`useEntryUsages` has `retry: false`) — a
+  courtesy, not something to raise an error about.
+
+Pinned by `apps/admin-e2e/src/content/shared-workspaces.spec.ts`.
+
 ## Saved views — the switcher in the records toolbar
 
 A saved view is a named slice of a collection's records list: the filter, the

@@ -220,7 +220,8 @@ export function RelationFieldLive({
                 id: c.id,
                 title: c.title,
                 ...(slug ? { slug } : {}),
-                ...(c.status ? { status: c.status } : {})
+                ...(c.status ? { status: c.status } : {}),
+                source: c.source
             };
         });
         onStagedChange(
@@ -361,6 +362,7 @@ export function RelationFieldLive({
                                             item.slug
                                         )}
                                         status={item.status}
+                                        source={item.source}
                                         leading={<RelationIndex position={i} />}
                                         onRemove={() => removeId(item.id)}
                                         removeLabel={removeLabelFor(item.title)}
@@ -387,6 +389,7 @@ export function RelationFieldLive({
                                 title={item.title}
                                 handle={handleFor(item.title, item.slug)}
                                 status={item.status}
+                                source={item.source}
                                 leading={<RelationIndex position={i} />}
                                 onRemove={() => removeId(item.id)}
                                 removeLabel={removeLabelFor(item.title)}

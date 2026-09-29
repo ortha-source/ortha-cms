@@ -7,7 +7,11 @@ import {
 import type {
     ContentType,
     ContentTypeSummaryResponse,
+    EntryRecord,
+    EntryUsage,
     FilterFieldType,
+    RelationFieldView,
+    RelationRef,
     WireFilterField
 } from '../../domain/types/contentType';
 
@@ -79,4 +83,43 @@ export function toFilterField(
     }
     if (wire.relationTarget) field.relationTarget = wire.relationTarget;
     return field;
+}
+
+/**
+ * Normalizes one entry off the wire: `source` and `readOnly` arrived with
+ * shared workspaces, so a server that predates them sends neither — and
+ * "absent" can only mean the record is this workspace's own and writable.
+ * Neither field is ever sent back on a save (the write body is built from
+ * `values`), so these fallbacks can't be written over a real value.
+ */
+export function toEntryRecord(wire: EntryRecord): EntryRecord {
+    return {
+        ...wire,
+        source: wire.source ?? null,
+        readOnly: wire.readOnly ?? false
+    };
+}
+
+/** Normalizes one relation ref's `source` (absent ≡ the open workspace's own). */
+export function toRelationRef(wire: RelationRef): RelationRef {
+    return { ...wire, source: wire.source ?? null };
+}
+
+/** Normalizes every ref in one relation field's page. */
+export function toRelationFieldView(
+    wire: RelationFieldView
+): RelationFieldView {
+    return { ...wire, items: wire.items.map(toRelationRef) };
+}
+
+/**
+ * Normalizes one usages row. Defensive about `count` too: a row the server
+ * sends at all is at least one link, and a non-number would print as `NaN`.
+ */
+export function toEntryUsage(wire: EntryUsage): EntryUsage {
+    return {
+        workspaceId: wire.workspaceId,
+        workspaceName: wire.workspaceName,
+        count: typeof wire.count === 'number' ? wire.count : 0
+    };
 }

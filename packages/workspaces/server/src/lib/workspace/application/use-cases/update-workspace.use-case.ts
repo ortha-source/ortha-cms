@@ -12,7 +12,8 @@ import type { WorkspaceProfilePatch } from '../../domain/workspace';
 import type { UpdateWorkspaceDto } from '../dto/update-workspace.dto';
 
 /**
- * Applies a partial profile edit (name / description / color) to a workspace.
+ * Applies a partial profile edit (name / description / color) and/or the
+ * shared flag (ADR-0019) to a workspace.
  * A patch with no fields present is a no-op that still succeeds (the controller
  * returns the current view). Drains `workspace.updated` (carrying the changed
  * field names + the actor) only when something actually changed, where the
@@ -44,6 +45,9 @@ export class UpdateWorkspaceUseCase {
         }
         if (dto.color !== undefined) {
             patch.color = WorkspaceColor.create(dto.color);
+        }
+        if (dto.isShared !== undefined) {
+            patch.isShared = dto.isShared;
         }
 
         await this.uow.run(async () => {

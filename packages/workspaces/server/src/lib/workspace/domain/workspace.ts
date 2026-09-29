@@ -23,6 +23,8 @@ export interface WorkspaceProfilePatch {
     description?: string;
     /** New accent color. */
     color?: WorkspaceColor;
+    /** New shared flag (ADR-0019); applied through {@link Workspace.setShared}. */
+    isShared?: boolean;
 }
 
 /** The persistence deltas a {@link Workspace} accumulated since it was loaded. */
@@ -31,6 +33,8 @@ export interface WorkspaceChanges {
     isNew: boolean;
     /** Whether name / description / color changed. */
     profileChanged: boolean;
+    /** Whether the shared flag changed. */
+    sharedChanged: boolean;
     /** Whether the lifecycle status changed. */
     statusChanged: boolean;
     /** Member user ids added since load. */
@@ -51,6 +55,7 @@ export interface WorkspaceState {
     description: string;
     color: string;
     status: string;
+    isShared: boolean;
     memberUserIds: string[];
     grants: { kind: ContentGrantKind; slug: string }[];
 }
@@ -83,6 +88,7 @@ export class Workspace {
     private _isNew = false;
     private _profileChanged = false;
     private _statusChanged = false;
+    private _sharedChanged = false;
     private readonly _addedMemberIds: string[] = [];
     private readonly _removedMemberIds: string[] = [];
     private readonly _addedGrants: { kind: ContentGrantKind; slug: string }[] =
@@ -96,6 +102,7 @@ export class Workspace {
         private _description: string,
         private _color: WorkspaceColor,
         private _status: WorkspaceStatus,
+        private _isShared: boolean,
         private readonly _members: Membership[],
         private readonly _grants: ContentGrant[]
     ) {}
@@ -124,6 +131,7 @@ export class Workspace {
             props.description,
             props.color,
             WorkspaceStatus.active(),
+            false,
             memberIds.map((userId) => Membership.create(userId)),
             props.grants.map((grant) =>
                 ContentGrant.create(grant.kind, grant.slug)
@@ -152,6 +160,7 @@ export class Workspace {
             state.description,
             WorkspaceColor.create(state.color),
             WorkspaceStatus.create(state.status),
+            state.isShared,
             state.memberUserIds.map((userId) => Membership.create(userId)),
             state.grants.map((grant) =>
                 ContentGrant.create(grant.kind, grant.slug)
@@ -160,9 +169,11 @@ export class Workspace {
     }
 
     /**
-     * Applies a partial profile edit (name / description / color). A patch with
-     * no fields present is a no-op that returns `false` and records nothing;
-     * otherwise raises `workspace.updated` carrying the changed field names.
+     * Applies a partial profile edit (name / description / color, and the
+     * shared flag). A patch with no fields present — or whose only field is an
+     * `isShared` equal to the current value — is a no-op that returns `false`
+     * and records nothing; otherwise raises one `workspace.updated` carrying
+     * the changed field names.
      */
     updateProfile(patch: WorkspaceProfilePatch): boolean {
         const fields: string[] = [];
@@ -178,12 +189,28 @@ export class Workspace {
             this._color = patch.color;
             fields.push('color');
         }
+        if (fields.length > 0) {
+            this._profileChanged = true;
+        }
+        if (patch.isShared !== undefined && this.applyShared(patch.isShared)) {
+            fields.push('isShared');
+        }
         if (fields.length === 0) {
             return false;
         }
-        this._profileChanged = true;
         this.raise(WORKSPACE_EVENT_KINDS.UPDATED, { fields });
         return true;
+    }
+
+    /**
+     * Flags the workspace **shared** (or not) — ADR-0019. A shared workspace's
+     * published entries become readable and linkable, never writable, from
+     * every other workspace granted the same content type. Idempotent: setting
+     * the value it already has returns `false` and raises nothing; otherwise
+     * raises `workspace.updated` with `fields: ['isShared']`.
+     */
+    setShared(shared: boolean): boolean {
+        return this.updateProfile({ isShared: shared });
     }
 
     /**
@@ -313,6 +340,7 @@ export class Workspace {
             isNew: this._isNew,
             profileChanged: this._profileChanged,
             statusChanged: this._statusChanged,
+            sharedChanged: this._sharedChanged,
             addedMemberIds: [...this._addedMemberIds],
             removedMemberIds: [...this._removedMemberIds],
             addedGrants: [...this._addedGrants],
@@ -348,6 +376,21 @@ export class Workspace {
     /** The lifecycle status. */
     get status(): WorkspaceStatus {
         return this._status;
+    }
+
+    /** Whether the workspace is shared (ADR-0019). */
+    get isShared(): boolean {
+        return this._isShared;
+    }
+
+    /** Sets the shared flag; `true` when it actually changed. */
+    private applyShared(shared: boolean): boolean {
+        if (this._isShared === shared) {
+            return false;
+        }
+        this._isShared = shared;
+        this._sharedChanged = true;
+        return true;
     }
 
     private hasMember(userId: string): boolean {

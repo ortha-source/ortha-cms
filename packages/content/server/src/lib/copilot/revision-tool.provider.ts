@@ -10,6 +10,13 @@ import {
     type RevisionStore
 } from '../revisions/application/ports/revision-store';
 import { diffSnapshots } from './diff-snapshots';
+import { SharedSourcesQuery } from '../entries/infrastructure/queries/shared-sources.query';
+import { SharedRecordReadOnlyException } from '../entries/infrastructure/queries/shared-read-only';
+import type { AnyContentType } from '../types/content-type';
+
+/** Why a shared record's history is refused — see `assertNotShared`. */
+const NO_SHARED_HISTORY =
+    'its version history is not available in this workspace';
 
 /** Revisions a single `admin_content_revisions` call may return. */
 const MAX_REVISION_PAGE_SIZE = 25;
@@ -36,7 +43,9 @@ export class RevisionCopilotToolProvider implements ToolProvider, OnModuleInit {
         @InjectRevisionStore()
         private readonly revisions: RevisionStore,
         private readonly grants: WorkspaceGrantsQuery,
-        @Optional() private readonly toolRegistry?: ToolRegistry
+        @Optional() private readonly toolRegistry?: ToolRegistry,
+        // Shared workspaces (ADR-0019) — only to explain an empty answer.
+        @Optional() private readonly shared?: SharedSourcesQuery
     ) {}
 
     /**
@@ -71,6 +80,29 @@ export class RevisionCopilotToolProvider implements ToolProvider, OnModuleInit {
         return type;
     }
 
+    /**
+     * Revisions stay **own-workspace** (ADR-0019 lists them among the reads
+     * that under-show): a record of a shared workspace has its history there,
+     * and this workspace may read only its published state. So when a read
+     * here finds nothing, and the id is a record of a shared workspace the
+     * caller can see, say that instead of "no versions" — true, but it reads
+     * as if the record had never been saved. An id the caller cannot see
+     * keeps the ordinary empty/absent answer, so nothing is enumerated.
+     */
+    private async assertNotShared(
+        type: AnyContentType,
+        id: string,
+        workspaceId: string
+    ): Promise<void> {
+        if (!this.shared) return;
+        const source = (
+            await this.shared.foreignVisibleRows(type, [id], workspaceId)
+        ).get(id);
+        if (source) {
+            throw new SharedRecordReadOnlyException(source, NO_SHARED_HISTORY);
+        }
+    }
+
     /** `admin_content_revisions` — an entry's version timeline, newest first. */
     private listRevisions(): ToolDefinition {
         return {
@@ -81,7 +113,8 @@ export class RevisionCopilotToolProvider implements ToolProvider, OnModuleInit {
                 '(draft / published / superseded), when it was captured and by whom. Use this ' +
                 'to answer “when did this change?” or “what version is live?”, and to find the ' +
                 'two version numbers to pass to admin_content_diff. Each locale of a ' +
-                'localized entry has its own timeline, keyed by that locale’s entry id.',
+                'localized entry has its own timeline, keyed by that locale’s entry id. Not ' +
+                'available for records of shared workspaces.',
             inputSchema: {
                 type: 'object',
                 properties: {
@@ -138,6 +171,11 @@ export class RevisionCopilotToolProvider implements ToolProvider, OnModuleInit {
                     Math.max(args.page ?? 1, 1),
                     pageSize
                 );
+                // Every save appends a revision, so an own entry is never
+                // empty — only an unknown or foreign id is.
+                if (result.total === 0) {
+                    await this.assertNotShared(type, args.id, ctx.workspaceId);
+                }
                 return {
                     ...result,
                     page: Math.max(args.page ?? 1, 1),
@@ -228,6 +266,7 @@ export class RevisionCopilotToolProvider implements ToolProvider, OnModuleInit {
                     ...(after ? [] : [args.to])
                 ];
                 if (!before || !after) {
+                    await this.assertNotShared(type, args.id, ctx.workspaceId);
                     throw new Error(
                         `No version ${missing.join(' or ')} of this entry.`
                     );

@@ -98,6 +98,7 @@ const ENTRY_ROUTES: Record<string, Record<string, OperationSpec>> = {
     '/{id}/media': { get: shared('EntryMedia') },
     '/{id}/relations': { get: shared('EntryRelations') },
     '/{id}/relations/{field}': { get: shared('RelationFieldPage') },
+    '/{id}/usages': { get: shared('EntryUsages') },
     '/{id}/publish': { post: VALIDATED_ENTRY },
     '/{id}/unpublish': { post: ENTRY },
     '/{id}/restore': { post: ENTRY },

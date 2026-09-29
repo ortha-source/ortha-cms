@@ -38,8 +38,21 @@ import {
     assertDraftVisibility,
     requireLocator,
     requireTypeName,
-    validateToolInput
+    sourceArg,
+    validateToolInput,
+    withoutSource
 } from './tool-input';
+import type {
+    EntryLocator,
+    PublicReadOptions
+} from '../public-api/infrastructure/public-entries.query';
+import type { AnyContentType } from '../types/content-type';
+import type { PublicBulkSaveResult } from '../public-api/types/public-bulk';
+import {
+    SharedRecordReadOnlyException,
+    SharedRecordsReadOnlyException,
+    explainSharedNotFound
+} from '../entries/infrastructure/queries/shared-read-only';
 import {
     BULK_IDS_SCHEMA,
     BULK_SAVE_SCHEMA,
@@ -57,6 +70,13 @@ import {
 
 /** URI prefix for the per-content-type schema resources. */
 const TYPE_RESOURCE_PREFIX = 'orthacms://content-type/';
+
+/**
+ * The single-entry reads follow shared-workspace visibility (ADR-0019): an
+ * id-addressed read may name a visible record of a shared workspace, and says
+ * so with `source` / `readOnly`. Never a list's default — see `content_list`.
+ */
+const VISIBLE: PublicReadOptions = { source: 'all' };
 
 /**
  * The content plugin's contribution to the shared agent tool registry — the
@@ -162,7 +182,7 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
                 name: 'content_list',
                 title: 'List entries',
                 description:
-                    'One page of a content type’s entries — published only unless you pass `status`. Supports free-text `search`, a structured `filter`, `sort`, and paging. Serves single/page types too: take `items[0]`. Prefer naming `fields` to keep the result small.',
+                    'One page of a content type’s entries — published only unless you pass `status`. Supports free-text `search`, a structured `filter`, `sort`, and paging. Serves single/page types too: take `items[0]`. Prefer naming `fields` to keep the result small. `source: "shared"` or `"all"` adds published records of shared workspaces — read-only here: link them by id, never copy them.',
                 inputSchema: LIST_ENTRIES_SCHEMA,
                 requires: [PERMISSIONS.CONTENT_READ],
                 readOnly: true,
@@ -172,15 +192,19 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
                         requireTypeName(input),
                         context
                     );
+                    const source = sourceArg(input);
                     const query = await validateToolInput(
                         PublicListEntriesQueryDto,
-                        input
+                        withoutSource(input)
                     );
+                    // Every item reports `source` (null = own) in every mode,
+                    // so a model never has to infer which rows it may write.
                     return this.entries.list(
                         type,
                         query,
                         context.workspaceId,
-                        granted
+                        granted,
+                        { source }
                     );
                 }
             },
@@ -188,7 +212,7 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
                 name: 'content_get',
                 title: 'Get one entry',
                 description:
-                    'Read a single entry by `id`, or by `localeGroupId` plus `locale`. Optionally expands relations, media, and sibling translations. A draft, a deleted entry, one in another workspace, and an unknown id all read the same: not found.',
+                    'Read a single entry by `id`, or by `localeGroupId` plus `locale`. Optionally expands relations, media, and sibling translations. A published record of a shared workspace reads with `source` and `readOnly: true` — link it, do not edit or copy it. A draft, a deleted entry, one in a workspace that is not shared with you, and an unknown id all read the same: not found.',
                 inputSchema: GET_ENTRY_SCHEMA,
                 requires: [PERMISSIONS.CONTENT_READ],
                 readOnly: true,
@@ -207,7 +231,8 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
                         requireLocator(input),
                         context.workspaceId,
                         query,
-                        granted
+                        granted,
+                        VISIBLE
                     );
                 }
             },
@@ -238,7 +263,8 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
                         context.workspaceId,
                         granted,
                         query.locale,
-                        query.status
+                        query.status,
+                        VISIBLE
                     );
                 }
             },
@@ -267,7 +293,8 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
                             context.workspaceId,
                             query.locale,
                             query.mediaLimit,
-                            query.status
+                            query.status,
+                            VISIBLE
                         )
                     };
                 }
@@ -295,7 +322,8 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
                             type,
                             requireLocator(input),
                             context.workspaceId,
-                            query
+                            query,
+                            VISIBLE
                         )
                     };
                 }
@@ -306,7 +334,7 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
                 name: 'content_create',
                 title: 'Create an entry',
                 description:
-                    'Create an entry. On a publishable type it lands as a **draft** — publishing is a separate call (`content_publish`), so every create has a reviewable state. Required fields are required *to publish*, not to create, so a draft may be incomplete. Read it back with `status: "any"`; the published-only default will not find it.',
+                    'Create an entry. On a publishable type it lands as a **draft** — publishing is a separate call (`content_publish`), so every create has a reviewable state. Required fields are required *to publish*, not to create, so a draft may be incomplete. Read it back with `status: "any"`; the published-only default will not find it. To use a record from a shared workspace, link it by id — never create a local copy.',
                 inputSchema: CREATE_SCHEMA,
                 requires: [PERMISSIONS.CONTENT_CREATE],
                 readOnly: false,
@@ -332,7 +360,7 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
                 name: 'content_update',
                 title: 'Update an entry',
                 description:
-                    'A **partial** update — the `values` you send are merged over the stored ones, so omitting a field leaves it alone and an explicit `null` clears it. You never need to send the whole record. On a publishable type this returns a published entry to draft while its published version stays live; call `content_publish` to ship the change.',
+                    'A **partial** update — the `values` you send are merged over the stored ones, so omitting a field leaves it alone and an explicit `null` clears it. You never need to send the whole record. On a publishable type this returns a published entry to draft while its published version stays live; call `content_publish` to ship the change. Records of shared workspaces are read-only here and refuse every write.',
                 inputSchema: UPDATE_SCHEMA,
                 requires: [PERMISSIONS.CONTENT_UPDATE],
                 readOnly: false,
@@ -352,14 +380,17 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
                             ? {}
                             : { relations: input['relations'] })
                     });
-                    return this.writes.update(
-                        type,
-                        requireLocator(input),
-                        body,
-                        context.workspaceId,
-                        granted,
-                        localeArg(input),
-                        toToolEventActor(context.actor)
+                    const locator = requireLocator(input);
+                    return this.ownOnly(type, locator, context, () =>
+                        this.writes.update(
+                            type,
+                            locator,
+                            body,
+                            context.workspaceId,
+                            granted,
+                            localeArg(input),
+                            toToolEventActor(context.actor)
+                        )
                     );
                 }
             },
@@ -376,13 +407,16 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
                         requireTypeName(input),
                         context
                     );
-                    return this.writes.publish(
-                        type,
-                        requireLocator(input),
-                        context.workspaceId,
-                        granted,
-                        localeArg(input),
-                        toToolEventActor(context.actor)
+                    const locator = requireLocator(input);
+                    return this.ownOnly(type, locator, context, () =>
+                        this.writes.publish(
+                            type,
+                            locator,
+                            context.workspaceId,
+                            granted,
+                            localeArg(input),
+                            toToolEventActor(context.actor)
+                        )
                     );
                 }
             },
@@ -399,13 +433,16 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
                         requireTypeName(input),
                         context
                     );
-                    return this.writes.unpublish(
-                        type,
-                        requireLocator(input),
-                        context.workspaceId,
-                        granted,
-                        localeArg(input),
-                        toToolEventActor(context.actor)
+                    const locator = requireLocator(input);
+                    return this.ownOnly(type, locator, context, () =>
+                        this.writes.unpublish(
+                            type,
+                            locator,
+                            context.workspaceId,
+                            granted,
+                            localeArg(input),
+                            toToolEventActor(context.actor)
+                        )
                     );
                 }
             },
@@ -423,12 +460,15 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
                         requireTypeName(input),
                         context
                     );
-                    await this.writes.remove(
-                        type,
-                        requireLocator(input),
-                        context.workspaceId,
-                        localeArg(input),
-                        toToolEventActor(context.actor)
+                    const locator = requireLocator(input);
+                    await this.ownOnly(type, locator, context, () =>
+                        this.writes.remove(
+                            type,
+                            locator,
+                            context.workspaceId,
+                            localeArg(input),
+                            toToolEventActor(context.actor)
+                        )
                     );
                     return { deleted: true };
                 }
@@ -460,12 +500,18 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
                     const body = await validateToolInput(PublicBulkSaveDto, {
                         items: input['items']
                     });
-                    return this.writes.bulkSave(
+                    const result = await this.writes.bulkSave(
                         type,
                         body.items,
                         context.workspaceId,
                         granted,
                         toToolEventActor(context.actor)
+                    );
+                    return this.explainSharedItems(
+                        type,
+                        body.items,
+                        result,
+                        context
                     );
                 }
             },
@@ -485,6 +531,7 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
                     const body = await validateToolInput(PublicBulkIdsDto, {
                         ids: input['ids']
                     });
+                    await this.assertOwnIds(type, body.ids, context);
                     return this.writes.bulkPublish(
                         type,
                         body.ids,
@@ -509,6 +556,7 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
                     const body = await validateToolInput(PublicBulkIdsDto, {
                         ids: input['ids']
                     });
+                    await this.assertOwnIds(type, body.ids, context);
                     return this.writes.bulkUnpublish(
                         type,
                         body.ids,
@@ -534,6 +582,7 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
                     const body = await validateToolInput(PublicBulkIdsDto, {
                         ids: input['ids']
                     });
+                    await this.assertOwnIds(type, body.ids, context);
                     return this.writes.bulkRemove(
                         type,
                         body.ids,
@@ -543,6 +592,109 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
                 }
             }
         ];
+    }
+
+    /**
+     * Run a single-entry write, turning its not-found into the clearer
+     * read-only refusal when — and only when — the locator names a record of a
+     * shared workspace the caller can read (ADR-0019). The write itself keeps
+     * its own-workspace predicate, so this changes the message, never what is
+     * written; an unknown, draft or ungranted id keeps its plain not-found.
+     */
+    private ownOnly<T>(
+        type: AnyContentType,
+        locator: EntryLocator,
+        context: ToolContext,
+        write: () => Promise<T>
+    ): Promise<T> {
+        const [key, by] =
+            'id' in locator
+                ? [locator.id, 'id' as const]
+                : [locator.localeGroupId, 'localeGroupId' as const];
+        return explainSharedNotFound(write, async () =>
+            (
+                await this.entries.sharedSources(
+                    type,
+                    [key],
+                    context.workspaceId,
+                    by
+                )
+            ).get(key)
+        );
+    }
+
+    /**
+     * The batch lifecycle writes refuse a list naming any visible
+     * shared-workspace record **before** writing anything. Their contract is
+     * that a foreign or unknown id silently matches nothing, which for a
+     * record the caller can plainly read would look like success.
+     */
+    private async assertOwnIds(
+        type: AnyContentType,
+        ids: readonly string[],
+        context: ToolContext
+    ): Promise<void> {
+        const shared = await this.entries.sharedSources(
+            type,
+            ids,
+            context.workspaceId
+        );
+        if (shared.size) {
+            throw new SharedRecordsReadOnlyException(
+                ids.filter((id) => shared.has(id))
+            );
+        }
+    }
+
+    /**
+     * `content_bulk_save` keeps its per-item contract, so a shared-workspace
+     * record is reported on its own item: a failed update whose 404 names a
+     * visible foreign record gets the read-only refusal (and its 403) instead.
+     */
+    private async explainSharedItems(
+        type: AnyContentType,
+        items: readonly { id?: string; localeGroupId?: string }[],
+        result: PublicBulkSaveResult,
+        context: ToolContext
+    ): Promise<PublicBulkSaveResult> {
+        const missing = result.items.filter(
+            (item) => !item.ok && item.error?.status === 404
+        );
+        if (!missing.length) return result;
+        const ids = missing
+            .map((item) => items[item.index]?.id)
+            .filter((id): id is string => !!id);
+        const groups = missing
+            .map((item) =>
+                items[item.index]?.id
+                    ? undefined
+                    : items[item.index]?.localeGroupId
+            )
+            .filter((id): id is string => !!id);
+        const [byId, byGroup] = await Promise.all([
+            this.entries.sharedSources(type, ids, context.workspaceId),
+            this.entries.sharedSources(
+                type,
+                groups,
+                context.workspaceId,
+                'localeGroupId'
+            )
+        ]);
+        for (const item of missing) {
+            const addressed = items[item.index];
+            const source = addressed?.id
+                ? byId.get(addressed.id)
+                : addressed?.localeGroupId
+                  ? byGroup.get(addressed.localeGroupId)
+                  : undefined;
+            if (!source) continue;
+            const refusal = new SharedRecordReadOnlyException(source);
+            item.error = {
+                status: refusal.getStatus(),
+                message: refusal.message
+            };
+        }
+        return result;
     }
 
     /**

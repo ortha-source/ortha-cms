@@ -33,7 +33,9 @@ import {
  * 'in' }` filter. `id` is filterable on the public surface and `in` is a
  * supported operator, so the load runs through the **same** `readableWhere` as
  * every other public read: a draft, a soft-deleted row, or an entry from another
- * workspace is invisible here for the same reason and by the same code. A
+ * workspace is invisible here for the same reason and by the same code — the one
+ * widening being a visible entry of a **shared workspace** (ADR-0019), which a
+ * parent's expansion can legitimately link to. A
  * bespoke `WHERE id IN (…)` would have been a second visibility rule to keep in
  * step, which is the one thing this design refuses to have.
  *
@@ -150,11 +152,16 @@ export class EntryLoader {
             if (batch.translations) {
                 dto.translations = PREVIEW;
             }
+            // `includeShared`: a nested record may live in a shared workspace
+            // (ADR-0019) — the parent's expansion already surfaced it under
+            // that rule, so re-reading it to go one level deeper must not lose
+            // it. Every other clause of the public visibility rule still holds.
             const page = await this.entries.list(
                 type,
                 dto,
                 this.workspaceId,
-                granted
+                granted,
+                { includeShared: true }
             );
             for (const entry of page.items) {
                 byId.set(entry.id, entry);

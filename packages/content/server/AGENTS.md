@@ -579,6 +579,19 @@ null value false`. It was not _reachable_, though: **`admin_content_types`
   content-server stays locale-agnostic here as everywhere. An unknown locale is
   a tool error, never a silent read of the default. `admin_content_get` takes no
   `locale`: an entry id already names one row including its locale.
+- **Shared workspaces (ADR-0019, content I-48/I-49).** `admin_content_search`
+  forwards `source: own|shared|all` (default `own`) to the admin list — the same
+  `SharedSourcesQuery` rule, never restated — and every item carries `source`.
+  `admin_content_get` reads through `EntryWriterService.getVisible`, so a
+  library record comes back with `source` and `readOnly: true` (its internal
+  `workspaceId` stripped). The propose tools, their appliers and the revision
+  tools still read own-workspace only; on a miss they ask
+  `SharedSourcesQuery.foreignVisibleRows` whether the id is a record the caller
+  could see and, only then, throw `SharedRecordReadOnlyException`
+  (`entries/infrastructure/queries/shared-read-only.ts`) — the message names the
+  workspace and says to link by id instead. Any other id keeps its plain
+  not-found, so nothing is enumerated. Linking a shared record through a
+  relation value is unchanged.
 - `RevisionCopilotToolProvider` ships the **version-history** pair,
   `admin_content_revisions` and `admin_content_diff`. A second provider rather
   than more methods on the first: revisions are their own feature folder with
@@ -1390,6 +1403,19 @@ model discovers one type's shape on demand with `content_type_get`, whose
 uses. Granted types are also exposed as MCP **resources**
 (`orthacms://content-type/<name>`), through the same grant gate.
 
+**Shared workspaces (ADR-0019).** `content_list` takes `source` (`own` default,
+`shared`, `all`) — validated by the tool (`sourceArg`) and stripped before the
+list DTO, which deliberately has no such parameter — and passes it as
+`PublicReadOptions.source`, which stamps `source` on every item. The id-addressed
+reads (`content_get`, `content_relations`, `content_media`,
+`content_translations`) read with `source: 'all'`: a visible library record is
+readable, and `content_get` reports `source` and `readOnly`. Writes are
+untouched — each still 404s a foreign id — but `ownOnly` probes
+`PublicEntriesQuery.sharedSources` (reader scopes AND-ed on) on the not-found
+path and replaces it with the 403 read-only refusal for a record the caller could
+read; the batch lifecycle tools probe first and refuse the whole batch before
+writing; `content_bulk_save` reports it on the item.
+
 **Authorization is declared, not implemented.** Each tool names its permissions
 in `requires`, and `ToolRegistry.call` enforces them before dispatch — the
 analogue of `@RequirePermissions(...)`. No handler contains a line saying a
@@ -1515,6 +1541,41 @@ Three rules the mapping follows, each mirroring real behavior:
 `field-schema.ts` (field spec → JSON Schema) and `describe-content-api.ts` are
 pure and unit-tested; neither touches Nest, the registry, or a live document.
 Adding a field type means extending `valueSchema` there.
+
+## Shared workspaces — the one read-only exception to isolation ([ADR-0019](../../../docs/adr/0019-shared-workspaces.md))
+
+A workspace flagged `is_shared` exposes its **published, non-deleted** entries
+to every other workspace granted the entry's type — for reading and linking,
+**never** writing. The rule is `SharedSourcesQuery`
+(`entries/infrastructure/queries/shared-sources.query.ts`): `foreignVisibleWhere`
+(the foreign half) and `visibleWhere` (own **or** foreign), both SQL sub-selects
+so they compose into synchronous builders. **Do not restate it** — every read
+that crosses the boundary calls it:
+
+- `GET /content/:type?source=own|shared|all` (`EntriesService.sourceWhere`;
+  `own` is the default and the pre-sharing predicate) — every item carries
+  `source` (`null` = own);
+- `GET /content/:type/:id` and its `/relations` / `/media` siblings
+  (`EntryWriterService.getVisible` / `findVisible`) — `source` + `readOnly`; a
+  foreign entry's media resolve in **its** workspace;
+- `RelationLinkService` — `workspaceWhere` in `targetVisibleWhere`, the admin
+  join-window filter in `visibleTargetIds`, and `linkableWhere` for writes. The
+  inverse side of a many-to-many is `ownOnly` (its join row belongs to the
+  target), including `unlink`. A foreign target that stopped being visible is
+  **omitted** by `refsFor` (never `missing`) and filtered inside the window;
+- `EntryWriterService.assertRelationTargets` — owning single FKs may name a
+  visible foreign record, inverse arrays may not, and an **unchanged** FK is not
+  re-validated on update (so a hidden target never makes the consumer's entry
+  unsaveable);
+- `PublicExpansionQuery.linkedEntriesById` and `mediaForRows` (media grouped by
+  the row's own workspace), and `PublicEntriesQuery`'s `includeShared` option —
+  set **only** by GraphQL's nested `EntryLoader` / relation paging, never by a
+  top-level public route.
+
+Every write keeps `findLive` / `scope()` — a foreign id is a 404 everywhere.
+`GET /content/:type/:id/usages` (`EntryUsagesQuery`) counts links into an
+**own** entry from other workspaces, walking every storage-owning relation in
+the registry. Invariants: content dossier **I-41**–**I-47**.
 
 ## The `entries` feature — layered (ADR-0003)
 

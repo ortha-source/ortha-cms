@@ -206,6 +206,51 @@ export class RelationsEditorPage extends BasePage {
         });
     }
 
+    // --- shared workspaces ---
+
+    /**
+     * The picker's **Source** select (All / This workspace / Shared). A Radix
+     * select renders its trigger as a `combobox`, named by its `aria-label`.
+     */
+    get sourceSelect(): Locator {
+        return this.dialog.getByRole('combobox', { name: 'Source' });
+    }
+
+    /** One option of the open Source listbox (portalled to `<body>`). */
+    sourceOption(label: 'All' | 'This workspace' | 'Shared'): Locator {
+        return this.page.getByRole('option', { name: label, exact: true });
+    }
+
+    /** Pick a Source option by its label. */
+    async chooseSource(label: 'All' | 'This workspace' | 'Shared') {
+        await this.sourceSelect.click();
+        await this.sourceOption(label).click();
+    }
+
+    /**
+     * The "Shared · {workspace}" badge on the candidate row titled `title`.
+     * Scoped to the row's `<label>` — the badge is a sibling of the control,
+     * not part of its accessible name.
+     */
+    candidateSharedBadge(title: string, workspaceName: string): Locator {
+        return this.dialog
+            .locator('label')
+            .filter({ hasText: title })
+            .getByText(`Shared · ${workspaceName}`, { exact: true });
+    }
+
+    /** Every "Shared · …" badge in the open picker. */
+    get candidateSharedBadges(): Locator {
+        return this.dialog.getByText(/^Shared · /);
+    }
+
+    /** The "Shared · {workspace}" badge on an assigned (linked) row. */
+    assignedSharedBadge(workspaceName: string): Locator {
+        return this.page.getByText(`Shared · ${workspaceName}`, {
+            exact: true
+        });
+    }
+
     /** The "Nothing linked yet." empty text for a relation field. */
     get nothingLinked(): Locator {
         return this.page.getByText('Nothing linked yet.');

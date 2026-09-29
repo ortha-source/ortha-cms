@@ -24,6 +24,8 @@ export interface WorkspaceView {
     members: WorkspaceMemberView[];
     /** Granted content-type slugs; absent on older responses. */
     content?: string[];
+    /** Whether the workspace is shared; absent on older responses. */
+    isShared?: boolean;
 }
 
 const STATUS: Record<WorkspaceView['status'], WorkspaceStatus> = {
@@ -59,6 +61,11 @@ export function toWorkspace(view: WorkspaceView): Workspace {
         color: view.color as AvatarColor,
         status: STATUS[view.status],
         members: view.members.map(toMember),
-        content: view.content ?? []
+        content: view.content ?? [],
+        // An older server has no sharing, so "absent" can only mean "not
+        // shared". The settings switch writes this flag on its own PATCH, never
+        // alongside the profile form, so the fallback can't be written back
+        // over a real value.
+        isShared: view.isShared ?? false
     };
 }

@@ -110,7 +110,9 @@ export function WorkspaceShell() {
             current?.name,
             current?.color,
             current?.status,
-            current?.members.length
+            current?.members.length,
+            // The switcher's "Shared workspace" line and its accessible name.
+            current?.isShared
         ]
     );
 

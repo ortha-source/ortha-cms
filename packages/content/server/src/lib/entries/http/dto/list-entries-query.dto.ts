@@ -25,6 +25,17 @@ export const DELETED_ONLY = 'only';
  */
 export const RELATIONS_PREVIEW = 'preview';
 
+/**
+ * `?source=` — whose entries the list reads (ADR-0019, shared workspaces).
+ * `own` (the default) is the caller's workspace only, exactly as before;
+ * `shared` is only the visible published entries of shared workspaces; `all`
+ * is the union of the two.
+ */
+export const ENTRY_SOURCES = ['own', 'shared', 'all'] as const;
+
+/** One of {@link ENTRY_SOURCES}. */
+export type EntrySourceMode = (typeof ENTRY_SOURCES)[number];
+
 /** Upper bound on the `?relationFields=` list (a comma-separated field list). */
 const RELATION_FIELDS_MAX_LENGTH = 1024;
 
@@ -189,4 +200,19 @@ export class ListEntriesQueryDto {
     @IsOptional()
     @IsIn(['default'])
     localeFallback?: string;
+
+    /**
+     * Whose entries to list — see {@link ENTRY_SOURCES}. Search, filter, sort
+     * and pagination run across the chosen set as one list; every item carries
+     * `source` (`null` for an own entry).
+     */
+    @ApiPropertyOptional({
+        enum: [...ENTRY_SOURCES],
+        default: 'own',
+        description:
+            "Whose entries to list: `own` (default) — this workspace's; `shared` — only the published entries of shared workspaces visible here (read-only); `all` — both. Search, filter, sort and pagination apply across the chosen set; every item carries `source` (null = own)."
+    })
+    @IsOptional()
+    @IsIn(ENTRY_SOURCES)
+    source?: EntrySourceMode;
 }

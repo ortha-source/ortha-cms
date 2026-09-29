@@ -773,6 +773,49 @@ export class ContentLibraryPage extends BasePage {
         return this.propertiesPanel.getByRole('heading', { name, level: 3 });
     }
 
+    // --- shared workspaces ---
+
+    /** The banner over a record read from a shared workspace (its title). */
+    sharedEntryNotice(workspaceName: string): Locator {
+        return this.page.getByText(`Shared from ${workspaceName}`, {
+            exact: true
+        });
+    }
+
+    /**
+     * The banner's "Read-only in this workspace." sentence. A substring match:
+     * it shares one `<p>` with the bolded title, so no element's whole text is
+     * the sentence alone.
+     */
+    get sharedEntryReadOnlyText(): Locator {
+        return this.page.getByText('Read-only in this workspace.');
+    }
+
+    /** The banner's link to the same record in its source workspace. */
+    get openInSourceLink(): Locator {
+        return this.page.getByRole('link', { name: 'Open in source' });
+    }
+
+    /** The editor's ⋯ actions menu trigger. */
+    get editorMoreActions(): Locator {
+        return this.page.getByRole('button', { name: 'More actions' });
+    }
+
+    /**
+     * One label/value row of the Properties panel (a `<dt>`/`<dd>` pair), by
+     * its label — e.g. Details' "Source", or a workspace in "Used in".
+     */
+    railRow(label: string): Locator {
+        return this.propertiesPanel
+            .locator('dl > div')
+            .filter({ has: this.page.getByText(label, { exact: true }) });
+    }
+
+    /** The "Used in" block's "Publishing updates …" note. */
+    get usedInPublishNote(): Locator {
+        return this.propertiesPanel.getByText(/^Publishing updates /);
+    }
+
     /** The "Translation group" row of the Details block. */
     get localeGroupLabel(): Locator {
         return this.propertiesPanel.getByText('Translation group', {

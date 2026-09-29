@@ -1,0 +1,1 @@
+ALTER TABLE "workspaces" ADD COLUMN "is_shared" boolean DEFAULT false NOT NULL;

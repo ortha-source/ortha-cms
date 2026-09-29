@@ -7,6 +7,7 @@ import {
     MAX_PAGE_SIZE
 } from '../entries/entries.constants';
 import { ENTRY_VISIBILITY } from '../public-api/http/dto/public-list-entries-query.dto';
+import { ENTRY_SOURCES } from '../entries/http/dto/list-entries-query.dto';
 
 /**
  * JSON Schemas for the content tools' arguments.
@@ -66,6 +67,17 @@ const STATUS: JsonSchema = {
     enum: [...ENTRY_VISIBILITY],
     description:
         'Publish states to return. `published` (the default) is all a read-only token may ask for; `draft` and `any` need write scope. Use `any` after creating an entry — a new entry is a draft and the default would not find it.'
+};
+
+/**
+ * `source` — whose entries a list reads (ADR-0019). Records of a shared
+ * workspace are read-only here; the one thing to do with them is link.
+ */
+const SOURCE: JsonSchema = {
+    type: 'string',
+    enum: [...ENTRY_SOURCES],
+    description:
+        '`own` (default): this workspace’s entries. `shared`: published records of shared workspaces — read-only here; link one by id instead of copying it. `all`: both. Each item reports `source` (null = own).'
 };
 
 /** Sparse fieldsets — the main lever on how much context a result costs. */
@@ -174,7 +186,8 @@ export const LIST_ENTRIES_SCHEMA: JsonSchema = object(
         },
         fields: FIELDS,
         locale: LOCALE,
-        status: STATUS
+        status: STATUS,
+        source: SOURCE
     },
     ['typeName']
 );
@@ -243,7 +256,7 @@ const VALUES: JsonSchema = {
     type: 'object',
     additionalProperties: true,
     description:
-        'Field values keyed by field name. The accepted shape is the content type’s own — call `content_type_get` first to see it. A media field takes asset ids; an owning single relation takes the target’s entry id.'
+        'Field values keyed by field name. The accepted shape is the content type’s own — call `content_type_get` first to see it. A media field takes asset ids; an owning single relation takes the target’s entry id, which may be a shared-workspace record.'
 };
 
 /** Relation deltas — assign/unassign, shared by create and update. */
@@ -251,7 +264,7 @@ const RELATION_DELTAS: JsonSchema = {
     type: 'object',
     additionalProperties: true,
     description:
-        'Relation changes keyed by relation field: `{"tags":{"link":["<id>"],"unlink":["<id>"]}}`. A delta, not a replacement — ids you do not mention are left alone. Many-to-many and inverse relations only; set an owning single relation through `values`. Add `"by":"localeGroup"` to pass translation-group ids instead of entry ids.'
+        'Relation changes keyed by relation field: `{"tags":{"link":["<id>"],"unlink":["<id>"]}}`. A delta, not a replacement — ids you do not mention are left alone. Many-to-many and inverse relations only; set an owning single relation through `values`. Add `"by":"localeGroup"` to pass translation-group ids instead of entry ids. An owning relation may link a shared-workspace record (find it with `content_list` `source: "shared"`).'
 };
 
 /** `content_create` */
@@ -355,7 +368,7 @@ export const BULK_IDS_SCHEMA: JsonSchema = object(
             minItems: 1,
             maxItems: BULK_MAX_IDS,
             items: { type: 'string', format: 'uuid' },
-            description: `Entry ids to act on (1…${BULK_MAX_IDS}). Ids from another workspace, or that never existed, simply do not match — they are not an error.`
+            description: `Entry ids to act on (1…${BULK_MAX_IDS}). Unknown ids simply do not match; an id of a shared-workspace record (read-only here) fails the whole call before anything changes.`
         }
     },
     ['typeName', 'ids']

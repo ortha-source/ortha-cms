@@ -9,6 +9,7 @@ import type {
     PublicMediaFieldView,
     PublicRelationFieldView
 } from './public-expansion';
+import type { EntrySource } from '../../entries/types/entry-list-view';
 
 /**
  * One entry as the public API serves it: the storage envelope plus a flat
@@ -88,6 +89,18 @@ export interface PublicEntry {
      * expanded: their `relations`, `media`, and `translations` are absent.
      */
     translations?: PublicEntry[];
+    /**
+     * Where the entry lives when it was read from a **shared workspace**
+     * (ADR-0019), `null` for the caller's own. Set only by the agent tools'
+     * reads (`PublicReadOptions.source`); no HTTP or GraphQL response carries
+     * it.
+     */
+    source?: EntrySource | null;
+    /**
+     * `true` iff the entry belongs to a shared workspace and so cannot be
+     * written here. Set only by the agent tools' single-entry read.
+     */
+    readOnly?: boolean;
 }
 
 /** One page of public entries. */

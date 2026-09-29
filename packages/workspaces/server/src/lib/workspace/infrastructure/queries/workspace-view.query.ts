@@ -89,6 +89,7 @@ export class WorkspaceViewQuery {
             description: row.description ?? '',
             color: row.color,
             status: row.status,
+            isShared: row.isShared,
             members: membersByWorkspace.get(row.id) ?? [],
             content: grantsByWorkspace.get(row.id) ?? []
         }));
