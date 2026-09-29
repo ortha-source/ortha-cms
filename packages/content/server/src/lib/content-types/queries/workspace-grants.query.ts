@@ -24,9 +24,15 @@ export class WorkspaceGrantsQuery {
      * callers can test membership per relation hop without re-querying.
      * An empty set means the workspace was granted nothing — callers must
      * treat that as "no access", never as "no filtering".
+     *
+     * `exec` lets a caller already inside a transaction read on its own
+     * connection rather than borrowing a second one from the pool.
      */
-    async grantedSlugs(workspaceId: string): Promise<Set<string>> {
-        const rows = await this.db
+    async grantedSlugs(
+        workspaceId: string,
+        exec: Pick<Database, 'select'> = this.db
+    ): Promise<Set<string>> {
+        const rows = await exec
             .select({ slug: workspaceContent.slug })
             .from(workspaceContent)
             .where(eq(workspaceContent.workspaceId, workspaceId));

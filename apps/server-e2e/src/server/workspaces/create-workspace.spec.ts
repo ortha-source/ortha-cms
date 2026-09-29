@@ -375,7 +375,8 @@ describe('POST /api/workspaces', () => {
                 'test_article',
                 'test_author',
                 'test_comment',
-                'test_page'
+                'test_page',
+                'test_review'
             ]);
             // `pages` was absent, so the single is not granted either.
             expect(slugs).not.toContain('test_landing');

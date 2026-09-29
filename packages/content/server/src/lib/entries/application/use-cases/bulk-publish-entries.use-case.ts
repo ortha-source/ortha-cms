@@ -55,6 +55,9 @@ export class BulkPublishEntriesUseCase {
             );
         }
         if (!ids.length) return { published: [], skipped: [] };
+        // Required relations to a type this workspace isn't granted are not
+        // part of its publish gate — the same waiver the single publish uses.
+        const waived = await this.validation.waivedRequired(type, workspaceId);
 
         return this.uow.run(async () => {
             const exec = this.uow.current();
@@ -68,7 +71,8 @@ export class BulkPublishEntriesUseCase {
                 type,
                 ids,
                 byId,
-                (t, values) => this.validation.validate(t, values)
+                (t, values) => this.validation.validate(t, values, waived),
+                waived
             );
             const candidates = items
                 .filter((item) => item.verdict === BULK_VERDICT.Publishable)

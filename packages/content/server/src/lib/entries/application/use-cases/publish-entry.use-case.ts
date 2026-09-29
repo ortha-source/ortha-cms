@@ -80,6 +80,10 @@ export class PublishEntryUseCase {
                 `Content type "${type.name}" is not publishable.`
             );
         }
+        // The required relations this workspace cannot satisfy — their target
+        // type isn't granted to it — are not part of its publish gate. Read
+        // once, before the transaction, for both halves of the gate.
+        const waived = await this.validation.waivedRequired(type, workspaceId);
         return this.uow.run(async () => {
             const exec = this.uow.current();
             const current = await this.writer.findLive(
@@ -92,7 +96,8 @@ export class PublishEntryUseCase {
 
             const valueResult = this.validation.validate(
                 type,
-                toRecord(type, current).values
+                toRecord(type, current).values,
+                waived
             );
             // Short-circuit exactly like the original: only count required links
             // when the values already pass, so the 422's issue set matches.
@@ -101,7 +106,8 @@ export class PublishEntryUseCase {
                       exec,
                       type,
                       current,
-                      workspaceId
+                      workspaceId,
+                      waived
                   )
                 : valueResult.issues;
 

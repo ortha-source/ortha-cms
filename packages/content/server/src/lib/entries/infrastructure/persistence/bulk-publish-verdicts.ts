@@ -32,12 +32,18 @@ export type ValidateEntry = (
  * Compute the per-entry publish verdict (will-publish / already-published /
  * blocked / not-found) for `ids` in request order, given the live rows keyed by
  * id and a value-validation function.
+ *
+ * `waived` names the required fields that are not required in this workspace
+ * (see `EntryValidationService.waivedRequired`) — `validate` already excuses
+ * them; they are also left off the per-field checklist, which would otherwise
+ * list a field the workspace cannot even see as a passed requirement.
  */
 export function computeBulkPublishVerdicts(
     type: AnyContentType,
     ids: string[],
     byId: Map<string, Row>,
-    validate: ValidateEntry
+    validate: ValidateEntry,
+    waived: ReadonlySet<string> = new Set()
 ): BulkPublishVerdict[] {
     return ids.map((id): BulkPublishVerdict => {
         const row = byId.get(id);
@@ -65,7 +71,7 @@ export function computeBulkPublishVerdicts(
                 status,
                 verdict: BULK_VERDICT.AlreadyPublished,
                 issues: [],
-                checks: buildChecks(type, result.issues)
+                checks: buildChecks(type, result.issues, waived)
             };
         }
         const result = validate(type, toRecord(type, row).values);
@@ -77,7 +83,7 @@ export function computeBulkPublishVerdicts(
                 ? BULK_VERDICT.Publishable
                 : BULK_VERDICT.Blocked,
             issues: result.issues,
-            checks: buildChecks(type, result.issues)
+            checks: buildChecks(type, result.issues, waived)
         };
     });
 }
@@ -89,14 +95,18 @@ export function computeBulkPublishVerdicts(
  */
 function buildChecks(
     type: AnyContentType,
-    issues: ValidationIssue[]
+    issues: ValidationIssue[],
+    waived: ReadonlySet<string>
 ): BulkPublishCheck[] {
     const byField = new Map<string, string>();
     for (const issue of issues) {
         if (!byField.has(issue.field)) byField.set(issue.field, issue.message);
     }
     return Object.entries(type.fields)
-        .filter(([name, spec]) => spec.required || byField.has(name))
+        .filter(
+            ([name, spec]) =>
+                (spec.required && !waived.has(name)) || byField.has(name)
+        )
         .map(([name, spec]) => ({
             field: name,
             label: spec.admin.label ?? name,

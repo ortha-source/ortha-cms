@@ -71,9 +71,21 @@ export type SubmitEntryInput = {
      * hook knows a write landed, and a landed save whose publish is then refused
      * is exactly the case where `submit` rejects with something already written.
      *
-     * Called once per landed write, never on a write that failed.
+     * Called once per landed write, never on a write that failed, with the
+     * record it wrote and whether that write **created** it. A landed create
+     * is the moment the record gains an address: the caller must move to it
+     * then, not after the publish — a refused publish would otherwise leave
+     * the editor on a blank create form holding a draft that already exists.
      */
-    onWriteLanded?: () => void;
+    onWriteLanded?: (landed: WriteLanded) => void;
+};
+
+/** What {@link SubmitEntryInput.onWriteLanded} is told about the write. */
+export type WriteLanded = {
+    /** The record as the write returned it (already primed in the read-one cache). */
+    saved: EntryRecord;
+    /** Whether this write created the record — it had no id before. */
+    created: boolean;
 };
 
 /** The classified outcome of one submit, for the caller's toast + navigation. */
@@ -131,8 +143,11 @@ export type PublishEntryFlow = {
  * target genuinely changes. Without it, after creating record A a subsequent
  * "create a translation" (a fresh `/new` for another locale) would keep A's id
  * and issue a **PATCH against A** instead of a POST — overwriting A and creating
- * no sibling. The key must **not** change within a single create session (e.g. a
- * create that succeeds then fails to publish), so a retry still targets the draft.
+ * no sibling. The key must **not** change within a single create session, so a
+ * retry after a create that landed still targets the draft. A collection editor
+ * leaves that session as the create lands (it moves to `/:id`, and the retry
+ * then carries the record itself); `createdId` is what keeps a **single** page —
+ * which stays on its type route — from posting a second row.
  */
 export function usePublishEntryFlow(
     typeName: string,
@@ -180,7 +195,7 @@ export function usePublishEntryFlow(
                     id: existingId,
                     bypass: input.bypass
                 });
-                input.onWriteLanded?.();
+                input.onWriteLanded?.({ saved: published, created: false });
                 return {
                     saved: published,
                     wasCreate: false,
@@ -209,7 +224,7 @@ export function usePublishEntryFlow(
             // editor's own and must be adopted **whatever the publish below
             // does**. Announced here rather than by the caller's `.then()`,
             // which a refused publish never reaches.
-            input.onWriteLanded?.();
+            input.onWriteLanded?.({ saved, created: !existingId });
 
             // Saving a publishable entry as a draft moves it to draft **on the
             // server** (the save itself), while its previously-published *version*

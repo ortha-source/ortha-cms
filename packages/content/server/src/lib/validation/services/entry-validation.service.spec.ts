@@ -1,6 +1,7 @@
 import { collection } from '../../collection/define';
 import type { AnyContentType } from '../../types/content-type';
 import { field } from '../../fields';
+import type { WorkspaceGrantsQuery } from '../../content-types/queries/workspace-grants.query';
 import { EntryValidationService } from './entry-validation.service';
 
 const UUID = '11111111-1111-1111-1111-111111111111';
@@ -127,6 +128,70 @@ describe('EntryValidationService', () => {
         expect(issues).toContainEqual({
             field: 'mystery',
             message: 'unknown field on "thing"'
+        });
+    });
+
+    describe('waivedRequired [content:I-50]', () => {
+        const person = collection('person', {
+            fields: { name: field.text() }
+        });
+        const post = collection('post', {
+            publishable: true,
+            fields: {
+                title: field.text({ required: true }),
+                author: field.relation({
+                    to: (): AnyContentType => person,
+                    required: true,
+                    onDelete: 'restrict'
+                })
+            }
+        });
+        const grantsOf = (slugs: string[]) => {
+            const grantedSlugs = jest.fn(async () => new Set(slugs));
+            return {
+                grantedSlugs,
+                query: { grantedSlugs } as unknown as WorkspaceGrantsQuery
+            };
+        };
+
+        it('waives a required relation to an ungranted type, and validate then accepts it empty', async () => {
+            const grants = grantsOf(['post']);
+            const withGrants = new EntryValidationService(grants.query);
+
+            const waived = await withGrants.waivedRequired(post, 'ws-1');
+
+            expect(waived).toEqual(new Set(['author']));
+            expect(grants.grantedSlugs).toHaveBeenCalledWith('ws-1', undefined);
+            expect(withGrants.validate(post, { title: 'hi' }, waived)).toEqual({
+                valid: true,
+                issues: []
+            });
+        });
+
+        it('keeps a required relation to a granted type required', async () => {
+            const withGrants = new EntryValidationService(
+                grantsOf(['post', 'person']).query
+            );
+
+            const waived = await withGrants.waivedRequired(post, 'ws-1');
+
+            expect(waived.size).toBe(0);
+            expect(
+                withGrants.validate(post, { title: 'hi' }, waived).issues
+            ).toEqual([{ field: 'author', message: 'is required' }]);
+        });
+
+        it('waives nothing without a grants query (fails closed)', async () => {
+            expect((await service.waivedRequired(post, 'ws-1')).size).toBe(0);
+        });
+
+        it('does not read the grants for a type with no required relation', async () => {
+            const grants = grantsOf([]);
+            await new EntryValidationService(grants.query).waivedRequired(
+                person,
+                'ws-1'
+            );
+            expect(grants.grantedSlugs).not.toHaveBeenCalled();
         });
     });
 });

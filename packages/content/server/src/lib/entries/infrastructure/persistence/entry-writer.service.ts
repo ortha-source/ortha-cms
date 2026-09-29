@@ -556,7 +556,13 @@ export class EntryWriterService {
             }
         );
         await this.assertMediaTargets(type, coerced, workspaceId);
-        if (!type.publishable) this.assertValid(type, coerced);
+        // The required relations this workspace cannot satisfy (their target
+        // type isn't granted to it) — read once, before the transaction, and
+        // applied to both halves of the required check below.
+        const waived = type.publishable
+            ? undefined
+            : await this.validation.waivedRequired(type, workspaceId);
+        if (!type.publishable) this.assertValid(type, coerced, waived);
         // One transaction: take the workspace's shared content lock (coordinates
         // with the delete / content-revoke guards so a new entry can't be
         // orphaned), then write the row, its whole-set join-table links (a
@@ -617,7 +623,8 @@ export class EntryWriterService {
                             tx,
                             type,
                             inserted as Row,
-                            workspaceId
+                            workspaceId,
+                            waived
                         );
                     // Same side-effects as an update (e.g. syncing shared fields
                     // to locale siblings): a sibling created into an existing
@@ -948,8 +955,13 @@ export class EntryWriterService {
         // publish). A non-publishable type is always live, so every write must
         // validate now.
         const enforceRequired = !type.publishable;
+        // Required relations to a type this workspace isn't granted are not
+        // required here (see `EntryValidationService.waivedRequired`).
+        const waived = enforceRequired
+            ? await this.validation.waivedRequired(type, workspaceId)
+            : undefined;
         if (!type.publishable) {
-            this.assertValid(type, coerced);
+            this.assertValid(type, coerced, waived);
         }
         // One transaction: replace the row's columns, re-sync a whole-set
         // many-relation submitted in `values`, and apply the staged relation
@@ -1017,7 +1029,8 @@ export class EntryWriterService {
                     tx,
                     type,
                     updated as Row,
-                    workspaceId
+                    workspaceId,
+                    waived
                 );
             // Extension side-effects of a save (e.g. syncing shared fields to
             // locale siblings) run inside the same transaction — a failure
@@ -2040,13 +2053,15 @@ export class EntryWriterService {
         exec: Database | DbTransaction,
         type: AnyContentType,
         row: Row,
-        workspaceId: string
+        workspaceId: string,
+        waived?: ReadonlySet<string>
     ): Promise<void> {
         const issues = await this.requiredRelationIssues(
             exec,
             type,
             row,
-            workspaceId
+            workspaceId,
+            waived
         );
         if (issues.length) {
             throw new UnprocessableEntityException({
@@ -2064,19 +2079,29 @@ export class EntryWriterService {
      * publish use-case can fold them into the `Entry` domain publish gate. `exec`
      * is the write transaction (counting just-written rows) on create/update, or
      * the unit-of-work transaction on publish.
+     *
+     * A relation whose target type the workspace isn't granted is not required
+     * there, so it is never counted. `waived` is that set when the caller has
+     * already read it (the publish use-case shares one read with its values
+     * gate); omitted, it is read here on `exec`.
      */
     async requiredRelationIssues(
         exec: Database | DbTransaction,
         type: AnyContentType,
         row: Row,
-        workspaceId: string
+        workspaceId: string,
+        waived?: ReadonlySet<string>
     ): Promise<ValidationIssue[]> {
+        const excused =
+            waived ??
+            (await this.validation.waivedRequired(type, workspaceId, exec));
         const issues: ValidationIssue[] = [];
         for (const [name, spec] of Object.entries(type.fields)) {
             if (
                 spec.type !== CONTENT_FIELD_TYPE.Relation ||
                 !spec.relation ||
-                !spec.required
+                !spec.required ||
+                excused.has(name)
             )
                 continue;
             const rel = spec.relation;
@@ -2103,9 +2128,10 @@ export class EntryWriterService {
     /** Throw 422 with the issue list when the values fail validation. */
     private assertValid(
         type: AnyContentType,
-        values: Record<string, unknown>
+        values: Record<string, unknown>,
+        waived?: ReadonlySet<string>
     ): void {
-        const result = this.validation.validate(type, values);
+        const result = this.validation.validate(type, values, waived);
         if (!result.valid) {
             throw new UnprocessableEntityException({
                 message: 'Entry validation failed',
