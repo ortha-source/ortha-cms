@@ -6,9 +6,11 @@ import { useContentTypes } from '../../../../application/useContentTypes';
 import { ContentTypesSkeleton } from '../../WorkspacesSkeleton';
 import type {
     ContentMode,
-    ResourceSelection
+    ResourceSelection,
+    SharedContentChoice
 } from '../../../../domain/types/wizard';
 import { ModeTiles } from './ModeTiles';
+import { SharedContentSection } from './SharedContentSection';
 import {
     ResourceSection,
     type ResourceSectionMessages
@@ -132,12 +134,18 @@ export type ContentStepProps = {
     pages: ResourceSelection;
     /** Replace the page selection. */
     setPages: (selection: ResourceSelection) => void;
+    /** Grants picked from shared workspaces. */
+    sharedContent: SharedContentChoice[];
+    /** Pick or unpick one type from one shared workspace. */
+    onToggleSharedContent: (choice: SharedContentChoice) => void;
 };
 
 /**
  * The content step body: the All-vs-Specific mode tiles, then either a
  * reassuring full-access alert or the collections + pages selection panels
- * (with loading and error states for the content-types query).
+ * (with loading and error states for the content-types query), followed by
+ * the types shared workspaces offer. "All content" is this workspace's own
+ * types only; shared grants are always picked one by one.
  */
 export function ContentStep({
     contentMode,
@@ -145,7 +153,9 @@ export function ContentStep({
     collections,
     setCollections,
     pages,
-    setPages
+    setPages,
+    sharedContent,
+    onToggleSharedContent
 }: ContentStepProps) {
     const intl = useIntl();
     const query = useContentTypes();
@@ -214,6 +224,11 @@ export function ContentStep({
                         rows={pageRows}
                         selection={pages}
                         onChange={setPages}
+                    />
+                    <SharedContentSection
+                        catalog={allTypes}
+                        selected={sharedContent}
+                        onToggle={onToggleSharedContent}
                     />
                 </div>
             )}

@@ -20,7 +20,10 @@ import type {
     SerializedContentType
 } from '../registry/content-type-registry';
 import { WorkspaceGrantsQuery } from '../content-types/queries/workspace-grants.query';
-import { resolveGrantedType } from '../public-api/http/controllers/resolve-granted-type';
+import {
+    resolveGrantedType,
+    type GrantedTypeMode
+} from '../public-api/http/controllers/resolve-granted-type';
 import { PublicEntriesQuery } from '../public-api/infrastructure/public-entries.query';
 import { PublicEntryWritesService } from '../public-api/infrastructure/public-entry-writes.service';
 import {
@@ -341,7 +344,8 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
                 handler: async (input, context) => {
                     const { type, granted } = await this.resolve(
                         requireTypeName(input),
-                        context
+                        context,
+                        'write'
                     );
                     const body = await validateToolInput(
                         PublicSaveEntryDto,
@@ -367,7 +371,8 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
                 handler: async (input, context) => {
                     const { type, granted } = await this.resolve(
                         requireTypeName(input),
-                        context
+                        context,
+                        'write'
                     );
                     // The save body carries only `values` + `relations`: the
                     // addressing locale is a separate argument, exactly as the
@@ -405,7 +410,8 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
                 handler: async (input, context) => {
                     const { type, granted } = await this.resolve(
                         requireTypeName(input),
-                        context
+                        context,
+                        'write'
                     );
                     const locator = requireLocator(input);
                     return this.ownOnly(type, locator, context, () =>
@@ -431,7 +437,8 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
                 handler: async (input, context) => {
                     const { type, granted } = await this.resolve(
                         requireTypeName(input),
-                        context
+                        context,
+                        'write'
                     );
                     const locator = requireLocator(input);
                     return this.ownOnly(type, locator, context, () =>
@@ -458,7 +465,8 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
                 handler: async (input, context) => {
                     const { type } = await this.resolve(
                         requireTypeName(input),
-                        context
+                        context,
+                        'write'
                     );
                     const locator = requireLocator(input);
                     await this.ownOnly(type, locator, context, () =>
@@ -495,7 +503,8 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
                 handler: async (input, context) => {
                     const { type, granted } = await this.resolve(
                         requireTypeName(input),
-                        context
+                        context,
+                        'write'
                     );
                     const body = await validateToolInput(PublicBulkSaveDto, {
                         items: input['items']
@@ -526,7 +535,8 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
                 handler: async (input, context) => {
                     const { type } = await this.resolve(
                         requireTypeName(input),
-                        context
+                        context,
+                        'write'
                     );
                     const body = await validateToolInput(PublicBulkIdsDto, {
                         ids: input['ids']
@@ -551,7 +561,8 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
                 handler: async (input, context) => {
                     const { type } = await this.resolve(
                         requireTypeName(input),
-                        context
+                        context,
+                        'write'
                     );
                     const body = await validateToolInput(PublicBulkIdsDto, {
                         ids: input['ids']
@@ -577,7 +588,8 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
                 handler: async (input, context) => {
                     const { type } = await this.resolve(
                         requireTypeName(input),
-                        context
+                        context,
+                        'write'
                     );
                     const body = await validateToolInput(PublicBulkIdsDto, {
                         ids: input['ids']
@@ -734,21 +746,33 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
         };
     }
 
-    /** The workspace's granted type summaries. */
+    /**
+     * The workspace's readable type summaries — own grants and types read only
+     * from shared workspaces alike (ADR-0019, "Explicit per-source grants").
+     */
     private async grantedSummaries(context: ToolContext) {
-        const granted = await this.grants.grantedSlugs(context.workspaceId);
+        const granted = await this.grants.reachableSlugs(context.workspaceId);
         return this.registry
             .summaries()
             .filter((summary) => granted.has(summary.name));
     }
 
-    /** Resolve a type through the shared registry + grant gate. */
-    private resolve(typeName: string, context: ToolContext) {
+    /**
+     * Resolve a type through the shared registry + grant gate: a read needs
+     * the type reachable, a write needs the own grant (a shared-only type is
+     * a 403 tool error saying so).
+     */
+    private resolve(
+        typeName: string,
+        context: ToolContext,
+        mode: GrantedTypeMode = 'read'
+    ) {
         return resolveGrantedType(
             this.registry,
             this.grants,
             typeName,
-            context.workspaceId
+            context.workspaceId,
+            mode
         );
     }
 

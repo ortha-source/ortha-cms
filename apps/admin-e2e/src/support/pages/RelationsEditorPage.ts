@@ -216,13 +216,21 @@ export class RelationsEditorPage extends BasePage {
         return this.dialog.getByRole('combobox', { name: 'Source' });
     }
 
-    /** One option of the open Source listbox (portalled to `<body>`). */
-    sourceOption(label: 'All' | 'This workspace' | 'Shared'): Locator {
+    /**
+     * One option of the open Source listbox (portalled to `<body>`): "All",
+     * "This workspace", or a shared workspace by name.
+     */
+    sourceOption(label: string): Locator {
         return this.page.getByRole('option', { name: label, exact: true });
     }
 
+    /** Every option of the open Source listbox, in display order. */
+    get sourceOptions(): Locator {
+        return this.page.getByRole('listbox').getByRole('option');
+    }
+
     /** Pick a Source option by its label. */
-    async chooseSource(label: 'All' | 'This workspace' | 'Shared') {
+    async chooseSource(label: string) {
         await this.sourceSelect.click();
         await this.sourceOption(label).click();
     }

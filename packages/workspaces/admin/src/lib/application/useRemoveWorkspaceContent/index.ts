@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { httpWorkspaceGateway } from '../../infrastructure/httpWorkspaceGateway';
 import type { RemoveWorkspaceContentInput } from '../../infrastructure/workspaceGateway';
+import { workspaceContentAccessKey } from '../../infrastructure/contentAccessKeys';
 import { workspacesKey } from '../useWorkspaces';
 
 export type { RemoveWorkspaceContentInput } from '../../infrastructure/workspaceGateway';
@@ -16,7 +17,15 @@ export function useRemoveWorkspaceContent() {
     return useMutation({
         mutationFn: (input: RemoveWorkspaceContentInput) =>
             httpWorkspaceGateway.removeContent(input),
-        onSuccess: () =>
-            queryClient.invalidateQueries({ queryKey: workspacesKey })
+        onSuccess: (_workspace, { workspaceId }) => {
+            // What this workspace can reach just changed: its content-type
+            // list (`access`) and its shared-sources catalogue. Not awaited —
+            // the grant has landed, and the dialog shouldn't wait on the nav's
+            // refetch to close.
+            void queryClient.invalidateQueries({
+                queryKey: workspaceContentAccessKey(workspaceId)
+            });
+            return queryClient.invalidateQueries({ queryKey: workspacesKey });
+        }
     });
 }

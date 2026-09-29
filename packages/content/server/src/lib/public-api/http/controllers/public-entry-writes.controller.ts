@@ -104,7 +104,8 @@ export class PublicEntryWritesController {
             this.registry,
             this.grants,
             typeName,
-            workspaceId
+            workspaceId,
+            'write'
         );
         return this.writes.create(
             type,
@@ -141,7 +142,8 @@ export class PublicEntryWritesController {
             this.registry,
             this.grants,
             typeName,
-            workspaceId
+            workspaceId,
+            'write'
         );
         return this.writes.bulkSave(
             type,
@@ -171,7 +173,8 @@ export class PublicEntryWritesController {
             this.registry,
             this.grants,
             typeName,
-            workspaceId
+            workspaceId,
+            'write'
         );
         return this.writes.bulkPublish(
             type,
@@ -200,7 +203,8 @@ export class PublicEntryWritesController {
             this.registry,
             this.grants,
             typeName,
-            workspaceId
+            workspaceId,
+            'write'
         );
         return this.writes.bulkUnpublish(
             type,
@@ -229,7 +233,8 @@ export class PublicEntryWritesController {
             this.registry,
             this.grants,
             typeName,
-            workspaceId
+            workspaceId,
+            'write'
         );
         return this.writes.bulkRemove(
             type,
@@ -457,7 +462,8 @@ export class PublicEntryWritesController {
             this.registry,
             this.grants,
             typeName,
-            workspaceId
+            workspaceId,
+            'write'
         );
         return this.writes.update(
             type,
@@ -483,7 +489,8 @@ export class PublicEntryWritesController {
             this.registry,
             this.grants,
             typeName,
-            workspaceId
+            workspaceId,
+            'write'
         );
         const actor = toTokenActor(token);
         return live
@@ -517,7 +524,8 @@ export class PublicEntryWritesController {
             this.registry,
             this.grants,
             typeName,
-            workspaceId
+            workspaceId,
+            'write'
         );
         await this.writes.remove(
             type,

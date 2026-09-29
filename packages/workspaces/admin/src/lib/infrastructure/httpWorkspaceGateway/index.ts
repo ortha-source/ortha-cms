@@ -1,11 +1,16 @@
 import { apiClient, toApiError } from '@orthacms/utils-admin';
-import type { Workspace } from '../../domain/types/workspace';
+import type { SharedSource, Workspace } from '../../domain/types/workspace';
 import type {
     ContentType,
     CreateWorkspaceBody,
     DirectoryUser
 } from '../../domain/types/wizard';
-import { toWorkspace, type WorkspaceView } from '../workspaceMapper';
+import {
+    toSharedSources,
+    toWorkspace,
+    type SharedSourcesView,
+    type WorkspaceView
+} from '../workspaceMapper';
 import type {
     AddWorkspaceContentInput,
     AddWorkspaceMemberInput,
@@ -136,12 +141,15 @@ export const httpWorkspaceGateway: WorkspaceGateway = {
 
     async addContent({
         workspaceId,
-        slug
+        slug,
+        sourceWorkspaceId
     }: AddWorkspaceContentInput): Promise<Workspace> {
         try {
             const { data } = await apiClient.post<WorkspaceView>(
                 `/workspaces/${workspaceId}/content`,
-                { slug }
+                // An own grant sends the slug alone, exactly as before shared
+                // grants existed.
+                sourceWorkspaceId ? { slug, sourceWorkspaceId } : { slug }
             );
             return toWorkspace(data);
         } catch (error) {
@@ -151,13 +159,30 @@ export const httpWorkspaceGateway: WorkspaceGateway = {
 
     async removeContent({
         workspaceId,
-        slug
+        slug,
+        sourceWorkspaceId
     }: RemoveWorkspaceContentInput): Promise<Workspace> {
         try {
             const { data } = await apiClient.delete<WorkspaceView>(
-                `/workspaces/${workspaceId}/content/${slug}`
+                `/workspaces/${workspaceId}/content/${slug}`,
+                // Without `source` the server revokes the **own** grant — so a
+                // shared removal must never drop it.
+                sourceWorkspaceId
+                    ? { params: { source: sourceWorkspaceId } }
+                    : undefined
             );
             return toWorkspace(data);
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async listSharedSources(workspaceId: string): Promise<SharedSource[]> {
+        try {
+            const { data } = await apiClient.get<SharedSourcesView>(
+                `/workspaces/${workspaceId}/shared-sources`
+            );
+            return toSharedSources(data);
         } catch (error) {
             throw toApiError(error);
         }

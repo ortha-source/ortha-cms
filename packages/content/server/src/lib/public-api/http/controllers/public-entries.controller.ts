@@ -18,7 +18,8 @@ import type { ContentTypeRegistry } from '../../../registry/content-type-registr
 import { WorkspaceGrantsQuery } from '../../../content-types/queries/workspace-grants.query';
 import {
     PublicEntriesQuery,
-    type EntryLocator
+    type EntryLocator,
+    type PublicReadOptions
 } from '../../infrastructure/public-entries.query';
 import type {
     PublicEntry,
@@ -37,6 +38,14 @@ import {
     PublicListEntriesQueryDto
 } from '../dto/public-list-entries-query.dto';
 import { resolveGrantedType } from './resolve-granted-type';
+
+/**
+ * Every public read admits the published records of the shared workspaces the
+ * caller holds a shared grant of the type for (ADR-0019, "Explicit per-source
+ * grants") — a type's listing is the union of its visible sources. `source` is
+ * not stamped on the public wire.
+ */
+const VISIBLE: PublicReadOptions = { includeShared: true };
 
 /** One entry's media assets, keyed by field name. */
 export interface PublicEntryMediaView {
@@ -93,7 +102,7 @@ export class PublicEntriesController {
     @ApiOperation({
         summary: 'List published entries of a content type',
         description:
-            'One page of the type’s published, non-deleted entries in the requested workspace, newest-updated first by default. Supports free-text `?search=` and the structured `?filter=` tree (the same shape the admin query builder emits). 404 when the type is unknown or the workspace was not granted it.'
+            'One page of the type’s published, non-deleted entries in the requested workspace — plus the published entries of every shared workspace it holds a shared grant of the type for — newest-updated first by default. Supports free-text `?search=` and the structured `?filter=` tree (the same shape the admin query builder emits). 404 when the type is unknown or the workspace was not granted it.'
     })
     async list(
         @Param('typeName') typeName: string,
@@ -106,7 +115,7 @@ export class PublicEntriesController {
             typeName,
             workspaceId
         );
-        return this.entries.list(type, query, workspaceId, granted);
+        return this.entries.list(type, query, workspaceId, granted, VISIBLE);
     }
 
     // ---- addressed by translation group -----------------------------------
@@ -327,7 +336,14 @@ export class PublicEntriesController {
             typeName,
             workspaceId
         );
-        return this.entries.getOne(type, locator, workspaceId, query, granted);
+        return this.entries.getOne(
+            type,
+            locator,
+            workspaceId,
+            query,
+            granted,
+            VISIBLE
+        );
     }
 
     /** @see getRelationField */
@@ -353,7 +369,8 @@ export class PublicEntriesController {
             workspaceId,
             granted,
             query.locale,
-            query.status
+            query.status,
+            VISIBLE
         );
     }
 
@@ -377,7 +394,8 @@ export class PublicEntriesController {
                 workspaceId,
                 query.locale,
                 query.mediaLimit,
-                query.status
+                query.status,
+                VISIBLE
             )
         };
     }
@@ -400,7 +418,8 @@ export class PublicEntriesController {
                 type,
                 locator,
                 workspaceId,
-                query
+                query,
+                VISIBLE
             )
         };
     }

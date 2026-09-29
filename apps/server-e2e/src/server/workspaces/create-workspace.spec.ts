@@ -91,9 +91,12 @@ describe('POST /api/workspaces', () => {
                 'isShared',
                 'members',
                 'name',
+                'sharedContent',
                 'slug',
                 'status'
             ]);
+            // "All content" means every own type — never a shared grant.
+            expect(res.body.sharedContent).toEqual([]);
             // A new workspace is never shared until someone decides so.
             expect(res.body.isShared).toBe(false);
             expect(res.body).toEqual(

@@ -6,6 +6,7 @@ import {
     Param,
     ParseUUIDPipe,
     Post,
+    UnprocessableEntityException,
     UseGuards
 } from '@nestjs/common';
 import {
@@ -22,6 +23,7 @@ import { AddWorkspaceContentDto } from '../../application/dto/add-workspace-cont
 import { WorkspaceViewQuery } from '../../infrastructure/queries/workspace-view.query';
 import type { WorkspaceView } from '../../application/queries/workspace.view';
 import {
+    InvalidSharedSourceError,
     UnknownContentTypeError,
     WorkspaceNotFoundError
 } from '../../domain/errors';
@@ -31,6 +33,11 @@ import {
  * content type (by slug); requires `workspaces:update`. Idempotent. A missing
  * workspace maps to 404; a slug that names no known content type to 400. Guarded
  * by `OriginGuard` (CSRF).
+ *
+ * With `sourceWorkspaceId` the grant is a **shared** one (ADR-0019, "Explicit
+ * per-source grants"). A source that is this workspace, not shared, archived,
+ * unknown, or holds no own grant for the slug is one uniform **422**, so the
+ * route does not tell an unknown id from an unshared one.
  *
  * Also guarded by `WorkspaceMemberGuard`: a caller who isn't a member of
  * `:id` gets a flat 403 — indistinguishable from a workspace that doesn't
@@ -52,7 +59,12 @@ export class AddWorkspaceContentController {
         @Body() body: AddWorkspaceContentDto
     ): Promise<WorkspaceView> {
         try {
-            await this.grantContent.execute(actor, id, body.slug);
+            await this.grantContent.execute(
+                actor,
+                id,
+                body.slug,
+                body.sourceWorkspaceId
+            );
             const view = await this.views.byId(id);
             if (!view) {
                 throw new NotFoundException();
@@ -64,6 +76,9 @@ export class AddWorkspaceContentController {
             }
             if (error instanceof UnknownContentTypeError) {
                 throw new BadRequestException(error.message);
+            }
+            if (error instanceof InvalidSharedSourceError) {
+                throw new UnprocessableEntityException(error.message);
             }
             throw error;
         }

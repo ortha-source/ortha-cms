@@ -4,6 +4,7 @@ import {
     ConflictException,
     Controller,
     NotFoundException,
+    UnprocessableEntityException,
     Post,
     UseGuards
 } from '@nestjs/common';
@@ -20,15 +21,19 @@ import { CreateWorkspaceDto } from '../../application/dto/create-workspace.dto';
 import { WorkspaceViewQuery } from '../../infrastructure/queries/workspace-view.query';
 import type { WorkspaceView } from '../../application/queries/workspace.view';
 import {
+    InvalidSharedSourceError,
     InvalidSlugError,
     InvalidWorkspaceColorError,
-    SlugTakenError
+    SlugTakenError,
+    UnknownContentTypeError
 } from '../../domain/errors';
 
 /**
  * `POST /api/workspaces` — creates a workspace owned by the current user. The
  * owner is derived from the session (`@CurrentUser()`), never the body. A
- * duplicate slug maps to 409; a malformed slug/color to 400.
+ * duplicate slug maps to 409; a malformed slug/color to 400. A
+ * `content.sharedContent` item naming an unknown slug is a 400, and one whose
+ * source cannot serve it (ADR-0019, explicit per-source grants) a 422.
  *
  * Requires `workspaces:create` (`PermissionsGuard`) and is guarded by
  * `OriginGuard` (CSRF); authentication is enforced by the app-wide `AuthGuard`.
@@ -60,9 +65,13 @@ export class CreateWorkspaceController {
             }
             if (
                 error instanceof InvalidSlugError ||
-                error instanceof InvalidWorkspaceColorError
+                error instanceof InvalidWorkspaceColorError ||
+                error instanceof UnknownContentTypeError
             ) {
                 throw new BadRequestException(error.message);
+            }
+            if (error instanceof InvalidSharedSourceError) {
+                throw new UnprocessableEntityException(error.message);
             }
             throw error;
         }

@@ -13,6 +13,7 @@ import {
 } from '@orthacms/identity-server';
 import { CurrentWorkspace, WorkspaceGuard } from '@orthacms/workspaces-server';
 import { ContentGrantGuard } from '../guards/content-grant.guard';
+import { ContentGrantAccess } from '../guards/content-grant-access.decorator';
 import { clampInt } from '@orthacms/utils-server';
 import { MAX_PAGE_SIZE } from '../../entries.constants';
 import { InjectContentRegistry } from '../../../content.tokens';
@@ -40,6 +41,8 @@ import { resolveType } from './resolve-type';
  * follow the same rule, and every write route still 404s a foreign id.
  */
 @UseGuards(PermissionsGuard, WorkspaceGuard, ContentGrantGuard)
+// A read: a type reachable only through shared grants lists and opens here.
+@ContentGrantAccess('read')
 @RequirePermissions(PERMISSIONS.CONTENT_READ)
 @Controller('content')
 export class GetEntryController {

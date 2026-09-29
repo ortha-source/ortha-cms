@@ -47,4 +47,48 @@ export type Workspace = {
      * type. Drafts never leave the workspace. Edits happen only here.
      */
     isShared: boolean;
+    /**
+     * Content granted **from shared workspaces**: one row per (type, source)
+     * pair. Independent of {@link Workspace.content} — a type can be granted as
+     * this workspace's own, from a shared source, or both, and each is added and
+     * removed on its own.
+     */
+    sharedContent: SharedContentGrant[];
+};
+
+/** Kind of a granted content type — drives the collections/pages split. */
+export type SharedContentKind = 'collection' | 'single';
+
+/**
+ * One grant of a content type **from another (shared) workspace**: this
+ * workspace may read (and link) the source's published records of `slug`, but
+ * never create its own through this grant.
+ */
+export type SharedContentGrant = {
+    /** The content-type slug. */
+    slug: string;
+    /** Collection or single, as the source holds it. */
+    kind: SharedContentKind;
+    /** The shared workspace the records come from. */
+    sourceWorkspaceId: string;
+    /** That workspace's display name. */
+    sourceWorkspaceName: string;
+    /**
+     * `false` when the source stopped sharing (or was archived): the grant is
+     * kept but inert until the source shares again.
+     */
+    available: boolean;
+};
+
+/**
+ * A shared workspace this workspace could be granted content from, with the
+ * content types it holds — served by `GET /workspaces/:id/shared-sources`.
+ */
+export type SharedSource = {
+    /** The shared workspace's id. */
+    workspaceId: string;
+    /** Its display name. */
+    workspaceName: string;
+    /** The content types it holds, grantable from it. */
+    content: { slug: string; kind: SharedContentKind }[];
 };

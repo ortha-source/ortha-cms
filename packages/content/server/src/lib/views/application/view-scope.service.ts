@@ -30,7 +30,9 @@ export class ViewScopeService {
      */
     async assertReachable(scope: string, workspaceId: string): Promise<void> {
         const typeName = scope.slice(CONTENT_SCOPE_PREFIX.length);
-        const granted = await this.grants.grantedSlugs(workspaceId);
+        // A view is a way of *reading* a list, so a type reachable only
+        // through shared grants may carry one (ADR-0019).
+        const granted = await this.grants.reachableSlugs(workspaceId);
         if (!granted.has(typeName) || !this.registry.get(typeName)) {
             throw new NotFoundException(`Unknown content type "${typeName}".`);
         }

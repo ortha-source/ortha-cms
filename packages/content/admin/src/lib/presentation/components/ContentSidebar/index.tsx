@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { useMatch } from 'react-router-dom';
 import { FileText, Search, Table2 } from 'lucide-react';
@@ -6,6 +7,11 @@ import type { ContentType } from '../../../domain/types/contentType';
 import type { ContentFavorites } from '../../hooks/useContentFavorites';
 import { CONTENT_TYPE_KIND, TYPE_PARAM } from '../../../domain/constants';
 import { groupContentTypes } from '../../../domain/groupContentTypes';
+import {
+    hasOwnAccess,
+    sharedSourceGroups
+} from '../../../domain/contentTypeAccess';
+import { sharedRecordsPath } from '../../../domain/contentEntryPath';
 import {
     SEARCH_KEY_SHORTCUTS,
     shortcutModifierGlyph
@@ -42,11 +48,19 @@ const messages = defineMessages({
     workspaceGroup: {
         id: 'content.sidebar.workspaceGroup',
         defaultMessage: 'Workspace Content'
+    },
+    sharedGroup: {
+        id: 'content.sidebar.sharedGroup',
+        defaultMessage: 'From {workspace}'
     }
 });
 
 type ContentSidebarProps = {
-    /** Every content type in the workspace. */
+    /**
+     * Every content type the workspace reaches, already scoped
+     * (`scopeContentTypes`): the own ones list under Workspace Content, and
+     * each shared source's under its own "From {workspace}" group.
+     */
     types: ContentType[];
     /** Pinned-favorites state for the workspace. */
     favorites: ContentFavorites;
@@ -64,6 +78,10 @@ type ContentSidebarProps = {
  * palette) sits above a non-collapsible Favorites section (only when something
  * is pinned) and the collapsible Collections and Pages sections. Each row links
  * to its type and can be pinned.
+ *
+ * Below them, one **"From {workspace}"** group per shared workspace the
+ * workspace was granted content from, each row opening that source's records
+ * of the type, read-only. A type granted both ways shows in both places.
  */
 export function ContentSidebar({
     types,
@@ -73,8 +91,12 @@ export function ContentSidebar({
     className
 }: ContentSidebarProps) {
     const intl = useIntl();
+    const groupId = useId();
     const modifier = shortcutModifierGlyph();
-    const { collections, pages } = groupContentTypes(types);
+    // A type reached only from shared workspaces has no own records to list.
+    const ownTypes = types.filter(hasOwnAccess);
+    const { collections, pages } = groupContentTypes(ownTypes);
+    const sharedGroups = sharedSourceGroups(types);
 
     // Open the group that holds the currently-selected type by default, so
     // deep-linking straight to a collection/page reveals it in the sidebar.
@@ -83,14 +105,14 @@ export function ContentSidebar({
     // sidebar renders in the app shell, above the route that owns the param.
     const typeMatch = useMatch(`${basePath}/:${TYPE_PARAM}/*`);
     const selectedName = typeMatch?.params[TYPE_PARAM];
-    const selectedType = types.find((type) => type.name === selectedName);
+    const selectedType = ownTypes.find((type) => type.name === selectedName);
     const collectionsOpen = selectedType
         ? selectedType.kind === CONTENT_TYPE_KIND.Collection
         : true;
     const pagesOpen = selectedType?.kind === CONTENT_TYPE_KIND.Single;
     // Favorites in pin order, dropping any names no longer in the catalogue.
     const favoriteTypes = favorites.favorites
-        .map((name) => types.find((type) => type.name === name))
+        .map((name) => ownTypes.find((type) => type.name === name))
         .filter((type): type is ContentType => Boolean(type));
 
     const renderItem = (type: ContentType) => (
@@ -177,6 +199,43 @@ export function ContentSidebar({
                         </CollapsibleGroup>
                     </div>
                 </div>
+
+                {sharedGroups.map(({ source, types: sourceTypes }) => {
+                    const headingId = `${groupId}-${source.workspaceId}`;
+                    return (
+                        <div
+                            key={source.workspaceId}
+                            role="group"
+                            aria-labelledby={headingId}
+                            className="flex w-full min-w-0 flex-col p-2"
+                        >
+                            <div
+                                id={headingId}
+                                className="flex h-8 items-center px-2 text-xs font-medium text-sidebar-foreground/70"
+                            >
+                                <span className="truncate">
+                                    {intl.formatMessage(messages.sharedGroup, {
+                                        workspace: source.workspaceName
+                                    })}
+                                </span>
+                            </div>
+                            <div className="mx-3.5 mt-1 flex min-w-0 translate-x-px flex-col gap-1 border-l border-sidebar-border px-2.5 py-0.5">
+                                {sourceTypes.map((type) => (
+                                    <ContentSidebarItem
+                                        key={type.name}
+                                        type={type}
+                                        basePath={basePath}
+                                        to={sharedRecordsPath(
+                                            basePath,
+                                            type.name,
+                                            source.workspaceId
+                                        )}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
         </nav>
     );

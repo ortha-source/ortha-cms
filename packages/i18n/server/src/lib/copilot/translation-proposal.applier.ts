@@ -9,7 +9,9 @@ import {
     isPerLocaleField,
     toRecord,
     type AnyContentType,
-    type ContentTypeRegistry
+    type ContentTypeRegistry,
+    isReachable,
+    SharedOnlyContentTypeException
 } from '@orthacms/content-server';
 import type {
     ProposalActor,
@@ -95,11 +97,18 @@ export class TranslationProposalApplier implements ProposalApplier {
         // between proposing and applying, and a stored type name is an
         // argument like any other.
         const type = this.registry.get(typeName);
-        const granted = await this.grants.grantedSlugs(actor.workspaceId);
-        if (!type || !granted.has(type.name)) {
+        // A write: it needs the own grant. A type read only from shared
+        // workspaces is visible to the model, so it is told why (ADR-0019).
+        const access = (await this.grants.access(actor.workspaceId)).get(
+            typeName
+        );
+        if (!type || !isReachable(access)) {
             throw new Error(
                 `Unknown content type "${typeName}" in this workspace.`
             );
+        }
+        if (!access?.own) {
+            throw new SharedOnlyContentTypeException(type);
         }
 
         const translated = (input.patch['values'] ?? {}) as Record<
@@ -229,11 +238,18 @@ export class BulkTranslationProposalApplier implements ProposalApplier {
         // between proposing and applying, and a stored type name is an
         // argument like any other.
         const type = this.registry.get(typeName);
-        const granted = await this.grants.grantedSlugs(actor.workspaceId);
-        if (!type || !granted.has(type.name)) {
+        // A write: it needs the own grant. A type read only from shared
+        // workspaces is visible to the model, so it is told why (ADR-0019).
+        const access = (await this.grants.access(actor.workspaceId)).get(
+            typeName
+        );
+        if (!type || !isReachable(access)) {
             throw new Error(
                 `Unknown content type "${typeName}" in this workspace.`
             );
+        }
+        if (!access?.own) {
+            throw new SharedOnlyContentTypeException(type);
         }
 
         const items = input.patch['items'];

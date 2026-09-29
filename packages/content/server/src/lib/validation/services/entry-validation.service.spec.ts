@@ -147,10 +147,10 @@ describe('EntryValidationService', () => {
             }
         });
         const grantsOf = (slugs: string[]) => {
-            const grantedSlugs = jest.fn(async () => new Set(slugs));
+            const reachableSlugs = jest.fn(async () => new Set(slugs));
             return {
-                grantedSlugs,
-                query: { grantedSlugs } as unknown as WorkspaceGrantsQuery
+                reachableSlugs,
+                query: { reachableSlugs } as unknown as WorkspaceGrantsQuery
             };
         };
 
@@ -161,7 +161,10 @@ describe('EntryValidationService', () => {
             const waived = await withGrants.waivedRequired(post, 'ws-1');
 
             expect(waived).toEqual(new Set(['author']));
-            expect(grants.grantedSlugs).toHaveBeenCalledWith('ws-1', undefined);
+            expect(grants.reachableSlugs).toHaveBeenCalledWith(
+                'ws-1',
+                undefined
+            );
             expect(withGrants.validate(post, { title: 'hi' }, waived)).toEqual({
                 valid: true,
                 issues: []
@@ -191,7 +194,7 @@ describe('EntryValidationService', () => {
                 person,
                 'ws-1'
             );
-            expect(grants.grantedSlugs).not.toHaveBeenCalled();
+            expect(grants.reachableSlugs).not.toHaveBeenCalled();
         });
     });
 });

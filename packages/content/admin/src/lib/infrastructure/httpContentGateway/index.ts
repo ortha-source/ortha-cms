@@ -4,6 +4,7 @@ import type {
     BulkPublishPreview,
     BulkPublishResult,
     ContentType,
+    ContentTypeAccessResponse,
     ContentTypeDetail,
     ContentTypeSummaryResponse,
     EntryMedia,
@@ -20,6 +21,7 @@ import type {
 import type { ContentEntriesParams } from '../contentKeys';
 import {
     toContentType,
+    toContentTypeAccess,
     toEntryRecord,
     toEntryUsage,
     toRelationFieldView
@@ -70,10 +72,12 @@ export const httpContentGateway: ContentGateway = {
 
     async getSchema(name: string): Promise<ContentTypeDetail> {
         try {
-            const { data } = await apiClient.get<ContentTypeDetail>(
-                `/content-schema/${name}`
-            );
-            return data;
+            const { data } = await apiClient.get<
+                Omit<ContentTypeDetail, 'access'> & {
+                    access?: ContentTypeAccessResponse;
+                }
+            >(`/content-schema/${name}`);
+            return { ...data, access: toContentTypeAccess(data.access) };
         } catch (error) {
             throw toApiError(error);
         }
@@ -103,6 +107,12 @@ export const httpContentGateway: ContentGateway = {
                         ...(params.filter ? { filter: params.filter } : {}),
                         ...(params.sort ? { sort: params.sort } : {}),
                         ...(params.deleted ? { deleted: params.deleted } : {}),
+                        // Absent means own — exactly the request an older
+                        // records view sent.
+                        ...(params.source ? { source: params.source } : {}),
+                        ...(params.sourceWorkspaceId
+                            ? { sourceWorkspaceId: params.sourceWorkspaceId }
+                            : {}),
                         // Both or neither: the server ignores `relations`
                         // without a field list, and a field list is meaningless
                         // without the opt-in.
@@ -203,7 +213,14 @@ export const httpContentGateway: ContentGateway = {
 
     async listRelationCandidates(
         targetName: string,
-        { search, filter, page, extra, source }: RelationCandidatesPageParams
+        {
+            search,
+            filter,
+            page,
+            extra,
+            source,
+            sourceWorkspaceId
+        }: RelationCandidatesPageParams
     ): Promise<RelationCandidatesPage> {
         try {
             const { data } = await apiClient.get<RelationCandidatesPage>(
@@ -214,6 +231,7 @@ export const httpContentGateway: ContentGateway = {
                         ...(search ? { search } : {}),
                         ...(filter ? { filter } : {}),
                         ...(source ? { source } : {}),
+                        ...(sourceWorkspaceId ? { sourceWorkspaceId } : {}),
                         page,
                         // Never exceed the server's hard cap — an over-cap
                         // pageSize is a 400, not a clamp.

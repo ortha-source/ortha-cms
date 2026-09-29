@@ -134,7 +134,10 @@ after changing cross-project dependencies to update TS project references.
    rather than inheriting.
    Every content read and write is then scoped to that one workspace, with a
    single read-only exception: the published entries of a **shared workspace**,
-   which other workspaces granted the type may read and link to but never write
+   which another workspace may read and link to — never write — once it holds an
+   explicit **shared grant** of the type naming that workspace. An own grant
+   lets a workspace author a type; a shared grant only reads it, and reading
+   needs either one while writing needs the own grant
    ([ADR-0019](docs/adr/0019-shared-workspaces.md)).
 4. The use case runs the mutation inside a `UnitOfWork` transaction and appends
    its **domain events** to the transactional outbox (`OutboxWriter.append`)

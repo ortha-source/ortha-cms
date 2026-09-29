@@ -6,7 +6,9 @@ import type {
 /**
  * Maps a {@link WizardSnapshot} to the `/api/workspaces` request body. Content
  * collapses to `{ mode: 'all' }` when the page-level decision is "All content";
- * otherwise the two resource selections ride along under `mode: 'specific'`.
+ * otherwise the two resource selections ride along under `mode: 'specific'`,
+ * with any grants from shared workspaces beside them as `content.sharedContent`
+ * ("All content" means every **own** type, so it never carries them).
  *
  * The "Skip & create" path passes a snapshot with empty content rather than
  * mutating wizard state, so a failed submit leaves the user's picks intact for
@@ -15,7 +17,8 @@ import type {
 export function buildCreateWorkspaceBody(
     snapshot: WizardSnapshot
 ): CreateWorkspaceBody {
-    const { data, members, contentMode, collections, pages } = snapshot;
+    const { data, members, contentMode, collections, pages, sharedContent } =
+        snapshot;
 
     return {
         name: data.name.trim(),
@@ -31,6 +34,23 @@ export function buildCreateWorkspaceBody(
         content:
             contentMode === 'all'
                 ? { mode: 'all' }
-                : { mode: 'specific', collections, pages }
+                : {
+                      mode: 'specific',
+                      collections,
+                      pages,
+                      // Shared picks ride a specific selection only, and only
+                      // when there are any — so a workspace created without
+                      // them sends the body it always did.
+                      ...(sharedContent.length > 0
+                          ? {
+                                sharedContent: sharedContent.map(
+                                    ({ slug, sourceWorkspaceId }) => ({
+                                        slug,
+                                        sourceWorkspaceId
+                                    })
+                                )
+                            }
+                          : {})
+                  }
     };
 }

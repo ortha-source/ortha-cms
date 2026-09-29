@@ -15,6 +15,13 @@
       "when": 1790598443175,
       "tag": "0001_shared_workspaces",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790680225629,
+      "tag": "0002_shared_content_grants",
+      "breakpoints": true
     }
   ]
 }

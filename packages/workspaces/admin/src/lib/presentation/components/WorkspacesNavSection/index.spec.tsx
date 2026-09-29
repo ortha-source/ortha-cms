@@ -70,6 +70,7 @@ function workspace(overrides: Partial<Workspace> = {}): Workspace {
         members: [],
         content: [],
         isShared: false,
+        sharedContent: [],
         ...overrides
     };
 }

@@ -4,6 +4,7 @@ import { WorkspaceColor } from './value-objects/workspace-color';
 import { WorkspaceStatus } from './value-objects/workspace-status';
 import {
     ContentTypeNotEmptyError,
+    InvalidSharedSourceError,
     LastMemberError,
     WorkspaceNotEmptyError
 } from './errors';
@@ -189,6 +190,97 @@ describe('Workspace aggregate', () => {
         it('revoking a grant the workspace never held is a no-op', () => {
             const workspace = rehydrated();
             expect(workspace.revokeContent('product', 0)).toBe(false);
+        });
+    });
+
+    describe('shared content grants (ADR-0019, explicit per-source grants)', () => {
+        it('keeps an own grant and a shared grant of one slug independent', () => {
+            const workspace = rehydrated();
+            expect(
+                workspace.grantSharedContent('collection', 'blog_post', OTHER)
+            ).toBe(true);
+            expect(
+                workspace.grantSharedContent('collection', 'blog_post', OTHER)
+            ).toBe(false);
+            // The own grant is untouched by the shared one, and vice versa.
+            expect(workspace.grantContent('collection', 'blog_post')).toBe(
+                false
+            );
+            expect(workspace.changes().addedGrants).toEqual([
+                {
+                    kind: 'collection',
+                    slug: 'blog_post',
+                    sourceWorkspaceId: OTHER
+                }
+            ]);
+        });
+
+        it('refuses the workspace as its own source', () => {
+            const workspace = rehydrated();
+            expect(() =>
+                workspace.grantSharedContent('collection', 'tag', WORKSPACE_ID)
+            ).toThrow(InvalidSharedSourceError);
+            expect(workspace.pullEvents()).toEqual([]);
+        });
+
+        it('revokes a shared grant without an entry count or touching the own grant', () => {
+            const workspace = Workspace.rehydrate({
+                id: WORKSPACE_ID,
+                name: 'Marketing',
+                slug: 'marketing',
+                description: '',
+                color: 'slate',
+                status: 'active',
+                isShared: false,
+                memberUserIds: [CREATOR],
+                grants: [
+                    { kind: 'collection', slug: 'tag' },
+                    {
+                        kind: 'collection',
+                        slug: 'tag',
+                        sourceWorkspaceId: OTHER
+                    }
+                ]
+            });
+            expect(workspace.revokeSharedContent('tag', UNKNOWN)).toBe(false);
+            expect(workspace.revokeSharedContent('tag', OTHER)).toBe(true);
+            expect(workspace.changes().removedSharedGrants).toEqual([
+                { slug: 'tag', sourceWorkspaceId: OTHER }
+            ]);
+            expect(workspace.changes().removedGrantSlugs).toEqual([]);
+            const [event] = workspace.pullEvents();
+            expect(event.kind).toBe(WORKSPACE_EVENT_KINDS.CONTENT_REVOKED);
+            expect(event.payload).toMatchObject({
+                slug: 'tag',
+                sourceWorkspaceId: OTHER
+            });
+        });
+
+        it('revoking the own grant leaves the shared grant of the slug', () => {
+            const workspace = Workspace.rehydrate({
+                id: WORKSPACE_ID,
+                name: 'Marketing',
+                slug: 'marketing',
+                description: '',
+                color: 'slate',
+                status: 'active',
+                isShared: false,
+                memberUserIds: [CREATOR],
+                grants: [
+                    { kind: 'collection', slug: 'tag' },
+                    {
+                        kind: 'collection',
+                        slug: 'tag',
+                        sourceWorkspaceId: OTHER
+                    }
+                ]
+            });
+            expect(workspace.revokeContent('tag', 0)).toBe(true);
+            expect(workspace.changes().removedSharedGrants).toEqual([]);
+            // The shared grant is still held, so re-granting it is a no-op.
+            expect(
+                workspace.grantSharedContent('collection', 'tag', OTHER)
+            ).toBe(false);
         });
     });
 

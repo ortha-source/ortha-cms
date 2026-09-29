@@ -13,6 +13,7 @@ import {
 } from '@orthacms/identity-server';
 import { CurrentWorkspace, WorkspaceGuard } from '@orthacms/workspaces-server';
 import { ContentGrantGuard } from '../guards/content-grant.guard';
+import { ContentGrantAccess } from '../guards/content-grant-access.decorator';
 import { InjectContentRegistry } from '../../../content.tokens';
 import type { ContentTypeRegistry } from '../../../registry/content-type-registry';
 import { EntriesService } from '../../infrastructure/queries/entries.service';
@@ -29,6 +30,8 @@ import type { EntryListView } from '../../types/entry-list-view';
  * caller belongs to; read access is gated on `content:read`.
  */
 @UseGuards(PermissionsGuard, WorkspaceGuard, ContentGrantGuard)
+// A read: a type reachable only through shared grants lists and opens here.
+@ContentGrantAccess('read')
 @RequirePermissions(PERMISSIONS.CONTENT_READ)
 @Controller('content')
 export class ListEntriesController {

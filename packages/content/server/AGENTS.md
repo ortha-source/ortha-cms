@@ -1547,8 +1547,19 @@ Adding a field type means extending `valueSchema` there.
 ## Shared workspaces — the one read-only exception to isolation ([ADR-0019](../../../docs/adr/0019-shared-workspaces.md))
 
 A workspace flagged `is_shared` exposes its **published, non-deleted** entries
-to every other workspace granted the entry's type — for reading and linking,
-**never** writing. The rule is `SharedSourcesQuery`
+of a type to every other workspace holding an explicit **shared grant** of that
+type naming it ("Explicit per-source grants") — for reading and linking,
+**never** writing. The grant rule itself — `visibleSources(W, slug)` — is
+`content-types/queries/content-access.ts` (pure) and `shared-grant.sql.ts` (its
+SQL twin). `WorkspaceGrantsQuery` answers the three grant questions:
+`grantedSlugs` (**own** — gate every write on it), `reachableSlugs` (own or an
+available shared grant — gate every read on it) and `access` (both, per slug,
+with source names — the `access` block on `GET /content-schema`).
+`ContentGrantGuard` reads the route's `@ContentGrantAccess('read')` mark and
+treats an unmarked `:typeName` route as a **write**: a reachable-but-not-owned
+type is `SharedOnlyContentTypeException` (403), an unreachable one the 404.
+`resolveGrantedType(…, 'write')` and the copilot's `resolveOwnedType` apply the
+same split off-HTTP. The visibility rule is `SharedSourcesQuery`
 (`entries/infrastructure/queries/shared-sources.query.ts`): `foreignVisibleWhere`
 (the foreign half) and `visibleWhere` (own **or** foreign), both SQL sub-selects
 so they compose into synchronous builders. **Do not restate it** — every read
@@ -1571,8 +1582,8 @@ that crosses the boundary calls it:
   unsaveable);
 - `PublicExpansionQuery.linkedEntriesById` and `mediaForRows` (media grouped by
   the row's own workspace), and `PublicEntriesQuery`'s `includeShared` option —
-  set **only** by GraphQL's nested `EntryLoader` / relation paging, never by a
-  top-level public route.
+  set by every public REST read and every GraphQL read, top level and nested,
+  so a type's public listing is the union of its visible sources.
 
 Every write keeps `findLive` / `scope()` — a foreign id is a 404 everywhere.
 `GET /content/:type/:id/usages` (`EntryUsagesQuery`) counts links into an

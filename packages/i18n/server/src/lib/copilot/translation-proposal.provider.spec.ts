@@ -94,7 +94,14 @@ describe('i18n_propose_bulk_translation', () => {
             } as never,
             { entryLocales } as never,
             {
-                grantedSlugs: async () => new Set(fakes.granted ?? ['article'])
+                grantedSlugs: async () => new Set(fakes.granted ?? ['article']),
+                access: async () =>
+                    new Map(
+                        (fakes.granted ?? ['article']).map((slug) => [
+                            slug,
+                            { own: true, sharedSources: [] }
+                        ])
+                    )
             } as never
         );
         const tool = provider

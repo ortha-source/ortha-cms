@@ -5,6 +5,7 @@ import {
     IsInt,
     IsOptional,
     IsString,
+    IsUUID,
     Max,
     MaxLength,
     Min
@@ -215,4 +216,20 @@ export class ListEntriesQueryDto {
     @IsOptional()
     @IsIn(ENTRY_SOURCES)
     source?: EntrySourceMode;
+
+    /**
+     * Narrows a `shared` / `all` list to **one** shared source (explicit
+     * per-source grants, ADR-0019) — items, `total` and paging alike. Must be
+     * one of the type's visible sources here; anything else is a 400 that
+     * says nothing about whether the workspace exists.
+     */
+    @ApiPropertyOptional({
+        type: String,
+        format: 'uuid',
+        description:
+            'Narrow a `source=shared` or `source=all` list to this one visible source workspace — items, total and pages. 400 without one of those modes, or for a workspace that is not a visible source of the type here.'
+    })
+    @IsOptional()
+    @IsUUID()
+    sourceWorkspaceId?: string;
 }

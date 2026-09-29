@@ -24,6 +24,29 @@ export interface WorkspaceView {
      * is also what a server predating the flag sends.
      */
     isShared?: boolean;
+    /**
+     * Grants **from shared workspaces** — one per (type, source), independent
+     * of `content` (the own grants). Absent reads as none, which is also what a
+     * server predating per-source grants sends.
+     */
+    sharedContent?: SharedContentGrantSeed[];
+}
+
+/** One grant from a shared workspace, as `WorkspaceView.sharedContent` sends it. */
+export interface SharedContentGrantSeed {
+    slug: string;
+    kind: 'collection' | 'single';
+    sourceWorkspaceId: string;
+    sourceWorkspaceName: string;
+    /** `false` when the source stopped sharing — the grant is inert. */
+    available: boolean;
+}
+
+/** One item of `GET /api/workspaces/:id/shared-sources`. */
+export interface SharedSourceSeed {
+    workspaceId: string;
+    workspaceName: string;
+    content: { slug: string; kind: 'collection' | 'single' }[];
 }
 
 const member = (
@@ -442,6 +465,15 @@ export interface WorkspaceSettingsApiOptions {
     patchDelayMs?: number;
     /** Answer `PATCH /:id` with this status instead of applying it. */
     patchStatus?: number;
+    /**
+     * What `GET /:id/shared-sources` answers per workspace
+     * (`{ [workspaceId]: [...] }`); every other workspace gets an empty list.
+     * Also what a shared grant (`POST /:id/content` with a
+     * `sourceWorkspaceId`) is validated against.
+     */
+    sharedSources?: Record<string, SharedSourceSeed[]>;
+    /** Fail `GET /:id/shared-sources` with this status instead. */
+    sharedSourcesStatus?: number;
 }
 
 /**
@@ -451,8 +483,11 @@ export interface WorkspaceSettingsApiOptions {
  *
  * - `GET /api/workspaces` → the store; `PATCH /:id` (profile), `DELETE /:id`;
  * - `POST /:id/members` + `DELETE /:id/members/:userId`;
- * - `POST /:id/content` (400 for an unknown slug) + `DELETE /:id/content/:slug`
- *   (409 when `lockedContent` marks the slug non-empty);
+ * - `POST /:id/content` (400 for an unknown slug; with a `sourceWorkspaceId`,
+ *   a **shared** grant checked against `sharedSources`) + `DELETE
+ *   /:id/content/:slug` (409 when `lockedContent` marks the slug non-empty;
+ *   `?source=` revokes the shared grant instead and never the own one);
+ * - `GET /:id/shared-sources` (from `sharedSources`, else empty);
  * - `POST /:id/archive` + `/unarchive`;
  * - the supporting reads `GET /api/content-types` and `GET /api/users?search=`.
  *
@@ -469,13 +504,16 @@ export async function mockWorkspaceSettingsApi(
         entryCountStatus,
         memberRemoveStatus,
         patchDelayMs,
-        patchStatus
+        patchStatus,
+        sharedSources = {},
+        sharedSourcesStatus
     }: WorkspaceSettingsApiOptions = {}
 ): Promise<void> {
     const store = initial.map((w) => ({
         ...w,
         members: [...w.members],
-        content: [...(w.content ?? [])]
+        content: [...(w.content ?? [])],
+        sharedContent: [...(w.sharedContent ?? [])]
     }));
     const find = (id: string) => store.find((w) => w.id === id);
     const view = (route: Route, w: WorkspaceView, status = 200) =>
@@ -547,7 +585,36 @@ export async function mockWorkspaceSettingsApi(
         const id = segments(route.request().url())[3];
         const workspace = find(id);
         if (!workspace) return route.fulfill(jsonError(404, 'Not found'));
-        const { slug } = route.request().postDataJSON() as { slug: string };
+        const { slug, sourceWorkspaceId } = route.request().postDataJSON() as {
+            slug: string;
+            sourceWorkspaceId?: string;
+        };
+        if (sourceWorkspaceId) {
+            // A shared grant: the source must offer the type.
+            const source = (sharedSources[id] ?? []).find(
+                (s) => s.workspaceId === sourceWorkspaceId
+            );
+            const offered = source?.content.find((t) => t.slug === slug);
+            if (!source || !offered) {
+                return route.fulfill(
+                    jsonError(422, 'That workspace does not share this type')
+                );
+            }
+            const exists = workspace.sharedContent.some(
+                (g) =>
+                    g.slug === slug && g.sourceWorkspaceId === sourceWorkspaceId
+            );
+            if (!exists) {
+                workspace.sharedContent.push({
+                    slug,
+                    kind: offered.kind,
+                    sourceWorkspaceId,
+                    sourceWorkspaceName: source.workspaceName,
+                    available: true
+                });
+            }
+            return view(route, workspace, 201);
+        }
         if (!CONTENT_TYPES.some((t) => t.name === slug)) {
             return route.fulfill(jsonError(400, 'Unknown content type'));
         }
@@ -570,13 +637,23 @@ export async function mockWorkspaceSettingsApi(
     );
 
     // Revoke a content type: DELETE /api/workspaces/:id/content/:slug
+    // (`?source=<workspaceId>` revokes that shared grant instead).
     await page.route(
-        /\/api\/workspaces\/([^/?]+)\/content\/([^/?]+)$/,
+        /\/api\/workspaces\/([^/?]+)\/content\/([^/?]+)(\?.*)?$/,
         async (route) => {
             if (route.request().method() !== 'DELETE') return route.fallback();
             const [, , , id, , slug] = segments(route.request().url());
             const workspace = find(id);
             if (!workspace) return route.fulfill(jsonError(404, 'Not found'));
+            const source = new URL(route.request().url()).searchParams.get(
+                'source'
+            );
+            if (source) {
+                workspace.sharedContent = workspace.sharedContent.filter(
+                    (g) => !(g.slug === slug && g.sourceWorkspaceId === source)
+                );
+                return view(route, workspace, 200);
+            }
             if ((lockedContent[id] ?? []).includes(slug)) {
                 return route.fulfill(
                     jsonError(409, 'Content type still has entries')
@@ -597,6 +674,22 @@ export async function mockWorkspaceSettingsApi(
             if (!workspace) return route.fulfill(jsonError(404, 'Not found'));
             workspace.status = action === 'archive' ? 'archived' : 'active';
             return view(route, workspace, 201);
+        }
+    );
+
+    // The shared sources a grant can come from:
+    // GET /api/workspaces/:id/shared-sources
+    await page.route(
+        /\/api\/workspaces\/([^/?]+)\/shared-sources(\?.*)?$/,
+        async (route) => {
+            if (route.request().method() !== 'GET') return route.fallback();
+            if (sharedSourcesStatus) {
+                return route.fulfill(
+                    jsonError(sharedSourcesStatus, 'Sources unavailable')
+                );
+            }
+            const id = segments(route.request().url())[3];
+            await route.fulfill(json({ items: sharedSources[id] ?? [] }));
         }
     );
 
@@ -691,6 +784,53 @@ export function spyWorkspacePatches(page: Page): WorkspacePatchSpy {
         if (request.method() !== 'PATCH') return;
         if (!/\/api\/workspaces\/[^/?]+$/.test(new URL(request.url()).pathname))
             return;
+        bodies.push((request.postDataJSON() ?? {}) as Record<string, unknown>);
+    });
+    return { bodies };
+}
+
+/** Every grant request (`POST`/`DELETE …/content…`) the page sent. */
+export interface ContentGrantSpy {
+    /** `METHOD path?query`, plus the JSON body for a `POST`, in send order. */
+    readonly requests: { method: string; url: string; body?: unknown }[];
+}
+
+/**
+ * Record every content **grant** request without answering it — a listener,
+ * so whichever mock is registered still owns the response. What proves a
+ * removal picked the right `DELETE`: the shared one with `?source=`, the own
+ * one without.
+ */
+export function spyContentGrants(page: Page): ContentGrantSpy {
+    const requests: ContentGrantSpy['requests'] = [];
+    page.on('request', (request) => {
+        const url = new URL(request.url());
+        if (!/^\/api\/workspaces\/[^/]+\/content(\/[^/]+)?$/.test(url.pathname))
+            return;
+        if (request.method() !== 'POST' && request.method() !== 'DELETE')
+            return;
+        requests.push({
+            method: request.method(),
+            url: `${url.pathname}${url.search}`,
+            ...(request.method() === 'POST'
+                ? { body: request.postDataJSON() as unknown }
+                : {})
+        });
+    });
+    return { requests };
+}
+
+/** The bodies of every `POST /api/workspaces` (create) the page sent. */
+export interface WorkspaceCreateSpy {
+    readonly bodies: Record<string, unknown>[];
+}
+
+/** Record every create body without answering it (a listener, not a route). */
+export function spyWorkspaceCreate(page: Page): WorkspaceCreateSpy {
+    const bodies: Record<string, unknown>[] = [];
+    page.on('request', (request) => {
+        if (request.method() !== 'POST') return;
+        if (new URL(request.url()).pathname !== '/api/workspaces') return;
         bodies.push((request.postDataJSON() ?? {}) as Record<string, unknown>);
     });
     return { bodies };

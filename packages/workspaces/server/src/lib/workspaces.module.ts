@@ -13,8 +13,10 @@ import { RemoveWorkspaceContentController } from './workspace/http/controllers/r
 import { GetWorkspaceContentCountController } from './workspace/http/controllers/get-workspace-content-count.controller';
 import { GetWorkspaceEntryCountController } from './workspace/http/controllers/get-workspace-entry-count.controller';
 import { ListContentTypesController } from './workspace/http/controllers/list-content-types.controller';
+import { ListSharedSourcesController } from './workspace/http/controllers/list-shared-sources.controller';
 import { WorkspaceGuard } from './workspace/http/guards/workspace.guard';
 import { WorkspaceMemberGuard } from './workspace/http/guards/workspace-member.guard';
+import { OptionalWorkspaceGuard } from './workspace/http/guards/optional-workspace.guard';
 import { CreateWorkspaceUseCase } from './workspace/application/use-cases/create-workspace.use-case';
 import { UpdateWorkspaceUseCase } from './workspace/application/use-cases/update-workspace.use-case';
 import { SetWorkspaceStatusUseCase } from './workspace/application/use-cases/set-workspace-status.use-case';
@@ -23,6 +25,9 @@ import { AddMemberUseCase } from './workspace/application/use-cases/add-member.u
 import { RemoveMemberUseCase } from './workspace/application/use-cases/remove-member.use-case';
 import { GrantContentUseCase } from './workspace/application/use-cases/grant-content.use-case';
 import { RevokeContentUseCase } from './workspace/application/use-cases/revoke-content.use-case';
+import { RevokeSharedContentUseCase } from './workspace/application/use-cases/revoke-shared-content.use-case';
+import { SHARED_CONTENT_SOURCES } from './workspace/application/ports/shared-content-sources.port';
+import { SharedContentSourcesQuery } from './workspace/infrastructure/queries/shared-content-sources.query';
 import { ContentCatalogReader } from './workspace/application/content/content-catalog.reader';
 import { ContentEntryCounterReader } from './workspace/application/content/content-entry-counter.reader';
 import { WorkspacePurgeRegistry } from './workspace/application/workspace-purge.registry';
@@ -75,7 +80,8 @@ export class WorkspacesModule {
                 RemoveWorkspaceContentController,
                 GetWorkspaceContentCountController,
                 GetWorkspaceEntryCountController,
-                ListContentTypesController
+                ListContentTypesController,
+                ListSharedSourcesController
             ],
             providers: [
                 // Application — use cases (one per state-changing operation).
@@ -87,6 +93,7 @@ export class WorkspacesModule {
                 RemoveMemberUseCase,
                 GrantContentUseCase,
                 RevokeContentUseCase,
+                RevokeSharedContentUseCase,
                 // Application — content-context readers (optional ports inside).
                 ContentCatalogReader,
                 ContentEntryCounterReader,
@@ -113,6 +120,10 @@ export class WorkspacesModule {
                     provide: MEMBER_PROVISIONER,
                     useClass: DrizzleMemberProvisioner
                 },
+                {
+                    provide: SHARED_CONTENT_SOURCES,
+                    useClass: SharedContentSourcesQuery
+                },
                 WorkspaceMapper,
                 WorkspaceViewQuery,
                 SlugAvailabilityQuery,
@@ -134,7 +145,10 @@ export class WorkspacesModule {
                 WorkspaceGuard,
                 // The `:id`-scoped sibling, guarding this context's own
                 // `/workspaces/:id/…` routes.
-                WorkspaceMemberGuard
+                WorkspaceMemberGuard,
+                // The header-optional sibling, for global routes that add
+                // per-workspace detail when a workspace is open.
+                OptionalWorkspaceGuard
             ],
             exports: [
                 // Exported so a feature plugin's `@UseGuards(WorkspaceGuard)`
@@ -148,7 +162,8 @@ export class WorkspacesModule {
                 // identity module's injector — resolves the optional port.
                 WORKSPACE_DIRECTORY,
                 WorkspaceGuard,
-                WorkspaceMemberGuard
+                WorkspaceMemberGuard,
+                OptionalWorkspaceGuard
             ]
         };
     }

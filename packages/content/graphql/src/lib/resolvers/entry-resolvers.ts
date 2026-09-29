@@ -6,6 +6,7 @@ import {
     type EntryLocator,
     type EntryVisibility,
     type GrantedType,
+    type GrantedTypeMode,
     type PublicEntry,
     type PublicMediaRef,
     type PublicRelationFieldView
@@ -27,6 +28,13 @@ import {
  * gate — see `selection.ts` for the translation itself.
  */
 
+/**
+ * Top-level reads admit the published records of the shared workspaces the
+ * caller holds a shared grant of the type for — the same union the REST list
+ * serves (ADR-0019, "Explicit per-source grants").
+ */
+const VISIBLE = { includeShared: true } as const;
+
 /** `article(id: …)` / `homePage(locale: …)` — one entry. */
 export function singleResolver(
     typeName: string
@@ -40,7 +48,8 @@ export function singleResolver(
             locatorFrom(args),
             context.workspaceId,
             entryDtoFrom(args, selection),
-            granted
+            granted,
+            VISIBLE
         );
     };
 }
@@ -57,7 +66,8 @@ export function listResolver(
             type,
             listDtoFrom(args, selection),
             context.workspaceId,
-            granted
+            granted,
+            VISIBLE
         );
     };
 }
@@ -84,7 +94,8 @@ export function pageResolver(
             type,
             dto,
             context.workspaceId,
-            granted
+            granted,
+            VISIBLE
         );
         return page.items[0] ?? null;
     };
@@ -286,13 +297,15 @@ export function translationsResolver(
  */
 export async function resolveType(
     context: GraphqlContext,
-    typeName: string
+    typeName: string,
+    mode: GrantedTypeMode = 'read'
 ): Promise<GrantedType> {
     return resolveGrantedType(
         context.registry,
         context.grants,
         typeName,
-        context.workspaceId
+        context.workspaceId,
+        mode
     );
 }
 

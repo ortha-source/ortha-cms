@@ -363,6 +363,51 @@ export async function seedContentGrants(
 }
 
 /**
+ * Give a workspace **shared** grants (ADR-0019, "Explicit per-source
+ * grants"): read and link `sourceWorkspaceId`'s records of each slug. The
+ * source must itself be shared and hold its own grant for a slug for the
+ * grant to be live; this writes the row regardless, so a spec can build the
+ * inert state too. Kinds are taken from the harness registry.
+ */
+export async function seedSharedContentGrants(
+    workspaceId: string,
+    sourceWorkspaceId: string,
+    slugs: readonly string[]
+): Promise<void> {
+    if (slugs.length === 0) return;
+    const kindOf = new Map(
+        testContentTypes.map((type) => [type.name, type.kind])
+    );
+    await getDatabase()
+        .insert(workspaceContent)
+        .values(
+            slugs.map((slug) => ({
+                workspaceId,
+                kind: kindOf.get(slug) ?? ('collection' as const),
+                slug,
+                sourceWorkspaceId
+            }))
+        );
+}
+
+/**
+ * {@link seedSharedContentGrants} for **every** harness-registered type — what
+ * the explicit-grants migration backfills for a consumer that held every own
+ * grant while `sourceWorkspaceId` was shared. The default for a spec whose
+ * subject is what a shared record *does*, not which grant exposes it.
+ */
+export async function seedAllSharedContentGrants(
+    workspaceId: string,
+    sourceWorkspaceId: string
+): Promise<void> {
+    await seedSharedContentGrants(
+        workspaceId,
+        sourceWorkspaceId,
+        testContentTypes.map((type) => type.name)
+    );
+}
+
+/**
  * Grant a workspace **every** harness-registered content type, each with its
  * real kind.
  *

@@ -10,6 +10,7 @@ import {
     IsNotEmpty,
     IsOptional,
     IsString,
+    IsUUID,
     MaxLength,
     ValidateNested
 } from 'class-validator';
@@ -114,8 +115,46 @@ export class ResourceSelectionDto {
 }
 
 /**
+ * Upper bound on `content.sharedContent` in one create — every item is checked
+ * against its source inside the create transaction, so this caps that walk.
+ */
+export const MAX_SHARED_CONTENT_PER_CREATE = 500;
+
+/**
+ * One **shared** content grant requested at create time (ADR-0019, "Explicit
+ * per-source grants"): read and link `slug` records of the shared workspace
+ * `sourceWorkspaceId`. Validated exactly as `POST /workspaces/:id/content`
+ * validates one — an ineligible source is a 422.
+ */
+export class SharedContentSelectionDto {
+    /** The code-defined content-type slug. */
+    @ApiProperty({
+        type: String,
+        minLength: 1,
+        maxLength: 120,
+        example: 'tag',
+        description: 'The code-defined content-type slug.'
+    })
+    @IsString()
+    @IsNotEmpty()
+    @MaxLength(120)
+    slug!: string;
+
+    /** The shared workspace whose records of `slug` are granted. */
+    @ApiProperty({
+        type: String,
+        format: 'uuid',
+        description:
+            'A shared, non-archived workspace that holds its own grant for `slug`.'
+    })
+    @IsUUID()
+    sourceWorkspaceId!: string;
+}
+
+/**
  * Content access. `all` grants every content type; `specific` carries the
- * per-kind collection and page selections.
+ * per-kind collection and page selections. Both describe **own** grants only;
+ * `sharedContent` adds grants of shared workspaces' records on top.
  */
 export class ContentDto {
     /** Page-level decision. */
@@ -148,6 +187,20 @@ export class ContentDto {
     @ValidateNested()
     @Type(() => ResourceSelectionDto)
     pages?: ResourceSelectionDto;
+
+    /** Shared grants — independent of `mode`, which covers own types only. */
+    @ApiPropertyOptional({
+        type: () => [SharedContentSelectionDto],
+        maxItems: MAX_SHARED_CONTENT_PER_CREATE,
+        description:
+            'Grants of shared workspaces’ records (ADR-0019). Independent of `mode`: “all” means every **own** type only. Each item is validated like `POST /workspaces/:id/content` with a `sourceWorkspaceId` — an ineligible source is a 422.'
+    })
+    @IsOptional()
+    @IsArray()
+    @ArrayMaxSize(MAX_SHARED_CONTENT_PER_CREATE)
+    @ValidateNested({ each: true })
+    @Type(() => SharedContentSelectionDto)
+    sharedContent?: SharedContentSelectionDto[];
 }
 
 /** Body of `POST /api/workspaces`. */

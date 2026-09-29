@@ -40,6 +40,19 @@ const messages = defineMessages({
     trashDescription: {
         id: 'content.records.empty.trash.description',
         defaultMessage: 'Deleted records will appear here.'
+    },
+    sharedTitle: {
+        id: 'content.records.empty.shared.title',
+        defaultMessage: 'No shared records yet'
+    },
+    sharedDescription: {
+        id: 'content.records.empty.shared.description',
+        defaultMessage:
+            '{workspace} hasn’t published any records of this type yet.'
+    },
+    readOnlyDescription: {
+        id: 'content.records.empty.readOnly.description',
+        defaultMessage: 'This collection has no records in this workspace.'
     }
 });
 
@@ -51,6 +64,7 @@ const messages = defineMessages({
 export function CollectionRecordsEmpty({
     filtered,
     trashed = false,
+    sharedFrom,
     onClear,
     onAdd
 }: {
@@ -58,6 +72,11 @@ export function CollectionRecordsEmpty({
     filtered: boolean;
     /** Whether this is the trash view (changes the unfiltered empty copy). */
     trashed?: boolean;
+    /**
+     * The shared workspace a read-only shared list comes from — its empty
+     * state is about what that workspace published, not an invitation to add.
+     */
+    sharedFrom?: string;
     /** Clears the search + filter. */
     onClear: () => void;
     /** Opens the create flow. Omitted when the user lacks create permission. */
@@ -69,12 +88,20 @@ export function CollectionRecordsEmpty({
         ? messages.filteredTitle
         : trashed
           ? messages.trashTitle
-          : messages.emptyTitle;
+          : sharedFrom !== undefined
+            ? messages.sharedTitle
+            : messages.emptyTitle;
+    // "Add the first record" only when there is a way to; otherwise a plain
+    // statement, rather than an instruction the reader can't follow.
     const description = filtered
         ? messages.filteredDescription
         : trashed
           ? messages.trashDescription
-          : messages.emptyDescription;
+          : sharedFrom !== undefined
+            ? messages.sharedDescription
+            : onAdd
+              ? messages.emptyDescription
+              : messages.readOnlyDescription;
 
     return (
         <Empty className="border">
@@ -84,7 +111,9 @@ export function CollectionRecordsEmpty({
                 </EmptyMedia>
                 <EmptyTitle>{intl.formatMessage(title)}</EmptyTitle>
                 <EmptyDescription>
-                    {intl.formatMessage(description)}
+                    {intl.formatMessage(description, {
+                        workspace: sharedFrom
+                    })}
                 </EmptyDescription>
             </EmptyHeader>
             <EmptyContent>

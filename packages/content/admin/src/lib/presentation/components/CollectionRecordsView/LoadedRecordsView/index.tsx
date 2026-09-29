@@ -46,8 +46,10 @@ import {
 } from '@orthacms/design-system';
 import type {
     ContentType,
-    ContentTypeDetail
+    ContentTypeDetail,
+    EntrySource
 } from '../../../../domain/types/contentType';
+import { hasOwnAccess } from '../../../../domain/contentTypeAccess';
 import {
     COLUMN_KIND,
     CONTENT_CREATE,
@@ -108,6 +110,8 @@ import { CollectionRecordsSkeleton } from '../CollectionRecordsSkeleton';
 import { CollectionRecordsSelectionBar } from '../CollectionRecordsSelectionBar';
 import { CollectionRecordsBulkActions } from '../CollectionRecordsBulkActions';
 import { CollectionRecordsMenu } from '../CollectionRecordsMenu';
+import { SharedOnlyNotice } from '../../SharedOnlyNotice';
+import { SharedSourceBadge } from '../../SharedSourceBadge';
 
 /** Intl descriptors for {@link LoadedRecordsView}, co-located. */
 const messages = defineMessages({
@@ -117,6 +121,15 @@ const messages = defineMessages({
             '{count, plural, one {# record} other {# records}} in this collection.'
     },
     add: { id: 'content.records.add', defaultMessage: 'Add record' },
+    sharedTitle: {
+        id: 'content.records.sharedTitle',
+        defaultMessage: '{label} · {workspace}'
+    },
+    sharedSubtitle: {
+        id: 'content.records.sharedSubtitle',
+        defaultMessage:
+            '{count, plural, one {# published record} other {# published records}} shared from {workspace}. Read-only in this workspace.'
+    },
     trashTitle: {
         id: 'content.records.trashTitle',
         defaultMessage: '{label} · Trash'
@@ -235,18 +248,33 @@ const messages = defineMessages({
 export function LoadedRecordsView({
     type,
     schema,
-    trashed = false
+    trashed = false,
+    sharedSource
 }: {
     type: ContentType;
     schema: ContentTypeDetail;
     /** Render the trash view (soft-deleted rows, restore/purge actions). */
     trashed?: boolean;
+    /**
+     * List this shared workspace's published records instead of the open
+     * workspace's own — the **read-only** mode (see `CollectionRecordsView`).
+     */
+    sharedSource?: EntrySource;
 }) {
     const intl = useIntl();
     const navigate = useNavigate();
     const workspace = useCurrentWorkspace();
-    const typePath = `/workspaces/${workspace.id}/${CONTENT_SEGMENT}/${type.name}`;
-    const canCreate = useHasPermission(CONTENT_CREATE);
+    const basePath = `/workspaces/${workspace.id}/${CONTENT_SEGMENT}`;
+    // Rows open under the type's **own** path in both modes: a shared record
+    // opens read-only in this workspace (the server says so on the read-one),
+    // never in its source, which the reader may not belong to.
+    const typePath = `${basePath}/${type.name}`;
+    const readOnly = sharedSource !== undefined;
+    // Reached only from shared workspaces: nothing of its own to list, and
+    // nothing it may create (the server would 403).
+    const ownAccess = hasOwnAccess(type);
+    const canCreate =
+        useHasPermission(CONTENT_CREATE) && ownAccess && !readOnly;
     const canDelete = useHasPermission(CONTENT_DELETE);
     const paranoid = schema.paranoid ?? false;
     const publishable = schema.publishable ?? false;
@@ -314,9 +342,11 @@ export function LoadedRecordsView({
     const slotParams = useSlotListParams(slotParamKeys);
 
     const extensionColumnItems = RECORDS_COLUMN_SLOT.getItems();
+    // A contributed column acts on (or reads about) this workspace's copy of a
+    // record — the read-only shared list offers none of them.
     const { columns, defaults } = useMemo(
-        () => entryColumns(schema, extensionColumnItems),
-        [schema, extensionColumnItems]
+        () => entryColumns(schema, readOnly ? [] : extensionColumnItems),
+        [schema, extensionColumnItems, readOnly]
     );
     const availableIds = useMemo(
         () => columns.map((column) => column.id),
@@ -337,7 +367,9 @@ export function LoadedRecordsView({
     // Trash is a route segment, not a param, and its rows are a different set —
     // saving a view over it would produce a slice that only makes sense on one
     // of the two pages. Left out deliberately until it earns its own model.
-    const viewsEnabled = !trashed;
+    // Nor over a shared source's list: a view is saved per type, and one
+    // captured here would replay onto the workspace's own records.
+    const viewsEnabled = !trashed && !readOnly;
     const {
         data: savedViews,
         isPending: viewsPending,
@@ -462,6 +494,13 @@ export function LoadedRecordsView({
             page,
             pageSize,
             deleted: trashed ? 'only' : undefined,
+            // One source, narrowed server-side: total and pages are exact.
+            ...(sharedSource
+                ? {
+                      source: 'shared' as const,
+                      sourceWorkspaceId: sharedSource.workspaceId
+                  }
+                : {}),
             ...(relationFields
                 ? { relations: 'preview' as const, relationFields }
                 : {}),
@@ -798,7 +837,7 @@ export function LoadedRecordsView({
             entries,
             schema,
             workspace.id,
-            isVisible(item.id)
+            isVisible(item.id) && !readOnly
         );
     }
 
@@ -838,14 +877,32 @@ export function LoadedRecordsView({
                         ? intl.formatMessage(messages.trashTitle, {
                               label: schema.label
                           })
-                        : schema.label
+                        : sharedSource
+                          ? intl.formatMessage(messages.sharedTitle, {
+                                label: schema.label,
+                                workspace: sharedSource.workspaceName
+                            })
+                          : schema.label
                 }
-                subtitle={intl.formatMessage(
-                    trashed ? messages.trashSubtitle : messages.subtitle,
-                    { count: total }
-                )}
+                subtitle={
+                    sharedSource
+                        ? intl.formatMessage(messages.sharedSubtitle, {
+                              count: total,
+                              workspace: sharedSource.workspaceName
+                          })
+                        : intl.formatMessage(
+                              trashed
+                                  ? messages.trashSubtitle
+                                  : messages.subtitle,
+                              { count: total }
+                          )
+                }
                 actions={
-                    trashed ? (
+                    sharedSource ? (
+                        // Nothing to do *to* a source's records from here —
+                        // just the mark saying whose they are.
+                        <SharedSourceBadge source={sharedSource} />
+                    ) : trashed ? (
                         <Button
                             variant="outline"
                             className="shadow-none"
@@ -872,16 +929,21 @@ export function LoadedRecordsView({
                                     {intl.formatMessage(messages.add)}
                                 </Button>
                             ) : null}
-                            <CollectionRecordsMenu
-                                schema={schema}
-                                workspaceId={workspace.id}
-                                trashed={trashed}
-                                trashHref={
-                                    paranoid && canDelete
-                                        ? `${typePath}/${TRASH_SEGMENT}`
-                                        : undefined
-                                }
-                            />
+                            {/* Import writes records and Trash holds
+                                deleted ones — neither exists for a type
+                                this workspace holds none of its own. */}
+                            {ownAccess ? (
+                                <CollectionRecordsMenu
+                                    schema={schema}
+                                    workspaceId={workspace.id}
+                                    trashed={trashed}
+                                    trashHref={
+                                        paranoid && canDelete
+                                            ? `${typePath}/${TRASH_SEGMENT}`
+                                            : undefined
+                                    }
+                                />
+                            ) : null}
                         </div>
                     )
                 }
@@ -893,6 +955,14 @@ export function LoadedRecordsView({
                 a full-width line under the header rather than part of the
                 switcher: a wrapping sentence inside a right-aligned row of
                 buttons would push them around every time a stale view loads. */}
+            {!ownAccess && !readOnly && !trashed ? (
+                <SharedOnlyNotice
+                    type={type}
+                    basePath={basePath}
+                    className="mb-4"
+                />
+            ) : null}
+
             {droppedColumns > 0 ? (
                 <p
                     className="-mt-2 mb-4 text-sm text-muted-foreground"
@@ -1057,12 +1127,13 @@ export function LoadedRecordsView({
                 <CollectionRecordsEmpty
                     filtered={hasFilters}
                     trashed={trashed}
+                    sharedFrom={sharedSource?.workspaceName}
                     onClear={clearFilters}
                     onAdd={trashed || !canCreate ? undefined : openCreate}
                 />
             ) : (
                 <>
-                    {selectedIds.size > 0 && (
+                    {selectedIds.size > 0 && !readOnly && (
                         <CollectionRecordsSelectionBar
                             count={selectedIds.size}
                             onClear={clearSelection}
@@ -1096,6 +1167,7 @@ export function LoadedRecordsView({
                         onToggleRow={toggleRow}
                         onTogglePage={setPageSelection}
                         onRowGone={forgetRow}
+                        readOnly={readOnly}
                         sort={sort}
                         onSort={handleSort}
                         relationsPending={isPlaceholderData}

@@ -1216,7 +1216,7 @@ export class RelationLinkService {
     /**
      * The workspace half of every target read: the caller's own rows, or a
      * visible row of a **shared workspace** (ADR-0019 — published, not
-     * deleted, the workspace active and shared, the caller granted the type).
+     * deleted, the workspace active and shared, the caller holding a shared grant of the type naming it).
      * Without the shared-sources query bound it is the strict equality it
      * always was.
      */
@@ -1612,7 +1612,7 @@ export class RelationLinkService {
      * Verify every id to be linked exists **in the same workspace** (the join FK
      * has no workspace constraint of its own) — or, on an owning relation, is a
      * visible record of a **shared workspace** (ADR-0019: published, not
-     * deleted, workspace active and shared, this workspace granted the type).
+     * deleted, workspace active and shared, this workspace holding a shared grant of the type naming it).
      * A missing, cross-workspace, or not-visible id is a uniform 422 —
      * indistinguishable from an invalid id, so no enumeration signal.
      *

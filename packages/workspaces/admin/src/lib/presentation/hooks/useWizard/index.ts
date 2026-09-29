@@ -6,6 +6,7 @@ import type {
     ContentMode,
     MemberDraft,
     ResourceSelection,
+    SharedContentChoice,
     WizardData,
     WizardSnapshot
 } from '../../../domain/types/wizard';
@@ -46,6 +47,8 @@ export type WizardController = {
     collections: ResourceSelection;
     /** Page selection. */
     pages: ResourceSelection;
+    /** Grants picked from shared workspaces ("Specific content" only). */
+    sharedContent: SharedContentChoice[];
     /** Whether the content-types list is still loading. */
     ctLoading: boolean;
     /** Whether the content-types list failed to load. */
@@ -64,13 +67,15 @@ export type WizardController = {
     setCollections: (selection: ResourceSelection) => void;
     /** Replace the page selection. */
     setPages: (selection: ResourceSelection) => void;
+    /** Pick or unpick one type from one shared workspace. */
+    toggleSharedContent: (choice: SharedContentChoice) => void;
     /** Whether the basics step passes shape validation (not availability). */
     basicsValid: boolean;
     /** Total members including the owner. */
     memberCount: number;
-    /** Number of selected collections. */
+    /** Number of selected collections, own and shared grants alike. */
     collectionCount: number;
-    /** Number of selected pages. */
+    /** Number of selected pages, own and shared grants alike. */
     pageCount: number;
     /**
      * The full current wizard state as a submittable snapshot. The page hands
@@ -100,6 +105,9 @@ export function useWizard(): WizardController {
     const [collections, setCollections] =
         useState<ResourceSelection>(EMPTY_SELECTION);
     const [pages, setPages] = useState<ResourceSelection>(EMPTY_SELECTION);
+    const [sharedContent, setSharedContent] = useState<SharedContentChoice[]>(
+        []
+    );
 
     const basicsSchema = useBasicsSchema();
     const contentTypes = useContentTypes();
@@ -131,6 +139,12 @@ export function useWizard(): WizardController {
         (ct) => ct.kind === 'collection'
     ).length;
     const pagesTotal = allTypes.filter((ct) => ct.kind === 'single').length;
+    const sharedPages = sharedContent.filter(
+        (choice) =>
+            allTypes.find((ct) => ct.name === choice.slug)?.kind === 'single'
+    ).length;
+    // Only a specific selection sends shared picks, so only it counts them.
+    const sharedCounted = contentMode === 'specific';
 
     const goStep = useCallback(
         (next: number) => {
@@ -157,6 +171,17 @@ export function useWizard(): WizardController {
         setMembers((prev) => prev.filter((m) => m.id !== id));
     }, []);
 
+    const toggleSharedContent = useCallback((choice: SharedContentChoice) => {
+        setSharedContent((prev) => {
+            const same = (c: SharedContentChoice) =>
+                c.slug === choice.slug &&
+                c.sourceWorkspaceId === choice.sourceWorkspaceId;
+            return prev.some(same)
+                ? prev.filter((c) => !same(c))
+                : [...prev, choice];
+        });
+    }, []);
+
     return {
         step,
         maxReached,
@@ -165,6 +190,7 @@ export function useWizard(): WizardController {
         contentMode,
         collections,
         pages,
+        sharedContent,
         ctLoading: contentTypes.isPending,
         ctError: contentTypes.isError,
         goStep,
@@ -174,10 +200,20 @@ export function useWizard(): WizardController {
         setContentMode,
         setCollections,
         setPages,
+        toggleSharedContent,
         basicsValid,
         memberCount: members.length + 1,
-        collectionCount: count(collections, collectionsTotal),
-        pageCount: count(pages, pagesTotal),
-        snapshot: { data, members, contentMode, collections, pages }
+        collectionCount:
+            count(collections, collectionsTotal) +
+            (sharedCounted ? sharedContent.length - sharedPages : 0),
+        pageCount: count(pages, pagesTotal) + (sharedCounted ? sharedPages : 0),
+        snapshot: {
+            data,
+            members,
+            contentMode,
+            collections,
+            pages,
+            sharedContent
+        }
     };
 }

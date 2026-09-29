@@ -1,4 +1,9 @@
-import { Inject, Injectable, Optional } from '@nestjs/common';
+import {
+    BadRequestException,
+    Inject,
+    Injectable,
+    Optional
+} from '@nestjs/common';
 import {
     and,
     asc,
@@ -7,6 +12,7 @@ import {
     eq,
     isNotNull,
     isNull,
+    or,
     type AnyColumn,
     type SQL
 } from 'drizzle-orm';
@@ -208,7 +214,14 @@ export class EntriesService {
               )
             : undefined;
         return and(
-            this.sourceWhere(type, query.source, workspaceId),
+            query.sourceWorkspaceId
+                ? await this.oneSourceWhere(
+                      type,
+                      query.source,
+                      query.sourceWorkspaceId,
+                      workspaceId
+                  )
+                : this.sourceWhere(type, query.source, workspaceId),
             this.extension?.listScope(type, workspaceId, {
                 locale: query.locale,
                 localeFallback: query.localeFallback
@@ -221,10 +234,11 @@ export class EntriesService {
 
     /**
      * The workspace half of the list's WHERE, per `?source=` (ADR-0019):
-     * `own` — the caller's workspace, exactly the pre-sharing predicate;
-     * `shared` — only the visible entries of shared workspaces (published, not
-     * deleted, workspace active and shared, caller granted the type); `all` —
-     * either. Without the shared-sources query bound every mode is `own`.
+     * `own` — the caller's workspace, and only while it holds the **own**
+     * grant (a shared-only type lists nothing as `own`); `shared` — only the
+     * visible entries of the sources the caller holds an available shared
+     * grant of (published, not deleted); `all` — either. Without the
+     * shared-sources query bound every mode is the bare workspace equality.
      */
     private sourceWhere(
         type: AnyContentType,
@@ -232,11 +246,51 @@ export class EntriesService {
         workspaceId: string
     ): SQL | undefined {
         const table = type.table as unknown as ContentTable;
-        const own = eq(table['workspaceId'], workspaceId);
-        if (!this.shared || !source || source === 'own') return own;
+        if (!this.shared) return eq(table['workspaceId'], workspaceId);
+        const own = this.shared.ownWhere(type, workspaceId);
+        if (!source || source === 'own') return own;
         return source === 'shared'
             ? this.shared.foreignVisibleWhere(type, workspaceId)
-            : this.shared.visibleWhere(type, workspaceId);
+            : or(own, this.shared.foreignVisibleWhere(type, workspaceId));
+    }
+
+    /**
+     * `?sourceWorkspaceId=` — a `shared` / `all` list narrowed to one of the
+     * type's visible sources (ADR-0019, explicit per-source grants), so the
+     * admin can page one library's records exactly. The id must be one of
+     * `visibleSources(W, type)`; every other value — another workspace, an
+     * inert or ungranted source, a missing mode — is the same 400, so the
+     * parameter cannot be used to probe which workspaces exist. The caller's
+     * own id is a visible source only when it owns the type, and only under
+     * `all` (it is not a *shared* source).
+     */
+    private async oneSourceWhere(
+        type: AnyContentType,
+        source: EntrySourceMode | undefined,
+        sourceWorkspaceId: string,
+        workspaceId: string
+    ): Promise<SQL> {
+        const refuse = () =>
+            new BadRequestException(
+                '`sourceWorkspaceId` must name a visible source of this content type, with `source=shared` or `source=all`.'
+            );
+        if (!this.shared || (source !== 'shared' && source !== 'all')) {
+            throw refuse();
+        }
+        const visible = await this.shared.visibleSources(
+            workspaceId,
+            type.name
+        );
+        if (!visible.includes(sourceWorkspaceId)) throw refuse();
+        if (sourceWorkspaceId === workspaceId) {
+            if (source !== 'all') throw refuse();
+            return this.shared.ownWhere(type, workspaceId);
+        }
+        const table = type.table as unknown as ContentTable;
+        return and(
+            this.shared.foreignVisibleWhere(type, workspaceId),
+            eq(table['workspaceId'], sourceWorkspaceId)
+        ) as SQL;
     }
 
     /**

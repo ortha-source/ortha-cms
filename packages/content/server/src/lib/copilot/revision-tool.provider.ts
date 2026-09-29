@@ -5,6 +5,7 @@ import type { ToolDefinition, ToolProvider } from '@orthacms/tools-server';
 import { InjectContentRegistry } from '../content.tokens';
 import type { ContentTypeRegistry } from '../registry/content-type-registry';
 import { WorkspaceGrantsQuery } from '../content-types/queries/workspace-grants.query';
+import { resolveOwnedType } from './owned-type';
 import {
     InjectRevisionStore,
     type RevisionStore
@@ -69,15 +70,13 @@ export class RevisionCopilotToolProvider implements ToolProvider, OnModuleInit {
      * distinguishing "not granted" from "does not exist" would let a run in one
      * workspace enumerate the deployment's other content types.
      */
-    private async resolveGranted(typeName: string, workspaceId: string) {
-        const type = this.registry.get(typeName);
-        const granted = await this.grants.grantedSlugs(workspaceId);
-        if (!type || !granted.has(type.name)) {
-            throw new Error(
-                `Unknown content type "${typeName}" in this workspace.`
-            );
-        }
-        return type;
+    private resolveGranted(typeName: string, workspaceId: string) {
+        return resolveOwnedType(
+            this.registry,
+            this.grants,
+            typeName,
+            workspaceId
+        );
     }
 
     /**

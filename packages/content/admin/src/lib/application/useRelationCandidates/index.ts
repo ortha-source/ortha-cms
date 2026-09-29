@@ -51,6 +51,11 @@ export type RelationCandidatesParams = {
      * carries no `source` and the server lists the open workspace's own.
      */
     source?: EntrySourceScope;
+    /**
+     * One shared workspace to narrow to (`?sourceWorkspaceId=`); the server
+     * narrows items and total, so paging stays exact.
+     */
+    sourceWorkspaceId?: string;
 };
 
 /** The paginated candidate envelope: the loaded matches, the full count, more-flag. */
@@ -92,7 +97,13 @@ export function useRelationCandidates(
     params: RelationCandidatesParams,
     enabled = true
 ): RelationCandidatesResult {
-    const { search = '', filter = null, extra = {}, source } = params;
+    const {
+        search = '',
+        filter = null,
+        extra = {},
+        source,
+        sourceWorkspaceId
+    } = params;
     const workspace = useCurrentWorkspace();
     // Serialize the query-builder tree to the `?filter=` wire JSON the server
     // parses (null when the tree has no complete rules).
@@ -103,7 +114,8 @@ export function useRelationCandidates(
             search,
             filter: filterJson,
             ...(Object.keys(extra).length ? { extra } : {}),
-            ...(source ? { source } : {})
+            ...(source ? { source } : {}),
+            ...(sourceWorkspaceId ? { sourceWorkspaceId } : {})
         }),
         enabled: enabled && !!targetName,
         placeholderData: keepPreviousData,
@@ -114,7 +126,8 @@ export function useRelationCandidates(
                 filter: filterJson,
                 page: pageParam,
                 extra,
-                ...(source ? { source } : {})
+                ...(source ? { source } : {}),
+                ...(sourceWorkspaceId ? { sourceWorkspaceId } : {})
             }),
         // Another page exists while fewer rows are loaded than the total match
         // count; the next page is the following offset.

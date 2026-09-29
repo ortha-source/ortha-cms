@@ -17,6 +17,8 @@ import {
     FOREIGN_ARTICLE,
     LOCAL_WORKSPACE,
     SHARED_AUTHOR,
+    SHARED_RELATIONS_SCHEMA_SEED,
+    mockContentSchemaByWorkspace,
     mockEntryUsages,
     mockForeignArticle,
     mockSharedAuthorCandidates,
@@ -34,6 +36,11 @@ async function seedContent(page: RoutedPage, workspaces: WorkspaceView[]) {
     await mockSignedIn(page);
     await mockWorkspaces(page, workspaces);
     await mockContentSchema(page, { types: RELATIONS_SCHEMA_SEED });
+    // `access` answers for the open workspace: the local one reads Articles
+    // and Authors from the Brand hub too; the Brand hub reads nothing shared.
+    await mockContentSchemaByWorkspace(page, {
+        [LOCAL_WORKSPACE.id]: SHARED_RELATIONS_SCHEMA_SEED
+    });
     await mockContentSchemaDetail(page, { details: RELATIONS_DETAIL_SEED });
     await mockContentEntries(page, {
         details: RELATIONS_DETAIL_SEED,
@@ -94,8 +101,10 @@ test.describe('Shared workspaces — content', () => {
                 relationsEditorPage.candidate('Ada Lovelace')
             ).toBeVisible();
 
-            await relationsEditorPage.chooseSource('Shared');
-            await expect(relationsEditorPage.sourceSelect).toHaveText('Shared');
+            await relationsEditorPage.chooseSource('Brand hub');
+            await expect(relationsEditorPage.sourceSelect).toHaveText(
+                'Brand hub'
+            );
             await expect(
                 relationsEditorPage.candidate('Ada Lovelace')
             ).toHaveCount(0);
@@ -103,6 +112,8 @@ test.describe('Shared workspaces — content', () => {
                 relationsEditorPage.candidate(SHARED_AUTHOR.name)
             ).toBeVisible();
             expect(scopes.requested.at(-1)).toBe('shared');
+            // The named source is narrowed server-side.
+            expect(scopes.sourceIds.at(-1)).toBe('ws_brand');
 
             await relationsEditorPage.chooseSource('This workspace');
             await expect(
@@ -115,6 +126,7 @@ test.describe('Shared workspaces — content', () => {
                 0
             );
             expect(scopes.requested.at(-1)).toBe('own');
+            expect(scopes.sourceIds.at(-1)).toBeNull();
         });
 
         test('a linked shared record keeps its mark and opens inside this workspace', async ({
@@ -140,6 +152,21 @@ test.describe('Shared workspaces — content', () => {
             );
         });
 
+        test('offers exactly the sources the target has — own, then each shared workspace by name', async ({
+            relationsEditorPage
+        }) => {
+            await relationsEditorPage.gotoNewArticle(LOCAL_WORKSPACE.id);
+            await relationsEditorPage.openRelationsTab();
+            await relationsEditorPage.selectButton('Authors').click();
+
+            await relationsEditorPage.sourceSelect.click();
+            await expect(relationsEditorPage.sourceOptions).toHaveText([
+                'All',
+                'This workspace',
+                'Brand hub'
+            ]);
+        });
+
         test('keyboard: the Source select opens, moves and commits without a mouse', async ({
             page,
             relationsEditorPage
@@ -159,11 +186,13 @@ test.describe('Shared workspaces — content', () => {
             ).toBeFocused();
             await page.keyboard.press('ArrowDown');
             await expect(
-                relationsEditorPage.sourceOption('Shared')
+                relationsEditorPage.sourceOption('Brand hub')
             ).toBeFocused();
             await page.keyboard.press('Enter');
 
-            await expect(relationsEditorPage.sourceSelect).toHaveText('Shared');
+            await expect(relationsEditorPage.sourceSelect).toHaveText(
+                'Brand hub'
+            );
             await expect(relationsEditorPage.sourceSelect).toBeFocused();
             // Still inside the picker — the select's Escape/Enter did not
             // dismiss the dialog around it.

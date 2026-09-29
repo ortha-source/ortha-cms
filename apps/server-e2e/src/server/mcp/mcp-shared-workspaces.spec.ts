@@ -10,6 +10,7 @@ import {
     resetDb,
     seedActiveUser,
     seedAllContentGrants,
+    seedAllSharedContentGrants,
     seedAuthors,
     seedTags,
     seedWorkspace
@@ -94,6 +95,12 @@ describe('MCP content tools — shared workspaces', () => {
         for (const id of [consumerId, sharedId, privateId]) {
             await seedAllContentGrants(id);
         }
+        // Explicit per-source grants (ADR-0019): the consumer reads the shared
+        // workspace's records through shared grants of every type — and holds
+        // the same grants of the private workspace, which stay inert because it
+        // is not shared.
+        await seedAllSharedContentGrants(consumerId, sharedId);
+        await seedAllSharedContentGrants(consumerId, privateId);
         [sharedTag, sharedDraftTag] = await seedTags(
             [{ name: 'Shared Design', ...PUBLISHED }, { name: 'Shared Draft' }],
             sharedId
@@ -453,6 +460,49 @@ describe('MCP content tools — shared workspaces', () => {
 
             expect(created.isError).toBe(true);
             expect(created.data['message']).not.toContain('shared workspace');
+        });
+    });
+
+    describe('a type held only through shared grants (explicit per-source grants)', () => {
+        beforeEach(async () => {
+            // Drop the consumer's own grant of test_tag; its shared grant of
+            // the library's test_tag stays.
+            await getPool().query(
+                "DELETE FROM workspace_content WHERE workspace_id = $1 AND slug = 'test_tag' AND source_workspace_id IS NULL",
+                [consumerId]
+            );
+        });
+
+        it('is discoverable and readable, and every write is a 403 saying why', async () => {
+            const secret = await mintToken();
+
+            const types = await callTool(secret, 'content_types_list', {});
+            expect(
+                (types.data['items'] as { name: string }[]).map((t) => t.name)
+            ).toContain('test_tag');
+
+            const listed = await callTool(secret, 'content_list', {
+                typeName: 'test_tag',
+                source: 'shared'
+            });
+            expect(ids(listed)).toEqual([sharedTag]);
+
+            const created = await callTool(secret, 'content_create', {
+                typeName: 'test_tag',
+                values: { name: 'Local copy' }
+            });
+            expect(created.isError).toBe(true);
+            expect(created.data['code']).toBe('forbidden');
+            expect(created.data['message']).toBe(
+                'This workspace can only use "Test tags" records from shared workspaces; it cannot create its own.'
+            );
+
+            const bulk = await callTool(secret, 'content_bulk_delete', {
+                typeName: 'test_tag',
+                ids: [sharedTag]
+            });
+            expect(bulk.isError).toBe(true);
+            expect(bulk.data['code']).toBe('forbidden');
         });
     });
 });

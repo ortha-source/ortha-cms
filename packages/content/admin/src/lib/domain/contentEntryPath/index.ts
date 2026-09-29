@@ -1,4 +1,4 @@
-import { CONTENT_SEGMENT } from '../constants';
+import { CONTENT_SEGMENT, SHARED_SEGMENT } from '../constants';
 
 /**
  * Absolute in-app path to one entry's editor,
@@ -13,4 +13,18 @@ export function contentEntryPath(
     id: string
 ): string {
     return `/workspaces/${workspaceId}/${CONTENT_SEGMENT}/${typeName}/${id}`;
+}
+
+/**
+ * The read-only list of one shared workspace's records of a type, relative to
+ * the library's `basePath` (`/workspaces/:id/content`):
+ * `…/:typeName/shared/:sourceId`. The one place the shape is spelled, for the
+ * sidebar's "From {workspace}" rows, the shared-only notice and the route.
+ */
+export function sharedRecordsPath(
+    basePath: string,
+    typeName: string,
+    sourceId: string
+): string {
+    return `${basePath}/${typeName}/${SHARED_SEGMENT}/${encodeURIComponent(sourceId)}`;
 }

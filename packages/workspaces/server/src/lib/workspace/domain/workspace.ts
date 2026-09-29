@@ -11,9 +11,24 @@ import {
 } from './events/workspace-events';
 import {
     ContentTypeNotEmptyError,
+    InvalidSharedSourceError,
     LastMemberError,
     WorkspaceNotEmptyError
 } from './errors';
+
+/**
+ * One content grant as the aggregate's state and deltas carry it. An absent
+ * (or `null`) `sourceWorkspaceId` is an **own** grant; a present one is a
+ * **shared** grant reading that workspace's records (ADR-0019).
+ */
+export interface GrantState {
+    /** Whether `slug` names a collection or a single page. */
+    kind: ContentGrantKind;
+    /** The code-defined content type's slug. */
+    slug: string;
+    /** The shared workspace read from; absent/`null` for an own grant. */
+    sourceWorkspaceId?: string | null;
+}
 
 /** Fields a profile edit may change. Absent fields are left untouched. */
 export interface WorkspaceProfilePatch {
@@ -41,10 +56,12 @@ export interface WorkspaceChanges {
     addedMemberIds: string[];
     /** Member user ids removed since load. */
     removedMemberIds: string[];
-    /** Content grants added since load. */
-    addedGrants: { kind: ContentGrantKind; slug: string }[];
-    /** Content-grant slugs removed since load. */
+    /** Content grants (own and shared) added since load. */
+    addedGrants: GrantState[];
+    /** **Own** content-grant slugs removed since load. */
     removedGrantSlugs: string[];
+    /** **Shared** content grants removed since load. */
+    removedSharedGrants: { slug: string; sourceWorkspaceId: string }[];
 }
 
 /** State the repository hands {@link Workspace.rehydrate} to reconstruct one. */
@@ -57,7 +74,7 @@ export interface WorkspaceState {
     status: string;
     isShared: boolean;
     memberUserIds: string[];
-    grants: { kind: ContentGrantKind; slug: string }[];
+    grants: GrantState[];
 }
 
 /**
@@ -91,9 +108,12 @@ export class Workspace {
     private _sharedChanged = false;
     private readonly _addedMemberIds: string[] = [];
     private readonly _removedMemberIds: string[] = [];
-    private readonly _addedGrants: { kind: ContentGrantKind; slug: string }[] =
-        [];
+    private readonly _addedGrants: GrantState[] = [];
     private readonly _removedGrantSlugs: string[] = [];
+    private readonly _removedSharedGrants: {
+        slug: string;
+        sourceWorkspaceId: string;
+    }[] = [];
 
     private constructor(
         private readonly _id: WorkspaceId,
@@ -120,7 +140,7 @@ export class Workspace {
         color: WorkspaceColor;
         creatorUserId: string;
         memberUserIds: string[];
-        grants: { kind: ContentGrantKind; slug: string }[];
+        grants: GrantState[];
     }): Workspace {
         const id = WorkspaceId.generate();
         const memberIds = dedupe([props.creatorUserId, ...props.memberUserIds]);
@@ -133,13 +153,23 @@ export class Workspace {
             WorkspaceStatus.active(),
             false,
             memberIds.map((userId) => Membership.create(userId)),
-            props.grants.map((grant) =>
-                ContentGrant.create(grant.kind, grant.slug)
-            )
+            []
         );
         workspace._isNew = true;
+        // Through the same identity rule the mutators use, so a duplicate in
+        // the request collapses rather than tripping the unique index.
+        for (const grant of props.grants) {
+            if (grant.sourceWorkspaceId === id.value) {
+                throw new InvalidSharedSourceError(id.value, grant.slug);
+            }
+            const source = grant.sourceWorkspaceId ?? null;
+            if (workspace.findGrant(grant.slug, source) !== -1) continue;
+            workspace._grants.push(
+                ContentGrant.create(grant.kind, grant.slug, source)
+            );
+            workspace._addedGrants.push(grant);
+        }
         workspace._addedMemberIds.push(...memberIds);
-        workspace._addedGrants.push(...props.grants);
         workspace.raise(WORKSPACE_EVENT_KINDS.CREATED, {
             name: props.name,
             slug: props.slug.value
@@ -163,7 +193,11 @@ export class Workspace {
             state.isShared,
             state.memberUserIds.map((userId) => Membership.create(userId)),
             state.grants.map((grant) =>
-                ContentGrant.create(grant.kind, grant.slug)
+                ContentGrant.create(
+                    grant.kind,
+                    grant.slug,
+                    grant.sourceWorkspaceId ?? null
+                )
             )
         );
     }
@@ -273,8 +307,9 @@ export class Workspace {
     }
 
     /**
-     * Grants access to one content type. Idempotent — re-granting is a no-op
-     * that returns `false`; otherwise raises `workspace.content_granted`.
+     * Grants the workspace its **own** records of one content type.
+     * Idempotent — re-granting is a no-op that returns `false`; otherwise
+     * raises `workspace.content_granted`.
      */
     grantContent(kind: ContentGrantKind, slug: string): boolean {
         if (this.hasGrant(slug)) {
@@ -287,7 +322,59 @@ export class Workspace {
     }
 
     /**
-     * Revokes a content grant — **only when the type holds no entries in this
+     * Grants read-and-link access to **one shared workspace's** records of a
+     * content type (ADR-0019, "Explicit per-source grants"). Whether the source
+     * is eligible — shared, not archived, holding its own grant for `slug` — is
+     * a cross-aggregate fact the application checks before calling; the rule
+     * the aggregate can see on its own is that a workspace is never its own
+     * source ({@link InvalidSharedSourceError}). Idempotent — re-granting is a
+     * no-op that returns `false`; otherwise raises `workspace.content_granted`
+     * with the `sourceWorkspaceId`.
+     */
+    grantSharedContent(
+        kind: ContentGrantKind,
+        slug: string,
+        sourceWorkspaceId: string
+    ): boolean {
+        if (sourceWorkspaceId === this._id.value) {
+            throw new InvalidSharedSourceError(this._id.value, slug);
+        }
+        if (this.findGrant(slug, sourceWorkspaceId) !== -1) {
+            return false;
+        }
+        this._grants.push(ContentGrant.create(kind, slug, sourceWorkspaceId));
+        this._addedGrants.push({ kind, slug, sourceWorkspaceId });
+        this.raise(WORKSPACE_EVENT_KINDS.CONTENT_GRANTED, {
+            slug,
+            kind,
+            sourceWorkspaceId
+        });
+        return true;
+    }
+
+    /**
+     * Revokes a **shared** grant. It owns no records, so there is no entry
+     * count to check: links this workspace's entries hold into the source are
+     * kept in the database and simply stop being visible. Revoking a grant the
+     * workspace never held is a no-op that returns `false`; otherwise raises
+     * `workspace.content_revoked` with the `sourceWorkspaceId`.
+     */
+    revokeSharedContent(slug: string, sourceWorkspaceId: string): boolean {
+        const index = this.findGrant(slug, sourceWorkspaceId);
+        if (index === -1) {
+            return false;
+        }
+        this._grants.splice(index, 1);
+        this._removedSharedGrants.push({ slug, sourceWorkspaceId });
+        this.raise(WORKSPACE_EVENT_KINDS.CONTENT_REVOKED, {
+            slug,
+            sourceWorkspaceId
+        });
+        return true;
+    }
+
+    /**
+     * Revokes the workspace's **own** grant of a content type — **only when the type holds no entries in this
      * workspace**, so a revoke never orphans reachable records. `entryCount`
      * comes from the content context (a port); a non-zero count throws
      * {@link ContentTypeNotEmptyError}. Revoking a grant the workspace never
@@ -302,7 +389,7 @@ export class Workspace {
                 entryCount
             );
         }
-        const index = this._grants.findIndex((grant) => grant.slug === slug);
+        const index = this.findGrant(slug, null);
         if (index === -1) {
             return false;
         }
@@ -344,7 +431,8 @@ export class Workspace {
             addedMemberIds: [...this._addedMemberIds],
             removedMemberIds: [...this._removedMemberIds],
             addedGrants: [...this._addedGrants],
-            removedGrantSlugs: [...this._removedGrantSlugs]
+            removedGrantSlugs: [...this._removedGrantSlugs],
+            removedSharedGrants: [...this._removedSharedGrants]
         };
     }
 
@@ -397,8 +485,16 @@ export class Workspace {
         return this._members.some((member) => member.userId === userId);
     }
 
+    /** Whether the workspace holds its **own** grant of `slug`. */
     private hasGrant(slug: string): boolean {
-        return this._grants.some((grant) => grant.slug === slug);
+        return this.findGrant(slug, null) !== -1;
+    }
+
+    /** Index of the grant identified by `(slug, source)`, or `-1`. */
+    private findGrant(slug: string, sourceWorkspaceId: string | null): number {
+        return this._grants.findIndex((grant) =>
+            grant.matches(slug, sourceWorkspaceId)
+        );
     }
 
     private raise(kind: string, payload: Record<string, unknown>): void {

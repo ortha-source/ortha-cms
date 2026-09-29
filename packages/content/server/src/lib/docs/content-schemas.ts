@@ -648,9 +648,39 @@ function sharedSchemas(): Record<string, OpenApiSchema> {
             },
             required: ['name', 'type', 'required', 'validation', 'admin']
         },
+        ContentTypeAccess: {
+            type: 'object',
+            description:
+                'What the open workspace may do with a type (ADR-0019, explicit per-source grants): `own` — author its own records; `sharedSources` — the available shared workspaces it reads and links records from.',
+            properties: {
+                own: { type: 'boolean' },
+                sharedSources: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            workspaceId: { type: 'string', format: 'uuid' },
+                            workspaceName: { type: 'string' }
+                        },
+                        required: ['workspaceId', 'workspaceName']
+                    }
+                }
+            },
+            required: ['own', 'sharedSources']
+        },
         ContentTypeSummaryList: {
             type: 'array',
-            items: ref('ContentTypeSummary')
+            description:
+                'Every registered type. With `X-Workspace-Id`, each item also carries that workspace’s `access`.',
+            items: {
+                allOf: [
+                    ref('ContentTypeSummary'),
+                    {
+                        type: 'object',
+                        properties: { access: ref('ContentTypeAccess') }
+                    }
+                ]
+            }
         },
         ContentTypeSchema: {
             allOf: [
@@ -676,7 +706,8 @@ function sharedSchemas(): Record<string, OpenApiSchema> {
                         fields: {
                             type: 'array',
                             items: ref('ContentFieldSchema')
-                        }
+                        },
+                        access: ref('ContentTypeAccess')
                     },
                     required: ['fields']
                 }

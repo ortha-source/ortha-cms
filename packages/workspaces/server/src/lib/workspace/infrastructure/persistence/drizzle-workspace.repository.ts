@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, or } from 'drizzle-orm';
 import { UnitOfWork } from '@orthacms/database';
 import { Workspace } from '../../domain/workspace';
 import type { WorkspaceId } from '../../domain/value-objects/workspace-id';
@@ -125,20 +125,39 @@ export class DrizzleWorkspaceRepository implements WorkspaceRepository {
                     changes.addedGrants.map((grant) => ({
                         workspaceId,
                         kind: grant.kind,
-                        slug: grant.slug
+                        slug: grant.slug,
+                        sourceWorkspaceId: grant.sourceWorkspaceId ?? null
                     }))
                 )
                 .onConflictDoNothing();
         }
         if (changes.removedGrantSlugs.length > 0) {
+            await executor.delete(workspaceContent).where(
+                and(
+                    eq(workspaceContent.workspaceId, workspaceId),
+                    inArray(workspaceContent.slug, changes.removedGrantSlugs),
+                    // Own grants only: revoking "Tags" must leave every
+                    // "Tags · <shared workspace>" grant alone.
+                    isNull(workspaceContent.sourceWorkspaceId)
+                )
+            );
+        }
+        if (changes.removedSharedGrants.length > 0) {
             await executor
                 .delete(workspaceContent)
                 .where(
                     and(
                         eq(workspaceContent.workspaceId, workspaceId),
-                        inArray(
-                            workspaceContent.slug,
-                            changes.removedGrantSlugs
+                        or(
+                            ...changes.removedSharedGrants.map((grant) =>
+                                and(
+                                    eq(workspaceContent.slug, grant.slug),
+                                    eq(
+                                        workspaceContent.sourceWorkspaceId,
+                                        grant.sourceWorkspaceId
+                                    )
+                                )
+                            )
                         )
                     )
                 );
@@ -188,7 +207,8 @@ export class DrizzleWorkspaceRepository implements WorkspaceRepository {
         const grantRows = await executor
             .select({
                 kind: workspaceContent.kind,
-                slug: workspaceContent.slug
+                slug: workspaceContent.slug,
+                sourceWorkspaceId: workspaceContent.sourceWorkspaceId
             })
             .from(workspaceContent)
             .where(eq(workspaceContent.workspaceId, id.value));
@@ -198,7 +218,8 @@ export class DrizzleWorkspaceRepository implements WorkspaceRepository {
             memberRows.map((member) => member.userId),
             grantRows.map((grant) => ({
                 kind: grant.kind as ContentGrantKind,
-                slug: grant.slug
+                slug: grant.slug,
+                sourceWorkspaceId: grant.sourceWorkspaceId
             }))
         );
     }

@@ -20,8 +20,16 @@ import {
     Spinner
 } from '@orthacms/design-system';
 import { countRules, type FilterGroup } from '@orthacms/query-builder-admin';
-import type { EntrySourceScope } from '../../../../../../domain/types/contentType';
+import { useCurrentWorkspace } from '@orthacms/workspaces-admin';
+import {
+    OWN_ONLY_ACCESS,
+    accessOf,
+    sourceChoiceScope,
+    sourceChoices,
+    type SourceChoice
+} from '../../../../../../domain/contentTypeAccess';
 import { useContentSchema } from '../../../../../../application/useContentSchema';
+import { useContentTypes } from '../../../../../../application/useContentTypes';
 import {
     useRelationCandidates,
     type RelationCandidate
@@ -119,10 +127,10 @@ export function RelationPickerDialog({
     const [search, setSearch] = useState('');
     const [filter, setFilter] = useState<FilterGroup | null>(null);
     const [filtersOpen, setFiltersOpen] = useState(false);
-    // Which workspaces' records are offered. Defaults to **all**: a record in
-    // a shared workspace is as linkable as one of this workspace's own, and the
+    // Which records are offered. Defaults to **all** available: a record in a
+    // shared workspace is as linkable as one of this workspace's own, and the
     // badge on each row already says which is which.
-    const [source, setSource] = useState<EntrySourceScope>('all');
+    const [sourceChoice, setSourceChoice] = useState<SourceChoice>('all');
     // "Select all" in progress: pulls the remaining pages, then checks them.
     const [selectingAll, setSelectingAll] = useState(false);
     const [pagesPulled, setPagesPulled] = useState(0);
@@ -159,7 +167,7 @@ export function RelationPickerDialog({
             setPagesPulled(0);
             setFilter(null);
             setFiltersOpen(false);
-            setSource('all');
+            setSourceChoice('all');
         }
         wasOpen.current = open;
     }, [open]);
@@ -168,6 +176,23 @@ export function RelationPickerDialog({
         targetName,
         open
     );
+    // Where the target is reached from decides which sources exist to pick.
+    // Until the (cached) list answers, only what the workspace's own grants
+    // say is known — so "own" is offered only for a granted target.
+    const workspace = useCurrentWorkspace();
+    const { data: types } = useContentTypes(open);
+    const target = types?.find((type) => type.name === targetName);
+    const targetAccess = target ? accessOf(target) : OWN_ONLY_ACCESS;
+    const ownAvailable =
+        targetAccess.own && workspace.content.includes(targetName);
+    const choices = sourceChoices({
+        own: ownAvailable,
+        sharedSources: targetAccess.sharedSources
+    });
+    // A choice that stopped existing (the list answered after it was made)
+    // falls back to all rather than asking for a source that isn't there.
+    const source = choices.includes(sourceChoice) ? sourceChoice : 'all';
+    const { scope, workspaceId: sourceWorkspaceId } = sourceChoiceScope(source);
     // Server-derived filterable surface for the target type (its own fields
     // plus recursive relation paths), gated on the dialog being open.
     const {
@@ -207,7 +232,10 @@ export function RelationPickerDialog({
         {
             search,
             filter,
-            source,
+            source: scope,
+            // A named source is narrowed server-side, so total and paging
+            // stay exact.
+            ...(sourceWorkspaceId ? { sourceWorkspaceId } : {}),
             ...(Object.keys(extraParams).length ? { extra: extraParams } : {})
         },
         open
@@ -356,7 +384,9 @@ export function RelationPickerDialog({
                     fieldsError={filterFieldsError}
                     onRetryFields={refetchFilterFields}
                     source={source}
-                    onSourceChange={setSource}
+                    onSourceChange={setSourceChoice}
+                    ownAvailable={ownAvailable}
+                    sharedSources={targetAccess.sharedSources}
                     renderRelationValue={(props) => (
                         <RelationValuePicker {...props} />
                     )}

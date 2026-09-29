@@ -114,6 +114,24 @@ export class CreateWorkspacePage extends BasePage {
         return this.page.getByRole('heading', { name, level: 2 });
     }
 
+    /** Content step: the "Specific content" mode tile. */
+    get specificContentTile(): Locator {
+        return this.page.getByRole('radio', { name: /Specific content/ });
+    }
+
+    /** Content step: the "From {workspace}" group of shared types. */
+    sharedContentGroup(workspaceName: string): Locator {
+        return this.page.getByRole('group', { name: `From ${workspaceName}` });
+    }
+
+    /** Content step: one shared type's checkbox, "{Type} · {Workspace}". */
+    sharedContentCheckbox(label: string, workspaceName: string): Locator {
+        return this.page.getByRole('checkbox', {
+            name: `${label} · ${workspaceName}`,
+            exact: true
+        });
+    }
+
     /**
      * Walk the wizard with default members (just the owner) and content (all),
      * submitting at the end. `continueToMembers.click()` auto-waits for the slug

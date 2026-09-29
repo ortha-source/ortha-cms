@@ -61,6 +61,10 @@ workspace you don't belong to, and no endpoint ever returns one.
   context's own routes use). Both delegate to `authorizeWorkspaceAccess`
   (`http/guards/workspace-access.ts`), so what "has access" means can't drift
   between them. Both are exported from the barrel and provided globally.
+  A third, `OptionalWorkspaceGuard`, is for a **global** route that adds
+  per-workspace detail when the header is present (content's
+  `GET /content-schema` `access`): no header passes untouched, a present one is
+  held to the same `authorizeWorkspaceAccess` rule.
 - **A non-member always gets a flat 403 — never a 404.** "Not a member" and "no
   such workspace" are indistinguishable, so the routes leak no ids. The guard
   runs before the handler, so the handler's own `WorkspaceNotFoundError → 404`
@@ -219,9 +223,23 @@ the aggregate's idempotent `setShared()` (reached through `updateProfile`'s
 `isShared` field on every `WorkspaceView`, and the optional `isShared` on
 `UpdateWorkspaceDto`. **What sharing means is not decided here** — content's
 `SharedSourcesQuery` reads the flag (plus `status = 'active'` and the consumer's
-`workspace_content` grant) directly from this package's exported schema, the
+`workspace_content` grants) directly from this package's exported schema, the
 same one-way dependency `WorkspaceGrantsQuery` already uses. Sharing grants no
 membership: every `/workspaces/:id/…` route still 403s a non-member.
+
+**Explicit per-source grants.** A `workspace_content` row with
+`source_workspace_id` is a **shared grant** — read and link that workspace's
+records of the slug — beside the **own** grant (`NULL` source). The aggregate
+keys grants by `(slug, source)`: `grantContent` / `revokeContent` touch only the
+own grant (the revoke keeps its entry-count lock), `grantSharedContent` /
+`revokeSharedContent` only one shared grant (no count, no lock — it owns no
+records), and a workspace is never its own source. Eligibility of a source
+(shared, active, owning the slug) is cross-aggregate, so the use cases ask the
+`SHARED_CONTENT_SOURCES` port (`SharedContentSourcesQuery`), which also backs
+`GET /workspaces/:id/shared-sources`; an ineligible source is one uniform
+`InvalidSharedSourceError` → 422. No lock is taken there: a source unshared a
+moment later only makes the grant inert (`WorkspaceView.sharedContent[].available`
+is `false`), which every read re-checks.
 
 ## Schema note
 

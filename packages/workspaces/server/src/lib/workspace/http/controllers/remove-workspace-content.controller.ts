@@ -6,6 +6,7 @@ import {
     NotFoundException,
     Param,
     ParseUUIDPipe,
+    Query,
     UseGuards
 } from '@nestjs/common';
 import {
@@ -18,6 +19,7 @@ import {
 } from '@orthacms/identity-server';
 import { WorkspaceMemberGuard } from '../guards/workspace-member.guard';
 import { RevokeContentUseCase } from '../../application/use-cases/revoke-content.use-case';
+import { RevokeSharedContentUseCase } from '../../application/use-cases/revoke-shared-content.use-case';
 import { WorkspaceViewQuery } from '../../infrastructure/queries/workspace-view.query';
 import type { WorkspaceView } from '../../application/queries/workspace.view';
 import {
@@ -33,6 +35,12 @@ import {
  * Revoking a grant the workspace never held is a no-op. Returns the updated
  * view; a missing workspace maps to 404. Guarded by `OriginGuard` (CSRF).
  *
+ * `?source=<workspaceId>` revokes the **shared** grant of that source instead
+ * (ADR-0019, "Explicit per-source grants") — no entry count, since a shared
+ * grant owns no records — and leaves the own grant untouched. Without it the
+ * route revokes the own grant exactly as it always has, and leaves every
+ * shared grant of the slug untouched.
+ *
  * Also guarded by `WorkspaceMemberGuard`: a caller who isn't a member of
  * `:id` gets a flat 403 — indistinguishable from a workspace that doesn't
  * exist — so a permission never reaches another tenant's workspace.
@@ -43,6 +51,7 @@ import {
 export class RemoveWorkspaceContentController {
     constructor(
         private readonly revokeContent: RevokeContentUseCase,
+        private readonly revokeSharedContent: RevokeSharedContentUseCase,
         private readonly views: WorkspaceViewQuery
     ) {}
 
@@ -50,10 +59,16 @@ export class RemoveWorkspaceContentController {
     async remove(
         @CurrentUser() actor: PublicUser,
         @Param('id', ParseUUIDPipe) id: string,
-        @Param('slug') slug: string
+        @Param('slug') slug: string,
+        @Query('source', new ParseUUIDPipe({ optional: true }))
+        source?: string
     ): Promise<WorkspaceView> {
         try {
-            await this.revokeContent.execute(actor, id, slug);
+            if (source) {
+                await this.revokeSharedContent.execute(actor, id, slug, source);
+            } else {
+                await this.revokeContent.execute(actor, id, slug);
+            }
             const view = await this.views.byId(id);
             if (!view) {
                 throw new NotFoundException();

@@ -16,6 +16,7 @@ import type {
 } from '../registry/content-type-registry';
 import { EntryWriterService } from '../entries/infrastructure/persistence/entry-writer.service';
 import { WorkspaceGrantsQuery } from '../content-types/queries/workspace-grants.query';
+import { resolveOwnedType } from './owned-type';
 import { BULK_MAX_SAVE_ITEMS } from '../entries/entries.constants';
 import {
     CONTENT_ENTRY_EXTENSION,
@@ -105,15 +106,13 @@ export class EntryProposalToolProvider implements ToolProvider, OnModuleInit {
     }
 
     /** Resolves a granted, registered type — the same uniform message as the reads. */
-    private async resolveGranted(typeName: string, workspaceId: string) {
-        const type = this.registry.get(typeName);
-        const granted = await this.grants.grantedSlugs(workspaceId);
-        if (!type || !granted.has(type.name)) {
-            throw new Error(
-                `Unknown content type "${typeName}" in this workspace.`
-            );
-        }
-        return type;
+    private resolveGranted(typeName: string, workspaceId: string) {
+        return resolveOwnedType(
+            this.registry,
+            this.grants,
+            typeName,
+            workspaceId
+        );
     }
 
     /**

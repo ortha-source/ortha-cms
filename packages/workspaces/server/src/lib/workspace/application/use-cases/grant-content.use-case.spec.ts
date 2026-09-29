@@ -6,12 +6,16 @@ import { Workspace } from '../../domain/workspace';
 import type { WorkspaceRepository } from '../../domain/workspace.repository';
 import { WORKSPACE_EVENT_KINDS } from '../../domain/events/workspace-events';
 import {
+    InvalidSharedSourceError,
     UnknownContentTypeError,
     WorkspaceNotFoundError
 } from '../../domain/errors';
+import type { SharedContentSources } from '../ports/shared-content-sources.port';
 
 const WORKSPACE_ID = '11111111-1111-4111-8111-111111111111';
 const MEMBER = '22222222-2222-4222-8222-222222222222';
+/** A shared, active workspace that holds its own `author` grant. */
+const LIBRARY = '33333333-3333-4333-8333-333333333333';
 
 const ACTOR = {
     id: '99999999-9999-4999-8999-999999999999',
@@ -82,8 +86,24 @@ function harness(options: { workspace?: Workspace | null } = {}) {
         }
     } as unknown as OutboxWriter;
 
+    const sources = {
+        list: async () => [],
+        offeredKind: async (sourceId: string, slug: string) => {
+            log.push(`offered:${sourceId}:${slug}`);
+            return sourceId === LIBRARY && slug === 'author'
+                ? ('collection' as const)
+                : null;
+        }
+    } as SharedContentSources;
+
     return {
-        useCase: new GrantContentUseCase(uow, outbox, catalog, workspaces),
+        useCase: new GrantContentUseCase(
+            uow,
+            outbox,
+            catalog,
+            workspaces,
+            sources
+        ),
         workspace,
         log,
         appended
@@ -182,5 +202,63 @@ describe('GrantContentUseCase', () => {
         ).rejects.toThrow();
 
         expect(log).toEqual([]);
+    });
+
+    describe('a shared grant (ADR-0019, explicit per-source grants)', () => {
+        it('grants an eligible source and carries it on the event', async () => {
+            const { useCase, workspace, appended } = harness();
+
+            await useCase.execute(ACTOR, WORKSPACE_ID, 'author', LIBRARY);
+
+            expect(workspace?.changes().addedGrants).toEqual([
+                {
+                    kind: 'collection',
+                    slug: 'author',
+                    sourceWorkspaceId: LIBRARY
+                }
+            ]);
+            expect(appended[0].payload).toMatchObject({
+                slug: 'author',
+                sourceWorkspaceId: LIBRARY
+            });
+        });
+
+        it('is independent of the own grant of the same slug', async () => {
+            const { useCase, workspace } = harness();
+
+            await useCase.execute(ACTOR, WORKSPACE_ID, 'author');
+            await useCase.execute(ACTOR, WORKSPACE_ID, 'author', LIBRARY);
+
+            expect(workspace?.changes().addedGrants).toEqual([
+                { kind: 'collection', slug: 'author' },
+                {
+                    kind: 'collection',
+                    slug: 'author',
+                    sourceWorkspaceId: LIBRARY
+                }
+            ]);
+        });
+
+        it('refuses a source that does not offer the slug', async () => {
+            const { useCase, log } = harness();
+
+            await expect(
+                useCase.execute(ACTOR, WORKSPACE_ID, 'blog_post', LIBRARY)
+            ).rejects.toThrow(InvalidSharedSourceError);
+
+            expect(log).not.toContain('save');
+        });
+
+        it('refuses the workspace itself as a source without asking', async () => {
+            const { useCase, log } = harness();
+
+            await expect(
+                useCase.execute(ACTOR, WORKSPACE_ID, 'author', WORKSPACE_ID)
+            ).rejects.toThrow(InvalidSharedSourceError);
+
+            expect(log.some((entry) => entry.startsWith('offered:'))).toBe(
+                false
+            );
+        });
     });
 });

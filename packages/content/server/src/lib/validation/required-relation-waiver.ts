@@ -16,12 +16,14 @@ export function hasRequiredRelation(type: AnyContentType): boolean {
 
 /**
  * The required relations of `type` whose `required` flag does not apply in a
- * workspace holding the content grants `granted`.
+ * workspace whose **reachable** content types are `granted`.
  *
- * A relation is **reachable** from a workspace when the workspace holds a
- * `workspace_content` grant for its target type — the same condition that
- * decides whether it may read that type, link to it, or see a shared
- * workspace's rows of it (ADR-0019). An unreachable target is one nobody in the
+ * A relation is **reachable** from a workspace when the workspace can reach
+ * its target type — an own grant, or a shared grant of it whose source is
+ * still shared, active and holding the type (ADR-0019, "Explicit per-source
+ * grants"). That is the same condition that decides whether it may read that
+ * type or link to it, so a target read only from shared workspaces is *not*
+ * waived: the editor can pick a shared record. An unreachable target is one nobody in the
  * workspace can pick: the admin hides the field, the public API and the agent
  * tools refuse the type. Requiring a value there would make every entry of the
  * owning type unsaveable (on a live type) and unpublishable (on a publishable
