@@ -1,5 +1,6 @@
 import { EntryReviewService, type ReviewActor } from './entry-review.service';
 import {
+    NothingToReviewError,
     ReviewableEntryNotFoundError,
     ReviewerNotEligibleError,
     SelfApprovalRefusedError
@@ -42,7 +43,12 @@ type Vote = { userId: string; revisionId: string; createdAt?: Date };
 function makeService(
     options: {
         rule?: Record<string, unknown> | null;
-        head?: { id: string; number: number; authorId: string | null } | null;
+        head?: {
+            id: string;
+            number: number;
+            authorId: string | null;
+            isPublished?: boolean;
+        } | null;
         votes?: Vote[];
         timeline?: { id: string; number: number }[];
         candidates?: { userId: string; email: string }[];
@@ -60,8 +66,8 @@ function makeService(
     const cast: unknown[] = [];
     const head =
         options.head === undefined
-            ? { id: 'rev-7', number: 7, authorId: ANNA }
-            : options.head;
+            ? { id: 'rev-7', number: 7, authorId: ANNA, isPublished: false }
+            : options.head && { isPublished: false, ...options.head };
 
     const instance = new EntryReviewService(
         uow as never,
@@ -189,6 +195,27 @@ describe('EntryReviewService.state', () => {
         expect(
             await service.state(WORKSPACE, 'article', ENTRY, caller(BORIS))
         ).toMatchObject({ callerWroteHead: false, callerApprovedHead: true });
+    });
+
+    /** What the editor reads to stop offering a review of what is already live. */
+    it('says whether the head is the live version', async () => {
+        const live = makeService({
+            rule,
+            head: { id: 'rev-7', number: 7, authorId: ANNA, isPublished: true }
+        });
+        const edited = makeService({ rule });
+
+        expect(
+            await live.service.state(WORKSPACE, 'article', ENTRY, caller(BORIS))
+        ).toMatchObject({ headPublished: true });
+        expect(
+            await edited.service.state(
+                WORKSPACE,
+                'article',
+                ENTRY,
+                caller(BORIS)
+            )
+        ).toMatchObject({ headPublished: false });
     });
 
     /**
@@ -426,5 +453,28 @@ describe('EntryReviewService.requestReview', () => {
                 reviewerIds: [BORIS]
             })
         ]);
+    });
+
+    /**
+     * A published entry with no save since has no next version: an approval
+     * would be of what is already live, and the request would sit in the queue
+     * until somebody happened to publish again — the only thing that closes one.
+     */
+    it('refuses a request on an entry whose head is already live', async () => {
+        const { service, opened } = makeService({
+            head: { id: 'rev-7', number: 7, authorId: ANNA, isPublished: true },
+            candidates: [{ userId: BORIS, email: 'boris@example.com' }]
+        });
+
+        await expect(
+            service.requestReview(
+                WORKSPACE,
+                'article',
+                ENTRY,
+                [BORIS],
+                caller(ANNA)
+            )
+        ).rejects.toBeInstanceOf(NothingToReviewError);
+        expect(opened).toEqual([]);
     });
 });

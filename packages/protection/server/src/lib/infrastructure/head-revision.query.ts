@@ -12,6 +12,11 @@ export interface HeadRevision {
     number: number;
     /** Who wrote it, or `null` when that cannot be named (a token, an import). */
     authorId: string | null;
+    /**
+     * Whether it is the entry's live version — published, with no save since.
+     * Such a head has nothing left to review: the next version does not exist.
+     */
+    isPublished: boolean;
 }
 
 /**
@@ -70,7 +75,8 @@ export class HeadRevisionQuery {
             // behind it — a bearer token, an import, a migration. Absent means
             // "nobody to exclude", which is what `evaluateProtection` reads
             // `null` as.
-            authorId: head.authorId ?? null
+            authorId: head.authorId ?? null,
+            isPublished: head.isPublished
         };
     }
 

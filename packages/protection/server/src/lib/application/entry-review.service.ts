@@ -23,6 +23,7 @@ import {
     type ProtectionInput
 } from '@orthacms/protection-domain';
 import {
+    NothingToReviewError,
     ReviewableEntryNotFoundError,
     ReviewerNotEligibleError,
     ReviewRequestNotFoundError,
@@ -177,6 +178,7 @@ export class EntryReviewService {
             afterSave,
             headRevisionId: entry.head.id,
             headRevisionNumber: entry.head.number,
+            headPublished: entry.head.isPublished,
             callerWroteHead: entry.head.authorId === actor.id,
             callerApprovedHead: votes.some(
                 (vote) =>
@@ -269,6 +271,11 @@ export class EntryReviewService {
      * on something nobody protected is a reasonable thing to want, and refusing
      * it would make the queue a function of the settings tab rather than of what
      * people actually asked for. What an unprotected type does not do is block.
+     *
+     * Refused on an entry whose head is **already live** — published, with no
+     * save since ({@link NothingToReviewError}). A review is about the version
+     * that would ship next, and there is none yet; the request would only sit
+     * in the queue until somebody published again.
      */
     async requestReview(
         workspaceId: string,
@@ -278,6 +285,9 @@ export class EntryReviewService {
         actor: ReviewActor
     ): Promise<void> {
         const entry = await this.resolve(workspaceId, contentType, entryId);
+        if (entry.head.isPublished) {
+            throw new NothingToReviewError(entry.head.id);
+        }
         const eligible = new Set(
             (await this.candidates.list(workspaceId, actor.id)).map(
                 (candidate) => candidate.userId

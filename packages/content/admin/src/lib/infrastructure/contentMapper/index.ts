@@ -114,12 +114,19 @@ export function toFilterField(
  * "absent" can only mean the record is this workspace's own and writable.
  * Neither field is ever sent back on a save (the write body is built from
  * `values`), so these fallbacks can't be written over a real value.
+ *
+ * An absent `readOnly` is derived from `source`, not defaulted to `false`: the
+ * records list reports `source` but not `readOnly`, and the editor seeds from
+ * that list's cache when a row is opened from the table. Defaulting there
+ * made a foreign row look writable — the editor offered Save, and the server
+ * refused it. A record with a source is foreign, and foreign is read-only.
  */
 export function toEntryRecord(wire: EntryRecord): EntryRecord {
+    const source = wire.source ?? null;
     return {
         ...wire,
-        source: wire.source ?? null,
-        readOnly: wire.readOnly ?? false
+        source,
+        readOnly: wire.readOnly ?? source !== null
     };
 }
 

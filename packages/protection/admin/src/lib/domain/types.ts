@@ -77,6 +77,12 @@ export type EntryReview = {
     afterSave: PublishOutlook;
     headRevisionId: string;
     headRevisionNumber: number;
+    /**
+     * Whether the head is the entry's live version — published, with no save
+     * since. There is then nothing to review: nothing to approve, nobody to
+     * ask. The next save turns it back off.
+     */
+    headPublished: boolean;
     /** Whether the caller wrote the head, and so cannot approve it. */
     callerWroteHead: boolean;
     /** Whether the caller already approved the head — nothing left to press. */

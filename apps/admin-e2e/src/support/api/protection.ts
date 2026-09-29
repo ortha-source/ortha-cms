@@ -27,6 +27,8 @@ export type EntryReviewSeed = {
     bypassable?: boolean;
     headRevisionId?: string;
     headRevisionNumber?: number;
+    /** Whether the head is live — published with no save since. */
+    headPublished?: boolean;
     callerWroteHead?: boolean;
     callerApprovedHead?: boolean;
     /**
@@ -84,6 +86,7 @@ function reviewBodyOf(seed: EntryReviewSeed) {
         },
         headRevisionId: seed.headRevisionId ?? 'rev-7',
         headRevisionNumber: seed.headRevisionNumber ?? 7,
+        headPublished: seed.headPublished ?? false,
         callerWroteHead: seed.callerWroteHead ?? false,
         callerApprovedHead: seed.callerApprovedHead ?? false,
         approvals: (seed.approvals ?? []).map((vote) => ({

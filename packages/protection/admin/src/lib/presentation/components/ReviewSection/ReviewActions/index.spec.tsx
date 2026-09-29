@@ -32,6 +32,7 @@ const review = (overrides: Partial<EntryReview> = {}): EntryReview => ({
     afterSave: { required: 2, given: 0, blocked: true, bypassable: false },
     headRevisionId: 'rev-7',
     headRevisionNumber: 7,
+    headPublished: false,
     callerWroteHead: false,
     callerApprovedHead: false,
     approvals: [],
@@ -151,6 +152,19 @@ describe('ReviewActions', () => {
             { canRequest: false }
         );
 
+        expect(container.innerHTML).toBe('');
+    });
+
+    /**
+     * Published with no save since: there is no next version, so nothing to
+     * approve and nobody to ask — the server refuses the request with `409
+     * protection.nothing_to_review`, and the button would only lead there.
+     */
+    it('offers neither Approve nor an ask on a head that is already live', () => {
+        const { container } = draw({ headPublished: true });
+
+        expect(approveButton()).toBeNull();
+        expect(screen.queryByRole('button', { name: /Request/ })).toBeNull();
         expect(container.innerHTML).toBe('');
     });
 });

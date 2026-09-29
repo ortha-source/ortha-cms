@@ -27,6 +27,7 @@ import { EntryReviewService } from '../../application/entry-review.service';
 import { RequestReviewDto } from '../../application/dto/request-review.dto';
 import { NoBodyDto } from '../../application/dto/no-body.dto';
 import {
+    NothingToReviewError,
     ReviewableEntryNotFoundError,
     ReviewerNotEligibleError,
     ReviewRequestNotFoundError,
@@ -130,8 +131,10 @@ export class EntryReviewController {
             'invalidates is an **approval**, not the ask. Who is asked never ' +
             'changes whose approval counts. `422 ' +
             '`protection.reviewer_not_eligible`` when a reviewer is not ' +
-            'another member who can approve. Allowed on an unprotected type, ' +
-            'which simply never blocks.'
+            'another member who can approve. `409 ' +
+            '`protection.nothing_to_review`` when the entry is published and ' +
+            'unchanged since — there is no next version to review. Allowed ' +
+            'on an unprotected type, which simply never blocks.'
     })
     @UseGuards(OriginGuard)
     @RequirePermissions(PERMISSIONS.CONTENT_UPDATE)
@@ -279,6 +282,13 @@ async function mapErrors<T>(run: () => Promise<T>): Promise<T> {
             throw new ConflictException({
                 statusCode: 409,
                 code: 'protection.self_approval_refused',
+                message: error.message
+            });
+        }
+        if (error instanceof NothingToReviewError) {
+            throw new ConflictException({
+                statusCode: 409,
+                code: 'protection.nothing_to_review',
                 message: error.message
             });
         }

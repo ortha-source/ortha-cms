@@ -452,6 +452,10 @@ what that pair will actually do.
 - **I-22** A review request names only people who could approve it — other
   members of the workspace holding `content:approve` — and whom it names never
   changes whose approval counts.
+- **I-23** An entry whose head is its live version — published, with no save
+  since — has nothing to review: the request route answers `409
+protection.nothing_to_review`, and the editor offers neither Approve nor
+  Request review, nor a review chip. The next save makes it reviewable again.
 
 ## Testing checklist
 
@@ -483,6 +487,7 @@ what that pair will actually do.
 | Same, on a create form                                             | The create goes out, then the publish carrying `bypass: true` (I-20)                                  |
 | Open ⋯ on a held entry                                             | _Save & publish_ is disabled; with a bypass offered it opens the confirmation (I-21)                  |
 | List reviewers, then request from somebody off the list            | The list excludes you and viewers; the request is 422 (I-22)                                          |
+| Request review on a published entry with no edits since            | 409 `protection.nothing_to_review`; the rail shows no Approve / Request review (I-23)                 |
 
 ## What this does not do
 

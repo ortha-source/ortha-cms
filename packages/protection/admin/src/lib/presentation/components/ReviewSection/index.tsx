@@ -22,6 +22,11 @@ const messages = defineMessages({
         defaultMessage:
             'This type is protected: publishing needs {required, plural, one {# approval} other {# approvals}} on the current version.'
     },
+    published: {
+        id: 'protection.review.published',
+        defaultMessage:
+            'Published and unchanged — nothing to review. The next change needs {required, plural, one {# approval} other {# approvals}} before it goes live.'
+    },
     ready: {
         id: 'protection.review.ready',
         defaultMessage:
@@ -101,6 +106,10 @@ export function ReviewSection(context: EntrySlotContext) {
 
     const tone = toneOf(data);
     const rows = reviewerRows(data);
+    // Published with no save since: the count is of a version already live,
+    // so it is shown without the held/partial/satisfied colour it would
+    // otherwise carry — nothing is waiting on it.
+    const live = data.headPublished;
 
     return (
         <EntrySidebarSection
@@ -109,9 +118,14 @@ export function ReviewSection(context: EntrySlotContext) {
                 <span
                     className={cn(
                         'text-xs font-medium tabular-nums',
-                        tone === 'satisfied' && 'text-success-soft-foreground',
-                        tone === 'partial' && 'text-warning-soft-foreground',
-                        tone === 'blocked' && 'text-destructive'
+                        live && 'text-muted-foreground',
+                        !live &&
+                            tone === 'satisfied' &&
+                            'text-success-soft-foreground',
+                        !live &&
+                            tone === 'partial' &&
+                            'text-warning-soft-foreground',
+                        !live && tone === 'blocked' && 'text-destructive'
                     )}
                 >
                     {intl.formatMessage(messages.count, {
@@ -121,7 +135,11 @@ export function ReviewSection(context: EntrySlotContext) {
                 </span>
             }
             description={intl.formatMessage(
-                tone === 'satisfied' ? messages.ready : messages.description,
+                live
+                    ? messages.published
+                    : tone === 'satisfied'
+                      ? messages.ready
+                      : messages.description,
                 { required: data.required }
             )}
         >

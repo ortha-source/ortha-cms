@@ -202,6 +202,7 @@ export function EntryEditor({
     onDelete,
     backTo,
     availableTypeNames,
+    ownType = true,
     prefilledFromLocale,
     presave,
     extensionsStaged,
@@ -269,6 +270,13 @@ export function EntryEditor({
      */
     availableTypeNames?: readonly string[];
     /**
+     * Whether the open workspace holds an **own** grant on this type. Without
+     * one the type is reached only from shared workspaces, and the server
+     * refuses every write to it (`SharedOnlyContentTypeException`, 403) —
+     * whatever the record. Defaults to `true` (a type is its workspace's own).
+     */
+    ownType?: boolean;
+    /**
      * BCP-47 tag of the locale a translation prefill copied this form's
      * **shared** values from — set only on a create seeded that way.
      *
@@ -325,7 +333,13 @@ export function EntryEditor({
     // and no History (a shared record's drafts never leave its workspace).
     // Edits happen in the source workspace, which the banner links to.
     const foreign = entry?.readOnly === true;
-    const readOnly = !canWrite || foreign;
+    // A type reached only through shared grants takes no writes here at all —
+    // the server's grant guard refuses a save, a publish or a delete with a 403
+    // before it looks at the record. So its editor offers none, even on a path
+    // that reached it without a foreign record in hand (a single page with no
+    // row yet, which would otherwise fall back to a create form).
+    const locked = foreign || !ownType;
+    const readOnly = !canWrite || locked;
     // The tabs a foreign record keeps. A deep link to any other lands on
     // General rather than on a tab strip with nothing selected.
     const shownTab =
@@ -983,10 +997,11 @@ export function EntryEditor({
                 this React tree: they read the editor's handlers and busy state,
                 the entry slot context, and the open workspace, none of which
                 exist at the shell's position. */}
-                    {/* A foreign record has no actions at all — not even the
-                        menu: every write route refuses its id, and a bar of
+                    {/* A foreign record — or any record of a type this
+                        workspace doesn't own — has no actions at all, not even
+                        the menu: every write route refuses it, and a bar of
                         buttons that can only fail is worse than none. */}
-                    {foreign ? null : (
+                    {locked ? null : (
                         <PageActionsPortal>
                             <EntryActions
                                 entry={entry}
