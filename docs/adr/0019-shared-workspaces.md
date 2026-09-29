@@ -63,6 +63,39 @@ workspace, before it unpublishes something.
 The top-level public list of a type stays own-workspace: sharing extends what a
 workspace's records may _point at_, not what its API _lists_.
 
+### Agents (MCP and the copilot)
+
+An agent authoring content has to _find_ a library record before it can link
+one, so the agent tools follow the admin rule rather than the public one — the
+same `SharedSourcesQuery`, never a restatement:
+
+- `content_list` (MCP) and `admin_content_search` (copilot) take an optional
+  `source: 'own' | 'shared' | 'all'`, default `own` (unchanged). Foreign rows
+  are published and live whatever `status` asks of own rows; every item carries
+  `source: { workspaceId, workspaceName } | null`. Page-size bounds and argument
+  validation are unchanged.
+- `content_get` (MCP) and `admin_content_get` (copilot) read a visible foreign
+  entry with `source` and `readOnly: true` (own: `source: null`,
+  `readOnly: false`). The MCP id-addressed reads beside it — `content_relations`,
+  `content_media`, `content_translations` — follow the same visibility, media
+  resolving in the entry's own workspace. The copilot's revision tools stay
+  own-workspace (a record's history lives in its workspace) and say so for a
+  visible foreign id rather than answering "no versions".
+- Every write tool — MCP `content_update` / `_publish` / `_unpublish` /
+  `_delete` / `_bulk_*`, the copilot's `content_propose_*` and their appliers —
+  still writes through the strict own-workspace predicate. On a **visible**
+  foreign id it fails with a 403 tool error naming the shared workspace, saying
+  the record is read-only here, and telling the agent to link it by id instead
+  of copying it. The explanation is computed only on the failure path and only
+  for an id the caller could already read; an unknown, draft, deleted or
+  ungranted id keeps the plain not-found, so it is no enumeration signal. The
+  batch lifecycle tools, whose contract is that an unmatched id is silently
+  skipped, refuse a batch naming a visible foreign id before writing anything.
+- Linking a visible foreign record through a relation field keeps working
+  unchanged. The tool descriptions say all of this in a sentence each: shared
+  records are read-only here, find them with `source`, link by id, never create
+  a local copy.
+
 ## Consequences
 
 - One place to review. The visibility rule is a single class with two

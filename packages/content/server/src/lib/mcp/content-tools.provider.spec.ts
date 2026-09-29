@@ -260,7 +260,14 @@ interface Recorded {
     args: unknown[];
 }
 
-/** A recording stand-in for one of the two entry services. */
+/**
+ * A recording stand-in for one of the two entry services.
+ *
+ * `sharedSources` is answered (with "nothing shared") but not recorded: it is
+ * the shared-workspace probe a batch write asks before delegating (ADR-0019),
+ * not the delegation this suite is about — the shared-workspace suite below
+ * pins it on its own.
+ */
 function recorder(target: Recorded['target'], log: Recorded[]) {
     return new Proxy(
         {},
@@ -268,6 +275,9 @@ function recorder(target: Recorded['target'], log: Recorded[]) {
             get:
                 (_unused, method: string) =>
                 (...args: unknown[]) => {
+                    if (method === 'sharedSources') {
+                        return Promise.resolve(new Map());
+                    }
                     log.push({ target, method, args });
                     return ANSWER;
                 }
@@ -420,5 +430,200 @@ describe('ContentToolProvider delegates to the public API’s own services', () 
         ).rejects.toMatchObject({ status: 400 });
         // …and it refused *before* reaching the query, not after.
         expect(log).toEqual([]);
+    });
+});
+
+describe('ContentToolProvider and shared workspaces (ADR-0019)', () => {
+    const FOREIGN = '3f1a7c1e-9d2b-4a6f-8c11-5b8e2f0d7a91';
+    const UNKNOWN = '9c2e5b40-1a77-4f3d-b0e6-2d1c4a8f6b03';
+    const LIBRARY = { workspaceId: 'library-ws', workspaceName: 'Library' };
+
+    /**
+     * A provider whose read side knows exactly one visible shared record,
+     * `FOREIGN`, and whose every addressed write 404s — which is what the real
+     * write path does for any id outside the caller's workspace.
+     */
+    function sharing() {
+        const calls: { method: string; args: unknown[] }[] = [];
+        const registry = {
+            get: (name: string) => (name === 'article' ? { name } : undefined),
+            summaries: () => [serialized('article')],
+            serialize: () => serialized('article')
+        } as unknown as ContentTypeRegistry;
+        const grants = {
+            grantedSlugs: async () => new Set(['article'])
+        } as unknown as WorkspaceGrantsQuery;
+        const entries = {
+            list: async (...args: unknown[]) => {
+                calls.push({ method: 'list', args });
+                return { items: [], total: 0, page: 1, pageSize: 25 };
+            },
+            getOne: async (...args: unknown[]) => {
+                calls.push({ method: 'getOne', args });
+                return { id: FOREIGN, source: LIBRARY, readOnly: true };
+            },
+            sharedSources: async (_type: unknown, keys: readonly string[]) =>
+                new Map(
+                    keys
+                        .filter((key) => key === FOREIGN)
+                        .map((key) => [key, LIBRARY])
+                )
+        } as unknown as PublicEntriesQuery;
+        const notFound = async () => {
+            throw new NotFoundException('No published "article" entry.');
+        };
+        const writes = {
+            update: notFound,
+            publish: notFound,
+            unpublish: notFound,
+            remove: notFound,
+            bulkPublish: async (...args: unknown[]) => {
+                calls.push({ method: 'bulkPublish', args });
+                return { published: [], skipped: [] };
+            },
+            bulkSave: async () => ({
+                items: [
+                    {
+                        index: 0,
+                        op: 'update',
+                        ok: false,
+                        error: { status: 404, message: 'No entry.' }
+                    },
+                    {
+                        index: 1,
+                        op: 'update',
+                        ok: false,
+                        error: { status: 404, message: 'No entry.' }
+                    }
+                ],
+                created: 0,
+                updated: 0,
+                failed: 2
+            })
+        } as unknown as PublicEntryWritesService;
+        return {
+            calls,
+            provider: new ContentToolProvider(registry, grants, entries, writes)
+        };
+    }
+
+    it('lists own entries by default and forwards `source` to the list [content:I-48]', async () => {
+        const { provider, calls } = sharing();
+        const list = toolNamed(provider, 'content_list');
+
+        await list.handler({ typeName: 'article' }, context());
+        await list.handler(
+            { typeName: 'article', source: 'shared' },
+            context()
+        );
+
+        expect(calls.map((call) => call.args[4])).toEqual([
+            { source: 'own' },
+            { source: 'shared' }
+        ]);
+    });
+
+    it('refuses an unknown `source` before reaching the query', async () => {
+        const { provider, calls } = sharing();
+
+        await expect(
+            toolNamed(provider, 'content_list').handler(
+                { typeName: 'article', source: 'everyone' },
+                context()
+            )
+        ).rejects.toMatchObject({ status: 400 });
+        expect(calls).toEqual([]);
+    });
+
+    it('reads a single entry under shared-workspace visibility', async () => {
+        const { provider, calls } = sharing();
+
+        const entry = await toolNamed(provider, 'content_get').handler(
+            { typeName: 'article', id: FOREIGN },
+            context()
+        );
+
+        expect(calls[0].args[5]).toEqual({ source: 'all' });
+        expect(entry).toMatchObject({ source: LIBRARY, readOnly: true });
+    });
+
+    it.each([
+        'content_update',
+        'content_publish',
+        'content_unpublish',
+        'content_delete'
+    ])(
+        '%s on a visible shared record says it is read-only [content:I-49]',
+        async (name) => {
+            const { provider } = sharing();
+
+            const error = await refusal(() =>
+                toolNamed(provider, name).handler(
+                    {
+                        typeName: 'article',
+                        id: FOREIGN,
+                        values: { title: 'x' }
+                    },
+                    context()
+                )
+            );
+
+            expect(error).toMatchObject({ status: 403 });
+            expect(error?.message).toContain('shared workspace "Library"');
+            expect(error?.message).toContain('read-only here');
+            expect(error?.message).toContain('link to it by id');
+        }
+    );
+
+    it('keeps the plain not-found for an id that is not a visible shared record [content:I-49]', async () => {
+        const { provider } = sharing();
+
+        const error = await refusal(() =>
+            toolNamed(provider, 'content_update').handler(
+                { typeName: 'article', id: UNKNOWN, values: { title: 'x' } },
+                context()
+            )
+        );
+
+        expect(error).toBeInstanceOf(NotFoundException);
+        expect(error?.message).not.toContain('shared');
+    });
+
+    it('refuses a batch naming a shared record before writing anything [content:I-49]', async () => {
+        const { provider, calls } = sharing();
+
+        const error = await refusal(() =>
+            toolNamed(provider, 'content_bulk_publish').handler(
+                { typeName: 'article', ids: [UNKNOWN, FOREIGN] },
+                context()
+            )
+        );
+
+        expect(error).toMatchObject({ status: 403 });
+        expect(error?.message).toContain(FOREIGN);
+        expect(error?.message).not.toContain(UNKNOWN);
+        expect(calls).toEqual([]);
+    });
+
+    it('reports a shared record in a bulk save on its own item [content:I-49]', async () => {
+        const { provider } = sharing();
+
+        const result = (await toolNamed(provider, 'content_bulk_save').handler(
+            {
+                typeName: 'article',
+                items: [
+                    { id: FOREIGN, values: { title: 'x' } },
+                    { id: UNKNOWN, values: { title: 'y' } }
+                ]
+            },
+            context()
+        )) as { items: { error?: { status: number; message: string } }[] };
+
+        expect(result.items[0].error?.status).toBe(403);
+        expect(result.items[0].error?.message).toContain('read-only here');
+        expect(result.items[1].error).toEqual({
+            status: 404,
+            message: 'No entry.'
+        });
     });
 });

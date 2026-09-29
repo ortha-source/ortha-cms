@@ -1,5 +1,5 @@
 import { proposalEventActor } from '@orthacms/copilot-server';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import type {
     ProposalActor,
     ProposalApplier,
@@ -11,6 +11,12 @@ import type { ContentTypeRegistry } from '../registry/content-type-registry';
 import { EntryWriterService } from '../entries/infrastructure/persistence/entry-writer.service';
 import { WorkspaceGrantsQuery } from '../content-types/queries/workspace-grants.query';
 import { CONTENT_PROPOSAL_KINDS } from './proposal-kinds';
+import { SharedSourcesQuery } from '../entries/infrastructure/queries/shared-sources.query';
+import {
+    explainSharedNotFound,
+    sharedEntryProbe
+} from '../entries/infrastructure/queries/shared-read-only';
+import type { AnyContentType } from '../types/content-type';
 
 /**
  * Refuses a create that names a translation group — the shape these tools no
@@ -53,6 +59,25 @@ async function grantedType(
         throw new Error(`Unknown content type "${name}" in this workspace.`);
     }
     return type;
+}
+
+/**
+ * The workspace's own live entry an applier is about to merge onto — or the
+ * read-only refusal when the id is a visible record of a **shared workspace**
+ * (ADR-0019). The write would 404 such an id anyway, since every write keeps
+ * its own-workspace predicate; this only makes the failure say why.
+ */
+function ownEntry(
+    writer: EntryWriterService,
+    shared: SharedSourcesQuery | undefined,
+    type: AnyContentType,
+    id: string,
+    workspaceId: string
+) {
+    return explainSharedNotFound(
+        () => writer.getOne(type, id, workspaceId),
+        sharedEntryProbe(shared, type, id, workspaceId)
+    );
 }
 
 /**
@@ -143,7 +168,8 @@ export class UpdateEntryProposalApplier implements ProposalApplier {
         @InjectContentRegistry()
         private readonly registry: ContentTypeRegistry,
         private readonly writer: EntryWriterService,
-        private readonly grants: WorkspaceGrantsQuery
+        private readonly grants: WorkspaceGrantsQuery,
+        @Optional() private readonly shared?: SharedSourcesQuery
     ) {}
 
     async apply(
@@ -164,7 +190,9 @@ export class UpdateEntryProposalApplier implements ProposalApplier {
         // 404s a missing or soft-deleted entry, workspace-scoped — so a
         // proposal whose target was deleted before it was accepted fails with
         // that reason rather than creating something.
-        const current = await this.writer.getOne(
+        const current = await ownEntry(
+            this.writer,
+            this.shared,
             type,
             entryId,
             actor.workspaceId
@@ -219,7 +247,8 @@ export class BulkSaveEntriesProposalApplier implements ProposalApplier {
         @InjectContentRegistry()
         private readonly registry: ContentTypeRegistry,
         private readonly writer: EntryWriterService,
-        private readonly grants: WorkspaceGrantsQuery
+        private readonly grants: WorkspaceGrantsQuery,
+        @Optional() private readonly shared?: SharedSourcesQuery
     ) {}
 
     async apply(
@@ -256,7 +285,9 @@ export class BulkSaveEntriesProposalApplier implements ProposalApplier {
                     // written minutes later lands on whatever the entry has
                     // become — the same merge rule the single-entry applier
                     // states at length.
-                    const current = await this.writer.getOne(
+                    const current = await ownEntry(
+                        this.writer,
+                        this.shared,
                         type,
                         id,
                         actor.workspaceId

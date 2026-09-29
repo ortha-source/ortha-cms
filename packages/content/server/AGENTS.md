@@ -579,6 +579,19 @@ null value false`. It was not _reachable_, though: **`admin_content_types`
   content-server stays locale-agnostic here as everywhere. An unknown locale is
   a tool error, never a silent read of the default. `admin_content_get` takes no
   `locale`: an entry id already names one row including its locale.
+- **Shared workspaces (ADR-0019, content I-48/I-49).** `admin_content_search`
+  forwards `source: own|shared|all` (default `own`) to the admin list — the same
+  `SharedSourcesQuery` rule, never restated — and every item carries `source`.
+  `admin_content_get` reads through `EntryWriterService.getVisible`, so a
+  library record comes back with `source` and `readOnly: true` (its internal
+  `workspaceId` stripped). The propose tools, their appliers and the revision
+  tools still read own-workspace only; on a miss they ask
+  `SharedSourcesQuery.foreignVisibleRows` whether the id is a record the caller
+  could see and, only then, throw `SharedRecordReadOnlyException`
+  (`entries/infrastructure/queries/shared-read-only.ts`) — the message names the
+  workspace and says to link by id instead. Any other id keeps its plain
+  not-found, so nothing is enumerated. Linking a shared record through a
+  relation value is unchanged.
 - `RevisionCopilotToolProvider` ships the **version-history** pair,
   `admin_content_revisions` and `admin_content_diff`. A second provider rather
   than more methods on the first: revisions are their own feature folder with
@@ -1389,6 +1402,19 @@ model discovers one type's shape on demand with `content_type_get`, whose
 `valuesSchema` comes from the same `docs/field-schema.ts` the OpenAPI document
 uses. Granted types are also exposed as MCP **resources**
 (`orthacms://content-type/<name>`), through the same grant gate.
+
+**Shared workspaces (ADR-0019).** `content_list` takes `source` (`own` default,
+`shared`, `all`) — validated by the tool (`sourceArg`) and stripped before the
+list DTO, which deliberately has no such parameter — and passes it as
+`PublicReadOptions.source`, which stamps `source` on every item. The id-addressed
+reads (`content_get`, `content_relations`, `content_media`,
+`content_translations`) read with `source: 'all'`: a visible library record is
+readable, and `content_get` reports `source` and `readOnly`. Writes are
+untouched — each still 404s a foreign id — but `ownOnly` probes
+`PublicEntriesQuery.sharedSources` (reader scopes AND-ed on) on the not-found
+path and replaces it with the 403 read-only refusal for a record the caller could
+read; the batch lifecycle tools probe first and refuse the whole batch before
+writing; `content_bulk_save` reports it on the item.
 
 **Authorization is declared, not implemented.** Each tool names its permissions
 in `requires`, and `ToolRegistry.call` enforces them before dispatch — the

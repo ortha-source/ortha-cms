@@ -1,4 +1,9 @@
-import { Injectable, Optional, type OnModuleInit } from '@nestjs/common';
+import {
+    BadRequestException,
+    Injectable,
+    Optional,
+    type OnModuleInit
+} from '@nestjs/common';
 import { PERMISSIONS } from '@orthacms/identity-server';
 import { ToolRegistry } from '@orthacms/tools-server';
 import type { ToolDefinition, ToolProvider } from '@orthacms/tools-server';
@@ -9,8 +14,13 @@ import { EntryWriterService } from '../entries/infrastructure/persistence/entry-
 import { WorkspaceGrantsQuery } from '../content-types/queries/workspace-grants.query';
 import { MAX_PAGE_SIZE } from '../entries/entries.constants';
 import { buildEntryFilterSurface } from '../entries/infrastructure/queries/entry-filter-surface';
+import {
+    ENTRY_SOURCES,
+    type EntrySourceMode
+} from '../entries/http/dto/list-entries-query.dto';
 import { describeFilterFields, filterTreeSchema } from './filter-schema';
 import { projectEntry } from './project-entry';
+import type { EntryRecord } from '../entries/types/entry-list-view';
 
 /** Rows a single `admin_content_search` call may return. */
 const MAX_TOOL_PAGE_SIZE = 25;
@@ -169,7 +179,9 @@ export class ContentCopilotToolProvider implements ToolProvider, OnModuleInit {
                 'things: entries with live content plus unpublished changes (“modified”, ' +
                 '“edited but not published”) are `status` eq "draft" AND `publishedAt` ' +
                 'op "null" value false, while never-published ones are `status` eq "draft" ' +
-                'AND `publishedAt` op "null" value true.',
+                'AND `publishedAt` op "null" value true. ' +
+                '`source: "shared"` or `"all"` adds published records of shared workspaces; they ' +
+                'are read-only here — link them by id, never copy them.',
             inputSchema: {
                 type: 'object',
                 properties: {
@@ -222,6 +234,14 @@ export class ContentCopilotToolProvider implements ToolProvider, OnModuleInit {
                         description:
                             'Set to "default" to include the default locale where the requested ' +
                             'one has no row.'
+                    },
+                    source: {
+                        type: 'string',
+                        enum: [...ENTRY_SOURCES],
+                        description:
+                            '"own" (default): this workspace’s entries. "shared": published records ' +
+                            'of shared workspaces — read-only here, link them by id. "all": both. ' +
+                            'Each item reports `source` (null = own).'
                     }
                 },
                 required: ['typeName'],
@@ -242,7 +262,9 @@ export class ContentCopilotToolProvider implements ToolProvider, OnModuleInit {
                     fields?: string[];
                     locale?: string;
                     localeFallback?: string;
+                    source?: string;
                 };
+                const source = sourceOf(args.source);
                 const type = await this.resolveGranted(
                     args.typeName,
                     ctx.workspaceId
@@ -279,7 +301,10 @@ export class ContentCopilotToolProvider implements ToolProvider, OnModuleInit {
                             ? { localeFallback: 'default' }
                             : {}),
                         page: Math.max(args.page ?? 1, 1),
-                        pageSize
+                        pageSize,
+                        // The admin list's own `?source=` — the same shared
+                        // workspace rule (ADR-0019), never restated here.
+                        source
                     },
                     ctx.workspaceId
                 );
@@ -304,7 +329,9 @@ export class ContentCopilotToolProvider implements ToolProvider, OnModuleInit {
             title: 'Get an entry (admin)',
             description:
                 'Fetch one entry of a content type by its id, with all of its field values. ' +
-                'Use this after admin_content_search when you need an entry’s full contents.',
+                'Use this after admin_content_search when you need an entry’s full contents. ' +
+                'A record of a shared workspace comes back with `source` and `readOnly: true` — ' +
+                'it cannot be edited here; link to it by id instead.',
             inputSchema: {
                 type: 'object',
                 properties: {
@@ -342,18 +369,43 @@ export class ContentCopilotToolProvider implements ToolProvider, OnModuleInit {
                     args.typeName,
                     ctx.workspaceId
                 );
-                // `getOne` is workspace-scoped and 404s a soft-deleted row, so
-                // the tool inherits both without restating either. An entry id
-                // already names one row, including its locale, so there is no
-                // `locale` parameter here — ask for a sibling by searching the
-                // type with a `localeGroupId` filter.
-                const entry = await this.writer.getOne(
-                    type,
-                    args.id,
-                    ctx.workspaceId
-                );
+                // `getVisible` is the admin single-entry read: own live rows,
+                // plus the visible published records of shared workspaces
+                // (ADR-0019), with `source` / `readOnly` saying which. It 404s
+                // a soft-deleted, foreign-draft or ungranted row, so the tool
+                // inherits the rule without restating it. An entry id already
+                // names one row, including its locale, so there is no `locale`
+                // parameter here — ask for a sibling by searching the type
+                // with a `localeGroupId` filter.
+                // The owning workspace id is internal plumbing; `source` is
+                // what the model reads — exactly as the admin route strips it.
+                const entry: EntryRecord & { workspaceId?: string } =
+                    await this.writer.getVisible(
+                        type,
+                        args.id,
+                        ctx.workspaceId
+                    );
+                delete entry.workspaceId;
                 return projectEntry(entry, args.fields);
             }
         };
     }
+}
+
+/**
+ * The optional `source` argument, checked by hand: the schema validator is
+ * defence in depth, and an unrecognised value must be a tool error rather than
+ * a silent own-workspace read.
+ */
+function sourceOf(raw: unknown): EntrySourceMode {
+    if (raw === undefined) return 'own';
+    if (
+        typeof raw !== 'string' ||
+        !ENTRY_SOURCES.includes(raw as EntrySourceMode)
+    ) {
+        throw new BadRequestException(
+            `\`source\` must be one of ${ENTRY_SOURCES.map((s) => `"${s}"`).join(', ')}.`
+        );
+    }
+    return raw as EntrySourceMode;
 }

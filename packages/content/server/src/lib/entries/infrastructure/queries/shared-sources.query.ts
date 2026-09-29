@@ -11,7 +11,7 @@ import {
     type AnyColumn,
     type SQL
 } from 'drizzle-orm';
-import type { PgTable } from 'drizzle-orm/pg-core';
+import type { PgColumn, PgTable } from 'drizzle-orm/pg-core';
 import { InjectDatabase, type Database } from '@orthacms/database';
 import { workspaceContent, workspaces } from '@orthacms/workspaces-server';
 import { ENTRY_STATUS, type AnyContentType } from '../../../types/content-type';
@@ -22,6 +22,10 @@ type Columns = Record<string, AnyColumn>;
 
 /** The lifecycle value an archived workspace carries — it exposes nothing. */
 const ACTIVE = 'active' as const;
+
+/** A uuid, loosely — anything else can never name a row. */
+const UUID_RE =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * **Shared workspaces** (ADR-0019) — the one read-side definition of which
@@ -175,6 +179,66 @@ export class SharedSourcesQuery {
             );
         const names = await this.workspaceNames(foreign);
         return (row) => this.sourceOf(row, workspaceId, names);
+    }
+
+    /**
+     * Which of `keys` name a row of `type` that `workspaceId` may read **from
+     * another workspace** — the {@link foreignVisibleWhere} rule, keyed by
+     * entry id or (`by: 'localeGroupId'`) translation-group id — mapped to the
+     * row's {@link EntrySource}.
+     *
+     * The agent tools' reason to exist: a write on such a key is still refused
+     * (every write keeps the strict own-workspace predicate), but the caller
+     * could already see the record, so it can be told *why* instead of reading
+     * a bare not-found. A key that is not visible — unknown, a draft, deleted,
+     * ungranted, in an unshared or archived workspace — is simply absent, so
+     * the answer never widens what the caller could learn by reading.
+     *
+     * `where` ANDs extra read restrictions on (the public API's reader scopes),
+     * so a record hidden from a reader is not described to them either. Keys
+     * that are not uuid-shaped are dropped before the query — they could only
+     * ever be a Postgres cast error.
+     */
+    async foreignVisibleRows(
+        type: AnyContentType,
+        keys: readonly string[],
+        workspaceId: string,
+        options: {
+            by?: 'id' | 'localeGroupId';
+            where?: readonly (SQL | undefined)[];
+        } = {}
+    ): Promise<Map<string, EntrySource>> {
+        const by = options.by ?? 'id';
+        const wanted = [...new Set(keys)].filter((key) => UUID_RE.test(key));
+        if (!wanted.length || (by === 'localeGroupId' && !type.i18n)) {
+            return new Map();
+        }
+        const cols = type.table as unknown as Columns;
+        const rows = (await this.db
+            .select({
+                key: cols[by] as PgColumn,
+                workspaceId: cols['workspaceId'] as PgColumn
+            })
+            .from(type.table)
+            .where(
+                and(
+                    inArray(cols[by], wanted),
+                    this.foreignVisibleWhere(type, workspaceId),
+                    ...(options.where ?? [])
+                )
+            )) as { key: string; workspaceId: string }[];
+        const names = await this.workspaceNames(
+            rows.map((row) => row.workspaceId)
+        );
+        return new Map(
+            rows.map((row) => [
+                row.key,
+                {
+                    workspaceId: row.workspaceId,
+                    workspaceName: names.get(row.workspaceId) ?? ''
+                }
+            ])
+        );
     }
 
     /** Ids of every active, shared workspace other than `workspaceId`. */

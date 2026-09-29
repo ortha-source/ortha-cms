@@ -5,6 +5,10 @@ import type { ToolContext } from '@orthacms/tools-server';
 import { PERMISSIONS } from '@orthacms/identity-server';
 import type { EntryLocator } from '../public-api/infrastructure/public-entries.query';
 import { ENTRY_VISIBILITY } from '../public-api/http/dto/public-list-entries-query.dto';
+import {
+    ENTRY_SOURCES,
+    type EntrySourceMode
+} from '../entries/http/dto/list-entries-query.dto';
 
 /**
  * Keys that address *which* record a tool acts on rather than *how*. Stripped
@@ -136,4 +140,38 @@ export function assertDraftVisibility(
             `status=${requested} requires a token with write scope; this one may only read published content.`
         );
     }
+}
+
+/**
+ * The optional `source` argument of `content_list` — whose entries to read
+ * (ADR-0019, shared workspaces), in the admin list's `?source=` vocabulary.
+ * Absent means `own`, the behaviour before sharing existed.
+ *
+ * Checked here rather than by the list DTO because it is the tool's own
+ * argument: the public HTTP list deliberately has no such parameter (a type's
+ * public listing stays own-workspace), so `validateToolInput` must never see it.
+ */
+export function sourceArg(raw: Record<string, unknown>): EntrySourceMode {
+    const source = raw['source'];
+    if (source === undefined) {
+        return 'own';
+    }
+    if (
+        typeof source !== 'string' ||
+        !ENTRY_SOURCES.includes(source as EntrySourceMode)
+    ) {
+        throw new BadRequestException(
+            `\`source\` must be one of ${ENTRY_SOURCES.map((s) => `"${s}"`).join(', ')}.`
+        );
+    }
+    return source as EntrySourceMode;
+}
+
+/** The argument bag without `source` — see {@link sourceArg}. */
+export function withoutSource(
+    raw: Record<string, unknown>
+): Record<string, unknown> {
+    const rest: Record<string, unknown> = { ...raw };
+    delete rest['source'];
+    return rest;
 }
