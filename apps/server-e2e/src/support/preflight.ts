@@ -240,7 +240,7 @@ export function warnOnLowHeapCeiling(ceilingBytes: number): string | undefined {
         '[e2e] and its heap climbs across the run, so a full suite ends in "Ineffective\n' +
         '[e2e] mark-compacts near heap limit" — reported against whichever suite was running.\n' +
         '[e2e] `apps/server-e2e/.env.e2e` sets this and Nx loads it for `nx e2e server-e2e`;\n' +
-        '[e2e] if you invoked jest another way, pass NODE_OPTIONS=--max-old-space-size=4096.';
+        '[e2e] if you invoked jest another way, pass NODE_OPTIONS=--max-old-space-size=6144.';
     console.warn(message);
     return message;
 }
