@@ -36,6 +36,15 @@ describe('contentMapper — shared-workspace fallbacks', () => {
         expect(mapped.readOnly).toBe(true);
     });
 
+    // A records-list row carries `source` but not `readOnly`, and the editor
+    // seeds from that list's cache — defaulting to `false` there offered Save
+    // on a foreign record, which the server then refused.
+    it('reads a list row with a source but no readOnly as read-only', () => {
+        const mapped = toEntryRecord({ ...record, source });
+        expect(mapped.source).toEqual(source);
+        expect(mapped.readOnly).toBe(true);
+    });
+
     it('defaults a relation ref’s source to null and keeps a real one', () => {
         const ref: RelationRef = { id: 'a', title: 'A' };
         expect(toRelationRef(ref).source).toBeNull();

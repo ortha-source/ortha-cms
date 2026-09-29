@@ -26,7 +26,10 @@ import {
     NEW_SEGMENT,
     type EntryMode
 } from '../../../domain/constants';
-import { reachableTypeNames } from '../../../domain/contentTypeAccess';
+import {
+    hasOwnAccess,
+    reachableTypeNames
+} from '../../../domain/contentTypeAccess';
 import { entryTabFromPath } from '../../../domain/entryTab';
 import { listParamsQuery } from '../../../domain/listParamsQuery';
 import { useContentSchema } from '../../../application/useContentSchema';
@@ -637,10 +640,15 @@ export function ContentEntryView({
     // row (not on create, not on a single page) — and never on a record read
     // from a shared workspace, which every write route answers with a 404. The
     // editor already offers no actions for one; not wiring them is what keeps
-    // that true if a caller ever renders them anyway.
+    // that true if a caller ever renders them anyway. The same holds for any
+    // record of a type the workspace reaches only from shared workspaces: the
+    // grant guard refuses every write to it.
+    const ownType = hasOwnAccess(type);
     const foreign = resolved.entry?.readOnly === true;
     const editId =
-        mode === ENTRY_MODE.Edit && !foreign ? resolved.entry?.id : undefined;
+        mode === ENTRY_MODE.Edit && !foreign && ownType
+            ? resolved.entry?.id
+            : undefined;
 
     const onActionError = () =>
         toast.error(intl.formatMessage(messages.actionError));
@@ -726,6 +734,7 @@ export function ContentEntryView({
                     // reaches — its own, and the ones granted from shared
                     // workspaces (whose picker then offers only those).
                     availableTypeNames={reachableTypeNames(workspace)}
+                    ownType={ownType}
                     {...(isCreate && translateFromLocale
                         ? { prefilledFromLocale: translateFromLocale }
                         : {})}
