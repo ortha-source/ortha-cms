@@ -376,12 +376,14 @@ describe('Public content API — writes (/api/v1)', () => {
             expect(res.body.status).toBe('draft');
             expect(res.body.publishedAt).not.toBeNull();
 
-            // …and the edit is not live until it is published again.
+            // …and the edit is not live until it is published again: a reader
+            // keeps getting the version that was published [content:I-56].
             const live = await request(harness.server)
                 .get(`/api/v1/content/test_article/${entry.id}`)
                 .set('Authorization', `Bearer ${readOnly}`)
-                .expect(404);
-            expect(live.body).toBeDefined();
+                .expect(200);
+            expect(live.body.values['text']).toBe('Live one');
+            expect(live.body.status).toBe('published');
         });
 
         it('404s an entry in another workspace', async () => {
