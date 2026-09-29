@@ -132,6 +132,23 @@ describe('the publish guard', () => {
         return rows[0].status;
     }
 
+    /**
+     * Polls until `entryId` has `expected` open requests, or the window runs
+     * out — the dispatcher drains after the commit, so an immediate read would
+     * be a race. Returns the last count read.
+     */
+    async function waitForOpenRequests(
+        entryId: string,
+        expected: number
+    ): Promise<number> {
+        let open = await openRequests(entryId);
+        for (let attempt = 0; attempt < 40 && open !== expected; attempt += 1) {
+            await new Promise((resolve) => setTimeout(resolve, 50));
+            open = await openRequests(entryId);
+        }
+        return open;
+    }
+
     async function openRequests(entryId: string): Promise<number> {
         const { rows } = await getPool().query<{ count: string }>(
             `SELECT count(*)::text AS count FROM review_requests
@@ -286,6 +303,75 @@ describe('the publish guard', () => {
                 if ((await openRequests(id)) === 0) break;
                 await new Promise((resolve) => setTimeout(resolve, 50));
             }
+            expect(await openRequests(id)).toBe(0);
+        });
+
+        /**
+         * The publish satisfied the ask, but the people asked are still this
+         * entry's reviewers: an edit on top of the live version needs them
+         * again, so it reopens the request for them — otherwise the entry fell
+         * out of their queue exactly when it needed them.
+         */
+        it('reopens the request for the same reviewers when the entry is edited after publishing', async () => {
+            const { agent, user: author } = await member(AUTHOR, 'contributor');
+            const { user: reviewer, agent: reviewerAgent } = await member(
+                REVIEWER,
+                'contributor'
+            );
+            const id = await createEntry(agent);
+            await agent
+                .post(`/api/protection/entries/test_article/${id}/request`)
+                .send({ reviewerIds: [reviewer.id] })
+                .expect(201);
+            await approve(REVIEWER, id);
+            await approve(SECOND_REVIEWER, id);
+            await agent
+                .post(`/api/content/test_article/${id}/publish`)
+                .expect(201);
+            await waitForOpenRequests(id, 0);
+
+            await agent
+                .patch(`/api/content/test_article/${id}`)
+                .send({ values: { text: 'Edited after going live' } })
+                .expect(200);
+
+            expect(await waitForOpenRequests(id, 1)).toBe(1);
+            const queue = await reviewerAgent
+                .get('/api/protection/queue')
+                .expect(200);
+            expect(queue.body.items).toEqual([
+                expect.objectContaining({
+                    entryId: id,
+                    requestedBy: author.id,
+                    reviewerIds: [reviewer.id]
+                })
+            ]);
+        });
+
+        it('leaves a withdrawn request closed across publish and edit', async () => {
+            const { agent } = await member(AUTHOR, 'contributor');
+            const { user: reviewer } = await member(REVIEWER, 'contributor');
+            const id = await createEntry(agent);
+            await agent
+                .post(`/api/protection/entries/test_article/${id}/request`)
+                .send({ reviewerIds: [reviewer.id] })
+                .expect(201);
+            await agent
+                .delete(`/api/protection/entries/test_article/${id}/request`)
+                .expect(204);
+            await approve(REVIEWER, id);
+            await approve(SECOND_REVIEWER, id);
+            await agent
+                .post(`/api/content/test_article/${id}/publish`)
+                .expect(201);
+            await agent
+                .patch(`/api/content/test_article/${id}`)
+                .send({ values: { text: 'Edited after going live' } })
+                .expect(200);
+
+            // Give the dispatcher the same window the reopen test waits for;
+            // nothing may appear in it.
+            await waitForOpenRequests(id, 1);
             expect(await openRequests(id)).toBe(0);
         });
     });

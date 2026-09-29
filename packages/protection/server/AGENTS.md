@@ -115,6 +115,16 @@ at-least-once, so it is idempotent, and a failure is logged rather than thrown:
 the entry is already published and a retry loop over a committed publish is worse
 than a stale queue row.
 
+**A publish closes the ask; the next save reopens it.** The request records
+_how_ it closed (`resolution`: `published` / `withdrawn`), and
+`EntryEditedSubscriber` reacts to `entry.updated`: after a `published` close, on
+a protected type, it opens a new request for the same requester and the same
+reviewers (those who can still approve), bound to the new head. Without it an
+entry edited after going live fell out of its reviewers' queue while its Review
+panel still listed them. It checks the head it reads is **not** live, because
+outbox delivery is unordered and a save-and-publish can arrive here after the
+publish. A withdrawn request never reopens.
+
 ## How the head revision is reached
 
 An approval is bound to a **revision**, so recording one means knowing which

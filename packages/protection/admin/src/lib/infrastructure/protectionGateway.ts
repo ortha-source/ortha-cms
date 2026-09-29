@@ -130,7 +130,11 @@ export type ReviewQueueParams = {
 type ReviewQueueItemResponse = {
     id: string;
     contentType: string;
+    /** Absent from a server that predates it. */
+    contentTypeLabel?: string;
     entryId: string;
+    /** Absent from a server that predates it; `null` when there is none. */
+    entryTitle?: string | null;
     requestedBy: string;
     reviewerIds: string[];
     required: number;
@@ -273,7 +277,9 @@ function toQueueItem(dto: ReviewQueueItemResponse): ReviewQueueItem {
     return {
         id: dto.id,
         contentType: dto.contentType,
+        contentTypeLabel: dto.contentTypeLabel ?? dto.contentType,
         entryId: dto.entryId,
+        entryTitle: dto.entryTitle ?? null,
         requestedBy: dto.requestedBy,
         reviewerIds: dto.reviewerIds,
         required: dto.required,

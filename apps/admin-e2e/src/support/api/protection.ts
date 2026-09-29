@@ -295,7 +295,10 @@ export async function mockProtectionRules(
 export type ReviewQueueSeed = {
     id: string;
     contentType?: string;
+    contentTypeLabel?: string;
     entryId?: string;
+    /** The entry's title; `null` exercises the id fallback. */
+    entryTitle?: string | null;
     /** Who asked. Match the signed-in user's id to land it in "My requests". */
     requestedBy: string;
     /** Who was asked. Include the signed-in user's id to land it in "Waiting on me". */
@@ -340,7 +343,12 @@ export async function mockReviewQueue(
                 items: items.map((item) => ({
                     id: item.id,
                     contentType: item.contentType ?? 'blog_post',
+                    contentTypeLabel: item.contentTypeLabel ?? 'Blog posts',
                     entryId: item.entryId ?? `entry-${item.id}`,
+                    entryTitle:
+                        item.entryTitle === undefined
+                            ? `Post ${item.id}`
+                            : item.entryTitle,
                     requestedBy: item.requestedBy,
                     reviewerIds: item.reviewerIds ?? [],
                     required: item.required ?? 2,

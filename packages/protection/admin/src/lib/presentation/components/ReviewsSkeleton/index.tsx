@@ -1,5 +1,6 @@
 import { useIntl, defineMessages } from 'react-intl';
 import { Container, Skeleton, SkeletonRegion } from '@orthacms/design-system';
+import { ReviewQueueTableSkeleton } from '../ReviewQueueTableSkeleton';
 
 const messages = defineMessages({
     loading: {
@@ -21,8 +22,8 @@ export function ReviewsSkeleton() {
         <Container>
             <SkeletonRegion label={intl.formatMessage(messages.loading)}>
                 <Skeleton className="h-8 w-40" />
-                <Skeleton className="mt-4 h-9 w-64" />
-                <Skeleton className="mt-4 h-32 w-full" />
+                <Skeleton className="mt-4 mb-4 h-9 w-64" />
+                <ReviewQueueTableSkeleton />
             </SkeletonRegion>
         </Container>
     );

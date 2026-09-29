@@ -62,7 +62,10 @@ export class EntryPublishedSubscriber
         try {
             const open = await this.requests.findOpenByEntry(entryId);
             if (!open) return;
-            await this.requests.resolve(open.id);
+            // `published`, not `withdrawn`: the ask was satisfied, and an edit
+            // on top of this version reopens it for the same people
+            // (`EntryEditedSubscriber`).
+            await this.requests.resolve(open.id, 'published');
         } catch (error) {
             this.logger.warn(
                 `Could not close the review request for entry ${entryId}: ${

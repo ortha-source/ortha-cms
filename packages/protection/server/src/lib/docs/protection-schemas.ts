@@ -143,6 +143,7 @@ export function buildProtectionSchemas(): Record<string, OpenApiSchema> {
                 'afterSave',
                 'headRevisionId',
                 'headRevisionNumber',
+                'headPublished',
                 'callerWroteHead',
                 'callerApprovedHead',
                 'approvals',
@@ -193,6 +194,11 @@ export function buildProtectionSchemas(): Record<string, OpenApiSchema> {
                         'The entry’s current version — what an approval would be bound to.'
                 },
                 headRevisionNumber: { type: 'integer', example: 7 },
+                headPublished: {
+                    type: 'boolean',
+                    description:
+                        'Whether the current version is the live one — published, with no save since. There is then nothing to review: a request answers `409 protection.nothing_to_review`. The next save turns it off.'
+                },
                 callerWroteHead: {
                     type: 'boolean',
                     description:
@@ -404,7 +410,9 @@ export function buildProtectionSchemas(): Record<string, OpenApiSchema> {
                         required: [
                             'id',
                             'contentType',
+                            'contentTypeLabel',
                             'entryId',
+                            'entryTitle',
                             'requestedBy',
                             'reviewerIds',
                             'required',
@@ -417,7 +425,19 @@ export function buildProtectionSchemas(): Record<string, OpenApiSchema> {
                                 type: 'string',
                                 example: 'article'
                             },
+                            contentTypeLabel: {
+                                type: 'string',
+                                example: 'Articles',
+                                description: 'The content type’s display label.'
+                            },
                             entryId: { type: 'string', format: 'uuid' },
+                            entryTitle: {
+                                type: 'string',
+                                nullable: true,
+                                example: 'Spring launch',
+                                description:
+                                    'The entry’s display title, or null when it has none to show (no title-eligible value, or the entry is gone).'
+                            },
                             requestedBy: { type: 'string', format: 'uuid' },
                             reviewerIds: {
                                 type: 'array',

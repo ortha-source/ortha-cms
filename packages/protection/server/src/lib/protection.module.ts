@@ -18,6 +18,7 @@ import { ProtectionWorkspacePurger } from './infrastructure/purge/protection-wor
 import { ProtectionRulesController } from './http/controllers/protection-rules.controller';
 import { PublishProtectionGuard } from './infrastructure/publish-protection.guard';
 import { EntryPublishedSubscriber } from './infrastructure/entry-published.subscriber';
+import { EntryEditedSubscriber } from './infrastructure/entry-edited.subscriber';
 import { ReviewStatusQuery } from './application/review-status.query';
 import { ReviewStatusController } from './http/controllers/review-status.controller';
 import { ReviewStateFilterProvider } from './infrastructure/review-state-filter.provider';
@@ -92,6 +93,9 @@ export class ProtectionModule {
                 // Closes an open review request when the entry it was about
                 // actually goes out, however it was published.
                 EntryPublishedSubscriber,
+                // Reopens it for the same reviewers when the entry is edited
+                // after that publish — the next version needs them again.
+                EntryEditedSubscriber,
                 // The records column's batched read, and the aggregate behind
                 // the Insights card. Both go through the kernel's counting, so
                 // a cell, a card and the publish gate cannot disagree.

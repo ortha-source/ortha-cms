@@ -8,6 +8,9 @@ import {
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
+/** Why a review request closed. */
+export type ReviewRequestResolution = 'published' | 'withdrawn';
+
 /**
  * Someone asking for their entry to be looked at.
  *
@@ -55,7 +58,17 @@ export const reviewRequests = pgTable(
             .notNull()
             .defaultNow(),
         /** Set when the entry publishes, or when the requester withdraws. */
-        resolvedAt: timestamp('resolved_at', { withTimezone: true })
+        resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+        /**
+         * **How** the request closed: `published` or `withdrawn`. `null` while
+         * open, and on rows closed before the column existed.
+         *
+         * The difference decides what the next save does. A request closed by
+         * a publish was *satisfied*, not abandoned — the people asked are still
+         * this entry's reviewers — so an edit on top of the published version
+         * reopens it for them. A withdrawn one stays closed.
+         */
+        resolution: text('resolution').$type<ReviewRequestResolution>()
     },
     (table) => [
         // One *open* request per entry: asking twice updates the reviewers rather

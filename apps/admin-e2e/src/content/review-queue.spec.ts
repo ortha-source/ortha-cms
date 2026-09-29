@@ -95,6 +95,38 @@ test.describe('Review queue', () => {
         await expect(page.getByText(/overdue/)).toHaveCount(0);
     });
 
+    /** Named as every other list names a record: by title, and its type by label. */
+    test('names each record by its title and its type by its label', async ({
+        page
+    }) => {
+        await mockReviewQueue(page, [
+            {
+                id: 'r1',
+                requestedBy: SOMEBODY_ELSE,
+                reviewerIds: [ME],
+                entryTitle: 'Spring launch'
+            },
+            {
+                id: 'r2',
+                requestedBy: SOMEBODY_ELSE,
+                reviewerIds: [ME],
+                entryId: 'abcdef12-0000-4000-8000-000000000000',
+                entryTitle: null
+            }
+        ]);
+        await page.goto(REVIEWS);
+
+        const table = page.getByRole('table', { name: 'Review requests' });
+        await expect(
+            table.getByRole('link', { name: 'Spring launch' })
+        ).toBeVisible();
+        // No title to show: the id fragment, still saying what it opens.
+        await expect(
+            table.getByRole('link', { name: 'Open abcdef12' })
+        ).toBeVisible();
+        await expect(table.getByText('Blog posts')).toHaveCount(2);
+    });
+
     test('says the queue is empty when it is', async ({ page }) => {
         await mockReviewQueue(page, []);
         await page.goto(REVIEWS);

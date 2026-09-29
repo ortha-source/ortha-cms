@@ -32,7 +32,11 @@ const messages = defineMessages({
         id: 'protection.queue.tally',
         defaultMessage: '{given} of {required} approvals'
     },
-    open: { id: 'protection.queue.open', defaultMessage: 'Open {entry}' }
+    open: { id: 'protection.queue.open', defaultMessage: 'Open {entry}' },
+    caption: {
+        id: 'protection.queue.caption',
+        defaultMessage: 'Review requests'
+    }
 });
 
 /**
@@ -63,84 +67,86 @@ export function ReviewQueueTable({
     const intl = useIntl();
 
     return (
-        <Table>
-            <TableHeader>
-                <TableRow>
-                    <TableHead scope="col">
-                        {intl.formatMessage(messages.entry)}
-                    </TableHead>
-                    <TableHead scope="col">
-                        {intl.formatMessage(messages.type)}
-                    </TableHead>
-                    <TableHead scope="col">
-                        {intl.formatMessage(messages.requestedBy)}
-                    </TableHead>
-                    <TableHead scope="col">
-                        {intl.formatMessage(messages.reviewers)}
-                    </TableHead>
-                    <TableHead scope="col">
-                        {intl.formatMessage(messages.waiting)}
-                    </TableHead>
-                    <TableHead scope="col">
-                        {intl.formatMessage(messages.approvals)}
-                    </TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {items.map((item) => (
-                    <TableRow key={item.id}>
-                        <TableCell>
-                            {/* The queue carries ids, not titles — the entry
-                                read that knows a record's title is per entry,
-                                and a page of them would be the N+1 the batch
-                                elsewhere exists to avoid. The link text names
-                                the record it opens rather than saying "open",
-                                so it still makes sense out of context. */}
-                            <Link
-                                to={`../content/${item.contentType}/${item.entryId}`}
-                                className="font-medium underline-offset-4 hover:underline"
-                            >
-                                {intl.formatMessage(messages.open, {
-                                    entry: item.entryId.slice(0, 8)
-                                })}
-                            </Link>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                            {item.contentType}
-                        </TableCell>
-                        <TableCell>
-                            <ReviewerLabel
-                                userId={item.requestedBy}
-                                currentUserId={currentUserId}
-                            />
-                        </TableCell>
-                        <TableCell>
-                            <ul className="flex flex-col gap-1">
-                                {item.reviewerIds.map((userId) => (
-                                    <li key={userId}>
-                                        <ReviewerLabel
-                                            userId={userId}
-                                            currentUserId={currentUserId}
-                                        />
-                                    </li>
-                                ))}
-                            </ul>
-                        </TableCell>
-                        <TableCell>
-                            <RequestAge
-                                createdAt={item.createdAt}
-                                overdueAfterDays={overdueAfterDays}
-                            />
-                        </TableCell>
-                        <TableCell>
-                            {intl.formatMessage(messages.tally, {
-                                given: item.given,
-                                required: item.required
-                            })}
-                        </TableCell>
+        <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
+            <Table aria-label={intl.formatMessage(messages.caption)}>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead scope="col">
+                            {intl.formatMessage(messages.entry)}
+                        </TableHead>
+                        <TableHead scope="col">
+                            {intl.formatMessage(messages.type)}
+                        </TableHead>
+                        <TableHead scope="col">
+                            {intl.formatMessage(messages.requestedBy)}
+                        </TableHead>
+                        <TableHead scope="col">
+                            {intl.formatMessage(messages.reviewers)}
+                        </TableHead>
+                        <TableHead scope="col">
+                            {intl.formatMessage(messages.waiting)}
+                        </TableHead>
+                        <TableHead scope="col">
+                            {intl.formatMessage(messages.approvals)}
+                        </TableHead>
                     </TableRow>
-                ))}
-            </TableBody>
-        </Table>
+                </TableHeader>
+                <TableBody>
+                    {items.map((item) => (
+                        <TableRow key={item.id}>
+                            <TableCell className="font-medium">
+                                {/* The record by its title, as every other list
+                                names one. An entry with nothing to show falls
+                                back to a fragment of its id, and the link text
+                                then says "Open …" so it still names what it
+                                opens out of context. */}
+                                <Link
+                                    to={`../content/${item.contentType}/${item.entryId}`}
+                                    className="underline-offset-4 hover:underline focus-visible:underline"
+                                >
+                                    {item.entryTitle ??
+                                        intl.formatMessage(messages.open, {
+                                            entry: item.entryId.slice(0, 8)
+                                        })}
+                                </Link>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                                {item.contentTypeLabel}
+                            </TableCell>
+                            <TableCell>
+                                <ReviewerLabel
+                                    userId={item.requestedBy}
+                                    currentUserId={currentUserId}
+                                />
+                            </TableCell>
+                            <TableCell>
+                                <ul className="flex flex-col gap-1">
+                                    {item.reviewerIds.map((userId) => (
+                                        <li key={userId}>
+                                            <ReviewerLabel
+                                                userId={userId}
+                                                currentUserId={currentUserId}
+                                            />
+                                        </li>
+                                    ))}
+                                </ul>
+                            </TableCell>
+                            <TableCell>
+                                <RequestAge
+                                    createdAt={item.createdAt}
+                                    overdueAfterDays={overdueAfterDays}
+                                />
+                            </TableCell>
+                            <TableCell>
+                                {intl.formatMessage(messages.tally, {
+                                    given: item.given,
+                                    required: item.required
+                                })}
+                            </TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+        </div>
     );
 }

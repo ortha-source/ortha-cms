@@ -244,17 +244,18 @@ query.
 
 ### `review_requests`
 
-| Column         | Type                    | Notes                                                                                                                                                |
-| -------------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `id`           | `uuid` pk               |                                                                                                                                                      |
-| `workspace_id` | `uuid` not null         | Every read AND-s this in                                                                                                                             |
-| `content_type` | `text` not null         |                                                                                                                                                      |
-| `entry_id`     | `uuid` not null         | The live entry row — one per locale, as revisions are                                                                                                |
-| `revision_id`  | `uuid` not null         | The head **at the moment of asking**. Trail only — the request stays open across later saves                                                         |
-| `requested_by` | `uuid` not null         |                                                                                                                                                      |
-| `reviewer_ids` | `uuid[]` default `'{}'` | Who was asked, in pick order. An array rather than a table: the set is small, always read and written whole, and never changes whose approval counts |
-| `created_at`   | `timestamptz`           |                                                                                                                                                      |
-| `resolved_at`  | `timestamptz`           | Set when the entry publishes, or when the requester withdraws                                                                                        |
+| Column         | Type                    | Notes                                                                                                                                                  |
+| -------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `id`           | `uuid` pk               |                                                                                                                                                        |
+| `workspace_id` | `uuid` not null         | Every read AND-s this in                                                                                                                               |
+| `content_type` | `text` not null         |                                                                                                                                                        |
+| `entry_id`     | `uuid` not null         | The live entry row — one per locale, as revisions are                                                                                                  |
+| `revision_id`  | `uuid` not null         | The head **at the moment of asking**. Trail only — the request stays open across later saves                                                           |
+| `requested_by` | `uuid` not null         |                                                                                                                                                        |
+| `reviewer_ids` | `uuid[]` default `'{}'` | Who was asked, in pick order. An array rather than a table: the set is small, always read and written whole, and never changes whose approval counts   |
+| `created_at`   | `timestamptz`           |                                                                                                                                                        |
+| `resolved_at`  | `timestamptz`           | Set when the entry publishes, or when the requester withdraws                                                                                          |
+| `resolution`   | `text`                  | How it closed — `published` or `withdrawn`; `null` while open and on rows closed before it was kept. Only a `published` close reopens on the next save |
 
 `unique index (entry_id) where resolved_at is null` — one **open** request per entry, so
 asking twice replaces the reviewers instead of stacking a second row into somebody's queue,
@@ -320,9 +321,17 @@ a rule enabled             → the third gate is live for that type in that work
 opened      POST …/request with reviewerIds   → one open row per entry
 re-asked    POST …/request again              → the SAME row, reviewers replaced
 saved       the author edits and saves        → the request stays open; only approvals expire
-withdrawn   DELETE …/request                  → resolved_at set (requester or protection:manage)
-published   entry.published reaches the outbox → resolved_at set by the subscriber
+withdrawn   DELETE …/request                  → resolved_at set, resolution 'withdrawn'
+published   entry.published reaches the outbox → resolved_at set, resolution 'published'
+reopened    entry.updated after that publish   → a new open row: same requester, same reviewers
 ```
+
+A publish **satisfies** the ask; it does not end the reviewers' job. The next edit on top of
+the live version needs their approval again, so `EntryEditedSubscriber` reopens the request
+for them — only after a `published` close, only on a protected type, only when the head it
+reads is not live (delivery is unordered), and only for reviewers who can still approve.
+Without it the entry dropped out of the queue exactly when it needed them. A withdrawn ask
+stays withdrawn.
 
 A request is a standing ask. An author who fixes a typo after asking has not withdrawn it,
 and re-opening one on every save would make the queue churn for reasons nobody watching it
@@ -791,6 +800,15 @@ name an invariant:
   deletable; neither `GET` nor `DELETE` consults the grant
   (`protection-rules.service.spec.ts`, "does not check the grant" / "does not filter by the
   current grants").
+- **I-25** An entry whose head is its live version — published, no save since — has nothing to
+  review: `POST …/request` answers `409 protection.nothing_to_review`, and the editor offers
+  neither Approve nor Request review, nor the header chip (`entry-review.service.spec.ts`,
+  "refuses a request on an entry whose head is already live"; `entry-review.spec.ts`, "is
+  refused while the head is live").
+- **I-26** A request closed by a publish reopens — same requester, same reviewers still able to
+  approve, bound to the new head — on the next save of a protected entry; a withdrawn one never
+  does (`entry-edited.subscriber.spec.ts`; `publish-guard.spec.ts`, "reopens the request for the
+  same reviewers" / "leaves a withdrawn request closed").
 
 ## 14. Testing checklist
 

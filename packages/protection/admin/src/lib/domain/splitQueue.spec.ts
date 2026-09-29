@@ -8,7 +8,9 @@ const ask = (
 ): ReviewQueueItem => ({
     id,
     contentType: 'article',
+    contentTypeLabel: 'Articles',
     entryId: `entry-${id}`,
+    entryTitle: null,
     requestedBy,
     reviewerIds,
     required: 2,

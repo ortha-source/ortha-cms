@@ -162,7 +162,14 @@ export interface ReviewerCandidatesView {
 export interface ReviewQueueItemView {
     id: string;
     contentType: string;
+    /** The type's display label, so the page can name it as everywhere else. */
+    contentTypeLabel: string;
     entryId: string;
+    /**
+     * The entry's display title, or `null` when it has none to show — no
+     * title-eligible value, or the entry is gone. The page falls back to the id.
+     */
+    entryTitle: string | null;
     requestedBy: string;
     /** The people asked — what "Waiting on me" filters by. */
     reviewerIds: string[];
