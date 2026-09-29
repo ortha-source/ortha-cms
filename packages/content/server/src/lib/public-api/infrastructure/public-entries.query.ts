@@ -49,6 +49,7 @@ import { toPublicEntry } from './public-entry-row';
 import { SharedSourcesQuery } from '../../entries/infrastructure/queries/shared-sources.query';
 import type { EntrySourceMode } from '../../entries/http/dto/list-entries-query.dto';
 import type { EntrySource } from '../../entries/types/entry-list-view';
+import { publishedViews } from '../../entries/infrastructure/queries/published-view';
 
 /**
  * Options for the reads a protocol adapter makes on the caller's behalf.
@@ -120,7 +121,8 @@ export type EntryLocator =
  *
  * - the **workspace** the request resolved to, always;
  * - **published only**, on publishable types — a draft is unfinished work and
- *   never leaves the admin;
+ *   never leaves the admin. An entry edited since it was published is served
+ *   as the version that is live, not the working copy (see `reader`);
  * - **not soft-deleted**, on paranoid types;
  * - the bound `CONTENT_ENTRY_EXTENSION`'s scope, so a localized type reads the
  *   requested locale (and the same rules the admin gets) for free.
@@ -198,12 +200,13 @@ export class PublicEntriesQuery {
             ...relationFields,
             ...mediaFields
         ]);
+        const reader = this.reader(type, query.status);
         const rowsQuery = projection
-            ? this.db.select(projection).from(type.table)
-            : this.db.select().from(type.table);
+            ? reader.select(projection).from(type.table)
+            : reader.select().from(type.table);
 
         const [[{ total }], rows] = await Promise.all([
-            this.db.select({ total: count() }).from(type.table).where(where),
+            reader.select({ total: count() }).from(type.table).where(where),
             rowsQuery
                 .where(where)
                 .orderBy(...this.orderBy(type, query.sort))
@@ -382,9 +385,10 @@ export class PublicEntriesQuery {
         }
         const table = type.table as unknown as ContentTable;
         const projection = this.projection(type, selected);
+        const reader = this.reader(type, 'published');
         const rowsQuery = projection
-            ? this.db.select(projection).from(type.table)
-            : this.db.select().from(type.table);
+            ? reader.select(projection).from(type.table)
+            : reader.select().from(type.table);
         const rows = (await rowsQuery
             .where(
                 and(
@@ -556,9 +560,10 @@ export class PublicEntriesQuery {
             ...relationFields,
             ...mediaFields
         ]);
+        const reader = this.reader(type, query.status);
         const rowQuery = projection
-            ? this.db.select(projection).from(type.table)
-            : this.db.select().from(type.table);
+            ? reader.select(projection).from(type.table)
+            : reader.select().from(type.table);
         const [row] = await rowQuery
             .where(
                 this.entryWhere(
@@ -810,7 +815,7 @@ export class PublicEntriesQuery {
         visibility?: EntryVisibility,
         mode: EntrySourceMode = 'own'
     ): Promise<Record<string, unknown>> {
-        const [row] = await this.db
+        const [row] = await this.reader(type, visibility)
             .select()
             .from(type.table)
             .where(
@@ -977,9 +982,38 @@ export class PublicEntriesQuery {
     }
 
     /**
+     * The query root for a read at `visibility`: the database itself, or — for
+     * a `published` read, the default — one that runs against the type's
+     * **published view** (`published-view.ts`).
+     *
+     * That view is what keeps a **Modified** entry on the API: saving a
+     * published entry returns its row to `draft`, but the version that was
+     * published stays live until the next publish, so a published read serves
+     * that version — its values, its links, `status: published` — rather than
+     * losing the entry or leaking the edit. The view shadows the table by name,
+     * so every predicate this service builds (the status clause below
+     * included) applies to it unchanged, and a filter or search can never
+     * match an unpublished edit.
+     *
+     * A `draft` or `any` read — a write-scoped token reading back its own work
+     * — keeps the working copy.
+     */
+    private reader(
+        type: AnyContentType,
+        visibility: EntryVisibility = 'published'
+    ): Pick<Database, 'select'> {
+        const views =
+            visibility === 'published' ? publishedViews(this.db, type) : [];
+        return views.length ? this.db.with(...views) : this.db;
+    }
+
+    /**
      * The publish-state clause. `published` — the default and everything a
      * read-only token can ask for — is the API's headline rule; the other two
      * exist so a write-scoped token can read back what it just created.
+     *
+     * Under a `published` read `status` is the **published view's** column
+     * (see {@link reader}), in which a Modified entry reads `published`.
      *
      * A non-publishable type has no `status` column and every row is simply
      * live, so this is a no-op there rather than an error: the caller asked for
