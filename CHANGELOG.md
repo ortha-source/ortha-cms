@@ -1,3 +1,37 @@
+## 0.7.0 (2026-09-30)
+
+### 🚀 Features
+
+- explicit per-source shared content grants ([3ec2ffbf5](https://github.com/ortha-source/ortha-cms/commit/3ec2ffbf5))
+- **admin:** shared workspaces — sharing toggle, shared relation targets, read-only view ([cf3b9cf50](https://github.com/ortha-source/ortha-cms/commit/cf3b9cf50))
+- **content:** collapsible form sections via groups + admin.group ([f7bed828d](https://github.com/ortha-source/ortha-cms/commit/f7bed828d))
+- **content:** admin.width decides a field's form width, full by default ([704aa8923](https://github.com/ortha-source/ortha-cms/commit/704aa8923))
+- **content:** shared workspaces in the MCP and copilot content tools ([e838eea74](https://github.com/ortha-source/ortha-cms/commit/e838eea74))
+- **content-admin:** size entry fields to their value, rows via admin.row ([f19057c9a](https://github.com/ortha-source/ortha-cms/commit/f19057c9a))
+- **copilot-admin:** move the AI launcher into the top bar, drop the bottom gutter ([344d44cb4](https://github.com/ortha-source/ortha-cms/commit/344d44cb4))
+- **copilot-admin:** make the top-bar launcher an icon ([6cc58df61](https://github.com/ortha-source/ortha-cms/commit/6cc58df61))
+- **i18n:** richer locale menu in the entry editor, built for many locales ([57400dc49](https://github.com/ortha-source/ortha-cms/commit/57400dc49))
+- **server:** shared workspaces — published records linkable across workspaces ([6202af3e4](https://github.com/ortha-source/ortha-cms/commit/6202af3e4))
+
+### 🩹 Fixes
+
+- **content:** a required relation to an ungranted type is not required ([1d3599084](https://github.com/ortha-source/ortha-cms/commit/1d3599084))
+- **content:** bulk publish checks required many-relations like single publish ([3eea0b2ca](https://github.com/ortha-source/ortha-cms/commit/3eea0b2ca))
+- **content:** serve the published version of a modified entry on the public API ([887bd0d80](https://github.com/ortha-source/ortha-cms/commit/887bd0d80))
+- **content-admin:** snap entry fields to a two-column grid ([9a87434db](https://github.com/ortha-source/ortha-cms/commit/9a87434db))
+- **content-admin:** keep a new record's values when its publish is refused ([aac1ca7a5](https://github.com/ortha-source/ortha-cms/commit/aac1ca7a5))
+- **content-admin:** settle staged plugin and relation state after a refused publish ([df7a0de30](https://github.com/ortha-source/ortha-cms/commit/df7a0de30))
+- **content-admin:** hide Save on shared records and shared-only types ([ff0d2a3af](https://github.com/ortha-source/ortha-cms/commit/ff0d2a3af))
+- **create-orthacms-app:** install on npm 10, and smoke-test the first run in CI ([52c20778c](https://github.com/ortha-source/ortha-cms/commit/52c20778c))
+- **protection:** nothing to review on a published, unchanged entry ([dbb87539a](https://github.com/ortha-source/ortha-cms/commit/dbb87539a))
+- **protection:** keep reviewers queued after a publish; align the Reviews table ([d5b796e53](https://github.com/ortha-source/ortha-cms/commit/d5b796e53))
+- **segments:** resolve the reader from X-Reader-Tags by default ([226cc2bbe](https://github.com/ortha-source/ortha-cms/commit/226cc2bbe))
+
+### ❤️ Thank You
+
+- Claude
+- Claude Opus 5.5
+
 ## 0.6.0 (2026-09-25)
 
 ### 🚀 Features
