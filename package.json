@@ -11,7 +11,8 @@
         "release": "node tools/release/release.mjs",
         "release:dry-run": "node tools/release/release.mjs --dry-run",
         "release:publish": "node tools/release/release.mjs --publish-only",
-        "release:reserve": "node tools/release/reserve-names.mjs"
+        "release:reserve": "node tools/release/reserve-names.mjs",
+        "smoke:scaffold": "nx run-many -t pack && node tools/smoke/scaffold.mjs"
     },
     "private": true,
     "repository": {

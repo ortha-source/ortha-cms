@@ -143,19 +143,20 @@ was never built, and ADR-0005's `Update (2026-08-24)` argues from the compositio
 "the offline `fake` adapter last", which stopped being true when the fake provider became a
 private test fixture. Each wants an amending record, not an edit to an accepted one.
 
-**The first-run experience breaks in one place, not three.** The generated app's README still
-does not work literally: drizzle-kit resolves `schema` and `out` from the cwd rather than from
-the config file, and the CLI runs it from the project root, so `out: ../../migrations` walks
-two levels above the root (the correct target is `<root>/migrations`, which the template's own
-plugin comment already uses). The same file also still points at the pre-`apps/` layout
-(`src/server/plugins.ts` for `apps/server/src/plugins.ts`), and nothing tests its contents —
-only that it exists. The other two are **fixed**: `orthacms --help`, `-h`, bare `help` and empty
-argv all print usage and exit 0 before the project root is even looked up, with regression
-tests in `args.spec.ts` and `cli.spec.ts`; and `npm test` in a freshly created app is green —
-`EXPECTED_PLUGINS` carries `content-views` and `webhooks` on both halves, and
-`composition.spec.ts` now derives the expected names from the packages that define each factory
-instead of grepping the template against itself, so a plugin added to `plugins.ts` and not to
-the spec fails there.
+**The first-run experience is now tested the way a stranger meets it.** The three findings
+this paragraph used to carry are fixed and pinned — the README's `drizzle.config.ts` recipe
+and its layout paths by `generated-readme.spec.ts`, `orthacms --help` by `args.spec.ts` and
+`cli.spec.ts`, a green `npm test` by `composition.spec.ts`. None of those installs anything,
+though, and the first thing the new end-to-end check caught was one they could not see:
+**`npm install` in a freshly created app crashed on npm 10** — the npm Node 22 ships — with
+`Cannot read properties of null (reading 'edgesOut')`. Any `vitest` 4.1.x does it on its own
+once vitest 5 is `latest`; the monorepo never noticed because CI pins npm 11 and installs
+from a lock file. The template now declares `vitest ~5.0.0` (and `@types/node ^22.12.0`, the
+floor its peer range sets). `tools/smoke/scaffold.mjs` — the `scaffold-smoke` CI job — packs
+every package, serves the tarballs from a throwaway registry, runs `npx create-orthacms-app
+--yes` outside the repository, follows the generated README (`docker compose up`, `migrate`
+twice, `npm test`, `typecheck`, `build`, `start`) and signs the root admin in over HTTP, on
+Node 22 with its bundled npm and on Node 24.
 
 **Operating the outbox.** There is still no cleanup of `outbox_events` — dispatched rows are
 stamped, never deleted, and the schema comment says so outright ("a table nothing prunes").
