@@ -264,6 +264,16 @@ package; the admin app's Vite transpiles the design-system source directly.
   account's writes and 37 tarballs go out in one run, so they are serialised
   with a gap and a 429 is backed off rather than failing the release. See
   [`docs/releasing.md`](docs/releasing.md)
+- **First-run smoke** — `npm run smoke:scaffold` is what the tarballs have to
+  survive before a release means anything: it packs every package, serves
+  `dist/pack/` from a throwaway Verdaccio (`@orthacms/*` with no uplink, so a
+  missing tarball fails instead of falling back to npmjs), scaffolds with
+  `npx create-orthacms-app --yes` in a temp directory **outside** the repo, then
+  follows the generated README — `docker compose up`, `migrate`, `npm test`,
+  `typecheck`, `build`, `start` — and signs the root admin in over HTTP. Needs
+  Docker and a free `:5432`; `--keep` leaves the app behind. The
+  `scaffold-smoke` CI job runs it on Node 22 (its bundled npm 10, which is what
+  users have) and Node 24
 - **Database / migrations** (provided by `@orthacms/nx`; needs a `.env` with
   `DATABASE_URL`, and Postgres via `docker compose up -d`):
     - `npx nx run <plugin>:db:generate --name=<name>` — generate that plugin's

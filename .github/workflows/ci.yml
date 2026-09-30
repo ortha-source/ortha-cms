@@ -107,3 +107,34 @@ jobs:
                   name: playwright-report
                   path: apps/admin-e2e/test-output/
                   retention-days: 7
+
+    scaffold-smoke:
+        name: scaffold-smoke (node ${{ matrix.node }})
+        runs-on: ubuntu-latest
+        # Every other job runs against the workspace, where packages resolve
+        # from source. This one installs what a release would ship: it packs
+        # every package, serves the tarballs from a throwaway registry, and
+        # follows a freshly generated app's README from `npx
+        # create-orthacms-app` to a signed-in admin. See tools/smoke/scaffold.mjs.
+        timeout-minutes: 45
+        strategy:
+            fail-fast: false
+            matrix:
+                # 22 is the LTS most users are on, and it ships npm 10 — the
+                # npm that crashed installing a generated app while this repo,
+                # on npm 11, never noticed. 24 ships npm 11.
+                node: [22, 24]
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ matrix.node }}
+                  cache: npm
+            # The workspace's lock file needs npm 11 (see `check`), but the
+            # generated app must be installed with the npm this Node ships, so
+            # npm 11 is borrowed for this one command instead of installed
+            # globally over the one a user would have.
+            - run: npx -y npm@11 ci
+            - run: npm --version
+            - run: npx nx run-many -t pack
+            - run: node tools/smoke/scaffold.mjs
