@@ -4,7 +4,8 @@
         "outDir": "out-tsc/server-e2e",
         "esModuleInterop": true,
         "noUnusedLocals": false,
-        "noImplicitAny": false
+        "noImplicitAny": false,
+        "types": ["jest", "node"]
     },
     "include": ["jest.config.cts", "src/**/*.ts"],
     "references": [
