@@ -28,11 +28,18 @@ export type SchemaDraftState = {
 
 /**
  * The editor's state: a reducer over the served document. When a new document
- * is served (a restart landed), the draft starts over from it.
+ * is served, or the same one by a new process (a restart landed — the query
+ * cache keeps an equal document's identity), the draft starts over from it.
  */
-export function useSchemaDraft(base: SchemaDocument): SchemaDraftState {
+export function useSchemaDraft(
+    base: SchemaDocument,
+    bootId?: string
+): SchemaDraftState {
     const [document, dispatch] = useReducer(schemaDraft, base);
-    useEffect(() => dispatch({ type: 'reset', document: base }), [base]);
+    useEffect(
+        () => dispatch({ type: 'reset', document: base }),
+        [base, bootId]
+    );
     const discard = useCallback(
         () => dispatch({ type: 'reset', document: base }),
         [base]

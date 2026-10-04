@@ -218,6 +218,45 @@ export class ContentModelPage extends BasePage {
         return this.rail.getByRole('button', { name: 'New content type' });
     }
 
+    /** The header's "Review changes". */
+    reviewButton(): Locator {
+        return this.page.getByRole('button', { name: 'Review changes' });
+    }
+
+    /** The review drawer. */
+    changesDrawer(): Locator {
+        return this.page.getByRole('dialog', { name: 'Review changes' });
+    }
+
+    /** The drawer's Apply. */
+    applyChangesButton(): Locator {
+        return this.changesDrawer().getByRole('button', { name: 'Apply' });
+    }
+
+    /** The apply's progress panel. */
+    applyProgress(): Locator {
+        return this.page.getByRole('region', {
+            name: 'Applying the content model'
+        });
+    }
+
+    /** The after-apply offer to grant a new type to workspaces. */
+    grantDialog(): Locator {
+        return this.page.getByRole('dialog', {
+            name: /^Use the new types? in workspaces$/
+        });
+    }
+
+    /** Adds a collection from the rail, by its label. */
+    async addType(label: string): Promise<void> {
+        await this.newTypeButton().click();
+        const dialog = this.page.getByRole('dialog', {
+            name: 'New content type'
+        });
+        await dialog.getByLabel('Label').fill(label);
+        await dialog.getByRole('button', { name: 'Add type' }).click();
+    }
+
     /** The empty state's heading. */
     emptyHeading(): Locator {
         return this.page.getByRole('heading', { name: 'No content types yet' });

@@ -1,4 +1,5 @@
 import '../../../../testing/jsdomShims';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { IntlProvider } from 'react-intl';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -23,16 +24,20 @@ const owned = envelopeOf(
 
 function renderWorkspace(envelope = owned, path = '/content-model/article') {
     return render(
-        <IntlProvider locale="en">
-            <MemoryRouter initialEntries={[path]}>
-                <Routes>
-                    <Route
-                        path="/content-model/:typeName?"
-                        element={<ContentModelWorkspace envelope={envelope} />}
-                    />
-                </Routes>
-            </MemoryRouter>
-        </IntlProvider>
+        <QueryClientProvider client={new QueryClient()}>
+            <IntlProvider locale="en">
+                <MemoryRouter initialEntries={[path]}>
+                    <Routes>
+                        <Route
+                            path="/content-model/:typeName?"
+                            element={
+                                <ContentModelWorkspace envelope={envelope} />
+                            }
+                        />
+                    </Routes>
+                </MemoryRouter>
+            </IntlProvider>
+        </QueryClientProvider>
     );
 }
 

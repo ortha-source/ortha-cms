@@ -21,6 +21,7 @@ infrastructure/
   schemaKeys/          query keys
 application/
   queries/useSchemaDocument/
+  useSchemaDraft/ useApplyFlow/ waitForOperation/ waitForRestart/
 presentation/
   pages/ContentModelPage/   four states: no access · loading · error · loaded
   components/               chrome, layout, skeletons, rail, type editor, notices
@@ -82,6 +83,32 @@ Hand-written types stay read-only and say how to hand them over.
   never sections or tabs. An empty one is flagged: the schema refuses it.
 - **Leaving** the page with a draft asks first (`useUnsavedChanges`). The rail
   is marked `data-keeps-unsaved-changes`, so moving between types does not.
+
+## Review and apply
+
+`useApplyFlow` (application) runs review → confirm → apply → restart → grant.
+
+- **The plan is the server's.** Review asks `POST /schema-builder/plan` with
+  the draft and the fingerprint it started from; `ChangesDrawer` shows the
+  verdicts, the files and the SQL, with `ChangesSkeleton` while drizzle-kit
+  runs. A `409` is a stale page — the only way on is a reload.
+- **Apply is disabled with a reason** (`applyReadiness`, the UX mirror of the
+  server's checks): a blocked change, every destructive change confirmed by
+  its own checkbox — there is no "confirm all" — and a migration name drizzle-kit
+  accepts (`MIGRATION_NAME`, suggested from the changes).
+- **Following an apply** is two polls with an injected `sleep`
+  (`waitForOperation`, then `waitForRestart`). A `200` from the document route
+  is not the restart — the old process answers until it is replaced — the new
+  `bootId` is. On `restart: 'manual'` the second wait is long and the progress
+  says to restart the server. Once the new process answers, the document is put
+  in the cache and every registry-derived query is invalidated (`isRegistryKey`).
+  The draft resets on the new boot id even when the document is equal.
+- **A failure keeps the draft**, and says so. `ApplyProgress` is real progress,
+  one `role="status"`, not a skeleton.
+- **New types are granted to no workspace** (invariant 11). `GrantNewTypeDialog`
+  offers the active workspaces through `POST /workspaces/:id/content`, with
+  "Not now" as an equal answer; it is mounted only when there is something to
+  grant, because it reads the workspace list.
 
 ## Commands
 
