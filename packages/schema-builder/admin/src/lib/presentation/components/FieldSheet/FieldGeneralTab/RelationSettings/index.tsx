@@ -15,6 +15,8 @@ import {
     type TypeDoc
 } from '@orthacms/schema-builder-domain';
 import {
+    CARDINALITIES,
+    CARDINALITY_NOTATION,
     cardinalityOf,
     toRelationFlags,
     type Cardinality
@@ -30,27 +32,44 @@ const messages = defineMessages({
     },
     manyToOne: {
         id: 'schemaBuilder.relation.manyToOne',
-        defaultMessage: 'One {target}'
+        defaultMessage: 'Many-to-one'
     },
     manyToOneHint: {
         id: 'schemaBuilder.relation.manyToOneHint',
-        defaultMessage: 'Each entry links one; many entries may share it.'
+        defaultMessage:
+            'Each entry in {source} links to one entry in {target}; one entry in {target} can be linked from many in {source}.'
+    },
+    manyToOneExample: {
+        id: 'schemaBuilder.relation.manyToOneExample',
+        defaultMessage:
+            'Like many posts by one author. Stored as a column on {source}.'
     },
     oneToOne: {
         id: 'schemaBuilder.relation.oneToOne',
-        defaultMessage: 'One {target}, its own'
+        defaultMessage: 'One-to-one'
     },
     oneToOneHint: {
         id: 'schemaBuilder.relation.oneToOneHint',
-        defaultMessage: 'No two entries may link the same one.'
+        defaultMessage:
+            'Each entry in {source} links to one entry in {target}, and no other entry in {source} may link the same one.'
+    },
+    oneToOneExample: {
+        id: 'schemaBuilder.relation.oneToOneExample',
+        defaultMessage:
+            'Like a product and its spec sheet. Stored as a unique column on {source}.'
     },
     manyToMany: {
         id: 'schemaBuilder.relation.manyToMany',
-        defaultMessage: 'Any number of {target}'
+        defaultMessage: 'Many-to-many'
     },
     manyToManyHint: {
         id: 'schemaBuilder.relation.manyToManyHint',
-        defaultMessage: 'Stored in a join table.'
+        defaultMessage:
+            'Each entry in {source} links to any number of entries in {target}, and each of those can be linked from any number in {source}.'
+    },
+    manyToManyExample: {
+        id: 'schemaBuilder.relation.manyToManyExample',
+        defaultMessage: 'Like posts and tags. Stored in a separate join table.'
     },
     onDelete: {
         id: 'schemaBuilder.relation.onDelete',
@@ -112,7 +131,10 @@ export function RelationSettings({ spec, type, document, onChange }: Props) {
     const target = document.types.find(
         (candidate) => candidate.name === spec.to
     );
-    const targetLabel = target?.label || spec.to;
+    const names = {
+        source: type.label || type.name,
+        target: target?.label || spec.to
+    };
     return (
         <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
@@ -149,20 +171,22 @@ export function RelationSettings({ spec, type, document, onChange }: Props) {
                         onChange(toRelationFlags(value as Cardinality))
                     }
                 >
-                    {(['manyToOne', 'oneToOne', 'manyToMany'] as const).map(
-                        (value) => (
-                            <CardinalityOption
-                                key={value}
-                                value={value}
-                                label={intl.formatMessage(messages[value], {
-                                    target: targetLabel
-                                })}
-                                description={intl.formatMessage(
-                                    messages[`${value}Hint`]
-                                )}
-                            />
-                        )
-                    )}
+                    {CARDINALITIES.map((value) => (
+                        <CardinalityOption
+                            key={value}
+                            value={value}
+                            label={intl.formatMessage(messages[value])}
+                            notation={CARDINALITY_NOTATION[value]}
+                            description={intl.formatMessage(
+                                messages[`${value}Hint`],
+                                names
+                            )}
+                            example={intl.formatMessage(
+                                messages[`${value}Example`],
+                                names
+                            )}
+                        />
+                    ))}
                 </RadioGroup>
             </fieldset>
             <div className="flex flex-col gap-2">
