@@ -1,9 +1,16 @@
+import { forwardRef } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
+import { ArrowLeft } from 'lucide-react';
 import {
     Alert,
     AlertDescription,
     AlertTitle,
-    Button
+    Button,
+    CardContent,
+    CardFooter,
+    CardHeader,
+    CardTitle,
+    WizardFooter
 } from '@orthacms/design-system';
 import type {
     ApplyFailure,
@@ -15,6 +22,10 @@ const messages = defineMessages({
     title: {
         id: 'schemaBuilder.apply.title',
         defaultMessage: 'Applying the content model'
+    },
+    doneTitle: {
+        id: 'schemaBuilder.apply.doneTitle',
+        defaultMessage: 'Applied'
     },
     applying: {
         id: 'schemaBuilder.apply.applying',
@@ -41,7 +52,14 @@ const messages = defineMessages({
         defaultMessage:
             '{message} Your draft is still here; nothing in the database or src/content changed.'
     },
-    close: { id: 'schemaBuilder.apply.close', defaultMessage: 'Close' }
+    backToReview: {
+        id: 'schemaBuilder.apply.backToReview',
+        defaultMessage: 'Back to the review'
+    },
+    finish: {
+        id: 'schemaBuilder.apply.finish',
+        defaultMessage: 'Back to the content model'
+    }
 });
 
 const ORDER = ['applying', 'restarting', 'done'] as const;
@@ -55,80 +73,103 @@ const POSITION: Record<ApplyStage, number> = {
 };
 
 type Props = {
-    stage: ApplyStage;
+    stage: Exclude<ApplyStage, 'idle'>;
     failure: ApplyFailure | null;
-    onClose: () => void;
+    /** After a failure: back to the steps, with the draft as it was. */
+    onDismiss: () => void;
+    /** After success: back to the editor. */
+    onFinish: () => void;
 };
 
 /**
- * Real progress, not a skeleton: the three steps of an apply in one
- * `role="status"`, so each step is announced as it starts. A failure is an
- * alert of its own, and says the draft is safe.
+ * The review card once Apply is pressed. Real progress, not a skeleton: the
+ * three steps of an apply in one `role="status"`, so each is announced as it
+ * starts. A failure is an alert of its own and says the draft is safe.
  */
-export function ApplyProgress({ stage, failure, onClose }: Props) {
-    const intl = useIntl();
-    if (stage === 'idle') return null;
-    if (stage === 'failed') {
+export const ApplyProgress = forwardRef<HTMLHeadingElement, Props>(
+    function ApplyProgress({ stage, failure, onDismiss, onFinish }, ref) {
+        const intl = useIntl();
+        const at = POSITION[stage];
+        const label = (step: (typeof ORDER)[number]) =>
+            intl.formatMessage(
+                step === 'restarting' && stage === 'manual'
+                    ? messages.manual
+                    : messages[step]
+            );
+        const state = (index: number): StepState =>
+            stage === 'done' || index < at
+                ? 'done'
+                : index === at
+                  ? 'current'
+                  : 'pending';
         return (
-            <Alert
-                variant="destructive"
-                role="alert"
-                className="fixed inset-x-4 bottom-4 z-50 mx-auto max-w-md shadow-lg"
-            >
-                <AlertTitle>
-                    {intl.formatMessage(messages.failedTitle)}
-                </AlertTitle>
-                <AlertDescription className="flex flex-col gap-2">
-                    {intl.formatMessage(messages.failedBody, {
-                        message: failure?.message ?? ''
-                    })}
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        className="self-start"
-                        onClick={onClose}
-                    >
-                        {intl.formatMessage(messages.close)}
-                    </Button>
-                </AlertDescription>
-            </Alert>
+            <>
+                <CardHeader>
+                    <CardTitle asChild>
+                        <h2
+                            ref={ref}
+                            tabIndex={-1}
+                            className="focus-visible:outline-none"
+                        >
+                            {intl.formatMessage(
+                                stage === 'done'
+                                    ? messages.doneTitle
+                                    : messages.title
+                            )}
+                        </h2>
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    {stage === 'failed' ? (
+                        <Alert variant="destructive" role="alert">
+                            <AlertTitle>
+                                {intl.formatMessage(messages.failedTitle)}
+                            </AlertTitle>
+                            <AlertDescription>
+                                {intl.formatMessage(messages.failedBody, {
+                                    message: failure?.message ?? ''
+                                })}
+                            </AlertDescription>
+                        </Alert>
+                    ) : (
+                        <div role="status">
+                            <ol className="flex flex-col gap-3">
+                                {ORDER.map((step, index) => (
+                                    <ApplyStep
+                                        key={step}
+                                        label={label(step)}
+                                        state={state(index)}
+                                    />
+                                ))}
+                            </ol>
+                        </div>
+                    )}
+                </CardContent>
+                {(stage === 'failed' || stage === 'done') && (
+                    <CardFooter>
+                        <WizardFooter
+                            primary={
+                                stage === 'failed' ? (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={onDismiss}
+                                    >
+                                        <ArrowLeft />
+                                        {intl.formatMessage(
+                                            messages.backToReview
+                                        )}
+                                    </Button>
+                                ) : (
+                                    <Button type="button" onClick={onFinish}>
+                                        {intl.formatMessage(messages.finish)}
+                                    </Button>
+                                )
+                            }
+                        />
+                    </CardFooter>
+                )}
+            </>
         );
     }
-    const at = POSITION[stage];
-    const label = (step: (typeof ORDER)[number]) =>
-        intl.formatMessage(
-            step === 'restarting' && stage === 'manual'
-                ? messages.manual
-                : messages[step]
-        );
-    const state = (index: number): StepState =>
-        index < at ? 'done' : index === at ? 'current' : 'pending';
-    return (
-        <section
-            aria-label={intl.formatMessage(messages.title)}
-            className="fixed inset-x-4 bottom-4 z-50 mx-auto flex max-w-md flex-col gap-3 rounded-xl border bg-card p-4 shadow-lg"
-        >
-            <div role="status">
-                <ol className="flex flex-col gap-2">
-                    {ORDER.map((step, index) => (
-                        <ApplyStep
-                            key={step}
-                            label={label(step)}
-                            state={stage === 'done' ? 'done' : state(index)}
-                        />
-                    ))}
-                </ol>
-            </div>
-            {stage === 'done' && (
-                <Button
-                    size="sm"
-                    variant="outline"
-                    className="self-end"
-                    onClick={onClose}
-                >
-                    {intl.formatMessage(messages.close)}
-                </Button>
-            )}
-        </section>
-    );
-}
+);

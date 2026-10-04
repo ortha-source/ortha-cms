@@ -19,7 +19,9 @@ hand-written):
 - utilities → `src/lib/` · hooks → `src/lib/hooks/`
 - Theme tokens (Tailwind v4 `@theme`) live in `apps/admin/src/styles.css`
 - The package also ships a small global stylesheet at `src/styles.css` (the
-  `wizard-step-in` animation used by `WizardStepCard`); the host imports it once,
+  `wizard-step-in` animation used by `WizardStepCard`, the dropdown entrance,
+  and the `Sheet` slide-in — entrance only, off under reduced motion, for the
+  reasons written above its rules); the host imports it once,
   after `@import 'tailwindcss'`. Generic multi-step wizard chrome (`Stepper`,
   `WizardStepCard`, `WizardFooter`) lives in `ui/wizard.tsx` — copy-free and
   i18n-free, configured by the consumer.

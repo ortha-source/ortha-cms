@@ -223,21 +223,40 @@ export class ContentModelPage extends BasePage {
         return this.page.getByRole('button', { name: 'Review changes' });
     }
 
-    /** The review drawer. */
-    changesDrawer(): Locator {
-        return this.page.getByRole('dialog', { name: 'Review changes' });
-    }
-
-    /** The drawer's Apply. */
-    applyChangesButton(): Locator {
-        return this.changesDrawer().getByRole('button', { name: 'Apply' });
-    }
-
-    /** The apply's progress panel. */
-    applyProgress(): Locator {
-        return this.page.getByRole('region', {
-            name: 'Applying the content model'
+    /** The review page's `<h1>`. */
+    reviewHeading(): Locator {
+        return this.page.getByRole('heading', {
+            level: 1,
+            name: 'Review changes'
         });
+    }
+
+    /** The heading of the review step (or apply outcome) on screen. */
+    stepHeading(name: string): Locator {
+        return this.page.getByRole('heading', { level: 2, name });
+    }
+
+    /** A button on the review page, by its name. */
+    reviewAction(name: string): Locator {
+        return this.page.getByRole('button', { name, exact: true });
+    }
+
+    /** "Back to the content model" — a link while reviewing, a button after an apply. */
+    backToModel(): Locator {
+        return this.page
+            .getByRole('link', { name: 'Back to the content model' })
+            .or(
+                this.page.getByRole('button', {
+                    name: 'Back to the content model'
+                })
+            );
+    }
+
+    /** Walks the review from the changes to the apply step. */
+    async continueToApply(): Promise<void> {
+        await this.reviewAction('Continue to files').click();
+        await this.reviewAction('Continue to apply').click();
+        await this.stepHeading('Apply').waitFor();
     }
 
     /** The after-apply offer to grant a new type to workspaces. */
