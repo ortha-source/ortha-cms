@@ -150,6 +150,23 @@ describe('ContentModelPage', () => {
         expect(await screen.findByText(/runs in production/)).toBeTruthy();
     });
 
+    it('says the manifest has to be generated before anything can be edited', async () => {
+        fetchDocument.mockResolvedValue(
+            envelopeOf([article], {
+                editable: false,
+                reason: 'hand-written-manifest',
+                restart: 'watch'
+            })
+        );
+        renderPage();
+        expect(
+            await screen.findByText(
+                /was written by hand, and every change rewrites it/
+            )
+        ).toBeTruthy();
+        expect(screen.getByText('orthacms content sync')).toBeTruthy();
+    });
+
     it('on an editable server, explains only why a hand-written type stays read-only', async () => {
         fetchDocument.mockResolvedValue(
             envelopeOf([article, { ...author, origin: 'builder' }], {

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { defineMessages, FormattedMessage } from 'react-intl';
 import { Lock } from 'lucide-react';
 import type { ReadOnlyReason } from '@orthacms/schema-builder-domain';
@@ -13,6 +14,11 @@ const messages = defineMessages({
         defaultMessage:
             'Editing is off. Set {flag} in {file} and restart the dev server to edit the content model here.'
     },
+    'hand-written-manifest': {
+        id: 'schemaBuilder.readOnly.handWrittenManifest',
+        defaultMessage:
+            'The content manifest {file} was written by hand, and every change rewrites it. Run {command} once to let the builder own it.'
+    },
     'no-source-tree': {
         id: 'schemaBuilder.readOnly.noSourceTree',
         defaultMessage:
@@ -26,6 +32,17 @@ const code = (text: string) => (
     </code>
 );
 
+/** The code fragments each sentence names. */
+const VALUES: Record<ReadOnlyReason, Record<string, ReactNode>> = {
+    production: {},
+    disabled: { flag: code('SCHEMA_BUILDER=true'), file: code('.env') },
+    'no-source-tree': { command: code('npm run dev') },
+    'hand-written-manifest': {
+        file: code('src/content/index.ts'),
+        command: code('orthacms content sync')
+    }
+};
+
 /** Says why the whole page is read-only, and how to change that. */
 export function ReadOnlyNotice({ reason }: { reason?: ReadOnlyReason }) {
     if (!reason) return null;
@@ -35,11 +52,7 @@ export function ReadOnlyNotice({ reason }: { reason?: ReadOnlyReason }) {
             <span>
                 <FormattedMessage
                     {...messages[reason]}
-                    values={{
-                        flag: code('SCHEMA_BUILDER=true'),
-                        file: code('.env'),
-                        command: code('npm run dev')
-                    }}
+                    values={VALUES[reason]}
                 />
             </span>
         </p>

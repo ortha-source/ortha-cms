@@ -93,6 +93,9 @@ const ALL_PERMISSIONS = [
     // them, not the moment a screen does.
     'content:approve',
     'protection:manage',
+    // Changing the content model (`schema-builder`): admin-only, like the two
+    // above, and listed for the same seed-drift reason.
+    'schema:manage',
     // Export and import (`transfer-admin`). Separate keys on the server rather
     // than folded into read and create, because bulk egress is a capability an
     // operator withholds on its own — so they have to be listed here too, or

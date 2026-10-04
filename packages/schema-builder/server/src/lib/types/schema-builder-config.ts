@@ -20,7 +20,20 @@ export interface SchemaBuilderPluginConfig {
      * default under `npm run dev` / `orthacms dev`) or the user has to (`manual`).
      */
     restart?: 'watch' | 'manual';
+    /** The host's content migrations, relative to `projectRoot`. Defaults to `migrations`. */
+    migrationsDir?: string;
+    /** How long one drizzle-kit run may take before it is killed. Defaults to 60 s. */
+    generateTimeoutMs?: number;
 }
 
 /** The content folder the builder works in when the host does not say. */
 export const DEFAULT_CONTENT_DIR = 'src/content';
+
+/** The migrations folder drizzle-kit writes to when the host does not say. */
+export const DEFAULT_MIGRATIONS_DIR = 'migrations';
+
+/** Where plans and applies stage their work, relative to `projectRoot` — never under `src/`. */
+export const WORK_DIR = '.orthacms';
+
+/** A drizzle-kit run's deadline when the host does not say. */
+export const DEFAULT_GENERATE_TIMEOUT_MS = 60_000;

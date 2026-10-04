@@ -11,4 +11,5 @@ export * from './lib/manifest';
 export * from './lib/classify';
 export * from './lib/codegen';
 export * from './lib/phases';
+export * from './lib/plan';
 export { GENERATED_MARKER, isGeneratedSource } from './lib/generated-marker';

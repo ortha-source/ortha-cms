@@ -62,3 +62,63 @@ describe('NodeSourceTree', () => {
         ).resolves.toBeNull();
     });
 });
+
+describe('NodeSourceTree writes', () => {
+    let root: string;
+    let tree: NodeSourceTree;
+
+    beforeEach(() => {
+        root = mkdtempSync(join(tmpdir(), 'sb-write-'));
+        mkdirSync(join(root, 'src/content/collections'), { recursive: true });
+        writeFileSync(join(root, 'src/content/index.ts'), 'manifest');
+        writeFileSync(join(root, 'src/content/collections/a.ts'), 'a');
+        tree = new NodeSourceTree(root);
+    });
+
+    afterEach(() => rmSync(root, { recursive: true, force: true }));
+
+    it('reads a whole file, and a missing one as null', async () => {
+        await expect(tree.read('src/content/index.ts')).resolves.toBe(
+            'manifest'
+        );
+        await expect(tree.read('src/content/none.ts')).resolves.toBeNull();
+    });
+
+    it('lists the files directly in a folder, sorted, and a missing folder as empty', async () => {
+        await expect(tree.list('src/content')).resolves.toEqual(['index.ts']);
+        await expect(tree.list('nowhere')).resolves.toEqual([]);
+    });
+
+    it('writes a file, creating its folders', async () => {
+        await tree.write('.orthacms/plan/x/deep/file.ts', 'text');
+        await expect(tree.read('.orthacms/plan/x/deep/file.ts')).resolves.toBe(
+            'text'
+        );
+    });
+
+    it('copies a folder recursively, and a missing one as an empty folder', async () => {
+        await tree.copyDir('src/content', '.orthacms/stage');
+        await expect(
+            tree.read('.orthacms/stage/collections/a.ts')
+        ).resolves.toBe('a');
+        await tree.copyDir('migrations', '.orthacms/m');
+        await expect(tree.exists('.orthacms/m')).resolves.toBe(true);
+    });
+
+    it('removes recursively, and removing nothing is fine', async () => {
+        await tree.remove('src/content');
+        await expect(tree.exists('src/content')).resolves.toBe(false);
+        await expect(tree.remove('src/content')).resolves.toBeUndefined();
+    });
+
+    it('refuses to write, copy or remove outside the root — or the root itself', async () => {
+        await expect(tree.write('../escape.ts', 'x')).rejects.toThrow(
+            /not inside/
+        );
+        await expect(tree.copyDir('src', '../../copy')).rejects.toThrow(
+            /not inside/
+        );
+        await expect(tree.remove('.')).rejects.toThrow(/not inside/);
+        await expect(tree.remove('/tmp')).rejects.toThrow(/not inside/);
+    });
+});

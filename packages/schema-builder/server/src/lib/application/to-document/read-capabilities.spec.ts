@@ -1,9 +1,13 @@
+import { GENERATED_MARKER } from '@orthacms/schema-builder-domain';
 import { MemorySourceTree } from '../../../testing/memory-source-tree';
 import type { SchemaBuilderPluginConfig } from '../../types/schema-builder-config';
 import { readCapabilities } from './read-capabilities';
 
 const withTree = new MemorySourceTree({
-    'src/content/index.ts': '// manifest'
+    'src/content/index.ts': `${GENERATED_MARKER} — the content manifest.`
+});
+const handManifest = new MemorySourceTree({
+    'src/content/index.ts': "import { x } from './x';"
 });
 const noTree = new MemorySourceTree();
 const config = (
@@ -73,6 +77,15 @@ describe('readCapabilities', () => {
             readCapabilities(withTree, config(), 'lib/content')
         ).resolves.toMatchObject({
             reason: 'no-source-tree'
+        });
+    });
+
+    it('is off when the manifest was written by hand — every apply rewrites it', async () => {
+        await expect(
+            readCapabilities(handManifest, config(), 'src/content')
+        ).resolves.toMatchObject({
+            editable: false,
+            reason: 'hand-written-manifest'
         });
     });
 

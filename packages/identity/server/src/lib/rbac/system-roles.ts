@@ -65,7 +65,17 @@ export const PERMISSIONS = {
     SEGMENTS_MANAGE: 'segments:manage',
     WEBHOOKS_READ: 'webhooks:read',
     WEBHOOKS_MANAGE: 'webhooks:manage',
-    PROTECTION_MANAGE: 'protection:manage'
+    PROTECTION_MANAGE: 'protection:manage',
+    /**
+     * Authority to change the **content model** through the schema builder
+     * (ADR-0020): to plan and apply a change that rewrites the app's content
+     * type files and its database schema. Admin-only, and carried by no API
+     * token scope — it is a developer action on the application itself, not
+     * an editorial one, and it only works at all on a development server with
+     * `SCHEMA_BUILDER=true`. Reading the model needs nothing beyond
+     * `content:read`.
+     */
+    SCHEMA_MANAGE: 'schema:manage'
 } as const;
 
 /**

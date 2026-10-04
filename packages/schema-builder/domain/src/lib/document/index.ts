@@ -1,3 +1,4 @@
+export { checkDocumentShape } from './check-document-shape';
 export type {
     BuilderCapabilities,
     ReadOnlyReason,
