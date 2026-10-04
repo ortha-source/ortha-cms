@@ -233,6 +233,9 @@
         },
         {
             "path": "./packages/schema-builder/server"
+        },
+        {
+            "path": "./packages/schema-builder/admin"
         }
     ]
 }

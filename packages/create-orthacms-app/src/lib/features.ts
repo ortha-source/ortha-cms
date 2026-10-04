@@ -172,9 +172,9 @@ export const CORE_DEV_PACKAGES: readonly string[] = ['@orthacms/cli'];
  * `schema-builder-domain` is the schema builder's framework-free kernel. The
  * app never imports it: it arrives as a dependency of `@orthacms/cli`, whose
  * `content sync` renders the content manifest with it (ADR-0020).
- * `schema-builder-server` is its plugin, here only until the template registers
- * it: today it serves the read-only document, and a generated app gains nothing
- * from it before the admin page that reads it ships.
+ * `schema-builder-server` and `schema-builder-admin` are its plugins, here only
+ * until the template registers them: today they are a read-only view of the
+ * content model, and the template gains them together with editing.
  *
  * Everything else a generated app can reach is in its own manifest, so "it
  * resolves because npm hoisted it" is never the answer to why an import works.
@@ -184,6 +184,7 @@ export const CORE_DEV_PACKAGES: readonly string[] = ['@orthacms/cli'];
 export const TRANSITIVE_PACKAGES: readonly string[] = [
     '@orthacms/media-provider-memory',
     '@orthacms/media-provider-testkit',
+    '@orthacms/schema-builder-admin',
     '@orthacms/schema-builder-domain',
     '@orthacms/schema-builder-server'
 ];

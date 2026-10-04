@@ -16,6 +16,7 @@ import { transferAdminPlugin } from '@orthacms/transfer-admin';
 import { AlarmsPlugin } from '@orthacms/alarms-admin';
 import { SegmentsPlugin } from '@orthacms/segments-admin';
 import { ProtectionPlugin } from '@orthacms/protection-admin';
+import { SchemaBuilderPlugin } from '@orthacms/schema-builder-admin';
 
 /**
  * Builds the admin's plugin list — the app's whole composition, mirroring
@@ -101,6 +102,10 @@ export function buildPlugins(): AdminPlugin[] {
         // Outgoing webhooks (directory group, beside API tokens): the other
         // integration surface, and global for the same reason — an endpoint is
         // not scoped to a workspace.
-        WebhooksPlugin()
+        WebhooksPlugin(),
+        // The content model (directory group, after Webhooks). Global because
+        // content types are code and the same in every workspace; read-only
+        // unless the server runs with SCHEMA_BUILDER=true in development.
+        SchemaBuilderPlugin()
     ];
 }
