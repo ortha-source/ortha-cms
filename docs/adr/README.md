@@ -43,5 +43,6 @@ routine, easily-reversed changes.
 - [0017 — Publication is protected per content type, and an approval belongs to a revision](0017-publication-protection.md)
 - [0018 — One mail provider per deployment, and the message is built where the secret is](0018-mail-provider.md)
 - [0019 — Shared workspaces are a read-only exception to workspace isolation](0019-shared-workspaces.md)
+- [0020 — The schema builder writes code, and only in development](0020-schema-builder-writes-code.md)
 
 <!-- Add new ADRs to this index. -->
