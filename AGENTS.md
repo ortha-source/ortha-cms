@@ -12,7 +12,7 @@
 - [`CONTEXT-MAP.md`](CONTEXT-MAP.md) — glossary + the full project map (every app & package, one line each)
 - [`DESIGN.md`](DESIGN.md) — product & design intent (owned by Design; partly `TODO:`)
 - [`docs/adr/`](docs/adr/README.md) — Architecture Decision Records (why things are the way they are)
-- [`docs/design/`](docs/design/) — engineering design docs for work that is proposed but not yet built (currently: [`copilot.md`](docs/design/copilot.md), [`graphql-api.md`](docs/design/graphql-api.md), [`mail.md`](docs/design/mail.md), [`sso.md`](docs/design/sso.md)) — plus [`alarms.md`](docs/design/alarms.md), [`protection.md`](docs/design/protection.md) and [`webhooks.md`](docs/design/webhooks.md), which document shipped behaviour rather than proposals
+- [`docs/design/`](docs/design/) — engineering design docs for work that is proposed but not yet built (currently: [`copilot.md`](docs/design/copilot.md), [`graphql-api.md`](docs/design/graphql-api.md), [`mail.md`](docs/design/mail.md), [`schema-builder.md`](docs/design/schema-builder.md), [`sso.md`](docs/design/sso.md)) — plus [`alarms.md`](docs/design/alarms.md), [`protection.md`](docs/design/protection.md) and [`webhooks.md`](docs/design/webhooks.md), which document shipped behaviour rather than proposals
 - [`docs/agent-pipeline.md`](docs/agent-pipeline.md) — how a ticket becomes a merged PR when agents do the typing: the four tiers, the label vocabulary, the role subagents, and the steps
 - [`docs/definition-of-ready.md`](docs/definition-of-ready.md) — what a ticket must contain before the pipeline will act on it
 - [`README.md`](README.md) — human-facing project overview & getting started
