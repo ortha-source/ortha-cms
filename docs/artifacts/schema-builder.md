@@ -372,6 +372,12 @@ Plugin config also takes `contentDir` (`src/content`), `migrationsDir` (`migrati
 `migrationsTable` (`__drizzle_migrations_content`) and `generateTimeoutMs` (60 s). The
 factory refuses a relative `projectRoot`.
 
+A generated app (`create-orthacms-app`) ships the builder registered on both
+sides, `SCHEMA_BUILDER=false` in its `.env`, and the content plumbing already
+wired: the empty manifest, `drizzle.config.ts`, and a baseline migration under
+`apps/server/migrations` — the folder the builder writes to by default
+([create-orthacms-app dossier](create-orthacms-app.md)).
+
 prettier and drizzle-kit are dependencies of the server package and are run as child
 processes, their bins resolved from the host app.
 

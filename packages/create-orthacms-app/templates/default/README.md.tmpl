@@ -22,7 +22,8 @@ provisioned on boot, idempotently — clear those two variables once you have it
 | `npm run build` | Compiles the server and builds the admin bundle |
 | `npm start` | Runs the built server — API **and** admin, one process, one origin |
 | `npm run migrate` | Applies every plugin's pending migrations |
-| `npm run generate -- --name=<name>` | Generates a migration for your own content tables — needs a `drizzle.config.ts` first, see below |
+| `npm run content:sync` | Rewrites `apps/server/src/content/index.ts` from the type files beside it |
+| `npm run generate -- --name=<name>` | Generates a migration for your own content tables (`apps/server/drizzle.config.ts`) |
 | `npm run studio` | Opens Drizzle Studio on this app's database |
 | `npm test` | Unit tests — both halves |
 | `npm run e2e` | Both end-to-end suites |
@@ -96,7 +97,8 @@ is the composition of them.
 
 ```
 apps/
-├── server/       the API — orthacms.config.ts, src/{main,plugins}.ts
+├── server/       the API — orthacms.config.ts, src/{main,plugins}.ts,
+│                 src/content/ (your content types), migrations/ (their tables)
 ├── admin/        the UI — index.html, vite.config.mts, src/
 ├── server-e2e/   API tests against a real database
 └── admin-e2e/    browser tests against a mocked API
@@ -108,6 +110,7 @@ source lands in the same place here.
 | File | Why you would open it |
 | --- | --- |
 | `apps/server/src/plugins.ts` | Which plugins the API runs, and **in what order** |
+| `apps/server/src/content/` | Your content types, one file each |
 | `apps/admin/src/plugins.ts` | Which plugins the admin UI runs |
 | `apps/server/orthacms.config.ts` | Every setting, typed — with `apps/server/config/`, the only reader of the environment |
 | `apps/admin/src/styles.css` | The theme tokens: this app's whole visual identity |
@@ -204,33 +207,31 @@ for a retrieval-only agent, `full` for one that authors.
 
 ## Adding content types
 
-This app starts with none. To add some:
+This app starts with none. There are two ways to add them, and both end in the
+same files — one TypeScript module per type under `apps/server/src/content/`,
+and a migration under `apps/server/migrations/` — which you review and commit
+like any other code.
 
-1. Write them under `apps/server/src/content/` and export a `contentTypes` array.
-2. Pass them to `ContentPlugin({ types: contentTypes, migrations: … })` in
-   `apps/server/src/plugins.ts` — the comment there has the exact shape.
-3. Add `apps/server/drizzle.config.ts`:
+**On the Content model page.** Set `SCHEMA_BUILDER=true` in `.env`, run
+`npm run dev`, and open **Content model** in the admin. Applying a change writes
+the type files, generates and runs the migration, and the dev watcher restarts
+the server. It is a development tool: with `NODE_ENV=production` the page only
+shows the model.
 
-    ```ts
-    import { defineConfig } from 'drizzle-kit';
+**By hand.** Write `apps/server/src/content/collections/<name>.ts` exporting a
+`collection('<name>', …)` named `<name>` — or a `single()` under
+`apps/server/src/content/pages/` — using `@orthacms/content-server/define`.
+Then:
 
-    export default defineConfig({
-        dialect: 'postgresql',
-        schema: 'apps/server/src/content/index.ts',
-        out: 'migrations'
-    });
-    ```
+```sh
+npm run content:sync                       # regenerate src/content/index.ts
+npm run generate -- --name=add_<name>      # write the migration
+npm run migrate                            # apply it
+```
 
-    Both paths are relative to **this app's root**, not to the config file.
-    drizzle-kit resolves `schema` and `out` from the working directory, and
-    `orthacms generate` runs it from the root — so `out: 'migrations'` is the
-    same `migrations/` the plugin's descriptor in step 2 points at, and a
-    `../../` in front of it would write two levels above your project.
-
-    No `dbCredentials`: generating a migration only diffs the schema against
-    the last snapshot and never connects, so there is no secret to put here.
-
-4. `npm run generate -- --name=add_content_types && npm run migrate`
+`apps/server/src/content/index.ts` is generated: do not edit it, rerun
+`content:sync`. A new type is granted to no workspace, so it appears in a
+workspace's Content Library once you grant it there.
 
 ## Deploying
 

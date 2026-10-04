@@ -6,3 +6,5 @@ dist
 test-output
 playwright-report
 test-results
+# The Content model page's scratch work (plans, applies, the apply lock).
+.orthacms

@@ -1,3 +1,4 @@
+import { join } from 'node:path';
 import type { ServerPlugin } from '@orthacms/bootstrap-server';
 import { ActivityPlugin } from '@orthacms/activity-server';
 import { ContentPlugin, ContentViewsPlugin } from '@orthacms/content-server';
@@ -44,6 +45,7 @@ import { SegmentsPlugin } from '@orthacms/segments-server';
 import { ProtectionPlugin } from '@orthacms/protection-server';
 import { TransferPlugin } from '@orthacms/transfer-server';
 import { WebhooksPlugin } from '@orthacms/webhooks-server';
+import { SchemaBuilderPlugin } from '@orthacms/schema-builder-server';
 // orthacms:if graphql
 import { ContentGraphqlPlugin } from '@orthacms/content-graphql';
 // orthacms:end
@@ -62,6 +64,7 @@ import { createOpenAiProvider } from '@orthacms/copilot-provider-openai';
 // orthacms:end
 import { WorkspacesPlugin } from '@orthacms/workspaces-server';
 import type { OrthaCmsConfig } from '../orthacms.config';
+import { contentTypes } from './content';
 
 /**
  * The model backends this deployment can actually reach, in preference order.
@@ -197,9 +200,26 @@ function mailPlugin(config: OrthaCmsConfig): ServerPlugin[] {
  * degrades the feature rather than failing boot.
  */
 export function buildPlugins(config: OrthaCmsConfig): ServerPlugin[] {
-    // No content types yet — see the note below. Held in a variable because
-    // the GraphQL adapter takes the plugin itself, not just its types.
-    const content = ContentPlugin({ types: [] });
+    // This app's content types, from the generated manifest in `./content`.
+    // Held in a variable because the plugins that build on content take the
+    // plugin itself, not just its types.
+    const content = ContentPlugin({
+        types: contentTypes,
+        // The tables for those types are this app's own, not a package's:
+        // `drizzle.config.ts` diffs `src/content/index.ts` into
+        // `apps/server/migrations`, and this descriptor is how `orthacms
+        // migrate` applies them alongside every plugin's.
+        //
+        // Three levels up from `__dirname` is the app root both ways this file
+        // runs — `apps/server/src` from source (the tests) and
+        // `dist/server/src` once compiled (`orthacms migrate`, `orthacms
+        // start`). `../migrations` would be right only for the first, since
+        // `tsc` does not copy SQL into `dist/`.
+        migrations: {
+            dir: () => join(__dirname, '../../../apps/server/migrations'),
+            table: '__drizzle_migrations_content'
+        }
+    });
 
     return [
         // First: the only plugin that opens a resource in `onPluginInit`.
@@ -234,21 +254,14 @@ export function buildPlugins(config: OrthaCmsConfig): ServerPlugin[] {
         ...mailPlugin(config),
         // orthacms:end
         UsersPlugin(),
-        // No content types yet. Define some in `apps/server/src/content/`, pass
-        // them here as `types`, then add a `drizzle.config.ts` pointing at them and
-        // a `migrations` descriptor so `orthacms generate` / `orthacms migrate` can
-        // manage their tables:
-        //
-        //   ContentPlugin({
-        //       types: contentTypes,
-        //       migrations: {
-        //           dir: () => join(process.cwd(), 'migrations'),
-        //           table: '__drizzle_migrations_content'
-        //       }
-        //   })
-        //
-        // Until then the plugin serves its generic routes with an empty
-        // registry, and owns no tables of its own.
+        // Content. The app starts with no types: add them on the admin's
+        // Content model page (`/content-model`, editable in development with
+        // `SCHEMA_BUILDER=true`), or by hand as files under
+        // `src/content/collections/` and `src/content/pages/` followed by
+        // `orthacms content sync` and `orthacms generate`. Either way the
+        // registration above does not change — `contentTypes` is the generated
+        // manifest's, and the shipped baseline migration already creates the
+        // one table content keeps whatever the types are (its revisions).
         content,
         // Saved list views — the named filter/sort/column slices an editor
         // returns to. A second plugin entry from the content package because
@@ -272,6 +285,11 @@ export function buildPlugins(config: OrthaCmsConfig): ServerPlugin[] {
             playground: config.docs.enabled === true
         }),
         // orthacms:end
+        // The Content model page: reads content's registry, so it comes after
+        // content. Read-only unless `SCHEMA_BUILDER=true` outside production,
+        // and then it edits `src/content/` and writes a migration — code you
+        // commit, never a change to the running schema. Owns no tables.
+        SchemaBuilderPlugin(config.plugins.schemaBuilder),
         // Fills the Content Library's locale extensions, so it reads after it.
         I18nServerPlugin(config.plugins.i18n),
         // This line is the single place that selects storage — one constructed

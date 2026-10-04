@@ -54,14 +54,15 @@ feature they read about is missing.
 
 **Everything reachable is declared.** A generated app's manifest lists every
 `@orthacms/*` package it could import, the extension points included — the
-`*-domain` kernels (`content`, `copilot`, `identity`, `media`, `segments`,
-`transfer`, `webhooks`) plus `tools-server` and `query-builder-admin`. Every one
+`*-domain` kernels (`content`, `copilot`, `identity`, `mail`, `media`,
+`protection`, `schema-builder`, `segments`, `transfer`, `webhooks`) plus
+`tools-server` and `query-builder-admin`. Every one
 of them arrives transitively anyway, so an import resolves on npm's flat
 `node_modules` regardless; declaring them is what makes that resolution
 something the app owns. An undeclared import works until a version conflict
 nests a copy, and never works under pnpm.
 
-That leaves **15** of the 67 published packages out of a default app, and
+That leaves **15** of the 70 published packages out of a default app, and
 `features.spec.ts` asserts the list in full: the four unpicked storage adapters,
 the two hosted copilot backends, the three SSO adapters, the mail queue and its
 SMTP adapter, `content-graphql`, `mcp-server`, and the two
@@ -172,12 +173,9 @@ it times out.
 
 ## Templates
 
-**One** template, `templates/default` — a working CMS with **no content types**.
-The user defines their own; the generated README and a comment in the template's
-`plugins.ts` say how, including the `drizzle.config.ts` and `migrations`
-descriptor to add at that point. `ContentPlugin({ types: [] })` is valid and
-owns no tables, which is what lets the app migrate and boot before any content
-type exists.
+**One** template, `templates/default` — a working CMS with **no content types**
+but everything the first one needs, so adding it edits no plumbing. See
+[The content model](#the-content-model) below.
 
 Templates are **data, not source**, and this workspace has to be told so in four
 separate places — each of which failed loudly the first time:
@@ -211,7 +209,8 @@ my-cms/
 ├── package.json          one package — not workspaces; see below
 ├── tsconfig.json         references the four apps
 └── apps/
-    ├── server/           orthacms.config.ts, src/{main,plugins}.ts, jest.config.js
+    ├── server/           orthacms.config.ts, src/{main,plugins}.ts, src/content/,
+    │                     migrations/, drizzle.config.ts, jest.config.js
     ├── admin/            index.html, vite.config.mts, src/
     ├── server-e2e/       jest.config.js, src/{api.spec,global-setup,support}
     └── admin-e2e/        playwright.config.ts, src/{auth.spec,support}
@@ -254,6 +253,57 @@ because it consumes packages from npm rather than from source:
 3. **`staticDir`**, so one process serves the API and the admin on one origin.
    `apps/*` splits them because Vite serves the admin there; a deployment has no
    dev proxy, and identity's `SameSite=lax` session cookie needs same-origin.
+
+## The content model
+
+**The schema builder is core** — `schema-builder-{domain,server,admin}` are in
+`CORE_PACKAGES` and registered on both sides, because a generated app starts
+with no content types and the Content model page (`/content-model`) is how most
+people will write the first one. Installing it opens nothing: editing needs
+`SCHEMA_BUILDER=true` outside production (ADR-0020), and `env.tmpl` ships it
+`false`.
+
+So the template ships the content plumbing **already wired**, in the shape the
+CLI's `LAYOUT` and the builder's defaults expect:
+
+| File                                           | Why it is there                                                                                                                                                                                                                                     |
+| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/server/src/content/index.ts`             | Exactly `renderManifest([])`. `orthacms content sync` and the builder rewrite it, and the builder reads any other text as a hand-written manifest it will not edit                                                                                  |
+| `apps/server/src/content/{collections,pages}/` | Where type files go. Empty but for a `.gitkeep`, since git keeps no empty folder                                                                                                                                                                    |
+| `apps/server/drizzle.config.ts`                | `orthacms generate` refuses without it. Its paths are **root-relative** (`./apps/server/…`) because drizzle-kit resolves them from the working directory and the CLI runs it from the app root                                                      |
+| `apps/server/migrations/`                      | A **baseline** drizzle-kit generated from the empty manifest: it creates `content_entry_revisions`, the one table the manifest re-exports. drizzle's migrator needs `meta/_journal.json` to exist, so an empty folder would fail `orthacms migrate` |
+| `apps/server/config/schema-builder.ts`         | `SCHEMA_BUILDER`, `SCHEMA_BUILDER_ROOT` (default `apps/server`, resolved against the working directory `orthacms dev` starts the server in) and `SCHEMA_BUILDER_RESTART`                                                                            |
+
+`ContentPlugin`'s migrations descriptor is
+`join(__dirname, '../../../apps/server/migrations')`. Three levels up is the
+app root from both places `plugins.ts` runs — `apps/server/src` from source
+(the specs, the server e2e setup) and `dist/server/src` compiled (`orthacms
+migrate`, `orthacms start`) — where `../migrations` would only be right for the
+first, since `tsc` copies no SQL. `generated-content.spec.ts` resolves the
+drizzle config's `out`, the descriptor from both places and the builder's
+default, and requires one folder.
+
+The baseline is pinned to drizzle-kit itself: the same spec runs
+`drizzle-kit generate` over the rendered app and requires "No schema changes".
+If content-server changes the revision table, regenerate the baseline from an
+empty manifest (`drizzle-kit generate --dialect=postgresql --schema=<manifest>
+--out=<dir> --name=content_baseline`, in a scratch folder inside this package
+so `@orthacms/content-server/define` resolves) rather than letting a new user's
+first migration carry the `ALTER`.
+
+**The server compiles with `module` / `moduleResolution: node16`.** The
+manifest and every type file import `@orthacms/content-server/define`, a
+subpath **export**, and `node` (node10) resolution ignores `exports` — so with
+it, a generated app that has a manifest fails `orthacms build` with TS2307.
+Output is still CommonJS (`"type": "commonjs"`). The one construct node16
+changes is a relative `import()` in a CommonJS file, which it resolves as ESM
+and wants an extension for; that is why the server e2e `global-setup.ts` loads
+the app's own modules with a typed `require`. `drizzle.config.ts` is excluded
+from the server build, and `drizzle-kit` is a devDependency at the CLI's own
+range, which the same spec pins.
+
+`.orthacms/` — where the builder stages plans and applies — is in the generated
+`.gitignore`.
 
 ## Conditional blocks
 
@@ -394,8 +444,9 @@ Three more details worth not re-discovering:
   `orthacms.config.ts`, which deliberately refuses to load without `DATABASE_URL`.
   Nothing connects — the plugin list is a pure function of the config — so
   placeholders are what let `npm test` run in CI with no `.env`.
-- **`tsconfig.server.json` excludes `**/\*.spec.ts`**, or `orthacms build`compiles
-the tests into`dist/server` and ships them.
+- **The server build excludes the specs.** `apps/server/tsconfig.json`
+  excludes `**/*.spec.ts` (and `drizzle.config.ts`), or `orthacms build`
+  compiles the tests into `dist/server` and ships them.
 - **The Vite config is `.mts`.** The app is `"type": "commonjs"`, and Vite warns
   (and will eventually fail) on ESM syntax in a config loaded as CJS.
 - **The server e2e specs read `ALLOWED_ORIGIN` from the config.** Login is
@@ -407,7 +458,7 @@ the tests into`dist/server` and ships them.
 
 `npx nx test create-orthacms-app` — the package-coverage guard, the conditional
 processor, and the scaffolded output for several feature combinations (nothing
-optional, one copilot provider, both, and every protocol). Four of the eleven
+optional, one copilot provider, both, and every protocol). Five of the twelve
 spec files are worth knowing about by name:
 
 - `run.spec.ts` drives `main()` end to end in a temporary directory: the
@@ -430,6 +481,11 @@ spec files are worth knowing about by name:
 - `generated-config.spec.ts` **executes** rendered `config/` modules (they
   import types and env readers only, so this costs nothing) to check that an
   unset key means no provider rather than one that fails on the first message.
+- `generated-content.spec.ts` checks the content plumbing against the code
+  that owns each piece: the manifest against `renderManifest([])`, the baseline
+  migration against a live `drizzle-kit generate`, and the migrations folder as
+  the drizzle config, the descriptor (from source and compiled) and the
+  builder each resolve it.
 - `packaging.spec.ts` holds the two facts about the package itself: templates
   excluded from all four tools, and zero runtime dependencies.
 

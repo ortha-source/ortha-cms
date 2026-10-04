@@ -6,7 +6,7 @@ import {
     rmSync
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 import { renderTemplate, type TemplateValues } from './template';
 
 /**
@@ -20,14 +20,14 @@ import { renderTemplate, type TemplateValues } from './template';
  * root, which a reader following it literally discovers as a folder full of
  * SQL outside their app.
  *
- * This is the first document a new user reads and the only one that tells them
- * how to add a content type, which is the first thing they will want to do. So
- * the assertions here are about the two claims a README can actually be wrong
+ * This is the first document a new user reads and the one that tells them how
+ * to add a content type, which is the first thing they will want to do. So the
+ * assertions here are about the two claims a README can actually be wrong
  * about in a way a machine can see:
  *
- * - **every path it names is a path this app has** (or one it has just told the
- *   reader to create, and there are exactly three of those, each pinned on its
- *   own below), and
+ * - **every path it names is a path this app has** — the content folders, the
+ *   drizzle config and the migrations folder included, since the template now
+ *   ships all of them rather than asking the reader to create them, and
  * - **every command it says to run is a command that exists** — a script in the
  *   generated manifest, resolving to a subcommand the CLI dispatches.
  *
@@ -36,6 +36,10 @@ import { renderTemplate, type TemplateValues } from './template';
  * commands and layout come out of `@orthacms/cli`'s own source. A test that
  * only asserted the README contains some string would pass on a README that is
  * wrong about everything else.
+ *
+ * What the shipped drizzle config, the content descriptor and the schema
+ * builder agree on is `generated-content.spec.ts`'s business; this file only
+ * checks that the README describes the app it ships with.
  */
 
 const TEMPLATE = join(__dirname, '../../templates/default');
@@ -115,32 +119,13 @@ function scripts(): Record<string, string> {
 /* --------------------------------------------------------------- the paths */
 
 /**
- * The three paths the README names that a generated app does not have, because
- * the README is telling the reader to create them. Each is pinned by a test of
- * its own further down — the list is an index of those, not an amnesty:
- *
- * - `apps/server/drizzle.config.ts` — must be the path `orthacms generate`
- *   requires, or the instruction produces a file the command will not read.
- * - `apps/server/src/content/` — must sit inside the app's compiled tsc
- *   project, and is where step 1 says to put the content types.
- * - `migrations/` — must be where step 3's `out` resolves to *and* what the
- *   plugin's migrations descriptor names, or `generate` and `migrate` disagree
- *   about where the SQL lives.
- */
-const CREATED_BY_FOLLOWING_THE_README = new Set([
-    'apps/server/drizzle.config.ts',
-    'apps/server/src/content/',
-    'migrations/'
-]);
-
-/**
  * The app-relative paths a piece of inline code names.
  *
  * A URL path (`/api/v1/mcp`), a package (`@orthacms/database`), and anything
  * with a space in it are not file paths and are left alone; a glob is trimmed
  * to the directory in front of its first `*`, since that is the part that has
- * to exist. `../../` is deliberately excluded — after this fix the README names
- * it only to say what *not* to write.
+ * to exist. A placeholder (`collections/<name>.ts`) is not a path either, and
+ * the character class leaves it out.
  */
 function pathsNamedIn(markdown: string): string[] {
     const spans = [...markdown.matchAll(/`([^`\n]+)`/g)].map(
@@ -162,9 +147,9 @@ function pathsNamedIn(markdown: string): string[] {
 
 describe('the generated README’s paths', () => {
     it('names no path this app does not have', () => {
-        const missing = pathsNamedIn(readme())
-            .filter((path) => !CREATED_BY_FOLLOWING_THE_README.has(path))
-            .filter((path) => !existsSync(join(target, path)));
+        const missing = pathsNamedIn(readme()).filter(
+            (path) => !existsSync(join(target, path))
+        );
 
         expect(missing).toEqual([]);
     });
@@ -184,85 +169,12 @@ describe('the generated README’s paths', () => {
     /**
      * The layout the README describes is a convention `@orthacms/cli` enforces,
      * not a suggestion: `orthacms generate` refuses outright when the app has no
-     * `drizzle.config.ts` at exactly this path.
+     * `drizzle.config.ts` at exactly this path, and `orthacms content sync`
+     * rewrites the manifest in exactly this folder.
      */
-    it('tells the reader to write the drizzle config where orthacms generate looks for it', () => {
+    it('names the drizzle config and the content folder where the CLI looks for them', () => {
         expect(readme()).toContain(`\`${cliLayout('drizzleConfig')}\``);
-    });
-});
-
-/* ------------------------------------------------- the drizzle instructions */
-
-/** The `schema` / `out` of the drizzle config the README tells you to write. */
-function drizzleRecipe(): { schema: string; out: string } {
-    const source = readme();
-    const schema = /\n\s+schema: '([^']+)'/.exec(source);
-    const out = /\n\s+out: '([^']+)'/.exec(source);
-
-    if (!schema || !out) {
-        throw new Error('the README no longer shows a drizzle config to write');
-    }
-
-    return { schema: schema[1] as string, out: out[1] as string };
-}
-
-/**
- * Where the plugin's own migrations descriptor says the SQL lives, read from
- * the comment in the template's `plugins.ts` that the README's step 2 points
- * at. `generate` writes there and `migrate` reads from there, so the two have
- * to name one directory.
- */
-function descriptorMigrationsDir(): string {
-    const source = readFileSync(
-        join(target, 'apps/server/src/plugins.ts'),
-        'utf8'
-    );
-    const match = /dir: \(\) => join\(process\.cwd\(\), '([^']+)'\)/.exec(
-        source
-    );
-
-    if (!match) {
-        throw new Error(
-            'plugins.ts no longer shows a root-relative migrations descriptor'
-        );
-    }
-
-    return match[1] as string;
-}
-
-describe('the drizzle config the README tells you to write', () => {
-    /**
-     * The bug this exists for. drizzle-kit resolves `schema` and `out` from the
-     * **working directory**, not from the config file, and `orthacms generate`
-     * runs it from the project root — so `out: '../../migrations'`, which reads
-     * as "up out of apps/server", actually writes two levels *above the whole
-     * app*, and `schema` is not found at all.
-     */
-    it('points out at the directory the plugin’s descriptor reads from', () => {
-        const root = '/apps/my-cms';
-
-        expect(resolve(root, drizzleRecipe().out)).toBe(
-            resolve(root, descriptorMigrationsDir())
-        );
-    });
-
-    it('points schema inside the folder step 1 says to write content types in', () => {
-        const { schema } = drizzleRecipe();
-
-        expect(schema).toContain('apps/server/src/content/');
-        // The half a string check would miss: it has to be under a directory
-        // the app really has, or `tsc` never sees the schema either.
-        expect(existsSync(join(target, 'apps/server/src'))).toBe(true);
-    });
-
-    /** Neither path may climb out of the root drizzle-kit is started in. */
-    it('resolves both paths inside the app, from the root the CLI runs in', () => {
-        const root = '/apps/my-cms';
-        const { schema, out } = drizzleRecipe();
-
-        for (const path of [schema, out]) {
-            expect(resolve(root, path).startsWith(`${root}/`)).toBe(true);
-        }
+        expect(readme()).toContain(`\`${cliLayout('contentDir')}/index.ts\``);
     });
 });
 
@@ -310,7 +222,13 @@ describe('the commands the generated README tells you to run', () => {
 
     it('reads the commands out of the document rather than finding none', () => {
         expect(npmCommandsIn(readme())).toEqual(
-            expect.arrayContaining(['dev', 'migrate', 'generate', 'test'])
+            expect.arrayContaining([
+                'dev',
+                'migrate',
+                'generate',
+                'content:sync',
+                'test'
+            ])
         );
     });
 

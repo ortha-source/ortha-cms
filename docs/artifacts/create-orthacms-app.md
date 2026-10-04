@@ -57,7 +57,7 @@ The scaffolder never blocks on a question nobody is there to hear: with no TTY, 
 ### What the scaffolder is not
 
 - **It is not an installer and not an upgrader.** It writes files once. Updating versions is the application owner's job (and is done wholesale, not piecemeal).
-- **It is not a set of "blog / shop / landing page" templates.** There is exactly one template. It contains no content types at all — `ContentPlugin({ types: [] })` is valid and owns not one table, so the application migrates and starts before the first type exists.
+- **It is not a set of "blog / shop / landing page" templates.** There is exactly one template. It contains no content types at all — but it ships the generated manifest, the two type folders, a `drizzle.config.ts` and a baseline migration, so the application migrates and starts before the first type exists and adding one edits no plumbing.
 - **It is not a configurator for everything.** It does not ask about roles, locales, limits or email: those are either product constants in `orthacms.config.ts` or decisions made inside the admin UI later.
 - **It is not a runtime.** After generation the package disappears from the application's life: it does not end up among the generated project's dependencies.
 
@@ -312,12 +312,12 @@ The file `src/lib/features.ts` calls itself, in its own header, **the contract b
 
 | Bucket              | Meaning                                                                  | How many now |
 | ------------------- | ------------------------------------------------------------------------ | ------------ |
-| CORE_PACKAGES       | Every application gets it, whatever it chose                             | 44           |
+| CORE_PACKAGES       | Every application gets it, whatever it chose                             | 53           |
 | CORE_DEV_PACKAGES   | Needed for the application to build and run; goes into `devDependencies` | 1            |
-| Feature.packages    | Installed when the corresponding capability is chosen                    | 12           |
+| Feature.packages    | Installed when the corresponding capability is chosen                    | 14           |
 | TRANSITIVE_PACKAGES | An internal detail of another package; deliberately not declared         | 2            |
 
-That is **59** in total — exactly the number of `@orthacms/*` packages the monorepo publishes. The sixtieth publishable package is `create-orthacms-app` itself, and it does not classify itself.
+That is **70** in total — exactly the number of `@orthacms/*` packages the monorepo publishes. The seventy-first publishable package is `create-orthacms-app` itself, and it does not classify itself.
 
 ### The mechanism that forces a decision
 
@@ -345,9 +345,9 @@ The guard's value lies in what does _not_ happen without it. Without it the temp
 
 > **Everything reachable is declared**
 >
-> The extension points (`content-domain`, `copilot-domain`, `tools-server`, `query-builder-admin`, `identity-domain`) and the shared tooling (`design-system`, `utils-admin`, `utils-server`) are in the core even though they arrive transitively and undeclared. Declaring them is what makes the import's resolution **the application's property** rather than a favour: an undeclared import works exactly until the first version conflict nests a second copy, and never works under pnpm. That is what a phantom dependency means.
+> The extension points (`content-domain`, `copilot-domain`, `tools-server`, `query-builder-admin`, `identity-domain`, `schema-builder-domain`) and the shared tooling (`design-system`, `utils-admin`, `utils-server`) are in the core even though they arrive transitively and undeclared. Declaring them is what makes the import's resolution **the application's property** rather than a favour: an undeclared import works exactly until the first version conflict nests a second copy, and never works under pnpm. That is what a phantom dependency means.
 
-### The full classification — 67 packages
+### The full classification — 70 packages
 
 Built from `features.ts` verbatim. The "in the default application" column is the answer for `npx create-orthacms-app my-cms --yes`.
 
@@ -402,6 +402,9 @@ Built from `features.ts` verbatim. The "in the default application" column is th
 | protection-domain          | CORE_PACKAGES                         | An extension point: the framework-free approval decision                                                                                              | yes                                 |
 | protection-server          | CORE_PACKAGES                         | Publication protection: the rule, the review request, the votes, the publish guard                                                                    | yes                                 |
 | query-builder-admin        | CORE_PACKAGES                         | An extension point: the filter builder                                                                                                                | yes                                 |
+| schema-builder-admin       | CORE_PACKAGES                         | The Content model page (`/content-model`): the type rail, the type editor, plan review and apply                                                      | yes                                 |
+| schema-builder-domain      | CORE_PACKAGES                         | The schema builder's kernel: the document, the diff, the code generator, `renderManifest` — also what `orthacms content sync` renders with            | yes                                 |
+| schema-builder-server      | CORE_PACKAGES                         | The schema builder plugin: reads the registry; in development, plans and applies a change as source and a migration (ADR-0020)                        | yes                                 |
 | segments-admin             | CORE_PACKAGES                         | The audience directory and an entry's Access tab                                                                                                      | yes                                 |
 | segments-domain            | CORE_PACKAGES                         | The segments core: canRead and the admission rules                                                                                                    | yes                                 |
 | segments-server            | CORE_PACKAGES                         | The two segment tables and the read predicate via CONTENT_READ_SCOPE                                                                                  | yes                                 |
@@ -423,7 +426,7 @@ Built from `features.ts` verbatim. The "in the default application" column is th
 
 ### What the default application leaves out
 
-Exactly **eleven** packages, and the list is pinned in full by a test: `content-graphql`, `copilot-provider-anthropic`, `copilot-provider-openai`, `identity-provider-github`, `identity-provider-oidc`, `identity-provider-saml`, `mcp-server`, `media-provider-azure`, `media-provider-gcs`, `media-provider-s3`, `media-provider-vercel-blob`. Plus the two `TRANSITIVE_PACKAGES`, which are never installed.
+Exactly **thirteen** packages, and the list is pinned in full by a test: `content-graphql`, `copilot-provider-anthropic`, `copilot-provider-openai`, `identity-provider-github`, `identity-provider-oidc`, `identity-provider-saml`, `mail-provider-smtp`, `mail-server`, `mcp-server`, `media-provider-azure`, `media-provider-gcs`, `media-provider-s3`, `media-provider-vercel-blob`. Plus the two `TRANSITIVE_PACKAGES`, which are never installed — fifteen of the seventy in all.
 
 > **Why media-provider-memory is deliberately not offered**
 >
@@ -434,16 +437,16 @@ Exactly **eleven** packages, and the list is pinned in full by a test: `content-
 `resolvePackages(selection)` is the `CORE_PACKAGES` set plus each enabled capability's packages, sorted. `resolveFlags(selection)` is simply the set of chosen ids, with no derived values: what the `orthacms:if` blocks are checked against.
 
 ```
---yes  →  44 (core) + 1 (media-provider-local)  = 45 in dependencies
+--yes  →  53 (core) + 1 (media-provider-local)  = 54 in dependencies
        →  1 (@orthacms/cli)                      =  1 in devDependencies
-46 @orthacms packages in total — exactly the number the wizard's closing frame prints
+55 @orthacms packages in total — exactly the number the wizard's closing frame prints
 ```
 
 It matters that the dependencies are assembled **in code** rather than by conditional blocks inside `package.json.tmpl`. Dropping lines out of JSON is a way to get a trailing comma and an application that cannot even be installed, with the error blaming the template rather than the capability that was switched off.
 
 ## 05. What comes out
 
-There is one template — `templates/default`, **42** files. It is a working CMS **with not one content type**: the user describes their own. `ContentPlugin({ types: [] })` is valid and owns no tables, so the application migrates and starts before the first type exists.
+There is one template — `templates/default`, **57** files. It is a working CMS **with not one content type**: the user describes their own, on the Content model page or by hand. What it does ship is everything the first type goes through, already wired (see [The content model](#the-content-model) below), so the application migrates and starts before the first type exists and adding one edits no plumbing.
 
 ### The structure
 
@@ -458,6 +461,8 @@ my-cms/
 └── apps/
     ├── server/             orthacms.config.ts, config/ (one module per plugin),
     │                       src/{main,plugins}.ts, plugins.spec.ts,
+    │                       src/content/{index.ts,collections/,pages/},
+    │                       migrations/ (the content baseline), drizzle.config.ts,
     │                       jest.config.js, jest.setup.js, tsconfig.spec.json
     ├── admin/              index.html, vite.config.mts,
     │                       src/{main.tsx,plugins.ts,plugins.spec.ts,styles.css}
@@ -474,17 +479,18 @@ my-cms/
 
 ### The application's scripts
 
-| Script    | Command           | What it does                                                                |
-| --------- | ----------------- | --------------------------------------------------------------------------- |
-| dev       | orthacms dev         | The compiler in watch mode, `node --watch` and the Vite dev server together |
-| build     | orthacms build       | Compiles the server and bundles the admin UI                                |
-| start     | orthacms start       | One process: the API **and** the admin UI, one origin                       |
-| migrate   | orthacms migrate     | Applies each plugin's pending migrations                                    |
-| generate  | orthacms generate    | Generates a migration for the application's own content tables              |
-| studio    | orthacms studio      | Drizzle Studio on this application's database                               |
-| test      | jest + vitest     | Unit tests for both halves                                                  |
-| e2e       | jest + playwright | Both end-to-end suites                                                      |
-| typecheck | tsc --build       | Both TypeScript projects                                                    |
+| Script       | Command               | What it does                                                                |
+| ------------ | --------------------- | --------------------------------------------------------------------------- |
+| dev          | orthacms dev          | The compiler in watch mode, `node --watch` and the Vite dev server together |
+| build        | orthacms build        | Compiles the server and bundles the admin UI                                |
+| start        | orthacms start        | One process: the API **and** the admin UI, one origin                       |
+| migrate      | orthacms migrate      | Applies each plugin's pending migrations                                    |
+| generate     | orthacms generate     | Generates a migration for the application's own content tables              |
+| content:sync | orthacms content sync | Rewrites `src/content/index.ts` from the type files beside it               |
+| studio       | orthacms studio       | Drizzle Studio on this application's database                               |
+| test         | jest + vitest         | Unit tests for both halves                                                  |
+| e2e          | jest + playwright     | Both end-to-end suites                                                      |
+| typecheck    | tsc --build           | Both TypeScript projects                                                    |
 
 ### Three differences from the monorepo's `apps/*`
 
@@ -506,6 +512,21 @@ One process serves both the API and the admin UI from one origin. In the monorep
 >
 > An `@source` with a glob in it still passes through the ignore rules, `node_modules` among them. A pattern such as `@orthacms/*/dist/**/*.js` matches nothing, and the output is a stylesheet consisting of one theme block — about 15 kB, with no component utilities. Only a literal directory path registers as an explicit content root that bypasses those rules. The test checks both the exact string and the absence of an asterisk.
 
+### The content model
+
+The schema builder is core and registered on both sides: a generated application starts with no content types, and the Content model page is how most people will write the first one. Installing it opens nothing — editing needs `SCHEMA_BUILDER=true` outside production (ADR-0020), and the generated `.env` ships it `false`.
+
+So the content plumbing ships **already wired**, in the shape `LAYOUT` and the builder's defaults expect:
+
+- **`apps/server/src/content/index.ts`** — byte for byte what `renderManifest([])` writes. `orthacms content sync` and the builder both rewrite it, and the builder reads any other text as a hand-written manifest it refuses to edit.
+- **`apps/server/src/content/{collections,pages}/`** — where type files go, each holding a `.gitkeep`.
+- **`apps/server/drizzle.config.ts`** — paths relative to the **application root** (`./apps/server/…`), because drizzle-kit resolves them from the working directory and `orthacms generate` runs it from there. No credentials. Excluded from the server build.
+- **`apps/server/migrations/`** — a baseline drizzle-kit generated from the empty manifest, creating `content_entry_revisions`, the one table the manifest re-exports. It is not optional: drizzle's migrator needs `meta/_journal.json` to exist, so a descriptor pointing at an empty folder fails `orthacms migrate`.
+- **`ContentPlugin({ types: contentTypes, migrations })`** in `plugins.ts`, the descriptor being `join(__dirname, '../../../apps/server/migrations')` — the application root is three levels up both from `apps/server/src` (source, under the tests) and from `dist/server/src` (compiled, under `orthacms migrate`), and `tsc` copies no SQL into `dist/`.
+- **`config/schema-builder.ts`** — `SCHEMA_BUILDER`, `SCHEMA_BUILDER_ROOT` (default `apps/server`, resolved against the working directory `orthacms dev` starts the server in) and `SCHEMA_BUILDER_RESTART`.
+
+The server-side TypeScript projects compile with `module` / `moduleResolution: node16`. The manifest and every type file import `@orthacms/content-server/define`, a subpath **export**, which `node` (node10) resolution cannot see — under it the first build of an application with a manifest fails with TS2307. The output is still CommonJS. The server e2e `global-setup.ts` loads the application's own modules with a typed `require` rather than `import()`, which node16 would resolve as ESM and demand an extension for.
+
 ### The server's composition root
 
 `apps/server/src/plugins.ts` is the application's most substantive file. Its comment states the rule: **the array's order is the migration order**. Migrations are applied by walking the array, with no transaction spanning plugins, so a plugin whose tables reference another's must come later. `WorkspacesPlugin` follows `IdentityPlugin` because its `memberships` references `users`: put them the other way round and a **fresh** migration fails with `relation "users" does not exist`, while an already-migrated database sails through. So the mistake ships and bites the next clean installation rather than its author.
@@ -513,9 +534,10 @@ One process serves both the API and the admin UI from one origin. In the monorep
 The order does **not**, however, settle any dependency-injection questions: each plugin's module is global, and every `onPluginInit` runs before the Nest application is created.
 
 ```
-database → identity → workspaces → activity → users
-        → content → content-views [→ content-graphql]
-        → i18n → alarms → media → copilot [→ mcp]
+database → identity → workspaces → activity [→ mail] → users
+        → content → content-views [→ content-graphql] → schema-builder
+        → i18n → alarms → webhooks → media → transfer → segments
+        → protection → copilot [→ mcp]
 ```
 
 `DatabasePlugin` comes first — the only plugin that opens a resource in `onPluginInit`. `McpPlugin`, if chosen, comes last: it exposes what the plugins above it put in.
@@ -608,10 +630,12 @@ Three more details: `jest.setup.js` supplies placeholders because the specs impo
 
 #### Adding your own content types
 
-1. Describe the types and export a `contentTypes` array.
-2. Pass them into `ContentPlugin({ types: contentTypes, migrations: … })` — the descriptor's exact shape is in a comment inside `plugins.ts` itself.
-3. Add a `drizzle.config.ts` pointing `schema` at the types file and `out` at the migrations directory.
-4. `npm run generate -- --name=add_content_types && npm run migrate`.
+Either way ends in one file per type under `apps/server/src/content/` and a migration under `apps/server/migrations/`, both committed.
+
+- **On the Content model page.** `SCHEMA_BUILDER=true` in `.env`, `npm run dev`, open **Content model**. An apply writes the type files and the manifest, generates and runs the migration, and the dev watcher restarts the server.
+- **By hand.** Write `collections/<name>.ts` (or `pages/<name>.ts`) exporting a type named `<name>`, then `npm run content:sync`, `npm run generate -- --name=<name>`, `npm run migrate`.
+
+`plugins.ts`, the drizzle config and the descriptor do not change. A new type is granted to no workspace until someone grants it.
 
 ### 6.3 Adding a new package to the monorepo and taking it through features.ts
 
@@ -733,10 +757,12 @@ Statements that must always hold. Both a review list and a starting set of test 
 - **I-33** — Every `CORE_PACKAGES` entry that **defines a plugin factory** is also registered in the generated application's `buildPlugins`. Classification puts a package in `package.json`; only this puts it in the running app. The two drifted apart in `v0.4.0`–`v0.4.3`, which installed `transfer-*` and `segments-*` in every generated app without mounting either.
 - **I-34** — Every key the generated `.env` declares is read by something the generated application ships, in **every** feature combination. A documented setting that changes nothing is worse than a missing one: the operator sets it, restarts, and gets the default with the file in front of them promising otherwise. Five `WEBHOOKS_*` keys — `WEBHOOKS_ALLOW_PRIVATE_NETWORKS` among them — were inert until `config/webhooks.ts` existed to read them.
 - **I-35** — Mail is the one group whose answer may be **nothing**, and the two offline adapters are reachable from no picker: `mail-domain`, `mail-provider-console` and `mail-provider-testkit` are installed in every application and named by no template, while `mail-server` and `mail-provider-smtp` arrive only with the chosen backend. An application that configures none registers no mail plugin, keeps returning the raw invite link, and ships no `config/mail.ts` at all.
+- **I-36** — The generated application's content plumbing agrees with the code that owns it: `src/content/index.ts` is byte for byte `renderManifest([])`, the baseline migration is what `drizzle-kit generate` makes of that manifest (a re-run reports no changes), and the drizzle config's `out`, `ContentPlugin`'s migrations descriptor — resolved from source and from the compiled output — and the schema builder's default name **one** folder.
+- **I-37** — Every server-side TypeScript project of the generated application resolves package subpath exports (`node16`), because the manifest and every type file import `@orthacms/content-server/define`.
 
 ## 09. Testing checklist
 
-The scaffolder is tested in two layers: the package's unit tests (ten spec files — classification coverage, the conditional-block processor, the template render, the terminal interface, the validators, the command itself end to end, the composition of the generated application, its executed `config/` modules, its executed composition root, and the packaging) and a manual end-to-end run that is not yet automated.
+The scaffolder is tested in two layers: the package's unit tests (twelve spec files — classification coverage, the conditional-block processor, the template render, the terminal interface, the validators, the command itself end to end, the composition of the generated application, its executed `config/` modules, its executed composition root, its README, its content plumbing, and the packaging) and a manual end-to-end run that is not yet automated.
 
 ### 9.1 Classification and coverage
 
@@ -775,7 +801,8 @@ The scaffolder is tested in two layers: the package's unit tests (ten spec files
 - **`npm install` in the generated directory** → succeeds; `node_modules` holds one copy of `@orthacms/design-system`.
 - **`npm run typecheck`** → both projects are clean for every combination, the two extremes included (nothing optional / everything optional).
 - **`npm test`** → both halves green with no `.env`. They were not until D-07 was fixed (section 11), and what keeps them green now is `composition.spec.ts` rather than this item.
-- **`npm run migrate` on a clean database** → succeeds; a re-run is idempotent.
+- **`npm run migrate` on a clean database** → succeeds, creating `content_entry_revisions` from the content baseline; a re-run is idempotent.
+- **`npm run content:sync` and `npm run generate` on a fresh application** → the first reports the manifest already up to date, the second "No schema changes" (I-36).
 - **`npm run build && npm start`** → one process serves the API and the admin UI; `dist/server` contains no compiled `*.spec.js`.
 - **The admin UI in a browser after `npm start`** → the styles are there (the `@source` check): the CSS is noticeably larger than ~15 kB and the components carry utility classes.
 - **`GET /api/v1/graphql` and `POST /api/v1/mcp` in the default application** → an honest `404` rather than a module resolution error.
@@ -800,7 +827,7 @@ The scaffolder is tested in two layers: the package's unit tests (ten spec files
 | The monorepo's migration and release targets              | `@orthacms/nx`                 | Nothing; the package never reaches an application                                                             |
 | Version numbers and publishing                            | Nx Release + `tools/release/*` | Only **reads** its own version and stamps it into the dependencies                                            |
 | The admin UI's content, the API and the access rules      | the `@orthacms/*` plugins      | Only composes: the plugin list and its order                                                                  |
-| Content types                                             | the application's owner        | Ships not one; leaves a comment with the migration descriptor's exact shape                                   |
+| Content types                                             | the application's owner        | Ships not one; ships the manifest, folders, drizzle config and baseline migration the first one goes through |
 | The values of secrets and keys                            | the operator                   | Writes empty keys with comments; the only generated value is the first administrator's password               |
 | Installing dependencies                                   | npm                            | Runs `npm install` and reports a failure honestly, leaving the files in place                                 |
 | Updating an application that already exists               | the application's owner        | Nothing: the package is single-use and never reaches an application's dependencies                            |

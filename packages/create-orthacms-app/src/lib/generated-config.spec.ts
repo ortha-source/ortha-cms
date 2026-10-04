@@ -1,5 +1,5 @@
 import { mkdtempSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
+import { isAbsolute, join, resolve } from 'node:path';
 import { renderTemplate, type TemplateValues } from './template';
 
 /**
@@ -560,6 +560,91 @@ describe('the webhook URL policy', () => {
             allowInsecureUrls: true,
             allowPrivateNetworks: true,
             retentionDays: 7
+        });
+    });
+});
+
+/**
+ * The Content model page's settings.
+ *
+ * Editing writes TypeScript and a migration into the app's own source tree, so
+ * it is the one switch here whose wrong default is a deployment that edits its
+ * own schema over HTTP. It has to be **off** unless asked for, and production
+ * has to be reported as production whatever the flag says — the plugin refuses
+ * editing on that, not on the flag alone (ADR-0020).
+ */
+describe('the schema builder', () => {
+    type BuilderConfig = {
+        enabled: boolean;
+        production: boolean;
+        projectRoot: string;
+        restart?: string;
+    };
+
+    /** Renders a default app and reads the schema builder's builder back. */
+    function schemaBuilderConfig(): () => BuilderConfig {
+        return load<{ schemaBuilderConfig: () => BuilderConfig }>(
+            ['media-local', 'rest'],
+            'apps/server/config/schema-builder'
+        ).schemaBuilderConfig;
+    }
+
+    beforeEach(() => {
+        delete process.env['SCHEMA_BUILDER'];
+        delete process.env['SCHEMA_BUILDER_ROOT'];
+        delete process.env['SCHEMA_BUILDER_RESTART'];
+        process.env['NODE_ENV'] = 'test';
+    });
+
+    it('leaves editing off until it is asked for', () => {
+        expect(schemaBuilderConfig()()).toMatchObject({
+            enabled: false,
+            production: false,
+            restart: 'watch'
+        });
+    });
+
+    it('treats the blank line .env ships as off', () => {
+        process.env['SCHEMA_BUILDER'] = '';
+
+        expect(schemaBuilderConfig()().enabled).toBe(false);
+    });
+
+    it('turns editing on with SCHEMA_BUILDER=true', () => {
+        process.env['SCHEMA_BUILDER'] = 'true';
+
+        expect(schemaBuilderConfig()().enabled).toBe(true);
+    });
+
+    it('reports production as production, whatever the flag says', () => {
+        process.env['SCHEMA_BUILDER'] = 'true';
+        process.env['NODE_ENV'] = 'production';
+
+        expect(schemaBuilderConfig()()).toMatchObject({
+            enabled: true,
+            production: true
+        });
+    });
+
+    /**
+     * `SchemaBuilderPlugin` refuses a relative root at construction, and the
+     * working directory `orthacms dev` starts the server from is the app root —
+     * so the default is `apps/server` under it, absolute.
+     */
+    it('resolves the server app folder from the working directory', () => {
+        const { projectRoot } = schemaBuilderConfig()();
+
+        expect(isAbsolute(projectRoot)).toBe(true);
+        expect(projectRoot).toBe(resolve(process.cwd(), 'apps/server'));
+    });
+
+    it('takes SCHEMA_BUILDER_ROOT and a manual restart from the environment', () => {
+        process.env['SCHEMA_BUILDER_ROOT'] = 'server';
+        process.env['SCHEMA_BUILDER_RESTART'] = 'manual';
+
+        expect(schemaBuilderConfig()()).toMatchObject({
+            projectRoot: resolve(process.cwd(), 'server'),
+            restart: 'manual'
         });
     });
 });

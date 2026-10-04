@@ -94,6 +94,20 @@ export interface Feature {
  * that choice cheap — the port lives away from the server precisely so
  * installing an adapter installs an adapter.
  *
+ * The **schema builder** is here whole — `schema-builder-server` and
+ * `schema-builder-admin`, the Content model page on both sides — because a
+ * generated app starts with no content types, and that page is how most people
+ * will write their first one. Installing it opens nothing: reading the model is
+ * gated on `content:read`, and editing needs `SCHEMA_BUILDER=true` outside
+ * production, so a deployment serves the page read-only
+ * ([ADR-0020](https://github.com/ortha-source/ortha-cms/blob/main/docs/adr/0020-schema-builder-writes-code.md)).
+ * `schema-builder-domain` comes with them on the extension-point reasoning
+ * above. It arrives anyway — through `schema-builder-server` at runtime and
+ * through `@orthacms/cli`, whose `content sync` renders the app's
+ * `src/content/index.ts` with it — and it is the kernel that defines what that
+ * generated manifest says, so the app owns the resolution rather than
+ * borrowing it.
+ *
  * `design-system`, `utils-admin` and `utils-server` are here even though the
  * template's own files barely touch them: they are the first things anyone
  * reaches for when writing a page or a plugin of their own, and relying on
@@ -134,6 +148,9 @@ export const CORE_PACKAGES: readonly string[] = [
     '@orthacms/protection-domain',
     '@orthacms/protection-server',
     '@orthacms/query-builder-admin',
+    '@orthacms/schema-builder-admin',
+    '@orthacms/schema-builder-domain',
+    '@orthacms/schema-builder-server',
     '@orthacms/segments-admin',
     '@orthacms/segments-domain',
     '@orthacms/segments-server',
@@ -159,22 +176,15 @@ export const CORE_DEV_PACKAGES: readonly string[] = ['@orthacms/cli'];
 
 /**
  * Packages deliberately left undeclared — published, but with no reason for a
- * generated app to import them **yet**.
+ * generated app to import them.
  *
- * The two `media-*` entries are here for the ordinary reason: they are
- * tools for **writing a storage provider**, not for running one. `StorageProviderCheck` refuses to boot a database whose rows
- * were written by a provider that is no longer configured, so the in-memory
- * backend is a test and offline-development affordance, never a deployment:
- * offering it in the scaffolder would be offering an app that loses every
- * upload on restart. The testkit is the contract suite those providers run
- * against.
- *
- * `schema-builder-domain` is the schema builder's framework-free kernel. The
- * app never imports it: it arrives as a dependency of `@orthacms/cli`, whose
- * `content sync` renders the content manifest with it (ADR-0020).
- * `schema-builder-server` and `schema-builder-admin` are its plugins, here only
- * until the template registers them: today they are a read-only view of the
- * content model, and the template gains them together with editing.
+ * Both are here for the same reason: they are tools for **writing a storage
+ * provider**, not for running one. `StorageProviderCheck` refuses to boot a
+ * database whose rows were written by a provider that is no longer configured,
+ * so the in-memory backend is a test and offline-development affordance, never
+ * a deployment: offering it in the scaffolder would be offering an app that
+ * loses every upload on restart. The testkit is the contract suite those
+ * providers run against.
  *
  * Everything else a generated app can reach is in its own manifest, so "it
  * resolves because npm hoisted it" is never the answer to why an import works.
@@ -183,10 +193,7 @@ export const CORE_DEV_PACKAGES: readonly string[] = ['@orthacms/cli'];
  */
 export const TRANSITIVE_PACKAGES: readonly string[] = [
     '@orthacms/media-provider-memory',
-    '@orthacms/media-provider-testkit',
-    '@orthacms/schema-builder-admin',
-    '@orthacms/schema-builder-domain',
-    '@orthacms/schema-builder-server'
+    '@orthacms/media-provider-testkit'
 ];
 
 /**
