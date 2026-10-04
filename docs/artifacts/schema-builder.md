@@ -326,16 +326,17 @@ Errors carry `{ statusCode, code, message, details? }`:
 `/content-model` and `/content-model/:typeName`, in the global sidebar's directory group
 (order 50), gated on `content:read`. Global because types are the same in every workspace.
 
-| Element        | What it does                                                                                                                         |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| Header         | "N unsaved changes", Discard, Review changes (off while the draft breaks a rule)                                                     |
-| Type rail      | Every type, its origin, a dot for a changed one; New content type                                                                    |
-| Type editor    | Settings and flags, the issues, the field list under General (loose fields by rank, then group accordions), Relations, Media         |
-| Field sheet    | General (label, machine name, required, localized, lang, relation settings), Validation (only the rules the type takes), Display     |
-| Groups sheet   | General's accordion blocks — never sections, never tabs                                                                              |
-| Review page    | `?review` on the same page, a stepper and one card: changes and confirmations → files and SQL → migration name and Apply             |
-| Apply progress | The review card after Apply: three steps in one `role="status"`, then the outcome; a failure is an alert that says the draft is kept |
-| Grant dialog   | Active workspaces, Grant / Not now                                                                                                   |
+| Element        | What it does                                                                                                                                                                                                          |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Header         | "N unsaved changes", Discard, Review changes (off while the draft breaks a rule)                                                                                                                                      |
+| Type rail      | Every type, its origin, a dot for a changed one; New content type                                                                                                                                                     |
+| Type editor    | Settings and flags, the issues, the field list under General (loose fields by rank, then group accordions), Relations, Media                                                                                          |
+| Add-field page | `?addField`, a stepper and one card: the kind (each says what it is for; "Long text" is rich text with the textarea widget) → basics (relation: target and how many) → rules and display; joins the draft only on Add |
+| Field sheet    | General (label, machine name, required, localized, lang, relation settings), Validation (only the rules the type takes), Display                                                                                      |
+| Groups sheet   | General's accordion blocks — never sections, never tabs                                                                                                                                                               |
+| Review page    | `?review` on the same page, a stepper and one card: changes and confirmations → files and SQL → migration name and Apply                                                                                              |
+| Apply progress | The review card after Apply: three steps in one `role="status"`, then the outcome; a failure is an alert that says the draft is kept                                                                                  |
+| Grant dialog   | Active workspaces, Grant / Not now                                                                                                                                                                                    |
 
 ### States
 
