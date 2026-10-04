@@ -17,7 +17,10 @@ const messages = defineMessages({
 export function TypeIssues({ issues }: { issues: readonly SchemaIssue[] }) {
     const intl = useIntl();
     return (
-        <div aria-live="polite">
+        // Always mounted, so a new problem is announced — but while it is
+        // empty it must not take a gap in the editor's column, or the type's
+        // first card sits lower than the rail beside it.
+        <div aria-live="polite" className="empty:-mb-4">
             {issues.length > 0 && (
                 <div className="flex gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm">
                     <AlertTriangle

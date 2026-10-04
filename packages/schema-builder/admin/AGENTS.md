@@ -88,10 +88,20 @@ Hand-written types stay read-only and say how to hand them over.
 
 `useApplyFlow` (application) runs review → confirm → apply → restart → grant.
 
-- **The plan is the server's.** Review asks `POST /schema-builder/plan` with
-  the draft and the fingerprint it started from; `ChangesDrawer` shows the
-  verdicts, the files and the SQL, with `ChangesSkeleton` while drizzle-kit
-  runs. A `409` is a stale page — the only way on is a reload.
+- **The review is a page with steps** (`ChangesReview`), in the shape of the
+  other wizards — new workspace, invitation: a stepper rail and one step card.
+  Changes (verdicts, the per-change confirmation) → files and SQL → the
+  migration name and Apply; after Apply the card becomes the progress, then
+  the outcome. It is a **state of the content model page** (`?review`), not a
+  route: the same element stays mounted, so the draft it reviews is the
+  editor's, and Back — the link or the browser's — returns to it untouched.
+  Programmatic navigation is not intercepted by the unsaved-changes guard,
+  and the back link sits in a `data-keeps-unsaved-changes` region.
+- **The plan is the server's.** Opening the review asks `POST
+/schema-builder/plan` with the draft and the fingerprint it started from
+  (also when the page is reached by Back/Forward); `ChangesSkeleton` covers
+  the seconds drizzle-kit takes. A `409` is a stale page — the only way on is
+  a reload.
 - **Apply is disabled with a reason** (`applyReadiness`, the UX mirror of the
   server's checks): a blocked change, every destructive change confirmed by
   its own checkbox — there is no "confirm all" — and a migration name drizzle-kit

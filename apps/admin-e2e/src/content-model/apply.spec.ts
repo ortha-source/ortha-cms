@@ -51,13 +51,14 @@ const DROP_AUTHOR = {
 };
 
 /**
- * Review, apply and grant (`@orthacms/schema-builder-admin`, ADR-0020): the
- * review shows the server's plan; a change that deletes data is confirmed on
- * its own; the apply is followed to the restart; a new type is offered to
- * workspaces, never granted implicitly.
+ * Review, apply and grant (`@orthacms/schema-builder-admin`, ADR-0020). The
+ * review is a page with steps, like the other wizards: the changes (a change
+ * that deletes data confirmed on its own), the files and the SQL, then the
+ * migration name and Apply. The apply is followed to the restart; a new type
+ * is offered to workspaces, never granted implicitly.
  */
 test.describe('Content model — review and apply', () => {
-    test('reviews the plan: a skeleton, then the changes, the files and the SQL', async ({
+    test('reviews in steps: a skeleton, then the changes, the files and the SQL, then the name', async ({
         page,
         contentModelPage
     }) => {
@@ -66,25 +67,36 @@ test.describe('Content model — review and apply', () => {
         await contentModelPage.addType('Events');
         await contentModelPage.reviewButton().click();
 
-        const drawer = contentModelPage.changesDrawer();
-        await expect(drawer.getByRole('status')).toBeVisible();
-        await expect(contentModelPage.applyChangesButton()).toBeDisabled();
+        await expect(contentModelPage.reviewHeading()).toBeVisible();
+        await expect(page).toHaveURL(/\/content-model\/events\?review/);
+        await expect(page.getByText('Checking your changes…')).toBeAttached();
         await expect(
-            drawer.getByRole('list', { name: 'Changes' }).getByText('Safe')
+            contentModelPage.reviewAction('Continue to files')
+        ).toBeDisabled();
+        await expect(
+            page.getByRole('list', { name: 'Changes' }).getByText('Safe')
         ).toBeVisible();
-        await expect(drawer.getByLabel('Migration name')).toHaveValue(
-            /^[a-z][a-z0-9_]*$/
-        );
-        await expect(contentModelPage.applyChangesButton()).toBeEnabled();
         expect(calls.plans).toHaveLength(1);
 
-        await drawer.getByRole('tab', { name: 'Files' }).click();
-        await expect(drawer.getByText('collections/events.ts')).toBeVisible();
-        await drawer.getByRole('tab', { name: 'SQL' }).click();
-        await expect(drawer.getByText(/CREATE TABLE "events"/)).toBeVisible();
+        await contentModelPage.reviewAction('Continue to files').click();
+        await expect(
+            contentModelPage.stepHeading('Files and SQL')
+        ).toBeFocused();
+        await expect(
+            page.getByText('src/content/collections/events.ts')
+        ).toBeVisible();
+        await page.getByRole('tab', { name: 'SQL' }).click();
+        await expect(page.getByText(/CREATE TABLE "events"/)).toBeVisible();
+
+        await contentModelPage.reviewAction('Continue to apply').click();
+        await expect(page.getByLabel('Migration name')).toHaveValue(
+            /^[a-z][a-z0-9_]*$/
+        );
+        await expect(contentModelPage.reviewAction('Apply')).toBeEnabled();
+        expect(calls.applies).toHaveLength(0);
     });
 
-    test('a change that deletes data is confirmed on its own before Apply', async ({
+    test('a change that deletes data is confirmed on its own before going on', async ({
         page,
         contentModelPage
     }) => {
@@ -97,18 +109,21 @@ test.describe('Content model — review and apply', () => {
         await contentModelPage.goto('article');
         await contentModelPage.addType('Events');
         await contentModelPage.reviewButton().click();
-        const drawer = contentModelPage.changesDrawer();
-        const confirm = drawer.getByRole('checkbox', {
+        const confirm = page.getByRole('checkbox', {
             name: 'I understand this deletes data'
         });
 
         await expect(confirm).toBeVisible();
-        await expect(contentModelPage.applyChangesButton()).toBeDisabled();
         await expect(
-            drawer.getByText('Confirm the change that deletes data.')
+            contentModelPage.reviewAction('Continue to files')
+        ).toBeDisabled();
+        await expect(
+            page.getByText('Confirm the change that deletes data.')
         ).toBeVisible();
         await confirm.click();
-        await expect(contentModelPage.applyChangesButton()).toBeEnabled();
+        await expect(
+            contentModelPage.reviewAction('Continue to files')
+        ).toBeEnabled();
     });
 
     test('a stale document asks for a reload', async ({
@@ -121,18 +136,36 @@ test.describe('Content model — review and apply', () => {
         await contentModelPage.reviewButton().click();
 
         await expect(
-            contentModelPage
-                .changesDrawer()
-                .getByText(/The content model changed since this page loaded/)
+            page.getByText(/The content model changed since this page loaded/)
         ).toBeVisible();
-        await expect(
-            contentModelPage
-                .changesDrawer()
-                .getByRole('button', { name: 'Reload' })
-        ).toBeVisible();
+        await expect(contentModelPage.reviewAction('Reload')).toBeVisible();
     });
 
-    test('applies, waits for the restart, then offers the new type to workspaces', async ({
+    test('going back — by the link or the browser — finds the draft untouched', async ({
+        page,
+        contentModelPage
+    }) => {
+        await serve(page);
+        await contentModelPage.goto('article');
+        await contentModelPage.addType('Events');
+        await contentModelPage.reviewButton().click();
+        await expect(contentModelPage.reviewHeading()).toBeVisible();
+
+        await contentModelPage.backToModel().click();
+        await expect(contentModelPage.changeCount()).toHaveText(
+            '1 unsaved change'
+        );
+        await expect(contentModelPage.unsavedChangesDialog()).toBeHidden();
+
+        await contentModelPage.reviewButton().click();
+        await page.goBack();
+        await expect(contentModelPage.railLink('Events')).toBeVisible();
+        await expect(contentModelPage.changeCount()).toHaveText(
+            '1 unsaved change'
+        );
+    });
+
+    test('applies, waits for the restart, offers the new type to workspaces, then returns', async ({
         page,
         contentModelPage
     }) => {
@@ -140,9 +173,12 @@ test.describe('Content model — review and apply', () => {
         await contentModelPage.goto('article');
         await contentModelPage.addType('Events');
         await contentModelPage.reviewButton().click();
-        await contentModelPage.applyChangesButton().click();
+        await contentModelPage.continueToApply();
+        await contentModelPage.reviewAction('Apply').click();
 
-        await expect(contentModelPage.applyProgress()).toBeVisible();
+        await expect(
+            contentModelPage.stepHeading('Applying the content model')
+        ).toBeVisible();
         const grant = contentModelPage.grantDialog();
         await expect(grant).toBeVisible({ timeout: 15_000 });
         expect(calls.applies).toEqual([
@@ -162,17 +198,15 @@ test.describe('Content model — review and apply', () => {
             { workspaceId: WORKSPACES_SEED[0].id, slug: 'events' }
         ]);
 
-        // The restarted server's model is the page's now: nothing left to review.
-        await expect(
-            contentModelPage
-                .applyProgress()
-                .getByText('The content model is live')
-        ).toBeVisible();
+        await expect(contentModelPage.stepHeading('Applied')).toBeVisible();
+        await expect(page.getByText('The content model is live')).toBeVisible();
+        await contentModelPage.backToModel().click();
+        // The restarted server's model is the page's now: nothing to review.
         await expect(contentModelPage.reviewButton()).toBeHidden();
         await expect(contentModelPage.railLink('Events')).toBeVisible();
     });
 
-    test('a failed apply says so and keeps the draft', async ({
+    test('a failed apply says so, and goes back to the review with the draft kept', async ({
         page,
         contentModelPage
     }) => {
@@ -186,7 +220,8 @@ test.describe('Content model — review and apply', () => {
         await contentModelPage.goto('article');
         await contentModelPage.addType('Events');
         await contentModelPage.reviewButton().click();
-        await contentModelPage.applyChangesButton().click();
+        await contentModelPage.continueToApply();
+        await contentModelPage.reviewAction('Apply').click();
 
         const alert = page.getByRole('alert').filter({
             hasText: 'The change was not applied'
@@ -194,12 +229,15 @@ test.describe('Content model — review and apply', () => {
         await expect(alert).toBeVisible({ timeout: 15_000 });
         await expect(alert).toContainText('relation "events" already exists.');
         expect(calls.restarted).toBe(false);
-        await alert.getByRole('button', { name: 'Close' }).click();
-        await expect(contentModelPage.reviewButton()).toBeVisible();
+
+        await contentModelPage.reviewAction('Back to the review').click();
+        await expect(contentModelPage.reviewAction('Apply')).toBeEnabled();
+        await contentModelPage.backToModel().click();
         await expect(contentModelPage.railLink('Events')).toBeVisible();
+        await expect(contentModelPage.reviewButton()).toBeVisible();
     });
 
-    test('has no axe violations in the review, the progress and the grant offer', async ({
+    test('has no axe violations on each step, the progress and the grant offer', async ({
         page,
         contentModelPage,
         makeAxe
@@ -213,17 +251,27 @@ test.describe('Content model — review and apply', () => {
         await contentModelPage.goto('article');
         await contentModelPage.addType('Events');
         await contentModelPage.reviewButton().click();
+        const confirm = page.getByRole('checkbox', {
+            name: 'I understand this deletes data'
+        });
+        await expect(confirm).toBeVisible();
+        await expectNoA11yViolations(makeAxe());
+
+        await confirm.click();
+        await contentModelPage.reviewAction('Continue to files').click();
         await expect(
-            contentModelPage.changesDrawer().getByRole('checkbox')
+            contentModelPage.stepHeading('Files and SQL')
         ).toBeVisible();
         await expectNoA11yViolations(makeAxe());
 
-        await contentModelPage
-            .changesDrawer()
-            .getByRole('checkbox', { name: 'I understand this deletes data' })
-            .click();
-        await contentModelPage.applyChangesButton().click();
-        await expect(contentModelPage.applyProgress()).toBeVisible();
+        await contentModelPage.reviewAction('Continue to apply').click();
+        await expect(contentModelPage.stepHeading('Apply')).toBeVisible();
+        await expectNoA11yViolations(makeAxe());
+
+        await contentModelPage.reviewAction('Apply').click();
+        await expect(
+            contentModelPage.stepHeading('Applying the content model')
+        ).toBeVisible();
         await expectNoA11yViolations(makeAxe());
 
         await expect(contentModelPage.grantDialog()).toBeVisible({

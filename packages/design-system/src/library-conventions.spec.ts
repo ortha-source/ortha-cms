@@ -650,6 +650,34 @@ describe('motion', () => {
         );
         expect(wizard?.code).toContain("'wizard-step-in'");
     });
+
+    it('slides a sheet in by transform alone, from every side Sheet offers [design-system:I-30]', () => {
+        // A sheet's content has to be readable on the first frame — a paused
+        // motion clock must not leave it invisible — so the panel's keyframes
+        // move it and nothing else. Opacity belongs to the scrim only.
+        for (const side of ['right', 'left', 'top', 'bottom']) {
+            const keyframes = styles.match(
+                new RegExp(
+                    `@keyframes ds-sheet-in-${side} \\{([\\s\\S]*?)\\n\\}`
+                )
+            );
+            expect(keyframes).not.toBeNull();
+            const properties = [
+                ...(keyframes?.[1] ?? '').matchAll(/([a-z-]+)\s*:/g)
+            ].map(([, property]) => property);
+            expect([...new Set(properties)]).toEqual(['transform']);
+        }
+
+        // And the component wears the classes, side by side, so the rules
+        // under test are the ones that run.
+        const sheet = files.find(
+            (file) => file.module === 'lib/components/ui/sheet.tsx'
+        );
+        for (const side of ['right', 'left', 'top', 'bottom']) {
+            expect(sheet?.code).toContain(`ds-sheet-motion-${side}`);
+        }
+        expect(sheet?.code).toContain('ds-overlay-motion');
+    });
 });
 
 /**

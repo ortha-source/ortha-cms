@@ -40,7 +40,7 @@ export function DraftActions({ changes, issues, onDiscard }: Props) {
                     </Badge>
                 )}
             </span>
-            <Button variant="outline" size="sm" onClick={onDiscard}>
+            <Button variant="outline" onClick={onDiscard}>
                 <Undo2 />
                 {intl.formatMessage(messages.discard)}
             </Button>

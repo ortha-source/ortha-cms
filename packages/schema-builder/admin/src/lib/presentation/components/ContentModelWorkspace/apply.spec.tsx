@@ -1,5 +1,9 @@
 import '../../../../testing/jsdomShims';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+    QueryClient,
+    QueryClientProvider,
+    useQuery
+} from '@tanstack/react-query';
 import {
     fireEvent,
     render,
@@ -20,6 +24,7 @@ import { useWorkspaces } from '@orthacms/workspaces-admin';
 import { ApiError } from '@orthacms/utils-admin';
 import { article, author, envelopeOf } from '../../../../testing/document';
 import { httpSchemaGateway } from '../../../infrastructure/httpSchemaGateway';
+import { schemaKeys } from '../../../infrastructure/schemaKeys';
 import { ContentModelWorkspace } from './index';
 
 vi.mock('../../../infrastructure/httpSchemaGateway', () => ({
@@ -100,6 +105,17 @@ const operation = (over: Partial<ApplyOperation>): ApplyOperation => ({
     ...over
 });
 
+/** The envelope through the query cache, as the page passes it — so a restart reaches the workspace. */
+function Served() {
+    const { data } = useQuery({
+        queryKey: schemaKeys.document(),
+        queryFn: () => envelope,
+        initialData: envelope,
+        staleTime: Infinity
+    });
+    return <ContentModelWorkspace envelope={data} />;
+}
+
 function renderWorkspace() {
     const client = new QueryClient({
         defaultOptions: { queries: { retry: false } }
@@ -111,9 +127,7 @@ function renderWorkspace() {
                     <Routes>
                         <Route
                             path="/content-model/:typeName?"
-                            element={
-                                <ContentModelWorkspace envelope={envelope} />
-                            }
+                            element={<Served />}
                         />
                     </Routes>
                 </MemoryRouter>
@@ -123,7 +137,7 @@ function renderWorkspace() {
     return client;
 }
 
-/** Makes a draft change (a new type), then opens the review. */
+/** Makes a draft change (a new type), then opens the review page. */
 function addTypeAndReview() {
     fireEvent.click(screen.getByRole('button', { name: 'New content type' }));
     const dialog = screen.getByRole('dialog', { name: 'New content type' });
@@ -132,11 +146,25 @@ function addTypeAndReview() {
     });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add type' }));
     fireEvent.click(screen.getByRole('button', { name: 'Review changes' }));
-    return screen.getByRole('dialog', { name: 'Review changes' });
+    expect(
+        screen.getByRole('heading', { level: 1, name: 'Review changes' })
+    ).toBeTruthy();
 }
 
-const applyButton = (drawer: HTMLElement) =>
-    within(drawer).getByRole('button', { name: 'Apply' }) as HTMLButtonElement;
+const button = (name: string) =>
+    screen.getByRole('button', { name }) as HTMLButtonElement;
+
+/** Waits for the plan, then walks to the last step. */
+async function toApplyStep() {
+    await waitFor(() =>
+        expect(button('Continue to files').disabled).toBe(false)
+    );
+    fireEvent.click(button('Continue to files'));
+    fireEvent.click(button('Continue to apply'));
+    expect(
+        screen.getByRole('heading', { level: 2, name: 'Apply' })
+    ).toBeTruthy();
+}
 
 describe('ContentModelWorkspace — review and apply', () => {
     beforeEach(() => {
@@ -150,16 +178,16 @@ describe('ContentModelWorkspace — review and apply', () => {
         for (const fn of Object.values(gateway)) fn.mockReset();
     });
 
-    it('shows a skeleton while the plan is made, then the changes, files and SQL', async () => {
+    it('opens a page with steps: a skeleton while the plan is made, then the changes, the files and the SQL', async () => {
         let answer: (plan: SchemaPlan) => void = () => undefined;
         gateway.plan.mockReturnValue(
             new Promise((resolve) => (answer = resolve))
         );
         renderWorkspace();
-        const drawer = addTypeAndReview();
+        addTypeAndReview();
 
-        expect(within(drawer).getByRole('status')).toBeTruthy();
-        expect(applyButton(drawer).disabled).toBe(true);
+        expect(screen.getByText('Checking your changes…')).toBeTruthy();
+        expect(button('Continue to files').disabled).toBe(true);
         // The plan is made against the draft and the fingerprint it started from.
         await waitFor(() =>
             expect(gateway.plan).toHaveBeenCalledWith(
@@ -173,53 +201,57 @@ describe('ContentModelWorkspace — review and apply', () => {
         );
 
         answer(planOf([addEvent]));
-        const list = await within(drawer).findByRole('list', {
-            name: 'Changes'
-        });
+        const list = await screen.findByRole('list', { name: 'Changes' });
         expect(within(list).getByText('Safe')).toBeTruthy();
-        expect(
-            (
-                within(drawer).getByLabelText(
-                    'Migration name'
-                ) as HTMLInputElement
-            ).value
-        ).toMatch(/^[a-z][a-z0-9_]*$/);
-        expect(applyButton(drawer).disabled).toBe(false);
 
-        fireEvent.mouseDown(within(drawer).getByRole('tab', { name: 'SQL' }));
+        fireEvent.click(button('Continue to files'));
         expect(
-            await within(drawer).findByText(/CREATE TABLE "events"/)
+            screen.getByRole('heading', { level: 2, name: 'Files and SQL' })
         ).toBeTruthy();
+        expect(
+            screen.getByText('src/content/collections/events.ts')
+        ).toBeTruthy();
+        fireEvent.mouseDown(screen.getByRole('tab', { name: 'SQL' }));
+        expect(await screen.findByText(/CREATE TABLE "events"/)).toBeTruthy();
+
+        fireEvent.click(button('Continue to apply'));
+        expect(
+            (screen.getByLabelText('Migration name') as HTMLInputElement).value
+        ).toMatch(/^[a-z][a-z0-9_]*$/);
+        expect(button('Apply').disabled).toBe(false);
+        expect(gateway.apply).not.toHaveBeenCalled();
     });
 
-    it('holds Apply until every change that deletes data is confirmed, one by one', async () => {
+    it('holds the first step until every change that deletes data is confirmed, one by one', async () => {
         gateway.plan.mockResolvedValue(planOf([addEvent, dropAuthor]));
         renderWorkspace();
-        const drawer = addTypeAndReview();
-        const confirm = await within(drawer).findByRole('checkbox', {
+        addTypeAndReview();
+        const confirm = await screen.findByRole('checkbox', {
             name: 'I understand this deletes data'
         });
 
-        expect(applyButton(drawer).disabled).toBe(true);
+        expect(button('Continue to files').disabled).toBe(true);
         expect(
-            within(drawer).getByText('Confirm the change that deletes data.')
+            screen.getByText('Confirm the change that deletes data.')
         ).toBeTruthy();
         fireEvent.click(confirm);
-        expect(applyButton(drawer).disabled).toBe(false);
+        expect(button('Continue to files').disabled).toBe(false);
     });
 
     it('refuses a migration name drizzle-kit would not take', async () => {
         gateway.plan.mockResolvedValue(planOf([addEvent]));
         renderWorkspace();
-        const drawer = addTypeAndReview();
-        const name = await within(drawer).findByLabelText('Migration name');
+        addTypeAndReview();
+        await toApplyStep();
 
-        fireEvent.change(name, { target: { value: 'Add Events!' } });
-        expect(applyButton(drawer).disabled).toBe(true);
-        expect(within(drawer).getByText(/lowercase letters/)).toBeTruthy();
+        fireEvent.change(screen.getByLabelText('Migration name'), {
+            target: { value: 'Add Events!' }
+        });
+        expect(button('Apply').disabled).toBe(true);
+        expect(screen.getByText(/lowercase letters/)).toBeTruthy();
     });
 
-    it('says why a blocked plan cannot be applied, and offers no name', async () => {
+    it('says why a blocked plan cannot go further', async () => {
         gateway.plan.mockResolvedValue(
             planOf(
                 [
@@ -239,16 +271,15 @@ describe('ContentModelWorkspace — review and apply', () => {
             )
         );
         renderWorkspace();
-        const drawer = addTypeAndReview();
+        addTypeAndReview();
 
-        expect(await within(drawer).findByText('Not applied')).toBeTruthy();
-        expect(within(drawer).queryByLabelText('Migration name')).toBeNull();
+        expect(await screen.findByText('Not applied')).toBeTruthy();
         expect(
-            within(drawer).getByText(
+            screen.getByText(
                 'Some changes cannot be applied. Undo them to continue.'
             )
         ).toBeTruthy();
-        expect(applyButton(drawer).disabled).toBe(true);
+        expect(button('Continue to files').disabled).toBe(true);
     });
 
     it('asks for a reload when the model changed under the draft', async () => {
@@ -256,17 +287,30 @@ describe('ContentModelWorkspace — review and apply', () => {
             new ApiError(409, 'The document changed.')
         );
         renderWorkspace();
-        const drawer = addTypeAndReview();
+        addTypeAndReview();
 
         expect(
-            await within(drawer).findByText(/The content model changed/)
+            await screen.findByText(/The content model changed/)
         ).toBeTruthy();
-        expect(
-            within(drawer).getByRole('button', { name: 'Reload' })
-        ).toBeTruthy();
+        expect(button('Reload')).toBeTruthy();
     });
 
-    it('applies, waits for the restart, then offers the new type to workspaces', async () => {
+    it('goes back to the editor with the draft as it was', async () => {
+        gateway.plan.mockResolvedValue(planOf([addEvent]));
+        renderWorkspace();
+        addTypeAndReview();
+
+        fireEvent.click(
+            screen.getByRole('link', { name: 'Back to the content model' })
+        );
+        expect(
+            screen.getByRole('heading', { level: 1, name: 'Content model' })
+        ).toBeTruthy();
+        expect(screen.getByText('1 unsaved change')).toBeTruthy();
+        expect(button('Review changes')).toBeTruthy();
+    });
+
+    it('applies, follows the restart, offers the new type to workspaces, then returns to the editor', async () => {
         gateway.plan.mockResolvedValue(planOf([addEvent]));
         gateway.apply.mockResolvedValue({
             operationId: 'op-1',
@@ -283,10 +327,10 @@ describe('ContentModelWorkspace — review and apply', () => {
         gateway.grant.mockResolvedValue(undefined);
         const client = renderWorkspace();
         const invalidate = vi.spyOn(client, 'invalidateQueries');
-        const drawer = addTypeAndReview();
-        await waitFor(() => expect(applyButton(drawer).disabled).toBe(false));
+        addTypeAndReview();
+        await toApplyStep();
 
-        fireEvent.click(applyButton(drawer));
+        fireEvent.click(button('Apply'));
 
         const grant = await screen.findByRole('dialog', {
             name: 'Use the new type in workspaces'
@@ -298,14 +342,10 @@ describe('ContentModelWorkspace — review and apply', () => {
             })
         );
         expect(gateway.document).toHaveBeenCalledTimes(3);
-        expect(screen.getByText('The content model is live')).toBeTruthy();
-        // The new process served the model: the draft started over from it.
+        // Behind the modal grant offer, the card reports the outcome.
         expect(
-            screen.queryByRole('button', {
-                name: 'Review changes',
-                hidden: true
-            })
-        ).toBeNull();
+            screen.getByText('The content model is live', { exact: false })
+        ).toBeTruthy();
         expect(invalidate).toHaveBeenCalledWith(
             expect.objectContaining({ predicate: expect.any(Function) })
         );
@@ -318,7 +358,6 @@ describe('ContentModelWorkspace — review and apply', () => {
         expect(grantButton.disabled).toBe(true);
         fireEvent.click(within(grant).getByLabelText('Marketing'));
         fireEvent.click(grantButton);
-
         await waitFor(() =>
             expect(
                 screen.queryByRole('dialog', {
@@ -327,6 +366,15 @@ describe('ContentModelWorkspace — review and apply', () => {
             ).toBeNull()
         );
         expect(gateway.grant).toHaveBeenCalledWith('ws-1', 'events');
+
+        fireEvent.click(button('Back to the content model'));
+        // The restarted server's model is the page's now: nothing left to review.
+        expect(
+            screen.getByRole('heading', { level: 1, name: 'Content model' })
+        ).toBeTruthy();
+        expect(
+            screen.queryByRole('button', { name: 'Review changes' })
+        ).toBeNull();
     });
 
     it('grants nothing when the author says not now', async () => {
@@ -340,9 +388,9 @@ describe('ContentModelWorkspace — review and apply', () => {
         );
         gateway.document.mockResolvedValue({ ...envelope, bootId: 'boot-2' });
         renderWorkspace();
-        const drawer = addTypeAndReview();
-        await waitFor(() => expect(applyButton(drawer).disabled).toBe(false));
-        fireEvent.click(applyButton(drawer));
+        addTypeAndReview();
+        await toApplyStep();
+        fireEvent.click(button('Apply'));
 
         const grant = await screen.findByRole('dialog', {
             name: 'Use the new type in workspaces'
@@ -357,7 +405,7 @@ describe('ContentModelWorkspace — review and apply', () => {
         expect(gateway.grant).not.toHaveBeenCalled();
     });
 
-    it('reports a failed apply and keeps the draft', async () => {
+    it('reports a failed apply and goes back to the review with the draft kept', async () => {
         gateway.plan.mockResolvedValue(planOf([addEvent]));
         gateway.apply.mockResolvedValue({
             operationId: 'op-1',
@@ -374,9 +422,9 @@ describe('ContentModelWorkspace — review and apply', () => {
             })
         );
         renderWorkspace();
-        const drawer = addTypeAndReview();
-        await waitFor(() => expect(applyButton(drawer).disabled).toBe(false));
-        fireEvent.click(applyButton(drawer));
+        addTypeAndReview();
+        await toApplyStep();
+        fireEvent.click(button('Apply'));
 
         const alert = await screen.findByRole('alert');
         expect(
@@ -384,11 +432,13 @@ describe('ContentModelWorkspace — review and apply', () => {
         ).toBeTruthy();
         expect(gateway.document).not.toHaveBeenCalled();
 
-        fireEvent.click(within(alert).getByRole('button', { name: 'Close' }));
+        fireEvent.click(button('Back to the review'));
         expect(screen.queryByRole('alert')).toBeNull();
-        // The draft is still there to fix and try again.
-        expect(
-            screen.getByRole('button', { name: 'Review changes' })
-        ).toBeTruthy();
+        // Back on the step the apply started from, ready to try again.
+        expect(button('Apply').disabled).toBe(false);
+        fireEvent.click(
+            screen.getByRole('link', { name: 'Back to the content model' })
+        );
+        expect(screen.getByText('1 unsaved change')).toBeTruthy();
     });
 });

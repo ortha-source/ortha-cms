@@ -46,7 +46,6 @@ export function useApplyFlow(
     { gateway = httpSchemaGateway, poll }: Options = {}
 ) {
     const queryClient = useQueryClient();
-    const [reviewing, setReviewing] = useState(false);
     const [confirmed, setConfirmed] = useState<ReadonlySet<string>>(new Set());
     const [migrationName, setMigrationName] = useState('');
     const [stage, setStage] = useState<ApplyStage>('idle');
@@ -61,10 +60,9 @@ export function useApplyFlow(
         }
     });
 
-    const review = useCallback(() => {
-        setReviewing(true);
-        plan.mutate();
-    }, [plan]);
+    const { mutate: requestPlan } = plan;
+    /** Asks for a fresh plan of the current draft — every time the review opens. */
+    const review = useCallback(() => requestPlan(), [requestPlan]);
 
     const toggle = useCallback((id: string) => {
         setConfirmed((previous) => {
@@ -82,7 +80,6 @@ export function useApplyFlow(
     const apply = async () => {
         if (!plan.data || !readiness?.ok) return;
         const types = createdTypes(plan.data);
-        setReviewing(false);
         setFailure(null);
         setStage('applying');
         try {
@@ -127,8 +124,6 @@ export function useApplyFlow(
     };
 
     return {
-        reviewing,
-        setReviewing,
         review,
         plan,
         confirmed,
