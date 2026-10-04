@@ -15,7 +15,7 @@ import {
 } from '@orthacms/design-system';
 import type { SchemaDocument, TypeDoc } from '@orthacms/schema-builder-domain';
 import type { FieldEditor } from '../../../application/useFieldEditor';
-import { FIELD_CAPABILITIES } from '../../../domain/fieldCapabilities';
+import { validationEditors } from '../../../domain/fieldCapabilities';
 import { kindOf } from '../../../domain/fieldCatalog';
 import { kindCopy } from '../fieldKindCopy';
 import { FieldDisplayTab } from './FieldDisplayTab';
@@ -94,8 +94,7 @@ export function FieldSheet({ editor, type, document, issues, onClose }: Props) {
                                 <TabsTrigger value="general">
                                     {intl.formatMessage(messages.general)}
                                 </TabsTrigger>
-                                {FIELD_CAPABILITIES[spec.type].validation
-                                    .length > 0 && (
+                                {validationEditors(spec).length > 0 && (
                                     <TabsTrigger value="validation">
                                         {intl.formatMessage(
                                             messages.validation

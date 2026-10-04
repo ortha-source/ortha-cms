@@ -11,8 +11,9 @@ export type FieldCatalogEntry = {
 
 /**
  * Every field type in the DSL, in the order the page shows them, plus one
- * preset: **long text** is a `richtext` field with the `textarea` widget —
- * how the DSL says "a plain box of text", which the entry editor draws as one.
+ * preset: **long text** is a `richtext` field with the `textarea` widget and
+ * `structure: 'off'` — how the DSL says "a plain box of text", which the
+ * entry editor draws as one and the kernel does not check as a document.
  * A preset is a starting spec, not a new type (ADR-0020 §5).
  */
 export const FIELD_CATALOG: readonly FieldCatalogEntry[] = [
@@ -20,7 +21,12 @@ export const FIELD_CATALOG: readonly FieldCatalogEntry[] = [
     {
         id: 'longtext',
         type: 'richtext',
-        spec: () => ({ type: 'richtext', admin: { widget: 'textarea' } })
+        // A plain box is not a document: no heading or table rules to check.
+        spec: () => ({
+            type: 'richtext',
+            structure: 'off',
+            admin: { widget: 'textarea' }
+        })
     },
     { id: 'richtext', type: 'richtext', spec: () => ({ type: 'richtext' }) },
     { id: 'number', type: 'number', spec: () => ({ type: 'number' }) },

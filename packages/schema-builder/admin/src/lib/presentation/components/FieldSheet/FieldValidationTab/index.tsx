@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react';
 import type { FieldDoc } from '@orthacms/schema-builder-domain';
 import {
-    FIELD_CAPABILITIES,
+    validationEditors,
     type ValidationEditor
 } from '../../../../domain/fieldCapabilities';
 import type { FieldEditor } from '../../../../application/useFieldEditor';
@@ -16,7 +16,7 @@ import { StructureRule } from './StructureRule';
 type Spec = FieldDoc & Record<string, unknown>;
 type Render = (spec: Spec, onChange: FieldEditor['setSpec']) => ReactElement;
 
-/** One editor per rule; which ones a type gets is `FIELD_CAPABILITIES`' business. */
+/** One editor per rule; which ones a field gets is `validationEditors`' business. */
 const EDITORS: Readonly<Record<ValidationEditor, Render>> = {
     length: (spec, onChange) => (
         <LengthRules
@@ -59,12 +59,12 @@ const EDITORS: Readonly<Record<ValidationEditor, Render>> = {
     )
 };
 
-/** The rules this field type takes, and only those. */
+/** The rules this field's kind takes, and only those. */
 export function FieldValidationTab({ editor }: { editor: FieldEditor }) {
     const spec = editor.entry.spec as Spec;
     return (
         <div className="flex flex-col gap-6">
-            {FIELD_CAPABILITIES[spec.type].validation.map((name) => (
+            {validationEditors(spec).map((name) => (
                 <div key={name}>{EDITORS[name](spec, editor.setSpec)}</div>
             ))}
         </div>

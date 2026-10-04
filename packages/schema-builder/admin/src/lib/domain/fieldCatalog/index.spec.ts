@@ -21,6 +21,7 @@ describe('FIELD_CATALOG', () => {
         const spec = catalogEntry('longtext').spec([]);
         expect(spec).toEqual({
             type: 'richtext',
+            structure: 'off',
             admin: { widget: 'textarea' }
         });
     });
