@@ -15,3 +15,15 @@ export const MIGRATION_GENERATOR = Symbol('SCHEMA_BUILDER_MIGRATION_GENERATOR');
 
 /** The {@link ContentStats} port. */
 export const CONTENT_STATS = Symbol('SCHEMA_BUILDER_CONTENT_STATS');
+
+/** The {@link ApplyLock} port. */
+export const APPLY_LOCK = Symbol('SCHEMA_BUILDER_APPLY_LOCK');
+
+/** The {@link OperationLog} port. */
+export const OPERATION_LOG = Symbol('SCHEMA_BUILDER_OPERATION_LOG');
+
+/** The {@link MigrationRunner} port. */
+export const MIGRATION_RUNNER = Symbol('SCHEMA_BUILDER_MIGRATION_RUNNER');
+
+/** The {@link SchemaAudit} port. */
+export const SCHEMA_AUDIT = Symbol('SCHEMA_BUILDER_SCHEMA_AUDIT');

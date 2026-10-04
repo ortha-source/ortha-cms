@@ -1,12 +1,16 @@
 import type { ArgumentsHost } from '@nestjs/common';
 import {
+    ApplyInProgressError,
     EditingDisabledError,
     InvalidDocumentError,
     MigrationAmbiguityError,
     MigrationGenerateError,
     NotBuilderOwnedError,
+    PublishFailedError,
+    SchemaBlockedError,
     SchemaInvalidError,
-    StaleDocumentError
+    StaleDocumentError,
+    UnconfirmedChangesError
 } from '../../domain/errors';
 import { SchemaBuilderErrorFilter } from './schema-builder-error.filter';
 
@@ -36,7 +40,11 @@ describe('SchemaBuilderErrorFilter', () => {
         [new SchemaInvalidError([]), 422],
         [new NotBuilderOwnedError(['article']), 422],
         [new MigrationAmbiguityError('…'), 422],
-        [new MigrationGenerateError('…'), 500]
+        [new MigrationGenerateError('…'), 500],
+        [new ApplyInProgressError(), 409],
+        [new SchemaBlockedError([]), 422],
+        [new UnconfirmedChangesError(['x']), 422],
+        [new PublishFailedError('.orthacms/apply/x/backup', 'EACCES'), 500]
     ])('answers %p with %i', (error, status) => {
         expect(answer(error).status).toBe(status);
     });

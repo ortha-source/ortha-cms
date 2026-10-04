@@ -1,4 +1,8 @@
-import type { ChangeFacts } from '@orthacms/schema-builder-domain';
+import type {
+    ApplyOperation,
+    ChangeFacts
+} from '@orthacms/schema-builder-domain';
+import { ApplyInProgressError } from '../lib/domain/errors';
 import type { CodeFormatter } from '../lib/domain/ports/code-formatter.port';
 import type { ContentStats } from '../lib/domain/ports/content-stats.port';
 import type {
@@ -43,5 +47,37 @@ export class RecordingGenerator implements MigrationGenerator {
     async generate(input: GenerateMigrationInput) {
         this.runs.push(input);
         return { files: [`${input.name}.sql`], sql: `-- ${input.name}` };
+    }
+}
+
+/** A lock that counts its holders and refuses a second one. */
+export class CountingLock {
+    held = 0;
+    releases = 0;
+
+    async acquire() {
+        if (this.held > 0) throw new ApplyInProgressError();
+        this.held += 1;
+        return async () => {
+            this.held -= 1;
+            this.releases += 1;
+        };
+    }
+}
+
+/** An operation log in memory, keeping every saved version. */
+export class MemoryOperationLog {
+    readonly history: ApplyOperation[] = [];
+
+    async save(operation: ApplyOperation) {
+        this.history.push(operation);
+    }
+
+    async get(id: string) {
+        return (
+            [...this.history]
+                .reverse()
+                .find((operation) => operation.id === id) ?? null
+        );
     }
 }

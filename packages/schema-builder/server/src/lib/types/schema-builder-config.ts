@@ -22,6 +22,11 @@ export interface SchemaBuilderPluginConfig {
     restart?: 'watch' | 'manual';
     /** The host's content migrations, relative to `projectRoot`. Defaults to `migrations`. */
     migrationsDir?: string;
+    /**
+     * The table that tracks the content migrations — the host's descriptor
+     * for `ContentPlugin` names it. Defaults to `__drizzle_migrations_content`.
+     */
+    migrationsTable?: string;
     /** How long one drizzle-kit run may take before it is killed. Defaults to 60 s. */
     generateTimeoutMs?: number;
 }
@@ -31,6 +36,9 @@ export const DEFAULT_CONTENT_DIR = 'src/content';
 
 /** The migrations folder drizzle-kit writes to when the host does not say. */
 export const DEFAULT_MIGRATIONS_DIR = 'migrations';
+
+/** The content migrations' tracking table when the host does not say. */
+export const DEFAULT_MIGRATIONS_TABLE = '__drizzle_migrations_content';
 
 /** Where plans and applies stage their work, relative to `projectRoot` — never under `src/`. */
 export const WORK_DIR = '.orthacms';

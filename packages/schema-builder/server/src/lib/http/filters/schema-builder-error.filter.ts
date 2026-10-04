@@ -11,11 +11,15 @@ import { SchemaBuilderError } from '../../domain/errors';
 const STATUS: Readonly<Record<string, HttpStatus>> = {
     'schema-builder.disabled': HttpStatus.FORBIDDEN,
     'schema-builder.stale': HttpStatus.CONFLICT,
+    'schema-builder.busy': HttpStatus.CONFLICT,
     'schema-builder.invalid-document': HttpStatus.BAD_REQUEST,
     'schema-builder.invalid': HttpStatus.UNPROCESSABLE_ENTITY,
     'schema-builder.not-owned': HttpStatus.UNPROCESSABLE_ENTITY,
+    'schema-builder.blocked': HttpStatus.UNPROCESSABLE_ENTITY,
+    'schema-builder.unconfirmed': HttpStatus.UNPROCESSABLE_ENTITY,
     'schema-builder.migration-ambiguous': HttpStatus.UNPROCESSABLE_ENTITY,
-    'schema-builder.migration-failed': HttpStatus.INTERNAL_SERVER_ERROR
+    'schema-builder.migration-failed': HttpStatus.INTERNAL_SERVER_ERROR,
+    'schema-builder.publish-failed': HttpStatus.INTERNAL_SERVER_ERROR
 };
 
 /** Answers a {@link SchemaBuilderError} as `{ statusCode, code, message, details }`. */

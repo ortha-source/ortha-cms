@@ -9,6 +9,8 @@ import {
 } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, relative } from 'node:path';
+import { sql } from 'drizzle-orm';
+import { getDatabase } from '@orthacms/database';
 import { GENERATED_MARKER, stageFiles } from '@orthacms/schema-builder-domain';
 import { toDocument } from '@orthacms/schema-builder-server';
 import { testContentTypes } from './content';
@@ -105,3 +107,51 @@ export function snapshotDir(dir: string): Record<string, string> {
 /** Removes a tree made by {@link buildSourceTree}. */
 export const removeSourceTree = (root: string): void =>
     rmSync(root, { recursive: true, force: true });
+
+/**
+ * Records a tree's baseline migration as already applied in its own tracking
+ * table: the harness database already holds those tables (global-setup
+ * migrated them), so an apply must run only what it generates on top.
+ */
+export async function markBaselineApplied(
+    root: string,
+    table: string
+): Promise<void> {
+    const journal = JSON.parse(
+        readFileSync(join(root, 'migrations/meta/_journal.json'), 'utf8')
+    ) as {
+        entries: { when: number; tag: string }[];
+    };
+    const db = getDatabase();
+    await db.execute(sql.raw('CREATE SCHEMA IF NOT EXISTS drizzle'));
+    await db.execute(
+        sql.raw(
+            `CREATE TABLE IF NOT EXISTS drizzle."${table}" (id SERIAL PRIMARY KEY, hash text NOT NULL, created_at bigint)`
+        )
+    );
+    for (const entry of journal.entries) {
+        await db.execute(
+            sql`INSERT INTO drizzle.${sql.identifier(table)} (hash, created_at) VALUES (${entry.tag}, ${entry.when})`
+        );
+    }
+}
+
+/** Drops what an apply suite created: its tables and its tracking table. */
+export async function dropSchemaBuilderLeftovers(
+    tables: readonly string[],
+    migrationTables: readonly string[]
+): Promise<void> {
+    const db = getDatabase();
+    for (const table of tables)
+        await db.execute(sql.raw(`DROP TABLE IF EXISTS "${table}" CASCADE`));
+    for (const table of migrationTables)
+        await db.execute(sql.raw(`DROP TABLE IF EXISTS drizzle."${table}"`));
+}
+
+/** Whether a table exists in the harness database. */
+export async function tableExists(table: string): Promise<boolean> {
+    const result = await getDatabase().execute(
+        sql`SELECT to_regclass(${`public.${table}`}) AS found`
+    );
+    return (result.rows[0] as { found: string | null }).found !== null;
+}

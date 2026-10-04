@@ -5,6 +5,7 @@ import {
 } from '../../../testing/fakes';
 import { MemorySourceTree } from '../../../testing/memory-source-tree';
 import { StageWriter } from '../stage/stage-writer';
+import { MigrationPhases } from '../migrations/migration-phases';
 import { PreviewMigration } from './preview-migration';
 
 describe('PreviewMigration', () => {
@@ -22,11 +23,11 @@ describe('PreviewMigration', () => {
             'migrations/meta/_journal.json': '{}'
         });
         const generator = new RecordingGenerator();
+        const stage = new StageWriter(tree, passThroughFormatter, config);
         const preview = new PreviewMigration(
             tree,
-            generator,
             config,
-            new StageWriter(tree, passThroughFormatter, config)
+            new MigrationPhases(generator, stage)
         );
         return { tree, generator, preview };
     }
@@ -61,7 +62,7 @@ describe('PreviewMigration', () => {
         expect(generator.runs.map((run) => run.schema)).toEqual([
             '.orthacms/plan/x/content/index.ts'
         ]);
-        expect(sql).toEqual(['-- schema_builder_changes']);
+        expect(sql).toEqual(['-- schema_builder']);
     });
 
     it('runs the removals first when something is removed — no diff holds a drop and an add', async () => {
@@ -80,7 +81,7 @@ describe('PreviewMigration', () => {
         ]);
         expect(sql).toEqual([
             '-- schema_builder_removals',
-            '-- schema_builder_changes'
+            '-- schema_builder'
         ]);
         // The removals stage has the field gone and nothing added.
         expect(

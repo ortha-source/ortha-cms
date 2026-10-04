@@ -16,6 +16,7 @@ import { ChangePlanner } from '../change-planner';
 import type { LoadDocumentUseCase } from '../load-document.use-case';
 import { StageWriter } from '../stage/stage-writer';
 import { PlanSchemaUseCase } from './plan-schema.use-case';
+import { MigrationPhases } from '../migrations/migration-phases';
 import { PreviewMigration } from './preview-migration';
 
 describe('PlanSchemaUseCase', () => {
@@ -42,7 +43,11 @@ describe('PlanSchemaUseCase', () => {
             load,
             new ChangePlanner(statsOf(rows)),
             stage,
-            new PreviewMigration(tree, generator, config, stage),
+            new PreviewMigration(
+                tree,
+                config,
+                new MigrationPhases(generator, stage)
+            ),
             tree
         );
         return { tree, generator, useCase };
@@ -63,7 +68,7 @@ describe('PlanSchemaUseCase', () => {
             'collections/tag.ts',
             'index.ts'
         ]);
-        expect(plan.sql).toEqual(['-- schema_builder_changes']);
+        expect(plan.sql).toEqual(['-- schema_builder']);
     });
 
     it('generates no SQL for a code-only change', async () => {

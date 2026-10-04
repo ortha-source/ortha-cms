@@ -3,7 +3,7 @@
 The **schema builder plugin**
 ([ADR-0020](../../../docs/adr/0020-schema-builder-writes-code.md)). It turns the
 running content registry into the editable document the admin page renders,
-and plans — and, in the next step, applies — a change by writing TypeScript under
+and plans and applies a change by writing TypeScript under
 the host's `src/content/` and a drizzle-kit migration. The design is in
 [`docs/design/schema-builder.md`](../../../docs/design/schema-builder.md).
 
@@ -56,6 +56,46 @@ nothing the app reads:
    holds a drop and a create on one table.
 6. The plan's folder is removed in a `finally`.
 
+## Applying a change
+
+`POST /api/schema-builder/apply` (`schema:manage`, `EditableGuard`) takes the
+draft, the plan's fingerprint, a `migrationName` (`^[a-z][a-z0-9_]{0,59}$` — it
+ends up in a file name) and `confirmed`, the id of **every** destructive change.
+`ApplySchemaUseCase` decides synchronously, under the lock:
+
+- `FileApplyLock` — `.orthacms/apply.lock`, created exclusively, holding the
+  owner's pid. A live owner (this process included) → 409 `busy`; a dead one
+  (crash, restart mid-apply) is taken over.
+- the planner's checks, then `assertNotBlocked` (422 `blocked`) and
+  `assertConfirmed` (422 `unconfirmed`, listing exactly what is missing — there
+  is no "confirm all").
+
+It answers **202** `{ operationId, bootId }` and `ApplyJob` runs the rest, in
+`.orthacms/apply/<id>/`:
+
+1. stage the draft; back up `migrations/` and `src/content/`;
+2. **generate** into the real migrations folder through `MigrationPhases` (the
+   same two-phase code the plan uses; the removals migration is
+   `<name>_removals`);
+3. **migrate** — drizzle's migrator on the host's folder and tracking table
+   (`migrationsTable`, default `__drizzle_migrations_content`), every pending
+   migration in **one transaction**;
+4. record `schema.applied` through the outbox (its own unit of work: drizzle's
+   migrator commits on its own connection, so the event follows the commit; a
+   failure here is logged, not fatal — the schema did change);
+5. **publish** — `StagePublisher` writes the changed files into `src/content/`,
+   once, last. The dev watcher restarts the server.
+
+A failure before publish puts `migrations/` back from the backup; the database
+never moved or rolled back. A failure **during** publish (the database is
+ahead of the code) keeps `.orthacms/apply/<id>/backup` and says so
+(`publish-failed`). The lock is released in a `finally`.
+
+`GET /api/schema-builder/operations/:id` (`schema:manage`, not behind the
+editable guard) reads `.orthacms/operations/<id>.json` — on disk because the
+process asked is usually the one the apply restarted into. A `running`
+operation recorded by another boot reads as `interrupted`.
+
 ### drizzle-kit, read from what it wrote
 
 drizzle-kit 0.31 **exits 0** on a refused rename prompt (no TTY) and on a
@@ -86,8 +126,8 @@ starts from.
   resolves every path inside `projectRoot` and refuses one that escapes it.
 - Registered after `ContentPlugin`, whose `CONTENT_REGISTRY` it reads.
 - Owns no tables and ships no migrations.
-- Nothing is written under `src/` by a plan. Scratch work lives in
-  `.orthacms/` (gitignored) and is removed before the response.
+- Nothing is written under `src/` by a plan, and by an apply only in its last
+  step. Scratch work lives in `.orthacms/` (gitignored).
 - Type files may import the DSL, packages and each other — nothing else
   relative: the stage is a copy of `src/content/` alone.
 
@@ -95,8 +135,9 @@ starts from.
 
 - `npx nx test @orthacms/schema-builder-server`
 - `npx nx run-many -t typecheck lint -p @orthacms/schema-builder-server`
-- The e2e suites: `apps/server-e2e/src/server/schema-builder/` — the plan suite
-  builds a real project tree from the harness's types (`support/schema-builder.ts`)
-  and checks drizzle-kit's SQL
+- The e2e suites: `apps/server-e2e/src/server/schema-builder/` — the plan and
+  apply suites build real project trees from the harness's types
+  (`support/schema-builder.ts`); apply runs real migrations, each scenario in a
+  tree and tracking table of its own, and drops what it created
 - The round trip over the reference types (design invariant 9):
   `apps/server/src/content/round-trip.spec.ts`
