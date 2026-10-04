@@ -6,18 +6,29 @@ describe('canChangeFlag', () => {
         const fresh = typeDoc({ name: 't', origin: 'new' });
         expect(
             ['publishable', 'paranoid', 'i18n'].every((flag) =>
-                canChangeFlag(fresh, flag as never)
+                canChangeFlag(fresh, flag as never, undefined)
             )
+        ).toBe(true);
+        // Switched on, and off again: nothing about a new type is fixed yet.
+        expect(
+            canChangeFlag({ ...fresh, paranoid: true }, 'paranoid', undefined)
         ).toBe(true);
     });
 
     it('lets an existing type only turn the trash on', () => {
         const live = typeDoc({ name: 't', origin: 'builder' });
-        expect(canChangeFlag(live, 'paranoid')).toBe(true);
-        expect(canChangeFlag({ ...live, paranoid: true }, 'paranoid')).toBe(
-            false
-        );
-        expect(canChangeFlag(live, 'publishable')).toBe(false);
-        expect(canChangeFlag(live, 'i18n')).toBe(false);
+        expect(canChangeFlag(live, 'paranoid', live)).toBe(true);
+        const trashed = { ...live, paranoid: true };
+        expect(canChangeFlag(trashed, 'paranoid', trashed)).toBe(false);
+        expect(canChangeFlag(live, 'publishable', live)).toBe(false);
+        expect(canChangeFlag(live, 'i18n', live)).toBe(false);
+    });
+
+    it('lets the draft take back a flag it changed, until it is applied', () => {
+        const live = typeDoc({ name: 't', origin: 'builder' });
+        // Trash switched on in the draft: it can still go off again.
+        expect(
+            canChangeFlag({ ...live, paranoid: true }, 'paranoid', live)
+        ).toBe(true);
     });
 });

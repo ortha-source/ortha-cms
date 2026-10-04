@@ -18,10 +18,9 @@ const GRID_LINE = 'grid grid-cols-1 items-start gap-5 @lg:grid-cols-2';
  *
  * Every field takes a column or the whole line (`fieldWidth`), so the form
  * has exactly two right edges however many field types it mixes. A field
- * still gets a line of its own — a short one simply leaves the other column
- * empty — unless the schema put it on a line with another through
- * `admin.row` (see `layoutFields`): side by side means "read together", so
- * only the schema may claim it.
+ * gets a line of its own unless the schema put it beside another — two
+ * adjacent half-width fields, or a shared `admin.row` (see `layoutFields`):
+ * side by side means "read together", so only the schema may claim it.
  *
  * DOM order is display order either way, so tab order runs left to right
  * across a row and then down.

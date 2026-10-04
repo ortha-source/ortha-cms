@@ -2,7 +2,7 @@ import { useIntl } from 'react-intl';
 import { cn } from '@orthacms/design-system';
 import type { FieldCatalogEntry } from '../../../../../domain/fieldCatalog';
 import { FieldTypeIcon } from '../../../FieldTypeIcon';
-import { kindCopy } from '../../fieldKindCopy';
+import { kindCopy } from '../../../fieldKindCopy';
 
 type Props = {
     entry: FieldCatalogEntry;

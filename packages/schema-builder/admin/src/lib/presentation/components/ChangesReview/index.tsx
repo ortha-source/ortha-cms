@@ -16,7 +16,7 @@ import { ConfirmStep } from './ConfirmStep';
 import { PreviewStep } from './PreviewStep';
 
 const messages = defineMessages({
-    crumb: { id: 'schemaBuilder.page.title', defaultMessage: 'Content model' },
+    crumb: { id: 'schemaBuilder.page.title', defaultMessage: 'Content Model' },
     title: {
         id: 'schemaBuilder.review.title',
         defaultMessage: 'Review changes'
@@ -28,7 +28,7 @@ const messages = defineMessages({
     },
     back: {
         id: 'schemaBuilder.review.backToModel',
-        defaultMessage: 'Back to the content model'
+        defaultMessage: 'Back to the Content Model'
     },
     stepChanges: {
         id: 'schemaBuilder.review.stepChanges',

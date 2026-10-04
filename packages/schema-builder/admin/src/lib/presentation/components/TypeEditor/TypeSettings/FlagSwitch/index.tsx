@@ -20,25 +20,27 @@ const messages = defineMessages({
     },
     onlyOn: {
         id: 'schemaBuilder.type.flagOnlyOn',
-        defaultMessage: 'Can be turned on, not off.'
+        defaultMessage: 'Can be turned on. Once applied, it stays on.'
     }
 });
 
 type Props = {
     type: TypeDoc;
+    /** The type as served — what the draft is judged against. */
+    served: TypeDoc | undefined;
     flag: TypeFlag;
     onChange: (value: boolean) => void;
 };
 
 /** One storage flag, disabled with the reason when it may not change. */
-export function FlagSwitch({ type, flag, onChange }: Props) {
+export function FlagSwitch({ type, served, flag, onChange }: Props) {
     const intl = useIntl();
     const id = `type-flag-${flag}`;
-    const changeable = canChangeFlag(type, flag);
+    const changeable = canChangeFlag(type, flag, served);
     // Fixed, or one-way: an existing type may only turn the trash on.
     const hint = !changeable
         ? messages.fixed
-        : type.origin === 'new'
+        : type.origin === 'new' || !served || flag !== 'paranoid'
           ? null
           : messages.onlyOn;
     return (

@@ -23,6 +23,8 @@ export type {
     WorkspaceSettingsTab
 } from './lib/presentation/slots/workspaceSlots';
 export { useCurrentWorkspace } from './lib/presentation/currentWorkspace';
+// The workspace's monogram, for any plugin that lists workspaces.
+export { WorkspaceAvatar } from './lib/presentation/components/WorkspaceAvatar';
 // Per-source content grants. The key lets the Content Library build its
 // per-workspace content-type list under the root a grant change invalidates.
 export type {

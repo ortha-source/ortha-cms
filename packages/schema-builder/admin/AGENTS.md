@@ -81,12 +81,19 @@ Hand-written types stay read-only and say how to hand them over.
   says what it is for — JSON names the article's Metadata — so the big text
   types are findable by what they hold.
 - **Nothing the DSL lacks** (ADR-0020 §5). `FIELD_CAPABILITIES` decides, per
-  field type, which Validation editors exist, whether group/width/row apply
-  (not to relations or media — they have their own tab) and which widgets the
-  stock admin understands. Clearing an input drops the option (`fieldPatch`),
-  so it falls back to the DSL default; unknown `admin` keys survive.
+  field type, which Validation editors exist and whether group and width apply
+  (not to relations or media — they have their own tab). Clearing an input
+  drops the option (`fieldPatch`), so it falls back to the DSL default; unknown
+  `admin` keys survive.
+- **Fewer knobs than the DSL, on purpose.** There is no control picker — the
+  kind is the control (`kindOf`: long text is a textarea, rich text the
+  editor) — and no row key: two adjacent half-width fields share a line in the
+  entry editor on their own. A `widget` or `row` a schema already carries is
+  kept as it is.
 - **Flags.** A new type sets all three; an existing one may only turn the trash
-  on (`canChangeFlag`) — every other flip needs a data migration.
+  on (`canChangeFlag`) — every other flip needs a data migration. Judged
+  against the **served** type, so a flag the draft changed can always be
+  switched back before an apply.
 - **Order.** Each list (loose fields, each group, Relations, Media) is its own
   sortable context; `canMoveField` refuses a drop across ranks above the groups,
   because the entry editor would re-sort it. Reordering works from the handle

@@ -11,7 +11,7 @@ const SETTLED = { timeout: 20_000 };
  * four states — no access, loading, error, loaded — the rail and the URL, and
  * how a type's fields are laid out under the entry editor's built-in tabs.
  */
-test.describe('Content model', () => {
+test.describe('Content Model', () => {
     test.beforeEach(async ({ page }) => {
         await mockSignedIn(page);
         await mockWorkspaces(page);

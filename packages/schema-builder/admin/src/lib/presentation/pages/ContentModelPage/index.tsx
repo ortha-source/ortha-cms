@@ -9,7 +9,7 @@ import { ContentModelSkeleton } from '../../components/ContentModelSkeleton';
 import { ContentModelWorkspace } from '../../components/ContentModelWorkspace';
 
 const messages = defineMessages({
-    title: { id: 'schemaBuilder.page.title', defaultMessage: 'Content model' }
+    title: { id: 'schemaBuilder.page.title', defaultMessage: 'Content Model' }
 });
 
 /**

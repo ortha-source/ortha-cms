@@ -61,7 +61,7 @@ describe('ContentModelPage', () => {
         hasPermission.mockReturnValue(false);
         renderPage();
         expect(
-            screen.getByRole('heading', { level: 1, name: 'Content model' })
+            screen.getByRole('heading', { level: 1, name: 'Content Model' })
         ).toBeTruthy();
         expect(
             screen.getByText('You don’t have access to the content model')
@@ -73,7 +73,7 @@ describe('ContentModelPage', () => {
         fetchDocument.mockReturnValue(new Promise(() => undefined));
         renderPage();
         expect(
-            screen.getByRole('heading', { level: 1, name: 'Content model' })
+            screen.getByRole('heading', { level: 1, name: 'Content Model' })
         ).toBeTruthy();
         const status = screen.getAllByRole('status');
         expect(status).toHaveLength(1);

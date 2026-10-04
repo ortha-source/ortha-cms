@@ -1,16 +1,16 @@
 import { useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { useQueryClient } from '@tanstack/react-query';
+import { Search } from 'lucide-react';
 import {
     Button,
-    Checkbox,
     Dialog,
     DialogContent,
     DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
-    Label
+    Input
 } from '@orthacms/design-system';
 import {
     useWorkspaces,
@@ -19,6 +19,7 @@ import {
 } from '@orthacms/workspaces-admin';
 import type { SchemaGateway } from '../../../domain/schemaGateway';
 import { httpSchemaGateway } from '../../../infrastructure/httpSchemaGateway';
+import { WorkspaceTile } from './WorkspaceTile';
 
 const messages = defineMessages({
     title: {
@@ -39,6 +40,24 @@ const messages = defineMessages({
         id: 'schemaBuilder.grant.none',
         defaultMessage: 'There are no workspaces yet.'
     },
+    search: {
+        id: 'schemaBuilder.grant.search',
+        defaultMessage: 'Search workspaces'
+    },
+    noMatch: {
+        id: 'schemaBuilder.grant.noMatch',
+        defaultMessage: 'No workspace matches “{query}”.'
+    },
+    selected: {
+        id: 'schemaBuilder.grant.selected',
+        defaultMessage:
+            '{count, plural, =0 {None selected} one {# selected} other {# selected}}'
+    },
+    selectShown: {
+        id: 'schemaBuilder.grant.selectShown',
+        defaultMessage: 'Select all shown'
+    },
+    clear: { id: 'schemaBuilder.grant.clear', defaultMessage: 'Clear' },
     grant: { id: 'schemaBuilder.grant.grant', defaultMessage: 'Grant' },
     skip: { id: 'schemaBuilder.grant.skip', defaultMessage: 'Not now' },
     failed: {
@@ -69,9 +88,33 @@ export function GrantNewTypeDialog({
     const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [query, setQuery] = useState('');
     const active = (workspaces.data ?? []).filter(
         (workspace) => workspace.status === 'Active'
     );
+    const needle = query.trim().toLowerCase();
+    const shown = needle
+        ? active.filter(
+              (workspace) =>
+                  workspace.name.toLowerCase().includes(needle) ||
+                  (workspace.slug ?? '').toLowerCase().includes(needle)
+          )
+        : active;
+    const toggle = (id: string) =>
+        setPicked((previous) => {
+            const next = new Set(previous);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    const selectShown = () =>
+        setPicked(
+            (previous) =>
+                new Set([
+                    ...previous,
+                    ...shown.map((workspace) => workspace.id)
+                ])
+        );
 
     const grant = async () => {
         setBusy(true);
@@ -94,7 +137,7 @@ export function GrantNewTypeDialog({
 
     return (
         <Dialog open onOpenChange={(open) => !open && onClose()}>
-            <DialogContent>
+            <DialogContent className="sm:max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>
                         {intl.formatMessage(messages.title, {
@@ -108,37 +151,87 @@ export function GrantNewTypeDialog({
                         })}
                     </DialogDescription>
                 </DialogHeader>
-                <fieldset className="flex flex-col gap-2">
-                    <legend className="mb-1 text-sm font-medium">
+                <fieldset className="flex min-w-0 flex-col gap-3">
+                    <legend className="sr-only">
                         {intl.formatMessage(messages.workspaces)}
                     </legend>
-                    {active.length === 0 && (
+                    {active.length === 0 ? (
                         <p className="text-sm text-muted-foreground">
                             {intl.formatMessage(messages.none)}
                         </p>
+                    ) : (
+                        <>
+                            <div className="relative">
+                                <Search
+                                    aria-hidden
+                                    className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                                />
+                                <Input
+                                    type="search"
+                                    value={query}
+                                    onChange={(event) =>
+                                        setQuery(event.target.value)
+                                    }
+                                    placeholder={intl.formatMessage(
+                                        messages.search
+                                    )}
+                                    aria-label={intl.formatMessage(
+                                        messages.search
+                                    )}
+                                    className="pl-9"
+                                />
+                            </div>
+                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                <span aria-live="polite">
+                                    {intl.formatMessage(messages.selected, {
+                                        count: picked.size
+                                    })}
+                                </span>
+                                <span className="flex gap-1">
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={selectShown}
+                                        disabled={shown.length === 0}
+                                    >
+                                        {intl.formatMessage(
+                                            messages.selectShown
+                                        )}
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setPicked(new Set())}
+                                        disabled={picked.size === 0}
+                                    >
+                                        {intl.formatMessage(messages.clear)}
+                                    </Button>
+                                </span>
+                            </div>
+                            {shown.length === 0 ? (
+                                <p className="py-6 text-center text-sm text-muted-foreground">
+                                    {intl.formatMessage(messages.noMatch, {
+                                        query: query.trim()
+                                    })}
+                                </p>
+                            ) : (
+                                <div className="grid max-h-80 gap-2 overflow-y-auto p-0.5 sm:grid-cols-2">
+                                    {shown.map((workspace) => (
+                                        <WorkspaceTile
+                                            key={workspace.id}
+                                            workspace={workspace}
+                                            selected={picked.has(workspace.id)}
+                                            onToggle={() =>
+                                                toggle(workspace.id)
+                                            }
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </>
                     )}
-                    {active.map((workspace) => (
-                        <div
-                            key={workspace.id}
-                            className="flex items-center gap-2"
-                        >
-                            <Checkbox
-                                id={`grant-${workspace.id}`}
-                                checked={picked.has(workspace.id)}
-                                onCheckedChange={(on) =>
-                                    setPicked((previous) => {
-                                        const next = new Set(previous);
-                                        if (on) next.add(workspace.id);
-                                        else next.delete(workspace.id);
-                                        return next;
-                                    })
-                                }
-                            />
-                            <Label htmlFor={`grant-${workspace.id}`}>
-                                {workspace.name}
-                            </Label>
-                        </div>
-                    ))}
                 </fieldset>
                 {error !== null && (
                     <p role="alert" className="text-sm text-destructive">

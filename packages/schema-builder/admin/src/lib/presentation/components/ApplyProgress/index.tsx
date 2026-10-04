@@ -58,7 +58,7 @@ const messages = defineMessages({
     },
     finish: {
         id: 'schemaBuilder.apply.finish',
-        defaultMessage: 'Back to the content model'
+        defaultMessage: 'Back to the Content Model'
     }
 });
 

@@ -48,6 +48,16 @@ export const FIELD_CATALOG: readonly FieldCatalogEntry[] = [
     { id: 'media', type: 'media', spec: () => ({ type: 'media' }) }
 ];
 
+/**
+ * Which catalog choice a field is — its type, or the preset it was made
+ * from: a rich-text field with the `textarea` widget is long text. The kind
+ * decides the editor, so there is no separate control to pick.
+ */
+export const kindOf = (spec: FieldDoc): string =>
+    spec.type === 'richtext' && spec.admin?.widget === 'textarea'
+        ? 'longtext'
+        : spec.type;
+
 /** The catalog entry by id; the first one when the id is unknown. */
 export const catalogEntry = (id: string): FieldCatalogEntry =>
     FIELD_CATALOG.find((entry) => entry.id === id) ?? FIELD_CATALOG[0];
