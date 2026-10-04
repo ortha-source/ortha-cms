@@ -10,7 +10,7 @@ import {
 } from '@orthacms/design-system';
 import type { ApplyFlow } from '../../../../application/useApplyFlow';
 import { ReadinessHint } from '../ReadinessHint';
-import { StepHeading } from '../StepHeading';
+import { StepHeading } from '../../StepHeading';
 
 const messages = defineMessages({
     title: { id: 'schemaBuilder.review.applyTitle', defaultMessage: 'Apply' },

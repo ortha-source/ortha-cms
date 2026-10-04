@@ -112,14 +112,17 @@ export class ContentModelPage extends BasePage {
         return this.page.getByRole('button', { name: 'Add field' }).first();
     }
 
-    /** The "Add a field" dialog. */
-    addFieldDialog(): Locator {
-        return this.page.getByRole('dialog', { name: 'Add a field' });
+    /** The "Add a field" page's `<h1>`. */
+    addFieldHeading(): Locator {
+        return this.page.getByRole('heading', {
+            level: 1,
+            name: 'Add a field'
+        });
     }
 
-    /** One field type tile in the dialog. */
-    fieldTypeTile(label: string): Locator {
-        return this.addFieldDialog().getByRole('radio', { name: label });
+    /** One kind of field on the page's first step. */
+    fieldKind(label: string): Locator {
+        return this.page.getByRole('radio', { name: label, exact: true });
     }
 
     /** A field's sheet, named by the field. */

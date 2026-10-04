@@ -1,31 +1,53 @@
 import type { FieldDoc, FieldDocType } from '@orthacms/schema-builder-domain';
 
-/** One field type the "Add field" dialog offers. */
+/** One choice the "Add a field" page offers: a DSL type, or a preset of one. */
 export type FieldCatalogEntry = {
+    /** Stable id of the choice — unique, unlike `type`, which a preset shares. */
+    readonly id: string;
     readonly type: FieldDocType;
-    /** The spec a new field of this type starts from — the DSL's defaults, nothing more. */
+    /** The spec a new field of this kind starts from — the DSL's options, nothing more. */
     readonly spec: (types: readonly string[]) => FieldDoc;
 };
 
-/** Every field type in the DSL, in the order the dialog shows them. */
+/**
+ * Every field type in the DSL, in the order the page shows them, plus one
+ * preset: **long text** is a `richtext` field with the `textarea` widget —
+ * how the DSL says "a plain box of text", which the entry editor draws as one.
+ * A preset is a starting spec, not a new type (ADR-0020 §5).
+ */
 export const FIELD_CATALOG: readonly FieldCatalogEntry[] = [
-    { type: 'text', spec: () => ({ type: 'text' }) },
-    { type: 'richtext', spec: () => ({ type: 'richtext' }) },
-    { type: 'number', spec: () => ({ type: 'number' }) },
-    { type: 'money', spec: () => ({ type: 'money' }) },
-    { type: 'boolean', spec: () => ({ type: 'boolean' }) },
-    { type: 'date', spec: () => ({ type: 'date' }) },
-    { type: 'datetime', spec: () => ({ type: 'datetime' }) },
-    { type: 'select', spec: () => ({ type: 'select', options: ['option_1'] }) },
+    { id: 'text', type: 'text', spec: () => ({ type: 'text' }) },
     {
+        id: 'longtext',
+        type: 'richtext',
+        spec: () => ({ type: 'richtext', admin: { widget: 'textarea' } })
+    },
+    { id: 'richtext', type: 'richtext', spec: () => ({ type: 'richtext' }) },
+    { id: 'number', type: 'number', spec: () => ({ type: 'number' }) },
+    { id: 'money', type: 'money', spec: () => ({ type: 'money' }) },
+    { id: 'boolean', type: 'boolean', spec: () => ({ type: 'boolean' }) },
+    { id: 'date', type: 'date', spec: () => ({ type: 'date' }) },
+    { id: 'datetime', type: 'datetime', spec: () => ({ type: 'datetime' }) },
+    {
+        id: 'select',
+        type: 'select',
+        spec: () => ({ type: 'select', options: ['option_1'] })
+    },
+    {
+        id: 'multiselect',
         type: 'multiselect',
         spec: () => ({ type: 'multiselect', options: ['option_1'] })
     },
-    { type: 'json', spec: () => ({ type: 'json' }) },
-    // A relation needs a target to compile; the first type is a starting point the sheet changes.
+    { id: 'json', type: 'json', spec: () => ({ type: 'json' }) },
+    // A relation needs a target to compile; the first type is a starting point the next step changes.
     {
+        id: 'relation',
         type: 'relation',
         spec: (types) => ({ type: 'relation', to: types[0] ?? '' })
     },
-    { type: 'media', spec: () => ({ type: 'media' }) }
+    { id: 'media', type: 'media', spec: () => ({ type: 'media' }) }
 ];
+
+/** The catalog entry by id; the first one when the id is unknown. */
+export const catalogEntry = (id: string): FieldCatalogEntry =>
+    FIELD_CATALOG.find((entry) => entry.id === id) ?? FIELD_CATALOG[0];

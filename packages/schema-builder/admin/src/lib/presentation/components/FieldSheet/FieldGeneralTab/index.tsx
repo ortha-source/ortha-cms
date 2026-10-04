@@ -37,10 +37,16 @@ const messages = defineMessages({
     }
 });
 
-type Props = { editor: FieldEditor; type: TypeDoc; document: SchemaDocument };
+type Props = {
+    editor: FieldEditor;
+    type: TypeDoc;
+    document: SchemaDocument;
+    /** Why the machine name cannot be used — the "Add a field" page checks it as it is typed. */
+    nameError?: string;
+};
 
 /** Label, name, required, locale — and for a relation, what it links to. */
-export function FieldGeneralTab({ editor, type, document }: Props) {
+export function FieldGeneralTab({ editor, type, document, nameError }: Props) {
     const intl = useIntl();
     const { entry } = editor;
     const spec = entry.spec;
@@ -65,6 +71,7 @@ export function FieldGeneralTab({ editor, type, document }: Props) {
                         : intl.formatMessage(messages.nameHint)
                 }
                 className="font-mono"
+                error={nameError}
                 value={entry.name}
                 onChange={(event) => editor.setName(event.target.value)}
             />
