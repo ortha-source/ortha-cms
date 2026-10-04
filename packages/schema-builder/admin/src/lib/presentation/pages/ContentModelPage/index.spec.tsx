@@ -202,7 +202,9 @@ describe('ContentModelPage', () => {
 
         const relations = screen.getByRole('region', { name: 'Relations' });
         expect(within(relations).getByText('author')).toBeTruthy();
-        expect(within(relations).getByText('→ author')).toBeTruthy();
+        expect(
+            within(relations).getByText('many-to-one → author')
+        ).toBeTruthy();
         expect(
             within(screen.getByRole('region', { name: 'Media' })).getByText(
                 'Multiple'

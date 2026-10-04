@@ -93,14 +93,25 @@ test.describe('Content model editor', () => {
         await contentModelPage.reviewAction('Continue').click();
 
         const howMany = page.getByRole('group', { name: 'How many' });
+        // Named the usual way, and each said with both types' names.
         await expect(howMany.getByRole('radio')).toHaveCount(3);
+        for (const name of ['Many-to-one', 'One-to-one', 'Many-to-many']) {
+            await expect(howMany.getByRole('radio', { name })).toBeVisible();
+        }
+        await expect(
+            howMany.getByRole('radio', { name: 'Many-to-many' })
+        ).toHaveAccessibleDescription(
+            /Each entry in Articles links to any number of entries in Articles.*join table/
+        );
         // The whole card picks the answer, not just the dot.
         await howMany
-            .getByText('No two entries may link the same one.')
+            .getByText('Like a product and its spec sheet.', {
+                exact: false
+            })
             .click();
         await expect(
-            howMany.getByRole('radio', { checked: true })
-        ).toHaveAccessibleDescription('No two entries may link the same one.');
+            howMany.getByRole('radio', { name: 'One-to-one' })
+        ).toBeChecked();
     });
 
     test('leaving the add-field page keeps nothing half-made', async ({

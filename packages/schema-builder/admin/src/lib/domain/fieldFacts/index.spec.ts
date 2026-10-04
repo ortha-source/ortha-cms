@@ -20,12 +20,29 @@ describe('fieldFacts', () => {
         ]);
     });
 
-    it('names a relation target, to-one by default', () => {
+    it('names a relation target and its cardinality, many-to-one by default', () => {
         expect(fieldFacts({ type: 'relation', to: 'author' })).toEqual([
-            { kind: 'target', to: 'author', many: false }
+            {
+                kind: 'target',
+                to: 'author',
+                many: false,
+                cardinality: 'manyToOne'
+            }
+        ]);
+        expect(
+            fieldFacts({ type: 'relation', to: 'seo', unique: true })
+        ).toEqual([
+            { kind: 'target', to: 'seo', many: false, cardinality: 'oneToOne' }
         ]);
         expect(fieldFacts({ type: 'relation', to: 'tag', many: true })).toEqual(
-            [{ kind: 'target', to: 'tag', many: true }]
+            [
+                {
+                    kind: 'target',
+                    to: 'tag',
+                    many: true,
+                    cardinality: 'manyToMany'
+                }
+            ]
         );
     });
 

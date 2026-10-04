@@ -20,8 +20,18 @@ const messages = defineMessages({
         id: 'schemaBuilder.field.options',
         defaultMessage: '{count, plural, one {# option} other {# options}}'
     },
-    toOne: { id: 'schemaBuilder.field.toOne', defaultMessage: '→ {to}' },
-    toMany: { id: 'schemaBuilder.field.toMany', defaultMessage: '→ many {to}' },
+    manyToOne: {
+        id: 'schemaBuilder.field.manyToOne',
+        defaultMessage: 'many-to-one → {to}'
+    },
+    oneToOne: {
+        id: 'schemaBuilder.field.oneToOne',
+        defaultMessage: 'one-to-one → {to}'
+    },
+    manyToMany: {
+        id: 'schemaBuilder.field.manyToMany',
+        defaultMessage: 'many-to-many → {to}'
+    },
     inverse: {
         id: 'schemaBuilder.field.inverse',
         defaultMessage: 'mirrors {to}.{field}'
@@ -72,7 +82,7 @@ export function FieldFactList({ facts }: { facts: FieldFact[] }) {
                                   field: fact.inverseOf
                               })
                             : intl.formatMessage(
-                                  fact.many ? messages.toMany : messages.toOne,
+                                  messages[fact.cardinality ?? 'manyToOne'],
                                   { to: fact.to }
                               )}
                     </span>
