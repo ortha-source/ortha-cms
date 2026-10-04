@@ -7,3 +7,4 @@ export {
 } from './export-names';
 export { MANIFEST_MARKER, renderManifest } from './render-manifest';
 export { sortEntries } from './sort-entries';
+export { toManifest } from './to-manifest';

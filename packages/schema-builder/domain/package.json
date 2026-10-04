@@ -14,5 +14,8 @@
     },
     "files": [
         "src"
-    ]
+    ],
+    "dependencies": {
+        "@orthacms/content-domain": "*"
+    }
 }

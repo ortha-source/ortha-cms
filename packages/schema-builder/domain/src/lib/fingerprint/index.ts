@@ -1,0 +1,1 @@
+export { fingerprint } from './fingerprint';

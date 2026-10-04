@@ -10,5 +10,10 @@
         "types": ["node"]
     },
     "include": ["src/**/*.ts"],
-    "exclude": ["dist", "**/*.spec.ts", "**/*.test.ts"]
+    "exclude": ["**/*.spec.ts", "**/*.test.ts", "dist", "src/testing/**"],
+    "references": [
+        {
+            "path": "../../content/domain/tsconfig.lib.json"
+        }
+    ]
 }

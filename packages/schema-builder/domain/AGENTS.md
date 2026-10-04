@@ -2,8 +2,9 @@
 
 The schema builder's **framework-free kernel**
 ([ADR-0020](../../../docs/adr/0020-schema-builder-writes-code.md)). Pure
-TypeScript with no dependencies at all — the CLI, the server plugin and the
-admin import it alike. The design is in
+TypeScript whose only dependency is the content kernel
+(`@orthacms/content-domain`, itself dependency-free) — the CLI, the server
+plugin and the admin import it alike. No framework, no Node-only API. The design is in
 [`docs/design/schema-builder.md`](../../../docs/design/schema-builder.md).
 
 ## What lives here
@@ -19,12 +20,33 @@ admin import it alike. The design is in
   `content:sync` target scan the type files and call it; the schema builder
   will render it from its document.
 
+- **The document** (`lib/document/`) — `SchemaDocument`, the content model as
+  the builder edits it: types (`TypeDoc`, with its `origin` — `builder`, `code`
+  or `new`), groups (accordions on the General tab — tabs are built in), and an
+  ordered list of `FieldEntry` `{ key, name, spec }`. A `FieldDoc` is the DSL's
+  options for one field type as JSON; nothing in it lacks a DSL option.
+  `SchemaDocumentEnvelope` is what the server answers: the document, its
+  `fingerprint`, the process `bootId` and the editing capabilities.
+- **The diff** (`lib/diff/`) — `diffDocuments` → `SchemaChange[]`. Types match
+  by name, fields by **key**, so a rename is a `field.rename` rather than a
+  remove plus an add, and a retype reports nothing else about the field. One
+  file per part (`diff-type-meta`, `diff-type-flags`, `diff-fields`,
+  `diff-field-order`), composed by `diffType`. Equality is canonical JSON:
+  key order and `undefined` keys never count as a change.
+- **The fingerprint** (`lib/fingerprint/`) — two FNV-1a passes over the
+  canonical JSON. The optimistic-concurrency token on plan and apply: no crypto
+  dependency, the same value in the browser and on the server.
+- **The adapters** (`lib/adapters/`) — `toRuleType` turns a document type into
+  the kernel's `RuleType` with the DSL's defaults filled in, so
+  `checkTypes(types.map(toRuleType))` is the verdict boot would reach.
+
 ## Conventions
 
 - One responsibility and one main export per file; a file over ~60 lines is a
   signal to split it.
 - The first line of every generated file is `MANIFEST_MARKER`
   (`// @orthacms-generated`).
+- Test builders live in `src/testing/`, excluded from the library build.
 
 ## Commands
 

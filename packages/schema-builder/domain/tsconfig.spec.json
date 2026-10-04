@@ -7,7 +7,12 @@
         "tsBuildInfoFile": "./out-tsc/jest/tsconfig.spec.tsbuildinfo",
         "types": ["jest", "node"]
     },
-    "include": ["src/**/*.spec.ts", "src/**/*.test.ts", "src/**/*.d.ts"],
+    "include": [
+        "src/**/*.spec.ts",
+        "src/**/*.test.ts",
+        "src/**/*.d.ts",
+        "src/testing/**/*.ts"
+    ],
     "references": [
         {
             "path": "./tsconfig.lib.json"
