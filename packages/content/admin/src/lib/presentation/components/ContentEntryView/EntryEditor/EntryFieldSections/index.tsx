@@ -1,10 +1,10 @@
 import { defineMessages, useIntl } from 'react-intl';
 import { Separator } from '@orthacms/design-system';
+import { orderGeneralTab } from '@orthacms/content-domain';
 import type {
     ContentField,
     ContentFieldGroup
 } from '../../../../../domain/types/contentType';
-import { CONTENT_FIELD_TYPE } from '../../../../../domain/constants';
 import { sectionFields } from '../../../../../domain/fieldSections';
 import type { EntryFormState } from '../../../../hooks/useEntryForm';
 import { FieldGroup } from './FieldGroup';
@@ -64,31 +64,6 @@ function RequiredLegend({ fields }: { fields: ContentField[] }) {
 }
 
 /**
- * Field ordering, by control shape. Fields flow top-to-bottom in three tiers
- * by rank:
- *   0 — simple inputs (text, number, money, date, datetime)
- *   1 — choice controls (select, boolean, multi-select)
- *   2 — large fields (rich text, JSON)
- * Types not listed fall to the bottom — a safe default for any new field type.
- */
-const FIELD_RANK: Record<string, number> = {
-    [CONTENT_FIELD_TYPE.Text]: 0,
-    [CONTENT_FIELD_TYPE.Number]: 0,
-    [CONTENT_FIELD_TYPE.Money]: 0,
-    [CONTENT_FIELD_TYPE.Date]: 0,
-    [CONTENT_FIELD_TYPE.Datetime]: 0,
-    [CONTENT_FIELD_TYPE.Select]: 1,
-    [CONTENT_FIELD_TYPE.Boolean]: 1,
-    [CONTENT_FIELD_TYPE.Multiselect]: 1,
-    [CONTENT_FIELD_TYPE.RichText]: 2,
-    [CONTENT_FIELD_TYPE.Json]: 2
-};
-
-const DEFAULT_RANK = 3;
-
-const rankFor = (type: string) => FIELD_RANK[type] ?? DEFAULT_RANK;
-
-/**
  * The General tab body: every editable field in **one** flush block (no card
  * chrome — no border, background, or padding), ordered top-to-bottom by
  * control shape — simple inputs (text, number, dates) first, then choice
@@ -135,9 +110,10 @@ export function EntryFieldSections({
     contentLocale?: string;
 }) {
     const intl = useIntl();
-    const ordered = [...fields].sort(
-        (a, b) => rankFor(a.type) - rankFor(b.type)
-    );
+    // Field ordering by control shape — inputs, then choices, then large
+    // fields. The ranks live in content-domain so the schema builder shows the
+    // same order this form draws.
+    const ordered = orderGeneralTab(fields);
 
     if (ordered.length === 0) return null;
 

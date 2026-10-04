@@ -91,6 +91,30 @@ draft` is unpublish. There is **no** separate `unpublished`/`archived` status
   publish"). Covers the **values bag** only; a required link-managed relation is
   enforced by the server's persistence (its links aren't in the bag).
 
+- **The schema rules** (`lib/schema-rules/`) — what a content type must satisfy
+  to be declared at all, as pure functions over a plain `RuleType` (relation
+  targets are names, not thunks). **One rule per file**, composed in
+  registries ([ADR-0020](../../../docs/adr/0020-schema-builder-writes-code.md)):
+    - `TYPE_RULES` → `FIELD_RULES` (field by field) → `LAYOUT_RULES` →
+      `GROUP_RULES`, run by `checkType` in exactly the order `collection()` /
+      `single()` always ran them. The DSL throws the **first** issue's message,
+      and those messages are the boot errors `define.spec.ts` pins — **do not
+      reword one without updating that spec**.
+    - `OPTION_RULES` (`checkFieldOptions`) — `lang`, `pattern`, media `accept`.
+      The DSL's field builders throw on these before a type exists; a schema
+      held as data (the schema builder's document) runs them here. `pattern`
+      goes through `compilePattern`, so "accepted here" means "applied at
+      validation".
+    - `SET_RULES` (`checkTypeSet`) — unique names and resolvable relations, the
+      checks `ContentTypeRegistry` runs at boot.
+    - `checkTypes` runs all of it — what the builder shows while an author
+      types. A new rule is a new file plus one line in its registry.
+- **The General tab order** (`lib/layout/general-tab-order.ts`) — the rank of
+  each field type above every group on the entry form's General tab (inputs,
+  then choices, then large fields; declaration order within a rank).
+  content-admin draws the form with it and the schema builder shows where a
+  field will land with it.
+
 ## How it's consumed
 
 - **`content-server`** — `EntryValidationService` delegates its `validate(...)`
@@ -104,6 +128,12 @@ typeName })`; the entries `Entry` domain model uses `assertTransition` +
   `EntryFieldSpec`); `usePublishEntryFlow` uses `canPublish`. **Adding or
   renaming an issue message here means adding its case to that localizer** —
   an unmapped reason falls back to raw English in the UI.
+  `EntryFieldSections` orders the General tab with `orderGeneralTab`.
+- **The DSL** (`content-server/src/lib/collection`) — `assertType` runs
+  `checkType` over `toRuleType(declaration)`; `ContentTypeRegistry` runs
+  `checkTypeSet`; `table-builder` names columns with `snakeCase`. The adapter
+  resolves relation targets through a **getter**, because `collection()` runs
+  while sibling modules are still being imported.
 
 ## Commands
 

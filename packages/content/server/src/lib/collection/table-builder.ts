@@ -6,6 +6,7 @@
  * committed migrations — exactly like any plugin-owned schema.
  */
 
+import { snakeCase } from '@orthacms/content-domain';
 import { isNull } from 'drizzle-orm';
 import {
     boolean as pgBoolean,
@@ -27,13 +28,8 @@ import {
 import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../types/fields';
 import { ENTRY_STATUS } from '../types/content-type';
 
-/** camelCase / kebab-case → snake_case column-safe identifier. */
-export function snakeCase(value: string): string {
-    return value
-        .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
-        .replace(/[^a-zA-Z0-9]+/g, '_')
-        .toLowerCase();
-}
+/** Re-exported from the content kernel — the schema rules name columns the same way. */
+export { snakeCase };
 
 /**
  * The `id` column of a generated table. Generated tables are built from a

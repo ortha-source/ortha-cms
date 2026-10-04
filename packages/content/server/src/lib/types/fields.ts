@@ -5,7 +5,11 @@
  * validation, and the admin's dynamic form rendering.
  */
 
-import type { RichTextStructureMode } from '@orthacms/content-domain';
+import {
+    MEDIA_KIND_VALUES as KERNEL_MEDIA_KIND_VALUES,
+    type MediaKind,
+    type RichTextStructureMode
+} from '@orthacms/content-domain';
 import type { AnyContentType } from './content-type';
 
 /**
@@ -251,21 +255,14 @@ export interface SelectFieldOptions<
 }
 
 /** The coarse media categories the library groups assets by. */
-export type MediaKindValue =
-    | 'image'
-    | 'video'
-    | 'audio'
-    | 'document'
-    | 'archive';
+export type MediaKindValue = MediaKind;
 
-/** The valid {@link MediaKindValue}s, for define-time validation of `accept`. */
-export const MEDIA_KIND_VALUES: readonly MediaKindValue[] = [
-    'image',
-    'video',
-    'audio',
-    'document',
-    'archive'
-];
+/**
+ * The valid {@link MediaKindValue}s, for define-time validation of `accept`.
+ * Owned by the content kernel so the schema builder checks the same list.
+ */
+export const MEDIA_KIND_VALUES: readonly MediaKindValue[] =
+    KERNEL_MEDIA_KIND_VALUES;
 
 /**
  * Restricts which assets a media field accepts. Both filters are optional and
