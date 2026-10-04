@@ -16,8 +16,10 @@ alongside the `@nx/*` plugins in the root `nx.json`.
 - **`createNodesV2` inference** (`src/index.ts`) — targets appear
   automatically, the same way `@nx/js` infers `typecheck`:
     - a project with a `drizzle.config.ts` gets **`db:generate`**
-    - a project with an `orthacms.config.ts` (the host) gets **`db:migrate`** and
-      **`db:studio`**
+    - a project with an `orthacms.config.ts` (the host) gets **`db:migrate`**,
+      **`db:studio`** and **`content:sync`** (rewrites `src/content/index.ts`
+      through `@orthacms/cli`'s `syncContentManifest`, loading the type modules
+      with the shared `createTsJiti`)
     - a package under `packages/` with a `tsconfig.lib.json` gets a cacheable
       **`build`** (`tsc --build`, emitting JS + `.d.ts` to `dist/`), and a
       publishable one also gets **`pack`** and an **`nx-release-publish`**
@@ -145,6 +147,7 @@ alongside the `@nx/*` plugins in the root `nx.json`.
     `orthacms.config.ts` **from source**, which is a problem only this workspace
     has. A generated app compiles first and `require`s the JavaScript, so
     `@orthacms/cli` needs neither jiti nor swc.
+
 - **Generate is per-plugin; apply is host-level.** Each workspace plugin
   owns its `drizzle.config.ts` and generates its own `migrations/`. The host
   applies all of them. npm-installed plugins ship their SQL pre-generated;
@@ -166,6 +169,7 @@ alongside the `@nx/*` plugins in the root `nx.json`.
 - `nx run server:db:migrate` — apply all plugins' migrations (needs `DATABASE_URL`)
 - `nx run server:db:studio` — open Drizzle Studio on the host DB (needs
   `DATABASE_URL`; optional `--host` / `--port`)
+- `nx run server:content:sync` — regenerate the host's content manifest
 
 ## Adding a new command
 

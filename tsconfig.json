@@ -227,6 +227,15 @@
         },
         {
             "path": "./packages/mail/server"
+        },
+        {
+            "path": "./packages/schema-builder/domain"
+        },
+        {
+            "path": "./packages/schema-builder/server"
+        },
+        {
+            "path": "./packages/schema-builder/admin"
         }
     ]
 }

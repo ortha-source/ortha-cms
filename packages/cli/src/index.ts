@@ -10,6 +10,11 @@
 export { applyPluginMigrations, describeTarget } from './lib/migrate';
 export { runDrizzleKitGenerate } from './lib/generate';
 export { loadEnv } from './lib/env';
+export {
+    syncContentManifest,
+    type SyncResult
+} from './lib/content/sync-content-manifest';
+export type { ModuleLoader } from './lib/content/scan-content-dir';
 export { runDrizzleKitStudio, type StudioServerOptions } from './lib/studio';
 export {
     findProjectRoot,

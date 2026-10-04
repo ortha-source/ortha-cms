@@ -40,8 +40,8 @@ describe('SYSTEM_ROLES', () => {
     });
 
     describe('the permission catalogue', () => {
-        it('enumerates 36 distinct keys', () => {
-            expect(PERMISSION_KEYS).toHaveLength(36);
+        it('enumerates 37 distinct keys', () => {
+            expect(PERMISSION_KEYS).toHaveLength(37);
             expect(new Set(PERMISSION_KEYS).size).toBe(PERMISSION_KEYS.length);
         });
 
@@ -96,7 +96,9 @@ describe('SYSTEM_ROLES', () => {
             PERMISSIONS.WEBHOOKS_MANAGE,
             // Writing a protection rule decides who may ship a content type
             // for everybody — configuration, not editing.
-            PERMISSIONS.PROTECTION_MANAGE
+            PERMISSIONS.PROTECTION_MANAGE,
+            // Changing the content model rewrites code and the database.
+            PERMISSIONS.SCHEMA_MANAGE
         ])('does not grant the configuration permission %p', (permission) => {
             expect(grants('contributor')).not.toContain(permission);
         });

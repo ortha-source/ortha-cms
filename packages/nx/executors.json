@@ -20,6 +20,11 @@
             "implementation": "./src/executors/release-publish/executor",
             "schema": "./src/executors/release-publish/schema.json",
             "description": "Publish one staged package to npm, throttled and retried."
+        },
+        "content-sync": {
+            "implementation": "./src/executors/content-sync/executor",
+            "schema": "./src/executors/content-sync/schema.json",
+            "description": "Rewrite the host's content manifest from its type modules."
         }
     }
 }

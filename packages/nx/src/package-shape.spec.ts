@@ -179,6 +179,7 @@ describe('the shape of @orthacms/nx', () => {
         );
 
         expect(callers.map((hit) => hit.file).sort()).toEqual([
+            'packages/nx/src/executors/content-sync/executor.ts',
             'packages/nx/src/executors/db-migrate/executor.ts',
             'packages/nx/src/executors/db-studio/executor.ts'
         ]);
@@ -186,7 +187,7 @@ describe('the shape of @orthacms/nx', () => {
             PACKAGE_CODE.filter((hit) =>
                 hit.text.includes("from '../../lib/jiti'")
             )
-        ).toHaveLength(2);
+        ).toHaveLength(3);
     });
 });
 

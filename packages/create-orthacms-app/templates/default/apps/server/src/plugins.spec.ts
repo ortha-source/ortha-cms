@@ -51,6 +51,8 @@ const EXPECTED_PLUGINS = [
     // orthacms:if graphql
     'content-graphql',
     // orthacms:end
+    // After content, whose registry it reads. Owns no tables.
+    'schema-builder',
     'i18n',
     'alarms',
     'webhooks',

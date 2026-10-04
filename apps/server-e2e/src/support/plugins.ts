@@ -13,6 +13,7 @@ import { MailServerPlugin } from '@orthacms/mail-server';
 import { McpPlugin } from '@orthacms/mcp-server';
 import { SegmentsPlugin } from '@orthacms/segments-server';
 import { ProtectionPlugin } from '@orthacms/protection-server';
+import { SchemaBuilderPlugin } from '@orthacms/schema-builder-server';
 import { createLocalStorageProvider } from '@orthacms/media-provider-local';
 import { MediaServerPlugin } from '@orthacms/media-server';
 import { UsersPlugin } from '@orthacms/users-server';
@@ -202,6 +203,9 @@ export function buildTestPlugins(
             // unless the operator asks (`API_DOCS=true`).
             playground: config.docs.enabled === true
         }),
+        // The schema builder, after content as in the host. Read-only and
+        // pointed at no source tree unless a suite overrides it.
+        SchemaBuilderPlugin(config.plugins.schemaBuilder),
         // Media ships its own migrations (picked up by the migrate loop) and
         // runs one storage provider, like any deployment: the in-memory one, so
         // uploads never touch disk — or the real filesystem adapter when a

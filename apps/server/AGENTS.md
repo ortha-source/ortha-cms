@@ -53,21 +53,25 @@ point: it holds almost no logic. It assembles the product by handing a list of
 The host defines its content model here — the collections and pages the
 `ContentPlugin` serves, and whose generated tables the host owns.
 
-- `src/content/index.ts` — the **one aggregation point**. It exports the
-  `contentTypes` array (which `plugins.ts` registers with `ContentPlugin`) and
-  **re-exports every generated table** for drizzle-kit to diff.
+- `src/content/index.ts` — the **one aggregation point**, and a **generated**
+  file ([ADR-0020](../../docs/adr/0020-schema-builder-writes-code.md)). It
+  exports the `contentTypes` array (which `plugins.ts` registers with
+  `ContentPlugin`) and **re-exports every generated table** for drizzle-kit to
+  diff. Never edit it by hand.
 - `src/content/collections/` — one file per collection (a `collection(...)`).
 - `src/content/pages/` — one file per single page (a `single(...)`).
 
-**Adding a type:** create a file under `content/collections/` or
-`content/pages/`, then in `content/index.ts` add it to `contentTypes` **and**
-re-export its table(s). drizzle-kit only diffs **top-level table exports**, so a
-table not re-exported from `index.ts` is silently absent from migrations
-(many-relation join tables via `joinTableOf` included). Then
-`npx nx run server:db:generate --name=<change>` and commit the SQL —
-`drizzle.config.ts` points `schema` at `src/content/index.ts`.
+**Adding a type:** create `content/collections/<name>.ts` exporting a
+collection named `<name>` (or `content/pages/<name>.ts` exporting a single),
+then `npx nx run server:content:sync` rewrites `index.ts`, sorted collections
+then pages. drizzle-kit only diffs **top-level table exports**, so the manifest
+re-exports every main table and every many-relation join table (via
+`joinTableOf`). Then `npx nx run server:db:generate --name=<change>` and commit
+the SQL — `drizzle.config.ts` points `schema` at `src/content/index.ts`.
 
-`src/content/index.spec.ts` guards exactly that: it derives the complete set of
+`src/content/index.spec.ts` guards exactly that. It fails when the file is not
+what `content sync` would write, or when a module on disk is not registered,
+and it derives the complete set of
 generated tables from `contentTypes` (each type is `{ table, joinTables }`) and
 fails if any of them is not a top-level export here — so the forgotten join table
 is a red test instead of a `relation … does not exist` on a production write. The

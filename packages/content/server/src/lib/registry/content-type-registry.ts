@@ -5,6 +5,8 @@
  * controllers, services, and other plugins can introspect the schema.
  */
 
+import { checkTypeSet } from '@orthacms/content-domain';
+import { toRuleType } from '../collection/to-rule-type';
 import type { AnyContentType, ContentTypeKind } from '../types/content-type';
 import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../types/fields';
 import {
@@ -96,55 +98,25 @@ export class ContentTypeRegistry {
     private readonly byName = new Map<string, AnyContentType>();
 
     constructor(types: readonly AnyContentType[]) {
-        for (const type of types) {
-            if (this.byName.has(type.name)) {
-                throw new Error(
-                    `Duplicate content type "${type.name}" — names must be unique.`
-                );
-            }
-            this.byName.set(type.name, type);
-        }
-        // Resolve every relation thunk now: a typo'd target or a type
-        // missing from `ContentPlugin({ types })` should fail boot.
-        for (const type of types) {
-            for (const [fieldName, spec] of Object.entries(type.fields)) {
-                if (spec.type !== CONTENT_FIELD_TYPE.Relation || !spec.relation)
-                    continue;
-                const target = spec.relation.to();
-                if (!this.byName.has(target.name)) {
-                    throw new Error(
-                        `Relation "${type.name}.${fieldName}" targets ` +
-                            `"${target.name}", which is not registered with ContentPlugin.`
-                    );
-                }
-                // An inverse must point at a real relation on the owning type
-                // (`target`) that in turn points back here — else the two sides
-                // would edit different links. Fail boot on a mismatch.
-                if (spec.relation.inverse) {
-                    const owningField =
-                        target.fields[spec.relation.inverse.field];
-                    if (
-                        !owningField ||
-                        owningField.type !== CONTENT_FIELD_TYPE.Relation ||
-                        !owningField.relation ||
-                        owningField.relation.inverse
-                    ) {
-                        throw new Error(
-                            `Inverse relation "${type.name}.${fieldName}" references ` +
-                                `"${target.name}.${spec.relation.inverse.field}", which is not ` +
-                                `a storage-owning relation field.`
-                        );
-                    }
-                    if (owningField.relation.to().name !== type.name) {
-                        throw new Error(
-                            `Inverse relation "${type.name}.${fieldName}" mirrors ` +
-                                `"${target.name}.${spec.relation.inverse.field}", but that field ` +
-                                `targets "${owningField.relation.to().name}", not "${type.name}".`
-                        );
-                    }
-                }
-            }
-        }
+        // Unique names, and every relation resolvable — a typo'd target, a type
+        // missing from `ContentPlugin({ types })`, or an inverse that mirrors
+        // the wrong field should fail boot. The rules are the content kernel's
+        // set rules; resolving the thunks here is safe, every type is imported.
+        const [first] = checkTypeSet(
+            types.map((type) =>
+                toRuleType(
+                    {
+                        name: type.name,
+                        kind: type.kind,
+                        path: type.path,
+                        i18n: type.i18n
+                    },
+                    type.fields
+                )
+            )
+        );
+        if (first) throw new Error(first.message);
+        for (const type of types) this.byName.set(type.name, type);
     }
 
     /** All registered types, in registration order. */

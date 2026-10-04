@@ -1,7 +1,7 @@
 /* Global stylesheet shipped by @orthacms/design-system. Import it once from the
    host (after `@import 'tailwindcss'`). Holds the few rules that can't be plain
-   Tailwind utilities — the wizard step entrance used by `WizardStepCard`, and
-   the dropdown entrance motion below. */
+   Tailwind utilities — the wizard step entrance used by `WizardStepCard`, the
+   sheet entrance, and the dropdown entrance motion below. */
 
 /* ---------------------------------------------------------------------------
    Dropdown motion — `Popover`, `DropdownMenu`, `Select`.
@@ -10,8 +10,8 @@
    tw-animate-css: those utilities are not installed, so the `animate-in` /
    `fade-in-0` / `zoom-in-95` classes shadcn ships on the overlay components
    generate no CSS at all. This is one class, applied ONLY to the three dropdown
-   components — modals (`Dialog`, `Sheet`) and `Tooltip` stay static, so this is
-   not an app-wide motion pass.
+   components — `Dialog` and `Tooltip` stay static, and `Sheet` has its own
+   entrance below, so this is not an app-wide motion pass.
 
    **Entrance only — there is deliberately no exit animation.** Radix keeps the
    node mounted for as long as a CSS animation runs on `[data-state='closed']`
@@ -83,6 +83,89 @@
 
 @media (prefers-reduced-motion: reduce) {
     .ds-dropdown-motion[data-state='open'] {
+        animation: none;
+    }
+}
+
+/* ---------------------------------------------------------------------------
+   Sheet motion — the panel slides in from its edge, the scrim fades in.
+
+   A sheet that simply appears reads as a page change, not as a panel over the
+   page; the slide says where it came from and where it will go. Same rules as
+   the dropdowns above, for the same reasons:
+
+   - **Entrance only.** An exit animation keeps a closed Radix `Dialog`
+     mounted until `animationend`, and a mounted-but-closed layer still
+     answers pointer events and focus — the hazards documented above, on a
+     surface that covers the whole page.
+   - **Reduced motion means none.** The panel is simply there.
+
+   The panel moves by transform alone, so its content is laid out and readable
+   from the first frame; the scrim's opacity is decoration, never content.
+--------------------------------------------------------------------------- */
+@keyframes ds-sheet-in-right {
+    from {
+        transform: translate3d(100%, 0, 0);
+    }
+    to {
+        transform: none;
+    }
+}
+@keyframes ds-sheet-in-left {
+    from {
+        transform: translate3d(-100%, 0, 0);
+    }
+    to {
+        transform: none;
+    }
+}
+@keyframes ds-sheet-in-top {
+    from {
+        transform: translate3d(0, -100%, 0);
+    }
+    to {
+        transform: none;
+    }
+}
+@keyframes ds-sheet-in-bottom {
+    from {
+        transform: translate3d(0, 100%, 0);
+    }
+    to {
+        transform: none;
+    }
+}
+@keyframes ds-overlay-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.ds-sheet-motion-right[data-state='open'] {
+    animation: ds-sheet-in-right 280ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.ds-sheet-motion-left[data-state='open'] {
+    animation: ds-sheet-in-left 280ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.ds-sheet-motion-top[data-state='open'] {
+    animation: ds-sheet-in-top 280ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.ds-sheet-motion-bottom[data-state='open'] {
+    animation: ds-sheet-in-bottom 280ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.ds-overlay-motion[data-state='open'] {
+    animation: ds-overlay-in 200ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ds-sheet-motion-right[data-state='open'],
+    .ds-sheet-motion-left[data-state='open'],
+    .ds-sheet-motion-top[data-state='open'],
+    .ds-sheet-motion-bottom[data-state='open'],
+    .ds-overlay-motion[data-state='open'] {
         animation: none;
     }
 }

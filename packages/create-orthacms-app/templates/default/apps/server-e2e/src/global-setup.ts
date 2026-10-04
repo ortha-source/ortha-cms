@@ -30,12 +30,16 @@ export default async function globalSetup(): Promise<void> {
     // Only now is it safe to let the config load.
     process.env['DATABASE_URL'] = url;
 
-    const [{ applyPluginMigrations }, { default: config }, { buildPlugins }] =
-        await Promise.all([
-            import('@orthacms/cli'),
-            import('../../server/orthacms.config'),
-            import('../../server/src/plugins')
-        ]);
+    // The app's own modules through `require`, not `import()`. Under the
+    // `node16` resolution this app compiles with, an `import()` in a CommonJS
+    // file resolves as ESM and demands a file extension the `.ts` source does
+    // not have. `require` is exactly as lazy — it runs here, after the URL is
+    // repointed — and `typeof import(…)` keeps the result typed.
+    const { applyPluginMigrations } = await import('@orthacms/cli');
+    const { default: config } =
+        require('../../server/orthacms.config') as typeof import('../../server/orthacms.config');
+    const { buildPlugins } =
+        require('../../server/src/plugins') as typeof import('../../server/src/plugins');
 
     await applyPluginMigrations(buildPlugins(config), url);
 }

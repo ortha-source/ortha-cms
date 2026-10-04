@@ -1,0 +1,19 @@
+{
+    "extends": "../../../tsconfig.base.json",
+    "compilerOptions": {
+        "emitDeclarationOnly": false,
+        "outDir": "dist",
+        "rootDir": "src",
+        "module": "nodenext",
+        "moduleResolution": "nodenext",
+        "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
+        "types": ["node"]
+    },
+    "include": ["src/**/*.ts"],
+    "exclude": ["**/*.spec.ts", "**/*.test.ts", "dist", "src/testing/**"],
+    "references": [
+        {
+            "path": "../../content/domain/tsconfig.lib.json"
+        }
+    ]
+}

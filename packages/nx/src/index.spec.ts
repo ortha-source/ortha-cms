@@ -102,8 +102,8 @@ describe('db:generate inference', () => {
     });
 });
 
-describe('db:migrate / db:studio inference', () => {
-    it('attaches both to the project owning orthacms.config.ts, uncached [nx:I-03]', async () => {
+describe('db:migrate / db:studio / content:sync inference', () => {
+    it('attaches all three to the project owning orthacms.config.ts, uncached [nx:I-03]', async () => {
         const targets = await infer('apps/server/orthacms.config.ts');
 
         expect(targets['apps/server/orthacms.config.ts']).toEqual({
@@ -118,6 +118,11 @@ describe('db:migrate / db:studio inference', () => {
             'db:studio': {
                 executor: '@orthacms/nx:db-studio',
                 options: { config: 'apps/server/orthacms.config.ts' },
+                cache: false
+            },
+            'content:sync': {
+                executor: '@orthacms/nx:content-sync',
+                options: { contentDir: 'apps/server/src/content' },
                 cache: false
             }
         });

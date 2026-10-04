@@ -1,3 +1,5 @@
+// @orthacms-generated — managed by the Schema Builder.
+
 /**
  * `seo_meta` — the **one-to-one target**, reached from `article.seo`
  * (`field.relation({ unique: true })`). A plain non-publishable type so its

@@ -8,6 +8,7 @@ import {
     wantsVersion
 } from './lib/args';
 import { buildCommand } from './lib/commands/build';
+import { contentCommand } from './lib/commands/content';
 import { devCommand } from './lib/commands/dev';
 import { generateCommand } from './lib/commands/generate';
 import { migrateCommand } from './lib/commands/migrate';
@@ -52,6 +53,8 @@ async function main(): Promise<void> {
             return migrateCommand(root);
         case 'generate':
             return generateCommand(root, option(argv, 'name'));
+        case 'content':
+            return contentCommand(root, argv);
         case 'studio':
             return studioCommand(root, {
                 host: option(argv, 'host'),

@@ -84,6 +84,46 @@ describe('layoutFields', () => {
         ]);
     });
 
+    it('puts two adjacent half-width fields on one line', () => {
+        expect(
+            shape([
+                field('title'),
+                field('price', 'money', { width: 'half' }),
+                field('stock', 'number', { width: 'half' }),
+                field('body', 'richtext')
+            ])
+        ).toEqual(['title', ['price', 'stock'], 'body']);
+    });
+
+    it('pairs halves only when they are adjacent, two to a line', () => {
+        const half = (name: string) => field(name, 'text', { width: 'half' });
+        // A full-width field between two halves keeps them apart.
+        expect(shape([half('a'), field('b'), half('c')])).toEqual([
+            'a',
+            'b',
+            'c'
+        ]);
+        // A third half starts the next line, and pairs with a fourth.
+        expect(shape([half('a'), half('b'), half('c')])).toEqual([
+            ['a', 'b'],
+            'c'
+        ]);
+        expect(shape([half('a'), half('b'), half('c'), half('d')])).toEqual([
+            ['a', 'b'],
+            ['c', 'd']
+        ]);
+    });
+
+    it('does not pair a half with a member of a declared row', () => {
+        expect(
+            shape([
+                field('a', 'text', { width: 'half' }),
+                field('b', 'date', { row: 'when', width: 'half' }),
+                field('c', 'date', { row: 'when', width: 'half' })
+            ])
+        ).toEqual(['a', ['b', 'c']]);
+    });
+
     it('puts fields sharing a row key on one line', () => {
         expect(
             shape([

@@ -2,6 +2,7 @@ import { join } from 'node:path';
 import type { ServerPlugin } from '@orthacms/bootstrap-server';
 import { ActivityPlugin } from '@orthacms/activity-server';
 import { ContentPlugin, ContentViewsPlugin } from '@orthacms/content-server';
+import { SchemaBuilderPlugin } from '@orthacms/schema-builder-server';
 import { ContentGraphqlPlugin } from '@orthacms/content-graphql';
 import {
     CopilotPlugin,
@@ -293,6 +294,10 @@ export function buildPlugins(config: OrthaCmsConfig): ServerPlugin[] {
             // unless the operator asks (`API_DOCS=true`).
             playground: config.docs.enabled === true
         }),
+        // The schema builder (ADR-0020): reads content's registry, so it comes
+        // after content. Read-only unless SCHEMA_BUILDER=true outside
+        // production; it owns no schema.
+        SchemaBuilderPlugin(config.plugins.schemaBuilder),
         // Media — registered after workspaces (its routes use `WorkspaceGuard`)
         // and identity (its routes use `PermissionsGuard`). This line is the
         // single place that selects storage: one constructed provider, so

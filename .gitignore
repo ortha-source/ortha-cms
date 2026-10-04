@@ -57,3 +57,7 @@ test-output
 
 # Scratch apps rendered by create-orthacms-app's specs (see .nxignore).
 packages/create-orthacms-app/.rendered-*
+
+# The schema builder's scratch space (plans and applies stage their files here,
+# never under src/). Removed after every operation; ignored in case one dies.
+.orthacms/

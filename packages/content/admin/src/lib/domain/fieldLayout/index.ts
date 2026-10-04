@@ -29,8 +29,9 @@ export function fieldWidth(field: ContentField): FieldWidth {
 }
 
 /**
- * One line of the form: a single field, or the fields a schema grouped into
- * a row with `admin.row`.
+ * One line of the form: a single field, or two fields sharing it — a pair
+ * of adjacent half-width fields, or the fields a schema grouped with
+ * `admin.row`.
  */
 export type FieldBlock =
     | { kind: 'single'; field: ContentField }
@@ -46,15 +47,21 @@ export const MAX_ROW_FIELDS = 2;
 /**
  * Lays the ordered fields out as lines.
  *
- * A row is **declared, never inferred**: only fields carrying the same
- * `admin.row` key share a line. Pairing short fields automatically would put
- * whatever happened to be adjacent side by side — an email beside a colour —
- * and two controls on one line read as related whether or not they are.
+ * Two fields share a line when the schema says so, and in only two ways:
  *
- * A row sits where its **first** member does, and later members join it even
- * when other fields fall between them in display order. A row with a single
- * member is drawn as a plain field, so a typo in one key can't produce a
- * half-empty line.
+ * - **Two adjacent half-width fields.** `width: 'half'` is the author's own
+ *   word that a field is narrow — never inferred from its type (see
+ *   {@link fieldWidth}) — so a half followed directly by another half fills
+ *   the line the first would leave half empty. A full-width field, a boolean
+ *   or a row member between them keeps them apart, and a third half starts
+ *   the next line.
+ * - **The same `admin.row` key.** A row sits where its **first** member does,
+ *   and later members join it even when other fields fall between them in
+ *   display order. A row with a single member is drawn as a plain field, so a
+ *   typo in one key can't produce a half-empty line.
+ *
+ * Short fields are still never paired by **type**: an email beside a colour
+ * would read as related whether or not they are.
  */
 export function layoutFields(fields: ContentField[]): FieldBlock[] {
     const blocks: FieldBlock[] = [];
@@ -71,6 +78,20 @@ export function layoutFields(fields: ContentField[]): FieldBlock[] {
             const row = { kind: 'row' as const, key, fields: [field] };
             rows.set(key, row);
             blocks.push(row);
+            continue;
+        }
+        // Two adjacent halves fill one line.
+        const previous = blocks[blocks.length - 1];
+        if (
+            fieldWidth(field) === 'half' &&
+            previous?.kind === 'single' &&
+            fieldWidth(previous.field) === 'half'
+        ) {
+            blocks[blocks.length - 1] = {
+                kind: 'row',
+                key: `half:${previous.field.name}`,
+                fields: [previous.field, field]
+            };
             continue;
         }
         blocks.push({ kind: 'single', field });

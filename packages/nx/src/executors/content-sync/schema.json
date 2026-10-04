@@ -1,0 +1,14 @@
+{
+    "$schema": "https://json-schema.org/schema",
+    "version": 2,
+    "title": "content-sync",
+    "description": "Rewrite the host's content manifest (src/content/index.ts) from its type modules.",
+    "type": "object",
+    "properties": {
+        "contentDir": {
+            "type": "string",
+            "description": "The host's content folder, relative to the workspace root."
+        }
+    },
+    "required": ["contentDir"]
+}

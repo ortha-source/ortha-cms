@@ -252,6 +252,20 @@ describe('UnsavedChangesProvider', () => {
             anchor.remove();
         });
 
+        it('a link inside a surface that keeps its own draft across URLs', () => {
+            renderApp();
+            const surface = document.createElement('nav');
+            surface.setAttribute('data-keeps-unsaved-changes', '');
+            const anchor = document.createElement('a');
+            anchor.setAttribute('href', '/elsewhere');
+            surface.append(anchor);
+            document.body.append(surface);
+
+            fireEvent.click(anchor);
+            expect(screen.queryByRole('dialog')).toBeNull();
+            surface.remove();
+        });
+
         it('a link to the URL we are already on', () => {
             renderApp();
             const anchor = document.createElement('a');

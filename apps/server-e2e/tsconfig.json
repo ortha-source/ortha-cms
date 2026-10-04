@@ -91,6 +91,12 @@
             "path": "../../packages/segments/server"
         },
         {
+            "path": "../../packages/schema-builder/server"
+        },
+        {
+            "path": "../../packages/schema-builder/domain"
+        },
+        {
             "path": "../../packages/segments/domain"
         },
         {

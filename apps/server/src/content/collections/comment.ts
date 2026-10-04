@@ -1,3 +1,5 @@
+// @orthacms-generated — managed by the Schema Builder.
+
 /**
  * `comment` — a **paranoid** collection whose `article` relation is a
  * **required single relation with `ON DELETE CASCADE`** (the required

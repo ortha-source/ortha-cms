@@ -1,7 +1,8 @@
 # 0020 — The schema builder writes code, and only in development
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-04
+- **Accepted:** 2026-10-04
 - **Deciders:** Engineering
 
 ## Context

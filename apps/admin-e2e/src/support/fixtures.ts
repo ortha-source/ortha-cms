@@ -24,6 +24,7 @@ import { AlarmsPage } from './pages/AlarmsPage';
 import { SegmentsPage } from './pages/SegmentsPage';
 import { ApiTokensPage } from './pages/ApiTokensPage';
 import { WebhooksPage } from './pages/WebhooksPage';
+import { ContentModelPage } from './pages/ContentModelPage';
 import { HostPage } from './pages/HostPage';
 import { TransferPage } from './pages/TransferPage';
 
@@ -117,6 +118,7 @@ interface Fixtures {
     segmentsPage: SegmentsPage;
     apiTokensPage: ApiTokensPage;
     webhooksPage: WebhooksPage;
+    contentModelPage: ContentModelPage;
     hostPage: HostPage;
     transferPage: TransferPage;
     /**
@@ -203,6 +205,9 @@ export const test = base.extend<Fixtures>({
     },
     webhooksPage: async ({ page }, use) => {
         await use(new WebhooksPage(page));
+    },
+    contentModelPage: async ({ page }, use) => {
+        await use(new ContentModelPage(page));
     },
     hostPage: async ({ page }, use) => {
         await use(new HostPage(page));

@@ -12,7 +12,7 @@ import { join, relative, sep } from 'node:path';
  * name))` slips past any literal scan.
  *
  * The observable was chosen badly, not missing. A read has to *happen* through
- * a filesystem API, and there are twelve such call sites in the whole package.
+ * a filesystem API, and there are seventeen such call sites in the whole package.
  * Enumerating **call sites** rather than paths is bounded, and it is
  * indifferent to how the path was computed: a new read is caught whether it
  * names its file, joins it, or receives it as an argument.
@@ -22,9 +22,10 @@ import { join, relative, sep } from 'node:path';
  * - the reading APIs the package imports are a fixed set, so a read cannot
  *   arrive through an identifier the site scan does not look for (an alias, a
  *   promises handle, a namespace import);
- * - the twelve sites are listed here in full, each one a `.env`, a
- *   `package.json`, or a path out of `LAYOUT`. None is a settings file, and a
- *   thirteenth cannot appear without this list being edited to admit it.
+ * - the seventeen sites are listed here in full, each one a `.env`, a
+ *   `package.json`, a path out of `LAYOUT`, or a content type module under
+ *   `LAYOUT.contentDir`. None is a settings file, and an eighteenth cannot
+ *   appear without this list being edited to admit it.
  */
 
 /** The package root — `packages/cli`. */
@@ -123,7 +124,14 @@ const EXPECTED_READS = [
     'src/lib/commands/build.ts: existsSync(join(root, LAYOUT.adminIndex))',
     'src/lib/commands/dev.ts: existsSync(join(root, LAYOUT.adminIndex))',
     'src/lib/commands/generate.ts: existsSync(join(root, LAYOUT.drizzleConfig))',
-    'src/lib/commands/start.ts: existsSync(entry)'
+    'src/lib/commands/start.ts: existsSync(entry)',
+    // `content sync`: the folders under `LAYOUT.contentDir`, the type modules in
+    // them, and the manifest it compares before rewriting — source, not settings.
+    'src/lib/content/scan-content-dir.ts: existsSync(path)',
+    'src/lib/content/scan-content-dir.ts: readdirSync(path)',
+    'src/lib/content/sync-content-manifest.ts: existsSync(contentDir)',
+    'src/lib/content/sync-content-manifest.ts: existsSync(target)',
+    "src/lib/content/sync-content-manifest.ts: readFileSync(target, 'utf8')"
 ];
 
 describe('the CLI reads no settings file of its own', () => {
@@ -157,7 +165,7 @@ describe('the CLI reads no settings file of its own', () => {
             expect(READERS as readonly string[]).toContain(id);
     });
 
-    it('performs exactly these twelve reads, none of them a settings file [cli:I-22]', () => {
+    it('performs exactly these seventeen reads, none of them a settings file [cli:I-22]', () => {
         const files = sources();
         // Guard against the scan silently finding nothing and passing.
         expect(files.length).toBeGreaterThan(5);

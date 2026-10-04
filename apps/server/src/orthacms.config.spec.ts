@@ -187,6 +187,58 @@ describe('NODE_ENV', () => {
     });
 });
 
+describe('schema builder', () => {
+    const off = {
+        SCHEMA_BUILDER: undefined,
+        SCHEMA_BUILDER_ROOT: undefined,
+        SCHEMA_BUILDER_RESTART: undefined
+    };
+
+    it('is read-only, watch-restarted and rooted at apps/server by default', () => {
+        const config = loadConfig({ ...off, NODE_ENV: undefined }).plugins
+            .schemaBuilder;
+        expect(config.enabled).toBe(false);
+        expect(config.production).toBe(false);
+        expect(config.restart).toBe('watch');
+        // Every dev entry point starts the server from the repository root.
+        expect(config.projectRoot).toBe(join(process.cwd(), 'apps/server'));
+    });
+
+    it('carries production through, so the plugin can refuse the flag there', () => {
+        // ADR-0020: the flag alone never turns editing on in production; the
+        // plugin decides that, and needs to be told which one it is in.
+        const config = loadConfig({
+            ...off,
+            NODE_ENV: 'production',
+            SCHEMA_BUILDER: 'true'
+        }).plugins.schemaBuilder;
+        expect(config.enabled).toBe(true);
+        expect(config.production).toBe(true);
+    });
+
+    it('resolves SCHEMA_BUILDER_ROOT against the working directory', () => {
+        expect(
+            loadConfig({ ...off, SCHEMA_BUILDER_ROOT: 'elsewhere/app' }).plugins
+                .schemaBuilder.projectRoot
+        ).toBe(join(process.cwd(), 'elsewhere/app'));
+        expect(
+            loadConfig({ ...off, SCHEMA_BUILDER_ROOT: '/srv/cms' }).plugins
+                .schemaBuilder.projectRoot
+        ).toBe('/srv/cms');
+    });
+
+    it('reads manual restarts, and anything else as watch', () => {
+        expect(
+            loadConfig({ ...off, SCHEMA_BUILDER_RESTART: 'manual' }).plugins
+                .schemaBuilder.restart
+        ).toBe('manual');
+        expect(
+            loadConfig({ ...off, SCHEMA_BUILDER_RESTART: '' }).plugins
+                .schemaBuilder.restart
+        ).toBe('watch');
+    });
+});
+
 describe('copilot run ceilings', () => {
     const unset = {
         COPILOT_MAX_STEPS: undefined,

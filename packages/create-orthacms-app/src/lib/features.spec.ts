@@ -193,9 +193,33 @@ describe('resolvePackages', () => {
         '@orthacms/content-domain',
         '@orthacms/copilot-domain',
         '@orthacms/tools-server',
-        '@orthacms/query-builder-admin'
+        '@orthacms/query-builder-admin',
+        '@orthacms/schema-builder-domain'
     ])('declares %s, rather than relying on hoisting', (name) => {
         expect(resolvePackages(selectionOf())).toContain(name);
+    });
+
+    /**
+     * A generated app starts with no content types, and the Content model page
+     * is how most people will write the first one — so the builder is core on
+     * both sides, not a choice and not a transitive leftover. It opens nothing
+     * by being installed: editing needs `SCHEMA_BUILDER=true` outside
+     * production (ADR-0020).
+     */
+    it('installs the schema builder in every app', () => {
+        const packages = resolvePackages(selectionOf());
+
+        expect(packages).toEqual(
+            expect.arrayContaining([
+                '@orthacms/schema-builder-admin',
+                '@orthacms/schema-builder-domain',
+                '@orthacms/schema-builder-server'
+            ])
+        );
+        expect(TRANSITIVE_PACKAGES).toEqual([
+            '@orthacms/media-provider-memory',
+            '@orthacms/media-provider-testkit'
+        ]);
     });
 
     /**

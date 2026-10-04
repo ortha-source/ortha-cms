@@ -36,6 +36,7 @@ const EXPECTED_PLUGINS = [
     'content',
     'content-views',
     'content-graphql',
+    'schema-builder',
     'media',
     'i18n',
     'transfer',

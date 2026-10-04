@@ -17,6 +17,7 @@ Commands:
   start                  Run the built server
   migrate                Apply every plugin's pending migrations
   generate [--name=<n>]  Generate a migration for this app's content tables
+  content sync           Rewrite src/content/index.ts from the type files
   studio [--host --port] Open Drizzle Studio on this app's database
 
 Options:

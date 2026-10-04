@@ -1,3 +1,5 @@
+// @orthacms-generated — managed by the Schema Builder.
+
 /**
  * `category` — a **paranoid** (soft-delete) collection with a
  * **self-referential** hierarchy.

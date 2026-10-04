@@ -5,7 +5,8 @@
  * and the admin must apply identically. Per ADR-0003 this is the single
  * sanctioned FE↔BE code share, and it holds only what genuinely needs to agree:
  * the entry-status state machine, the rich-text document model, field-value
- * validation, and the publish gate.
+ * validation, the publish gate, the schema rules a content type must satisfy,
+ * and the General tab's field order.
  */
 
 export {
@@ -37,6 +38,8 @@ export {
     MEDIA_ALT_MAX_LENGTH
 } from './lib/fields/media-value';
 export type { MediaValueRef, MediaValueInput } from './lib/fields/media-value';
+export { MEDIA_KIND_VALUES, isMediaKind } from './lib/fields/media-kind';
+export type { MediaKind } from './lib/fields/media-kind';
 
 export { RICH_TEXT_MARK, RICH_TEXT_NODE } from './lib/richtext/rich-text-node';
 export type {
@@ -83,3 +86,47 @@ export type {
     ValidationResult
 } from './lib/validation/validation-result';
 export { canPublish } from './lib/validation/publish-gate';
+
+export {
+    checkFieldOptions,
+    checkFieldWidth,
+    checkType,
+    checkTypeSet,
+    checkTypes,
+    fieldPass,
+    fieldPath,
+    groupPath,
+    issue,
+    mainColumnName,
+    snakeCase,
+    typePath,
+    FIELD_RULES,
+    FIELD_WIDTHS,
+    GROUP_KEY_RE,
+    GROUP_RULES,
+    LAYOUT_RULES,
+    OPTION_RULES,
+    RESERVED_COLUMNS,
+    SET_RULES,
+    TYPE_NAME_RE,
+    TYPE_RULES
+} from './lib/schema-rules';
+export type {
+    FieldPass,
+    FieldRule,
+    RuleField,
+    RuleGroup,
+    RuleRelation,
+    RuleType,
+    SchemaIssue,
+    SchemaIssueCode,
+    SetRule,
+    TypeRule
+} from './lib/schema-rules';
+
+export {
+    GENERAL_TAB_DEFAULT_RANK,
+    GENERAL_TAB_RANK,
+    generalTabRank,
+    orderGeneralTab
+} from './lib/layout/general-tab-order';

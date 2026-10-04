@@ -4,8 +4,8 @@
         "lib": [
             "es2023"
         ],
-        "module": "commonjs",
-        "moduleResolution": "node",
+        "module": "node16",
+        "moduleResolution": "node16",
         "outDir": "../../dist/server",
         "rootDir": ".",
         "types": [
@@ -26,6 +26,7 @@
         "**/*.ts"
     ],
     "exclude": [
-        "**/*.spec.ts"
+        "**/*.spec.ts",
+        "drizzle.config.ts"
     ]
 }

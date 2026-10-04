@@ -16,7 +16,7 @@ same jobs inside this monorepo.
 
 ## Why it exists
 
-Everything a consumer needs to *operate* an app used to live in `@orthacms/nx`,
+Everything a consumer needs to _operate_ an app used to live in `@orthacms/nx`,
 which is `private` and will never be published: `applyPluginMigrations` was
 reachable only through an Nx executor, so an app installed from npm had no way
 to migrate its database at all.
@@ -29,16 +29,17 @@ get the most destructive operation in the system wrong.
 
 ## Commands
 
-| Command | Notes |
-| --- | --- |
-| `orthacms dev` | `tsc --watch`, `node --watch`, and Vite in one terminal. `--server` / `--admin` run one half |
-| `orthacms build` | `tsc` for the server, Vite for the admin. `--server` / `--admin` narrow it |
-| `orthacms start` | Runs `dist/server/main.js` |
-| `orthacms migrate` | Builds the server, then applies every plugin's migrations |
-| `orthacms generate --name=<n>` | drizzle-kit against the app's own `drizzle.config.ts` |
-| `orthacms studio` | Drizzle Studio on the app's database. `--port=0` is refused, not dropped — drizzle-kit prints the port it was asked for, never the one it bound |
-| `orthacms --help` | Usage — also `-h` and a bare `help`. Answered before `findProjectRoot`, so it works outside an app |
-| `orthacms --version` | The installed version, read from the package manifest at runtime. Also `-v`, and checked before `--help` |
+| Command                        | Notes                                                                                                                                                                                                        |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `orthacms dev`                 | `tsc --watch`, `node --watch`, and Vite in one terminal. `--server` / `--admin` run one half                                                                                                                 |
+| `orthacms build`               | `tsc` for the server, Vite for the admin. `--server` / `--admin` narrow it                                                                                                                                   |
+| `orthacms start`               | Runs `dist/server/main.js`                                                                                                                                                                                   |
+| `orthacms migrate`             | Builds the server, then applies every plugin's migrations                                                                                                                                                    |
+| `orthacms generate --name=<n>` | drizzle-kit against the app's own `drizzle.config.ts`                                                                                                                                                        |
+| `orthacms content sync`        | Rewrites `src/content/index.ts` from the modules under `collections/` and `pages/` (`syncContentManifest`, shared with Nx's `content:sync`). Refuses a module that breaks the convention instead of guessing |
+| `orthacms studio`              | Drizzle Studio on the app's database. `--port=0` is refused, not dropped — drizzle-kit prints the port it was asked for, never the one it bound                                                              |
+| `orthacms --help`              | Usage — also `-h` and a bare `help`. Answered before `findProjectRoot`, so it works outside an app                                                                                                           |
+| `orthacms --version`           | The installed version, read from the package manifest at runtime. Also `-v`, and checked before `--help`                                                                                                     |
 
 ## Architecture
 
@@ -53,10 +54,11 @@ get the most destructive operation in the system wrong.
   configured for legacy decorators, because the plugin graph is full of
   decorated Nest classes and jiti's bundled babel crashes on them. A generated
   app has its own build step, so **that whole problem stays out of the consumer
-  path**; `jiti` remains a dependency of `@orthacms/nx` alone.
+  path**. `content sync` is the one place the CLI loads TypeScript: it imports
+  the app's content type modules with plain `jiti`, which is safe because they
+  import only the decorator-free `@orthacms/content-server/define`.
 
     Two details that are easy to get wrong here, both measured:
-
     - It is `require`, not `await import()`. Importing a CommonJS module from
       ESM puts the whole `module.exports` on the namespace's `default`, so
       `module.default` is `{ default: config }` rather than the config — and the

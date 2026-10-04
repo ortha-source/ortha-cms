@@ -34,6 +34,7 @@ import type {
     TrustProxySetting
 } from '@orthacms/bootstrap-server';
 import type { I18nPluginConfig } from '@orthacms/i18n-server';
+import type { SchemaBuilderPluginConfig } from '@orthacms/schema-builder-server';
 import type { SegmentsPluginConfig } from '@orthacms/segments-server';
 import type { TransferPluginConfig } from '@orthacms/transfer-server';
 import type { WebhooksPluginConfig } from '@orthacms/webhooks-server';
@@ -62,6 +63,7 @@ import { mailConfig, type AppMailConfig } from './config/mail';
 import { segmentsConfig } from './config/segments';
 import { transferConfig } from './config/transfer';
 import { webhooksConfig } from './config/webhooks';
+import { schemaBuilderConfig } from './config/schema-builder';
 // orthacms:if graphql
 import { contentGraphqlConfig } from './config/graphql';
 // orthacms:end
@@ -111,6 +113,11 @@ export interface OrthaCmsConfig {
         segments: SegmentsPluginConfig;
         /** Outgoing webhooks — delivery pacing and the URL policy. */
         webhooks: WebhooksPluginConfig;
+        /**
+         * The Content model page — whether editing is on (development only)
+         * and where this app's source lives.
+         */
+        schemaBuilder: SchemaBuilderPluginConfig;
         // orthacms:if graphql
         /** Public GraphQL endpoint — the per-operation cost budget. */
         contentGraphql: ContentGraphqlPluginConfig;
@@ -163,6 +170,7 @@ const config: OrthaCmsConfig = {
         transfer: transferConfig(),
         segments: segmentsConfig(),
         webhooks: webhooksConfig(),
+        schemaBuilder: schemaBuilderConfig(),
         // orthacms:if graphql
         contentGraphql: contentGraphqlConfig(),
         // orthacms:end

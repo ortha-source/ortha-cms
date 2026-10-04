@@ -31,6 +31,8 @@
     },
     "dependencies": {
         "@orthacms/segments-domain": "*",
+        "@orthacms/schema-builder-domain": "*",
+        "@orthacms/schema-builder-server": "*",
         "@orthacms/segments-server": "*",
         "@orthacms/transfer-domain": "*",
         "@orthacms/transfer-server": "*"

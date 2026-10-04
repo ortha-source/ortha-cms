@@ -261,14 +261,14 @@ History is **append-only**: restoring version v2 goes through the ordinary `Entr
 
 ### 6.1 A content type: from a file to a table
 
-Types are declared in code in the host application: collections in `apps/server/src/content/collections`, pages (singles) in `src/content/pages`. The reference application ships 7 collections and 3 pages, including the kitchen-sink `article` with every flag and every relation cardinality at once.
+Types are declared in code in the host application: collections in `apps/server/src/content/collections`, pages (singles) in `src/content/pages` — written by hand or, in development, by the [schema builder](schema-builder.md). The reference application ships 7 collections and 3 pages, including the kitchen-sink `article` with every flag and every relation cardinality at once.
 
 1. **The author writes the declaration.** `collection('article', { label, publishable, paranoid, i18n, fields: {…} })`. The import is strictly from `@orthacms/content-server/define`.
    _the main barrel would drag in the NestJS decorators that esbuild inside drizzle-kit trips over_
 2. **`assertName` and `assertFields` run immediately.** Rejected: a name not in snake*case, a field that would land in a reserved column, two fields collapsing into one column, a field colliding with a relation's `<field>_id`, `localized: true` on a non-i18n type, a required single relation with `onDelete: 'set null'`, `unique` together with `many`, invalid BCP-47 in `lang`, an unknown `kind` in a media field's `accept`.
    \_a declaration error is a build error, not a first-request error*
 3. **`buildTables` builds the physical layer.** One `content_<name>` table plus a join table per owning many-relation. The envelope is added per the flags.
-4. **The host re-exports the tables** in `src/content/index.ts`. Join tables go through `joinTableOf(type, field)`, which **throws** if a many-relation was renamed, instead of silently dropping the table out of the migration diff.
+4. **The host re-exports the tables** in `src/content/index.ts` — a **generated** manifest, rewritten by `orthacms content sync` (`nx run server:content:sync`) and by every schema-builder apply, never edited by hand. Join tables go through `joinTableOf(type, field)`, which **throws** if a many-relation was renamed, instead of silently dropping the table out of the migration diff.
 5. **`nx run server:db:generate --name=…`** assembles the SQL and the developer commits it. For the package's own tables the command differs: `nx run "@orthacms/content-server:db:generate"`.
 6. **At startup `ContentPlugin({ types })` builds the registry eagerly.** Duplicate names and unresolvable relation targets throw _here_ — the application does not boot, rather than failing on the first request.
    _the relationInverse pairing is validated in the same place_
@@ -915,7 +915,7 @@ A missing, cross-workspace and `accept`-forbidden target all give the same 422 w
 
 Statements that must always hold. Both a review list and a starting set of assertions for tests.
 
-- **I-01** — Content types are declared **in code only**; no HTTP route creates, changes or deletes a type or a field.
+- **I-01** — Content types are declared **in code only**; no route of this plugin creates, changes or deletes a type or a field, and the registry never changes while the process runs. The schema builder ([ADR-0020](../adr/0020-schema-builder-writes-code.md)) does not break this: in development it _writes the code_ and the process restarts on it.
 - **I-02** — The registry is built eagerly at startup: a duplicate name, an unresolvable relation target, an unpaired `relationInverse` and a GraphQL name collision abort **the application's boot** rather than the first request.
 - **I-03** — A type with `i18n: true` and no bound `CONTENT_ENTRY_EXTENSION` aborts startup (`EntryExtensionBootCheck`).
 - **I-04** — Every content row belongs to exactly one workspace, and **every** read, write and bulk operation ANDs `workspace_id`. An id from another workspace reads as a 404. The one sanctioned exception is the **read-only** visibility of shared workspaces (**I-41**, [ADR-0019](../adr/0019-shared-workspaces.md)); no write is ever part of it.

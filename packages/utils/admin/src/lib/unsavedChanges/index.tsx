@@ -147,6 +147,10 @@ export function UnsavedChangesProvider({
                 null;
             if (!rawHref || rawHref.startsWith('#')) return;
             if (anchor.hasAttribute('download')) return;
+            // Links inside one editing surface — the schema builder's rail of
+            // types — move within the same unsaved draft rather than away from
+            // it. The surface marks itself; nothing else is exempt.
+            if (anchor.closest('[data-keeps-unsaved-changes]')) return;
             const target = anchor.getAttribute('target');
             if (target && target !== '_self') return;
 
