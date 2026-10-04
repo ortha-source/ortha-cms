@@ -1,6 +1,6 @@
 # Schema builder — design
 
-**Status:** proposed. Decision record: [ADR-0020](../adr/0020-schema-builder-writes-code.md).
+**Status:** shipped — this document now describes built behaviour; the [dossier](../artifacts/schema-builder.md) is the detailed reference. Decision record: [ADR-0020](../adr/0020-schema-builder-writes-code.md).
 
 A visual editor for content types that **writes code**. In development it edits
 the TypeScript DSL under `src/content/`, generates a drizzle-kit migration,

@@ -12,7 +12,7 @@
 - [`CONTEXT-MAP.md`](CONTEXT-MAP.md) — glossary + the full project map (every app & package, one line each)
 - [`DESIGN.md`](DESIGN.md) — product & design intent (owned by Design; partly `TODO:`)
 - [`docs/adr/`](docs/adr/README.md) — Architecture Decision Records (why things are the way they are)
-- [`docs/design/`](docs/design/) — engineering design docs for work that is proposed but not yet built (currently: [`copilot.md`](docs/design/copilot.md), [`graphql-api.md`](docs/design/graphql-api.md), [`mail.md`](docs/design/mail.md), [`schema-builder.md`](docs/design/schema-builder.md), [`sso.md`](docs/design/sso.md)) — plus [`alarms.md`](docs/design/alarms.md), [`protection.md`](docs/design/protection.md) and [`webhooks.md`](docs/design/webhooks.md), which document shipped behaviour rather than proposals
+- [`docs/design/`](docs/design/) — engineering design docs for work that is proposed but not yet built (currently: [`copilot.md`](docs/design/copilot.md), [`graphql-api.md`](docs/design/graphql-api.md), [`mail.md`](docs/design/mail.md), [`sso.md`](docs/design/sso.md)) — plus [`alarms.md`](docs/design/alarms.md), [`protection.md`](docs/design/protection.md), [`schema-builder.md`](docs/design/schema-builder.md) and [`webhooks.md`](docs/design/webhooks.md), which document shipped behaviour rather than proposals
 - [`docs/agent-pipeline.md`](docs/agent-pipeline.md) — how a ticket becomes a merged PR when agents do the typing: the four tiers, the label vocabulary, the role subagents, and the steps
 - [`docs/definition-of-ready.md`](docs/definition-of-ready.md) — what a ticket must contain before the pipeline will act on it
 - [`README.md`](README.md) — human-facing project overview & getting started
@@ -128,6 +128,23 @@
   coordinate as `workspace_content`. It takes **no configuration**: the rule
   table is the whole configuration surface and its empty state is the off state,
   so registering it changes nothing until a workspace writes a rule.
+- `packages/schema-builder/*` — the **schema builder**: a visual editor for
+  content types that **writes code**
+  ([ADR-0020](docs/adr/0020-schema-builder-writes-code.md)). `domain` is the
+  framework-free kernel — the content model as an editable document, its diff
+  (fields matched by a stable key), the change classification, the code
+  generator and the content manifest renderer `orthacms content sync` shares;
+  `server` is the plugin — the document, plan, apply and operations routes; it
+  renders type modules, has **drizzle-kit** generate the migration (removals
+  first, so it never prompts), runs it in one transaction and only then writes
+  `src/content/`, then the dev watcher restarts the server; `admin` is the
+  global `/content-model` page — rail, field list under the entry editor's
+  built-in tabs, field and group sheets, the review drawer and the grant offer.
+  **Development only**: plan and apply need `SCHEMA_BUILDER=true`, a
+  non-production `NODE_ENV` and the source tree, else `403`; production gets
+  the same page read-only. It edits only files whose first line is
+  `// @orthacms-generated`, owns no tables, and grants a new type to no
+  workspace.
 - `packages/webhooks/*` — outgoing **webhooks** on content changes. `domain` is
   the framework-free kernel — the subscribable event catalogue, the subscription
   filter (workspaces × event kinds × content types, where an **empty set means
