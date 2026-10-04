@@ -1,4 +1,5 @@
-import type { FieldDocType } from '@orthacms/schema-builder-domain';
+import type { FieldDoc, FieldDocType } from '@orthacms/schema-builder-domain';
+import { kindOf } from '../fieldCatalog';
 
 /** One editor on the Validation tab. */
 export type ValidationEditor =
@@ -72,3 +73,15 @@ export const FIELD_CAPABILITIES: Readonly<
         placeholder: false
     }
 };
+
+/**
+ * The Validation editors for one field, by its **kind**: long text checks
+ * no structure — it is a plain box, not a document, and its preset turns
+ * the check off — so its switch is not offered.
+ */
+export function validationEditors(spec: FieldDoc): readonly ValidationEditor[] {
+    const editors = FIELD_CAPABILITIES[spec.type].validation;
+    return kindOf(spec) === 'longtext'
+        ? editors.filter((editor) => editor !== 'structure')
+        : editors;
+}

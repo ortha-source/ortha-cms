@@ -9,7 +9,7 @@ import {
     WizardFooter
 } from '@orthacms/design-system';
 import type { NewField } from '../../../../application/useNewField';
-import { FIELD_CAPABILITIES } from '../../../../domain/fieldCapabilities';
+import { validationEditors } from '../../../../domain/fieldCapabilities';
 import { FieldDisplayTab } from '../../FieldSheet/FieldDisplayTab';
 import { FieldValidationTab } from '../../FieldSheet/FieldValidationTab';
 import { StepHeading } from '../../StepHeading';
@@ -60,8 +60,7 @@ export const RulesStep = forwardRef<HTMLHeadingElement, Props>(
     function RulesStep({ field, type, onBack, onAdd }, ref) {
         const intl = useIntl();
         const takesRules =
-            FIELD_CAPABILITIES[field.editor.entry.spec.type].validation.length >
-            0;
+            validationEditors(field.editor.entry.spec).length > 0;
         const ready = !field.nameProblem && field.issues.length === 0;
         return (
             <>
