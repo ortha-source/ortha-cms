@@ -1,3 +1,36 @@
+## 0.8.0 (2026-10-04)
+
+### 🚀 Features
+
+- **cli:** generate the content manifest with content sync ([4820f29c](https://github.com/ortha-source/ortha-cms/commit/4820f29c))
+- **create-orthacms-app:** ship the schema builder in every new app ([873c7906](https://github.com/ortha-source/ortha-cms/commit/873c7906))
+- **schema-builder:** the schema document, its diff and fingerprint ([719251e0](https://github.com/ortha-source/ortha-cms/commit/719251e0))
+- **schema-builder:** classify changes and generate content type code ([fae480ae](https://github.com/ortha-source/ortha-cms/commit/fae480ae))
+- **schema-builder:** server plugin with the read-only document route ([9bfceb8a](https://github.com/ortha-source/ortha-cms/commit/9bfceb8a))
+- **schema-builder:** read-only content model page in the admin ([1fa86f3b](https://github.com/ortha-source/ortha-cms/commit/1fa86f3b))
+- **schema-builder:** plan a content model change ([c7ea2efa](https://github.com/ortha-source/ortha-cms/commit/c7ea2efa))
+- **schema-builder:** apply a content model change ([9e59caec](https://github.com/ortha-source/ortha-cms/commit/9e59caec))
+- **schema-builder:** edit the content model in the admin ([fec793bf](https://github.com/ortha-source/ortha-cms/commit/fec793bf))
+- **schema-builder:** review, apply and grant in the admin (11/12) ([ca269767](https://github.com/ortha-source/ortha-cms/commit/ca269767))
+- **schema-builder:** review as a page with steps; sheets slide in ([f9722ffb](https://github.com/ortha-source/ortha-cms/commit/f9722ffb))
+- **schema-builder:** add a field as a page with steps; roomier cardinality ([a1cdcffe](https://github.com/ortha-source/ortha-cms/commit/a1cdcffe))
+- **schema-builder:** relations named the usual way, with what each means ([eb6062e3](https://github.com/ortha-source/ortha-cms/commit/eb6062e3))
+- **schema-builder:** fewer knobs, searchable grant, flags that undo ([a8450568](https://github.com/ortha-source/ortha-cms/commit/a8450568))
+- **schema-builder:** a new type starts empty; description is a text box ([c376878e](https://github.com/ortha-source/ortha-cms/commit/c376878e))
+
+### 🩹 Fixes
+
+- **schema-builder:** declare express, which the error filter imports ([36c4fefb](https://github.com/ortha-source/ortha-cms/commit/36c4fefb))
+- **schema-builder:** the structure rule says what it checks, and starts on ([dda60413](https://github.com/ortha-source/ortha-cms/commit/dda60413))
+- **schema-builder:** long text is not checked as a document ([51ab5365](https://github.com/ortha-source/ortha-cms/commit/51ab5365))
+- **server-e2e:** declare jest and node types explicitly ([afcc3206](https://github.com/ortha-source/ortha-cms/commit/afcc3206))
+
+### ❤️ Thank You
+
+- Claude
+- Claude Opus 5.5
+- pmknk
+
 ## 0.7.0 (2026-09-30)
 
 ### 🚀 Features
