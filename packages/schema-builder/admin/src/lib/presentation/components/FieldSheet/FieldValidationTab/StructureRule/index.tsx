@@ -4,16 +4,20 @@ import { SwitchField } from '../../SwitchField';
 const messages = defineMessages({
     label: {
         id: 'schemaBuilder.rules.structure',
-        defaultMessage: 'Structured document'
+        defaultMessage: 'Check the text’s structure'
     },
     hint: {
         id: 'schemaBuilder.rules.structureHint',
         defaultMessage:
-            'Stores headings, lists and links as a document rather than HTML.'
+            'On save, headings must not skip a level, tables need headers, links need text and language tags must be valid. Turn off for a body that is not a document — an email template, a pasted HTML fragment.'
     }
 });
 
-/** Rich text's `structure: 'on' | 'off'`; off is the default, so off leaves it unset. */
+/**
+ * Rich text's `structure: 'on' | 'off'` — whether the kernel checks the body's
+ * structure (heading order, table headers, link text, `lang`). **On** is the
+ * DSL's default, so on leaves the option unset and only off is written.
+ */
 export function StructureRule({
     structure,
     onChange
@@ -27,8 +31,8 @@ export function StructureRule({
             id="rule-structure"
             label={intl.formatMessage(messages.label)}
             description={intl.formatMessage(messages.hint)}
-            checked={structure === 'on'}
-            onChange={(on) => onChange({ structure: on ? 'on' : undefined })}
+            checked={structure !== 'off'}
+            onChange={(on) => onChange({ structure: on ? undefined : 'off' })}
         />
     );
 }
