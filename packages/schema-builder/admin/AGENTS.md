@@ -68,6 +68,18 @@ Hand-written types stay read-only and say how to hand them over.
 - **Keys, not names.** A field keeps its key through a rename, so the diff
   reports a rename rather than a remove plus an add. A new field's key is
   `new:<random>` (`newFieldKey`).
+- **Adding a field is a page with steps** (`AddFieldPage`, `?addField` on
+  the editor's URL, like the review): the kind of field, the basics, the rules
+  and display. The field is built aside by `useNewField` — the same
+  `FieldEditor` contract the sheet edits through, over local state — and joins
+  the draft only on "Add field", so going back leaves nothing half-made. The
+  machine name follows the label until typed by hand; the schema rules run on
+  the field as it would land, before it can go on.
+- **The catalog is choices, not types** (`FIELD_CATALOG`, keyed by `id`). Each
+  is a DSL type or a **preset** of one: "Long text" is `richtext` with the
+  `textarea` widget, the DSL's own way to say a plain box of text. Every kind
+  says what it is for — JSON names the article's Metadata — so the big text
+  types are findable by what they hold.
 - **Nothing the DSL lacks** (ADR-0020 §5). `FIELD_CAPABILITIES` decides, per
   field type, which Validation editors exist, whether group/width/row apply
   (not to relations or media — they have their own tab) and which widgets the

@@ -14,7 +14,7 @@ import {
 } from '@orthacms/design-system';
 import { FilesTab } from '../FilesTab';
 import { SqlTab } from '../SqlTab';
-import { StepHeading } from '../StepHeading';
+import { StepHeading } from '../../StepHeading';
 
 const messages = defineMessages({
     title: {

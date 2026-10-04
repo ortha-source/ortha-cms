@@ -139,10 +139,11 @@ export function RelationSettings({ spec, type, document, onChange }: Props) {
                 </Select>
             </div>
             <fieldset className="flex flex-col gap-2">
-                <legend className="mb-1 text-sm font-medium">
+                <legend className="mb-2 text-sm font-medium">
                     {intl.formatMessage(messages.cardinality)}
                 </legend>
                 <RadioGroup
+                    className="gap-3"
                     value={cardinalityOf(spec)}
                     onValueChange={(value) =>
                         onChange(toRelationFlags(value as Cardinality))

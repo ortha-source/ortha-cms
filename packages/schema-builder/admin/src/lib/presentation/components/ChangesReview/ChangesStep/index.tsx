@@ -12,7 +12,7 @@ import { ChangeRow } from '../ChangeRow';
 import { ChangesSkeleton } from '../ChangesSkeleton';
 import { PlanError } from '../PlanError';
 import { ReadinessHint } from '../ReadinessHint';
-import { StepHeading } from '../StepHeading';
+import { StepHeading } from '../../StepHeading';
 
 const messages = defineMessages({
     title: {

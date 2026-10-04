@@ -11,6 +11,8 @@ import { useApplyFlow } from '../../../application/useApplyFlow';
 import { useBuilderAccess } from '../../../application/useBuilderAccess';
 import { useSchemaDraft } from '../../../application/useSchemaDraft';
 import { newTypeDoc } from '../../../domain/newTypeDoc';
+import { typeEditability } from '../../../domain/typeEditability';
+import { AddFieldPage } from '../AddFieldPage';
 import { ChangesReview } from '../ChangesReview';
 import { ContentModelChrome } from '../ContentModelChrome';
 import { ContentModelEmpty } from '../ContentModelEmpty';
@@ -77,8 +79,15 @@ export function ContentModelWorkspace({
         flow.review();
         navigate({ search: '?review' }, { state: { fromEditor: true } });
     };
+    // Back to the editor from a page this one opened: pop that history entry
+    // rather than stack a second editor on top of it.
+    const backToEditor = () => {
+        if ((location.state as { fromEditor?: boolean } | null)?.fromEditor)
+            navigate(-1);
+        else navigate(location.pathname, { replace: true });
+    };
     const finishReview = () => {
-        navigate(location.pathname, { replace: true });
+        backToEditor();
         flow.dismiss();
     };
 
@@ -103,6 +112,31 @@ export function ContentModelWorkspace({
 
     const { types } = draft.document;
     const selected = types.find((type) => type.name === typeName) ?? types[0];
+
+    // Adding a field: a page with steps over the same draft, for a type this
+    // person may change. Anything else — no such type, a hand-written one —
+    // has no field to add, and the editor simply shows.
+    if (
+        params.has('addField') &&
+        selected &&
+        typeEditability(selected, envelope.capabilities, access.canManage).ok
+    ) {
+        return (
+            <AddFieldPage
+                type={selected}
+                draft={draft}
+                editorHref={location.pathname}
+                onAdded={(entry) => {
+                    draft.dispatch({
+                        type: 'field.add',
+                        typeName: selected.name,
+                        entry
+                    });
+                    backToEditor();
+                }}
+            />
+        );
+    }
 
     return (
         <ContentModelChrome

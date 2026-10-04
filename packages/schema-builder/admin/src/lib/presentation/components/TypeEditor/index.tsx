@@ -2,18 +2,14 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type {
     BuilderCapabilities,
-    FieldDocType,
     TypeDoc
 } from '@orthacms/schema-builder-domain';
 import type { BuilderAccess } from '../../../application/useBuilderAccess';
 import { useFieldEditor } from '../../../application/useFieldEditor';
 import type { SchemaDraftState } from '../../../application/useSchemaDraft';
 import { fieldIssues, typeIssues } from '../../../domain/draftIssues';
-import { FIELD_CATALOG } from '../../../domain/fieldCatalog';
-import { newFieldKey } from '../../../domain/identifiers';
 import type { TypePatch } from '../../../domain/schemaDraftAction';
 import { typeEditability } from '../../../domain/typeEditability';
-import { AddFieldDialog } from '../AddFieldDialog';
 import { FieldSheet } from '../FieldSheet';
 import { GeneralGroupsSheet } from '../GeneralGroupsSheet';
 import { FieldList } from './FieldList';
@@ -40,7 +36,6 @@ export function TypeEditor({ type, capabilities, access, draft }: Props) {
     const navigate = useNavigate();
     const editable = typeEditability(type, capabilities, access.canManage).ok;
     const [fieldKey, setFieldKey] = useState<string | null>(null);
-    const [adding, setAdding] = useState(false);
     const [groupsOpen, setGroupsOpen] = useState(false);
     const issues = typeIssues(draft.issues, type.name);
     const editor = useFieldEditor(draft, type.name, fieldKey);
@@ -49,26 +44,6 @@ export function TypeEditor({ type, capabilities, access, draft }: Props) {
         draft.dispatch({ type: 'type.update', name: type.name, patch });
         if (patch.name !== undefined && patch.name !== type.name)
             navigate(`/content-model/${patch.name}`, { replace: true });
-    };
-    const addField = (fieldType: FieldDocType, name: string, label: string) => {
-        const catalog =
-            FIELD_CATALOG.find((entry) => entry.type === fieldType) ??
-            FIELD_CATALOG[0];
-        const spec = catalog.spec(
-            draft.document.types.map((candidate) => candidate.name)
-        );
-        const key = newFieldKey();
-        draft.dispatch({
-            type: 'field.add',
-            typeName: type.name,
-            entry: {
-                key,
-                name,
-                spec: label ? { ...spec, admin: { label } } : spec
-            }
-        });
-        setAdding(false);
-        setFieldKey(key);
     };
     const editing: FieldListEditing | undefined = editable
         ? {
@@ -86,7 +61,12 @@ export function TypeEditor({ type, capabilities, access, draft }: Props) {
                       key,
                       before
                   }),
-              onAddField: () => setAdding(true),
+              // Adding a field is a page with steps over the same draft (`?addField`).
+              onAddField: () =>
+                  navigate(
+                      { search: '?addField' },
+                      { state: { fromEditor: true } }
+                  ),
               onManageGroups: () => setGroupsOpen(true),
               issuesOf: (field) =>
                   fieldIssues(draft.issues, type.name, field).length
@@ -119,12 +99,6 @@ export function TypeEditor({ type, capabilities, access, draft }: Props) {
                             }}
                         />
                     </div>
-                    <AddFieldDialog
-                        open={adding}
-                        onOpenChange={setAdding}
-                        taken={type.fields.map((entry) => entry.name)}
-                        onAdd={addField}
-                    />
                     <FieldSheet
                         editor={editor}
                         type={type}

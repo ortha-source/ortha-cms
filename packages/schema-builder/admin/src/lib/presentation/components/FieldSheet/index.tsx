@@ -16,7 +16,7 @@ import {
 import type { SchemaDocument, TypeDoc } from '@orthacms/schema-builder-domain';
 import type { FieldEditor } from '../../../application/useFieldEditor';
 import { FIELD_CAPABILITIES } from '../../../domain/fieldCapabilities';
-import { FIELD_TYPE_LABEL } from '../AddFieldDialog/FieldTypeTile';
+import { FIELD_TYPE_LABEL } from '../fieldTypeLabel';
 import { FieldDisplayTab } from './FieldDisplayTab';
 import { FieldGeneralTab } from './FieldGeneralTab';
 import { FieldValidationTab } from './FieldValidationTab';

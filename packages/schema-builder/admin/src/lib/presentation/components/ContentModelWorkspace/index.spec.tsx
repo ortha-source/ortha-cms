@@ -52,56 +52,107 @@ describe('ContentModelWorkspace — editing', () => {
         expect(screen.getByRole('button', { name: 'Add field' })).toBeTruthy();
     });
 
-    it('adds a field through the dialog, then opens its sheet', () => {
+    it('adds a field in three steps, and nothing reaches the draft until it is added', () => {
         renderWorkspace();
         fireEvent.click(screen.getByRole('button', { name: 'Add field' }));
-        const dialog = screen.getByRole('dialog', { name: 'Add a field' });
-        fireEvent.click(within(dialog).getByRole('radio', { name: 'Number' }));
-        fireEvent.change(within(dialog).getByLabelText('Label'), {
+        expect(
+            screen.getByRole('heading', { level: 1, name: 'Add a field' })
+        ).toBeTruthy();
+
+        // Kind: one radio per kind of field, each saying what it is for.
+        fireEvent.click(screen.getByRole('radio', { name: 'Number' }));
+        expect(
+            screen
+                .getByRole('radio', { name: 'Number' })
+                .getAttribute('aria-checked')
+        ).toBe('true');
+        fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
+        // Basics: the machine name follows the label.
+        fireEvent.change(screen.getByLabelText('Label'), {
             target: { value: 'Reading time' }
         });
         expect(
-            (within(dialog).getByLabelText('Machine name') as HTMLInputElement)
-                .value
+            (screen.getByLabelText('Machine name') as HTMLInputElement).value
         ).toBe('readingTime');
-        fireEvent.click(
-            within(dialog).getByRole('button', { name: 'Add field' })
-        );
+        expect(screen.queryByText(/unsaved change/)).toBeNull();
+        fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
 
+        // Rules and display: a number takes rules.
         expect(
-            screen.getByRole('dialog', { name: 'readingTime' })
+            screen.getByRole('heading', { level: 3, name: 'Validation' })
+        ).toBeTruthy();
+        expect(screen.queryByText(/unsaved change/)).toBeNull();
+        fireEvent.click(screen.getByRole('button', { name: 'Add field' }));
+
+        // Back in the editor, with the field in the draft.
+        expect(
+            screen.getByRole('heading', { level: 1, name: 'Content model' })
         ).toBeTruthy();
         expect(screen.getByText('1 unsaved change')).toBeTruthy();
-        expect(
-            within(
-                screen.getByRole('navigation', {
-                    name: 'Content types',
-                    // The open sheet is modal: the page behind it is hidden from assistive tech.
-                    hidden: true
-                })
-            ).getByRole('img', { name: 'Unsaved changes', hidden: true })
-        ).toBeTruthy();
+        expect(within(general()).getByText('readingTime')).toBeTruthy();
     });
 
-    it('refuses a name the type already uses', () => {
+    it('refuses a name the type already uses before the next step', () => {
         renderWorkspace();
         fireEvent.click(screen.getByRole('button', { name: 'Add field' }));
-        const dialog = screen.getByRole('dialog', { name: 'Add a field' });
-        fireEvent.change(within(dialog).getByLabelText('Machine name'), {
+        fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+        fireEvent.change(screen.getByLabelText('Machine name'), {
             target: { value: 'title' }
         });
         expect(
-            within(dialog).getByText(
-                'This type already has a field by that name.'
-            )
+            screen.getByText('This type already has a field by that name.')
         ).toBeTruthy();
         expect(
             (
-                within(dialog).getByRole('button', {
-                    name: 'Add field'
+                screen.getByRole('button', {
+                    name: 'Continue'
                 }) as HTMLButtonElement
             ).disabled
         ).toBe(true);
+    });
+
+    it('shows the schema rules’ words about the new field as it is named', () => {
+        renderWorkspace();
+        fireEvent.click(screen.getByRole('button', { name: 'Add field' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+        fireEvent.change(screen.getByLabelText('Machine name'), {
+            target: { value: 'status' }
+        });
+        expect(
+            screen.getByText(/collides with an envelope column/)
+        ).toBeTruthy();
+        expect(
+            (
+                screen.getByRole('button', {
+                    name: 'Continue'
+                }) as HTMLButtonElement
+            ).disabled
+        ).toBe(true);
+    });
+
+    it('asks a relation what it links to and how many, among the basics', () => {
+        renderWorkspace();
+        fireEvent.click(screen.getByRole('button', { name: 'Add field' }));
+        fireEvent.click(screen.getByRole('radio', { name: 'Relation' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+        expect(screen.getByRole('group', { name: 'How many' })).toBeTruthy();
+        expect(screen.getAllByRole('radio')).toHaveLength(3);
+    });
+
+    it('goes back to the type with the draft as it was', () => {
+        renderWorkspace();
+        fireEvent.click(screen.getByRole('button', { name: 'Add field' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+        fireEvent.change(screen.getByLabelText('Label'), {
+            target: { value: 'Subtitle' }
+        });
+        fireEvent.click(screen.getByRole('link', { name: 'Back to Articles' }));
+        expect(
+            screen.getByRole('heading', { level: 1, name: 'Content model' })
+        ).toBeTruthy();
+        expect(screen.queryByText(/unsaved change/)).toBeNull();
+        expect(within(general()).queryByText('subtitle')).toBeNull();
     });
 
     it('edits a field in its sheet, straight into the draft', () => {
@@ -125,19 +176,20 @@ describe('ContentModelWorkspace — editing', () => {
         expect(screen.getByRole('tab', { name: 'Validation' })).toBeTruthy();
         fireEvent.click(screen.getByRole('button', { name: 'Done' }));
 
+        // And the add-field page asks for rules only when the kind takes them.
         fireEvent.click(screen.getByRole('button', { name: 'Add field' }));
-        const dialog = screen.getByRole('dialog', { name: 'Add a field' });
-        fireEvent.click(
-            within(dialog).getByRole('radio', { name: 'Yes / no' })
-        );
-        fireEvent.change(within(dialog).getByLabelText('Label'), {
+        fireEvent.click(screen.getByRole('radio', { name: 'Yes / no' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+        fireEvent.change(screen.getByLabelText('Label'), {
             target: { value: 'Featured' }
         });
-        fireEvent.click(
-            within(dialog).getByRole('button', { name: 'Add field' })
-        );
-        expect(screen.queryByRole('tab', { name: 'Validation' })).toBeNull();
-        expect(screen.getByRole('tab', { name: 'Display' })).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+        expect(
+            screen.queryByRole('heading', { level: 3, name: 'Validation' })
+        ).toBeNull();
+        expect(
+            screen.getByRole('heading', { level: 3, name: 'Display' })
+        ).toBeTruthy();
     });
 
     it('shows the schema rules’ words for a field that breaks one', () => {

@@ -48,28 +48,72 @@ test.describe('Content model editor', () => {
         });
     });
 
-    test('adds a field: type by keyboard, name from the label, then its sheet', async ({
+    test('adds a field in steps: the kind by keyboard, the name from the label, then the rules', async ({
         page,
         contentModelPage
     }) => {
         await contentModelPage.goto('article');
         await contentModelPage.addFieldButton().click();
-        const dialog = contentModelPage.addFieldDialog();
-        await contentModelPage.fieldTypeTile('Short text').focus();
+        await expect(contentModelPage.addFieldHeading()).toBeVisible();
+        await expect(page).toHaveURL(/\/content-model\/article\?addField/);
+
+        await contentModelPage.fieldKind('Short text').focus();
         await page.keyboard.press('ArrowRight');
-        await expect(
-            contentModelPage.fieldTypeTile('Rich text')
-        ).toHaveAttribute('aria-checked', 'true');
-        await dialog.getByLabel('Label').fill('Summary text');
-        await expect(dialog.getByLabel('Machine name')).toHaveValue(
+        await expect(contentModelPage.fieldKind('Long text')).toHaveAttribute(
+            'aria-checked',
+            'true'
+        );
+        await expect(contentModelPage.fieldKind('Long text')).toBeFocused();
+        await contentModelPage.reviewAction('Continue').click();
+
+        await page.getByLabel('Label').fill('Summary text');
+        await expect(page.getByLabel('Machine name')).toHaveValue(
             'summaryText'
         );
-        await dialog.getByRole('button', { name: 'Add field' }).click();
+        await contentModelPage.reviewAction('Continue').click();
+        await expect(
+            page.getByRole('heading', { level: 3, name: 'Validation' })
+        ).toBeVisible();
+        await contentModelPage.reviewAction('Add field').click();
 
-        await expect(contentModelPage.fieldSheet('summaryText')).toBeVisible();
         await expect(contentModelPage.changeCount()).toHaveText(
             '1 unsaved change'
         );
+        await expect(page).toHaveURL(/\/content-model\/article$/);
+        await expect(contentModelPage.editField('summaryText')).toBeVisible();
+    });
+
+    test('a relation is asked what it links to and how many, as roomy cards', async ({
+        page,
+        contentModelPage
+    }) => {
+        await contentModelPage.goto('article');
+        await contentModelPage.addFieldButton().click();
+        await contentModelPage.fieldKind('Relation').click();
+        await contentModelPage.reviewAction('Continue').click();
+
+        const howMany = page.getByRole('group', { name: 'How many' });
+        await expect(howMany.getByRole('radio')).toHaveCount(3);
+        // The whole card picks the answer, not just the dot.
+        await howMany
+            .getByText('No two entries may link the same one.')
+            .click();
+        await expect(
+            howMany.getByRole('radio', { checked: true })
+        ).toHaveAccessibleDescription('No two entries may link the same one.');
+    });
+
+    test('leaving the add-field page keeps nothing half-made', async ({
+        page,
+        contentModelPage
+    }) => {
+        await contentModelPage.goto('article');
+        await contentModelPage.addFieldButton().click();
+        await contentModelPage.reviewAction('Continue').click();
+        await page.getByLabel('Label').fill('Subtitle');
+        await page.goBack();
+        await expect(contentModelPage.addFieldButton()).toBeVisible();
+        await expect(contentModelPage.changeCount()).toBeHidden();
     });
 
     test('edits validation in the sheet, with a preset and a live tester', async ({
@@ -187,10 +231,23 @@ test.describe('Content model editor', () => {
             await expectNoA11yViolations(makeAxe());
         });
 
-        test('the add-field dialog', async ({ contentModelPage, makeAxe }) => {
+        test('the add-field page, each step', async ({
+            page,
+            contentModelPage,
+            makeAxe
+        }) => {
             await contentModelPage.goto('article');
             await contentModelPage.addFieldButton().click();
-            await contentModelPage.addFieldDialog().waitFor();
+            await contentModelPage.addFieldHeading().waitFor();
+            await expectNoA11yViolations(makeAxe());
+
+            await contentModelPage.fieldKind('Relation').click();
+            await contentModelPage.reviewAction('Continue').click();
+            await page.getByLabel('Label').fill('Editor');
+            await expectNoA11yViolations(makeAxe());
+
+            await contentModelPage.reviewAction('Continue').click();
+            await contentModelPage.stepHeading('Rules and display').waitFor();
             await expectNoA11yViolations(makeAxe());
         });
 
