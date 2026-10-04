@@ -1,13 +1,19 @@
+import { defineMessages, useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
 import { FileText, Table2 } from 'lucide-react';
 import { cn } from '@orthacms/design-system';
 import type { TypeDoc } from '@orthacms/schema-builder-domain';
 import { OriginBadge } from '../../OriginBadge';
 
-type Props = { type: TypeDoc; selected: boolean };
+const messages = defineMessages({
+    dirty: { id: 'schemaBuilder.rail.dirty', defaultMessage: 'Unsaved changes' }
+});
+
+type Props = { type: TypeDoc; selected: boolean; dirty?: boolean };
 
 /** One type in the rail: a link, so a type is addressable and the back button works. */
-export function TypeRailItem({ type, selected }: Props) {
+export function TypeRailItem({ type, selected, dirty }: Props) {
+    const intl = useIntl();
     const Icon = type.kind === 'single' ? FileText : Table2;
     return (
         <li>
@@ -26,6 +32,13 @@ export function TypeRailItem({ type, selected }: Props) {
                 <span className="min-w-0 flex-1 truncate">
                     {type.label ?? type.name}
                 </span>
+                {dirty && (
+                    <span
+                        role="img"
+                        aria-label={intl.formatMessage(messages.dirty)}
+                        className="size-1.5 shrink-0 rounded-full bg-amber-500"
+                    />
+                )}
                 <OriginBadge origin={type.origin} />
             </Link>
         </li>

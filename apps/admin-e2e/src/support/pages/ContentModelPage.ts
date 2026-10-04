@@ -105,6 +105,119 @@ export class ContentModelPage extends BasePage {
         });
     }
 
+    // --- editing ------------------------------------------------------------
+
+    /** The fields card's "Add field" button. */
+    addFieldButton(): Locator {
+        return this.page.getByRole('button', { name: 'Add field' }).first();
+    }
+
+    /** The "Add a field" dialog. */
+    addFieldDialog(): Locator {
+        return this.page.getByRole('dialog', { name: 'Add a field' });
+    }
+
+    /** One field type tile in the dialog. */
+    fieldTypeTile(label: string): Locator {
+        return this.addFieldDialog().getByRole('radio', { name: label });
+    }
+
+    /** A field's sheet, named by the field. */
+    fieldSheet(name: string): Locator {
+        return this.page.getByRole('dialog', { name });
+    }
+
+    /** The row's own "Edit <name>" button. */
+    editField(name: string): Locator {
+        return this.page.getByRole('button', { name: `Edit ${name}` });
+    }
+
+    /** The drag handle that reorders a field. */
+    reorderHandle(name: string): Locator {
+        return this.page.getByRole('button', { name: `Reorder ${name}` });
+    }
+
+    /**
+     * Moves a field one place up from its drag handle, by keyboard — waiting
+     * for each announcement, because the drag only starts once the item is
+     * picked up, and a key pressed before then goes nowhere.
+     */
+    async moveFieldUp(name: string): Promise<void> {
+        const announced = (text: RegExp) =>
+            this.page.getByText(text).first().waitFor({ state: 'attached' });
+        await this.reorderHandle(name).focus();
+        await this.page.keyboard.press('Space');
+        await announced(new RegExp(`^Picked up ${name}\\.$`));
+        await this.page.keyboard.press('ArrowUp');
+        // Over another field — not the one it started on.
+        await announced(new RegExp(`^${name} is over (?!${name}\\.)`));
+        await this.page.keyboard.press('Space');
+        await announced(
+            new RegExp(`^(Dropped ${name}\\.|${name} stays where it is)`)
+        );
+    }
+
+    /** A drag-and-drop announcement, as screen readers hear it. */
+    announcement(text: RegExp): Locator {
+        return this.page.getByText(text).first();
+    }
+
+    /** The General block's "Groups" button. */
+    groupsButton(): Locator {
+        return this.tab('General').getByRole('button', { name: 'Groups' });
+    }
+
+    /** The groups sheet. */
+    groupsSheet(): Locator {
+        return this.page.getByRole('dialog', {
+            name: 'Groups on the General tab'
+        });
+    }
+
+    /** The header's unsaved-change count. */
+    changeCount(): Locator {
+        return this.page.getByText(/\d+ unsaved changes?/);
+    }
+
+    /** The header's "Discard changes". */
+    discardButton(): Locator {
+        return this.page.getByRole('button', { name: 'Discard changes' });
+    }
+
+    /** A field row's actions menu trigger. */
+    fieldMenu(name: string): Locator {
+        return this.page.getByRole('button', { name: `Actions for ${name}` });
+    }
+
+    /** An item of the open menu. */
+    menuItem(name: string): Locator {
+        return this.page.getByRole('menuitem', { name });
+    }
+
+    /** An option of the open select. */
+    option(name: string): Locator {
+        return this.page.getByRole('option', { name });
+    }
+
+    /** A destination in the app's primary nav. */
+    primaryNavLink(name: string): Locator {
+        return this.page
+            .getByRole('navigation', { name: 'Primary' })
+            .getByRole('link', { name });
+    }
+
+    /** The app's unsaved-changes confirm. */
+    unsavedChangesDialog(): Locator {
+        return this.page.getByRole('dialog', {
+            name: 'Discard your unsaved changes?'
+        });
+    }
+
+    /** The rail's "New content type". */
+    newTypeButton(): Locator {
+        return this.rail.getByRole('button', { name: 'New content type' });
+    }
+
     /** The empty state's heading. */
     emptyHeading(): Locator {
         return this.page.getByRole('heading', { name: 'No content types yet' });

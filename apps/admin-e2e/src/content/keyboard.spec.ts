@@ -66,7 +66,9 @@ test.describe('Entry editor keyboard operability', () => {
         // two are different states and this is the one being asserted.
         await contentLibraryPage.editorTitleChip.focus();
         await page.keyboard.press('Enter');
-        await expect(contentLibraryPage.localeMenuItem('English')).toBeFocused();
+        await expect(
+            contentLibraryPage.localeMenuItem('English')
+        ).toBeFocused();
 
         await page.keyboard.press('ArrowDown');
         await expect(contentLibraryPage.switchLocale('Deutsch')).toBeFocused();

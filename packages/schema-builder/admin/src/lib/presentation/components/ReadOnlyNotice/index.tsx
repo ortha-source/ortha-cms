@@ -1,9 +1,14 @@
 import type { ReactNode } from 'react';
 import { defineMessages, FormattedMessage } from 'react-intl';
 import { Lock } from 'lucide-react';
-import type { ReadOnlyReason } from '@orthacms/schema-builder-domain';
+import type { AccessReason } from '../../../application/useBuilderAccess';
 
 const messages = defineMessages({
+    'no-permission': {
+        id: 'schemaBuilder.readOnly.noPermission',
+        defaultMessage:
+            'You can read the content model. Changing it needs the {permission} permission.'
+    },
     production: {
         id: 'schemaBuilder.readOnly.production',
         defaultMessage:
@@ -33,7 +38,8 @@ const code = (text: string) => (
 );
 
 /** The code fragments each sentence names. */
-const VALUES: Record<ReadOnlyReason, Record<string, ReactNode>> = {
+const VALUES: Record<AccessReason, Record<string, ReactNode>> = {
+    'no-permission': { permission: code('schema:manage') },
     production: {},
     disabled: { flag: code('SCHEMA_BUILDER=true'), file: code('.env') },
     'no-source-tree': { command: code('npm run dev') },
@@ -44,7 +50,7 @@ const VALUES: Record<ReadOnlyReason, Record<string, ReactNode>> = {
 };
 
 /** Says why the whole page is read-only, and how to change that. */
-export function ReadOnlyNotice({ reason }: { reason?: ReadOnlyReason }) {
+export function ReadOnlyNotice({ reason }: { reason?: AccessReason }) {
     if (!reason) return null;
     return (
         <p className="mt-6 flex items-start gap-2 rounded-lg border bg-muted/40 p-3 text-sm">

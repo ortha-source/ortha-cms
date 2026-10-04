@@ -52,6 +52,37 @@ utils/schemaBuilderPlugin/  the AdminPlugin factory
 - One component per file; a component with one consumer nests under it.
   Messages are co-located, ids `schemaBuilder.<area>.<key>`.
 
+## Editing
+
+When the server can edit (`capabilities.editable`) and the person holds
+`schema:manage` (`useBuilderAccess`), a type the builder owns becomes a form.
+Hand-written types stay read-only and say how to hand them over.
+
+- **The draft** is `useSchemaDraft`: a reducer over the served document
+  (`domain/schemaDraft`, one handler folder per action — the handler table is
+  typed exhaustively), the diff against the served document, and the kernel's
+  `checkTypes` issues (`domain/draftIssues`). A new served document (after a
+  restart) resets it. Every edit lands in the draft as it is made — the sheets
+  hold no copy that could drift from what the review shows.
+- **Keys, not names.** A field keeps its key through a rename, so the diff
+  reports a rename rather than a remove plus an add. A new field's key is
+  `new:<random>` (`newFieldKey`).
+- **Nothing the DSL lacks** (ADR-0020 §5). `FIELD_CAPABILITIES` decides, per
+  field type, which Validation editors exist, whether group/width/row apply
+  (not to relations or media — they have their own tab) and which widgets the
+  stock admin understands. Clearing an input drops the option (`fieldPatch`),
+  so it falls back to the DSL default; unknown `admin` keys survive.
+- **Flags.** A new type sets all three; an existing one may only turn the trash
+  on (`canChangeFlag`) — every other flip needs a data migration.
+- **Order.** Each list (loose fields, each group, Relations, Media) is its own
+  sortable context; `canMoveField` refuses a drop across ranks above the groups,
+  because the entry editor would re-sort it. Reordering works from the handle
+  by keyboard; dnd-kit's announcements are replaced with ones that name fields.
+- **Groups** are edited in `GeneralGroupsSheet` — accordion blocks on General,
+  never sections or tabs. An empty one is flagged: the schema refuses it.
+- **Leaving** the page with a draft asks first (`useUnsavedChanges`). The rail
+  is marked `data-keeps-unsaved-changes`, so moving between types does not.
+
 ## Commands
 
 - `npx nx test @orthacms/schema-builder-admin` (vitest, jsdom)

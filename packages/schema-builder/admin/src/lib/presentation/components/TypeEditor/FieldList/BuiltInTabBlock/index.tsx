@@ -20,13 +20,18 @@ const messages = defineMessages({
     }
 });
 
-type Props = { tab: BuiltInTab; count: number; children: ReactNode };
+type Props = {
+    tab: BuiltInTab;
+    count: number;
+    children: ReactNode;
+    action?: ReactNode;
+};
 
 /**
  * One of the entry editor's tabs, as a heading over the fields drawn on it. The
  * lock says what the design doc does: tabs are built in, a schema adds none.
  */
-export function BuiltInTabBlock({ tab, count, children }: Props) {
+export function BuiltInTabBlock({ tab, count, children, action }: Props) {
     const intl = useIntl();
     const headingId = `schema-tab-${tab}`;
     return (
@@ -42,6 +47,7 @@ export function BuiltInTabBlock({ tab, count, children }: Props) {
                 <span className="ml-auto text-xs text-muted-foreground">
                     {intl.formatMessage(messages.count, { count })}
                 </span>
+                {action}
             </div>
             {children}
         </section>

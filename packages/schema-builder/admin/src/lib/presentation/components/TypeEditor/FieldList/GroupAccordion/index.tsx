@@ -7,7 +7,8 @@ import {
     CollapsibleTrigger
 } from '@orthacms/design-system';
 import type { GeneralTabGroup } from '../../../../../domain/generalTabLayout';
-import { FieldRow } from '../FieldRow';
+import type { FieldListEditing } from '../fieldListEditing';
+import { FieldRows } from '../FieldRows';
 
 const messages = defineMessages({
     collapsed: {
@@ -29,7 +30,11 @@ const messages = defineMessages({
  * Open here whatever `collapsed` says — this page is about what is inside —
  * with the flag shown as a badge instead.
  */
-export function GroupAccordion({ group, fields }: GeneralTabGroup) {
+export function GroupAccordion({
+    group,
+    fields,
+    editing
+}: GeneralTabGroup & { editing?: FieldListEditing }) {
     const intl = useIntl();
     return (
         <Collapsible defaultOpen className="mx-4 my-3 rounded-lg border">
@@ -68,11 +73,9 @@ export function GroupAccordion({ group, fields }: GeneralTabGroup) {
                         {intl.formatMessage(messages.empty)}
                     </p>
                 ) : (
-                    <ul className="divide-y border-t">
-                        {fields.map((entry) => (
-                            <FieldRow key={entry.key} entry={entry} />
-                        ))}
-                    </ul>
+                    <div className="border-t">
+                        <FieldRows fields={fields} editing={editing} />
+                    </div>
                 )}
             </CollapsibleContent>
         </Collapsible>

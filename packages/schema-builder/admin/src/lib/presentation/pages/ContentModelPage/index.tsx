@@ -23,16 +23,17 @@ export function ContentModelPage() {
     const canRead = useHasPermission('content:read');
     const query = useSchemaDocument(canRead);
 
+    // The loaded workspace renders the chrome itself: its header carries the draft.
+    if (canRead && query.data)
+        return <ContentModelWorkspace envelope={query.data} />;
     return (
         <ContentModelChrome>
             {!canRead ? (
                 <ContentModelNoAccess />
-            ) : query.isPending ? (
-                <ContentModelSkeleton />
             ) : query.isError ? (
                 <ContentModelError onRetry={() => void query.refetch()} />
             ) : (
-                <ContentModelWorkspace envelope={query.data} />
+                <ContentModelSkeleton />
             )}
         </ContentModelChrome>
     );

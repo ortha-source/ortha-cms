@@ -1,22 +1,30 @@
 import { defineMessages, useIntl } from 'react-intl';
+import { Layers, Plus } from 'lucide-react';
+import { Button } from '@orthacms/design-system';
 import type { TypeDoc } from '@orthacms/schema-builder-domain';
 import { fieldsOnTab } from '../../../../domain/builtInTab';
 import { generalTabLayout } from '../../../../domain/generalTabLayout';
 import { BuiltInTabBlock } from './BuiltInTabBlock';
-import { FieldRow } from './FieldRow';
+import type { FieldListEditing } from './fieldListEditing';
+import { FieldRows } from './FieldRows';
 import { GeneralOrderHint } from './GeneralOrderHint';
 import { GroupAccordion } from './GroupAccordion';
 
 const messages = defineMessages({
-    title: { id: 'schemaBuilder.fields.title', defaultMessage: 'Fields' }
+    title: { id: 'schemaBuilder.fields.title', defaultMessage: 'Fields' },
+    add: { id: 'schemaBuilder.fields.add', defaultMessage: 'Add field' },
+    groups: { id: 'schemaBuilder.fields.groups', defaultMessage: 'Groups' }
 });
+
+type Props = { type: TypeDoc; editing?: FieldListEditing };
 
 /**
  * A type's fields under the tab the entry editor draws each on: General
  * (loose fields by rank, then the groups as accordions), Relations, Media.
- * A tab with nothing on it is left out, as the editor leaves it out.
+ * A tab with nothing on it is left out, as the editor leaves it out — except
+ * General while editing, where groups are managed.
  */
-export function FieldList({ type }: { type: TypeDoc }) {
+export function FieldList({ type, editing }: Props) {
     const intl = useIntl();
     const general = generalTabLayout(type);
     const generalCount =
@@ -37,14 +45,37 @@ export function FieldList({ type }: { type: TypeDoc }) {
                 <span className="text-xs text-muted-foreground">
                     {type.fields.length}
                 </span>
+                {editing && (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="ml-auto"
+                        onClick={editing.onAddField}
+                    >
+                        <Plus />
+                        {intl.formatMessage(messages.add)}
+                    </Button>
+                )}
             </div>
-            {(generalCount > 0 || general.groups.length > 0) && (
-                <BuiltInTabBlock tab="general" count={generalCount}>
-                    <ul className="divide-y">
-                        {general.loose.map((entry) => (
-                            <FieldRow key={entry.key} entry={entry} />
-                        ))}
-                    </ul>
+            {(generalCount > 0 || general.groups.length > 0 || editing) && (
+                <BuiltInTabBlock
+                    tab="general"
+                    count={generalCount}
+                    action={
+                        editing && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7"
+                                onClick={editing.onManageGroups}
+                            >
+                                <Layers />
+                                {intl.formatMessage(messages.groups)}
+                            </Button>
+                        )
+                    }
+                >
+                    <FieldRows fields={general.loose} editing={editing} />
                     {general.groups.length > 0 && (
                         <>
                             <GeneralOrderHint />
@@ -52,6 +83,7 @@ export function FieldList({ type }: { type: TypeDoc }) {
                                 <GroupAccordion
                                     key={block.group.key}
                                     {...block}
+                                    editing={editing}
                                 />
                             ))}
                         </>
@@ -60,20 +92,12 @@ export function FieldList({ type }: { type: TypeDoc }) {
             )}
             {relations.length > 0 && (
                 <BuiltInTabBlock tab="relations" count={relations.length}>
-                    <ul className="divide-y">
-                        {relations.map((entry) => (
-                            <FieldRow key={entry.key} entry={entry} />
-                        ))}
-                    </ul>
+                    <FieldRows fields={relations} editing={editing} />
                 </BuiltInTabBlock>
             )}
             {media.length > 0 && (
                 <BuiltInTabBlock tab="media" count={media.length}>
-                    <ul className="divide-y">
-                        {media.map((entry) => (
-                            <FieldRow key={entry.key} entry={entry} />
-                        ))}
-                    </ul>
+                    <FieldRows fields={media} editing={editing} />
                 </BuiltInTabBlock>
             )}
         </section>

@@ -1,0 +1,227 @@
+import { test, expect } from '../support/fixtures';
+import { mockSignedIn } from '../support/api/auth';
+import { mockWorkspaces } from '../support/api/workspaces';
+import {
+    mockSchemaDocument,
+    SCHEMA_TYPES_SEED,
+    type TypeDocSeed
+} from '../support/api/schemaBuilder';
+import { expectNoA11yViolations } from '../support/a11y';
+
+const EDITABLE = { editable: true, restart: 'watch' } as const;
+
+/** The seed with every type handed to the builder, plus one with two inputs of one rank. */
+const OWNED: TypeDocSeed[] = [
+    ...SCHEMA_TYPES_SEED.map((type) => ({
+        ...type,
+        origin: 'builder' as const
+    })),
+    {
+        name: 'venue',
+        kind: 'collection',
+        label: 'Venues',
+        publishable: true,
+        paranoid: false,
+        i18n: false,
+        groups: [],
+        fields: [
+            { key: 'venue.name', name: 'name', spec: { type: 'text' } },
+            { key: 'venue.city', name: 'city', spec: { type: 'text' } },
+            { key: 'venue.open', name: 'open', spec: { type: 'boolean' } }
+        ],
+        origin: 'builder'
+    }
+];
+
+/**
+ * The content model editor (`@orthacms/schema-builder-admin`, ADR-0020):
+ * every edit goes into the draft at once; the header counts it, the rail
+ * marks it, Discard puts it back. Only types the builder owns are editable.
+ */
+test.describe('Content model editor', () => {
+    test.beforeEach(async ({ page }) => {
+        await mockSignedIn(page);
+        await mockWorkspaces(page);
+        await mockSchemaDocument(page, {
+            types: OWNED,
+            capabilities: EDITABLE
+        });
+    });
+
+    test('adds a field: type by keyboard, name from the label, then its sheet', async ({
+        page,
+        contentModelPage
+    }) => {
+        await contentModelPage.goto('article');
+        await contentModelPage.addFieldButton().click();
+        const dialog = contentModelPage.addFieldDialog();
+        await contentModelPage.fieldTypeTile('Short text').focus();
+        await page.keyboard.press('ArrowRight');
+        await expect(
+            contentModelPage.fieldTypeTile('Rich text')
+        ).toHaveAttribute('aria-checked', 'true');
+        await dialog.getByLabel('Label').fill('Summary text');
+        await expect(dialog.getByLabel('Machine name')).toHaveValue(
+            'summaryText'
+        );
+        await dialog.getByRole('button', { name: 'Add field' }).click();
+
+        await expect(contentModelPage.fieldSheet('summaryText')).toBeVisible();
+        await expect(contentModelPage.changeCount()).toHaveText(
+            '1 unsaved change'
+        );
+    });
+
+    test('edits validation in the sheet, with a preset and a live tester', async ({
+        contentModelPage
+    }) => {
+        await contentModelPage.goto('article');
+        await contentModelPage.editField('title').click();
+        const sheet = contentModelPage.fieldSheet('title');
+        await sheet.getByRole('tab', { name: 'Validation' }).click();
+        await sheet.getByRole('button', { name: 'Slug' }).click();
+        await sheet.getByLabel('Try a value').fill('hello-world');
+        await expect(
+            sheet.getByRole('status').filter({ hasText: 'Matches' })
+        ).toBeVisible();
+        await sheet.getByLabel('Try a value').fill('Hello World');
+        await expect(sheet.getByText('Does not match')).toBeVisible();
+    });
+
+    test('reorders within one rank by keyboard, and refuses a move across ranks', async ({
+        contentModelPage
+    }) => {
+        await contentModelPage.goto('venue');
+        await expect
+            .poll(() => contentModelPage.fieldNames('General'))
+            .toEqual(['name', 'city', 'open']);
+
+        await contentModelPage.moveFieldUp('city');
+        await expect
+            .poll(() => contentModelPage.fieldNames('General'))
+            .toEqual(['city', 'name', 'open']);
+
+        // A boolean is a choice, ranked after inputs: the editor would put it back.
+        await contentModelPage.moveFieldUp('open');
+        await expect(
+            contentModelPage.announcement(/open stays where it is/)
+        ).toBeAttached();
+        await expect
+            .poll(() => contentModelPage.fieldNames('General'))
+            .toEqual(['city', 'name', 'open']);
+    });
+
+    test('adds a group on General and puts a field in it', async ({
+        contentModelPage
+    }) => {
+        await contentModelPage.goto('venue');
+        await contentModelPage.groupsButton().click();
+        const sheet = contentModelPage.groupsSheet();
+        await sheet.getByLabel('New group title').fill('Location');
+        await sheet.getByRole('button', { name: 'Add group' }).click();
+        await expect(
+            sheet.getByText(/the schema refuses an empty group/)
+        ).toBeVisible();
+        await sheet.getByRole('button', { name: 'Done' }).click();
+
+        await contentModelPage.editField('city').click();
+        const field = contentModelPage.fieldSheet('city');
+        await field.getByRole('tab', { name: 'Display' }).click();
+        await field.getByLabel('Group on the General tab').click();
+        await contentModelPage.option('Location').click();
+        await field.getByRole('button', { name: 'Done' }).click();
+
+        await expect(contentModelPage.groupTrigger('Location')).toBeVisible();
+    });
+
+    test('adds a type from the rail and opens it', async ({
+        page,
+        contentModelPage
+    }) => {
+        await contentModelPage.goto();
+        await contentModelPage.newTypeButton().click();
+        const dialog = page.getByRole('dialog', { name: 'New content type' });
+        await dialog.getByLabel('Label').fill('Events');
+        await dialog.getByLabel('Page').check();
+        await dialog.getByRole('button', { name: 'Add type' }).click();
+        await expect(page).toHaveURL(/\/content-model\/events$/);
+        await expect(contentModelPage.typeHeading('Events')).toBeVisible();
+        await expect(contentModelPage.railLink('Events')).toBeVisible();
+    });
+
+    test('discards the draft back to the served model', async ({
+        contentModelPage
+    }) => {
+        await contentModelPage.goto('venue');
+        await contentModelPage.fieldMenu('open').click();
+        await contentModelPage.menuItem('Remove').click();
+        await expect(contentModelPage.changeCount()).toHaveText(
+            '1 unsaved change'
+        );
+        await contentModelPage.discardButton().click();
+        await expect
+            .poll(() => contentModelPage.fieldNames('General'))
+            .toEqual(['name', 'city', 'open']);
+        await expect(contentModelPage.changeCount()).toHaveCount(0);
+    });
+
+    test('asks before leaving the page with a draft — but not when moving between types', async ({
+        contentModelPage
+    }) => {
+        await contentModelPage.goto('venue');
+        await contentModelPage.fieldMenu('open').click();
+        await contentModelPage.menuItem('Remove').click();
+
+        await contentModelPage.railLink('Articles').click();
+        await expect(contentModelPage.typeHeading('Articles')).toBeVisible();
+        await expect(contentModelPage.unsavedChangesDialog()).toHaveCount(0);
+
+        await contentModelPage.primaryNavLink('Webhooks').click();
+        await expect(contentModelPage.unsavedChangesDialog()).toBeVisible();
+    });
+
+    test.describe('accessibility (axe)', () => {
+        test('the editor', async ({ contentModelPage, makeAxe }) => {
+            await contentModelPage.goto('article');
+            await contentModelPage.addFieldButton().waitFor();
+            await expectNoA11yViolations(makeAxe());
+        });
+
+        test('the add-field dialog', async ({ contentModelPage, makeAxe }) => {
+            await contentModelPage.goto('article');
+            await contentModelPage.addFieldButton().click();
+            await contentModelPage.addFieldDialog().waitFor();
+            await expectNoA11yViolations(makeAxe());
+        });
+
+        test('a field sheet, each tab', async ({
+            contentModelPage,
+            makeAxe
+        }) => {
+            await contentModelPage.goto('article');
+            await contentModelPage.editField('title').click();
+            const sheet = contentModelPage.fieldSheet('title');
+            for (const tab of ['General', 'Validation', 'Display']) {
+                await sheet.getByRole('tab', { name: tab }).click();
+                await expectNoA11yViolations(makeAxe());
+            }
+        });
+
+        test('a relation’s sheet', async ({ contentModelPage, makeAxe }) => {
+            await contentModelPage.goto('article');
+            await contentModelPage.editField('author').click();
+            await contentModelPage
+                .fieldSheet('author')
+                .getByText('How many')
+                .waitFor();
+            await expectNoA11yViolations(makeAxe());
+        });
+
+        test('the groups sheet', async ({ contentModelPage, makeAxe }) => {
+            await contentModelPage.goto('article');
+            await contentModelPage.groupsButton().click();
+            await contentModelPage.groupsSheet().waitFor();
+            await expectNoA11yViolations(makeAxe());
+        });
+    });
+});

@@ -1,9 +1,15 @@
 import { defineMessages, useIntl } from 'react-intl';
+import { Plus } from 'lucide-react';
+import { Button } from '@orthacms/design-system';
 import type { TypeDoc } from '@orthacms/schema-builder-domain';
 import { TypeRailItem } from './TypeRailItem';
 
 const messages = defineMessages({
     label: { id: 'schemaBuilder.rail.label', defaultMessage: 'Content types' },
+    create: {
+        id: 'schemaBuilder.rail.create',
+        defaultMessage: 'New content type'
+    },
     collections: {
         id: 'schemaBuilder.rail.collections',
         defaultMessage: 'Collections'
@@ -16,13 +22,21 @@ const SECTIONS = [
     { kind: 'single', title: messages.pages }
 ] as const;
 
-type Props = { types: readonly TypeDoc[]; selected?: string };
+type Props = {
+    types: readonly TypeDoc[];
+    selected?: string;
+    /** Types with unsaved changes. */
+    dirty?: ReadonlySet<string>;
+    /** Present when the person may add a type. */
+    onCreate?: () => void;
+};
 
 /** Every type, collections then pages, in registration order within each. */
-export function TypeRail({ types, selected }: Props) {
+export function TypeRail({ types, selected, dirty, onCreate }: Props) {
     const intl = useIntl();
     return (
         <nav
+            data-keeps-unsaved-changes
             aria-label={intl.formatMessage(messages.label)}
             className="flex flex-col gap-4 rounded-xl border bg-card p-2 shadow-xs"
         >
@@ -48,12 +62,24 @@ export function TypeRail({ types, selected }: Props) {
                                     key={type.name}
                                     type={type}
                                     selected={type.name === selected}
+                                    dirty={dirty?.has(type.name)}
                                 />
                             ))}
                         </ul>
                     </section>
                 );
             })}
+            {onCreate && (
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="justify-start text-muted-foreground"
+                    onClick={onCreate}
+                >
+                    <Plus />
+                    {intl.formatMessage(messages.create)}
+                </Button>
+            )}
         </nav>
     );
 }
