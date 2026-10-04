@@ -84,7 +84,7 @@ regenerated manifest and a drizzle-kit migration, ready to commit.
 | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `schema-builder-domain` | Framework-free kernel: the `SchemaDocument`, the diff, the fingerprint, change classification, code generation, the two-phase split, the manifest renderer |
 | `schema-builder-server` | The plugin: document / plan / apply / operations routes, the source tree, drizzle-kit and prettier as child processes, the lock, the operation log         |
-| `schema-builder-admin`  | The `/content-model` page: type rail, field list, field sheet, groups sheet, review drawer, apply progress, grant dialog                                   |
+| `schema-builder-admin`  | The `/content-model` page: type rail, field list, field sheet, groups sheet, the review page with its steps, grant dialog                                  |
 
 `@orthacms/content-domain` holds the **schema rules** (one rule per file, `checkTypes`) and the
 General-tab ordering table. The DSL, the builder server and the builder admin all run that
@@ -261,8 +261,10 @@ between types does not.
 freshness (`409 schema-builder.stale` if the model moved), the rules (`422 invalid`) and
 ownership (`422 not-owned`); classifies with live facts (row counts, grants, references);
 renders every file into `.orthacms/plan/<uuid>/`, prettier-formats it, and runs drizzle-kit
-against a copy of the migrations folder to get the SQL. The admin shows a skeleton for those
-seconds, then three tabs: changes, files (before/after), SQL.
+against a copy of the migrations folder to get the SQL. The admin opens the review as a page
+with steps (`?review` on the same page, so the draft is the editor's and Back returns to it):
+a skeleton for those seconds, then the changes with their confirmations, then the files and
+the SQL, then the migration name and Apply.
 
 ### 7.4 Apply
 
@@ -324,16 +326,16 @@ Errors carry `{ statusCode, code, message, details? }`:
 `/content-model` and `/content-model/:typeName`, in the global sidebar's directory group
 (order 50), gated on `content:read`. Global because types are the same in every workspace.
 
-| Element        | What it does                                                                                                                     |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| Header         | "N unsaved changes", Discard, Review changes (off while the draft breaks a rule)                                                 |
-| Type rail      | Every type, its origin, a dot for a changed one; New content type                                                                |
-| Type editor    | Settings and flags, the issues, the field list under General (loose fields by rank, then group accordions), Relations, Media     |
-| Field sheet    | General (label, machine name, required, localized, lang, relation settings), Validation (only the rules the type takes), Display |
-| Groups sheet   | General's accordion blocks — never sections, never tabs                                                                          |
-| Review drawer  | Changes / Files / SQL, the per-change confirmation, the migration name, Apply                                                    |
-| Apply progress | Three steps in one `role="status"`; a failure is an alert that says the draft is kept                                            |
-| Grant dialog   | Active workspaces, Grant / Not now                                                                                               |
+| Element        | What it does                                                                                                                         |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Header         | "N unsaved changes", Discard, Review changes (off while the draft breaks a rule)                                                     |
+| Type rail      | Every type, its origin, a dot for a changed one; New content type                                                                    |
+| Type editor    | Settings and flags, the issues, the field list under General (loose fields by rank, then group accordions), Relations, Media         |
+| Field sheet    | General (label, machine name, required, localized, lang, relation settings), Validation (only the rules the type takes), Display     |
+| Groups sheet   | General's accordion blocks — never sections, never tabs                                                                              |
+| Review page    | `?review` on the same page, a stepper and one card: changes and confirmations → files and SQL → migration name and Apply             |
+| Apply progress | The review card after Apply: three steps in one `role="status"`, then the outcome; a failure is an alert that says the draft is kept |
+| Grant dialog   | Active workspaces, Grant / Not now                                                                                                   |
 
 ### States
 

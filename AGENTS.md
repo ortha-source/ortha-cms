@@ -139,7 +139,8 @@
   first, so it never prompts), runs it in one transaction and only then writes
   `src/content/`, then the dev watcher restarts the server; `admin` is the
   global `/content-model` page — rail, field list under the entry editor's
-  built-in tabs, field and group sheets, the review drawer and the grant offer.
+  built-in tabs, field and group sheets, the review page with its steps and
+  the grant offer.
   **Development only**: plan and apply need `SCHEMA_BUILDER=true`, a
   non-production `NODE_ENV` and the source tree, else `403`; production gets
   the same page read-only. It edits only files whose first line is
