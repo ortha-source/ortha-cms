@@ -8,3 +8,7 @@ export * from './lib/diff';
 export * from './lib/document';
 export * from './lib/fingerprint';
 export * from './lib/manifest';
+export * from './lib/classify';
+export * from './lib/codegen';
+export * from './lib/phases';
+export { GENERATED_MARKER, isGeneratedSource } from './lib/generated-marker';

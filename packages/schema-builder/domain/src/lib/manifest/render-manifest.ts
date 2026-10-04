@@ -6,8 +6,10 @@ import {
 import { contentFolder, type ManifestEntry } from './manifest-entry';
 import { sortEntries } from './sort-entries';
 
-/** The first line of every file this package writes. */
-export const MANIFEST_MARKER = '// @orthacms-generated';
+import { GENERATED_MARKER } from '../generated-marker';
+
+/** The manifest's first line — the builder's marker. */
+export const MANIFEST_MARKER = GENERATED_MARKER;
 
 const HEADER = `${MANIFEST_MARKER} — the content manifest. Do not edit by hand.
 //

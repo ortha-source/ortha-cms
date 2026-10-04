@@ -40,6 +40,23 @@ plugin and the admin import it alike. No framework, no Node-only API. The design
   the kernel's `RuleType` with the DSL's defaults filled in, so
   `checkTypes(types.map(toRuleType))` is the verdict boot would reach.
 
+- **The classification** (`lib/classify/`) — `classify(changes, { after,
+facts })` gives every change a `safety` (`safe`, `data`, `destructive`,
+  `blocked`), a `reason` key and whether it needs a migration. One classifier
+  per change kind; `CLASSIFIERS` is typed exhaustively over `ChangeKind`, so a
+  new kind does not compile until it is classified. The domain never queries:
+  row counts, grants and references arrive as `ChangeFacts` from the server.
+- **The code generator** (`lib/codegen/`) — `renderTypeModule` /
+  `renderAll` write a type's module the way a person would: the marker banner,
+  the DSL import, one import per related type, then `collection()` /
+  `single()` with the DSL's defaults left out and relation targets as
+  annotated thunks. Output is valid but one-line; the server runs prettier
+  over it. Small functions all the way down — `emitValue`, `objectLiteral`,
+  `fieldOptions`, `renderField`, `renderRelationField`, `renderImports`.
+- **The apply phases** (`lib/phases/`) — `withoutAdditions` builds the
+  removals-only document generated first, so no drizzle-kit diff holds a drop
+  and a create on one table (the case where it asks about a rename).
+
 ## Conventions
 
 - One responsibility and one main export per file; a file over ~60 lines is a
