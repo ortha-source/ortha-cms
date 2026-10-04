@@ -1,3 +1,5 @@
+// @orthacms-generated — managed by the Schema Builder.
+
 /**
  * `tag` — a **localized** (`i18n`) collection that is also the target of a
  * many-to-many (`article.tags`).

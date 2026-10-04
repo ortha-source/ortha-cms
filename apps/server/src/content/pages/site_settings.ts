@@ -1,3 +1,5 @@
+// @orthacms-generated — managed by the Schema Builder.
+
 /**
  * `site_settings` — a **non-i18n single**. One global row (no publish state,
  * no localization). Shows `select`, `multiselect`, `json`, `boolean`, and the

@@ -17,6 +17,7 @@ import { author } from './collections/author';
 import { category } from './collections/category';
 import { comment } from './collections/comment';
 import { master_collection } from './collections/master_collection';
+import { microsteps } from './collections/microsteps';
 import { seo_meta } from './collections/seo_meta';
 import { tag } from './collections/tag';
 import { home_page } from './pages/home_page';
@@ -30,6 +31,7 @@ export const contentTypes: readonly AnyContentType[] = [
     category,
     comment,
     master_collection,
+    microsteps,
     seo_meta,
     tag,
     home_page,
@@ -43,6 +45,7 @@ export const authorTable = author.table;
 export const categoryTable = category.table;
 export const commentTable = comment.table;
 export const masterCollectionTable = master_collection.table;
+export const microstepsTable = microsteps.table;
 export const seoMetaTable = seo_meta.table;
 export const tagTable = tag.table;
 export const homePageTable = home_page.table;

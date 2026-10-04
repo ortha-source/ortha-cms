@@ -1,3 +1,5 @@
+// @orthacms-generated — managed by the Schema Builder.
+
 /**
  * `master_single` — the exhaustive reference **single** (routed page).
  *

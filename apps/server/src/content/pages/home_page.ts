@@ -1,3 +1,5 @@
+// @orthacms-generated — managed by the Schema Builder.
+
 /**
  * `home_page` — a **single** (routed, one entry) that is **localized** and
  * **publishable**. Demonstrates the single kind + `path`, i18n on a page, and

@@ -1,3 +1,5 @@
+// @orthacms-generated — managed by the Schema Builder.
+
 /**
  * `author` — a plain, non-publishable, non-localized collection.
  *
