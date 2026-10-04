@@ -1930,6 +1930,17 @@ export async function mockContentEntryWrites(
                 {}
         });
 
+        // The editor's sub-resource reads, answered empty in their real
+        // envelopes rather than with the record: a body of the wrong shape
+        // makes the gateway throw, TanStack retries the read with backoff,
+        // and a save — which awaits that refetch — finishes seconds late.
+        // The specific mocks ({@link mockEntryRelations}, …) register later
+        // and still win.
+        if (method === 'GET' && !parts[5]) {
+            if (action === 'relations') return json(route, { relations: {} });
+            if (action === 'media') return json(route, { media: {} });
+            if (action === 'usages') return json(route, { items: [] });
+        }
         if (method === 'GET') return json(route, record('draft'));
         // Every write stamps a new `updatedAt`, a status transition included —
         // the server's `markPublished` / `markDraft` set it too, and the review

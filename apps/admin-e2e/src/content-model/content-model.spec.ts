@@ -43,7 +43,15 @@ test.describe('Content Model', () => {
             );
             await expect(page.getByRole('status')).toHaveCount(1);
             await expect(contentModelPage.heading).toBeVisible();
-            const before = await contentModelPage.heading.boundingBox();
+            // Retried: the loaded page mounts its own chrome, so a measure that
+            // lands on the swap reads a detached heading and gets `null`.
+            let before: Awaited<
+                ReturnType<typeof contentModelPage.heading.boundingBox>
+            > = null;
+            await expect(async () => {
+                before = await contentModelPage.heading.boundingBox();
+                expect(before).not.toBeNull();
+            }).toPass();
 
             await expect(contentModelPage.rail).toBeVisible();
             await expect(contentModelPage.loading).toHaveCount(0);

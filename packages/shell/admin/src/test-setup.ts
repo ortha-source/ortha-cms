@@ -48,3 +48,19 @@ if (!Element.prototype.hasPointerCapture) {
     Element.prototype.setPointerCapture = () => undefined;
     Element.prototype.releasePointerCapture = () => undefined;
 }
+
+// Node 25+ defines its own `localStorage` / `sessionStorage` on `globalThis`,
+// and without `--localstorage-file` both read `undefined`. That global shadows
+// the jsdom window's, so `localStorage.clear()` in a spec throws before it
+// reaches the code under test. Put jsdom's back — vitest exposes the instance
+// as `jsdom` — only where the slot is empty, so older Nodes are untouched.
+declare const jsdom: { window: Window } | undefined;
+
+for (const key of ['localStorage', 'sessionStorage'] as const) {
+    if (!globalThis[key] && typeof jsdom !== 'undefined') {
+        Object.defineProperty(globalThis, key, {
+            configurable: true,
+            value: jsdom.window[key]
+        });
+    }
+}
