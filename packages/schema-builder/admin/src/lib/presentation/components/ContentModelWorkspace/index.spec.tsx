@@ -248,6 +248,34 @@ describe('ContentModelWorkspace — editing', () => {
         ).toBe(false);
     });
 
+    it('greets a new type with no fields with an empty state that leads to the first one', () => {
+        renderWorkspace();
+        fireEvent.click(
+            screen.getByRole('button', { name: 'New content type' })
+        );
+        const dialog = screen.getByRole('dialog', { name: 'New content type' });
+        fireEvent.change(within(dialog).getByLabelText('Label'), {
+            target: { value: 'Events' }
+        });
+        fireEvent.click(
+            within(dialog).getByRole('button', { name: 'Add type' })
+        );
+
+        expect(screen.getByText('No fields yet')).toBeTruthy();
+        expect(screen.queryByRole('region', { name: 'General' })).toBeNull();
+        // The description is a small text box of its own.
+        expect(screen.getByLabelText('Description').tagName.toLowerCase()).toBe(
+            'textarea'
+        );
+
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Add the first field' })
+        );
+        expect(
+            screen.getByRole('heading', { level: 1, name: 'Add a field' })
+        ).toBeTruthy();
+    });
+
     it('fixes the storage flags of an existing type, except turning the trash on', () => {
         renderWorkspace(owned, '/content-model/author');
         expect(

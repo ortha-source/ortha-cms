@@ -202,6 +202,10 @@ test.describe('Content model editor', () => {
         await expect(page).toHaveURL(/\/content-model\/events$/);
         await expect(contentModelPage.typeHeading('Events')).toBeVisible();
         await expect(contentModelPage.railLink('Events')).toBeVisible();
+        // A new type starts empty, and says how to begin.
+        await expect(page.getByText('No fields yet')).toBeVisible();
+        await expect(contentModelPage.addFirstFieldButton()).toBeVisible();
+        await expect(contentModelPage.reviewButton()).toBeDisabled();
     });
 
     test('discards the draft back to the served model', async ({

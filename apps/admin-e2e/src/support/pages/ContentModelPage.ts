@@ -269,14 +269,32 @@ export class ContentModelPage extends BasePage {
         });
     }
 
-    /** Adds a collection from the rail, by its label. */
-    async addType(label: string): Promise<void> {
+    /** The empty state of a type with no fields, and its way in. */
+    addFirstFieldButton(): Locator {
+        return this.page.getByRole('button', { name: 'Add the first field' });
+    }
+
+    /**
+     * Adds a collection from the rail, by its label, and — since a type needs
+     * a field before it can be reviewed — a short text field named Title.
+     */
+    async addType(
+        label: string,
+        { firstField = true }: { firstField?: boolean } = {}
+    ): Promise<void> {
         await this.newTypeButton().click();
         const dialog = this.page.getByRole('dialog', {
             name: 'New content type'
         });
         await dialog.getByLabel('Label').fill(label);
         await dialog.getByRole('button', { name: 'Add type' }).click();
+        if (!firstField) return;
+        await this.addFirstFieldButton().click();
+        await this.reviewAction('Continue').click();
+        await this.page.getByLabel('Label').fill('Title');
+        await this.reviewAction('Continue').click();
+        await this.reviewAction('Add field').click();
+        await this.reviewButton().waitFor();
     }
 
     /** The empty state's heading. */

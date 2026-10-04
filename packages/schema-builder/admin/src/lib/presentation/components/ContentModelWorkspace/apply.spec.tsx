@@ -146,6 +146,16 @@ function addTypeAndReview() {
         target: { value: 'Events' }
     });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add type' }));
+    // A type needs a field before it can be reviewed: add the first one.
+    fireEvent.click(
+        screen.getByRole('button', { name: 'Add the first field' })
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    fireEvent.change(screen.getByLabelText('Label'), {
+        target: { value: 'Title' }
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add field' }));
     fireEvent.click(screen.getByRole('button', { name: 'Review changes' }));
     expect(
         screen.getByRole('heading', { level: 1, name: 'Review changes' })
