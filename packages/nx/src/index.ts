@@ -91,6 +91,15 @@ export const createNodesV2: CreateNodesV2 = [
                               config: file
                           },
                           cache: false
+                      },
+                      'content:sync': {
+                          executor: '@orthacms/nx:content-sync',
+                          options: {
+                              contentDir: `${projectRoot}/src/content`
+                          },
+                          // Writes a source file from other source files; a
+                          // cache hit would skip the write it exists for.
+                          cache: false
                       }
                   };
 

@@ -284,6 +284,10 @@ package; the admin app's Vite transpiles the design-system source directly.
     - `npx nx run server:db:studio` — open Drizzle Studio on the host database
       (introspects the live DB; needs `DATABASE_URL`). Also inferred on the
       host. Optional `--host` / `--port` to change where Studio binds.
+    - `npx nx run server:content:sync` — rewrite the host's generated content
+      manifest (`src/content/index.ts`) after adding, renaming or removing a
+      type file; `orthacms content sync` is the same command in a generated
+      app.
 - Package manager: **npm workspaces** (not pnpm/yarn)
 
 ## Conventions

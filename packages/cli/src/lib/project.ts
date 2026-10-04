@@ -40,7 +40,9 @@ export const LAYOUT = {
     /** Compiled plugin factory, exporting `buildPlugins(config)`. */
     compiledPlugins: 'dist/server/src/plugins.js',
     /** Drizzle generation config for the app's own content tables. */
-    drizzleConfig: 'apps/server/drizzle.config.ts'
+    drizzleConfig: 'apps/server/drizzle.config.ts',
+    /** The app's content types: `collections/`, `pages/` and the manifest. */
+    contentDir: 'apps/server/src/content'
 } as const;
 
 /** The minimum this CLI needs to know about a host's config. */

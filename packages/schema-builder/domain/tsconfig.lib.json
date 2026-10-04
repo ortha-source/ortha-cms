@@ -1,5 +1,5 @@
 {
-    "extends": "../../tsconfig.base.json",
+    "extends": "../../../tsconfig.base.json",
     "compilerOptions": {
         "emitDeclarationOnly": false,
         "outDir": "dist",
@@ -10,13 +10,5 @@
         "types": ["node"]
     },
     "include": ["src/**/*.ts"],
-    "exclude": ["dist", "**/*.spec.ts", "**/*.test.ts"],
-    "references": [
-        {
-            "path": "../schema-builder/domain/tsconfig.lib.json"
-        },
-        {
-            "path": "../bootstrap/server/tsconfig.lib.json"
-        }
-    ]
+    "exclude": ["dist", "**/*.spec.ts", "**/*.test.ts"]
 }

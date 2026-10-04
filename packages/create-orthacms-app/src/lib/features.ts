@@ -169,6 +169,10 @@ export const CORE_DEV_PACKAGES: readonly string[] = ['@orthacms/cli'];
  * upload on restart. The testkit is the contract suite those providers run
  * against.
  *
+ * `schema-builder-domain` is the schema builder's framework-free kernel. The
+ * app never imports it: it arrives as a dependency of `@orthacms/cli`, whose
+ * `content sync` renders the content manifest with it (ADR-0020).
+ *
  * Everything else a generated app can reach is in its own manifest, so "it
  * resolves because npm hoisted it" is never the answer to why an import works.
  * Putting a package here is a decision the coverage guard accepts; forgetting
@@ -176,7 +180,8 @@ export const CORE_DEV_PACKAGES: readonly string[] = ['@orthacms/cli'];
  */
 export const TRANSITIVE_PACKAGES: readonly string[] = [
     '@orthacms/media-provider-memory',
-    '@orthacms/media-provider-testkit'
+    '@orthacms/media-provider-testkit',
+    '@orthacms/schema-builder-domain'
 ];
 
 /**

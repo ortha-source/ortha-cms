@@ -1,4 +1,7 @@
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { getTableName } from 'drizzle-orm';
+import { renderManifest } from '@orthacms/schema-builder-domain';
 import type { PgTable } from 'drizzle-orm/pg-core';
 import { is } from 'drizzle-orm';
 import { PgTable as PgTableClass } from 'drizzle-orm/pg-core';
@@ -95,6 +98,33 @@ describe('src/content/index.ts (the drizzle-kit schema entry)', () => {
         // entry history has nowhere to be written.
         expect(getTableName(barrel.contentEntryRevisionsTable)).toBe(
             'content_entry_revisions'
+        );
+    });
+
+    it('is exactly the manifest `content sync` would write', () => {
+        // The file is generated (ADR-0020). An edit by hand, or a type added
+        // without a sync, shows up here as a diff rather than as a table that
+        // quietly never reaches a migration.
+        const entries = contentTypes.map((type) => ({
+            name: type.name,
+            kind: type.kind,
+            joinFields: Object.keys(type.joinTables)
+        }));
+        expect(readFileSync(join(__dirname, 'index.ts'), 'utf8')).toBe(
+            renderManifest(entries)
+        );
+    });
+
+    it('registers every module under collections/ and pages/', () => {
+        const onDisk = ['collections', 'pages'].flatMap((folder) =>
+            readdirSync(join(__dirname, folder))
+                .filter(
+                    (file) => file.endsWith('.ts') && !file.endsWith('.spec.ts')
+                )
+                .map((file) => file.replace(/\.ts$/, ''))
+        );
+        expect(contentTypes.map((type) => type.name).sort()).toEqual(
+            onDisk.sort()
         );
     });
 });
