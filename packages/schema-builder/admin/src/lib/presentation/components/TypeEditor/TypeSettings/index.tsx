@@ -1,5 +1,5 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { Badge, InputField } from '@orthacms/design-system';
+import { Badge, InputField, Label, Textarea } from '@orthacms/design-system';
 import type { TypeDoc } from '@orthacms/schema-builder-domain';
 import type { TypePatch } from '../../../../domain/schemaDraftAction';
 import { OriginBadge } from '../../OriginBadge';
@@ -25,6 +25,11 @@ const messages = defineMessages({
     description: {
         id: 'schemaBuilder.type.description',
         defaultMessage: 'Description'
+    },
+    descriptionPlaceholder: {
+        id: 'schemaBuilder.type.descriptionPlaceholder',
+        defaultMessage:
+            'What this type is for — shown to the people who edit it.'
     },
     path: { id: 'schemaBuilder.type.path', defaultMessage: 'Path' },
     pathHint: {
@@ -58,7 +63,13 @@ export function TypeSettings({ type, served, onChange }: Props) {
                 </Badge>
                 <OriginBadge origin={type.origin} />
             </div>
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div
+                className={
+                    type.kind === 'single'
+                        ? 'grid gap-4 sm:grid-cols-3'
+                        : 'grid gap-4 sm:grid-cols-2'
+                }
+            >
                 <InputField
                     id="type-label"
                     label={intl.formatMessage(messages.label)}
@@ -78,16 +89,6 @@ export function TypeSettings({ type, served, onChange }: Props) {
                     disabled={!isNew}
                     onChange={(event) => onChange({ name: event.target.value })}
                 />
-                <InputField
-                    id="type-description"
-                    label={intl.formatMessage(messages.description)}
-                    value={type.description ?? ''}
-                    onChange={(event) =>
-                        onChange({
-                            description: event.target.value || undefined
-                        })
-                    }
-                />
                 {type.kind === 'single' && (
                     <InputField
                         id="type-path"
@@ -100,6 +101,25 @@ export function TypeSettings({ type, served, onChange }: Props) {
                         }
                     />
                 )}
+            </div>
+            <div className="flex flex-col gap-2">
+                <Label htmlFor="type-description">
+                    {intl.formatMessage(messages.description)}
+                </Label>
+                <Textarea
+                    id="type-description"
+                    rows={2}
+                    className="min-h-0 resize-y"
+                    placeholder={intl.formatMessage(
+                        messages.descriptionPlaceholder
+                    )}
+                    value={type.description ?? ''}
+                    onChange={(event) =>
+                        onChange({
+                            description: event.target.value || undefined
+                        })
+                    }
+                />
             </div>
             <div className="flex flex-wrap gap-x-8 gap-y-4">
                 {(['publishable', 'paranoid', 'i18n'] as const).map((flag) => (

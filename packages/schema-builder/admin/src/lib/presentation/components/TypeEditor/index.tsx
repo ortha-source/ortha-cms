@@ -78,7 +78,14 @@ export function TypeEditor({ type, capabilities, access, draft }: Props) {
             {capabilities.editable && type.origin === 'code' && (
                 <HandWrittenNotice type={type} />
             )}
-            {editable && <TypeIssues issues={issues} />}
+            {editable && (
+                <TypeIssues
+                    // "Defines no fields" is what the empty state below says.
+                    issues={issues.filter(
+                        (issue) => issue.code !== 'type.no-fields'
+                    )}
+                />
+            )}
             {editable ? (
                 <TypeSettings
                     type={type}

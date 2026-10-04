@@ -9,6 +9,7 @@ import type { FieldListEditing } from './fieldListEditing';
 import { FieldRows } from './FieldRows';
 import { GeneralOrderHint } from './GeneralOrderHint';
 import { GroupAccordion } from './GroupAccordion';
+import { NoFields } from './NoFields';
 
 const messages = defineMessages({
     title: { id: 'schemaBuilder.fields.title', defaultMessage: 'Fields' },
@@ -22,7 +23,8 @@ type Props = { type: TypeDoc; editing?: FieldListEditing };
  * A type's fields under the tab the entry editor draws each on: General
  * (loose fields by rank, then the groups as accordions), Relations, Media.
  * A tab with nothing on it is left out, as the editor leaves it out — except
- * General while editing, where groups are managed.
+ * General while editing, where groups are managed. A type with no fields
+ * and no groups gets an empty state instead: what fields are, and the way in.
  */
 export function FieldList({ type, editing }: Props) {
     const intl = useIntl();
@@ -57,38 +59,42 @@ export function FieldList({ type, editing }: Props) {
                     </Button>
                 )}
             </div>
-            {(generalCount > 0 || general.groups.length > 0 || editing) && (
-                <BuiltInTabBlock
-                    tab="general"
-                    count={generalCount}
-                    action={
-                        editing && (
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7"
-                                onClick={editing.onManageGroups}
-                            >
-                                <Layers />
-                                {intl.formatMessage(messages.groups)}
-                            </Button>
-                        )
-                    }
-                >
-                    <FieldRows fields={general.loose} editing={editing} />
-                    {general.groups.length > 0 && (
-                        <>
-                            <GeneralOrderHint />
-                            {general.groups.map((block) => (
-                                <GroupAccordion
-                                    key={block.group.key}
-                                    {...block}
-                                    editing={editing}
-                                />
-                            ))}
-                        </>
-                    )}
-                </BuiltInTabBlock>
+            {type.fields.length === 0 && general.groups.length === 0 ? (
+                <NoFields onAdd={editing?.onAddField} />
+            ) : (
+                (generalCount > 0 || general.groups.length > 0 || editing) && (
+                    <BuiltInTabBlock
+                        tab="general"
+                        count={generalCount}
+                        action={
+                            editing && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7"
+                                    onClick={editing.onManageGroups}
+                                >
+                                    <Layers />
+                                    {intl.formatMessage(messages.groups)}
+                                </Button>
+                            )
+                        }
+                    >
+                        <FieldRows fields={general.loose} editing={editing} />
+                        {general.groups.length > 0 && (
+                            <>
+                                <GeneralOrderHint />
+                                {general.groups.map((block) => (
+                                    <GroupAccordion
+                                        key={block.group.key}
+                                        {...block}
+                                        editing={editing}
+                                    />
+                                ))}
+                            </>
+                        )}
+                    </BuiltInTabBlock>
+                )
             )}
             {relations.length > 0 && (
                 <BuiltInTabBlock tab="relations" count={relations.length}>

@@ -1,9 +1,10 @@
 import type { TypeDoc } from '@orthacms/schema-builder-domain';
-import { newFieldKey } from '../identifiers';
 
 /**
- * A type that does not exist yet: one text field, because the schema refuses
- * a type with none, and the DSL's defaults for the flags.
+ * A type that does not exist yet: no fields — the editor greets it with an
+ * empty state that leads to the first one — and the DSL's defaults for the
+ * flags. The schema refuses a type with no fields, so until one is added the
+ * draft carries that issue and cannot be reviewed.
  */
 export function newTypeDoc(
     name: string,
@@ -19,13 +20,7 @@ export function newTypeDoc(
         paranoid: false,
         i18n: false,
         groups: [],
-        fields: [
-            {
-                key: newFieldKey(),
-                name: 'title',
-                spec: { type: 'text', required: true }
-            }
-        ],
+        fields: [],
         origin: 'new'
     };
 }
