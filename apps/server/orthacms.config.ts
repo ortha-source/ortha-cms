@@ -41,6 +41,7 @@ import type { I18nPluginConfig } from '@orthacms/i18n-server';
 import type { ContentGraphqlPluginConfig } from '@orthacms/content-graphql';
 import type { McpPluginConfig } from '@orthacms/mcp-server';
 import type { TransferPluginConfig } from '@orthacms/transfer-server';
+import type { SchemaBuilderPluginConfig } from '@orthacms/schema-builder-server';
 import type { SegmentsPluginConfig } from '@orthacms/segments-server';
 import type { WebhooksPluginConfig } from '@orthacms/webhooks-server';
 import {
@@ -58,6 +59,7 @@ import { copilotConfig, type OrthaCmsCopilotConfig } from './config/copilot';
 import { contentGraphqlConfig } from './config/graphql';
 import { mcpConfig } from './config/mcp';
 import { transferConfig } from './config/transfer';
+import { schemaBuilderConfig } from './config/schema-builder';
 import { segmentsConfig } from './config/segments';
 import { webhooksConfig } from './config/webhooks';
 import { mailConfig, type OrthaCmsMailConfig } from './config/mail';
@@ -128,6 +130,11 @@ export interface OrthaCmsConfig {
         /** Webhooks plugin settings — delivery pacing and the URL policy. */
         webhooks: WebhooksPluginConfig;
         /**
+         * Schema builder settings — whether editing is on (development only,
+         * ADR-0020) and where this app's source lives.
+         */
+        schemaBuilder: SchemaBuilderPluginConfig;
+        /**
          * Mail plugin settings — the sender, the app URL every link is built
          * from, and the backend `plugins.ts` constructs.
          *
@@ -168,6 +175,7 @@ const config: OrthaCmsConfig = {
         transfer: transferConfig(),
         segments: segmentsConfig(),
         webhooks: webhooksConfig(),
+        schemaBuilder: schemaBuilderConfig(),
         mail: mailConfig(),
         media: mediaConfig(),
         contentGraphql: contentGraphqlConfig(),

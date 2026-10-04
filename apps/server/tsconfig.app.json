@@ -64,6 +64,9 @@
             "path": "../../packages/segments/server/tsconfig.lib.json"
         },
         {
+            "path": "../../packages/schema-builder/server/tsconfig.lib.json"
+        },
+        {
             "path": "../../packages/media/provider-local/tsconfig.lib.json"
         },
         {

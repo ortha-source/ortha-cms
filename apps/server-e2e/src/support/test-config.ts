@@ -1,3 +1,5 @@
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import type { TrustProxySetting } from '@orthacms/bootstrap-server';
 import type { ContentGraphqlLimits } from '@orthacms/content-graphql';
 import type {
@@ -11,6 +13,7 @@ import type { LocaleDef, OrphanedLocalePolicy } from '@orthacms/i18n-server';
 import type { TransferLimits } from '@orthacms/transfer-domain';
 import type { WebhooksPluginConfig } from '@orthacms/webhooks-server';
 import type { MailPluginConfig } from '@orthacms/mail-server';
+import type { SchemaBuilderPluginConfig } from '@orthacms/schema-builder-server';
 import type { OrthaCmsConfig } from '../../../server/orthacms.config';
 
 /**
@@ -24,6 +27,15 @@ import type { OrthaCmsConfig } from '../../../server/orthacms.config';
  * tests.
  */
 export const TEST_ALLOWED_ORIGIN = 'http://localhost:4200';
+
+/**
+ * Where the schema builder looks for the app's source by default: a folder
+ * that does not exist. The harness registers its types from
+ * `support/content`, not from a `src/content` the builder could own, so every
+ * type reads as hand-written and editing as off — the state of a deployed
+ * bundle. A suite that needs a source tree builds one and passes it.
+ */
+export const NO_SOURCE_TREE = join(tmpdir(), 'orthacms-e2e-no-source-tree');
 
 /**
  * Rate limit relaxed by default so a large login suite doesn't self-throttle.
@@ -68,6 +80,11 @@ export interface TestConfigOverrides {
      * `{ allowPrivateNetworks: false }`.
      */
     webhooks?: Partial<WebhooksPluginConfig>;
+    /**
+     * Override the schema builder settings. The default is editing off and a
+     * root with no source tree ({@link NO_SOURCE_TREE}).
+     */
+    schemaBuilder?: Partial<SchemaBuilderPluginConfig>;
     /**
      * Boot **with** a mail provider, and with these settings.
      *
@@ -323,6 +340,15 @@ export function buildTestConfig(
                 // flake that is hard to read afterwards.
                 retentionDays: 0,
                 ...overrides.webhooks
+            },
+            // The schema builder. Never editable here unless a suite asks:
+            // plan and apply write files and run drizzle-kit.
+            schemaBuilder: {
+                enabled: false,
+                production: false,
+                projectRoot: NO_SOURCE_TREE,
+                restart: 'manual',
+                ...overrides.schemaBuilder
             },
             // Mail. Registered only when a suite asks for it (see
             // `TestConfigOverrides.mail`); the settings are still built here so
