@@ -13,12 +13,12 @@ import { PageTopBar } from '@orthacms/shell-admin';
 import { useNewField } from '../../../application/useNewField';
 import type { SchemaDraftState } from '../../../application/useSchemaDraft';
 import { BasicsStep } from './BasicsStep';
-import { kindCopy } from './fieldKindCopy';
+import { kindCopy } from '../fieldKindCopy';
 import { RulesStep } from './RulesStep';
 import { TypeStep } from './TypeStep';
 
 const messages = defineMessages({
-    crumb: { id: 'schemaBuilder.page.title', defaultMessage: 'Content model' },
+    crumb: { id: 'schemaBuilder.page.title', defaultMessage: 'Content Model' },
     title: {
         id: 'schemaBuilder.addField.title',
         defaultMessage: 'Add a field'

@@ -33,10 +33,15 @@ const messages = defineMessages({
     }
 });
 
-type Props = { type: TypeDoc; onChange: (patch: TypePatch) => void };
+type Props = {
+    type: TypeDoc;
+    /** The type as served, when it exists there — what a flag is judged against. */
+    served: TypeDoc | undefined;
+    onChange: (patch: TypePatch) => void;
+};
 
 /** A type's own options as a form; every control is one option of `collection()` / `single()`. */
-export function TypeSettings({ type, onChange }: Props) {
+export function TypeSettings({ type, served, onChange }: Props) {
     const intl = useIntl();
     const isNew = type.origin === 'new';
     return (
@@ -101,6 +106,7 @@ export function TypeSettings({ type, onChange }: Props) {
                     <FlagSwitch
                         key={flag}
                         type={type}
+                        served={served}
                         flag={flag}
                         onChange={(value) => onChange({ [flag]: value })}
                     />

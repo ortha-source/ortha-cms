@@ -234,11 +234,13 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   tabbed body (**General** = `EntryFieldSections`, ordered by control shape on a
   **two-column grid**: every field takes the whole line unless the schema asks
   for one column with `admin.width: 'half'` (a boolean shrinks to its segments),
-  and two fields sharing an `admin.row` key share a line — `domain/fieldLayout`
-  decides, `FieldStack` renders. The width is **never inferred from the type**:
-  a type-based rule was tried and put an email in half a column while an
-  equally short slug spanned the form. A row is **declared, never
-  inferred**: auto-pairing would sit unrelated fields side by side. A type that
+  and two **adjacent** half-width fields share a line, as do two fields sharing
+  an `admin.row` key — `domain/fieldLayout` decides, `FieldStack` renders. The
+  width is **never inferred from the type**: a type-based rule was tried and
+  put an email in half a column while an equally short slug spanned the form.
+  So pairing follows only what the schema declared — two halves the author
+  made narrow, or a row key — never short fields of a kind: auto-pairing by
+  type would sit unrelated fields side by side. A type that
   declares **form sections** (`groups`, joined by `admin.group`) is laid out by
   them instead of Translated / Shared: ungrouped fields on top, then one
   collapsible `FieldSection` per group in declaration order. A folded section

@@ -10,7 +10,7 @@ import { BasePage } from './BasePage';
 export class ContentModelPage extends BasePage {
     /** The page's `<h1>`, present in every state. */
     readonly heading: Locator;
-    /** The Content model entry in the primary nav. */
+    /** The Content Model entry in the primary nav. */
     readonly navLink: Locator;
     /** The skeleton's one announced region. */
     readonly loading: Locator;
@@ -24,12 +24,12 @@ export class ContentModelPage extends BasePage {
     constructor(page: Page) {
         super(page);
         this.heading = page.getByRole('heading', {
-            name: 'Content model',
+            name: 'Content Model',
             level: 1
         });
         this.navLink = page
             .getByRole('navigation', { name: 'Primary' })
-            .getByRole('link', { name: 'Content model' });
+            .getByRole('link', { name: 'Content Model' });
         this.loading = page
             .getByRole('status')
             .filter({ hasText: 'Loading the content model…' });
@@ -244,13 +244,13 @@ export class ContentModelPage extends BasePage {
         return this.page.getByRole('button', { name, exact: true });
     }
 
-    /** "Back to the content model" — a link while reviewing, a button after an apply. */
+    /** "Back to the Content Model" — a link while reviewing, a button after an apply. */
     backToModel(): Locator {
         return this.page
-            .getByRole('link', { name: 'Back to the content model' })
+            .getByRole('link', { name: 'Back to the Content Model' })
             .or(
                 this.page.getByRole('button', {
-                    name: 'Back to the content model'
+                    name: 'Back to the Content Model'
                 })
             );
     }

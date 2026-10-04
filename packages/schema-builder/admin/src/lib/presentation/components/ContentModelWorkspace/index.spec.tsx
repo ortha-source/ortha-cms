@@ -87,7 +87,7 @@ describe('ContentModelWorkspace — editing', () => {
 
         // Back in the editor, with the field in the draft.
         expect(
-            screen.getByRole('heading', { level: 1, name: 'Content model' })
+            screen.getByRole('heading', { level: 1, name: 'Content Model' })
         ).toBeTruthy();
         expect(screen.getByText('1 unsaved change')).toBeTruthy();
         expect(within(general()).getByText('readingTime')).toBeTruthy();
@@ -149,7 +149,7 @@ describe('ContentModelWorkspace — editing', () => {
         });
         fireEvent.click(screen.getByRole('link', { name: 'Back to Articles' }));
         expect(
-            screen.getByRole('heading', { level: 1, name: 'Content model' })
+            screen.getByRole('heading', { level: 1, name: 'Content Model' })
         ).toBeTruthy();
         expect(screen.queryByText(/unsaved change/)).toBeNull();
         expect(within(general()).queryByText('subtitle')).toBeNull();
@@ -264,6 +264,45 @@ describe('ContentModelWorkspace — editing', () => {
                 }) as HTMLButtonElement
             ).disabled
         ).toBe(false);
+    });
+
+    it('lets an unapplied flag change be taken back — on a new type and on an existing one', () => {
+        renderWorkspace(owned, '/content-model/author');
+        const trash = () =>
+            screen.getByRole('switch', {
+                name: 'Trash (soft delete)'
+            }) as HTMLButtonElement;
+        fireEvent.click(trash());
+        expect(trash().getAttribute('aria-checked')).toBe('true');
+        expect(trash().disabled).toBe(false);
+        fireEvent.click(trash());
+        expect(trash().getAttribute('aria-checked')).toBe('false');
+        expect(screen.queryByText(/unsaved change/)).toBeNull();
+
+        // A type created in this draft: every flag goes on and off freely.
+        fireEvent.click(
+            screen.getByRole('button', { name: 'New content type' })
+        );
+        const dialog = screen.getByRole('dialog', { name: 'New content type' });
+        fireEvent.change(within(dialog).getByLabelText('Label'), {
+            target: { value: 'Events' }
+        });
+        fireEvent.click(
+            within(dialog).getByRole('button', { name: 'Add type' })
+        );
+        for (const name of [
+            'Draft & publish',
+            'Trash (soft delete)',
+            'Localized'
+        ]) {
+            const flag = () =>
+                screen.getByRole('switch', { name }) as HTMLButtonElement;
+            const before = flag().getAttribute('aria-checked');
+            fireEvent.click(flag());
+            fireEvent.click(flag());
+            expect(flag().getAttribute('aria-checked')).toBe(before);
+            expect(flag().disabled).toBe(false);
+        }
     });
 
     it('keeps a hand-written type read-only, saying why', () => {

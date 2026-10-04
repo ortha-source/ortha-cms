@@ -16,8 +16,6 @@ export type FieldCapability = {
     readonly validation: readonly ValidationEditor[];
     /** Group, width and row — moot for a field drawn on its own built-in tab. */
     readonly layout: boolean;
-    /** Render hints the stock admin understands for this type. */
-    readonly widgets: readonly string[];
     /** A placeholder means something for this control. */
     readonly placeholder: boolean;
 };
@@ -32,53 +30,45 @@ export const FIELD_CAPABILITIES: Readonly<
     text: {
         validation: ['length', 'pattern'],
         layout: true,
-        widgets: ['slug'],
         placeholder: true
     },
     richtext: {
         validation: ['length', 'structure'],
         layout: true,
-        widgets: ['textarea'],
         placeholder: true
     },
     number: {
         validation: ['range', 'integer'],
         layout: true,
-        widgets: [],
         placeholder: true
     },
     money: {
         validation: ['range'],
         layout: true,
-        widgets: [],
         placeholder: true
     },
-    boolean: { validation: [], layout: true, widgets: [], placeholder: false },
-    date: { validation: [], layout: true, widgets: [], placeholder: false },
-    datetime: { validation: [], layout: true, widgets: [], placeholder: false },
+    boolean: { validation: [], layout: true, placeholder: false },
+    date: { validation: [], layout: true, placeholder: false },
+    datetime: { validation: [], layout: true, placeholder: false },
     select: {
         validation: ['options'],
         layout: true,
-        widgets: [],
         placeholder: false
     },
     multiselect: {
         validation: ['options'],
         layout: true,
-        widgets: [],
         placeholder: false
     },
-    json: { validation: [], layout: true, widgets: [], placeholder: false },
+    json: { validation: [], layout: true, placeholder: false },
     relation: {
         validation: [],
         layout: false,
-        widgets: [],
         placeholder: false
     },
     media: {
         validation: ['mediaAccept'],
         layout: false,
-        widgets: [],
         placeholder: false
     }
 };

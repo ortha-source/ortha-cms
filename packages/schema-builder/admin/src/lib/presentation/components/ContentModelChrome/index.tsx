@@ -5,7 +5,7 @@ import { Container, ContainerHeader } from '@orthacms/design-system';
 import { PageTopBar } from '@orthacms/shell-admin';
 
 const messages = defineMessages({
-    title: { id: 'schemaBuilder.page.title', defaultMessage: 'Content model' },
+    title: { id: 'schemaBuilder.page.title', defaultMessage: 'Content Model' },
     subtitle: {
         id: 'schemaBuilder.page.subtitle',
         defaultMessage:

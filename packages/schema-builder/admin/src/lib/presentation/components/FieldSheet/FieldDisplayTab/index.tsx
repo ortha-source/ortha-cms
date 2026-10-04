@@ -27,11 +27,10 @@ const messages = defineMessages({
     width: { id: 'schemaBuilder.display.width', defaultMessage: 'Width' },
     full: { id: 'schemaBuilder.display.full', defaultMessage: 'Full row' },
     half: { id: 'schemaBuilder.display.half', defaultMessage: 'Half row' },
-    row: { id: 'schemaBuilder.display.row', defaultMessage: 'Share a row' },
-    rowHint: {
-        id: 'schemaBuilder.display.rowHint',
+    widthHint: {
+        id: 'schemaBuilder.display.widthHint',
         defaultMessage:
-            'Fields with the same key sit on one line — two at most.'
+            'Two half-row fields next to each other share one line in the entry editor.'
     },
     group: {
         id: 'schemaBuilder.display.group',
@@ -40,11 +39,6 @@ const messages = defineMessages({
     noGroup: {
         id: 'schemaBuilder.display.noGroup',
         defaultMessage: 'None — above the groups'
-    },
-    widget: { id: 'schemaBuilder.display.widget', defaultMessage: 'Control' },
-    defaultWidget: {
-        id: 'schemaBuilder.display.defaultWidget',
-        defaultMessage: 'Default'
     },
     hidden: {
         id: 'schemaBuilder.display.hidden',
@@ -63,7 +57,13 @@ const messages = defineMessages({
 
 type Props = { editor: FieldEditor; type: TypeDoc };
 
-/** The `admin` options: help text, placeholder, width, row, group, control, hidden. */
+/**
+ * The `admin` options: help text, placeholder, width, group, hidden. The
+ * control is the field's kind — long text is a textarea, rich text the
+ * editor — so there is none to pick here; a widget a schema already carries
+ * is kept as it is. There is no row key to type: two adjacent half-row fields share a
+ * line on their own. A row key a schema already carries is kept as it is.
+ */
 export function FieldDisplayTab({ editor, type }: Props) {
     const intl = useIntl();
     const admin = editor.entry.spec.admin ?? {};
@@ -90,7 +90,10 @@ export function FieldDisplayTab({ editor, type }: Props) {
             )}
             {capability.layout ? (
                 <>
-                    <fieldset className="flex flex-col gap-2">
+                    <fieldset
+                        className="flex flex-col gap-2"
+                        aria-describedby="display-width-hint"
+                    >
                         <legend className="mb-1 text-sm font-medium">
                             {intl.formatMessage(messages.width)}
                         </legend>
@@ -118,17 +121,13 @@ export function FieldDisplayTab({ editor, type }: Props) {
                                 </div>
                             ))}
                         </RadioGroup>
+                        <p
+                            id="display-width-hint"
+                            className="text-xs text-muted-foreground"
+                        >
+                            {intl.formatMessage(messages.widthHint)}
+                        </p>
                     </fieldset>
-                    <InputField
-                        id="display-row"
-                        label={intl.formatMessage(messages.row)}
-                        description={intl.formatMessage(messages.rowHint)}
-                        className="font-mono"
-                        value={admin.row ?? ''}
-                        onChange={(event) =>
-                            editor.setAdmin({ row: event.target.value })
-                        }
-                    />
                     {type.groups.length > 0 && (
                         <div className="flex flex-col gap-2">
                             <Label htmlFor="display-group">
@@ -169,36 +168,6 @@ export function FieldDisplayTab({ editor, type }: Props) {
                 <p className="text-sm text-muted-foreground">
                     {intl.formatMessage(messages.ownTab)}
                 </p>
-            )}
-            {capability.widgets.length > 0 && (
-                <div className="flex flex-col gap-2">
-                    <Label htmlFor="display-widget">
-                        {intl.formatMessage(messages.widget)}
-                    </Label>
-                    <Select
-                        value={admin.widget ?? '__default'}
-                        onValueChange={(widget) =>
-                            editor.setAdmin({
-                                widget:
-                                    widget === '__default' ? undefined : widget
-                            })
-                        }
-                    >
-                        <SelectTrigger id="display-widget">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="__default">
-                                {intl.formatMessage(messages.defaultWidget)}
-                            </SelectItem>
-                            {capability.widgets.map((widget) => (
-                                <SelectItem key={widget} value={widget}>
-                                    {widget}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
             )}
             <SwitchField
                 id="display-hidden"

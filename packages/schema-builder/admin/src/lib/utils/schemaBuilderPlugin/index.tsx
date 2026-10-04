@@ -40,7 +40,7 @@ export function SchemaBuilderPlugin(): SchemaBuilderAdminPlugin {
                 items: [
                     {
                         labelId: 'schemaBuilder.nav.label',
-                        defaultLabel: 'Content model',
+                        defaultLabel: 'Content Model',
                         to: '/content-model',
                         group: 'directory',
                         // After Webhooks (40): the last of the developer-facing

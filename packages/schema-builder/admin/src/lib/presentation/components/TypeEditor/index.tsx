@@ -80,7 +80,13 @@ export function TypeEditor({ type, capabilities, access, draft }: Props) {
             )}
             {editable && <TypeIssues issues={issues} />}
             {editable ? (
-                <TypeSettings type={type} onChange={patchType} />
+                <TypeSettings
+                    type={type}
+                    served={draft.base.types.find(
+                        (candidate) => candidate.name === type.name
+                    )}
+                    onChange={patchType}
+                />
             ) : (
                 <TypeSummary type={type} />
             )}

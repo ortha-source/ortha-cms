@@ -44,6 +44,7 @@ vi.mock('@orthacms/identity-admin', () => ({ useHasPermission: vi.fn() }));
 vi.mock('@orthacms/shell-admin', () => ({ PageTopBar: () => null }));
 vi.mock('@orthacms/workspaces-admin', () => ({
     useWorkspaces: vi.fn(),
+    WorkspaceAvatar: () => null,
     workspacesKey: ['workspaces'],
     workspaceContentAccessRoot: ['workspace-content-access']
 }));
@@ -301,10 +302,10 @@ describe('ContentModelWorkspace — review and apply', () => {
         addTypeAndReview();
 
         fireEvent.click(
-            screen.getByRole('link', { name: 'Back to the content model' })
+            screen.getByRole('link', { name: 'Back to the Content Model' })
         );
         expect(
-            screen.getByRole('heading', { level: 1, name: 'Content model' })
+            screen.getByRole('heading', { level: 1, name: 'Content Model' })
         ).toBeTruthy();
         expect(screen.getByText('1 unsaved change')).toBeTruthy();
         expect(button('Review changes')).toBeTruthy();
@@ -350,13 +351,28 @@ describe('ContentModelWorkspace — review and apply', () => {
             expect.objectContaining({ predicate: expect.any(Function) })
         );
 
+        // Searchable: a query narrows the tiles, and says so when nothing matches.
+        fireEvent.change(within(grant).getByRole('searchbox'), {
+            target: { value: 'zzz' }
+        });
+        expect(
+            within(grant).getByText('No workspace matches “zzz”.')
+        ).toBeTruthy();
+        fireEvent.change(within(grant).getByRole('searchbox'), {
+            target: { value: 'mark' }
+        });
         // Only active workspaces are offered.
         expect(within(grant).queryByLabelText('Old site')).toBeNull();
         const grantButton = within(grant).getByRole('button', {
             name: 'Grant'
         }) as HTMLButtonElement;
         expect(grantButton.disabled).toBe(true);
-        fireEvent.click(within(grant).getByLabelText('Marketing'));
+        const marketing = within(grant).getByRole('checkbox', {
+            name: 'Marketing'
+        });
+        fireEvent.click(marketing);
+        expect(marketing.getAttribute('aria-checked')).toBe('true');
+        expect(within(grant).getByText('1 selected')).toBeTruthy();
         fireEvent.click(grantButton);
         await waitFor(() =>
             expect(
@@ -367,10 +383,10 @@ describe('ContentModelWorkspace — review and apply', () => {
         );
         expect(gateway.grant).toHaveBeenCalledWith('ws-1', 'events');
 
-        fireEvent.click(button('Back to the content model'));
+        fireEvent.click(button('Back to the Content Model'));
         // The restarted server's model is the page's now: nothing left to review.
         expect(
-            screen.getByRole('heading', { level: 1, name: 'Content model' })
+            screen.getByRole('heading', { level: 1, name: 'Content Model' })
         ).toBeTruthy();
         expect(
             screen.queryByRole('button', { name: 'Review changes' })
@@ -437,7 +453,7 @@ describe('ContentModelWorkspace — review and apply', () => {
         // Back on the step the apply started from, ready to try again.
         expect(button('Apply').disabled).toBe(false);
         fireEvent.click(
-            screen.getByRole('link', { name: 'Back to the content model' })
+            screen.getByRole('link', { name: 'Back to the Content Model' })
         );
         expect(screen.getByText('1 unsaved change')).toBeTruthy();
     });

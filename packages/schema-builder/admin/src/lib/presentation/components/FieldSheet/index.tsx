@@ -16,7 +16,8 @@ import {
 import type { SchemaDocument, TypeDoc } from '@orthacms/schema-builder-domain';
 import type { FieldEditor } from '../../../application/useFieldEditor';
 import { FIELD_CAPABILITIES } from '../../../domain/fieldCapabilities';
-import { FIELD_TYPE_LABEL } from '../fieldTypeLabel';
+import { kindOf } from '../../../domain/fieldCatalog';
+import { kindCopy } from '../fieldKindCopy';
 import { FieldDisplayTab } from './FieldDisplayTab';
 import { FieldGeneralTab } from './FieldGeneralTab';
 import { FieldValidationTab } from './FieldValidationTab';
@@ -71,7 +72,7 @@ export function FieldSheet({ editor, type, document, issues, onClose }: Props) {
                             <SheetDescription>
                                 {intl.formatMessage(messages.description, {
                                     type: intl.formatMessage(
-                                        FIELD_TYPE_LABEL[spec.type]
+                                        kindCopy(kindOf(spec)).label
                                     ),
                                     typeLabel: type.label || type.name
                                 })}

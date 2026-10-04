@@ -14,6 +14,7 @@ import { FieldDisplayTab } from '../../FieldSheet/FieldDisplayTab';
 import { FieldValidationTab } from '../../FieldSheet/FieldValidationTab';
 import { StepHeading } from '../../StepHeading';
 import { FieldProblems } from '../FieldProblems';
+import { Section } from './Section';
 
 const messages = defineMessages({
     title: {
@@ -29,9 +30,19 @@ const messages = defineMessages({
         id: 'schemaBuilder.addField.validation',
         defaultMessage: 'Validation'
     },
+    validationHint: {
+        id: 'schemaBuilder.addField.validationHint',
+        defaultMessage:
+            'Checked whenever an entry is saved or published. Leave a rule empty for no limit.'
+    },
     display: {
         id: 'schemaBuilder.addField.display',
         defaultMessage: 'Display'
+    },
+    displayHint: {
+        id: 'schemaBuilder.addField.displayHint',
+        defaultMessage:
+            'How the field looks in the entry editor. Nothing here changes what is stored.'
     },
     back: { id: 'schemaBuilder.addField.back', defaultMessage: 'Back' },
     add: { id: 'schemaBuilder.addField.add', defaultMessage: 'Add field' }
@@ -59,34 +70,33 @@ export const RulesStep = forwardRef<HTMLHeadingElement, Props>(
                     title={intl.formatMessage(messages.title)}
                     description={intl.formatMessage(messages.description)}
                 />
-                <CardContent className="flex flex-col gap-6">
+                <CardContent>
+                    {/* Outside the sections' column: while empty, the live
+                        region must not take a gap under the heading. */}
                     <FieldProblems issues={field.issues} />
-                    {takesRules && (
-                        <section
-                            aria-labelledby="add-field-validation"
-                            className="flex flex-col gap-3"
-                        >
-                            <h3
+                    <div className="flex flex-col gap-8">
+                        {takesRules && (
+                            <Section
                                 id="add-field-validation"
-                                className="text-sm font-semibold"
+                                title={intl.formatMessage(messages.validation)}
+                                hint={intl.formatMessage(
+                                    messages.validationHint
+                                )}
                             >
-                                {intl.formatMessage(messages.validation)}
-                            </h3>
-                            <FieldValidationTab editor={field.editor} />
-                        </section>
-                    )}
-                    <section
-                        aria-labelledby="add-field-display"
-                        className="flex flex-col gap-3"
-                    >
-                        <h3
+                                <FieldValidationTab editor={field.editor} />
+                            </Section>
+                        )}
+                        <Section
                             id="add-field-display"
-                            className="text-sm font-semibold"
+                            title={intl.formatMessage(messages.display)}
+                            hint={intl.formatMessage(messages.displayHint)}
                         >
-                            {intl.formatMessage(messages.display)}
-                        </h3>
-                        <FieldDisplayTab editor={field.editor} type={type} />
-                    </section>
+                            <FieldDisplayTab
+                                editor={field.editor}
+                                type={type}
+                            />
+                        </Section>
+                    </div>
                 </CardContent>
                 <CardFooter>
                     <WizardFooter

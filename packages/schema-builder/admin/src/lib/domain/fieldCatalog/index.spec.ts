@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FIELD_CAPABILITIES } from '../fieldCapabilities';
-import { catalogEntry, FIELD_CATALOG } from './index';
+import { catalogEntry, FIELD_CATALOG, kindOf } from './index';
 
 describe('FIELD_CATALOG', () => {
     it('offers every DSL field type, each choice once', () => {
@@ -23,8 +23,6 @@ describe('FIELD_CATALOG', () => {
             type: 'richtext',
             admin: { widget: 'textarea' }
         });
-        // Nothing the sheet could not have set itself.
-        expect(FIELD_CAPABILITIES.richtext.widgets).toContain('textarea');
     });
 
     it('points a new relation at the first type, and falls back on an unknown id', () => {
@@ -33,5 +31,15 @@ describe('FIELD_CATALOG', () => {
             to: 'author'
         });
         expect(catalogEntry('nope').id).toBe('text');
+    });
+
+    it('reads a field back as the kind it was made as', () => {
+        for (const entry of FIELD_CATALOG) {
+            expect(kindOf(entry.spec(['article']))).toBe(entry.id);
+        }
+        // A widget a hand-written schema set on text changes nothing.
+        expect(kindOf({ type: 'text', admin: { widget: 'slug' } })).toBe(
+            'text'
+        );
     });
 });
