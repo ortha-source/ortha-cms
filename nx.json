@@ -105,6 +105,14 @@
             "!@orthacms/copilot-provider-fake"
         ],
         "projectsRelationship": "fixed",
+        "conventionalCommits": {
+            "types": {
+                "style": {
+                    "semverBump": "none",
+                    "changelog": { "title": "🎨 Design", "hidden": false }
+                }
+            }
+        },
         "releaseTagPattern": "v{version}",
         "version": {
             "conventionalCommits": true,
