@@ -92,25 +92,25 @@
     --color-status-active: oklch(0.63 0.17 149);
     --color-status-invited: oklch(0.67 0.14 70);
 
-    /* Sidebar chrome: a light gray panel here, near-black in the `.dark`
-       block. Everything rendered inside the sidebar must use these tokens
-       rather than the light-surface ones. */
-    --color-sidebar: oklch(0.97 0.003 285);
-    --color-sidebar-foreground: oklch(0.21 0.012 285);
-    --color-sidebar-primary: oklch(0.6 0.19 38);
+    /* Sidebar chrome: near-black ink in both themes, so global navigation
+       never reads as part of the page. Everything rendered inside the sidebar
+       must use these tokens rather than the light-surface ones. */
+    --color-sidebar: oklch(0.21 0.012 285);
+    --color-sidebar-foreground: oklch(0.93 0.005 285);
+    --color-sidebar-primary: oklch(0.66 0.2 35);
     --color-sidebar-primary-foreground: oklch(0.21 0.012 285);
-    --color-sidebar-accent: oklch(0.92 0.004 285);
-    --color-sidebar-accent-foreground: oklch(0.21 0.012 285);
-    --color-sidebar-border: oklch(0.9 0.006 285);
-    --color-sidebar-ring: oklch(0.55 0.01 285);
+    --color-sidebar-accent: oklch(0.3 0.018 285);
+    --color-sidebar-accent-foreground: oklch(0.985 0.002 285);
+    --color-sidebar-border: oklch(0.31 0.012 285);
+    --color-sidebar-ring: oklch(0.75 0.01 285);
 
-    /* Nav-icon accents, darkened so each clears 3:1 on the gray sidebar. */
-    --color-nav-orange: oklch(0.6 0.19 38);
-    --color-nav-blue: oklch(0.55 0.15 250);
-    --color-nav-green: oklch(0.55 0.13 150);
-    --color-nav-violet: oklch(0.55 0.17 300);
-    --color-nav-amber: oklch(0.62 0.13 70);
-    --color-nav-teal: oklch(0.55 0.09 190);
+    /* Nav-icon accents, lightened so each clears 3:1 on the dark sidebar. */
+    --color-nav-orange: oklch(0.72 0.17 40);
+    --color-nav-blue: oklch(0.74 0.11 250);
+    --color-nav-green: oklch(0.74 0.13 150);
+    --color-nav-violet: oklch(0.76 0.11 300);
+    --color-nav-amber: oklch(0.78 0.13 80);
+    --color-nav-teal: oklch(0.75 0.1 190);
 
     /* Data-visualisation palette (dashboard widgets). Hex rather than oklch
        because these values are the output of a contrast validator — treat them
@@ -131,8 +131,8 @@
 }
 
 /* Dark theme, toggled by the `.dark` class the design system's
-   AppearanceProvider puts on <html>. The light-surface tokens flip, and the
-   sidebar chrome goes back to near-black (end of the block).
+   AppearanceProvider puts on <html>. The light-surface tokens flip; the
+   sidebar chrome is already dark in both themes, so it is not repeated here.
 
    Note the semantic solids invert their *foreground* too: lightened enough to
    read on a near-black canvas, they can no longer carry white text at AA. */
@@ -203,24 +203,6 @@
     --color-chart-on-deep: #101016;
     --color-chart-grid: oklch(0.27 0.006 285);
     --color-chart-axis: oklch(0.35 0.008 285);
-
-    /* The sidebar chrome goes back to the near-black ink in dark mode, with
-       the nav-icon accents lightened to clear 3:1 against it. */
-    --color-sidebar: oklch(0.21 0.012 285);
-    --color-sidebar-foreground: oklch(0.93 0.005 285);
-    --color-sidebar-primary: oklch(0.66 0.2 35);
-    --color-sidebar-primary-foreground: oklch(0.21 0.012 285);
-    --color-sidebar-accent: oklch(0.3 0.018 285);
-    --color-sidebar-accent-foreground: oklch(0.985 0.002 285);
-    --color-sidebar-border: oklch(0.31 0.012 285);
-    --color-sidebar-ring: oklch(0.75 0.01 285);
-
-    --color-nav-orange: oklch(0.72 0.17 40);
-    --color-nav-blue: oklch(0.74 0.11 250);
-    --color-nav-green: oklch(0.74 0.13 150);
-    --color-nav-violet: oklch(0.76 0.11 300);
-    --color-nav-amber: oklch(0.78 0.13 80);
-    --color-nav-teal: oklch(0.75 0.1 190);
 }
 
 /* Avatar accents. Plain `:root` custom properties rather than `@theme`
