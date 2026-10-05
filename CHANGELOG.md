@@ -1,3 +1,17 @@
+## 0.9.0 (2026-10-05)
+
+### 🎨 Design
+
+- **admin:** dark sidebar and a gray page canvas in the light theme ([06c7dff9](https://github.com/ortha-source/ortha-cms/commit/06c7dff9))
+- **admin:** keep the page canvas white beside the dark sidebar ([03d6e43d](https://github.com/ortha-source/ortha-cms/commit/03d6e43d))
+- **admin:** a floating work area, header-less pages and borderless tables ([26a37085](https://github.com/ortha-source/ortha-cms/commit/26a37085))
+
+### ❤️ Thank You
+
+- Claude
+- Claude Opus 5.5
+- pmknk
+
 ## 0.8.0 (2026-10-04)
 
 ### 🚀 Features
