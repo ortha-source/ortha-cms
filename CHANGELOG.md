@@ -2,9 +2,18 @@
 
 ### 🎨 Design
 
-- **admin:** dark sidebar and a gray page canvas in the light theme ([06c7dff9](https://github.com/ortha-source/ortha-cms/commit/06c7dff9))
-- **admin:** keep the page canvas white beside the dark sidebar ([03d6e43d](https://github.com/ortha-source/ortha-cms/commit/03d6e43d))
 - **admin:** a floating work area, header-less pages and borderless tables ([26a37085](https://github.com/ortha-source/ortha-cms/commit/26a37085))
+- **admin:** the work area is one white card on a light gray frame, and the right panel (Properties) sits inside it
+- **admin:** page titles fold into the top bar; a page's actions and its tabs move up into it, and back links give way to the breadcrumb
+- **admin:** list tables run full width with no frame and no row rules — a gray header pill and a rounded hover row
+- **admin:** compact list toolbars: Columns and Filters are icon buttons, and Filters opens a large popover instead of an inline panel
+- **copilot:** "Ask Ortha AI" sits under the work area instead of in the top bar
+
+### ⚠️ Breaking changes for plugin authors
+
+- **query-builder:** `QueryBuilderPanel` is removed — use `QueryBuilderPopover` (and `useFilterDraft` for the draft/apply logic)
+- **design-system:** `InsetBarEnd` is now `InsetFooterEnd`, drawn into the `InsetFooter` under the work area
+- **design-system:** new `TopBarTabs`, `PageHeaderHost`, `DensityProvider` / `useDensity`, and `Container width="full"`; `ContainerHeader` folds into a top bar when one is present
 
 ### ❤️ Thank You
 
