@@ -3,6 +3,14 @@
    Tailwind utilities — the wizard step entrance used by `WizardStepCard`, the
    sheet entrance, and the dropdown entrance motion below. */
 
+/* The page canvas the shell paints behind content (`bg-canvas` on the inset
+   and the top bar). A host theme sets its own value after importing this file
+   and wins; one written before the token existed falls back to its
+   `background`, so the canvas is never transparent. */
+@theme {
+    --color-canvas: var(--color-background);
+}
+
 /* ---------------------------------------------------------------------------
    Dropdown motion — `Popover`, `DropdownMenu`, `Select`.
 
