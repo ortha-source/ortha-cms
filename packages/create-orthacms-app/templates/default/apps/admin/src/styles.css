@@ -33,11 +33,7 @@
 @theme {
     --radius: 0.625rem;
 
-    /* White surfaces: dialogs, sheets, inputs. The page itself sits on
-       `canvas`, a step off white, so white cards lift off it by surface as
-       well as border. */
     --color-background: oklch(1 0 0);
-    --color-canvas: oklch(0.978 0.002 285);
     --color-foreground: oklch(0.21 0.012 285);
     --color-card: oklch(1 0 0);
     --color-card-foreground: oklch(0.21 0.012 285);
@@ -142,7 +138,6 @@
    read on a near-black canvas, they can no longer carry white text at AA. */
 .dark {
     --color-background: oklch(0.175 0.012 285);
-    --color-canvas: oklch(0.175 0.012 285);
     --color-foreground: oklch(0.95 0.004 285);
     --color-card: oklch(0.215 0.012 285);
     --color-card-foreground: oklch(0.95 0.004 285);
@@ -228,7 +223,7 @@
         @apply border-border;
     }
     body {
-        @apply bg-canvas text-foreground;
+        @apply bg-background text-foreground;
     }
     #root {
         /* `overflow-x-clip`, not `-hidden`: `hidden` would make #root a scroll

@@ -10,12 +10,12 @@
 @source "../../../packages/*/admin/src/**/*.{ts,tsx}";
 
 /* ---------------------------------------------------------------------------
-   Theme: incident.io-style. A near-black sidebar beside a light-gray page
-   canvas with white bordered cards, ink ("contrast") primary buttons,
-   true-gray neutrals (hovers, rings, tiles), and one vibrant brand accent —
-   flame orange — reserved for links, active nav icons, and soft highlights.
-   Semantic status colors (success / warning / info / destructive) each ship a
-   solid and a soft (tinted chip) pair.
+   Theme: incident.io-style. A near-black sidebar beside a white page canvas
+   with bordered cards, ink ("contrast") primary buttons, true-gray neutrals
+   (hovers, rings, tiles), and one vibrant brand accent — flame orange —
+   reserved for links, active nav icons, and soft highlights. Semantic status
+   colors (success / warning / info / destructive) each ship a solid and a
+   soft (tinted chip) pair.
 
    Every text-on-surface pairing below was verified >= 4.5:1 (WCAG AA) — the
    admin-e2e axe scan enforces this. White text on the brand orange does NOT
@@ -31,14 +31,8 @@
 @theme {
     --radius: 0.625rem;
 
-    /* White surfaces — dialogs, sheets, inputs and anything else on
-       `bg-background`; cards/popovers separate via border + shadow. */
+    /* Pure-white page canvas; cards/popovers separate via border + shadow. */
     --color-background: oklch(1 0 0);
-    /* The page canvas the shell paints behind content (the work area, its top
-       bar, the right panel) — a step off white, so white cards lift off it by
-       surface as well as border. Deliberately its own token: re-tinting
-       `background` would grey every dialog, sheet and input with it. */
-    --color-canvas: oklch(0.978 0.002 285);
     --color-foreground: oklch(0.21 0.012 285);
     --color-card: oklch(1 0 0);
     --color-card-foreground: oklch(0.21 0.012 285);
@@ -203,7 +197,6 @@
 .dark {
     /* Near-black canvas; cards/popovers lift a step above it. */
     --color-background: oklch(0.175 0.012 285);
-    --color-canvas: oklch(0.175 0.012 285);
     --color-foreground: oklch(0.95 0.004 285);
     --color-card: oklch(0.215 0.012 285);
     --color-card-foreground: oklch(0.95 0.004 285);
@@ -329,7 +322,7 @@
        either, so the gap computes to zero — but leave this as it is; the rule
        is about `html` never becoming a scroll container.) */
     body {
-        @apply bg-canvas text-foreground;
+        @apply bg-background text-foreground;
     }
     #root {
         /* `overflow-x-clip`, not `-hidden`: `hidden` would make #root a scroll

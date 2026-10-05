@@ -596,7 +596,7 @@ function SidebarInset({
         <main
             data-slot="sidebar-inset"
             className={cn(
-                'relative flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-canvas',
+                'relative flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-background',
                 'md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow-sm md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-2',
                 className
             )}
@@ -615,7 +615,7 @@ function SidebarInset({
                 <div
                     data-slot="sidebar-inset-bar-end"
                     ref={setBarEndHost}
-                    className="flex h-12 shrink-0 items-center gap-2 border-b bg-canvas pr-4 empty:hidden"
+                    className="flex h-12 shrink-0 items-center gap-2 border-b bg-background pr-4 empty:hidden"
                 />
             </div>
             <InsetTopBarContext.Provider value={barHost}>

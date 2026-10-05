@@ -38,7 +38,7 @@ const TopBar = React.forwardRef<
             ref={ref}
             data-slot="top-bar"
             className={cn(
-                'flex h-12 shrink-0 items-center gap-2.5 border-b bg-canvas px-4',
+                'flex h-12 shrink-0 items-center gap-2.5 border-b bg-background px-4',
                 className
             )}
             {...props}
