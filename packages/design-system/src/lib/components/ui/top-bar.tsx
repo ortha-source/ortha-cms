@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { cn } from '../../utils';
 import {
     SidebarTrigger,
+    useInsetTabsHost,
     useInsetTopBarHost,
     useOptionalSidebar
 } from './sidebar';
@@ -100,4 +101,44 @@ const TopBarActions = React.forwardRef<
 ));
 TopBarActions.displayName = 'TopBarActions';
 
-export { TopBar, TopBarIcon, TopBarActions };
+/**
+ * A page's **tabs, drawn as the top bar's second row** — under the
+ * breadcrumb, inside the header band (incident.io-style), rather than as the
+ * first thing in the page body. Wrap a `TabsList` or a `TabNav` in it; it
+ * hoists them by portal into the inset's tabs row, so a Radix `Tabs` root
+ * further down still owns them (a portal keeps the React tree), and the
+ * band's rule moves from under the bar to under the tabs.
+ *
+ * The list's own bottom rule and margin give way to the row's: the row is
+ * ruled edge to edge, and the active tab's underline sits on that rule. On a
+ * page with no inset above it, it renders in place.
+ */
+function TopBarTabs({
+    className,
+    children
+}: {
+    className?: string;
+    children: React.ReactNode;
+}) {
+    const host = useInsetTabsHost();
+    const row = (
+        <div
+            data-slot="top-bar-tabs"
+            className={cn(
+                // A fixed 36px (`h-9`): the band is then always the bar's 48 plus
+                // this, and a column beside it (the right panel's header) can
+                // rule itself on the same line.
+                'flex h-9 min-w-0 items-end overflow-x-auto border-b bg-background px-4',
+                '[&>*]:mb-0 [&>*]:border-b-0',
+                className
+            )}
+        >
+            {children}
+        </div>
+    );
+
+    if (host === undefined) return row;
+    return host ? createPortal(row, host) : null;
+}
+
+export { TopBar, TopBarIcon, TopBarActions, TopBarTabs };

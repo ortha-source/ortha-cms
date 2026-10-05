@@ -10,8 +10,8 @@ import { BasePage } from './BasePage';
 export class CreateWorkspacePage extends BasePage {
     /** The page `<h1>`. */
     readonly heading: Locator;
-    /** The "Back to workspaces" link above the header. */
-    readonly backLink: Locator;
+    /** The top bar's "Workspaces" crumb — the page's way back to the list. */
+    readonly workspacesCrumb: Locator;
     /** Basics: the workspace name input. */
     readonly nameInput: Locator;
     /** Basics: the slug input (auto-filled from the name). */
@@ -37,9 +37,9 @@ export class CreateWorkspacePage extends BasePage {
             name: 'Create workspace',
             level: 1
         });
-        this.backLink = page.getByRole('link', {
-            name: 'Back to workspaces'
-        });
+        this.workspacesCrumb = page
+            .getByRole('navigation', { name: 'Breadcrumb' })
+            .getByRole('link', { name: 'Workspaces', exact: true });
         this.nameInput = page.getByLabel('Workspace name');
         this.slugInput = page.getByLabel('Slug');
         this.descriptionInput = page.getByLabel('Description');

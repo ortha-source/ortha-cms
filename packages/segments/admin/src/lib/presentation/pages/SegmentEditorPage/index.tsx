@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ShieldCheck } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { ShieldCheck } from 'lucide-react';
 import { PageTopBar } from '@orthacms/shell-admin';
 import { RequiredMark } from '@orthacms/content-admin';
 import { useHasPermission } from '@orthacms/identity-admin';
@@ -66,7 +66,6 @@ const messages = defineMessages({
         defaultMessage:
             'Changing the tags changes who this audience matches — immediately, on every entry that names it.'
     },
-    back: { id: 'segments.editor.back', defaultMessage: 'Back to audiences' },
     label: { id: 'segments.editor.label', defaultMessage: 'Name' },
     key: { id: 'segments.editor.key', defaultMessage: 'Key' },
     keyHint: {
@@ -422,12 +421,6 @@ export function SegmentEditorPage() {
                             {intl.formatMessage(messages.loadError)}
                         </AlertDescription>
                     </Alert>
-                    <Button variant="outline" className="mt-4" asChild>
-                        <Link to="/segments">
-                            <ArrowLeft aria-hidden />
-                            {intl.formatMessage(messages.back)}
-                        </Link>
-                    </Button>
                 </Container>
             </>
         );
@@ -437,12 +430,6 @@ export function SegmentEditorPage() {
         <>
             {bar}
             <Container>
-                <Button variant="ghost" size="sm" className="mb-2" asChild>
-                    <Link to="/segments">
-                        <ArrowLeft aria-hidden />
-                        {intl.formatMessage(messages.back)}
-                    </Link>
-                </Button>
                 <ContainerHeader
                     title={intl.formatMessage(
                         editing ? messages.editTitle : messages.createTitle

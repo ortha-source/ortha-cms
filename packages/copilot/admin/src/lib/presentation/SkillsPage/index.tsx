@@ -191,7 +191,7 @@ export function SkillsPage() {
         // people.
         const denied = !canManage;
         return (
-            <Container className="py-8">
+            <Container width="full" className="py-8">
                 <Empty className="border" role="alert">
                     <EmptyHeader>
                         <EmptyMedia variant="icon">
@@ -244,7 +244,7 @@ export function SkillsPage() {
     };
 
     return (
-        <Container className="flex flex-col gap-6 py-8">
+        <Container width="full" className="flex flex-col gap-6 py-8">
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="max-w-2xl">
                     <Button
@@ -298,7 +298,7 @@ export function SkillsPage() {
                     </EmptyHeader>
                 </Empty>
             ) : (
-                <div className="overflow-x-auto rounded-lg border">
+                <div className="overflow-x-auto">
                     {/* Named, like every other table in the admin: a screen
                         reader's table list otherwise reads "table" with no way
                         to tell one page's from another's (`ORT-160`). The

@@ -285,7 +285,7 @@ locally is a hue nobody measured.
   the `[&>svg]` selectors match. (Five other call sites in users and api-tokens
   have the same defect; a generic `Alert` grid rewrite would fix them all.)
 - **Slot-contributed toolbar controls match their neighbours.** The column
-  picker and the Filters toggle are default-size outline buttons with
+  picker and the Filters trigger are compact outline (icon) buttons with
   `shadow-none`; "Save as alarm" carried `size="sm"` and a shadow, so it read as
   a different class of control wedged into their row.
 - **Mutations invalidate the workspace's alarms root.** An alarm edit triggers a

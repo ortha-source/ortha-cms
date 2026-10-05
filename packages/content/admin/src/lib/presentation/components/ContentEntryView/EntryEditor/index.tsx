@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, FileText } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import {
     ContainerHeader,
     Tabs,
@@ -10,7 +9,8 @@ import {
     TabsTrigger,
     ConfirmDialog,
     cn,
-    toast
+    toast,
+    TopBarTabs
 } from '@orthacms/design-system';
 import type {
     ContentField,
@@ -58,10 +58,6 @@ import { SharedEntryNotice } from './SharedEntryNotice';
 import { RelationFieldSection } from './RelationFieldSection';
 
 const messages = defineMessages({
-    backToList: {
-        id: 'content.editor.backToList',
-        defaultMessage: 'Back to records'
-    },
     tabGeneral: {
         id: 'content.editor.tabGeneral',
         defaultMessage: 'General'
@@ -200,7 +196,6 @@ export function EntryEditor({
     onSave,
     onUnpublish,
     onDelete,
-    backTo,
     availableTypeNames,
     ownType = true,
     prefilledFromLocale,
@@ -260,8 +255,6 @@ export function EntryEditor({
     onUnpublish?: () => void;
     /** Delete the entry — only on a saved entry. */
     onDelete?: () => void;
-    /** Where the "Back to records" link goes; omitted for a single page. */
-    backTo?: string;
     /**
      * Content-type names granted to the open workspace. A relation field is shown
      * only when its target is in this set — a relation to a collection the
@@ -950,7 +943,7 @@ export function EntryEditor({
     };
 
     // Register with the app-wide guard, so *any* navigation away from a dirty
-    // editor — a sidebar link, a breadcrumb, "Back to records", a browser
+    // editor — a sidebar link, a breadcrumb, a browser
     // reload — confirms first, not just the locale switch. A preview can't be
     // dirty, and prompting a reader to save work they were never able to do
     // would be a dead end with no way out but Discard.
@@ -1048,20 +1041,6 @@ export function EntryEditor({
                                     : 'max-w-3xl'
                             )}
                         >
-                            {/* The record-level back link steps out of the record; the
-                        expanded view's own back button steps back to the
-                        fields. Showing both would stack two back arrows with
-                        different destinations, so only one is on screen at a
-                        time. */}
-                            {backTo && !expandedContext ? (
-                                <Link
-                                    to={backTo}
-                                    className="mb-4 inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-                                >
-                                    <ArrowLeft className="size-4" />
-                                    {intl.formatMessage(messages.backToList)}
-                                </Link>
-                            ) : null}
                             {/* The shared page header, not a hand-rolled one.
                                 This heading had drifted to its own size and
                                 tracking, so the record page and every other
@@ -1138,56 +1117,64 @@ export function EntryEditor({
                                         value={shownTab}
                                         onValueChange={onTabChange}
                                     >
-                                        <TabsList className="mb-4">
-                                            <TabsTrigger
-                                                value={ENTRY_TAB.General}
-                                            >
-                                                {intl.formatMessage(
-                                                    messages.tabGeneral
-                                                )}
-                                                <EntryTabIssues
-                                                    unmet={unmetTabs.has(
-                                                        ENTRY_TAB.General
-                                                    )}
-                                                />
-                                            </TabsTrigger>
-                                            <TabsTrigger
-                                                value={ENTRY_TAB.Relations}
-                                            >
-                                                {intl.formatMessage(
-                                                    messages.tabRelations
-                                                )}
-                                                <EntryTabIssues
-                                                    unmet={unmetTabs.has(
-                                                        ENTRY_TAB.Relations
-                                                    )}
-                                                />
-                                            </TabsTrigger>
-                                            {tabItems.map((item) => (
+                                        {/* In the top bar's second row,
+                                            under the breadcrumb — the record's
+                                            sections are the page's header, not
+                                            its first line of content. */}
+                                        <TopBarTabs>
+                                            <TabsList>
                                                 <TabsTrigger
-                                                    key={item.id}
-                                                    value={item.slug}
+                                                    value={ENTRY_TAB.General}
                                                 >
                                                     {intl.formatMessage(
-                                                        item.label
+                                                        messages.tabGeneral
                                                     )}
                                                     <EntryTabIssues
                                                         unmet={unmetTabs.has(
-                                                            item.slug
+                                                            ENTRY_TAB.General
                                                         )}
                                                     />
                                                 </TabsTrigger>
-                                            ))}
-                                            {foreign ? null : (
                                                 <TabsTrigger
-                                                    value={ENTRY_TAB.History}
+                                                    value={ENTRY_TAB.Relations}
                                                 >
                                                     {intl.formatMessage(
-                                                        messages.tabHistory
+                                                        messages.tabRelations
                                                     )}
+                                                    <EntryTabIssues
+                                                        unmet={unmetTabs.has(
+                                                            ENTRY_TAB.Relations
+                                                        )}
+                                                    />
                                                 </TabsTrigger>
-                                            )}
-                                        </TabsList>
+                                                {tabItems.map((item) => (
+                                                    <TabsTrigger
+                                                        key={item.id}
+                                                        value={item.slug}
+                                                    >
+                                                        {intl.formatMessage(
+                                                            item.label
+                                                        )}
+                                                        <EntryTabIssues
+                                                            unmet={unmetTabs.has(
+                                                                item.slug
+                                                            )}
+                                                        />
+                                                    </TabsTrigger>
+                                                ))}
+                                                {foreign ? null : (
+                                                    <TabsTrigger
+                                                        value={
+                                                            ENTRY_TAB.History
+                                                        }
+                                                    >
+                                                        {intl.formatMessage(
+                                                            messages.tabHistory
+                                                        )}
+                                                    </TabsTrigger>
+                                                )}
+                                            </TabsList>
+                                        </TopBarTabs>
 
                                         <TabsContent value={ENTRY_TAB.General}>
                                             <EntryFieldSections

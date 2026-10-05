@@ -4,9 +4,9 @@
  *
  * These params are the **context the records table was showing**, and they have
  * to ride along on every link that leaves it: the create route, each row's
- * editor link, and the editor's "Back to records" link. Drop one and the user is
- * silently returned to a different context than they left — opening a German row
- * and going back landed on the English list.
+ * editor link, and the top bar's type crumb back out of the editor. Drop one
+ * and the user is silently returned to a different context than they left —
+ * opening a German row and going back landed on the English list.
  *
  * A param the slot leaves unset is omitted rather than serialized as empty, which
  * is what keeps the default locale on a clean URL (the server scopes to the

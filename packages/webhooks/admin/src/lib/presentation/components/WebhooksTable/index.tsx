@@ -63,7 +63,7 @@ export function WebhooksTable({ endpoints }: { endpoints: WebhookEndpoint[] }) {
     const intl = useIntl();
 
     return (
-        <div className="mt-4 overflow-hidden rounded-xl border bg-card shadow-xs">
+        <div className="mt-4">
             <Table>
                 <caption className="sr-only">
                     {intl.formatMessage(messages.caption)}

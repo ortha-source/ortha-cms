@@ -17,8 +17,8 @@ type WizardPageSkeletonProps = {
 };
 
 /**
- * Full-page placeholder for the shared "create" wizard shell — back link,
- * header, a sticky stepper rail, and the step card — used as the lazy-route
+ * Full-page placeholder for the shared "create" wizard shell — header, a
+ * sticky stepper rail, and the step card — used as the lazy-route
  * `Suspense` fallback for the workspace- and member-creation wizards (both
  * render the same `Container max-w-[920px]` + `lg:grid-cols-[244px_1fr]`
  * layout). Holds the layout steady while the chunk loads. The whole block is a
@@ -34,9 +34,11 @@ export function WizardPageSkeleton({
             <span className="sr-only">{label}</span>
 
             <div aria-hidden>
-                <Skeleton className="mb-4 h-4 w-28" />
-
-                <div className="mb-6 flex flex-col gap-2">
+                {/* No back link — the breadcrumb is the way back — and the
+                    header only below `md`: above it the page's header folds
+                    into the top bar, so a placeholder for it would hold space
+                    the loaded page never takes. */}
+                <div className="mb-6 flex flex-col gap-2 md:hidden">
                     <Skeleton className="h-8 w-56" />
                     <Skeleton className="h-4 w-80 max-w-full" />
                 </div>

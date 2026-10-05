@@ -10,8 +10,9 @@
 @source "../../../packages/*/admin/src/**/*.{ts,tsx}";
 
 /* ---------------------------------------------------------------------------
-   Theme: incident.io-style. A near-black sidebar beside a white page canvas
-   with bordered cards, ink ("contrast") primary buttons, true-gray neutrals
+   Theme: incident.io-style. A light-gray frame (the sidebar) around a work
+   area that floats on it as one white bordered card, bordered cards inside
+   it, ink ("contrast") primary buttons, true-gray neutrals
    (hovers, rings, tiles), and one vibrant brand accent — flame orange —
    reserved for links, active nav icons, and soft highlights. Semantic status
    colors (success / warning / info / destructive) each ship a solid and a
@@ -114,30 +115,32 @@
 
     /* Sidebar surface tokens (consumed by the design-system `Sidebar`
        primitive as `bg-sidebar`, `text-sidebar-foreground`, etc.). The chrome
-       is near-black ink in both themes — the incident.io frame: a dark rail
-       beside a light work area, so global navigation never reads as part of
-       the page. `sidebar-primary` is the brand orange (icons and accents only:
-       its foreground is ink, never white). Everything rendered inside the
-       sidebar must use sidebar-* tokens, not the light-surface ones. */
-    --color-sidebar: oklch(0.21 0.012 285);
-    --color-sidebar-foreground: oklch(0.93 0.005 285);
-    --color-sidebar-primary: oklch(0.66 0.2 35);
+       is a light gray frame, a step off white: the sidebar sits on it and the
+       work area floats on it as a white card (the sidebar's `inset` variant).
+       Ink foreground, a darker gray active/hover wash. `sidebar-primary` is
+       the brand orange (icons and accents only: its foreground is ink, never
+       white). Everything rendered inside the sidebar must use sidebar-*
+       tokens, not the light-surface ones. The `.dark` block restores the
+       near-black chrome. */
+    --color-sidebar: oklch(0.97 0.003 285);
+    --color-sidebar-foreground: oklch(0.21 0.012 285);
+    --color-sidebar-primary: oklch(0.6 0.19 38);
     --color-sidebar-primary-foreground: oklch(0.21 0.012 285);
-    --color-sidebar-accent: oklch(0.3 0.018 285);
-    --color-sidebar-accent-foreground: oklch(0.985 0.002 285);
-    --color-sidebar-border: oklch(0.31 0.012 285);
-    --color-sidebar-ring: oklch(0.75 0.01 285);
+    --color-sidebar-accent: oklch(0.92 0.004 285);
+    --color-sidebar-accent-foreground: oklch(0.21 0.012 285);
+    --color-sidebar-border: oklch(0.9 0.006 285);
+    --color-sidebar-ring: oklch(0.55 0.01 285);
 
     /* Nav-icon accents — incident.io-style colored icons in the sidebar.
-       Lightened to clear 3:1 against the dark chrome; consumed via
-       `text-nav-*` on a SidebarItem's `iconColor`. Theme-independent, like
-       the chrome they sit on. */
-    --color-nav-orange: oklch(0.72 0.17 40);
-    --color-nav-blue: oklch(0.74 0.11 250);
-    --color-nav-green: oklch(0.74 0.13 150);
-    --color-nav-violet: oklch(0.76 0.11 300);
-    --color-nav-amber: oklch(0.78 0.13 80);
-    --color-nav-teal: oklch(0.75 0.1 190);
+       Darkened (L <= 0.62) so each clears 3:1 against the gray sidebar
+       surface; consumed via `text-nav-*` on a SidebarItem's `iconColor`.
+       The `.dark` block lightens them again for the dark chrome. */
+    --color-nav-orange: oklch(0.6 0.19 38);
+    --color-nav-blue: oklch(0.55 0.15 250);
+    --color-nav-green: oklch(0.55 0.13 150);
+    --color-nav-violet: oklch(0.55 0.17 300);
+    --color-nav-amber: oklch(0.62 0.13 70);
+    --color-nav-teal: oklch(0.55 0.09 190);
 
     /* Data-visualisation palette (Insights widgets).
 
@@ -176,9 +179,9 @@
 
 /* ---------------------------------------------------------------------------
    Dark theme. Re-declares the semantic color tokens for the `.dark` class the
-   `AppearanceProvider` toggles on `<html>`. The light-surface tokens flip; the
-   sidebar chrome (`--color-sidebar-*`) and nav-icon accents are already dark in
-   both themes, so they are not re-declared here.
+   `AppearanceProvider` toggles on `<html>`. The light-surface tokens flip, and
+   the gray sidebar chrome (`--color-sidebar-*`) and nav-icon accents go back to
+   the near-black ink with lightened icons (declared at the end of the block).
 
    Same contract as the light palette: every `*-foreground` is chosen to clear
    WCAG AA on its surface, and the brand orange stays an accent (never white
@@ -277,6 +280,24 @@
     --color-chart-on-deep: #101016;
     --color-chart-grid: oklch(0.27 0.006 285);
     --color-chart-axis: oklch(0.35 0.008 285);
+
+    /* The sidebar chrome goes back to the near-black ink in dark mode, with
+       the nav-icon accents lightened to clear 3:1 against it. */
+    --color-sidebar: oklch(0.21 0.012 285);
+    --color-sidebar-foreground: oklch(0.93 0.005 285);
+    --color-sidebar-primary: oklch(0.66 0.2 35);
+    --color-sidebar-primary-foreground: oklch(0.21 0.012 285);
+    --color-sidebar-accent: oklch(0.3 0.018 285);
+    --color-sidebar-accent-foreground: oklch(0.985 0.002 285);
+    --color-sidebar-border: oklch(0.31 0.012 285);
+    --color-sidebar-ring: oklch(0.75 0.01 285);
+
+    --color-nav-orange: oklch(0.72 0.17 40);
+    --color-nav-blue: oklch(0.74 0.11 250);
+    --color-nav-green: oklch(0.74 0.13 150);
+    --color-nav-violet: oklch(0.76 0.11 300);
+    --color-nav-amber: oklch(0.78 0.13 80);
+    --color-nav-teal: oklch(0.75 0.1 190);
 }
 
 /* Avatar accent palette — richer chroma than the neutrals so avatars pop as

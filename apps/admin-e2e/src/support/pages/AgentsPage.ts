@@ -35,9 +35,9 @@ export class AgentsPage extends BasePage {
         super(page);
         this.main = page.getByRole('main');
         this.rail = page.getByRole('complementary', { name: 'Chats' });
-        this.dock = page.locator('[data-slot="sidebar-inset-bar-end"]');
+        this.dock = page.locator('[data-slot="inset-footer-end"]');
         this.dockLauncher = this.dock.getByRole('button', {
-            name: /^Ortha CMS AI/
+            name: /^Ask Ortha AI/
         });
         this.dockList = page.getByRole('dialog', {
             name: 'Ortha CMS AI chats'

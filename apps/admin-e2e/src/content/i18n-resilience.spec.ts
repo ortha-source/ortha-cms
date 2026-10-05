@@ -287,7 +287,7 @@ test.describe('Content i18n — degraded reads and edge locales', () => {
         // the overlay is `pointer-events-none`, so this is a click the user can
         // physically make. The swap must not fire from a screen they left.
         await contentLibraryPage.switchToLocale('Deutsch');
-        await contentLibraryPage.editorBackLink.click();
+        await contentLibraryPage.breadcrumbLink('Localized posts').click();
 
         await expect(page).toHaveURL(/\/localized_post$/);
         await expect(

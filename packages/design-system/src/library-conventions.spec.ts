@@ -701,19 +701,17 @@ describe('motion', () => {
  * purpose — so that everything *else* must be paired, and a new unpaired token
  * has to be argued for here instead of merely appearing.
  *
- * The list is three families long, and each has a reason:
+ * The list is one family long, and it has a reason:
  *
  * - `--color-avatar-*` — identity anchors. An avatar that changed hue with the
  *   theme would stop being recognisable, which is the one job it has.
- * - `--color-sidebar` and `--color-sidebar-*` — the chrome. It is near-black
- *   in both themes (the dark rail beside a light work area), so it has
- *   nothing to flip to.
- * - `--color-nav-*` — the nav-icon accents, tuned for contrast on that chrome
- *   and therefore as theme-independent as it is.
  *
- * The sidebar pair left the list once, when the light theme briefly had a
- * light gray panel, and came back with the dark one; this list failing on a
- * family's `.dark` overrides is how either change gets noticed.
+ * The sidebar chrome (`--color-sidebar-*`) and its nav-icon accents
+ * (`--color-nav-*`) have moved on and off this list with the light theme's
+ * chrome: inherited while it was near-black in both themes, paired while it
+ * is a light gray frame — as it is now, with the work area floating on it as
+ * a card. This list failing on a family's `.dark` overrides is how either
+ * change gets noticed.
  *
  * `--radius` is excluded rather than allow-listed: it is not a palette token.
  */
@@ -726,7 +724,7 @@ describe('the admin palette', () => {
     };
 
     /** Token prefixes that are the same colour in both themes, on purpose. */
-    const INHERITED = ['--color-avatar-', '--color-sidebar', '--color-nav-'];
+    const INHERITED = ['--color-avatar-'];
 
     /** Declarations that are not colours and so are outside the rule. */
     const NOT_A_COLOUR = ['--radius'];

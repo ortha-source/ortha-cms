@@ -5,6 +5,7 @@ import { Spinner } from './spinner';
 
 import { cn } from '../../utils';
 import { InputGroup, InputGroupAddon, InputGroupInput } from './input-group';
+import { DensityProvider } from './density';
 
 /** Props for {@link SearchToolbar}. */
 export type SearchToolbarProps = {
@@ -55,28 +56,36 @@ export function SearchToolbar({
     inputRef,
     className
 }: SearchToolbarProps) {
+    // Compact: a list's toolbar is chrome over the table, not a form, so its
+    // search box and the buttons beside it take the same 32px line as the top
+    // bar's actions rather than a field's 36px.
     return (
-        <div
-            className={cn('mb-4 flex flex-wrap items-center gap-3', className)}
-        >
-            <InputGroup className="w-full shadow-none sm:max-w-[360px]">
-                <InputGroupAddon>
-                    {busy ? (
-                        <Spinner aria-hidden className="size-4" />
-                    ) : (
-                        <Search />
-                    )}
-                </InputGroupAddon>
-                <InputGroupInput
-                    ref={inputRef}
-                    type="search"
-                    value={value}
-                    onChange={(event) => onValueChange(event.target.value)}
-                    aria-label={searchLabel}
-                    placeholder={searchPlaceholder}
-                />
-            </InputGroup>
-            {actions ? <div className="ml-auto">{actions}</div> : null}
-        </div>
+        <DensityProvider density="compact">
+            <div
+                className={cn(
+                    'mb-4 flex flex-wrap items-center gap-2',
+                    className
+                )}
+            >
+                <InputGroup className="w-full shadow-none sm:max-w-[320px]">
+                    <InputGroupAddon>
+                        {busy ? (
+                            <Spinner aria-hidden className="size-4" />
+                        ) : (
+                            <Search />
+                        )}
+                    </InputGroupAddon>
+                    <InputGroupInput
+                        ref={inputRef}
+                        type="search"
+                        value={value}
+                        onChange={(event) => onValueChange(event.target.value)}
+                        aria-label={searchLabel}
+                        placeholder={searchPlaceholder}
+                    />
+                </InputGroup>
+                {actions ? <div className="ml-auto">{actions}</div> : null}
+            </div>
+        </DensityProvider>
     );
 }

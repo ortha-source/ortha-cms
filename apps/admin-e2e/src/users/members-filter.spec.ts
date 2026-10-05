@@ -11,11 +11,10 @@ import { expectNoA11yViolations } from '../support/a11y';
  * `?filter=<json>`, and Reset clears it. The `GET /api/users` mock honours the
  * `filter` param (AND-ed with search), mirroring the server.
  *
- * The builder is an **inline accordion panel** here, matching the activity log
- * and the records list — not the modal drawer this page used to mount. Two
- * behaviours follow from that and are asserted below rather than assumed:
- * the panel **stays open after Apply**, and the applied conditions read out as
- * removable chips only while it is **collapsed**.
+ * The builder is a **popover** anchored to an icon-only "Filters" button here,
+ * matching the activity log and the records list. Two behaviours follow from
+ * that and are asserted below rather than assumed: a valid **Apply closes it**,
+ * and the applied conditions read out as removable chips under the toolbar.
  */
 test.describe('Members filter (query builder)', () => {
     test.beforeEach(async ({ page }) => {
@@ -23,7 +22,7 @@ test.describe('Members filter (query builder)', () => {
         await mockMembers(page);
     });
 
-    test('expands the filter panel from the toolbar', async ({
+    test('opens the filter popover from the toolbar', async ({
         membersPage
     }) => {
         await membersPage.goto();
@@ -50,18 +49,18 @@ test.describe('Members filter (query builder)', () => {
         await membersPage.selectEnumValue('Disabled');
         await membersPage.applyFilters();
 
-        // Only the disabled member remains — and the panel is still expanded,
-        // which is the panel's contract, not the drawer's: Apply commits to the
-        // URL and leaves the builder up for further edits. Asserting the
-        // absence of a drawer here would pass on any page that has none.
+        // Only the disabled member remains — and the popover has closed: Apply
+        // commits to the URL and gets out of the way of the table it changed.
+        // Assert the state the trigger publishes, not only the surface's
+        // absence, which would pass on a page that never opened one.
         await expect(membersPage.row('Katherine Johnson')).toBeVisible();
         await expect(membersPage.row('Ada Lovelace')).toHaveCount(0);
         await expect(membersPage.row('Grace Hopper')).toHaveCount(0);
-        await expect(membersPage.filterSurface()).toBeVisible();
         await expect(membersPage.filterTrigger()).toHaveAttribute(
             'aria-expanded',
-            'true'
+            'false'
         );
+        await expect(membersPage.filterSurface()).toBeHidden();
 
         // The applied filter is in the URL, so the view is shareable.
         await expect(page).toHaveURL(/filter=/);
@@ -80,7 +79,11 @@ test.describe('Members filter (query builder)', () => {
         await membersPage.selectEnumValue('Active');
         await membersPage.applyFilters();
 
-        await expect(membersPage.filterTrigger()).toHaveText(/Filters \(1\)/);
+        // In the name as words, and on the icon as a badge.
+        await expect(membersPage.filterTrigger()).toHaveAccessibleName(
+            'Filters, 1 applied'
+        );
+        await expect(membersPage.filterCountBadge()).toHaveText('1');
     });
 
     test('restores the filter from a deep link on load', async ({
@@ -94,10 +97,12 @@ test.describe('Members filter (query builder)', () => {
 
         await expect(membersPage.row('Katherine Johnson')).toBeVisible();
         await expect(membersPage.row('Ada Lovelace')).toHaveCount(0);
-        await expect(membersPage.filterTrigger()).toHaveText(/Filters \(1\)/);
+        await expect(membersPage.filterTrigger()).toHaveAccessibleName(
+            'Filters, 1 applied'
+        );
     });
 
-    test('Escape collapses the panel and hands focus back to the toggle', async ({
+    test('Escape closes the popover and hands focus back to the trigger', async ({
         membersPage,
         page
     }) => {
@@ -105,18 +110,19 @@ test.describe('Members filter (query builder)', () => {
         await membersPage.openFilters();
         await membersPage.addRule();
 
-        // Collapsing makes the region `inert`; without an explicit hand-back
-        // focus falls to `<body>` and the next Tab restarts at the top of the
-        // document (2.4.3, `ORT-157`).
+        // The popover unmounts on close; without the hand-back focus falls to
+        // `<body>` and the next Tab restarts at the top of the document
+        // (2.4.3, `ORT-157`).
         await page.keyboard.press('Escape');
         await expect(membersPage.filterTrigger()).toHaveAttribute(
             'aria-expanded',
             'false'
         );
+        await expect(membersPage.filterSurface()).toBeHidden();
         await expect(membersPage.filterTrigger()).toBeFocused();
     });
 
-    test('the open filter panel with a rule is accessible (axe)', async ({
+    test('the open filter popover with a rule is accessible (axe)', async ({
         membersPage,
         makeAxe
     }) => {
@@ -124,7 +130,7 @@ test.describe('Members filter (query builder)', () => {
         await membersPage.openFilters();
         await membersPage.addRule();
         await membersPage.selectField('Status');
-        // Scan the panel with a live rule row (combobox pickers + footer).
+        // Scan the popover with a live rule row (combobox pickers + footer).
         await expectNoA11yViolations(makeAxe());
     });
 
@@ -144,16 +150,22 @@ test.describe('Members filter (query builder)', () => {
         await expect(membersPage.row('Ada Lovelace')).toBeVisible();
         await expect(membersPage.row('Grace Hopper')).toBeVisible();
         await expect(page).not.toHaveURL(/filter=/);
-        await expect(membersPage.filterTrigger()).toHaveText(/^Filters$/);
+        await expect(membersPage.filterTrigger()).toHaveAccessibleName(
+            'Filters'
+        );
+        await expect(membersPage.filterCountBadge()).toHaveCount(0);
     });
 
     /**
-     * The collapsed read-out. New on this page with the panel — the drawer only
-     * ever showed a count on the trigger, so an applied filter said nothing
-     * about *what* was filtered once the surface was shut.
+     * The resting read-out. The drawer this page once mounted only ever showed
+     * a count on the trigger, so an applied filter said nothing about *what*
+     * was filtered once the surface was shut.
      */
     test.describe('applied-filter summary', () => {
-        /** Apply `status equals Disabled`, then collapse the panel. */
+        /**
+         * Apply `status equals Disabled`. A valid Apply closes the popover;
+         * `closeFilters()` asserts that it did.
+         */
         async function applyAndCollapse(membersPage: MembersPage, page: Page) {
             await page.goto('/users');
             await expect(membersPage.row('Ada Lovelace')).toBeVisible();

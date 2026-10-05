@@ -10,7 +10,7 @@ end-to-end. Each group owns an AND/OR toggle and an Add group action.
 ## Package
 
 - Name: `@orthacms/query-builder-admin`
-- Import: `import { QueryBuilder, QueryBuilderPanel, type FilterField } from '@orthacms/query-builder-admin'`
+- Import: `import { QueryBuilder, QueryBuilderPopover, type FilterField } from '@orthacms/query-builder-admin'`
 - Pure UI library — depends only on `@orthacms/design-system`,
   `lucide-react`, `react-intl` (+ React peers). No router / data layer.
 
@@ -19,7 +19,8 @@ end-to-end. Each group owns an AND/OR toggle and an Add group action.
 - Uses `type` for type contracts (not `interface`)
 - All exported symbols must have JSDoc comments
 - No `.js` extensions in TypeScript imports
-- Types go in `src/lib/types/`; plain functions in `src/lib/utils/`
+- Types go in `src/lib/types/`; plain functions in `src/lib/utils/`; hooks
+  in `src/lib/hooks/`
 - Components go in `src/lib/components/{ComponentName}/index.tsx`
 - i18n: each component co-locates its own `defineMessages` (no shared
   `messages.ts`), per the admin i18n convention
@@ -28,43 +29,60 @@ end-to-end. Each group owns an AND/OR toggle and an Add group action.
 ## Key exports
 
 - `QueryBuilder` — headless controlled component over a `FilterTree`
-- `QueryBuilderDrawer` — drawer wrapper owning open state, a staged
-  draft, JSON preview, and the Apply/Reset footer; consumer passes a
-  `trigger`. **No consumer in this repo** — every list page mounts the panel
-  instead. Kept because it is published API, but nothing exercises it: an
-  in-repo change to it is unverified by the e2e suite.
-- `QueryBuilderPanel` — the **inline** surface every list page mounts, and the
-  alternative to the drawer: a full-width accordion the consumer mounts between
-  a toolbar and a table. The consumer owns the toggle button + `open` state; the
-  panel owns the staged draft, JSON preview, and Apply/Reset footer. **Apply
-  does not collapse it** — the URL and table update while the builder stays up
-  for further edits; the toggle and Esc are what close it (Esc hands focus back
-  to the toggle named by `labelledBy`). It animates its height
-  (`grid-template-rows 0fr → 1fr`, ~150ms, reduced-motion-aware), caps the rules
-  list and scrolls it internally, and is a `role="region"` labelled by the
-  toggle (used by **members**, the **activity log**, the **content records**
-  page, and the alarms rule editor). No portal container is needed — an inline
-  panel isn't scroll-locked.
-  On open it moves focus to the first condition's field cell — with
-  **`preventScroll`**, which is not optional. That focus lands while the height
-  is still animating, so a plain `focus()` makes the browser scroll the
-  `overflow-hidden` wrapper (to ~85px) to reveal a control that was about to be
-  visible anyway; the scroll is then clamped back to 0 as the row grows, sliding
-  every control in the panel for a few hundred milliseconds _after_ the
-  transition ends. A press during that slide is dropped in silence — `mousedown`
-  on the button, `mouseup` elsewhere, `click` on their common ancestor.
-  Takes `fieldsPending` / `fieldsError` / `onRetryFields` for a consumer whose
-  `fields` are **fetched**: it renders a loading or error state in place of the
-  builder and disables Apply. Required, not optional polish — the Apply gate
-  rejects every rule whose field it can't resolve, so without the definitions
-  Apply can never commit and an empty picker reads as a dead button. Reset
-  stays enabled throughout (clearing the applied filter needs no definitions).
-- `QueryBuilderSummary` — the collapsed resting summary: one removable chip
+- `QueryBuilderPopover` — the surface every page mounts (members, the
+  **activity log**, the **content records** page, and the alarms rule editor):
+  the builder in a large popover anchored to its trigger (`align="end"`,
+  `w-[min(720px,calc(100vw-2rem))]`). It owns the **trigger** — by default an
+  icon-only `ListFilter` outline button (32px under the toolbar's compact
+  density) with a `Tooltip` and, when a filter is applied, the rule count as a
+  corner badge; the count is `aria-hidden` there because the accessible name
+  carries it ("Filters, 2 applied") — the **open state** (or takes
+  `open`/`onOpenChange`), and the staged draft. A consumer with a labelled
+  button of its own passes `trigger` (rendered via `PopoverTrigger asChild`) and
+  a matching `title`, which is the heading and the dialog's accessible name
+  (the alarm editor's "Edit conditions"). Header (title + the draft's condition
+  count), a body that scrolls on its own (`max-h-[min(60vh,560px)]`), the JSON
+  preview (collapsed by default), and a Reset / Apply footer.
+    - **Apply commits and closes**; on an invalid draft it shows the inline
+      errors, focuses the first broken row's control and stays open. **Reset**
+      commits `null` and stays open. **Closing without Apply** (Esc, a click
+      outside, the trigger) discards the draft; Radix hands focus back to the
+      trigger.
+    - On open, focus lands on the first condition's field cell (or "Add rule"
+      with none); with the fields still loading it is parked on the popover and
+      moved on once they arrive — always with `preventScroll`.
+    - **Non-modal, on purpose.** A modal popover `aria-hidden`s the page root,
+      which holds focusable content, and fails axe's `aria-hidden-focus` — the
+      reason every menu in the admin passes `modal={false}`. Non-modal also
+      means no scroll lock, so the nested pickers (field picker, selects, date
+      and relation pickers) keep the default body portal and still wheel — no
+      `portalContainer` is needed. They are React descendants of the popover's
+      dismissable layer, so a click inside one is not "outside" and Esc closes
+      only the topmost. Both are pinned in admin-e2e
+      (`content/records-filter.spec.ts`, "the filters popover").
+    - Takes `fieldsPending` / `fieldsError` / `onRetryFields` for a consumer
+      whose `fields` are **fetched**: a loading or error state in place of the
+      builder, and Apply disabled. Required, not optional polish — the Apply
+      gate rejects every rule whose field it can't resolve, so without the
+      definitions Apply can never commit and an empty picker reads as a dead
+      button. Reset stays enabled throughout.
+    - A nested picker that stays open between picks (the relation value
+      picker) can cover the footer: close it (Esc) before Apply.
+- `useFilterDraft` — the staged-draft lifecycle the popover and the drawer
+  share: re-read `value` on every open, `showErrors` raised by a refused Apply
+  and dropped once the draft is valid, `apply()` → whether it committed, and
+  `reset()`. A new surface uses it rather than re-deriving `[query-builder:I-14]`.
+- `QueryBuilderDrawer` — drawer wrapper owning open state, a staged draft
+  (`useFilterDraft`), JSON preview, and the Apply/Reset footer; consumer passes
+  a `trigger`. **No consumer in this repo** — every page mounts the popover.
+  Kept because it is published API, but nothing in admin-e2e exercises it: an
+  in-repo change to it is verified only by its unit spec.
+- `QueryBuilderSummary` — the resting summary under the toolbar: one removable chip
   per applied condition ("Author · Email contains @lilly ×") plus "Clear
   all"; removing a chip re-commits the narrowed tree at once. An **enum** rule's
   value is rendered through the field's declared members, because the wire value
-  can be an opaque id and the chip is the only reading of a rule once the panel
-  has collapsed — a plugin's virtual field makes that unmissable
+  can be an opaque id and the chip is the only reading of a rule once the
+  popover has closed — a plugin's virtual field makes that unmissable
   (`@orthacms/segments-admin` filters by a segment's uuid, so an unresolved chip
   read "Can be seen by is one of d19a552b-…"). An unknown member falls back to
   the raw value: a saved view can outlive the option it names, and a chip showing
@@ -106,7 +124,7 @@ end-to-end. Each group owns an AND/OR toggle and an Add group action.
   rows) and silently wrong for a saved filter, which would freeze its window on
   the day it was written and look entirely normal doing so.
 - `jsonFilterToTree(params)` — inverse; reads `params.get('filter')`
-- `countRules(tree)` — leaf count for a "Filters (N)" badge
+- `countRules(tree)` — leaf count for the trigger's applied-count badge
 - `treeHasInvalidRules` / `validateRule` — the Apply gate
 
 ## Wire grammar
@@ -183,9 +201,9 @@ not an unfinished draft), and the field cell stays rendered so re-picking
 fixes it.
 
 **Portaling inside scroll-locked containers.** A `Popover` portals to
-`document.body` by default, but the records filter mounts in a vaul
-`QueryBuilderDrawer` (and the relation picker's inline builder in a Radix
-`Dialog`) — both scroll-lock the page via react-remove-scroll, which blocks
+`document.body` by default, but a builder mounted in a vaul
+`QueryBuilderDrawer` (or the relation picker's inline builder in a Radix
+`Dialog`) is inside a container that scroll-locks the page via react-remove-scroll, which blocks
 mouse-wheel scrolling on anything **outside** their subtree, so a
 body-portaled popover's list only drags, never wheels. `QueryBuilder` takes
 a `portalContainer` prop and publishes it through `PortalContainerContext`;

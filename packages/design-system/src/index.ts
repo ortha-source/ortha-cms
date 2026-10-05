@@ -12,6 +12,8 @@ export type {
 } from './lib/appearance';
 export { Button, buttonVariants } from './lib/components/ui/button';
 export type { ButtonProps } from './lib/components/ui/button';
+export { DensityProvider, useDensity } from './lib/components/ui/density';
+export type { Density } from './lib/components/ui/density';
 export {
     Card,
     CardHeader,
@@ -111,7 +113,12 @@ export {
     BreadcrumbSeparator,
     BreadcrumbEllipsis
 } from './lib/components/ui/breadcrumb';
-export { TopBar, TopBarIcon, TopBarActions } from './lib/components/ui/top-bar';
+export {
+    TopBar,
+    TopBarIcon,
+    TopBarActions,
+    TopBarTabs
+} from './lib/components/ui/top-bar';
 export {
     InputGroup,
     InputGroupAddon,
@@ -174,7 +181,11 @@ export {
 } from './lib/components/ui/search-toolbar';
 export { Toaster } from './lib/components/ui/sonner';
 export { toast } from 'sonner';
-export { Container, ContainerHeader } from './lib/components/ui/container';
+export {
+    Container,
+    ContainerHeader,
+    PageHeaderHost
+} from './lib/components/ui/container';
 export { StatTile } from './lib/components/ui/stat-tile';
 export type { StatTileProps } from './lib/components/ui/stat-tile';
 export {
@@ -266,7 +277,8 @@ export {
     SidebarTrigger,
     useSidebar,
     useOptionalSidebar,
-    InsetBarEnd
+    InsetFooter,
+    InsetFooterEnd
 } from './lib/components/ui/sidebar';
 // The one breakpoint the chrome branches on (768px), so a consumer that must lay
 // out differently on a phone reads the *same* boundary the sidebar does instead

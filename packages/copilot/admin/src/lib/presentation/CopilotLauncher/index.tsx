@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useHasPermission } from '@orthacms/identity-admin';
-import { InsetBarEnd } from '@orthacms/design-system';
+import { InsetFooterEnd } from '@orthacms/design-system';
 import { isComposingText } from '@orthacms/utils-admin';
 import { useCopilotAvailable } from '../../application/useCopilotModels';
 import { useCopilotSessions } from '../../application/useCopilotSessions';
@@ -248,14 +248,14 @@ export function CopilotLauncher() {
                 </div>,
                 document.body
             )}
-            {/* The launcher sits at the right end of the top bar, on every page
-                (`InsetBarEnd`). It is **not rendered** on the Agents view — the
+            {/* The launcher sits under the work area's card, at the right end of
+                its footer strip, on every page (`InsetFooterEnd`). It is **not rendered** on the Agents view — the
                 page is the chat surface there, and a button offering to open a
                 chat over it would say the same thing twice. Unmounting it costs
                 nothing: the chats live in `copilotStore` and the sessions above
                 stay mounted (hidden), which is what keeps them reporting. */}
             {dockStandsDown ? null : (
-                <InsetBarEnd>
+                <InsetFooterEnd>
                     <CopilotDock
                         sessions={sessions.dock}
                         onToggle={sessions.toggle}
@@ -263,7 +263,7 @@ export function CopilotLauncher() {
                         onNewChat={() => sessions.start()}
                         newChatRef={newChatRef}
                     />
-                </InsetBarEnd>
+                </InsetFooterEnd>
             )}
         </>
     );

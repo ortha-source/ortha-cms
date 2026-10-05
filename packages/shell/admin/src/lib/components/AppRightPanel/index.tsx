@@ -151,7 +151,11 @@ export function AppRightPanel() {
                         isMobile ? 'w-full' : 'w-[22rem]'
                     )}
                 >
-                    <div className="flex h-12 shrink-0 items-center justify-between gap-2 border-b px-4">
+                    {/* On a page with tabs under its bar the band is 48 + 36px
+                        (`TopBarTabs` is a fixed `h-9`), so the header grows to
+                        rule itself on the same line, keeping its title level
+                        with the breadcrumb. */}
+                    <div className="flex h-12 shrink-0 items-center justify-between gap-2 border-b px-4 [[data-slot=app-frame]:has([data-slot=top-bar-tabs])_&]:h-21 [[data-slot=app-frame]:has([data-slot=top-bar-tabs])_&]:pb-9">
                         <h2 className="min-w-0 truncate text-sm font-semibold tracking-[-0.01em]">
                             {panel?.title}
                         </h2>

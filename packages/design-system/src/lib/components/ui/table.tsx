@@ -85,15 +85,32 @@ const Table = React.forwardRef<
 });
 Table.displayName = 'Table';
 
+/**
+ * The header is a gray pill — the same `muted` wash, and the same rounded
+ * ends, as a hovered row — so a table with no rules still has its column
+ * labels set apart, and every shape in it is the same shape. No line under it.
+ *
+ * Because the wash *is* the hover's, a hovered first row would run straight
+ * into the header and read as one block. A 4px spacer row keeps them apart.
+ * It is a row rather than a transparent border on the cells: a border clipped
+ * out of a rounded cell's background left a notch at its corner. Hidden from
+ * assistive technology, and cell-less, so it is no row to anyone counting.
+ */
 const TableHeader = React.forwardRef<
     HTMLTableSectionElement,
     React.HTMLAttributes<HTMLTableSectionElement>
->(({ className, ...props }, ref) => (
+>(({ className, children, ...props }, ref) => (
     <thead
         ref={ref}
-        className={cn('bg-muted/50 [&_tr]:border-b', className)}
+        className={cn(
+            '[&_th]:bg-muted [&_th:first-child]:rounded-l-lg [&_th:last-child]:rounded-r-lg',
+            className
+        )}
         {...props}
-    />
+    >
+        {children}
+        <tr aria-hidden data-slot="table-header-gap" className="h-1" />
+    </thead>
 ));
 TableHeader.displayName = 'TableHeader';
 
@@ -124,6 +141,15 @@ const TableFooter = React.forwardRef<
 ));
 TableFooter.displayName = 'TableFooter';
 
+/**
+ * A row draws no rule: body rows are separated by space alone, and the one
+ * line in a table is the header's. What tells a row apart is the hover (and
+ * selected) wash, painted on the **cells** rather than the `<tr>` so the
+ * first and last can round it into a single pill — a row has no box of its
+ * own to round. The wash is `muted`, a step lighter than `secondary`, because
+ * a `secondary` badge (Draft, Viewer) on a `secondary` wash simply vanished.
+ * A header row is untouched: its cells are `th`.
+ */
 const TableRow = React.forwardRef<
     HTMLTableRowElement,
     React.HTMLAttributes<HTMLTableRowElement>
@@ -131,7 +157,8 @@ const TableRow = React.forwardRef<
     <tr
         ref={ref}
         className={cn(
-            'border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted',
+            '[&>td]:transition-colors [&>td:first-child]:rounded-l-lg [&>td:last-child]:rounded-r-lg',
+            'hover:[&>td]:bg-muted data-[state=selected]:[&>td]:bg-muted',
             className
         )}
         {...props}

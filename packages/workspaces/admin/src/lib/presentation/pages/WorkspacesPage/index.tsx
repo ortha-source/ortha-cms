@@ -135,7 +135,7 @@ export function WorkspacesPage() {
                     }
                 ]}
             />
-            <Container>
+            <Container width="full">
                 {/* A gated redirect landed here; say so, since the page simply
                     swapped under the user with no other signal. */}
                 <span role="status" aria-live="polite" className="sr-only">

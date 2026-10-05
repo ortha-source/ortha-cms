@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { Link, useMatch } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { Library } from 'lucide-react';
@@ -24,6 +24,9 @@ import {
     TYPE_PARAM
 } from '../../../domain/constants';
 import { sharedSourceOf } from '../../../domain/contentTypeAccess';
+import { listParamsQuery } from '../../../domain/listParamsQuery';
+import { useSlotListParams } from '../../hooks/useSlotListParams';
+import { ENTRY_PARAMS_SLOT } from '../../slots/contentSlots';
 import { EntryTitleCrumb } from './EntryTitleCrumb';
 
 /** Intl descriptors for {@link ContentTopBar}, co-located here. */
@@ -96,6 +99,18 @@ export function ContentTopBar({
     );
     const typeName = match?.params[TYPE_PARAM];
     const splat = match?.params['*'] ?? '';
+    // The slot-owned list params (i18n's `?locale=`) the open record was
+    // reached under. The type crumb is the way back from a record to its list,
+    // so it carries them: without them, leaving a German record lands on the
+    // English list. Slot items are boot-frozen, so this key list is stable.
+    const listParamKeys = useMemo(
+        () =>
+            ENTRY_PARAMS_SLOT.getItems().flatMap(
+                (item) => item.listParamKeys ?? []
+            ),
+        []
+    );
+    const listQuery = listParamsQuery(useSlotListParams(listParamKeys));
 
     const crumbs: Crumb[] = [
         { key: 'root', label: intl.formatMessage(messages.root), to: basePath }
@@ -128,7 +143,7 @@ export function ContentTopBar({
         crumbs.push({
             key: typeName,
             label: type?.label ?? typeName,
-            to: `${basePath}/${typeName}`
+            to: `${basePath}/${typeName}${listQuery}`
         });
 
         // The leaf under the type: create form, trash view, or an open record.

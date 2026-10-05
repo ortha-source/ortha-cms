@@ -364,7 +364,9 @@ test.describe('Content Library', () => {
         await page.goBack();
         await contentLibraryPage.recordRows('Blog posts').first().click();
         await expect(page).toHaveURL(/\/content\/blog_post\/[^/]+$/);
-        await expect(contentLibraryPage.editorBackLink).toBeVisible();
+        await expect(
+            contentLibraryPage.breadcrumbLink('Blog posts')
+        ).toBeVisible();
     });
 
     test('saving a record stays on the editor and shows a success toast', async ({

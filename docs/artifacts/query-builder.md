@@ -48,11 +48,11 @@ Lists in a CMS are long. A collection's entry registry, the activity log, the me
 
 #### The content editor
 
-Opens the panel under the registry's toolbar, types two or three conditions and presses “Apply”. The table below the panel is rebuilt and the conditions settle as removable chips. “Save as an alarm” is made out of the same state.
+Presses the “Filters” icon in the registry's toolbar, types two or three conditions into the popover that opens under it, and presses “Apply”. The popover closes, the table is rebuilt and the conditions settle as removable chips under the toolbar. “Save as an alarm” is made out of the same state.
 
 #### The administrator
 
-Filters the activity log (“who did what to this entry in the last day”) and the member list (“every disabled contributor”). Both pages offer the same panel with the same behaviour.
+Filters the activity log (“who did what to this entry in the last day”) and the member list (“every disabled contributor”). Both pages offer the same popover with the same behaviour.
 
 #### The support engineer
 
@@ -60,7 +60,7 @@ Expands the “JSON preview” block, copies the payload and pastes it into a cu
 
 > **The key idea**
 >
-> The package is a **controlled component with no data layer**. It requests nothing and goes nowhere: the field schema and the value editor for relations are _passed in from outside_. That is exactly why one and the same panel could be attached to four completely different screens, each with its own source of fields — a static array, an API response, or a plugin's contribution through a slot.
+> The package is a **controlled component with no data layer**. It requests nothing and goes nowhere: the field schema and the value editor for relations are _passed in from outside_. That is exactly why one and the same builder could be attached to four completely different screens, each with its own source of fields — a static array, an API response, or a plugin's contribution through a slot.
 
 ## 02. Its place in the system and its consumers
 
@@ -68,24 +68,24 @@ There is one package — `packages/query-builder/admin`, published as `@orthacms
 
 ### What depends on what
 
-| Dependency              | Role                                                                                                                            |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| @orthacms/design-system | Button, Input, Select, Checkbox, Popover, Drawer, SegmentedControl, Alert, Spinner — everything visible is assembled from these |
-| lucide-react            | The icons: Plus, X, Check, ChevronDown/Right, Copy                                                                              |
-| react-intl              | Every label is a `MessageDescriptor`. Each component keeps its own `defineMessages` next to it                                  |
-| react / react-dom       | Peer dependencies, ^19                                                                                                          |
+| Dependency              | Role                                                                                                                                     |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| @orthacms/design-system | Button, Input, Select, Checkbox, Popover, Tooltip, Drawer, SegmentedControl, Alert, Spinner — everything visible is assembled from these |
+| lucide-react            | The icons: ListFilter, Plus, X, Check, ChevronDown/Right, Copy                                                                           |
+| react-intl              | Every label is a `MessageDescriptor`. Each component keeps its own `defineMessages` next to it                                           |
+| react / react-dom       | Peer dependencies, ^19                                                                                                                   |
 
 No router, no TanStack Query, no `apiClient`. That is not asceticism but the condition of reuse: the package is mounted both inside a page and inside the modal dialog for picking a related entry, where there is no “current list” at all.
 
 ### Five mount points
 
-| Where                                                                         | Which wrapper                              | Where the fields come from                                                                                                                       |
-| ----------------------------------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **A collection's entry registry**<br>content-admin, `LoadedRecordsView`       | QueryBuilderPanel<br>+ QueryBuilderSummary | `useFilterFields(typeName)` — the `GET /content-schema/:name/filter-fields` response, plus the `RECORDS_FILTER_FIELDS_SLOT` slot's contributions |
-| **The activity log**<br>activity-admin, `ActivityLogPage`                     | QueryBuilderPanel<br>+ QueryBuilderSummary | The static `ACTIVITY_FILTER_FIELDS` constant — 6 fields, mirroring the server's `ACTIVITY_FILTER_SCHEMA`                                         |
-| **Members**<br>users-admin, `MembersPage`                                     | QueryBuilderDrawer                         | The static `MEMBERS_FILTER_FIELDS` constant — 5 fields, including the `role.key` relation                                                        |
-| **The alarm rule editor**<br>alarms-admin, `AlarmRuleEditorPage`              | QueryBuilderPanel<br>+ QueryBuilderSummary | The same `useFilterFields` plus the same slot contributions — “a rule cannot say more than the list can”                                         |
-| **The related-entry picker dialog**<br>content-admin, `RelationPickerFilters` | QueryBuilder<br>bare, inside a Collapsible | `useFilterFields` for the target type; the filter is applied at once, with no Apply                                                              |
+| Where                                                                         | Which wrapper                                              | Where the fields come from                                                                                                                       |
+| ----------------------------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **A collection's entry registry**<br>content-admin, `LoadedRecordsView`       | QueryBuilderPopover<br>+ QueryBuilderSummary               | `useFilterFields(typeName)` — the `GET /content-schema/:name/filter-fields` response, plus the `RECORDS_FILTER_FIELDS_SLOT` slot's contributions |
+| **The activity log**<br>activity-admin, `ActivityLogPage`                     | QueryBuilderPopover<br>+ QueryBuilderSummary               | The static `ACTIVITY_FILTER_FIELDS` constant — 6 fields, mirroring the server's `ACTIVITY_FILTER_SCHEMA`                                         |
+| **Members**<br>users-admin, `MembersPage`                                     | QueryBuilderPopover<br>+ QueryBuilderSummary               | The static `MEMBERS_FILTER_FIELDS` constant — 5 fields, including the `role.key` relation                                                        |
+| **The alarm rule editor**<br>alarms-admin, `AlarmRuleEditorPage`              | QueryBuilderPopover (own trigger)<br>+ QueryBuilderSummary | The same `useFilterFields` plus the same slot contributions — “a rule cannot say more than the list can”                                         |
+| **The related-entry picker dialog**<br>content-admin, `RelationPickerFilters` | QueryBuilder<br>bare, inside a Collapsible                 | `useFilterFields` for the target type; the filter is applied at once, with no Apply                                                              |
 
 ### Who contributes fields without mounting the component
 
@@ -392,7 +392,7 @@ No identifiers, no labels, no types — only what is needed to build a WHERE. Th
 5. **The result is a JSON string**, ready to be substituted into `?filter=`. The `treeToJsonNode` variant returns an object — that is what the preview uses.
    _JSON.stringify_
 
-**This pass's invariant:** the payload is always well-formed, even while drafts are sitting in the panel. The user is allowed a half-assembled rule on screen; it will not reach the wire.
+**This pass's invariant:** the payload is always well-formed, even while drafts are sitting in the popover. The user is allowed a half-assembled rule on screen; it will not reach the wire.
 
 > **The relativeDates option — the package's most loaded argument**
 >
@@ -429,7 +429,7 @@ No identifiers, no labels, no types — only what is needed to build a WHERE. Th
 
 ## 07. The component's API
 
-One import: `import { QueryBuilder, QueryBuilderPanel, type FilterField } from '@orthacms/query-builder-admin'`. The public surface is four components, eight utilities and a set of types.
+One import: `import { QueryBuilder, QueryBuilderPopover, type FilterField } from '@orthacms/query-builder-admin'`. The public surface is four components, one hook (`useFilterDraft`), eight utilities and a set of types.
 
 ### QueryBuilder — the headless controlled component
 
@@ -448,7 +448,7 @@ One import: `import { QueryBuilder, QueryBuilderPanel, type FilterField } from '
 
 ### QueryBuilderDrawer — the slide-out panel
 
-It owns the open state, the draft, the JSON preview and the Apply/Reset footer. The consumer passes a `trigger` (usually a “Filters (3)” button), so the badge and the permission check stay on their side.
+It owns the open state, the draft (through `useFilterDraft`), the JSON preview and the Apply/Reset footer. The consumer passes a `trigger`, so the badge and the permission check stay on their side. **No page in this repository mounts it** — every mount point uses `QueryBuilderPopover` — so a change to it is verified only by its unit spec.
 
 | Prop                | Type                                | Meaning                                                |
 | ------------------- | ----------------------------------- | ------------------------------------------------------ |
@@ -461,30 +461,38 @@ It owns the open state, the draft, the JSON preview and the Apply/Reset footer. 
 
 The drawer supplies its own portal container — vaul locks the page's scroll, and a popover portalled into `body` would end up outside the permitted subtree.
 
-### QueryBuilderPanel — the inline accordion
+### QueryBuilderPopover — the anchored popover
 
-An alternative to the drawer: a full-width section between the toolbar and the table that pushes the table down when expanded (with no overlay). The toggle button and the `open` state are held by the consumer; the panel holds the draft, the footer and the Esc behaviour.
+What every mount point uses: a large popover (`min(720px, 100vw − 2rem)` wide) anchored under its trigger with `align="end"`. A header (the title, which is also the dialog's accessible name, and the draft's condition count), the builder in a body that scrolls on its own (`max-h: min(60vh, 560px)`), the collapsed JSON preview, and a Reset / Apply footer. It owns its trigger, its open state (unless controlled) and the draft.
 
-| Prop                     | Type                  | Meaning                                                                                                                         |
-| ------------------------ | --------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| open / onOpenChange      | boolean / (b) => void | Whether it is expanded; called on collapse (Esc)                                                                                |
-| fields / value / onApply | —                     | As for the drawer                                                                                                               |
-| onApplied                | () => void            | After a **successful** Apply (but not a Reset). The alarm editor uses this to collapse the panel and return focus to the toggle |
-| labelledBy               | string                | The toggle button's `id`: the section is labelled by it, and focus returns to it on Esc                                         |
-| id                       | string                | The section's `id` — the target of the toggle's `aria-controls`                                                                 |
-| fieldsPending            | boolean = false       | The fields are still loading — a spinner is drawn instead of the builder and Apply is disabled                                  |
-| fieldsError              | boolean = false       | Loading the fields failed — an `Alert` with a “Try again” is drawn                                                              |
-| onRetryFields            | () => void            | Retry the request                                                                                                               |
+| Prop                     | Type                  | Meaning                                                                                                                                 |
+| ------------------------ | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| fields / value / onApply | —                     | As for the drawer                                                                                                                       |
+| onApplied                | () => void            | After a **successful** Apply (but not a Reset). The records list uses it to show its "applying" state                                   |
+| trigger                  | ReactElement?         | A custom trigger, rendered through `PopoverTrigger asChild`. Omitted, it is the standard icon-only “Filters” button (below)             |
+| title                    | string?               | The heading and accessible name; “Filters” by default. The alarm editor passes “Edit conditions”, the label of the button that opens it |
+| open / onOpenChange      | boolean / (b) => void | Optional control of the open state                                                                                                      |
+| fieldsPending            | boolean = false       | The fields are still loading — a spinner is drawn instead of the builder and Apply is disabled                                          |
+| fieldsError              | boolean = false       | Loading the fields failed — an `Alert` with a “Try again” is drawn                                                                      |
+| onRetryFields            | () => void            | Retry the request                                                                                                                       |
+
+- **The standard trigger** is a 32px outline icon button (`ListFilter`) with a `Tooltip` saying “Filters” (on hover and on focus) and, when a filter is applied, the rule count as a small badge on its corner. The badge is `aria-hidden`: the count is in the accessible name as words — “Filters, 2 applied”.
+- **Apply** commits and closes; on an invalid draft it shows the inline errors, focuses the first broken row and stays open. **Reset** commits “no filter” and stays open. **Closing without Apply** — Esc, a click outside, the trigger again — discards the draft.
+- **Non-modal**, like every menu in the admin: a modal popover `aria-hidden`s the page root, which holds focusable content, and fails axe's `aria-hidden-focus`. It also means no scroll lock, so the builder's nested popovers keep the default body portal and still scroll with the wheel; they are React descendants of the popover's layer, so a click inside them is not “outside”.
+
+### useFilterDraft — the shared draft lifecycle
+
+The hook behind both the popover and the drawer: the draft re-read from `value` on every open, `showErrors` raised by a refused Apply and lowered as soon as the draft is valid, `apply()` returning whether it committed, and `reset()`. A new surface uses it rather than re-deriving I-14.
 
 > **Why fieldsPending / fieldsError are mandatory rather than polish**
 >
-> The Apply gate rejects **every** rule whose field could not be resolved by `id`. Which means a panel handed an empty `fields` array while the surface loads (or after the request failed) can never apply a condition — and says nothing about why. An empty picker reads as a broken button. Reset stays enabled meanwhile: clearing an applied filter needs no field definitions.
+> The Apply gate rejects **every** rule whose field could not be resolved by `id`. Which means a popover handed an empty `fields` array while the surface loads (or after the request failed) can never apply a condition — and says nothing about why. An empty picker reads as a broken button. Reset stays enabled meanwhile: clearing an applied filter needs no field definitions.
 
 ### QueryBuilderSummary — the at-rest summary
 
-One removable chip per applied condition (“Author · Email contains @lilly ×”) plus a “Clear all”. Removing a chip immediately re-applies the narrowed tree. AND/OR nesting is **flattened** here — the structure is edited in the panel and this is a compact reader.
+One removable chip per applied condition (“Author · Email contains @lilly ×”) plus a “Clear all”. Removing a chip immediately re-applies the narrowed tree. AND/OR nesting is **flattened** here — the structure is edited in the popover and this is a compact reader.
 
-An enum rule's value is rendered through the field's declared members, because the wire may hold an opaque id there, and the chip is the only place a rule is read after the panel collapses. A plugin's virtual field makes that obvious: segments filter by an audience's **uuid**, and an unresolved chip would read as “Can be seen by is one of d19a552b-…”. An unknown member falls back to the raw value rather than disappearing: a saved view can outlive the option it names, and a chip showing nothing would read as “no filter applied”.
+An enum rule's value is rendered through the field's declared members, because the wire may hold an opaque id there, and the chip is the only place a rule is read once the popover has closed. A plugin's virtual field makes that obvious: segments filter by an audience's **uuid**, and an unresolved chip would read as “Can be seen by is one of d19a552b-…”. An unknown member falls back to the raw value rather than disappearing: a saved view can outlive the option it names, and a chip showing nothing would read as “no filter applied”.
 
 ### Utilities
 
@@ -493,7 +501,7 @@ An enum rule's value is rendered through the field's declared members, because t
 | treeToJsonFilter(tree, now?, options?)          | A tree → a JSON string for `?filter=`. `now` is injected so that tests can pin the cut-off |
 | treeToJsonNode(...)                             | The same, but as an object — for the preview and for pretty-printing                       |
 | jsonFilterToTree(filter)                        | A JSON string → a tree. Never throws                                                       |
-| countRules(tree)                                | The number of leaves across the whole tree — for the “Filters (N)” badge                   |
+| countRules(tree)                                | The number of leaves across the whole tree — for the trigger's applied count               |
 | validateRule(rule, field)                       | The code of a rule's first error, or `null`                                                |
 | treeHasInvalidRules(tree, fields)               | The Apply gate: does the tree contain even one invalid rule                                |
 | opsForField(field)                              | A field's operators, taking the narrowing and the ordering into account                    |
@@ -504,11 +512,11 @@ An enum rule's value is rendered through the field's declared members, because t
 
 ### Scenario A. Assembling a filter in the entry registry
 
-1. **The user presses “Filters” in the toolbar.** The consumer toggles `open`; the section expands with a `grid-template-rows: 0fr → 1fr` animation over ~150 ms, respecting `prefers-reduced-motion`.
-   _QueryBuilderPanel_
-2. **The panel syncs the draft with the applied filter.** On every opening, `draft ← value` and the `showErrors` flag is cleared: the user always edits the current state rather than what was left over from last time.
-   _a useEffect on open_
-3. **Focus moves into the first field cell.** The effect looks for the first `[role="combobox"]`. It re-runs once the fields have loaded — before that there is no builder on screen at all.
+1. **The user presses the “Filters” icon in the toolbar.** The popover opens under it, aligned to its right edge; the trigger reports `aria-expanded="true"` and its `aria-controls` names the dialog.
+   _QueryBuilderPopover_
+2. **The popover syncs the draft with the applied filter.** On every opening, `draft ← value` and the `showErrors` flag is cleared: the user always edits the current state rather than what was left over from last time.
+   _useFilterDraft_
+3. **Focus moves into the first field cell** — or to “Add rule” when there are no conditions yet. If the fields are still loading, focus is parked on the popover itself and moves on once they arrive.
    _2.4.3_
 4. **“Add rule”.** `fields[0]` is taken and the operator is set to `opsForField(first)[0]` — _not_ the type's first operator, so that a field with a narrowed list gets an operator it actually offers. The value is seeded by the operator's shape (`defaultValueForOp`). The live region announces “Condition added. N conditions in total”.
    _addRuleTo → onChange_
@@ -516,14 +524,14 @@ An enum rule's value is rendered through the field's declared members, because t
    _RuleRow.onChange_
 6. **The user picks an operator and types a value.** Changing the operator re-seeds the value by its shape again. The JSON preview, if expanded, updates on every keystroke.
    _defaultValueForOp_
-7. **“Apply”.** The gate comes first: `treeHasInvalidRules`. If it is clean — `onApply(draft)` (or `null` if there are no children), the URL changes and the table is rebuilt. The panel **stays expanded**: what changed is the table beneath it, and it is on screen.
+7. **“Apply”.** The gate comes first: `treeHasInvalidRules`. If it is clean — `onApply(draft)` (or `null` if there are no children), the URL changes, the table is rebuilt and the popover **closes**; focus returns to the trigger.
    _applyFilter → updateParams({filter})_
 8. **If it is dirty** — `showErrors` is switched on, a message naming the field appears under each broken rule, and on the next frame focus moves to **the first control of the first erroneous row** (not to the message itself — that is not focusable, and it is the control that needs changing).
    _3.3.1_
 9. **The errors clear themselves.** As soon as the tree becomes valid, `showErrors` is reset — a second press of Apply is not required.
    _a useEffect on draft_
-10. **The panel collapses.** The conditions settle as `QueryBuilderSummary` chips under the toolbar.
-    _the consumer switches open off_
+10. **The conditions settle** as `QueryBuilderSummary` chips under the toolbar, and the trigger's badge shows their count.
+    _the consumer renders the summary whenever a filter is applied_
 
 ### Scenario B. Nesting a group and switching AND/OR
 
@@ -550,10 +558,10 @@ There are two entry points, and they give different results as regards dates.
    _usePreviewAlarmRule_
 3. **A consequence worth knowing:** a list filtered by “in the last N days” carries a **resolved cut-off** in its URL — so a rule saved from here gets an absolute date range rather than a sliding window. A URL simply cannot say which of the two was meant. Turning it into a sliding one is a one-line edit in the rule editor.
    _see section 06_
-4. **The full path — the rule editor.** The builder panel is the same there, and so are the fields (`useFilterFields` + the same slot contributions), so a rule cannot by definition say more than the list says.
+4. **The full path — the rule editor.** The builder popover is the same there (opened from an “Edit conditions” button instead of the icon), and so are the fields (`useFilterFields` + the same slot contributions), so a rule cannot by definition say more than the list says.
    _AlarmRuleEditorPage_
-5. **Here Apply collapses the panel** — through `onApplied`, because the commit moves into the chips **above** the builder, and a panel left expanded would hide the one thing that has just changed. Focus returns to the toggle.
-   _unlike in the registry_
+5. **Apply closes the popover here too**, and that matters more than in the registry: the commit moves into the chips beside the button, and a surface left open would hide the one thing that has just changed. Focus returns to the button.
+   _the same component, no special case_
 6. **Saving serialises with `relativeDates: true`** and parses the result back into an object, because the rules API takes the tree as an object rather than as a string.
    _one serialisation implementation for both cases_
 7. **Loading an existing rule** goes the reverse way: the stored object is run through `JSON.stringify` and fed into `jsonFilterToTree` — one `stringify` is cheaper than a second parser.
@@ -693,14 +701,13 @@ One `role="status"` named “Filter builder status” for the whole builder. **P
 
 Two more keyboard details that are easy to lose in an edit: the highlight resets to the first navigable row on **opening and on a change of query**, but _not_ on expanding a relation — otherwise every expansion would jerk both the highlight and the scroll back to the top. And `scrollIntoView({block:'nearest'})` follows the highlight rather than a re-render of the list, so for the same reason it does not fire on an expansion.
 
-### The panel as a region
+### The popover as a dialog
 
-- The section is a `role="region"`, labelled by the toggle button through `aria-labelledby`.
-- When collapsed it is given `inert`: the content is not focusable and not read, although it remains in the DOM (the height is animated with a grid).
-- **Esc returns focus to the toggle** — and does so in a `requestAnimationFrame` after the commit that sets `inert`. The panel deliberately moves focus _inwards_ on opening, and before `ORT-157` did nothing on the way out.
-- Esc is skipped if `event.defaultPrevented`: an open picker popover must eat its own Escape first.
+- The content is a `role="dialog"` named by its heading through `aria-labelledby`; the trigger carries `aria-haspopup="dialog"`, a truthful `aria-expanded` and an `aria-controls` naming it.
+- **Esc closes it and returns focus to the trigger** (Radix's restore), as does Apply. Esc goes to the topmost layer only: with a picker open inside, the first Esc closes the picker and leaves the draft alone.
+- The standard trigger is icon-only, so its name is an `aria-label` carrying the applied count, and its tooltip opens on keyboard focus as well as on hover (1.4.13).
 - `aria-invalid` is attached to `EnumMultiSelect`'s **checkboxes themselves** rather than to the group: it is an input-widget attribute, ARIA 1.2 does not list it on `role="group"`, so on the group it communicated the state to nobody at all.
-- The expansion animation respects `prefers-reduced-motion` (`motion-reduce:transition-none`); the rule list is height-bounded (`22rem`) and scrolls within itself so that the table does not travel off screen.
+- The body is height-bounded (`min(60vh, 560px)`, and never taller than the space Radix reports below the trigger) and scrolls within itself, so the header and the Apply footer stay on screen.
 
 ## 11. Invariants
 
@@ -719,8 +726,8 @@ What must remain true after any edit to the package. Violating each point is a s
 - **I-11** — **Every group owns its combinator.** There is no global “AND/OR mode”; the root's switch and each subgroup's are independent, and every mutation is addressed by a node's `id` rather than by position.
 - **I-12** — **React keys are never serialised.** `FilterGroup.id` and `FilterRule.id` are client-side; they are regenerated when the URL is parsed.
 - **I-13** — **An empty tree is `null`, not an empty group.** `treeToJsonFilter` returns `null` and the consumer removes the parameter from the URL. Sending `{and:[]}` would get a `FILTER_INVALID_NODE`.
-- **I-14** — **The draft is synced with the applied value on every opening.** For the drawer and the panel alike. Closing without Apply discards the edits and clears the previous attempt's error state.
-- **I-15** — **The Apply gate lets through no invalid rule**, and in the absence of field definitions refuses _all_ of them. That is why the fields' loading and error states are part of the panel's contract rather than polish: an empty picker reads as a dead button.
+- **I-14** — **The draft is synced with the applied value on every opening.** For the drawer and the popover alike — both through `useFilterDraft`. Closing without Apply discards the edits and clears the previous attempt's error state.
+- **I-15** — **The Apply gate lets through no invalid rule**, and in the absence of field definitions refuses _all_ of them. That is why the fields' loading and error states are part of the popover's contract rather than polish: an empty picker reads as a dead button.
 - **I-16** — **A broken rule always announces itself; an unfinished one does so after Apply.** `unknown_field` and `operator_not_allowed` ignore `showErrors`: the user did not type them and has nothing to finish.
 - **I-17** — **A filter the builder refuses to draw is one it does not send.** The operator's legality is checked before every value check.
 - **I-18** — **Focus after deleting a node stays inside the builder.** The target is captured before the unmount and set in a `requestAnimationFrame` after it.
@@ -769,11 +776,11 @@ The package's unit tests cover only what a browser does not reach cheaply: `util
 
 ### The keyboard and accessibility
 
-- **axe on an expanded panel with a rule** — present in the members' and the activity's e2e
+- **axe on the open popover with a rule** — present in the records', the members' and the activity's e2e
 - **Arrow-key traversal of the picker** — headings are skipped, the traversal wraps, and `aria-activedescendant` follows the highlight
 - **Enter on a relation row** — expands it rather than selecting it; the highlight and the scroll stay put
 - **Tab inside the popover** — leaves it rather than walking every field in the schema
-- **Esc in the panel** — collapses it and returns focus to the toggle; with a popover open, the first Esc closes the popover
+- **Esc in the popover** — closes it and returns focus to the trigger; with a picker open inside, the first Esc closes only the picker
 - **Deleting the third of five conditions** — focus on the next row's remove button, and the next Tab does not start from the top of the document
 - **Deleting a summary chip** — focus moves to the neighbouring chip; deleting the last one makes the whole summary disappear
 - **The live region** — announces adding/removing a condition, adding a group and changing a field; does not announce a value edit
@@ -781,13 +788,13 @@ The package's unit tests cover only what a browser does not reach cheaply: `util
 
 ### Integration with the consumers
 
-- **Wheel scrolling inside the drawer and the dialog** — the field picker's list scrolls with the wheel and not only with the scrollbar (the `portalContainer` regression)
-- **The “Filters (N)” badge** — counts the leaves across the whole tree, nested groups included
+- **Wheel scrolling inside the drawer, the dialog and the filters popover** — the field picker's list scrolls with the wheel and not only with the scrollbar (the `portalContainer` regression; pinned for the popover in `records-filter.spec.ts`)
+- **The trigger's count** (“Filters, N applied” and the corner badge) — counts the leaves across the whole tree, nested groups included
 - **Enum value chips** — “Can be seen by is one of Acme” rather than a uuid; an unknown member shows the raw value
 - **Removing a chip** — immediately re-applies the narrowed tree; removing the last one yields `null` rather than an empty group
 - **Slot contributions** — the i18n and segments fields appear under their own headings; on a type without i18n they are absent
 - **Save as alarm** — the button is absent without a filter in the URL and without the `alarms:manage` permission
-- **Apply in the alarm editor** — collapses the panel, updates the chips, recomputes the match count and returns focus to the toggle
+- **Apply in the alarm editor** — closes the popover, updates the chips, recomputes the match count and returns focus to the “Edit conditions” button
 - **Copying the JSON** — over HTTP or with clipboard access denied, the button stays in its initial state and the console holds no unhandled promise rejection
 
 ## 13. Boundaries of responsibility
@@ -836,21 +843,18 @@ The builder answers only “which rows”. The order, the page size and the colu
 
 Every statement above was checked against the implementation. Below are the places where the package's `AGENTS.md` or its comments diverge from what the code does, plus two functional asymmetries the documentation is silent about.
 
-| Where                                         | What it says                                                                                              | What is actually the case                                                                                                                                                                                                                                                                                                                 |
-| --------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| AGENTS.md, “Key exports” — QueryBuilderDrawer | “consumer passes a `trigger` (used by the **members / activity** list pages)”                             | The activity log moved to `QueryBuilderPanel` long ago. The drawer's only consumer in the whole repository is `MembersPage`                                                                                                                                                                                                               |
-| AGENTS.md, “Key exports” — QueryBuilderPanel  | “collapses on Apply / Esc”                                                                                | The panel **stays expanded** after Apply — a comment in the code says so outright (“The panel stays open after Apply”). Only Esc collapses it, or the consumer itself through the `onApplied` callback, which is what the alarm editor does                                                                                               |
-| AGENTS.md, the same place                     | “(used by the **content records** page)”                                                                  | The panel is used by three pages: the entry registry, the activity log and the alarm rule editor                                                                                                                                                                                                                                          |
-| AGENTS.md, “Wire grammar”                     | A six-row mapping table                                                                                   | Incomplete: it does not name `not_contains` → `nilike`, `not_one_of` → `nin`, or `is_not_empty` → `null` with the value `false`. Nor does it mention the escaping of LIKE metacharacters in `contains`/`not_contains`, even though the round trip's correctness depends on it                                                             |
-| utils/wireOp.ts, the `UI_TO_WIRE` JSDoc       | “`OP.Between` and `OP.WithinLast` are intentionally **not** in this table”                                | **Five** operators are absent from the table, not two: `not_contains`, `not_one_of` and `is_not_empty` join them, also handled directly in `ruleToJson`. Accordingly `UI_TO_WIRE` and `WIRE_TO_UI` are not mutually inverse (9 entries versus 11), and that is stated nowhere                                                             |
-| AGENTS.md, “Commands”                         | “what lives here is what a browser cannot reach cheaply, **currently `utils/fieldTree`**”                 | There are two unit specs: `fieldTree.spec.ts` and `operators.spec.ts` (five tests on `opsForField` — ordering, narrowing, fallback, an unknown type)                                                                                                                                                                                      |
-| QueryBuilderDrawer/JsonPreview                | “the live wire format”                                                                                    | The preview always serialises **with the default options**. In the alarm rule editor the save goes with `relativeDates: true`, so for a rule with a `within_last` the preview shows a `gte` with a frozen cut-off while a `within_last` goes into the database. What is shown there is not what is sent                                   |
-| utils/validateRule.ts, JSDoc                  | “Mirrors the BE coercion rules in `resolve-leaf.ts` so a rule that passes here is one the server accepts” | True only for **one leaf**. At the tree level there is no mirror at all: `maxNodes` (50), `maxGroupDepth` (5), `maxInListLength` (100) and `FILTER_MAX_LENGTH` (4096) are not checked by the client, and a rule that passed the gate can travel as part of a tree the server will reject                                                  |
-| FieldPicker — `typeTagFor`                    | The type tag “shows the field's type”                                                                     | The `uuid` type is displayed with a **“relation”** tag unconditionally, even when no `relationTarget` is set. In the activity log the `actorId` field is an ordinary uuid column but is labelled a relation in the picker. The tag is marked `aria-hidden`, so the defect is purely visual — but misleading                               |
-| users-admin, `MEMBERS_FILTER_FIELDS`          | The comment: “the `role.key` dotted path resolves to the BE's `role` relation”                            | The path is dotted, but the field declares no `group`. `buildFieldTree` therefore labels the relation node with the fallback descriptor `{id:'qb.field.relation.role', defaultMessage:'role'}` — and an **untranslatable lowercase “role” heading** appears in the picker. It is the repository's only dotted `id` without aligned crumbs |
-| The grammar — the `like` operator             | The server's `FilterOperator` dictionary holds 13 operators                                               | The case-sensitive `like` has no entry in `WIRE_TO_UI`, so a `?filter=` containing it lifts into a tree with the rule **silently discarded**: the user sees a filter less strict than the one in the link, with no message. No admin-UI consumer produces `like`, but a URL is a public surface                                           |
-| The “Filters (N)” badge vs. the node budget   | `countRules` — “the number of conditions the user expects”                                                | A `between` rule counts as **1** in the badge and costs **3** nodes on the server (a group plus two rules). Against a 50-node limit the divergence accumulates unnoticed                                                                                                                                                                  |
-| The client's `MAX_WITHIN_LAST`                | “100,000 days reaches back about 274 years — far past any real content”                                   | The limit counts the **counter** rather than the duration, and is the same for all three units: 100,000 minutes is 69 days. The reference to 274 years is true for exactly one unit out of three                                                                                                                                          |
+| Where                                       | What it says                                                                                              | What is actually the case                                                                                                                                                                                                                                                                                                                 |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AGENTS.md, “Wire grammar”                   | A six-row mapping table                                                                                   | Incomplete: it does not name `not_contains` → `nilike`, `not_one_of` → `nin`, or `is_not_empty` → `null` with the value `false`. Nor does it mention the escaping of LIKE metacharacters in `contains`/`not_contains`, even though the round trip's correctness depends on it                                                             |
+| utils/wireOp.ts, the `UI_TO_WIRE` JSDoc     | “`OP.Between` and `OP.WithinLast` are intentionally **not** in this table”                                | **Five** operators are absent from the table, not two: `not_contains`, `not_one_of` and `is_not_empty` join them, also handled directly in `ruleToJson`. Accordingly `UI_TO_WIRE` and `WIRE_TO_UI` are not mutually inverse (9 entries versus 11), and that is stated nowhere                                                             |
+| AGENTS.md, “Commands”                       | “what lives here is what a browser cannot reach cheaply, **currently `utils/fieldTree`**”                 | There are two unit specs: `fieldTree.spec.ts` and `operators.spec.ts` (five tests on `opsForField` — ordering, narrowing, fallback, an unknown type)                                                                                                                                                                                      |
+| QueryBuilderDrawer/JsonPreview              | “the live wire format”                                                                                    | The preview always serialises **with the default options**. In the alarm rule editor the save goes with `relativeDates: true`, so for a rule with a `within_last` the preview shows a `gte` with a frozen cut-off while a `within_last` goes into the database. What is shown there is not what is sent                                   |
+| utils/validateRule.ts, JSDoc                | “Mirrors the BE coercion rules in `resolve-leaf.ts` so a rule that passes here is one the server accepts” | True only for **one leaf**. At the tree level there is no mirror at all: `maxNodes` (50), `maxGroupDepth` (5), `maxInListLength` (100) and `FILTER_MAX_LENGTH` (4096) are not checked by the client, and a rule that passed the gate can travel as part of a tree the server will reject                                                  |
+| FieldPicker — `typeTagFor`                  | The type tag “shows the field's type”                                                                     | The `uuid` type is displayed with a **“relation”** tag unconditionally, even when no `relationTarget` is set. In the activity log the `actorId` field is an ordinary uuid column but is labelled a relation in the picker. The tag is marked `aria-hidden`, so the defect is purely visual — but misleading                               |
+| users-admin, `MEMBERS_FILTER_FIELDS`        | The comment: “the `role.key` dotted path resolves to the BE's `role` relation”                            | The path is dotted, but the field declares no `group`. `buildFieldTree` therefore labels the relation node with the fallback descriptor `{id:'qb.field.relation.role', defaultMessage:'role'}` — and an **untranslatable lowercase “role” heading** appears in the picker. It is the repository's only dotted `id` without aligned crumbs |
+| The grammar — the `like` operator           | The server's `FilterOperator` dictionary holds 13 operators                                               | The case-sensitive `like` has no entry in `WIRE_TO_UI`, so a `?filter=` containing it lifts into a tree with the rule **silently discarded**: the user sees a filter less strict than the one in the link, with no message. No admin-UI consumer produces `like`, but a URL is a public surface                                           |
+| The “Filters (N)” badge vs. the node budget | `countRules` — “the number of conditions the user expects”                                                | A `between` rule counts as **1** in the badge and costs **3** nodes on the server (a group plus two rules). Against a 50-node limit the divergence accumulates unnoticed                                                                                                                                                                  |
+| The client's `MAX_WITHIN_LAST`              | “100,000 days reaches back about 274 years — far past any real content”                                   | The limit counts the **counter** rather than the duration, and is the same for all three units: 100,000 minutes is 69 days. The reference to 274 years is true for exactly one unit out of three                                                                                                                                          |
 
 > **What this dossier does not contain**
 >

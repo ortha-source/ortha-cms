@@ -6,7 +6,7 @@ import { BasePage } from './BasePage';
  * launcher at the right end of the top bar, the list of open chats it opens,
  * the windows, and their chrome. Seed it with `mockSignedIn`, `mockWorkspaces`
  * and `mockCopilotApi`, then open any page inside a workspace: the launcher is
- * portalled into the inset's top-bar strip (`InsetBarEnd`), so it is there on
+ * portalled into the footer strip under the card (`InsetFooterEnd`), so it is there on
  * every workspace page, whichever bar the page draws.
  *
  * The sibling of {@link AgentsPage}, which covers the full-page surface. The two
@@ -26,7 +26,7 @@ export class CopilotDockPage extends BasePage {
      */
     readonly dock: Locator;
     /**
-     * The launcher: "Ortha CMS AI — new chat" with no chats open, "Ortha CMS
+     * The launcher: "Ask Ortha AI" with no chats open, "Ask Ortha
      * AI — N chats" (opening the list) once there are some.
      */
     readonly launcher: Locator;
@@ -37,9 +37,9 @@ export class CopilotDockPage extends BasePage {
 
     constructor(page: Page) {
         super(page);
-        this.dock = page.locator('[data-slot="sidebar-inset-bar-end"]');
+        this.dock = page.locator('[data-slot="inset-footer-end"]');
         this.launcher = this.dock.getByRole('button', {
-            name: /^Ortha CMS AI/
+            name: /^Ask Ortha AI/
         });
         this.chatList = page.getByRole('dialog', {
             name: 'Ortha CMS AI chats'
@@ -51,18 +51,25 @@ export class CopilotDockPage extends BasePage {
 
     /**
      * The control that starts a chat. With no chats open it is the launcher
-     * itself — "Ortha CMS AI — new chat", carrying the platform's shortcut
+     * itself — "Ask Ortha AI", carrying the platform's shortcut
      * hint, a name that *contains* its visible text (the 2.5.3 property the
      * earlier constant "New chat" broke). Once there are chats it is the list's
      * own "New chat" row, so open the list first.
      */
     newChat(): Locator {
-        return this.dock.getByRole('button', { name: 'new chat' }).or(
-            this.chatList.getByRole('button', {
-                name: 'New chat',
+        // Exact: with chats open the launcher is "Ask Ortha AI — N chats",
+        // which opens the list rather than starting one.
+        return this.dock
+            .getByRole('button', {
+                name: 'Ask Ortha AI',
                 exact: true
             })
-        );
+            .or(
+                this.chatList.getByRole('button', {
+                    name: 'New chat',
+                    exact: true
+                })
+            );
     }
 
     /** Open the chat list (a no-op while it is already open). */
@@ -74,7 +81,10 @@ export class CopilotDockPage extends BasePage {
 
     /** Start a chat — from the launcher, or from the list once chats exist. */
     async startChat() {
-        const start = this.dock.getByRole('button', { name: 'new chat' });
+        const start = this.dock.getByRole('button', {
+            name: 'Ask Ortha AI',
+            exact: true
+        });
         if (await start.isVisible()) {
             await start.click();
             return;

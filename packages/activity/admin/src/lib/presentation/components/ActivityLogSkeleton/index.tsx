@@ -38,7 +38,7 @@ export function ActivityLogTableSkeleton({ rows = 8 }: { rows?: number }) {
             <span className="sr-only">
                 {intl.formatMessage(messages.loading)}
             </span>
-            <div aria-hidden className="rounded-xl border">
+            <div aria-hidden>
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -103,7 +103,7 @@ export function ActivityLogPageSkeleton() {
         // `aria-busy` marks this as a loading placeholder so the host's route
         // announcer waits past the sr-only heading below and reads the settled
         // page name instead (see `RouteAnnouncer`).
-        <Container aria-busy="true">
+        <Container width="full" aria-busy="true">
             {/* The page's `<h1>`, visually hidden. A lazy route's `Suspense`
                 fallback is a whole page with no heading until the real one
                 mounts, so it fails the `page-has-heading-one` axe rule and is

@@ -81,8 +81,9 @@ test.describe('Content i18n', () => {
         await contentLibraryPage.recordLink('Winterstiefel').click();
         await expect(page).toHaveURL(/\/localized_post\/[^/?]+\?.*locale=de/);
 
-        // …so "Back to records" returns to that same list, not the default one.
-        await contentLibraryPage.editorBackLink.click();
+        // …so the type's breadcrumb returns to that same list, not the default
+        // one.
+        await contentLibraryPage.breadcrumbLink('Localized posts').click();
         await expect(page).toHaveURL(/\/localized_post\?.*locale=de/);
         await expect(contentLibraryPage.localeSwitcher).toHaveText(/Deutsch/);
         await expect(
@@ -122,7 +123,7 @@ test.describe('Content i18n', () => {
         // the default must not start spelling itself out in the URL.
         await contentLibraryPage.recordLink('Winter boots').click();
         await expect(page).toHaveURL(/\/localized_post\/[^/?]+$/);
-        await contentLibraryPage.editorBackLink.click();
+        await contentLibraryPage.breadcrumbLink('Localized posts').click();
         await expect(page).toHaveURL(/\/localized_post$/);
     });
 

@@ -97,7 +97,7 @@ test.describe('Records list — filtering by audience', () => {
         page,
         contentLibraryPage
     }) => {
-        // The chip is the only reading of a rule once the panel has collapsed,
+        // The chip is the only reading of a rule once the popover has closed,
         // and these values are opaque ids by design. Unresolved it said
         // "Can be seen by is one of seg-acme", which names neither the audience
         // nor the mistake when it is the wrong one.

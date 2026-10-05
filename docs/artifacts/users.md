@@ -423,7 +423,7 @@ The order in the router matters: the static `/users/invite` is declared before t
 | Loading       | `MembersTableSkeleton` — skeleton rows rather than a spinner                                                           | Skeletons of the hero, the stats bar and the tabs                                      |
 | Error         | An `Alert role="alert"` with a “Retry” button (`refetch`)                                                              | A `404` → a separate “this member no longer exists”; anything else → a retryable error |
 | Empty         | Two different texts: “nobody found” with a clear-search button **or** “there are no members yet” with an invite button | Not applicable                                                                         |
-| Success       | A six-column table: Member, Role, Status, Workspaces, Joined, Actions                                                  | Breadcrumbs, a back link, the hero, the stats bar, the tab strip                       |
+| Success       | A six-column table: Member, Role, Status, Workspaces, Joined, Actions                                                  | Breadcrumbs (the way back to the roster), the hero, the stats bar, the tab strip       |
 
 **The subheading with the count is not shown while the count is unknown.** During the first load, or when the read failed, “0 people” would be a claim about the editorial roster rather than a description of what happened — so the subheading is simply absent.
 

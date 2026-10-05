@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../support/fixtures';
+import { expectNoA11yViolations } from '../support/a11y';
 import type { ContentLibraryPage } from '../support/pages/ContentLibraryPage';
 import { mockSignedIn } from '../support/api/auth';
 import { mockWorkspaces } from '../support/api/workspaces';
@@ -18,7 +19,7 @@ import {
 const ARTICLES_URL = `/workspaces/${RELATIONS_WORKSPACE.id}/content/article`;
 
 /**
- * The records-table **filter drawer** (`@orthacms/query-builder-admin`) over a
+ * The records-table **filter popover** (`@orthacms/query-builder-admin`) over a
  * collection with **relations** (`article` → `author`). This is the admin-side
  * wiring for relation filtering: the field picker (now a searchable, grouped
  * `Command`) offers a related type's fields under a breadcrumb, and applying a
@@ -38,6 +39,155 @@ test.describe('Records filter — relations (query builder)', () => {
         await mockContentEntries(page, {
             details: RELATIONS_DETAIL_SEED,
             entries: RELATIONS_ENTRIES_SEED
+        });
+    });
+
+    /**
+     * The surface itself: an icon-only trigger, a popover anchored to it, and
+     * the builder's own nested overlays layered over that popover. The nested
+     * pickers portal to `<body>` — outside the popover's DOM — so "clicking
+     * in them does not dismiss it" and "their lists still wheel" are claims
+     * about layering and scroll locking that only a real browser can check.
+     */
+    test.describe('the filters popover', () => {
+        test('Columns and Filters are named icon buttons with a tooltip', async ({
+            contentLibraryPage,
+            page
+        }) => {
+            await page.goto(ARTICLES_URL);
+            await expect(
+                contentLibraryPage.recordsTable('Articles')
+            ).toBeVisible();
+
+            await expect(contentLibraryPage.columnsButton).toHaveAccessibleName(
+                'Columns'
+            );
+            await expect(
+                contentLibraryPage.filterTrigger()
+            ).toHaveAccessibleName('Filters');
+            // The tooltip opens on keyboard focus, not only on hover (1.4.13),
+            // and describes the trigger while it is up.
+            await contentLibraryPage.filterTrigger().focus();
+            await expect(
+                contentLibraryPage.filterTrigger()
+            ).toHaveAccessibleDescription('Filters');
+            await contentLibraryPage.columnsButton.focus();
+            await expect(
+                contentLibraryPage.columnsButton
+            ).toHaveAccessibleDescription('Columns');
+        });
+
+        test('opens from the keyboard with focus inside, and Escape hands it back', async ({
+            contentLibraryPage,
+            page
+        }) => {
+            await page.goto(ARTICLES_URL);
+            await expect(
+                contentLibraryPage.recordsTable('Articles')
+            ).toBeVisible();
+
+            await contentLibraryPage.filterTrigger().focus();
+            await page.keyboard.press('Enter');
+            await expect(contentLibraryPage.filterTrigger()).toHaveAttribute(
+                'aria-expanded',
+                'true'
+            );
+            await expect(contentLibraryPage.filterSurface()).toBeVisible();
+            // No conditions yet, so the first thing to do is add one.
+            await expect(contentLibraryPage.addRuleControl()).toBeFocused();
+
+            await page.keyboard.press('Escape');
+            await expect(contentLibraryPage.filterTrigger()).toHaveAttribute(
+                'aria-expanded',
+                'false'
+            );
+            await expect(contentLibraryPage.filterSurface()).toBeHidden();
+            await expect(contentLibraryPage.filterTrigger()).toBeFocused();
+        });
+
+        test('the field picker works inside it — no dismissal, and its list wheels', async ({
+            contentLibraryPage,
+            page
+        }) => {
+            await page.goto(ARTICLES_URL);
+            await expect(
+                contentLibraryPage.recordsTable('Articles')
+            ).toBeVisible();
+
+            await contentLibraryPage.openFilters();
+            await contentLibraryPage.addRule();
+            await contentLibraryPage.openFieldPicker();
+            // Clicks inside the nested picker: each expands a relation, and
+            // none of them may read as a click outside the filters popover.
+            await contentLibraryPage.expandFieldPickerRelation('Author');
+            await contentLibraryPage.expandFieldPickerRelation('SEO metadata');
+            await contentLibraryPage.expandFieldPickerRelation('Tags');
+            await expect(contentLibraryPage.filterSurface()).toBeVisible();
+
+            // The list now overflows; the wheel must move it. A scroll lock on
+            // the filters popover would let it drag but never wheel.
+            const before = await contentLibraryPage.fieldPickerScroll();
+            expect(before.scroll).toBeGreaterThan(before.client);
+            await contentLibraryPage.wheelFieldPicker(200);
+            await expect
+                .poll(
+                    async () =>
+                        (await contentLibraryPage.fieldPickerScroll()).top
+                )
+                .toBeGreaterThan(0);
+
+            // Escape goes to the topmost layer: the picker closes, the filters
+            // popover (and the draft in it) stays.
+            await page.keyboard.press('Escape');
+            await expect(contentLibraryPage.fieldPickerList()).toBeHidden();
+            await expect(contentLibraryPage.filterSurface()).toBeVisible();
+            await expect(contentLibraryPage.filterConditionCount()).toHaveText(
+                '1 condition'
+            );
+        });
+
+        test('a click outside closes it and discards the draft [query-builder:I-14]', async ({
+            contentLibraryPage,
+            page
+        }) => {
+            await page.goto(ARTICLES_URL);
+            await expect(
+                contentLibraryPage.recordsTable('Articles')
+            ).toBeVisible();
+
+            await contentLibraryPage.openFilters();
+            await contentLibraryPage.addRule();
+            await expect(contentLibraryPage.filterConditionCount()).toHaveText(
+                '1 condition'
+            );
+
+            await contentLibraryPage.recordsSearch.click();
+            await expect(contentLibraryPage.filterTrigger()).toHaveAttribute(
+                'aria-expanded',
+                'false'
+            );
+            await expect(page).not.toHaveURL(/filter=/);
+
+            // Reopened, it reads the applied filter — none — not the draft.
+            await contentLibraryPage.openFilters();
+            await expect(contentLibraryPage.filterConditionCount()).toHaveText(
+                'No conditions'
+            );
+        });
+
+        test('is accessible open, with a rule (axe)', async ({
+            contentLibraryPage,
+            page,
+            makeAxe
+        }) => {
+            await page.goto(ARTICLES_URL);
+            await expect(
+                contentLibraryPage.recordsTable('Articles')
+            ).toBeVisible();
+
+            await contentLibraryPage.openFilters();
+            await contentLibraryPage.addRule();
+            await expectNoA11yViolations(makeAxe());
         });
     });
 
@@ -130,6 +280,7 @@ test.describe('Records filter — relations (query builder)', () => {
         await contentLibraryPage.selectFieldSearch('author.id', 'Author');
         await contentLibraryPage.openRelationValuePicker();
         await contentLibraryPage.pickRelationRecord('Ada Lovelace');
+        await contentLibraryPage.closeRelationValuePicker();
         await contentLibraryPage.applyFilters();
 
         const tree = JSON.parse(
@@ -158,7 +309,7 @@ test.describe('Records filter — relations (query builder)', () => {
         // The picker is a multi-select: the popover stays open between picks.
         await contentLibraryPage.pickRelationRecord('Ada Lovelace');
         await contentLibraryPage.pickRelationRecord('Grace Hopper');
-        await page.keyboard.press('Escape');
+        await contentLibraryPage.closeRelationValuePicker();
         await contentLibraryPage.applyFilters();
 
         const tree = JSON.parse(
@@ -232,12 +383,15 @@ test.describe('Records filter — relations (query builder)', () => {
     });
 
     /**
-     * The collapsed resting state: applied conditions read out as removable
-     * chips under the toolbar, so the active filter is visible without
-     * re-opening the panel.
+     * The resting state: applied conditions read out as removable chips under
+     * the toolbar, so the active filter is visible without re-opening the
+     * popover.
      */
     test.describe('applied-filter summary', () => {
-        /** Apply `author.name contains Ada`, then collapse the panel. */
+        /**
+         * Apply `author.name contains Ada`. A valid Apply closes the popover;
+         * `closeFilters()` asserts that it did.
+         */
         async function applyAndCollapse(
             contentLibraryPage: ContentLibraryPage,
             page: Page
@@ -294,7 +448,7 @@ test.describe('Records filter — relations (query builder)', () => {
      * The filterable surface is fetched, not derived, so it has a failure mode
      * the old client-side mirror didn't. Without field definitions the Apply
      * gate rejects every rule, so an empty picker would be a dead button —
-     * the panel has to name the failure instead.
+     * the popover has to name the failure instead.
      */
     test.describe('filter fields unavailable', () => {
         test.beforeEach(async ({ page }) => {

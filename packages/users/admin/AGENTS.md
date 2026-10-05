@@ -90,8 +90,9 @@ way.
 `UserDetailLayout` (`/users/:id/*`, via `UserDetailRouter`'s nested `<Routes>`)
 — fetches one member once (`useUserDetail`) and shares it with every tab through
 the Outlet context (`presentation/userDetailContext`), so a tab read is free. Renders
-the back link, `UserHero`, `UserStatsStrip`, and the `UserDetailTabs` underline
-tab bar (design-system `TabNav`) above the active tab. Seven tab pages:
+`UserHero`, `UserStatsStrip`, and the `UserDetailTabs` underline tab bar
+(design-system `TabNav`) above the active tab; the way back to the roster is the
+top bar's "Members" crumb, which stays a link while loading and on a 404 too. Seven tab pages:
 **General** (edit name), **Role** (`RolePicker` +
 confirm), **Workspaces** (`WorkspaceMembershipCard` + `AddToWorkspacesDialog`),
 **Sessions** (`SessionCard` + revoke), **Activity** (reuses

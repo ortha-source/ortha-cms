@@ -31,15 +31,14 @@ const messages = defineMessages({
     },
     start: {
         id: 'copilot.dock.start',
-        defaultMessage: 'Ortha CMS AI'
+        defaultMessage: 'Ask Ortha AI'
     },
-    // With nothing open this button *reads* "Ortha CMS AI" and used to *announce*
-    // "New chat", so its visible label was not in its accessible name at all —
-    // WCAG 2.5.3, and the exact thing that stops "click Ortha CMS AI" working for
-    // anyone driving the admin by voice. Now the name contains the visible text.
+    // The button's accessible name is its visible label — WCAG 2.5.3, the thing
+    // that makes "click Ask Ortha AI" work for anyone driving the admin by
+    // voice. It once *announced* "New chat" while reading something else.
     startFull: {
         id: 'copilot.dock.startFull',
-        defaultMessage: 'Ortha CMS AI — new chat'
+        defaultMessage: 'Ask Ortha AI'
     },
     // Deliberately not "New chat": that is the name of the button beside it,
     // and two controls in one toolbar answering to the same name is ambiguous
@@ -63,38 +62,35 @@ const messages = defineMessages({
         id: 'copilot.dock.close',
         defaultMessage: 'Close {title}'
     },
-    // The launcher once chats exist. It still starts with the product's name —
-    // the visible label — so "click Ortha CMS AI" keeps working by voice
+    // The launcher once chats exist. It still starts with its visible label,
+    // so "click Ask Ortha AI" keeps working by voice
     // (2.5.3); the count and any chat wanting attention follow it, because a
     // closed list must not hide that something finished or is waiting.
     chats: {
         id: 'copilot.dock.chats',
         defaultMessage:
-            'Ortha CMS AI — {count, plural, one {# chat} other {# chats}}'
+            'Ask Ortha AI — {count, plural, one {# chat} other {# chats}}'
     },
     chatsAttention: {
         id: 'copilot.dock.chatsAttention',
         defaultMessage:
-            'Ortha CMS AI — {count, plural, one {# chat} other {# chats}}, {attention} waiting for you or finished'
+            'Ask Ortha AI — {count, plural, one {# chat} other {# chats}}, {attention} waiting for you or finished'
     }
 });
 
 /**
- * The copilot's entry point, **in the top bar** — at its right end on every
- * page, through the design system's `InsetBarEnd`.
+ * The copilot's entry point, **"Ask Ortha AI" under the work area's card** —
+ * at the right end of the footer strip on every page, through the design
+ * system's `InsetFooterEnd` (incident.io's "Ask incident").
  *
- * It used to be a pill bar floating `fixed` over the bottom-right corner of the
- * page, and to keep it from covering the records pagination and the Properties
- * rail's buttons it published a bottom gutter every scrollport reserved: 66px of
- * empty space under every page, and 24px on the Agents view where the bar was
- * not even drawn. A control in the bar covers nothing, so the gutter is gone.
+ * It has lived in two other places. A pill bar floating `fixed` over the
+ * bottom-right corner covered the records pagination and the Properties rail's
+ * buttons, so every scrollport reserved a 66px gutter for it. An icon at the
+ * top bar's end covered nothing, but sat among the page's own actions and had
+ * to go wordless to fit. Under the card it is neither in the page nor in its
+ * header, so it can say what it is.
  *
  * Two shapes:
- *
- * It is **an icon, not a labelled button**: the bar is the page's own chrome,
- * and a word-and-shortcut chip at its end competed with the page's actions
- * beside it. The name lives where an icon button keeps it — the accessible
- * name and a tooltip, which also carries the shortcut.
  *
  * - **No chats:** clicking the icon opens a new chat straight away.
  * - **Chats open:** the icon carries a count and a dot when a chat wants
@@ -147,15 +143,15 @@ export function CopilotDock({
     // the icon alone cannot say. `aria-hidden` on the glyph copy: the button's
     // own name and `aria-keyshortcuts` already say both to assistive tech.
     const tooltip = (
-        <TooltipContent side="bottom" className="flex items-center gap-2">
+        <TooltipContent side="top" className="flex items-center gap-2">
             {intl.formatMessage(messages.start)}
             <span aria-hidden className="opacity-70">
                 {shortcutGlyph}
             </span>
         </TooltipContent>
     );
-    const iconButton =
-        'relative size-8 text-muted-foreground hover:text-foreground';
+    const launcherButton =
+        'relative h-7 gap-1.5 px-2 text-muted-foreground hover:text-foreground';
 
     if (sessions.length === 0) {
         return (
@@ -165,15 +161,16 @@ export function CopilotDock({
                         ref={newChatRef}
                         type="button"
                         variant="ghost"
-                        size="icon"
+                        size="sm"
                         onClick={onNewChat}
                         aria-label={intl.formatMessage(messages.startFull)}
                         // Both accepted chords, so assistive tech announces the
                         // one its user can actually press rather than a glyph.
                         aria-keyshortcuts={NEW_CHAT_KEY_SHORTCUTS}
-                        className={iconButton}
+                        className={launcherButton}
                     >
                         <Sparkles aria-hidden className="size-4" />
+                        {intl.formatMessage(messages.start)}
                     </Button>
                 </TooltipTrigger>
                 {tooltip}
@@ -199,17 +196,18 @@ export function CopilotDock({
                             ref={newChatRef}
                             type="button"
                             variant="ghost"
-                            size="icon"
+                            size="sm"
                             aria-label={launcherLabel}
-                            className={iconButton}
+                            className={launcherButton}
                         >
                             <Sparkles aria-hidden className="size-4" />
-                            {/* The count sits on the icon's corner; the dot
-                                for a chat wanting attention on the other. Both
-                                are said in the button's name as well. */}
+                            {intl.formatMessage(messages.start)}
+                            {/* The count follows the label; the dot for a
+                                chat wanting attention sits on the corner.
+                                Both are said in the button's name as well. */}
                             <span
                                 aria-hidden
-                                className="absolute -right-1 -bottom-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[0.625rem] leading-none font-semibold tabular-nums text-background"
+                                className="flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[0.625rem] leading-none font-semibold tabular-nums text-background"
                             >
                                 {sessions.length}
                             </span>
@@ -231,6 +229,7 @@ export function CopilotDock({
                 {open ? null : tooltip}
             </Tooltip>
             <PopoverContent
+                side="top"
                 align="end"
                 aria-label={intl.formatMessage(messages.label)}
                 className="w-80 p-1"

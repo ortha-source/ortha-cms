@@ -1,6 +1,7 @@
 import { defineMessages, useIntl } from 'react-intl';
 import { Search } from 'lucide-react';
 import {
+    DensityProvider,
     InputGroup,
     InputGroupAddon,
     InputGroupInput,
@@ -93,67 +94,77 @@ export function WorkspaceToolbar({
     };
 
     return (
-        <div className="mb-4 flex flex-wrap items-center gap-3">
-            <InputGroup className="w-full shadow-none sm:max-w-[360px]">
-                <InputGroupAddon>
-                    <Search />
-                </InputGroupAddon>
-                <InputGroupInput
-                    type="search"
-                    value={search}
-                    onChange={(event) => onSearchChange(event.target.value)}
-                    aria-label={intl.formatMessage(messages.searchLabel)}
-                    placeholder={intl.formatMessage(messages.searchPlaceholder)}
-                />
-            </InputGroup>
+        <DensityProvider density="compact">
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+                <InputGroup className="w-full shadow-none sm:max-w-[360px]">
+                    <InputGroupAddon>
+                        <Search />
+                    </InputGroupAddon>
+                    <InputGroupInput
+                        type="search"
+                        value={search}
+                        onChange={(event) => onSearchChange(event.target.value)}
+                        aria-label={intl.formatMessage(messages.searchLabel)}
+                        placeholder={intl.formatMessage(
+                            messages.searchPlaceholder
+                        )}
+                    />
+                </InputGroup>
 
-            <SegmentedControl
-                value={status}
-                // Radix single-toggle can emit '' when the active chip is
-                // re-clicked; ignore that so a status is always selected.
-                onValueChange={(value) => {
-                    if (value) {
-                        onStatusChange(value as StatusFilter);
-                    }
-                }}
-                aria-label={intl.formatMessage(messages.statusLegend)}
-            >
-                {STATUS_OPTIONS.map((option) => (
-                    <SegmentedControlItem
-                        key={option}
-                        value={option}
-                        // The badge stays `aria-hidden` so the count isn't read
-                        // as a stray number after the label — but the number is
-                        // decision-shaping ("Archived" hiding 2 workspaces reads
-                        // very differently from 0), so it moves into the radio's
-                        // own name rather than being dropped from the a11y tree.
-                        aria-label={intl.formatMessage(messages.statusOption, {
-                            label: statusLabel[option],
-                            count: counts[option]
-                        })}
-                    >
-                        {statusLabel[option]}
-                        <SegmentedControlCount aria-hidden>
-                            {counts[option]}
-                        </SegmentedControlCount>
-                    </SegmentedControlItem>
-                ))}
-            </SegmentedControl>
+                <SegmentedControl
+                    value={status}
+                    // Radix single-toggle can emit '' when the active chip is
+                    // re-clicked; ignore that so a status is always selected.
+                    onValueChange={(value) => {
+                        if (value) {
+                            onStatusChange(value as StatusFilter);
+                        }
+                    }}
+                    aria-label={intl.formatMessage(messages.statusLegend)}
+                >
+                    {STATUS_OPTIONS.map((option) => (
+                        <SegmentedControlItem
+                            key={option}
+                            value={option}
+                            // The badge stays `aria-hidden` so the count isn't read
+                            // as a stray number after the label — but the number is
+                            // decision-shaping ("Archived" hiding 2 workspaces reads
+                            // very differently from 0), so it moves into the radio's
+                            // own name rather than being dropped from the a11y tree.
+                            aria-label={intl.formatMessage(
+                                messages.statusOption,
+                                {
+                                    label: statusLabel[option],
+                                    count: counts[option]
+                                }
+                            )}
+                        >
+                            {statusLabel[option]}
+                            <SegmentedControlCount aria-hidden>
+                                {counts[option]}
+                            </SegmentedControlCount>
+                        </SegmentedControlItem>
+                    ))}
+                </SegmentedControl>
 
-            {/* The visible count is the only feedback that a search or a status
+                {/* The visible count is the only feedback that a search or a status
                 change did anything — the table just silently swaps rows. A
                 polite live region restates it so that lands for a screen-reader
                 user too; `aria-hidden` on the visible span keeps it from being
                 announced twice (once as content, once as the live update). */}
-            <span aria-hidden className="ml-auto text-sm text-muted-foreground">
-                {intl.formatMessage(messages.count, { shown, total })}
-            </span>
-            <span role="status" aria-live="polite" className="sr-only">
-                {intl.formatMessage(messages.countAnnouncement, {
-                    shown,
-                    total
-                })}
-            </span>
-        </div>
+                <span
+                    aria-hidden
+                    className="ml-auto text-sm text-muted-foreground"
+                >
+                    {intl.formatMessage(messages.count, { shown, total })}
+                </span>
+                <span role="status" aria-live="polite" className="sr-only">
+                    {intl.formatMessage(messages.countAnnouncement, {
+                        shown,
+                        total
+                    })}
+                </span>
+            </div>
+        </DensityProvider>
     );
 }

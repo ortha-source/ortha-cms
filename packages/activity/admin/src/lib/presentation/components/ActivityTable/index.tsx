@@ -44,7 +44,7 @@ export function ActivityTable({ events }: { events: ActivityEvent[] }) {
         });
 
     return (
-        <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
+        <div>
             <Table aria-label={intl.formatMessage(messages.caption)}>
                 <TableHeader>
                     <TableRow>

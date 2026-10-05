@@ -59,6 +59,7 @@ export function AppSidebar() {
         // was there, but no consumer could translate it (`ORT-159`). Named for
         // what it holds rather than for the component that draws it.
         <Sidebar
+            variant="inset"
             collapsible="offcanvas"
             mobileTitle={intl.formatMessage(messages.mobileTitle)}
             mobileDescription={intl.formatMessage(messages.mobileDescription)}
@@ -69,7 +70,7 @@ export function AppSidebar() {
         >
             {override ?? <GlobalSidebar />}
             {footerItems.length > 0 ? (
-                <SidebarFooter className="border-t border-sidebar-border">
+                <SidebarFooter>
                     {footerItems.map(({ id, Component }) => (
                         <Component key={id} />
                     ))}

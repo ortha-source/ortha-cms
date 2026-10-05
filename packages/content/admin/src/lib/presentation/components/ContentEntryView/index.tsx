@@ -243,8 +243,9 @@ export function ContentEntryView({
 
     // The slot-owned list params (e.g. `?locale=de`) this editor was opened
     // under, as a query suffix. The records table puts them on every row link,
-    // and every route out of the editor carries them back — otherwise "Back to
-    // records" returns to a different locale than the one the user came from.
+    // and every route out of the editor carries them back (the top bar's type
+    // crumb reads the same keys) — otherwise leaving the record returns to a
+    // different locale than the one the user came from.
     const entryQuerySuffix = listParamsQuery(listSlotParams);
 
     // The open tab is a **route** segment, not editor state: switching locale
@@ -725,11 +726,6 @@ export function ContentEntryView({
                     onSave={onSave}
                     onUnpublish={onUnpublish}
                     onDelete={onDelete}
-                    backTo={
-                        mode === ENTRY_MODE.Single
-                            ? undefined
-                            : `${typePath}${entryQuerySuffix}`
-                    }
                     // Relations are offered to every type the workspace
                     // reaches — its own, and the ones granted from shared
                     // workspaces (whose picker then offers only those).

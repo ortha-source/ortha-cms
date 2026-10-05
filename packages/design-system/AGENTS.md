@@ -40,13 +40,14 @@ hand-written):
   `<TopBar>` first in its tree and knows nothing about this. Because it's a
   portal, the bar keeps its page's React context — which is what lets the
   shell's page-actions region work from inside it.
-- **`InsetBarEnd`** portals its children to the **right end of the inset's bar strip**,
-  on every page, whichever bar the page draws — for chrome that belongs to the
-  app rather than the page (the copilot's launcher). Its host lives in
-  `SidebarProvider`'s context, not the inset's, because what fills it is usually
-  mounted outside the inset (the sidebar's footer slot). It hides while empty.
-  Nothing in the admin floats `fixed` over the page any more, so no scrollport
-  reserves a bottom gutter.
+- **`InsetFooterEnd`** portals its children to the **right end of the
+  `InsetFooter`** — the strip under the work area's card, on the sidebar's
+  frame — on every page: chrome that belongs to the app rather than the page
+  (the copilot's "Ask Ortha AI"). The shell renders `InsetFooter` as the card's
+  sibling; empty, it keeps only the frame's 8px bottom gutter. Its host lives in
+  `SidebarProvider`'s context, because what fills it is usually mounted outside
+  the inset (the sidebar's footer slot). Nothing floats `fixed` over the page,
+  so no scrollport reserves a bottom gutter.
 
 ## Notes on specific components
 
@@ -63,6 +64,23 @@ hand-written):
   including the two that used to draw their own. Its optional `icon` takes a
   sized icon element and draws the tile itself; the tile is `aria-hidden`,
   because the heading beside it already names the page.
+- **Under a top bar, `ContainerHeader` folds away.** The shell hands it the
+  bar's actions region through `PageHeaderHost`; with one present on a desktop
+  viewport the header keeps its `<h1>` and subtitle for assistive technology
+  only (`sr-only`) and portals its `actions` into the bar inside a
+  `DensityProvider density="compact"`, which steps every control one notch
+  down (`Button`, `InputGroup`, `SelectTrigger`, a toolbar `SegmentedControl`)
+  so a page's controls fit the shorter line box without the page knowing where
+  they are drawn. `SearchToolbar` sets the same density, so a list's search box
+  and its Columns / Filters buttons take the top bar's 32px line too. `keepSubtitle` keeps a subtitle on screen when it is
+  data rather than a gloss (a webhook's URL). Below the breakpoint, or with no
+  bar, it draws in full — the bar has no room there for a page's actions.
+- **A page's tabs go in the top bar's second row** — wrap the `TabsList` (or
+  `TabNav`) in `TopBarTabs`. Inside a `SidebarInset` it portals into the strip
+  under the bar, the way `TopBar` hoists itself, so the breadcrumb, the page's
+  actions and its tabs read as one header band ruled once at the bottom. The
+  `Tabs` root stays in the page and still owns the triggers (a portal keeps the
+  React tree). Tabs inside a sheet or a dialog are not page tabs and stay put.
 - **`FieldError` is set like `FieldDescription`, on purpose.** They occupy the
   same line under the same control, one replacing the other, so size, weight,
   line box and vertical rhythm all have to match — colour is the only thing that

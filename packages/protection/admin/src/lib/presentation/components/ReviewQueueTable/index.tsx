@@ -67,7 +67,7 @@ export function ReviewQueueTable({
     const intl = useIntl();
 
     return (
-        <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
+        <div>
             <Table aria-label={intl.formatMessage(messages.caption)}>
                 <TableHeader>
                     <TableRow>

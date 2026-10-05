@@ -9,6 +9,7 @@ import {
     type ReactNode
 } from 'react';
 import { createPortal } from 'react-dom';
+import { DensityProvider, PageHeaderHost } from '@orthacms/design-system';
 
 /**
  * Which of the two collapse/reopen controls should take focus after a
@@ -219,7 +220,14 @@ export function PageChromeProvider({ children }: { children: ReactNode }) {
         ]
     );
 
-    return <Context.Provider value={value}>{children}</Context.Provider>;
+    // The same region, handed to the design system's `ContainerHeader`: on a
+    // page with a top bar the header folds away and its actions land here,
+    // beside whatever the page put there through `PageActionsPortal`.
+    return (
+        <Context.Provider value={value}>
+            <PageHeaderHost host={actionsHost}>{children}</PageHeaderHost>
+        </Context.Provider>
+    );
 }
 
 /** Reads the chrome context; throws outside a {@link PageChromeProvider}. */
@@ -256,7 +264,14 @@ export function useRightPanel(): RightPanel | null {
  */
 export function PageActionsPortal({ children }: { children: ReactNode }) {
     const { actionsHost } = usePageChrome();
-    return actionsHost ? createPortal(children, actionsHost) : null;
+    // Compact, like the header's actions beside them: the bar is a shorter
+    // line box than the page, and nothing portalled here should have to know.
+    return actionsHost
+        ? createPortal(
+              <DensityProvider density="compact">{children}</DensityProvider>,
+              actionsHost
+          )
+        : null;
 }
 
 /**

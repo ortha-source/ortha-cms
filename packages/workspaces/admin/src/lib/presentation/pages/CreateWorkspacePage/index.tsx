@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { Link, Navigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { useHasPermission } from '@orthacms/identity-admin';
 import { PageTopBar } from '@orthacms/shell-admin';
-import { ArrowLeft, ArrowRight, Layers } from 'lucide-react';
+import { ArrowRight, Layers } from 'lucide-react';
 import {
     Button,
     CardContent,
@@ -37,10 +37,6 @@ const messages = defineMessages({
         id: 'workspaces.create.subtitle',
         defaultMessage:
             'Set up a new workspace in three short steps. You can change most settings later.'
-    },
-    back: {
-        id: 'workspaces.create.backToWorkspaces',
-        defaultMessage: 'Back to workspaces'
     },
     crumbWorkspaces: {
         id: 'workspaces.create.crumbWorkspaces',
@@ -278,14 +274,6 @@ export function CreateWorkspacePage() {
                 ]}
             />
             <Container className="max-w-[920px]">
-                <Link
-                    to="/workspaces"
-                    className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-                >
-                    <ArrowLeft className="size-4" />
-                    {intl.formatMessage(messages.back)}
-                </Link>
-
                 <ContainerHeader
                     title={intl.formatMessage(messages.title)}
                     subtitle={intl.formatMessage(messages.subtitle)}

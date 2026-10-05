@@ -216,25 +216,27 @@ export class AlarmsPage extends BasePage {
         return this.page.getByRole('heading', { name: 'Flag a record when…' });
     }
 
-    /** The Edit conditions / Done editing toggle. */
+    /** The "Edit conditions" button that opens the builder's popover. */
     conditionToggle(): Locator {
-        return this.page.getByRole('button', {
-            name: /Edit conditions|Done editing/
-        });
+        return this.page.getByRole('button', { name: 'Edit conditions' });
     }
 
     /**
-     * The query-builder region the toggle controls.
+     * The query-builder popover the button opens — a `dialog` named after the
+     * button that opened it.
      *
-     * Overriding `filterSurface` is what the base class is built for — the
-     * editor mounts the builder as an inline panel rather than the drawer, so
-     * every shared helper (`applyButton`, `addRule`, `selectField`,
-     * `filterFieldsError`) works here unchanged.
+     * Overriding `filterSurface` (and `filterOpener`) is what the base class is
+     * built for — the editor mounts the same `QueryBuilderPopover` as the list
+     * pages behind a labelled button, so every shared helper (`openFilters`,
+     * `applyButton`, `addRule`, `selectField`, `filterFieldsError`) works here
+     * unchanged.
      */
     override filterSurface(): Locator {
-        return this.page.getByRole('region', {
-            name: /Edit conditions|Done editing/
-        });
+        return this.page.getByRole('dialog', { name: 'Edit conditions' });
+    }
+
+    protected override filterOpener(): Locator {
+        return this.conditionToggle();
     }
 
     /** Alias, for specs that read better naming the thing rather than the role. */

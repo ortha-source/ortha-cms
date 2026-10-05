@@ -13,8 +13,9 @@ import { AppShell } from './index';
  *
  * `SidebarToggle` hides itself on any page that draws a top bar (which carries
  * its own inline reveal trigger) with
- * `[main:has([data-slot=top-bar])~&]:hidden` — a *sibling* combinator rooted at
- * `<main>`. Put a wrapper `<div>` between the shell and the button and the
+ * `[[data-slot=app-column]:has([data-slot=top-bar])~&]:hidden` — a *sibling*
+ * combinator rooted at the work area's column (the card holding `<main>` and
+ * the right panel, and the footer strip under it). Put a wrapper `<div>` between the shell and the button and the
  * selector stops matching: the rule silently does nothing, and a floating button
  * reappears on top of the bar on every page in the product. Nothing throws, and
  * a screenshot of the Home page — the one page where the button is supposed to
@@ -76,7 +77,7 @@ afterEach(() => {
 });
 
 describe('AppShell', () => {
-    it('keeps the floating toggle a sibling of main, after it [shell:I-24]', () => {
+    it('keeps the floating toggle a sibling of the column around main, after it [shell:I-24]', () => {
         render(
             <IntlProvider locale="en">
                 <MemoryRouter initialEntries={['/']}>
@@ -90,15 +91,19 @@ describe('AppShell', () => {
         );
 
         const main = screen.getByRole('main');
+        const frame = main.parentElement as HTMLElement;
+        expect(frame.getAttribute('data-slot')).toBe('app-frame');
+        const column = frame.parentElement as HTMLElement;
+        expect(column.getAttribute('data-slot')).toBe('app-column');
         // By role + name, not by label text: `SidebarTrigger` names itself with
         // an `sr-only` span rather than an `aria-label`.
         const toggle = screen.getByRole('button', { name: 'Show navigation' });
 
         // `~` needs a shared parent and `main` first; a wrapper around the
         // button breaks the first, reordering breaks the second.
-        expect(toggle.parentElement).toBe(main.parentElement);
+        expect(toggle.parentElement).toBe(column.parentElement);
         expect(
-            main.compareDocumentPosition(toggle) &
+            column.compareDocumentPosition(toggle) &
                 Node.DOCUMENT_POSITION_FOLLOWING
         ).toBeTruthy();
     });

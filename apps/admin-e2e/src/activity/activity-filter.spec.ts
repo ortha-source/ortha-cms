@@ -4,7 +4,7 @@ import { mockActivity } from '../support/api/activity';
 import { expectNoA11yViolations } from '../support/a11y';
 
 /**
- * The Activity Log query-builder filter drawer
+ * The Activity Log query-builder filter popover
  * (`@orthacms/query-builder-admin`): building a condition narrows the log, the
  * choice deep-links into the URL as `?filter=<json>`, and Reset clears it. The
  * `GET /api/activity` mock honours the `filter` param (AND-ed with the actor
@@ -16,14 +16,14 @@ test.describe('Activity filter (query builder)', () => {
         await mockActivity(page);
     });
 
-    test('expands the inline filter panel from the toolbar', async ({
+    test('opens the filter popover from the toolbar', async ({
         activityLogPage
     }) => {
         await activityLogPage.goto();
         await expect(activityLogPage.heading).toBeVisible();
 
-        // The builder is an inline accordion here, matching a collection's
-        // records list — press the toggle and it expands in place.
+        // The builder is a popover anchored to the icon-only "Filters" button,
+        // matching a collection's records list.
         await activityLogPage.openFilters();
         await expect(activityLogPage.filterSurface()).toBeVisible();
         await expect(activityLogPage.filterTrigger()).toHaveAttribute(
@@ -50,14 +50,15 @@ test.describe('Activity filter (query builder)', () => {
         await activityLogPage.selectEnumValue('Suspended member');
         await activityLogPage.applyFilters();
 
-        // Only the suspension event (actor grace) survives. The panel stays
-        // expanded after Apply — asserting a drawer's absence here passed
-        // trivially, since this page has mounted no drawer since it migrated.
-        await expect(activityLogPage.filterSurface()).toBeVisible();
+        // Only the suspension event (actor grace) survives, and the popover
+        // has closed. Assert the state the trigger publishes as well as the
+        // surface's absence, which alone would pass on a page that never
+        // opened one.
         await expect(activityLogPage.filterTrigger()).toHaveAttribute(
             'aria-expanded',
-            'true'
+            'false'
         );
+        await expect(activityLogPage.filterSurface()).toBeHidden();
         await expect(
             activityLogPage.row('grace@orthacms.dev').first()
         ).toBeVisible();
@@ -79,9 +80,11 @@ test.describe('Activity filter (query builder)', () => {
         await activityLogPage.selectEnumValue('Suspended member');
         await activityLogPage.applyFilters();
 
-        await expect(activityLogPage.filterTrigger()).toHaveText(
-            /Filters \(1\)/
+        // In the name as words, and on the icon as a badge.
+        await expect(activityLogPage.filterTrigger()).toHaveAccessibleName(
+            'Filters, 1 applied'
         );
+        await expect(activityLogPage.filterCountBadge()).toHaveText('1');
     });
 
     test('restores the filter from a deep link on load [activity:I-30]', async ({
@@ -97,8 +100,8 @@ test.describe('Activity filter (query builder)', () => {
             activityLogPage.row('grace@orthacms.dev').first()
         ).toBeVisible();
         await expect(activityLogPage.row('ada@orthacms.dev')).toHaveCount(0);
-        await expect(activityLogPage.filterTrigger()).toHaveText(
-            /Filters \(1\)/
+        await expect(activityLogPage.filterTrigger()).toHaveAccessibleName(
+            'Filters, 1 applied'
         );
     });
 
@@ -120,9 +123,13 @@ test.describe('Activity filter (query builder)', () => {
         await activityLogPage.fillValue('not-a-uuid');
         await activityLogPage.applyFilters();
 
-        // The panel stays open, the rule shows its validation error, and
+        // The popover stays open, the rule shows its validation error, and
         // nothing was committed to the URL.
         await expect(activityLogPage.filterSurface()).toBeVisible();
+        await expect(activityLogPage.filterTrigger()).toHaveAttribute(
+            'aria-expanded',
+            'true'
+        );
         // Prefixed with the rule's field path since `ORT-157`: a burst of bare
         // "Value required" alerts named nothing, and 3.3.1 requires the item in
         // error to be identified.
@@ -132,7 +139,7 @@ test.describe('Activity filter (query builder)', () => {
         await expect(page).not.toHaveURL(/filter=/);
     });
 
-    test('the open filter panel with a rule is accessible (axe)', async ({
+    test('the open filter popover with a rule is accessible (axe)', async ({
         activityLogPage,
         makeAxe
     }) => {
@@ -162,6 +169,9 @@ test.describe('Activity filter (query builder)', () => {
             activityLogPage.row('ada@orthacms.dev').first()
         ).toBeVisible();
         await expect(page).not.toHaveURL(/filter=/);
-        await expect(activityLogPage.filterTrigger()).toHaveText(/^Filters$/);
+        await expect(activityLogPage.filterTrigger()).toHaveAccessibleName(
+            'Filters'
+        );
+        await expect(activityLogPage.filterCountBadge()).toHaveCount(0);
     });
 });

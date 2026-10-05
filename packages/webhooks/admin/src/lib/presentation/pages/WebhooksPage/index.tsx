@@ -66,7 +66,7 @@ export function WebhooksPage() {
                         }
                     ]}
                 />
-                <Container>
+                <Container width="full">
                     {/* The header stays even without access: the page still
                         needs its `<h1>`, or it has no accessible name and no
                         heading at all (axe `page-has-heading-one`). */}
@@ -90,7 +90,7 @@ export function WebhooksPage() {
                     }
                 ]}
             />
-            <Container>
+            <Container width="full">
                 <ContainerHeader
                     title={intl.formatMessage(messages.title)}
                     subtitle={intl.formatMessage(messages.subtitle)}

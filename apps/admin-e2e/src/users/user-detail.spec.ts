@@ -48,6 +48,36 @@ test.describe('User detail page', () => {
         await expect(userDetailPage.heading('Grace Hopper')).toBeVisible();
     });
 
+    test('returns to the roster through the "Members" breadcrumb', async ({
+        membersPage,
+        userDetailPage,
+        page
+    }) => {
+        await userDetailPage.goto('u_grace');
+        await expect(userDetailPage.heading('Grace Hopper')).toBeVisible();
+
+        await userDetailPage.membersCrumb().click();
+
+        await expect(page).toHaveURL(/\/users$/);
+        await expect(membersPage.heading).toBeVisible();
+    });
+
+    test('a member that no longer exists still links back to the roster', async ({
+        membersPage,
+        userDetailPage,
+        page
+    }) => {
+        // The not-found state has no hero to hang a way out on, so the
+        // breadcrumb has to stay a link there too, not collapse to a label.
+        await userDetailPage.goto('u_nobody');
+        await expect(userDetailPage.notFoundAlert()).toBeVisible();
+
+        await userDetailPage.membersCrumb().click();
+
+        await expect(page).toHaveURL(/\/users$/);
+        await expect(membersPage.heading).toBeVisible();
+    });
+
     test('opens a specific tab from the row menu', async ({
         membersPage,
         userDetailPage,

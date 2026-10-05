@@ -1,6 +1,7 @@
 import { defineMessages, useIntl } from 'react-intl';
 import {
     Button,
+    DensityProvider,
     InputGroup,
     InputGroupAddon,
     InputGroupInput,
@@ -97,106 +98,110 @@ export function MediaToolbar({
     const intl = useIntl();
 
     return (
-        <div className="mb-4 flex flex-wrap items-center gap-2 sm:gap-3">
-            <InputGroup className="w-full shadow-none sm:w-auto sm:max-w-[280px] sm:flex-1">
-                <InputGroupAddon>
-                    <Search />
-                </InputGroupAddon>
-                <InputGroupInput
-                    type="search"
-                    value={search}
-                    onChange={(event) => onSearchChange(event.target.value)}
-                    aria-label={intl.formatMessage(messages.search)}
-                    placeholder={intl.formatMessage(messages.searchPlaceholder)}
-                />
-            </InputGroup>
+        <DensityProvider density="compact">
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+                <InputGroup className="w-full shadow-none sm:w-auto sm:max-w-[280px] sm:flex-1">
+                    <InputGroupAddon>
+                        <Search />
+                    </InputGroupAddon>
+                    <InputGroupInput
+                        type="search"
+                        value={search}
+                        onChange={(event) => onSearchChange(event.target.value)}
+                        aria-label={intl.formatMessage(messages.search)}
+                        placeholder={intl.formatMessage(
+                            messages.searchPlaceholder
+                        )}
+                    />
+                </InputGroup>
 
-            <Select
-                value={kindFilter}
-                onValueChange={(value) =>
-                    onKindFilterChange(value as KindFilter)
-                }
-            >
-                <SelectTrigger
-                    className="w-[150px] shadow-none"
-                    aria-label={intl.formatMessage(messages.kindLabel)}
+                <Select
+                    value={kindFilter}
+                    onValueChange={(value) =>
+                        onKindFilterChange(value as KindFilter)
+                    }
                 >
-                    <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value={KIND_FILTER_ALL}>
-                        {intl.formatMessage(messages.kindAll)}
-                    </SelectItem>
-                    <SelectItem value={MEDIA_KIND.Image}>
-                        {intl.formatMessage(messages.kindImage)}
-                    </SelectItem>
-                    <SelectItem value={MEDIA_KIND.Video}>
-                        {intl.formatMessage(messages.kindVideo)}
-                    </SelectItem>
-                    <SelectItem value={MEDIA_KIND.Audio}>
-                        {intl.formatMessage(messages.kindAudio)}
-                    </SelectItem>
-                    <SelectItem value={MEDIA_KIND.Document}>
-                        {intl.formatMessage(messages.kindDocument)}
-                    </SelectItem>
-                    <SelectItem value={MEDIA_KIND.Archive}>
-                        {intl.formatMessage(messages.kindArchive)}
-                    </SelectItem>
-                </SelectContent>
-            </Select>
+                    <SelectTrigger
+                        className="w-[150px] shadow-none"
+                        aria-label={intl.formatMessage(messages.kindLabel)}
+                    >
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value={KIND_FILTER_ALL}>
+                            {intl.formatMessage(messages.kindAll)}
+                        </SelectItem>
+                        <SelectItem value={MEDIA_KIND.Image}>
+                            {intl.formatMessage(messages.kindImage)}
+                        </SelectItem>
+                        <SelectItem value={MEDIA_KIND.Video}>
+                            {intl.formatMessage(messages.kindVideo)}
+                        </SelectItem>
+                        <SelectItem value={MEDIA_KIND.Audio}>
+                            {intl.formatMessage(messages.kindAudio)}
+                        </SelectItem>
+                        <SelectItem value={MEDIA_KIND.Document}>
+                            {intl.formatMessage(messages.kindDocument)}
+                        </SelectItem>
+                        <SelectItem value={MEDIA_KIND.Archive}>
+                            {intl.formatMessage(messages.kindArchive)}
+                        </SelectItem>
+                    </SelectContent>
+                </Select>
 
-            <Select
-                value={sort}
-                onValueChange={(value) => onSortChange(value as MediaSort)}
-            >
-                <SelectTrigger
-                    className="w-[150px] shadow-none"
-                    aria-label={intl.formatMessage(messages.sortLabel)}
+                <Select
+                    value={sort}
+                    onValueChange={(value) => onSortChange(value as MediaSort)}
                 >
-                    <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value={MEDIA_SORT.Newest}>
-                        {intl.formatMessage(messages.sortNewest)}
-                    </SelectItem>
-                    <SelectItem value={MEDIA_SORT.Oldest}>
-                        {intl.formatMessage(messages.sortOldest)}
-                    </SelectItem>
-                    <SelectItem value={MEDIA_SORT.NameAsc}>
-                        {intl.formatMessage(messages.sortNameAsc)}
-                    </SelectItem>
-                    <SelectItem value={MEDIA_SORT.NameDesc}>
-                        {intl.formatMessage(messages.sortNameDesc)}
-                    </SelectItem>
-                    <SelectItem value={MEDIA_SORT.Largest}>
-                        {intl.formatMessage(messages.sortLargest)}
-                    </SelectItem>
-                    <SelectItem value={MEDIA_SORT.Smallest}>
-                        {intl.formatMessage(messages.sortSmallest)}
-                    </SelectItem>
-                </SelectContent>
-            </Select>
+                    <SelectTrigger
+                        className="w-[150px] shadow-none"
+                        aria-label={intl.formatMessage(messages.sortLabel)}
+                    >
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value={MEDIA_SORT.Newest}>
+                            {intl.formatMessage(messages.sortNewest)}
+                        </SelectItem>
+                        <SelectItem value={MEDIA_SORT.Oldest}>
+                            {intl.formatMessage(messages.sortOldest)}
+                        </SelectItem>
+                        <SelectItem value={MEDIA_SORT.NameAsc}>
+                            {intl.formatMessage(messages.sortNameAsc)}
+                        </SelectItem>
+                        <SelectItem value={MEDIA_SORT.NameDesc}>
+                            {intl.formatMessage(messages.sortNameDesc)}
+                        </SelectItem>
+                        <SelectItem value={MEDIA_SORT.Largest}>
+                            {intl.formatMessage(messages.sortLargest)}
+                        </SelectItem>
+                        <SelectItem value={MEDIA_SORT.Smallest}>
+                            {intl.formatMessage(messages.sortSmallest)}
+                        </SelectItem>
+                    </SelectContent>
+                </Select>
 
-            <div className="ml-auto flex items-center gap-2 sm:gap-3">
-                {canCreate ? (
-                    <>
-                        <Button
-                            variant="outline"
-                            className="shadow-none"
-                            onClick={onNewFolder}
-                        >
-                            <FolderPlus aria-hidden />
-                            <span className="hidden sm:inline">
-                                {intl.formatMessage(messages.newFolder)}
-                            </span>
-                        </Button>
-                        <Button onClick={onUpload}>
-                            <UploadCloud aria-hidden />
-                            {intl.formatMessage(messages.upload)}
-                        </Button>
-                    </>
-                ) : null}
+                <div className="ml-auto flex items-center gap-2 sm:gap-3">
+                    {canCreate ? (
+                        <>
+                            <Button
+                                variant="outline"
+                                className="shadow-none"
+                                onClick={onNewFolder}
+                            >
+                                <FolderPlus aria-hidden />
+                                <span className="hidden sm:inline">
+                                    {intl.formatMessage(messages.newFolder)}
+                                </span>
+                            </Button>
+                            <Button onClick={onUpload}>
+                                <UploadCloud aria-hidden />
+                                {intl.formatMessage(messages.upload)}
+                            </Button>
+                        </>
+                    ) : null}
+                </div>
             </div>
-        </div>
+        </DensityProvider>
     );
 }

@@ -41,10 +41,7 @@ export function ApiTokensSkeleton({ rows = 5 }: { rows?: number }) {
             <span className="sr-only">
                 {intl.formatMessage(messages.loading)}
             </span>
-            <div
-                aria-hidden
-                className="mt-4 overflow-hidden rounded-xl border bg-card shadow-xs"
-            >
+            <div aria-hidden className="mt-4">
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -131,7 +128,7 @@ export function ApiTokensPageSkeleton() {
                     }
                 ]}
             />
-            <Container>
+            <Container width="full">
                 <ContainerHeader
                     title={intl.formatMessage(messages.title)}
                     subtitle={intl.formatMessage(messages.subtitle)}

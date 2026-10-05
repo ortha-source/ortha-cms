@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import {
     Button,
@@ -15,7 +15,7 @@ import type {
     RelationValueEditor
 } from '../../types/filter-field.type';
 import type { FilterGroup } from '../../types/filter-tree.type';
-import { treeHasInvalidRules } from '../../utils/validateRule';
+import { useFilterDraft } from '../../hooks/useFilterDraft';
 import { QueryBuilder } from '../QueryBuilder';
 import { JsonPreview } from './JsonPreview';
 
@@ -88,44 +88,23 @@ export function QueryBuilderDrawer({
     // field picker's popover must portal INTO this node (react-remove-scroll's
     // allow-listed subtree) or its list won't scroll by mouse wheel.
     const [contentEl, setContentEl] = useState<HTMLDivElement | null>(null);
-    const [draft, setDraft] = useState<FilterGroup | null>(value);
-    // Inline rule errors stay hidden until the user clicks Apply with an
-    // invalid draft; we don't pre-shame freshly-added rules.
-    const [showErrors, setShowErrors] = useState(false);
+    // The staged draft, shared with `QueryBuilderPopover`: resynced from
+    // `value` on every open (closing without Apply discards local edits), with
+    // inline errors that stay hidden until Apply is pressed on an invalid
+    // draft and fade once it becomes valid.
+    const { draft, setDraft, showErrors, apply, reset } = useFilterDraft({
+        open,
+        value,
+        fields,
+        onApply
+    });
 
-    // Sync the draft to the applied filter every time the drawer opens
-    // so the user always sees the current state, not a stale one from
-    // last session. Closing without Apply discards local edits — and
-    // clears any error state from the previous attempt.
-    useEffect(() => {
-        if (open) {
-            setDraft(value);
-            setShowErrors(false);
-        }
-    }, [open, value]);
-
-    // Once the user fixes their rules the inline errors fade out as the
-    // tree becomes valid — no need to wait for another Apply.
-    useEffect(() => {
-        if (showErrors && !treeHasInvalidRules(draft, fields)) {
-            setShowErrors(false);
-        }
-    }, [draft, fields, showErrors]);
-
-    const apply = () => {
-        if (treeHasInvalidRules(draft, fields)) {
-            setShowErrors(true);
-            return;
-        }
-        const hasRules = draft && draft.children.length > 0;
-        onApply(hasRules ? draft : null);
-        setOpen(false);
+    const onApplyClick = () => {
+        if (apply()) setOpen(false);
     };
 
-    const reset = () => {
-        setDraft(null);
-        setShowErrors(false);
-        onApply(null);
+    const onResetClick = () => {
+        reset();
         setOpen(false);
     };
 
@@ -163,10 +142,14 @@ export function QueryBuilderDrawer({
                     <JsonPreview tree={draft} />
                 </div>
                 <DrawerFooter className="mt-auto flex-row justify-end gap-2 p-0">
-                    <Button type="button" variant="ghost" onClick={reset}>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={onResetClick}
+                    >
                         {intl.formatMessage(messages.reset)}
                     </Button>
-                    <Button type="button" onClick={apply}>
+                    <Button type="button" onClick={onApplyClick}>
                         {intl.formatMessage(messages.apply)}
                     </Button>
                 </DrawerFooter>

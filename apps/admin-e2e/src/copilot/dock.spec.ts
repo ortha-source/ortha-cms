@@ -40,7 +40,7 @@ test.describe('Ortha CMS AI dock', () => {
         // click. Its name says so; the shortcut is taught by its tooltip,
         // asserted on its own below.
         await expect(copilotDockPage.launcher).toHaveAccessibleName(
-            'Ortha CMS AI — new chat'
+            'Ask Ortha AI'
         );
 
         await copilotDockPage.launcher.click();
@@ -142,7 +142,7 @@ test.describe('Ortha CMS AI dock', () => {
         await expect(copilotDockPage.windows()).toHaveCount(0);
         // No chats left, so the launcher is back to starting one.
         await expect(copilotDockPage.launcher).toHaveAccessibleName(
-            'Ortha CMS AI — new chat'
+            'Ask Ortha AI'
         );
         // Otherwise focus falls to `<body>`, which strands a keyboard user at
         // the top of the page they were working on.
@@ -495,10 +495,9 @@ test.describe('Ortha CMS AI dock — regressions', () => {
     }) => {
         const start = copilotDockPage.newChat();
 
-        // An icon button: nothing visible to be in its name, so the name is
-        // the product's — "click Ortha CMS AI" works by voice — and the
-        // tooltip shows the same words to a sighted pointer user.
-        await expect(start).toHaveAccessibleName(/Ortha CMS AI/);
+        // A labelled button: its name is its visible text — "click Ask
+        // Ortha AI" works by voice (WCAG 2.5.3).
+        await expect(start).toHaveAccessibleName(/Ask Ortha AI/);
 
         // Both accepted chords are advertised, so assistive tech announces the
         // one its user can press rather than whichever glyph is drawn.
@@ -607,24 +606,23 @@ test.describe('Ortha CMS AI dock — regressions', () => {
         await expect(copilotDockPage.chatList).toBeVisible();
     });
 
-    test('lives in the top bar and reserves no gutter under the page', async ({
+    test('lives under the card and reserves no gutter in the page', async ({
         page,
         copilotDockPage
     }) => {
         // The dock used to float `fixed` over the bottom-right corner and
         // publish a bottom gutter every scrollport reserved to stay clear of
-        // it: 66px of empty space under every page, and 24px on the Agents
-        // view where the bar was not even drawn. In the bar it covers nothing.
+        // it: 66px of empty space under every page. Then it sat at the top
+        // bar's end among the page's actions. Now it is "Ask Ortha AI" in the
+        // strip under the work area's card — below the card, so it covers
+        // nothing in it and the page needs no gutter.
         await expect(copilotDockPage.launcher).toBeVisible();
-        const bar = await page
-            .locator('[data-slot="sidebar-inset-bar-row"]')
+        const card = await page
+            .locator('[data-slot="app-frame"]')
             .boundingBox();
         const launcher = await copilotDockPage.launcher.boundingBox();
-        expect(bar && launcher).toBeTruthy();
-        expect(launcher!.y).toBeGreaterThanOrEqual(bar!.y);
-        expect(launcher!.y + launcher!.height).toBeLessThanOrEqual(
-            bar!.y + bar!.height
-        );
+        expect(card && launcher).toBeTruthy();
+        expect(launcher!.y).toBeGreaterThanOrEqual(card!.y + card!.height);
 
         await copilotDockPage.startChat();
         await expect(copilotDockPage.panel()).toBeVisible();

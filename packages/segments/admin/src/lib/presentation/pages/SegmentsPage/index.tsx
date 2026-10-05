@@ -195,7 +195,7 @@ export function SegmentsPage() {
         return (
             <>
                 {bar}
-                <Container>
+                <Container width="full">
                     <ContainerHeader
                         title={intl.formatMessage(messages.title)}
                     />
@@ -224,7 +224,7 @@ export function SegmentsPage() {
     return (
         <>
             {bar}
-            <Container>
+            <Container width="full">
                 <ContainerHeader
                     title={intl.formatMessage(messages.title)}
                     subtitle={intl.formatMessage(messages.subtitle)}
@@ -320,7 +320,7 @@ export function SegmentsPage() {
                             </p>
                         ) : (
                             <>
-                                <div className="mt-4 overflow-hidden rounded-xl border bg-card shadow-xs">
+                                <div className="mt-4">
                                     <Table>
                                         <TableHeader>
                                             <TableRow>

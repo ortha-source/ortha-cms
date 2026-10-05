@@ -146,13 +146,14 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   the **`RelationValuePicker`** (a searchable, lazily-paginated multi-select over
   the target type, reusing `useRelationCandidates`), injected into the query
   builder via `renderRelationValue` at both call sites (the records
-  `QueryBuilderPanel` and the relation picker's inline builder) — rendered as an
-  element so its hooks stay scoped. **The records filter is an inline accordion,
-  not a drawer**: the toolbar "Filters" button toggles a full-width
-  `QueryBuilderPanel` that sits between the toolbar and the table and pushes the
-  table down (height-animated, no overlay); collapsed with active filters, the
-  applied conditions read out as a `QueryBuilderSummary` row of removable chips
-  under the toolbar, and Apply collapses back to it. `useContentEntries`
+  `QueryBuilderPopover` and the relation picker's inline builder) — rendered as
+  an element so its hooks stay scoped. **The records filter is a popover**: the
+  toolbar's icon-only "Filters" button (named "Filters, N applied" when a filter
+  is on, with N as a corner badge) opens a large `QueryBuilderPopover` anchored
+  to it, over the table; Apply commits and closes it, and the applied
+  conditions read out as a `QueryBuilderSummary` row of removable chips under
+  the toolbar. The **Columns** trigger beside it is icon-only too
+  (`Columns3`, `aria-label` + `Tooltip`). `useContentEntries`
   fetches `GET /api/content/:name` with `{ search, filter, sort, page, pageSize }`
   → the `{ items, total, page, pageSize }` envelope; the **server** runs search →
   query-builder filter → sort → pagination (this hook owns no row logic). The
@@ -1331,8 +1332,9 @@ already surfaces `required`), so a locale plugin needs no field-level slot:
   translation sibling) navigates to its own editor `${typePath}/${saved.id}` so
   the id is in the URL and a further save updates it; an existing record stays in
   place (its `useSaveEntry`-invalidated query refreshes the Details/status); a
-  single stays put (`?locale=` re-resolves). The "Back to records" link is the
-  way back.
+  single stays put (`?locale=` re-resolves). The top bar's type crumb is the
+  way back — it carries the slot list params (`?locale=`) the record was opened
+  under, so leaving a German record lands on the German list.
 
 ## Package
 

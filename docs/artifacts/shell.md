@@ -294,7 +294,7 @@ A `CommandDialog`: an input field, the static “Go to” group from the navigat
 
 > **Why the floating toggle is visible only on Home**
 >
-> `SidebarToggle` hides itself with the selector `[main:has([data-slot=top-bar])~&]:hidden` — a sibling combinator relative to `<main>`. Any page with a `TopBar` carries its own built-in expand trigger inside the bar, and the floating button is unnecessary. The only page without a bar is the home page, and that is where the button appears. Hence the hard requirement: `SidebarToggle` must be a **direct** sibling of `<main>` — a wrapper around it breaks the selector and brings the button back on every page.
+> `SidebarToggle` hides itself with the selector `[[data-slot=app-column]:has([data-slot=top-bar])~&]:hidden` — a sibling combinator relative to the work area's column, which holds the card (`<main>` and the right panel) and the footer strip under it. Any page with a `TopBar` carries its own built-in expand trigger inside the bar, and the floating button is unnecessary. The only page without a bar is the home page, and that is where the button appears. Hence the hard requirement: `SidebarToggle` must be a **direct** sibling of that column — a wrapper around it breaks the selector and brings the button back on every page.
 
 ## 06. Scenarios — how it works step by step
 
@@ -581,7 +581,7 @@ Statements that must always hold. This is at once a review checklist and a draft
 - **I-21** — On a narrow viewport (a `MOBILE_QUERY` match) the panel starts collapsed regardless of storage, and that state is **not written back**.
 - **I-22** — The mobile overlay's Esc handler excludes the panel itself from the “is anything stacked above” check — otherwise it yields to itself.
 - **I-23** — The overlay's scrim is an `aria-hidden` decoration, not a `<button>`: a control unreachable from the keyboard is worse than no control at all.
-- **I-24** — `SidebarToggle` is a **direct** sibling of `<main>`; a wrapper breaks the `[main:has([data-slot=top-bar])~&]:hidden` selector and brings the floating button back to pages with a bar.
+- **I-24** — `SidebarToggle` is a **direct** sibling of the work area's column (`data-slot="app-column"` — the card holding `<main>` and the right panel, and the footer strip under it); a wrapper breaks the `[[data-slot=app-column]:has([data-slot=top-bar])~&]:hidden` selector and brings the floating button back to pages with a bar.
 - **I-25** — The skip link is the document's first focusable element, and its target is focusable (`tabIndex={-1}`).
 - **I-26** — The global chords (⌘K, ⌘B, ⌘J) do not fire in an input field or in `contenteditable`. ⌘K and ⌘J share `isComposingText` from `utils-admin`; ⌘B uses the design system’s own `ownsBoldShortcut`, because the library carries no dependency on `utils-admin` and the chord means _bold_ there, so its check is deliberately wider.
 - **I-27** — The palette restores focus when closed **without** navigating and deliberately does not restore it when navigating.

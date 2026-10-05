@@ -1,17 +1,10 @@
-import {
-    useCallback,
-    useEffect,
-    useId,
-    useMemo,
-    useRef,
-    useState
-} from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
-import { ChevronDown, Filter, UserPlus, Users } from 'lucide-react';
+import { UserPlus, Users } from 'lucide-react';
 import { PageTopBar } from '@orthacms/shell-admin';
 import {
-    QueryBuilderPanel,
+    QueryBuilderPopover,
     QueryBuilderSummary,
     countRules,
     jsonFilterToTree,
@@ -25,8 +18,7 @@ import {
     AlertDescription,
     Button,
     Container,
-    ContainerHeader,
-    cn
+    ContainerHeader
 } from '@orthacms/design-system';
 import { useMembers, DEFAULT_PAGE_SIZE } from '../../../application/useMembers';
 import { MembersTableSkeleton } from '../../components/MembersSkeleton';
@@ -61,10 +53,6 @@ const messages = defineMessages({
     retry: {
         id: 'users.page.retry',
         defaultMessage: 'Retry'
-    },
-    filters: {
-        id: 'users.page.filters',
-        defaultMessage: 'Filters{count, plural, =0 {} other { (#)}}'
     },
     results: {
         id: 'users.page.results',
@@ -148,19 +136,6 @@ export function MembersPage() {
         }
     }, [data, page, pageCount, updateParams]);
 
-    // The inline filter panel: its own open state (the toolbar button toggles
-    // it), with the ids wiring the button's `aria-controls` to the region.
-    const [filtersOpen, setFiltersOpen] = useState(false);
-    const filtersPanelId = useId();
-    const filtersToggleId = useId();
-    const filtersToggleRef = useRef<HTMLButtonElement>(null);
-    // Return focus to the toggle when the panel collapses (Esc, or a second
-    // press), so the now-`inert` panel doesn't strand focus on the body.
-    const setFiltersPanelOpen = useCallback((open: boolean) => {
-        setFiltersOpen(open);
-        if (!open) filtersToggleRef.current?.focus();
-    }, []);
-
     /** Commit (or clear) the query-builder filter to the URL. */
     const applyFilter = useCallback(
         (next: FilterGroup | null) => {
@@ -182,7 +157,7 @@ export function MembersPage() {
                         }
                     ]}
                 />
-                <Container>
+                <Container width="full">
                     <ContainerHeader
                         title={intl.formatMessage(messages.title)}
                     />
@@ -218,7 +193,7 @@ export function MembersPage() {
                     }
                 ]}
             />
-            <Container>
+            <Container width="full">
                 <ContainerHeader
                     title={intl.formatMessage(messages.title)}
                     // No count until one is known: the read failed or hasn't
@@ -246,45 +221,20 @@ export function MembersPage() {
                     onSearchChange={setSearchInput}
                     busy={searchPending || isFetching}
                     filterControl={
-                        <Button
-                            ref={filtersToggleRef}
-                            id={filtersToggleId}
-                            variant="outline"
-                            className="shadow-none"
-                            aria-expanded={filtersOpen}
-                            aria-controls={filtersPanelId}
-                            onClick={() => setFiltersPanelOpen(!filtersOpen)}
-                        >
-                            <Filter aria-hidden className="size-4" />
-                            {intl.formatMessage(messages.filters, {
-                                count: ruleCount
-                            })}
-                            <ChevronDown
-                                aria-hidden
-                                className={cn(
-                                    'size-4 transition-transform duration-150 motion-reduce:transition-none',
-                                    filtersOpen && 'rotate-180'
-                                )}
-                            />
-                        </Button>
+                        // The filter builder in a popover anchored to an
+                        // icon-only "Filters" button — the same surface the
+                        // activity log and the records list use. It owns its
+                        // trigger, open state and staged draft; the applied
+                        // conditions read out as removable chips below.
+                        <QueryBuilderPopover
+                            fields={MEMBERS_FILTER_FIELDS}
+                            value={appliedFilter}
+                            onApply={applyFilter}
+                        />
                     }
                 />
 
-                {/* The filter builder, inline between the toolbar and the table
-                    — the same accordion the activity log and the records list
-                    use, rather than a drawer. It pushes the table down when
-                    open (no overlay); collapsed with active filters, the
-                    applied conditions read out as removable chips below. */}
-                <QueryBuilderPanel
-                    id={filtersPanelId}
-                    labelledBy={filtersToggleId}
-                    open={filtersOpen}
-                    onOpenChange={setFiltersPanelOpen}
-                    fields={MEMBERS_FILTER_FIELDS}
-                    value={appliedFilter}
-                    onApply={applyFilter}
-                />
-                {!filtersOpen && appliedFilter && ruleCount > 0 ? (
+                {appliedFilter && ruleCount > 0 ? (
                     <QueryBuilderSummary
                         className="mb-4"
                         tree={appliedFilter}

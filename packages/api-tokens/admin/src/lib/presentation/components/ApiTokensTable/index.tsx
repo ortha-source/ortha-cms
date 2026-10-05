@@ -117,7 +117,7 @@ export function ApiTokensTable({
 
     return (
         <>
-            <div className="mt-4 overflow-hidden rounded-xl border bg-card shadow-xs">
+            <div className="mt-4">
                 <Table aria-label={intl.formatMessage(messages.caption)}>
                     <TableHeader>
                         <TableRow>

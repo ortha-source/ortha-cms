@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import {
+    InsetFooter,
     SidebarInset,
     SidebarProvider,
     useIsMobile
@@ -108,26 +109,49 @@ function AppShellChrome() {
                 and it was an unnamed, roleless stop until now (`ORT-150`). The
                 string lives here because the design system carries no
                 `react-intl`. */}
-            <SidebarInset
-                id={MAIN_CONTENT_ID}
-                tabIndex={-1}
-                scrollLabel={intl.formatMessage(messages.scrollport)}
-                inert={overlayUp}
+            {/* The work area: one white card floating on the sidebar's gray,
+                holding the page **and** the right panel, so Properties reads
+                as part of the page rather than a second surface — and, under
+                it on the same gray, the footer strip where app-wide chrome
+                lives ("Ask Ortha AI", via `InsetFooterEnd`).
+
+                The card is a wrapper and not `<main>` itself because the panel
+                is a named `complementary` landmark, and axe's best-practice set
+                (which runs) refuses one nested inside `main`. The column takes
+                the frame's top and right gutter; the footer is its bottom one.
+                `peer` still reaches the column — it is the sidebar's sibling.
+                Below `md` there is no card: a plain row, nothing floats. */}
+            <div
+                data-slot="app-column"
+                className="flex min-h-0 min-w-0 flex-1 flex-col md:peer-data-[variant=inset]:pt-2 md:peer-data-[variant=inset]:pr-2 md:peer-data-[variant=inset]:peer-data-[state=collapsed]:pl-2"
             >
-                <Outlet />
-            </SidebarInset>
-            {/* The third column: empty (zero-width) until a page registers a
-                panel — see `AppRightPanel`. */}
-            <AppRightPanel />
+                <div
+                    data-slot="app-frame"
+                    className="flex min-h-0 min-w-0 flex-1 overflow-hidden bg-background md:rounded-xl md:border md:shadow-sm"
+                >
+                    <SidebarInset
+                        id={MAIN_CONTENT_ID}
+                        tabIndex={-1}
+                        scrollLabel={intl.formatMessage(messages.scrollport)}
+                        inert={overlayUp}
+                    >
+                        <Outlet />
+                    </SidebarInset>
+                    {/* The third column: empty (zero-width) until a page
+                        registers a panel — see `AppRightPanel`. */}
+                    <AppRightPanel />
+                </div>
+                <InsetFooter className="md:px-1" />
+            </div>
             {/* Inert with the rest of the page behind the overlay: it is
                 `fixed`, so it would otherwise sit above the scrim and stay both
                 visible and tabbable.
 
                 On the button itself, **not** a wrapper. It hides itself with
-                `[main:has([data-slot=top-bar])~&]:hidden` — a sibling
-                combinator against `<main>` — so putting a `<div>` between them
-                breaks the selector and the floating toggle reappears on every
-                page that has a top bar. */}
+                `[[data-slot=app-column]:has([data-slot=top-bar])~&]:hidden` —
+                a sibling combinator against the column above — so putting a
+                `<div>` between them breaks the selector and the floating toggle
+                reappears on every page that has a top bar. */}
             <SidebarToggle inert={overlayUp || undefined} />
         </SidebarProvider>
     );

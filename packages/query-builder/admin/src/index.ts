@@ -5,8 +5,14 @@ export { usePortalContainer } from './lib/components/portalContainer';
 export { QueryBuilderDrawer } from './lib/components/QueryBuilderDrawer';
 export type { QueryBuilderDrawerProps } from './lib/components/QueryBuilderDrawer';
 
-export { QueryBuilderPanel } from './lib/components/QueryBuilderPanel';
-export type { QueryBuilderPanelProps } from './lib/components/QueryBuilderPanel';
+export { QueryBuilderPopover } from './lib/components/QueryBuilderPopover';
+export type { QueryBuilderPopoverProps } from './lib/components/QueryBuilderPopover';
+
+export { useFilterDraft } from './lib/hooks/useFilterDraft';
+export type {
+    FilterDraft,
+    UseFilterDraftOptions
+} from './lib/hooks/useFilterDraft';
 
 export { QueryBuilderSummary } from './lib/components/QueryBuilderSummary';
 export type { QueryBuilderSummaryProps } from './lib/components/QueryBuilderSummary';

@@ -11,8 +11,9 @@ The admin-side copilot plugin — **two surfaces onto one chat**.
 
 - **The docked panel**, from the shell's `SIDEBAR_FOOTER_SLOT` (or `⌘J`). The
   slot renders **nothing into the sidebar** — it is only what mounts the
-  component, which portals the windows to `<body>` and the **launcher into the
-  right end of the top bar** (design-system `InsetBarEnd`). A chat is a window
+  component, which portals the windows to `<body>` and the **launcher — "Ask
+  Ortha AI" — into the strip under the work area's card** (design-system
+  `InsetFooterEnd`). A chat is a window
   over whatever page you are on, which is the point of it being a persistent
   surface rather than a destination, and there can be **several at once**,
   listed under the launcher.
@@ -113,16 +114,17 @@ presentation/
   dozens of times per answer and must append to the _current_ last message, not
   a stale closure's. Keeping it pure also makes the interesting cases — a step
   resolving, a run erroring mid-answer — unit-testable without a socket.
-- **The launcher lives in the top bar, and reserves nothing under the page.**
+- **The launcher lives under the card, and reserves nothing in the page.**
   It used to be a pill bar `fixed` over the bottom-right corner, and to keep it
   off the records pagination and the Properties rail's buttons it published
   `--orthacms-fixed-bottom-gutter`, which every scrollport reserved as bottom
   padding: 66px of empty space under every page, and 24px on the Agents view,
-  where the bar was not even drawn. A control in the bar covers nothing, so the
-  gutter and the variable are gone. `InsetBarEnd` puts it at the right end of the
-  strip `SidebarInset` hoists every page's `TopBar` into, so it is there however
-  the page draws its bar. With no chats it is one "Ortha CMS AI" button that
-  starts one; with chats it carries a count and a dot and opens a **popover**
+  where the bar was not even drawn. It then sat at the top bar's end as a bare
+  icon, among the page's own actions. Now `InsetFooterEnd` puts it at the right
+  end of the strip under the work area's card, on the sidebar's gray — outside
+  the page and its header, so it covers nothing, needs no gutter, and can say
+  what it is. With no chats it is one labelled "Ask Ortha AI" button (that is
+  also its accessible name) that starts one; with chats it carries a count and a dot and opens a **popover**
   listing them — each row toggles its window (`aria-pressed`) and has its own
   named Close, and the launcher's accessible name says when one finished or is
   waiting, so a closed list hides nothing. Closing the last chat swaps the

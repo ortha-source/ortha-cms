@@ -27,6 +27,16 @@ export class UserDetailPage extends BasePage {
         await this.page.goto(`/users/${id}`);
     }
 
+    /**
+     * The top bar's "Members" crumb — the page's one way back to the roster.
+     * It stays a link while the member loads and when it no longer exists.
+     */
+    membersCrumb(): Locator {
+        return this.page
+            .getByRole('navigation', { name: 'Breadcrumb' })
+            .getByRole('link', { name: 'Members', exact: true });
+    }
+
     /** The hero's `<h1>` (the member's name). */
     heading(name: string): Locator {
         return this.page.getByRole('heading', { name, level: 1 });

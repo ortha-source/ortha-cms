@@ -10,7 +10,7 @@ import {
     SlidersHorizontal,
     UserRound
 } from 'lucide-react';
-import { Badge, TabNav, TabNavLink } from '@orthacms/design-system';
+import { Badge, TabNav, TabNavLink, TopBarTabs } from '@orthacms/design-system';
 import {
     AuthStatus,
     useAuth,
@@ -87,55 +87,57 @@ export function UserDetailTabs({ member }: { member: Member }) {
     const base = `/users/${member.id}`;
 
     return (
-        <TabNav aria-label={intl.formatMessage(messages.nav)}>
-            <UserDetailTab
-                to={`${base}/general`}
-                icon={UserRound}
-                label={intl.formatMessage(messages.general)}
-            />
-            <UserDetailTab
-                to={`${base}/roles`}
-                icon={ShieldCheck}
-                label={intl.formatMessage(messages.role)}
-            />
-            <UserDetailTab
-                to={`${base}/workspaces`}
-                icon={Building2}
-                label={intl.formatMessage(messages.workspaces)}
-            />
-            {canManage ? (
+        <TopBarTabs>
+            <TabNav aria-label={intl.formatMessage(messages.nav)}>
                 <UserDetailTab
-                    to={`${base}/sessions`}
-                    icon={MonitorSmartphone}
-                    label={intl.formatMessage(messages.sessions)}
+                    to={`${base}/general`}
+                    icon={UserRound}
+                    label={intl.formatMessage(messages.general)}
                 />
-            ) : null}
-            {canReadActivity ? (
                 <UserDetailTab
-                    to={`${base}/activity`}
-                    icon={Activity}
-                    label={intl.formatMessage(messages.activity)}
+                    to={`${base}/roles`}
+                    icon={ShieldCheck}
+                    label={intl.formatMessage(messages.role)}
                 />
-            ) : null}
-            {canManage ? (
                 <UserDetailTab
-                    to={`${base}/access`}
-                    icon={Ban}
-                    label={intl.formatMessage(messages.signInAccess)}
-                    trailing={
-                        member.status === 'disabled'
-                            ? intl.formatMessage(messages.disabled)
-                            : undefined
-                    }
+                    to={`${base}/workspaces`}
+                    icon={Building2}
+                    label={intl.formatMessage(messages.workspaces)}
                 />
-            ) : null}
-            {isSelf ? (
-                <UserDetailTab
-                    to={`${base}/preferences`}
-                    icon={SlidersHorizontal}
-                    label={intl.formatMessage(messages.preferences)}
-                />
-            ) : null}
-        </TabNav>
+                {canManage ? (
+                    <UserDetailTab
+                        to={`${base}/sessions`}
+                        icon={MonitorSmartphone}
+                        label={intl.formatMessage(messages.sessions)}
+                    />
+                ) : null}
+                {canReadActivity ? (
+                    <UserDetailTab
+                        to={`${base}/activity`}
+                        icon={Activity}
+                        label={intl.formatMessage(messages.activity)}
+                    />
+                ) : null}
+                {canManage ? (
+                    <UserDetailTab
+                        to={`${base}/access`}
+                        icon={Ban}
+                        label={intl.formatMessage(messages.signInAccess)}
+                        trailing={
+                            member.status === 'disabled'
+                                ? intl.formatMessage(messages.disabled)
+                                : undefined
+                        }
+                    />
+                ) : null}
+                {isSelf ? (
+                    <UserDetailTab
+                        to={`${base}/preferences`}
+                        icon={SlidersHorizontal}
+                        label={intl.formatMessage(messages.preferences)}
+                    />
+                ) : null}
+            </TabNav>
+        </TopBarTabs>
     );
 }

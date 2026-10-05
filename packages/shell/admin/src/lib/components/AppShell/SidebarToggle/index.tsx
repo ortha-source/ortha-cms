@@ -37,7 +37,7 @@ export function SidebarToggle({
         // rather than what pressing it does (`ORT-159`).
         <SidebarTrigger
             label={intl.formatMessage(messages.show)}
-            className="fixed left-2 top-2 z-30 size-8 rounded-lg border border-border bg-background shadow-sm [main:has([data-slot=top-bar])~&]:hidden"
+            className="fixed left-2 top-2 z-30 size-8 rounded-lg border border-border bg-background shadow-sm [[data-slot=app-column]:has([data-slot=top-bar])~&]:hidden"
             {...props}
         />
     );

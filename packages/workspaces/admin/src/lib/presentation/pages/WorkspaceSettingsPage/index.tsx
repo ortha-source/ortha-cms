@@ -1,7 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { useHasPermission } from '@orthacms/identity-admin';
-import { Badge, Container } from '@orthacms/design-system';
+import { Badge, Container, ContainerHeader } from '@orthacms/design-system';
 import { useCurrentWorkspace } from '../../currentWorkspace';
 import { WorkspaceSettingsTabs } from '../../components/WorkspaceSettingsTabs';
 import { useDocumentTitle } from '@orthacms/utils-admin';
@@ -77,23 +77,24 @@ export function WorkspaceSettingsPage() {
                         ? intl.formatMessage(messages.dangerDenied)
                         : ''}
                 </span>
-                <div>
-                    <div className="flex items-center gap-3">
-                        <h1 className="text-2xl font-semibold tracking-[-0.01em]">
-                            {intl.formatMessage(messages.title)}
-                        </h1>
-                        {workspace.status === 'Archived' ? (
+                {/* The shared header, so under the top bar it folds away like
+                    every other page's — the breadcrumb already says Settings.
+                    The Archived mark rides the actions region, the way the
+                    entry editor's marks about the record do. */}
+                <ContainerHeader
+                    className="mb-0"
+                    title={intl.formatMessage(messages.title)}
+                    subtitle={intl.formatMessage(messages.subtitle, {
+                        workspace: workspace.name
+                    })}
+                    actions={
+                        workspace.status === 'Archived' ? (
                             <Badge variant="secondary">
                                 {intl.formatMessage(messages.archivedBadge)}
                             </Badge>
-                        ) : null}
-                    </div>
-                    <p className="mt-1 text-muted-foreground">
-                        {intl.formatMessage(messages.subtitle, {
-                            workspace: workspace.name
-                        })}
-                    </p>
-                </div>
+                        ) : undefined
+                    }
+                />
 
                 <div className="flex flex-col gap-6">
                     <WorkspaceSettingsTabs

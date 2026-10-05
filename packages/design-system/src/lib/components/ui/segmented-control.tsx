@@ -3,6 +3,7 @@ import * as ToggleGroupPrimitive from '@radix-ui/react-toggle-group';
 import { cva, type VariantProps } from 'class-variance-authority';
 
 import { cn } from '../../utils';
+import { useDensity } from './density';
 
 /**
  * The two jobs this control does, which want different chrome.
@@ -57,14 +58,24 @@ type SegmentedControlProps = Omit<
 const SegmentedControl = React.forwardRef<
     React.ComponentRef<typeof ToggleGroupPrimitive.Root>,
     SegmentedControlProps
->(({ className, variant, ...props }, ref) => (
-    <ToggleGroupPrimitive.Root
-        ref={ref}
-        type="single"
-        className={cn(segmentedControlVariants({ variant }), className)}
-        {...props}
-    />
-));
+>(({ className, variant, ...props }, ref) => {
+    // Compact steps the toolbar variant down to the 32px line the buttons
+    // beside it take there. The field variant is a form control and keeps
+    // matching `Input`, whatever region it sits in.
+    const compact = useDensity() === 'compact' && variant !== 'field';
+    return (
+        <ToggleGroupPrimitive.Root
+            ref={ref}
+            type="single"
+            className={cn(
+                segmentedControlVariants({ variant }),
+                compact && 'h-8 p-[3px] [&>*]:h-6 [&>*]:px-2.5',
+                className
+            )}
+            {...props}
+        />
+    );
+});
 SegmentedControl.displayName = 'SegmentedControl';
 
 /**

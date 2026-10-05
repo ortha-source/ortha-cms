@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { Link, Navigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Info, Search, Users } from 'lucide-react';
+import { Navigate } from 'react-router-dom';
+import { ArrowRight, Info, Search, Users } from 'lucide-react';
 import { PageTopBar } from '@orthacms/shell-admin';
 import { useHasPermission } from '@orthacms/identity-admin';
 import {
@@ -55,7 +55,6 @@ const messages = defineMessages({
         defaultMessage:
             'Add someone to Ortha CMS in three short steps: who they are, what they can do, and which workspaces they can reach.'
     },
-    back: { id: 'users.invitePage.back', defaultMessage: 'Back to members' },
     crumbMembers: {
         id: 'users.invitePage.crumbMembers',
         defaultMessage: 'Members'
@@ -397,14 +396,6 @@ export function InviteMemberPage() {
                 ]}
             />
             <Container className="max-w-[920px]">
-                <Link
-                    to="/users"
-                    className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-                >
-                    <ArrowLeft className="size-4" />
-                    {intl.formatMessage(messages.back)}
-                </Link>
-
                 <ContainerHeader title={heading} subtitle={subheading} />
                 {body}
             </Container>

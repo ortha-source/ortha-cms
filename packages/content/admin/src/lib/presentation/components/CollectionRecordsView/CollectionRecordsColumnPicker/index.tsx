@@ -22,7 +22,10 @@ import {
     Input,
     Popover,
     PopoverContent,
-    PopoverTrigger
+    PopoverTrigger,
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger
 } from '@orthacms/design-system';
 import type { EntryColumn } from '../../../../domain/entryColumns';
 import { useColumnLabel } from '../../../hooks/useColumnLabel';
@@ -124,6 +127,11 @@ export function CollectionRecordsColumnPicker({
     // `aria-label` that could drift from it.
     const headingId = useId();
     const [query, setQuery] = useState('');
+    const [open, setOpen] = useState(false);
+    // The trigger's tooltip is suppressed while the popover is open, so it
+    // never sits on top of the list it names.
+    const [tooltipOpen, setTooltipOpen] = useState(false);
+    const triggerLabel = intl.formatMessage(messages.trigger);
     const searching = query.trim().length > 0;
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -221,20 +229,37 @@ export function CollectionRecordsColumnPicker({
 
     return (
         <Popover
-            // Start each visit from the full list rather than the previous
-            // search.
-            onOpenChange={(open) => {
-                if (!open) setQuery('');
+            open={open}
+            onOpenChange={(next) => {
+                setOpen(next);
+                // Start each visit from the full list rather than the previous
+                // search.
+                if (!next) setQuery('');
             }}
         >
-            <PopoverTrigger asChild>
-                <Button variant="outline" className="shadow-none">
-                    <Columns3 aria-hidden className="size-4" />
-                    {intl.formatMessage(messages.trigger)}
-                </Button>
-            </PopoverTrigger>
+            {/* Icon-only, so the label lives in `aria-label` and, for sighted
+                users, in a tooltip that also opens on keyboard focus. Sized by
+                the toolbar's compact density (32px). */}
+            <Tooltip open={tooltipOpen && !open} onOpenChange={setTooltipOpen}>
+                <TooltipTrigger asChild>
+                    <PopoverTrigger asChild>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="shadow-none"
+                            aria-label={triggerLabel}
+                        >
+                            <Columns3 aria-hidden />
+                        </Button>
+                    </PopoverTrigger>
+                </TooltipTrigger>
+                <TooltipContent>{triggerLabel}</TooltipContent>
+            </Tooltip>
             <PopoverContent
                 align="end"
+                side="bottom"
+                sideOffset={6}
                 className="w-64 p-2"
                 aria-labelledby={headingId}
             >

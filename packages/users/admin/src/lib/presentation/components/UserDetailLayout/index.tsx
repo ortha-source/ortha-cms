@@ -12,7 +12,6 @@ import { PageTopBar, type PageTopBarCrumb } from '@orthacms/shell-admin';
 import { Users } from 'lucide-react';
 import { useUserDetail } from '../../../application/useUserDetail';
 import type { UserDetailContext } from '../../userDetailContext';
-import { BackLink } from '../BackLink';
 import { MembersNoAccess } from '../MembersNoAccess';
 import { UserHero } from './UserHero';
 import { UserDetailTabs } from './UserDetailTabs';
@@ -23,10 +22,6 @@ const messages = defineMessages({
     documentTitle: {
         id: 'users.detail.documentTitle',
         defaultMessage: 'Member'
-    },
-    back: {
-        id: 'users.detail.back',
-        defaultMessage: 'Back to members'
     },
     crumbMembers: {
         id: 'users.detail.crumbMembers',
@@ -45,10 +40,11 @@ const messages = defineMessages({
 /**
  * The user detail page shell, mounted at `/users/:id/*`. Fetches the member
  * once and shares it with every tab through the Outlet context, so a tab read
- * is free. Renders the back link, identity hero, stats strip, and the underline
- * tab bar above the active tab. Loading shows skeletons; a 404 shows a
- * dedicated "no longer exists" state; any other error is retryable by the
- * tabs' own queries falling back here.
+ * is free. Renders the identity hero, stats strip, and the underline tab bar
+ * above the active tab — the way back to the roster is the top bar's "Members"
+ * crumb. Loading shows skeletons; a 404 shows a dedicated "no longer exists"
+ * state; any other error is retryable by the tabs' own queries falling back
+ * here.
  *
  * Gated on `users:read` (the same permission the roster needs): without it the
  * page shows the shared no-access state and fetches nothing.
@@ -93,9 +89,17 @@ export function UserDetailLayout() {
         );
     }
 
-    const back = (
-        <BackLink to="/users" label={intl.formatMessage(messages.back)} />
-    );
+    // Before the member resolves — and when it never does — the trail still
+    // ends on a leaf of its own, so "Members" stays a link: the breadcrumb is
+    // this page's way back to the roster, in every state.
+    const pendingCrumbs: PageTopBarCrumb[] = [
+        {
+            key: 'members',
+            label: intl.formatMessage(messages.crumbMembers),
+            to: '/users'
+        },
+        { key: 'member', label: intl.formatMessage(messages.documentTitle) }
+    ];
 
     if (isPending) {
         return (
@@ -103,16 +107,9 @@ export function UserDetailLayout() {
                 <PageTopBar
                     icon={Users}
                     iconClassName="bg-success-soft text-success-soft-foreground"
-                    crumbs={[
-                        {
-                            key: 'members',
-                            label: intl.formatMessage(messages.crumbMembers),
-                            to: '/users'
-                        }
-                    ]}
+                    crumbs={pendingCrumbs}
                 />
                 <Container className="space-y-6">
-                    {back}
                     <Skeleton className="h-24 w-full rounded-xl" />
                     <Skeleton className="h-20 w-full rounded-xl" />
                     <Skeleton className="h-64 w-full rounded-xl" />
@@ -132,16 +129,9 @@ export function UserDetailLayout() {
                 <PageTopBar
                     icon={Users}
                     iconClassName="bg-success-soft text-success-soft-foreground"
-                    crumbs={[
-                        {
-                            key: 'members',
-                            label: intl.formatMessage(messages.crumbMembers),
-                            to: '/users'
-                        }
-                    ]}
+                    crumbs={pendingCrumbs}
                 />
                 <Container className="space-y-6">
-                    {back}
                     <Alert variant="destructive" role="alert">
                         <AlertDescription>
                             {intl.formatMessage(message)}
@@ -171,7 +161,6 @@ export function UserDetailLayout() {
                 crumbs={crumbs}
             />
             <Container className="space-y-6">
-                {back}
                 <UserHero member={member} />
                 <UserStatsStrip member={member} />
                 <div className="flex flex-col gap-6">

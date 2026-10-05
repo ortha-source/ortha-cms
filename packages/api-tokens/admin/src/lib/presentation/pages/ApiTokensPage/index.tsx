@@ -226,7 +226,7 @@ export function ApiTokensPage() {
                         }
                     ]}
                 />
-                <Container>
+                <Container width="full">
                     <ContainerHeader
                         title={intl.formatMessage(messages.title)}
                     />
@@ -267,7 +267,7 @@ export function ApiTokensPage() {
                     }
                 ]}
             />
-            <Container>
+            <Container width="full">
                 <ContainerHeader
                     title={intl.formatMessage(messages.title)}
                     subtitle={intl.formatMessage(messages.subtitle)}

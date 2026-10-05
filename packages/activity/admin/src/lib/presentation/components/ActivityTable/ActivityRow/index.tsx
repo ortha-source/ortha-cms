@@ -128,7 +128,7 @@ export function ActivityRow({
                 page announced as a **50**-row table with an empty row between
                 every pair of events. */}
             <TableRow
-                className="border-0 hover:bg-transparent"
+                className="hover:[&>td]:bg-transparent"
                 aria-hidden={open ? undefined : true}
                 inert={open ? undefined : true}
             >

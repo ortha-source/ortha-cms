@@ -217,7 +217,7 @@ test.describe('Entry editor — a record that changed while the tab was away', (
         );
         await expect(contentLibraryPage.entryChangedNotice).toBeVisible();
 
-        await contentLibraryPage.editorBackLink.click();
+        await contentLibraryPage.breadcrumbLink('Blog posts').click();
 
         await expect(contentLibraryPage.unsavedChangesDialog).toBeVisible();
         // Held, not merely asked — the navigation has not happened yet. (The
@@ -306,7 +306,7 @@ test.describe('Entry editor — a record that changed while the tab was away', (
         // And the form is genuinely clean again: leaving it no longer trips the
         // unsaved-changes guard, which is the other half of what a frozen seed
         // would have broken.
-        await contentLibraryPage.editorBackLink.click();
+        await contentLibraryPage.breadcrumbLink('Blog posts').click();
         await expect(page).toHaveURL(
             new RegExp(`/workspaces/${LIBRARY_WORKSPACE.id}/content/blog_post$`)
         );

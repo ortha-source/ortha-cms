@@ -7,7 +7,7 @@ import {
     TriangleAlert,
     Users
 } from 'lucide-react';
-import { TabNav, TabNavLink } from '@orthacms/design-system';
+import { TabNav, TabNavLink, TopBarTabs } from '@orthacms/design-system';
 import { WORKSPACE_SETTINGS_TAB_SLOT } from '../../slots/workspaceSlots';
 import { SettingsTabLink } from './SettingsTabLink';
 
@@ -107,26 +107,28 @@ export function WorkspaceSettingsTabs({
     );
 
     return (
-        <TabNav aria-label={intl.formatMessage(messages.nav)}>
-            {leading.map(({ to, icon: Icon, label }) => (
-                <TabNavLink key={to} asChild>
-                    <NavLink to={to}>
-                        <Icon aria-hidden className="size-4 shrink-0" />
-                        {label}
-                    </NavLink>
-                </TabNavLink>
-            ))}
-            {contributed.map((tab) => (
-                <SettingsTabLink key={tab.id} base={base} tab={tab} />
-            ))}
-            {trailing.map(({ to, icon: Icon, label }) => (
-                <TabNavLink key={to} asChild>
-                    <NavLink to={to}>
-                        <Icon aria-hidden className="size-4 shrink-0" />
-                        {label}
-                    </NavLink>
-                </TabNavLink>
-            ))}
-        </TabNav>
+        <TopBarTabs>
+            <TabNav aria-label={intl.formatMessage(messages.nav)}>
+                {leading.map(({ to, icon: Icon, label }) => (
+                    <TabNavLink key={to} asChild>
+                        <NavLink to={to}>
+                            <Icon aria-hidden className="size-4 shrink-0" />
+                            {label}
+                        </NavLink>
+                    </TabNavLink>
+                ))}
+                {contributed.map((tab) => (
+                    <SettingsTabLink key={tab.id} base={base} tab={tab} />
+                ))}
+                {trailing.map(({ to, icon: Icon, label }) => (
+                    <TabNavLink key={to} asChild>
+                        <NavLink to={to}>
+                            <Icon aria-hidden className="size-4 shrink-0" />
+                            {label}
+                        </NavLink>
+                    </TabNavLink>
+                ))}
+            </TabNav>
+        </TopBarTabs>
     );
 }

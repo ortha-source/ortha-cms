@@ -59,7 +59,7 @@ export function WorkspacesTableSkeleton({ count = 6 }: { count?: number }) {
             <span className="sr-only">
                 {intl.formatMessage(messages.loading)}
             </span>
-            <div aria-hidden className="rounded-xl border">
+            <div aria-hidden>
                 {Array.from({ length: count }).map((_, index) => (
                     <WorkspaceRowSkeleton key={index} />
                 ))}
@@ -76,7 +76,7 @@ export function WorkspacesTableSkeleton({ count = 6 }: { count?: number }) {
  */
 export function WorkspacesPageSkeleton() {
     return (
-        <Container>
+        <Container width="full">
             <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex flex-col gap-2">
                     <Skeleton className="h-8 w-48" />
@@ -202,7 +202,7 @@ export function WorkspaceSettingsPageSkeleton() {
     return (
         <>
             <WorkspaceSettingsTopBar />
-            <Container className="space-y-6 py-8" role="status">
+            <Container width="full" className="space-y-6 py-8" role="status">
                 <span className="sr-only">
                     {intl.formatMessage(messages.loadingSettings)}
                 </span>

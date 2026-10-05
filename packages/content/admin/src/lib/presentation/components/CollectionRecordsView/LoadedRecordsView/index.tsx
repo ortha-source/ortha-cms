@@ -1,30 +1,14 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    useCallback,
-    useEffect,
-    useId,
-    useMemo,
-    useRef,
-    useState
-} from 'react';
-import {
-    Link,
     NavigationType,
     useNavigate,
     useNavigationType,
     useSearchParams
 } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
+import { FileText, Plus, Table2, Trash2 } from 'lucide-react';
 import {
-    ArrowLeft,
-    ChevronDown,
-    FileText,
-    Filter,
-    Plus,
-    Table2,
-    Trash2
-} from 'lucide-react';
-import {
-    QueryBuilderPanel,
+    QueryBuilderPopover,
     QueryBuilderSummary,
     countRules,
     jsonFilterToTree,
@@ -41,7 +25,6 @@ import {
     Container,
     ContainerHeader,
     SearchToolbar,
-    cn,
     toast
 } from '@orthacms/design-system';
 import type {
@@ -139,10 +122,6 @@ const messages = defineMessages({
         defaultMessage:
             '{count, plural, one {# deleted record} other {# deleted records}}.'
     },
-    backToRecords: {
-        id: 'content.records.backToRecords',
-        defaultMessage: 'Back to records'
-    },
     searchLabel: {
         id: 'content.records.searchLabel',
         defaultMessage: 'Search records'
@@ -150,10 +129,6 @@ const messages = defineMessages({
     searchPlaceholder: {
         id: 'content.records.searchPlaceholder',
         defaultMessage: 'Search records'
-    },
-    filters: {
-        id: 'content.records.filters',
-        defaultMessage: 'Filters{count, plural, =0 {} other { · #}}'
     },
     loading: {
         id: 'content.records.loading',
@@ -806,19 +781,6 @@ export function LoadedRecordsView({
         applyView
     ]);
 
-    // The inline filter panel: its own open state (the toolbar button toggles
-    // it), with the ids wiring the button's `aria-controls` to the region.
-    const [filtersOpen, setFiltersOpen] = useState(false);
-    const filtersPanelId = useId();
-    const filtersToggleId = useId();
-    const filtersToggleRef = useRef<HTMLButtonElement>(null);
-    // Return focus to the toggle when the panel collapses (Apply / Esc), so the
-    // now-`inert` panel doesn't strand focus on the body.
-    const setFiltersPanelOpen = useCallback((open: boolean) => {
-        setFiltersOpen(open);
-        if (!open) filtersToggleRef.current?.focus();
-    }, []);
-
     const entries = data?.items ?? [];
     const hasFilters = searchInput.trim().length > 0 || ruleCount > 0;
 
@@ -897,23 +859,14 @@ export function LoadedRecordsView({
                               { count: total }
                           )
                 }
+                // The trash has nothing in its header: the way back to the
+                // records is the top bar's type crumb.
                 actions={
                     sharedSource ? (
                         // Nothing to do *to* a source's records from here —
                         // just the mark saying whose they are.
                         <SharedSourceBadge source={sharedSource} />
-                    ) : trashed ? (
-                        <Button
-                            variant="outline"
-                            className="shadow-none"
-                            asChild
-                        >
-                            <Link to={typePath}>
-                                <ArrowLeft />
-                                {intl.formatMessage(messages.backToRecords)}
-                            </Link>
-                        </Button>
-                    ) : (
+                    ) : trashed ? undefined : (
                         // The header carries what you do **to** the
                         // collection, and only that: one primary action and the
                         // ⋯ for the rare ones. Everything that changes *which
@@ -1028,52 +981,27 @@ export function LoadedRecordsView({
                             onReorder={reorder}
                             visibleCount={visible.length}
                         />
-                        <Button
-                            ref={filtersToggleRef}
-                            id={filtersToggleId}
-                            variant="outline"
-                            className="shadow-none"
-                            aria-expanded={filtersOpen}
-                            aria-controls={filtersPanelId}
-                            onClick={() => setFiltersPanelOpen(!filtersOpen)}
-                        >
-                            <Filter aria-hidden className="size-4" />
-                            {intl.formatMessage(messages.filters, {
-                                count: ruleCount
-                            })}
-                            <ChevronDown
-                                aria-hidden
-                                className={cn(
-                                    'size-4 transition-transform duration-150 motion-reduce:transition-none',
-                                    filtersOpen && 'rotate-180'
-                                )}
-                            />
-                        </Button>
+                        {/* The filter builder, in a popover anchored to an
+                            icon-only "Filters" button. It owns its trigger,
+                            open state and staged draft; the applied conditions
+                            read out as removable chips below the toolbar. */}
+                        <QueryBuilderPopover
+                            fields={filterFields}
+                            value={appliedFilter}
+                            onApply={applyFilter}
+                            onApplied={() => setApplying(true)}
+                            fieldsPending={filterFieldsPending}
+                            fieldsError={filterFieldsError}
+                            onRetryFields={refetchFilterFields}
+                            renderRelationValue={(props) => (
+                                <RelationValuePicker {...props} />
+                            )}
+                        />
                     </div>
                 }
             />
 
-            {/* The filter builder, inline between the toolbar and the table. It
-                pushes the table down when open (no overlay); collapsed with
-                active filters, the applied conditions read out as removable
-                chips below. */}
-            <QueryBuilderPanel
-                id={filtersPanelId}
-                labelledBy={filtersToggleId}
-                open={filtersOpen}
-                onOpenChange={setFiltersPanelOpen}
-                fields={filterFields}
-                value={appliedFilter}
-                onApply={applyFilter}
-                onApplied={() => setApplying(true)}
-                fieldsPending={filterFieldsPending}
-                fieldsError={filterFieldsError}
-                onRetryFields={refetchFilterFields}
-                renderRelationValue={(props) => (
-                    <RelationValuePicker {...props} />
-                )}
-            />
-            {!filtersOpen && appliedFilter && ruleCount > 0 ? (
+            {appliedFilter && ruleCount > 0 ? (
                 <QueryBuilderSummary
                     className="mb-4"
                     tree={appliedFilter}

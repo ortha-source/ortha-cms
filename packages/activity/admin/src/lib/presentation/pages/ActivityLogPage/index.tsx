@@ -1,16 +1,9 @@
-import {
-    useCallback,
-    useEffect,
-    useId,
-    useMemo,
-    useRef,
-    useState
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { Activity, ChevronDown, Filter } from 'lucide-react';
+import { Activity } from 'lucide-react';
 import { PageTopBar } from '@orthacms/shell-admin';
 import {
-    QueryBuilderPanel,
+    QueryBuilderPopover,
     QueryBuilderSummary,
     countRules,
     jsonFilterToTree,
@@ -24,8 +17,7 @@ import {
     AlertDescription,
     Button,
     Container,
-    ContainerHeader,
-    cn
+    ContainerHeader
 } from '@orthacms/design-system';
 import {
     useActivityLog,
@@ -68,10 +60,6 @@ const messages = defineMessages({
     retry: {
         id: 'activity.page.retry',
         defaultMessage: 'Retry'
-    },
-    filters: {
-        id: 'activity.page.filters',
-        defaultMessage: 'Filters{count, plural, =0 {} other { (#)}}'
     },
     results: {
         id: 'activity.page.results',
@@ -144,21 +132,9 @@ export function ActivityLogPage() {
         pageSize
     };
 
-    /** Commit (or clear) the query-builder filter to the URL. */
-    // The inline filter panel: its own open state (the toolbar button toggles
-    // it), with the ids wiring the button's `aria-controls` to the region.
-    const [filtersOpen, setFiltersOpen] = useState(false);
     const searchRef = useRef<HTMLInputElement>(null);
-    const filtersPanelId = useId();
-    const filtersToggleId = useId();
-    const filtersToggleRef = useRef<HTMLButtonElement>(null);
-    // Return focus to the toggle when the panel collapses (Apply / Esc), so the
-    // now-`inert` panel doesn't strand focus on the body.
-    const setFiltersPanelOpen = useCallback((open: boolean) => {
-        setFiltersOpen(open);
-        if (!open) filtersToggleRef.current?.focus();
-    }, []);
 
+    /** Commit (or clear) the query-builder filter to the URL. */
     const applyFilter = useCallback(
         (next: FilterGroup | null) => {
             updateParams({ filter: treeToJsonFilter(next) ?? undefined });
@@ -200,7 +176,7 @@ export function ActivityLogPage() {
                         }
                     ]}
                 />
-                <Container>
+                <Container width="full">
                     <ContainerHeader
                         title={intl.formatMessage(messages.title)}
                     />
@@ -220,8 +196,8 @@ export function ActivityLogPage() {
     // the "Clear filters" button the user just pressed — unmounts. React does
     // not move focus when that happens, so it fell to `<body>` and the next Tab
     // restarted from the top of the document. Focus goes to the search box
-    // instead, mirroring what `setFiltersPanelOpen` already does twelve lines
-    // up (WCAG 2.4.3).
+    // instead, mirroring the filters popover handing focus back to its
+    // trigger on close (WCAG 2.4.3).
     const clearFilters = () => {
         setEmailInput('');
         updateParams({ actorEmail: undefined, filter: undefined });
@@ -240,7 +216,7 @@ export function ActivityLogPage() {
                     }
                 ]}
             />
-            <Container>
+            <Container width="full">
                 <ContainerHeader
                     title={intl.formatMessage(messages.title)}
                     subtitle={intl.formatMessage(messages.subtitle, {
@@ -261,45 +237,20 @@ export function ActivityLogPage() {
                     searchRef={searchRef}
                     busy={searchPending || isFetching}
                     filterControl={
-                        <Button
-                            ref={filtersToggleRef}
-                            id={filtersToggleId}
-                            variant="outline"
-                            className="shadow-none"
-                            aria-expanded={filtersOpen}
-                            aria-controls={filtersPanelId}
-                            onClick={() => setFiltersPanelOpen(!filtersOpen)}
-                        >
-                            <Filter aria-hidden className="size-4" />
-                            {intl.formatMessage(messages.filters, {
-                                count: ruleCount
-                            })}
-                            <ChevronDown
-                                aria-hidden
-                                className={cn(
-                                    'size-4 transition-transform duration-150 motion-reduce:transition-none',
-                                    filtersOpen && 'rotate-180'
-                                )}
-                            />
-                        </Button>
+                        // The filter builder in a popover anchored to an
+                        // icon-only "Filters" button — the same surface the
+                        // records list uses. It owns its trigger, open state
+                        // and staged draft; the applied conditions read out as
+                        // removable chips below.
+                        <QueryBuilderPopover
+                            fields={ACTIVITY_FILTER_FIELDS}
+                            value={appliedFilter}
+                            onApply={applyFilter}
+                        />
                     }
                 />
 
-                {/* The filter builder, inline between the toolbar and the table
-                    — the same accordion the records list uses, rather than a
-                    drawer. It pushes the table down when open (no overlay);
-                    collapsed with active filters, the applied conditions read
-                    out as removable chips below. */}
-                <QueryBuilderPanel
-                    id={filtersPanelId}
-                    labelledBy={filtersToggleId}
-                    open={filtersOpen}
-                    onOpenChange={setFiltersPanelOpen}
-                    fields={ACTIVITY_FILTER_FIELDS}
-                    value={appliedFilter}
-                    onApply={applyFilter}
-                />
-                {!filtersOpen && appliedFilter && ruleCount > 0 ? (
+                {appliedFilter && ruleCount > 0 ? (
                     <QueryBuilderSummary
                         className="mb-4"
                         tree={appliedFilter}

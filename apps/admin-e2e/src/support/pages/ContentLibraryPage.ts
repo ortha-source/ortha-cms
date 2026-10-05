@@ -1,4 +1,4 @@
-import { type Locator, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 import { BasePage } from './BasePage';
 import { type BrowserGlobals } from '../browserGlobals';
 
@@ -118,6 +118,20 @@ export class ContentLibraryPage extends BasePage {
      */
     async openRelationValuePicker() {
         await this.filterSurface().getByRole('combobox').nth(2).click();
+    }
+
+    /**
+     * Close the relation value picker (Escape) and wait for it to go. It is a
+     * multi-select and stays open between picks, layered over the filter
+     * popover — whose footer it can cover — so a spec closes it before
+     * pressing Apply, the way a person would. Escape goes to the topmost layer
+     * only: the filter popover and its draft stay.
+     */
+    async closeRelationValuePicker() {
+        const picker = this.page.getByRole('listbox', { name: 'Records' });
+        await this.page.keyboard.press('Escape');
+        await expect(picker).toBeHidden();
+        await expect(this.filterSurface()).toBeVisible();
     }
 
     /** Toggle one record in the open relation value picker, by its title. */
@@ -295,9 +309,21 @@ export class ContentLibraryPage extends BasePage {
         });
     }
 
-    /** The entry editor's "Back to records" link (present when editing a row). */
-    get editorBackLink(): Locator {
-        return this.page.getByRole('link', { name: 'Back to records' });
+    /** The top bar's breadcrumb trail (`ContentTopBar`). */
+    breadcrumb(): Locator {
+        return this.page.getByRole('navigation', { name: 'Breadcrumb' });
+    }
+
+    /**
+     * A linked crumb by label. The type's crumb (e.g. "Blog posts") is the way
+     * from an open record — or the trash — back to the records list; there is
+     * no separate back link.
+     */
+    breadcrumbLink(label: string): Locator {
+        return this.breadcrumb().getByRole('link', {
+            name: label,
+            exact: true
+        });
     }
 
     /**
@@ -536,7 +562,7 @@ export class ContentLibraryPage extends BasePage {
         return this.page.getByText('Changes saved.', { exact: true });
     }
 
-    /** The column-picker trigger. */
+    /** The column-picker trigger — icon-only, named "Columns" by `aria-label`. */
     get columnsButton(): Locator {
         return this.page.getByRole('button', { name: 'Columns' });
     }
@@ -568,9 +594,12 @@ export class ContentLibraryPage extends BasePage {
         return this.page.getByRole('button', { name: `Sort by ${label}` });
     }
 
-    /** The filter-drawer trigger ("Filters" / "Filters (N)"). */
+    /**
+     * The icon-only filter-popover trigger ("Filters" / "Filters, N applied").
+     * The same control as {@link BasePage.filterTrigger}.
+     */
     get filtersButton(): Locator {
-        return this.page.getByRole('button', { name: /Filters/ });
+        return this.filterTrigger();
     }
 
     /** The records pagination "Next page" control. */

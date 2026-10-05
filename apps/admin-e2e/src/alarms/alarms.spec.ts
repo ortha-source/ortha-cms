@@ -328,7 +328,7 @@ test.describe('The rule editor', () => {
     }) => {
         await mockAlarmsApi(page, { filterFieldsDelayMs: 2000 });
         await alarmsPage.gotoRule(WORKSPACE_ID, CONTAINS_RULE.id);
-        await alarmsPage.conditionToggle().click();
+        await alarmsPage.openFilters();
 
         await expect(alarmsPage.fieldsLoading()).toBeVisible();
         // Disabled rather than dead: pressing it before the surface lands could
@@ -345,7 +345,7 @@ test.describe('The rule editor', () => {
     }) => {
         await mockAlarmsApi(page, { filterFieldsFailing: true });
         await alarmsPage.gotoRule(WORKSPACE_ID, CONTAINS_RULE.id);
-        await alarmsPage.conditionToggle().click();
+        await alarmsPage.openFilters();
 
         // The query client retries 3x with exponential backoff, so the error
         // state lands ~7s in — past the default expect timeout.
@@ -383,7 +383,7 @@ test.describe('The rule editor', () => {
     }) => {
         await mockAlarmsApi(page);
         await alarmsPage.gotoRule(WORKSPACE_ID, CONTAINS_RULE.id);
-        await alarmsPage.conditionToggle().click();
+        await alarmsPage.openFilters();
         await alarmsPage.addRule();
         await alarmsPage.selectFieldSearch('Author', 'Author');
 
@@ -402,32 +402,28 @@ test.describe('The rule editor', () => {
         ).toBeVisible();
     });
 
-    test('collapses the builder once conditions are applied', async ({
+    test('closes the builder once conditions are applied', async ({
         page,
         alarmsPage
     }) => {
         await mockAlarmsApi(page);
         await alarmsPage.gotoRule(WORKSPACE_ID, CONTAINS_RULE.id);
-        await alarmsPage.conditionToggle().click();
+        await alarmsPage.openFilters();
         await expect(alarmsPage.applyButton()).toBeEnabled();
 
         await alarmsPage.applyButton().click();
 
-        // Apply commits into the chips *above* the builder, so leaving it
-        // expanded hides the one thing that just moved. (The records list
-        // keeps its panel open for the opposite reason: the table underneath
-        // is what changed and is still on screen.)
-        //
-        // The panel collapses by animating `grid-template-rows` to `0fr` and
-        // going `inert`, so assert the state the toggle publishes rather than
-        // the Apply button's box: a clipped child still reports one.
+        // Apply commits into the chips beside the builder's button, so the
+        // popover gets out of the way of the one thing that just moved. Assert
+        // the state the button publishes as well as the surface going away.
         await expect(alarmsPage.conditionToggle()).toHaveAttribute(
             'aria-expanded',
             'false'
         );
+        await expect(alarmsPage.conditionPanel()).toBeHidden();
         await expect(alarmsPage.conditionChip(/QWERT/)).toBeVisible();
-        // Focus comes back with it: collapsing makes the region `inert`, so a
-        // focus left inside would drop to `<body>`.
+        // Focus comes back with it: the popover unmounts, so a focus left
+        // inside would drop to `<body>`.
         await expect(alarmsPage.conditionToggle()).toBeFocused();
     });
 
@@ -438,7 +434,7 @@ test.describe('The rule editor', () => {
     }) => {
         await mockAlarmsApi(page);
         await alarmsPage.gotoRule(WORKSPACE_ID, CONTAINS_RULE.id);
-        await alarmsPage.conditionToggle().click();
+        await alarmsPage.openFilters();
         await expect(alarmsPage.applyButton()).toBeEnabled();
 
         await expectNoA11yViolations(makeAxe());
@@ -486,7 +482,7 @@ test.describe('An alarm over a locale field', () => {
     }) => {
         await mockAlarmsApi(page, { rules: [LOCALE_RULE] });
         await alarmsPage.gotoRule(WORKSPACE_ID, LOCALE_RULE.id);
-        await alarmsPage.conditionToggle().click();
+        await alarmsPage.openFilters();
 
         // The gate walks every rule in the draft, so one unresolvable field
         // blocks the whole commit — including conditions the user just added.
@@ -540,7 +536,7 @@ test.describe('Creating an alarm', () => {
         await alarmsPage.fillAlarmName('Missing numbers');
         await alarmsPage.fillFindingTitle('This has no number');
 
-        await alarmsPage.conditionToggle().click();
+        await alarmsPage.openFilters();
         await alarmsPage.addRule();
         await alarmsPage.selectField('Number');
         await alarmsPage.selectOperatorExact('is empty');
@@ -955,7 +951,7 @@ test.describe('A “within the last” condition', () => {
         await alarmsPage.fillAlarmName('Recently touched');
         await alarmsPage.fillFindingTitle('Changed in the last week');
 
-        await alarmsPage.conditionToggle().click();
+        await alarmsPage.openFilters();
         await alarmsPage.addRule();
         await alarmsPage.selectField('Updated');
         await alarmsPage.selectOperatorExact('within the last');

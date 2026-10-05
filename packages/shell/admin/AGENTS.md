@@ -27,16 +27,22 @@ does, from inside its own tree:
 
 - **The top bar's trailing actions** — `<PageActions />` draws the region (a
   design-system `TopBarActions`); a page pushes controls into it with
-  `<PageActionsPortal>`. `PageTopBar` renders `PageActions` already; a page that
-  composes `TopBar` itself (content-admin's `ContentTopBar`) adds it as the bar's
+  `<PageActionsPortal>` (rendered at compact button density). The same region
+  is handed to the design system as `PageHeaderHost`, so on a desktop page with
+  a bar `ContainerHeader` folds its title away and its actions land here too.
+  `PageTopBar` renders `PageActions` already; a page that composes `TopBar` itself (content-admin's `ContentTopBar`) adds it as the bar's
   **last** child, since the region is `ml-auto`.
 - **The right panel** — `AppRightPanel` (rendered by `AppShell` as the column
   after `SidebarInset`) supplies a header aligned to the top bar (`h-12` +
   bottom border, so the two read as one band) over an independently scrolling
   body; a page fills it with `<RightPanelPortal title="…">`. Registering a panel
   is what makes the column and its toggle exist at all — with none registered
-  the column is zero-width and `inert`. Collapsed, the column disappears and the
-  reopen button appears in the top bar's actions region, because the panel has
+  the column is zero-width and `inert`. The panel and `<main>` share **one**
+  card — the `app-frame` wrapper `AppShell` draws around both, which carries
+  the inset variant's gutter, radius and border — so Properties reads as part
+  of the page. It is a wrapper rather than `<main>` itself because a named
+  `complementary` nested in `main` fails axe's best-practice set. Collapsed,
+  the column disappears and the reopen button appears in the top bar's actions region, because the panel has
   no width left to draw a control in. The open/collapsed state lives in
   `PageChromeProvider` (persisted, `orthacms:right-panel`) rather than with the
   filler, since the control that flips it is chrome.

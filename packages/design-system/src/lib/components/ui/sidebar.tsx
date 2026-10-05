@@ -111,13 +111,13 @@ type SidebarContextProps = {
 const SidebarContext = React.createContext<SidebarContextProps | null>(null);
 
 /**
- * The host for **app-wide** controls at the right end of the inset's top-bar
- * strip — the host element and its setter. Provided by {@link SidebarProvider},
+ * The host for **app-wide** controls at the right end of the
+ * {@link InsetFooter} — the host element and its setter. Provided by {@link SidebarProvider},
  * not by {@link SidebarInset}, because what fills it is usually mounted
  * *outside* the inset (the copilot's launcher lives in the sidebar's footer
  * slot). `null` outside a provider.
  */
-const InsetBarEndContext = React.createContext<{
+const InsetFooterEndContext = React.createContext<{
     host: HTMLElement | null;
     setHost: (host: HTMLElement | null) => void;
 } | null>(null);
@@ -279,7 +279,7 @@ function SidebarProvider({
 
     return (
         <SidebarContext.Provider value={contextValue}>
-            <InsetBarEndContext.Provider value={barEnd}>
+            <InsetFooterEndContext.Provider value={barEnd}>
                 <TooltipProvider delayDuration={0}>
                     <div
                         data-slot="sidebar-wrapper"
@@ -303,26 +303,53 @@ function SidebarProvider({
                         {children}
                     </div>
                 </TooltipProvider>
-            </InsetBarEndContext.Provider>
+            </InsetFooterEndContext.Provider>
         </SidebarContext.Provider>
     );
 }
 
 /**
- * Renders its children at the **right end of the inset's top-bar strip**, on
- * every page, whichever bar the page draws — the place for chrome that belongs
- * to the app rather than to the page (the copilot's launcher). A portal, so the
- * children keep their own React context; renders nothing until the inset has
- * mounted the host, and nothing outside a {@link SidebarProvider}.
+ * Renders its children at the **right end of the {@link InsetFooter}** — the
+ * strip under the work area's card, on every page — the place for chrome that
+ * belongs to the app rather than to the page (the copilot's "Ask Ortha AI"). A
+ * portal, so the children keep their own React context; renders nothing until
+ * the footer has mounted the host, and nothing outside a
+ * {@link SidebarProvider}.
  *
  * It exists so such chrome never has to float over the page. The copilot's dock
- * used to sit `fixed` in the bottom-right corner and reserve a bottom gutter in
- * every scrollport to stay clear of the controls it would otherwise cover; a
- * control in the bar covers nothing and needs no gutter.
+ * once sat `fixed` in the bottom-right corner and reserved a bottom gutter in
+ * every scrollport to stay clear of the controls it covered; then it moved to
+ * the top bar's end, where it competed with the page's own actions. Under the
+ * card it covers nothing and crowds nothing.
  */
-function InsetBarEnd({ children }: { children: React.ReactNode }) {
-    const host = React.useContext(InsetBarEndContext)?.host;
+function InsetFooterEnd({ children }: { children: React.ReactNode }) {
+    const host = React.useContext(InsetFooterEndContext)?.host;
     return host ? createPortal(children, host) : null;
+}
+
+/**
+ * The strip **under** the inset's card, on the sidebar's frame — where
+ * {@link InsetFooterEnd} draws. Render it as the card's sibling, after it.
+ * Empty, it keeps only the frame's bottom gutter, so a deployment with nothing
+ * to put there looks exactly as it did without one.
+ */
+function InsetFooter({ className }: { className?: string }) {
+    const setHost = React.useContext(InsetFooterEndContext)?.setHost;
+    return (
+        <div
+            data-slot="inset-footer"
+            className={cn(
+                'flex shrink-0 items-center justify-end gap-2 md:h-10 md:has-[[data-slot=inset-footer-end]:empty]:h-2',
+                className
+            )}
+        >
+            <div
+                data-slot="inset-footer-end"
+                ref={setHost}
+                className="flex items-center gap-2 empty:hidden"
+            />
+        </div>
+    );
 }
 
 /** The sidebar surface: a fixed left panel on desktop, a Sheet on mobile. */
@@ -433,7 +460,7 @@ function Sidebar({
                     'relative w-(--sidebar-width) bg-transparent transition-[width] duration-300 ease-in-out',
                     'group-data-[collapsible=offcanvas]:w-0',
                     'group-data-[side=right]:rotate-180',
-                    variant === 'floating' || variant === 'inset'
+                    variant === 'floating'
                         ? 'group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4)))]'
                         : 'group-data-[collapsible=icon]:w-(--sidebar-width-icon)'
                 )}
@@ -445,10 +472,16 @@ function Sidebar({
                     side === 'left'
                         ? 'left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]'
                         : 'right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]',
-                    // Adjust the padding for floating and inset variants.
-                    variant === 'floating' || variant === 'inset'
+                    // Floating pads the panel off the viewport edge. Inset
+                    // doesn't: the panel *is* the frame the work area floats on,
+                    // so padding it only pushed the nav off its own gutter and
+                    // cut the footer's rule short of the edges. No border
+                    // either — the inset's own border is the divider.
+                    variant === 'floating'
                         ? 'p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]'
-                        : 'group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-r group-data-[side=right]:border-l',
+                        : variant === 'inset'
+                          ? 'group-data-[collapsible=icon]:w-(--sidebar-width-icon)'
+                          : 'group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-r group-data-[side=right]:border-l',
                     className
                 )}
                 inert={isOffcanvasCollapsed}
@@ -556,6 +589,19 @@ function useInsetTopBarHost() {
 }
 
 /**
+ * Where a page's `TopBarTabs` go — the strip's second row, under the bar.
+ * Same three states as {@link InsetTopBarContext}.
+ */
+const InsetTabsContext = React.createContext<HTMLElement | null | undefined>(
+    undefined
+);
+
+/** The inset's tabs-row host. See {@link InsetTabsContext}. */
+function useInsetTabsHost() {
+    return React.useContext(InsetTabsContext);
+}
+
+/**
  * The main content region beside the sidebar, split into a **fixed bar strip**
  * and a **scrollport** below it. The page's `TopBar` hoists itself into the
  * strip (by portal, so it keeps the page's React context), which is what makes
@@ -590,36 +636,36 @@ function SidebarInset({
     scrollLabel?: string;
 }) {
     const [barHost, setBarHost] = React.useState<HTMLElement | null>(null);
-    const setBarEndHost = React.useContext(InsetBarEndContext)?.setHost;
+    const [tabsHost, setTabsHost] = React.useState<HTMLElement | null>(null);
 
     return (
         <main
             data-slot="sidebar-inset"
             className={cn(
                 'relative flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-background',
+                // With a tabs row under it, the bar and its end host drop their
+                // rule: the band is one piece, ruled once, under the tabs.
+                '[&:has([data-slot=top-bar-tabs])_[data-slot=top-bar]]:border-b-transparent',
                 'md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow-sm md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-2',
                 className
             )}
             {...props}
         >
-            {/* The strip: the page's own bar (hoisted by `TopBar`) and, at its
-                right end, the app-wide controls `InsetBarEnd` portals in. The
-                end host carries the bar's height and bottom rule so the two read
-                as one band, and hides itself while nothing fills it. */}
+            {/* The strip: the page's own bar, hoisted here by `TopBar`. */}
             <div data-slot="sidebar-inset-bar-row" className="flex min-w-0">
                 <div
                     data-slot="sidebar-inset-bar"
                     ref={setBarHost}
                     className="min-w-0 flex-1"
                 />
-                <div
-                    data-slot="sidebar-inset-bar-end"
-                    ref={setBarEndHost}
-                    className="flex h-12 shrink-0 items-center gap-2 border-b bg-background pr-4 empty:hidden"
-                />
             </div>
-            <InsetTopBarContext.Provider value={barHost}>
-                {/* `tabIndex={0}` because this is the app's scroll container:
+            {/* The strip's second row: a page's own tabs (`TopBarTabs`), so
+                they read as part of the page's header band rather than the
+                first thing in its body. Empty, it takes no space. */}
+            <div data-slot="sidebar-inset-tabs" ref={setTabsHost} />
+            <InsetTabsContext.Provider value={tabsHost}>
+                <InsetTopBarContext.Provider value={barHost}>
+                    {/* `tabIndex={0}` because this is the app's scroll container:
                     a region that scrolls must be reachable by keyboard (WCAG
                     2.1.1), and a mouse user's wheel is not a substitute. It
                     matters most exactly when the page has nothing else to focus
@@ -639,22 +685,23 @@ function SidebarInset({
                     were being handed. The ring is `inset` because the parent
                     `<main>` clips overflow, so an outset one is drawn outside its
                     own box and never seen. */}
-                <div
-                    data-slot="sidebar-inset-scroll"
-                    tabIndex={0}
-                    // `group`, not `region`: naming it must not add a second
-                    // landmark (see `scrollLabel`). Both are conditional on a
-                    // name existing — a bare `aria-label` with no role names an
-                    // element assistive tech has no role to announce it with,
-                    // and a `group` with no name is worse than the generic it
-                    // replaced.
-                    role={scrollLabel ? 'group' : undefined}
-                    aria-label={scrollLabel}
-                    className="flex min-h-0 flex-1 flex-col overflow-y-auto focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset focus-visible:outline-none"
-                >
-                    {children}
-                </div>
-            </InsetTopBarContext.Provider>
+                    <div
+                        data-slot="sidebar-inset-scroll"
+                        tabIndex={0}
+                        // `group`, not `region`: naming it must not add a second
+                        // landmark (see `scrollLabel`). Both are conditional on a
+                        // name existing — a bare `aria-label` with no role names an
+                        // element assistive tech has no role to announce it with,
+                        // and a `group` with no name is worse than the generic it
+                        // replaced.
+                        role={scrollLabel ? 'group' : undefined}
+                        aria-label={scrollLabel}
+                        className="flex min-h-0 flex-1 flex-col overflow-y-auto focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset focus-visible:outline-none"
+                    >
+                        {children}
+                    </div>
+                </InsetTopBarContext.Provider>
+            </InsetTabsContext.Provider>
         </main>
     );
 }
@@ -1096,5 +1143,7 @@ export {
     useSidebar,
     useOptionalSidebar,
     useInsetTopBarHost,
-    InsetBarEnd
+    useInsetTabsHost,
+    InsetFooter,
+    InsetFooterEnd
 };

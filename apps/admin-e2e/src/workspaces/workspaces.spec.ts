@@ -484,14 +484,14 @@ test.describe('Workspaces page', () => {
             await expect(createWorkspacePage.continueToMembers).toBeEnabled();
         });
 
-        test('returns to the list via "Back to workspaces"', async ({
+        test('returns to the list via the "Workspaces" breadcrumb', async ({
             page,
             workspacesPage,
             createWorkspacePage
         }) => {
             await createWorkspacePage.goto();
 
-            await createWorkspacePage.backLink.click();
+            await createWorkspacePage.workspacesCrumb.click();
 
             await expect(page).toHaveURL(/\/workspaces$/);
             await expect(workspacesPage.heading).toBeVisible();

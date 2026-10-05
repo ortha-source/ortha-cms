@@ -3,9 +3,10 @@ import { expect, type Locator, type Page } from '@playwright/test';
 /**
  * Common base for all page objects: holds the Playwright `page` and the shared
  * query-builder filter helpers (`@orthacms/query-builder-admin`), since the
- * builder is the same component wherever a list page mounts it. Each page
- * points {@link BasePage.filterSurface} at the surface it mounts — every list
- * page now uses the inline panel — and the helpers below work unchanged.
+ * builder is the same component wherever a page mounts it. Each page points
+ * {@link BasePage.filterSurface} at the surface it mounts — every list page
+ * uses the `QueryBuilderPopover` anchored to its icon-only "Filters" button —
+ * and the helpers below work unchanged.
  */
 export abstract class BasePage {
     constructor(protected readonly page: Page) {}
@@ -69,16 +70,28 @@ export abstract class BasePage {
         return this.page.getByRole('option', { name, exact: true });
     }
 
-    /** The toolbar "Filters" trigger (its label carries the active count). */
+    /**
+     * The toolbar's icon-only "Filters" trigger. Its accessible name carries
+     * the applied count ("Filters" / "Filters, 2 applied").
+     */
     filterTrigger(): Locator {
         return this.page.getByRole('button', { name: /^Filters/ });
     }
 
     /**
+     * The applied-rule count drawn on the trigger's corner. Hidden from
+     * assistive tech — the trigger's accessible name carries the same number
+     * as words — so it is located by test id rather than by role.
+     */
+    filterCountBadge(): Locator {
+        return this.filterTrigger().getByTestId('qb-filter-count');
+    }
+
+    /**
      * The `QueryBuilderDrawer` surface (a modal dialog titled "Query Builder").
      *
-     * **No page in this repo mounts it** — Members was the last consumer and
-     * has migrated to the inline panel. Kept for a consumer that mounts the
+     * **No page in this repo mounts it** — every list page mounts the
+     * `QueryBuilderPopover`. Kept for a consumer that mounts the
      * still-published drawer; it is not the default surface, because a default
      * nothing renders would fail a page that forgot to override with a locator
      * timeout instead of a useful message.
@@ -88,49 +101,133 @@ export abstract class BasePage {
     }
 
     /**
-     * The surface hosting the query builder: the inline **panel** (a `region`
-     * labelled by the "Filters" toggle), which is what every list page mounts.
-     * A page whose region is named something else — the alarms rule editor —
-     * overrides this, and the shared helpers below then work unchanged.
+     * The surface hosting the query builder: the **popover** (a `dialog` named
+     * by its "Filters" heading) anchored to the toolbar trigger, which is what
+     * every list page mounts. A page whose popover is named something else —
+     * the alarms rule editor's "Edit conditions" — overrides this, and the
+     * shared helpers below then work unchanged.
      */
     filterSurface(): Locator {
-        return this.page.getByRole('region', { name: /Filters/ });
+        return this.page.getByRole('dialog', { name: 'Filters', exact: true });
     }
 
     /**
-     * Open the filter surface (drawer or inline panel).
+     * The control that opens {@link filterSurface}. The toolbar's "Filters"
+     * button by default; a page that opens the builder from something else
+     * (the alarm editor's "Edit conditions") overrides it.
+     */
+    protected filterOpener(): Locator {
+        return this.filterTrigger();
+    }
+
+    /**
+     * Open the filter popover. A no-op when it is already open, because the
+     * trigger toggles: a second press would close it and discard the draft.
      *
-     * The wait that means anything is on the toggle's own `aria-expanded`, not
-     * on the surface. The inline panel collapses by animating an ancestor's
-     * `grid-template-rows` to `0fr` under `overflow-hidden`, so a closed panel
-     * is **clipped, not hidden**: the `region` keeps its full-size box and
-     * Playwright calls it visible either way. `waitFor()` on it alone therefore
-     * asserted nothing — it returned on the closed panel just as happily — and
-     * every `openFilters()` + `applyFilters()` pair went on to race the
-     * opening. That matters because a click whose `mouseup` lands after the
-     * contents have shifted fires on the common ancestor instead of the button,
-     * and Playwright reports it as a successful click, so the action is lost in
-     * silence rather than failing.
+     * The wait that means anything is on the trigger's own `aria-expanded`
+     * plus the dialog actually being **visible**, not on the presence of a box.
+     * A click whose `mouseup` lands after the layout shifted fires on the
+     * common ancestor instead of the button and is still reported as a
+     * successful click, so the action is lost in silence; waiting on a state
+     * the app publishes is what turns that into a failure here rather than an
+     * "element(s) not found" several assertions later. The popover also enters
+     * with a short motion, so the first action inside it waits for it to land.
      */
     async openFilters() {
-        await this.filterTrigger().click();
-        await expect(this.filterTrigger()).toHaveAttribute(
-            'aria-expanded',
-            'true'
-        );
-        await this.filterSurface().waitFor();
+        const opener = this.filterOpener();
+        if ((await opener.getAttribute('aria-expanded')) !== 'true') {
+            await opener.click();
+        }
+        await expect(opener).toHaveAttribute('aria-expanded', 'true');
+        await expect(this.filterSurface()).toBeVisible();
+    }
+
+    /** The builder's "Add rule" control (one group, so one control). */
+    addRuleControl(): Locator {
+        return this.filterSurface().getByRole('button', { name: 'Add rule' });
     }
 
     /** Add a rule to the (root) group. */
     async addRule() {
-        await this.filterSurface()
-            .getByRole('button', { name: 'Add rule' })
-            .click();
+        await this.addRuleControl().click();
+    }
+
+    /**
+     * The popover header's count of the **draft's** conditions ("No
+     * conditions", "1 condition", …) — the number the product states, so a
+     * spec asserts against it rather than counting rule rows itself.
+     */
+    filterConditionCount(): Locator {
+        return this.filterSurface().getByText(
+            /^(No conditions|\d+ conditions?)$/
+        );
     }
 
     /** The field / operator / value comboboxes of the first rule, in order. */
     private ruleCombobox(index: number): Locator {
         return this.filterSurface().getByRole('combobox').nth(index);
+    }
+
+    /**
+     * The field picker's listbox — the builder's own nested popover, layered
+     * over the filter popover (it portals to `<body>`).
+     */
+    fieldPickerList(): Locator {
+        return this.page.getByRole('listbox', { name: 'Field' });
+    }
+
+    /** Open the first rule's field picker and wait for its list. */
+    async openFieldPicker() {
+        await this.ruleCombobox(0).click();
+        await expect(this.fieldPickerList()).toBeVisible();
+    }
+
+    /**
+     * Expand a relation row in the open field picker (e.g. "Author"), which
+     * reveals its fields beneath it. The row is an `option` named "Expand
+     * <relation>" that becomes "Collapse <relation>" with `aria-expanded`, so
+     * this waits on that rather than on the new rows.
+     */
+    async expandFieldPickerRelation(label: string) {
+        await this.fieldPickerList()
+            .getByRole('option', { name: `Expand ${label}`, exact: true })
+            .click();
+        await expect(
+            this.fieldPickerList().getByRole('option', {
+                name: `Collapse ${label}`,
+                exact: true
+            })
+        ).toHaveAttribute('aria-expanded', 'true');
+    }
+
+    /** Scroll the open field picker's list with the mouse wheel. */
+    async wheelFieldPicker(deltaY: number) {
+        await this.fieldPickerList().hover();
+        await this.page.mouse.wheel(0, deltaY);
+    }
+
+    /**
+     * The field picker list's scroll metrics. Typed by hand, the same idiom as
+     * `AgentsPage.proposalReasonScroll`: this package has no DOM lib, so
+     * Playwright's `SVGElement | HTMLElement` carries no scroll metrics.
+     */
+    async fieldPickerScroll(): Promise<{
+        client: number;
+        scroll: number;
+        top: number;
+    }> {
+        return this.fieldPickerList().evaluate((element) => {
+            const box = element as unknown as {
+                clientHeight: number;
+                scrollHeight: number;
+                scrollTop: number;
+            };
+            return {
+                client: box.clientHeight,
+                scroll: box.scrollHeight,
+                top: box.scrollTop
+            };
+        });
     }
 
     /** Pick a field for the first rule by its visible label (e.g. "Status"). */
@@ -196,8 +293,8 @@ export abstract class BasePage {
 
     /**
      * One chip of the applied-filter summary — the resting read-out of one
-     * condition, rendered only while the panel is collapsed; removing it
-     * re-commits the narrowed tree at once.
+     * applied condition, under the toolbar; removing it re-commits the
+     * narrowed tree at once.
      *
      * Matched on its `title`, which carries the whole condition ("Author · Name
      * contains Ada"). The visible text is split across spans, and the same
@@ -224,7 +321,11 @@ export abstract class BasePage {
         return this.filterSurface().getByRole('button', { name: 'Apply' });
     }
 
-    /** Commit the builder's draft to the URL. */
+    /**
+     * Press Apply. A valid draft is committed to the URL and the popover
+     * closes; an invalid one shows its inline errors and stays open — so this
+     * waits for neither, and a spec asserts whichever it expects.
+     */
     async applyFilters() {
         await this.applyButton().click();
     }
@@ -232,7 +333,7 @@ export abstract class BasePage {
     /**
      * The builder's own "couldn't load the filterable fields" state. Distinct
      * from an empty picker: without the field definitions every rule fails the
-     * Apply gate, so the panel must say so rather than render a dead button.
+     * Apply gate, so the popover must say so rather than render a dead button.
      */
     filterFieldsError(): Locator {
         return this.filterSurface().getByRole('alert');
@@ -259,17 +360,20 @@ export abstract class BasePage {
     }
 
     /**
-     * Collapse the inline filter panel. The panel stays open after Apply (so
-     * further edits don't need a re-open), and the applied-conditions summary
-     * only renders while it's collapsed — so a summary assertion has to close
-     * it first.
+     * Close the filter popover without applying (Escape), discarding the
+     * draft. A no-op when it is already closed — Apply closes it on success, so
+     * a spec that applied and then closes is stating where it expects to be.
+     *
+     * Escape goes to the topmost layer, so this must not be called with one of
+     * the builder's own pickers open: that press would only close the picker.
      */
     async closeFilters() {
-        await this.filterTrigger().click();
-        await expect(this.filterTrigger()).toHaveAttribute(
-            'aria-expanded',
-            'false'
-        );
+        const opener = this.filterOpener();
+        if ((await opener.getAttribute('aria-expanded')) === 'true') {
+            await this.page.keyboard.press('Escape');
+        }
+        await expect(opener).toHaveAttribute('aria-expanded', 'false');
+        await expect(this.filterSurface()).toBeHidden();
     }
 
     /**

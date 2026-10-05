@@ -202,10 +202,10 @@ test.describe('Records filter — hand-edited ?filter=', () => {
      * The JSON preview serialises the **live draft**, in the component body,
      * so it runs on every keystroke whether or not the preview is expanded. A
      * count large enough to push the cutoff past the instants `Date` can hold
-     * therefore threw `RangeError` mid-typing — the panel died under the user's
+     * therefore threw `RangeError` mid-typing — the builder died under the user’s
      * cursor, with the number half-entered.
      */
-    test('a huge "within the last" count is clamped instead of crashing the panel [query-builder:I-09]', async ({
+    test('a huge "within the last" count is clamped instead of crashing the builder [query-builder:I-09]', async ({
         contentLibraryPage,
         page
     }) => {

@@ -174,11 +174,11 @@ admin-e2e && npx nx lint admin-e2e` plus a full run is the entire gate.
 - **A clipped element is not a hidden one, and a lost click is silent.**
   Playwright's visibility test is "has a non-empty box and is not
   `visibility:hidden`" — it says nothing about an ancestor's `overflow`. The
-  collapsed filter panel animates a wrapper's `grid-template-rows` to `0fr`
-  under `overflow-hidden`, so the closed `region` keeps its full 976×265 box and
-  `waitFor()` returns on it just as happily as on an open one. `openFilters()`
-  therefore verified nothing for a while, and the pair `openFilters()` +
-  `applyFilters()` raced the opening. What makes that _dangerous_ rather than
+  old inline filter panel (since replaced by a popover) collapsed by animating
+  a wrapper's `grid-template-rows` to `0fr` under `overflow-hidden`, so the
+  closed `region` kept its full 976×265 box and `waitFor()` returned on it just
+  as happily as on an open one. `openFilters()` therefore verified nothing for
+  a while, and the pair `openFilters()` + `applyFilters()` raced the opening. What makes that _dangerous_ rather than
   merely slow is the second half: Playwright checks the hit target before
   `mousedown` and never again, so if the layout shifts before `mouseup` the
   browser fires `click` on the two targets' **common ancestor** — the handler

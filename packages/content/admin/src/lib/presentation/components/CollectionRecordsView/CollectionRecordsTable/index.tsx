@@ -299,7 +299,7 @@ export function CollectionRecordsTable({
             ref={containerRef}
             tabIndex={-1}
             aria-label={intl.formatMessage(messages.caption, { label })}
-            className="w-full overflow-hidden rounded-xl border bg-card shadow-xs focus-visible:outline-none"
+            className="w-full focus-visible:outline-none"
         >
             <Table aria-label={intl.formatMessage(messages.caption, { label })}>
                 <TableHeader>

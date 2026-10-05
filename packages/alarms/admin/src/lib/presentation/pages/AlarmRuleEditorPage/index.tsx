@@ -20,7 +20,7 @@ import {
     toast
 } from '@orthacms/design-system';
 import {
-    QueryBuilderPanel,
+    QueryBuilderPopover,
     QueryBuilderSummary,
     countRules,
     jsonFilterToTree,
@@ -136,10 +136,6 @@ const messages = defineMessages({
     editCondition: {
         id: 'alarms.editor.editCondition',
         defaultMessage: 'Edit conditions'
-    },
-    doneEditing: {
-        id: 'alarms.editor.doneEditing',
-        defaultMessage: 'Done editing'
     },
     noCondition: {
         id: 'alarms.editor.noCondition',
@@ -281,7 +277,6 @@ export function AlarmRuleEditorPage({
     const [description, setDescription] = useState('');
     const [severity, setSeverity] = useState<AlarmSeverity>('warn');
     const [tree, setTree] = useState<FilterGroup | null>(null);
-    const [builderOpen, setBuilderOpen] = useState(false);
 
     // Seed the form once the rule arrives. Keyed on the id, not the object, so
     // a background refetch cannot discard edits in progress by re-seeding from
@@ -729,23 +724,63 @@ export function AlarmRuleEditorPage({
                                     {intl.formatMessage(messages.conditionHint)}
                                 </p>
                             </div>
-                            <Button
-                                id="alarms-editor-condition-toggle"
-                                variant="outline"
-                                size="sm"
-                                className="shrink-0"
-                                disabled={!canManage || !watchedType}
-                                aria-expanded={builderOpen}
-                                aria-controls="alarms-editor-condition-panel"
-                                onClick={() => setBuilderOpen((open) => !open)}
-                            >
-                                <SlidersHorizontal aria-hidden="true" />
-                                {intl.formatMessage(
-                                    builderOpen
-                                        ? messages.doneEditing
-                                        : messages.editCondition
+                            {/* The builder opens in a popover anchored to
+                                this button. Apply commits into the chips
+                                below and closes it, which is what makes Apply
+                                visible here: there is no table underneath to
+                                re-run, the chips are what moves. Radix hands
+                                focus back to the button on close.
+
+                                The load state is threaded through, not
+                                dropped. The Apply gate rejects every rule
+                                whose field it cannot resolve, so a builder
+                                handed an empty `fields` array while the
+                                surface is still loading — or after it failed —
+                                refuses to commit and says nothing about why.
+                                That is the defect that made "Apply" look like
+                                a dead button and let an edited condition be
+                                saved as the old one. */}
+                            <QueryBuilderPopover
+                                title={intl.formatMessage(
+                                    messages.editCondition
                                 )}
-                            </Button>
+                                trigger={
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="shrink-0"
+                                        disabled={!canManage || !watchedType}
+                                    >
+                                        <SlidersHorizontal aria-hidden="true" />
+                                        {intl.formatMessage(
+                                            messages.editCondition
+                                        )}
+                                    </Button>
+                                }
+                                fields={fields}
+                                fieldsPending={
+                                    filterFields.isPending ||
+                                    // A disabled query is `isPending` forever,
+                                    // so this has to be gated on there being a
+                                    // type at all — otherwise the builder
+                                    // claims to be loading on a page where
+                                    // nothing was asked for.
+                                    (Boolean(watchedType) && schema.isPending)
+                                }
+                                fieldsError={filterFields.isError}
+                                onRetryFields={filterFields.refetch}
+                                value={tree}
+                                onApply={setTree}
+                                // Without this a relation rule's value cell is
+                                // a plain text box: the query builder holds no
+                                // data layer, so the record picker is injected
+                                // by whoever mounts it — the records list
+                                // passes the same one.
+                                renderRelationValue={(props) => (
+                                    <RelationValuePicker {...props} />
+                                )}
+                            />
                         </div>
 
                         {/* The committed conditions, at rest. This is what
@@ -767,67 +802,6 @@ export function AlarmRuleEditorPage({
                                 {intl.formatMessage(messages.noCondition)}
                             </p>
                         )}
-
-                        {/* The load state is threaded through, not dropped.
-                            The Apply gate rejects every rule whose field it
-                            cannot resolve, so a panel handed an empty `fields`
-                            array while the surface is still loading — or after
-                            it failed — refuses to commit and says nothing about
-                            why. That is the defect that made "Apply" look like
-                            a dead button and let an edited condition be saved
-                            as the old one. */}
-                        <QueryBuilderPanel
-                            id="alarms-editor-condition-panel"
-                            open={builderOpen}
-                            onOpenChange={setBuilderOpen}
-                            fields={fields}
-                            fieldsPending={
-                                filterFields.isPending ||
-                                // A disabled query is `isPending` forever, so
-                                // this has to be gated on there being a type at
-                                // all — otherwise the builder claims to be
-                                // loading on a page where nothing was asked for.
-                                (Boolean(watchedType) && schema.isPending)
-                            }
-                            fieldsError={filterFields.isError}
-                            onRetryFields={filterFields.refetch}
-                            value={tree}
-                            onApply={setTree}
-                            // The panel stays open after Apply by default,
-                            // which is right for the records list — the table
-                            // underneath is what changed, and it is still on
-                            // screen. Here Apply commits into the chips *above*
-                            // the builder, so leaving it expanded hides the one
-                            // thing that just moved.
-                            //
-                            // Focus has to come back with it: collapsing makes
-                            // the region `inert`, so a focus still inside it
-                            // drops to `<body>` and the next Tab restarts at
-                            // the top of the document. The toggle is where the
-                            // gesture started and where Esc already returns to.
-                            onApplied={() => {
-                                setBuilderOpen(false);
-                                requestAnimationFrame(() =>
-                                    document
-                                        .getElementById(
-                                            'alarms-editor-condition-toggle'
-                                        )
-                                        ?.focus()
-                                );
-                            }}
-                            // Without this a relation rule's value cell is a
-                            // plain text box: the query builder deliberately
-                            // holds no data layer, so the record picker is
-                            // injected by whoever mounts it. The records list
-                            // passes it and this did not, which is why picking
-                            // a related record worked in the table and not
-                            // here — the same class of omission as the field
-                            // surface above.
-                            renderRelationValue={(props) => (
-                                <RelationValuePicker {...props} />
-                            )}
-                            labelledBy="alarms-editor-condition-toggle"
-                        />
 
                         {/* One line, three states, always present once there is
                             something to count — the number that says whether

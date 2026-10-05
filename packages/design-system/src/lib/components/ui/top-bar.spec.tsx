@@ -2,7 +2,8 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { Sidebar, SidebarInset, SidebarProvider } from './sidebar';
-import { TopBar, TopBarActions, TopBarIcon } from './top-bar';
+import { Tabs, TabsList, TabsTrigger } from './tabs';
+import { TopBar, TopBarActions, TopBarIcon, TopBarTabs } from './top-bar';
 
 /**
  * QA ORT-49 · F31/F32, EC-26 — the portal hoist.
@@ -151,5 +152,65 @@ describe('TopBar', () => {
             'true'
         );
         expect(screen.getByRole('button', { name: 'Invite' })).toBeTruthy();
+    });
+});
+
+/**
+ * A page's tabs, hoisted into the strip's second row. Two things are worth
+ * pinning, both invisible in a page test: that the tabs land in the header
+ * band rather than the scrollport, and that a `Tabs` root left down in the
+ * page still owns them — the portal moves DOM, not React context, so the
+ * triggers keep working from up there.
+ */
+describe('TopBarTabs', () => {
+    it('hoists a page’s tabs under the bar, still owned by the page’s Tabs root [design-system:I-44]', () => {
+        render(
+            <SidebarProvider>
+                <SidebarInset>
+                    <TopBar>
+                        <span>Members</span>
+                    </TopBar>
+                    <Tabs defaultValue="general">
+                        <TopBarTabs>
+                            <TabsList>
+                                <TabsTrigger value="general">
+                                    General
+                                </TabsTrigger>
+                                <TabsTrigger value="role">Role</TabsTrigger>
+                            </TabsList>
+                        </TopBarTabs>
+                    </Tabs>
+                </SidebarInset>
+            </SidebarProvider>
+        );
+
+        const row = document.querySelector('[data-slot="top-bar-tabs"]');
+        expect(row?.parentElement?.getAttribute('data-slot')).toBe(
+            'sidebar-inset-tabs'
+        );
+        expect(
+            document
+                .querySelector('[data-slot="sidebar-inset-scroll"]')
+                ?.contains(row as Node)
+        ).toBe(false);
+
+        // Radix selects on mousedown; the trigger answers from the bar.
+        const role = screen.getByRole('tab', { name: 'Role' });
+        fireEvent.mouseDown(role, { button: 0 });
+        expect(role.getAttribute('aria-selected')).toBe('true');
+    });
+
+    it('renders in place on a page with no inset', () => {
+        render(
+            <Tabs defaultValue="general">
+                <TopBarTabs>
+                    <TabsList>
+                        <TabsTrigger value="general">General</TabsTrigger>
+                    </TabsList>
+                </TopBarTabs>
+            </Tabs>
+        );
+
+        expect(screen.getByRole('tab', { name: 'General' })).toBeTruthy();
     });
 });

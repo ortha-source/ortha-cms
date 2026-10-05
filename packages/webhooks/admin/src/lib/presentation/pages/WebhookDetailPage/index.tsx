@@ -17,6 +17,7 @@ import {
     TabsContent,
     TabsList,
     TabsTrigger,
+    TopBarTabs,
     toast
 } from '@orthacms/design-system';
 import { useWebhookEndpoint } from '../../../application/useWebhookEndpoints';
@@ -226,6 +227,7 @@ export function WebhookDetailPage() {
                 <ContainerHeader
                     title={endpoint.name}
                     subtitle={endpoint.url}
+                    keepSubtitle
                     actions={
                         canManage ? (
                             <div className="flex gap-2">
@@ -292,14 +294,16 @@ export function WebhookDetailPage() {
                 ) : null}
 
                 <Tabs defaultValue="deliveries" className="mt-6">
-                    <TabsList>
-                        <TabsTrigger value="deliveries">
-                            {intl.formatMessage(messages.deliveries)}
-                        </TabsTrigger>
-                        <TabsTrigger value="settings">
-                            {intl.formatMessage(messages.settings)}
-                        </TabsTrigger>
-                    </TabsList>
+                    <TopBarTabs>
+                        <TabsList>
+                            <TabsTrigger value="deliveries">
+                                {intl.formatMessage(messages.deliveries)}
+                            </TabsTrigger>
+                            <TabsTrigger value="settings">
+                                {intl.formatMessage(messages.settings)}
+                            </TabsTrigger>
+                        </TabsList>
+                    </TopBarTabs>
 
                     <TabsContent value="deliveries" className="mt-4">
                         <WebhookDeliveriesPanel

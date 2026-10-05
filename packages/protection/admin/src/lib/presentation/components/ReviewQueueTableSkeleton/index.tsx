@@ -20,10 +20,7 @@ const CELL_WIDTHS = ['w-40', 'w-20', 'w-28', 'w-32', 'w-24', 'w-28'];
  */
 export function ReviewQueueTableSkeleton({ rows = 4 }: { rows?: number }) {
     return (
-        <div
-            aria-hidden
-            className="overflow-hidden rounded-xl border bg-card shadow-xs"
-        >
+        <div aria-hidden>
             <Table>
                 <TableHeader>
                     <TableRow>
