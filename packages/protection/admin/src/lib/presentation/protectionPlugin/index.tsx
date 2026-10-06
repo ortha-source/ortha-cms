@@ -1,7 +1,6 @@
 import { Suspense, lazy } from 'react';
 import type { AdminPlugin } from '@orthacms/bootstrap-admin';
 import {
-    ENTRY_HEADER_SLOT,
     ENTRY_PUBLISH_GUARD_SLOT,
     ENTRY_SIDEBAR_WIDGET_SLOT,
     RECORDS_COLUMN_SLOT,
@@ -21,7 +20,6 @@ import {
 import { Shield, ShieldCheck } from 'lucide-react';
 import { ProtectionSettings } from '../components/ProtectionSettings';
 import { ReviewsSkeleton } from '../components/ReviewsSkeleton';
-import { ReviewChip } from '../components/ReviewChip';
 import { ReviewSection } from '../components/ReviewSection';
 import { usePublishProtectionVerdict } from '../slots/publishGuard';
 import { ReviewColumnCell } from '../components/ReviewColumnCell';
@@ -94,10 +92,6 @@ export function ProtectionPlugin(): ProtectionAdminPlugin {
                         permission: 'content:read'
                     }
                 ]
-            },
-            {
-                slot: ENTRY_HEADER_SLOT,
-                items: [{ id: 'protection.review', Component: ReviewChip }]
             },
             {
                 slot: ENTRY_SIDEBAR_WIDGET_SLOT,

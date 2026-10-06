@@ -4,12 +4,13 @@ import {
     type EntrySlotContext
 } from '@orthacms/content-admin';
 import { useAuth, useHasPermission } from '@orthacms/identity-admin';
-import { SkeletonRegion, Skeleton, cn } from '@orthacms/design-system';
+import { SkeletonRegion, Skeleton } from '@orthacms/design-system';
 import { toneOf } from '../../../domain/types';
 import { reviewerRows } from '../../../domain/reviewerRows';
 import { reviewScopeOf, useEntryReview } from '../../../application/hooks';
 import { ReviewerRow } from './ReviewerRow';
 import { ReviewActions } from './ReviewActions';
+import { ReviewChip } from './ReviewChip';
 
 const messages = defineMessages({
     title: { id: 'protection.review.title', defaultMessage: 'Review' },
@@ -63,9 +64,10 @@ const messages = defineMessages({
  * approved, each with a green check once they approved the current version or
  * a yellow dot while that is pending (`reviewerRows`).
  *
- * The heading's count is the same "{given} of {required}" the chip and the
- * publish button say, and it is **text**: the tone beside it is a second
- * signal, never the only one.
+ * The heading carries the requirement as {@link ReviewChip} — "Needs review ·
+ * 0 of 2" — the one place it is stated in the editor; the publish button says
+ * the same when it holds. It is **text**: the tone is a second signal, never
+ * the only one.
  */
 export function ReviewSection(context: EntrySlotContext) {
     const intl = useIntl();
@@ -115,24 +117,16 @@ export function ReviewSection(context: EntrySlotContext) {
         <EntrySidebarSection
             title={intl.formatMessage(messages.title)}
             action={
-                <span
-                    className={cn(
-                        'text-xs font-medium tabular-nums',
-                        live && 'text-muted-foreground',
-                        !live &&
-                            tone === 'satisfied' &&
-                            'text-success-soft-foreground',
-                        !live &&
-                            tone === 'partial' &&
-                            'text-warning-soft-foreground',
-                        !live && tone === 'blocked' && 'text-destructive'
-                    )}
-                >
-                    {intl.formatMessage(messages.count, {
-                        given: data.given,
-                        required: data.required
-                    })}
-                </span>
+                live ? (
+                    <span className="text-xs font-medium tabular-nums text-muted-foreground">
+                        {intl.formatMessage(messages.count, {
+                            given: data.given,
+                            required: data.required
+                        })}
+                    </span>
+                ) : (
+                    <ReviewChip review={data} />
+                )
             }
             description={intl.formatMessage(
                 live

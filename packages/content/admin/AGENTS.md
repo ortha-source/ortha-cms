@@ -1088,8 +1088,8 @@ fetching internally.
       Restricted), which used to be a chip in the title row.
 - **`ENTRY_HEADER_SLOT`** — a control **leading the top bar's actions**, before
   the editor's Save / Publish and ⋯, with the same `EntrySlotContext`. Used for
-  the i18n plugin's locale switcher (an outline button opening the locale menu)
-  and protection's review chip; items render in registration order.
+  the i18n plugin's locale switcher (an outline button opening the locale menu);
+  items render in registration order.
     - They share **one** `PageActionsPortal` with `EntryActions`, header items
       first. Two portals into the same host stack in mount order, so a chip
       that mounted (or remounted) after the buttons used to land behind them.
@@ -1098,9 +1098,10 @@ fetching internally.
       `<h1>`, outside it. An **empty** list has to be passed there as
       `undefined`, not `[]`: `ContainerHeader` draws its actions row for
       anything truthy.
-    - A property _about_ the record that is not a control belongs in
-      `ENTRY_DETAILS_ROW_SLOT`, not here — the access chip moved for that
-      reason.
+    - A property _about_ the record that is not a control does not belong
+      here: the access chip moved to `ENTRY_DETAILS_ROW_SLOT`, and
+      protection's review chip into its own **Review** block's heading, where
+      it replaced the count that block already showed.
 
 - **`RECORDS_FILTER_FIELDS_SLOT`** — extra query-builder filter fields, appended
   after the server-derived fields (`useFilterFields`) at the call site.

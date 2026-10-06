@@ -63,18 +63,20 @@ test.describe('Publication protection in the entry editor', () => {
         await expect(publish).not.toHaveAttribute('aria-disabled', 'true');
     });
 
-    test('shows the requirement in the chip and the rail', async ({
+    test('states the requirement once, in the Review block', async ({
         page,
         contentLibraryPage
     }) => {
         await mockEntryReview(page, { required: 2, given: 0 });
         await contentLibraryPage.gotoEntry(WS, TYPE, ENTRY);
 
-        await expect(page.getByText('Needs review · 0 of 2')).toBeVisible();
         await expect(
             page.getByRole('heading', { name: 'Review', exact: true })
         ).toBeVisible();
-        await expect(page.getByText('0 of 2', { exact: true })).toBeVisible();
+        // The chip is the block's own count now — it used to sit in the title
+        // row as well, saying the same thing twice on one screen.
+        await expect(page.getByText('Needs review · 0 of 2')).toHaveCount(1);
+        await expect(page.getByText('Needs review · 0 of 2')).toBeVisible();
     });
 
     /**

@@ -289,8 +289,6 @@ built-ins.
 
 ### Entry editor
 
-- **Header chip** (`ENTRY_HEADER_SLOT`) — "Needs review · 0 of 2", beside the
-  status badge and the i18n locale chip.
 - **Rail section** (`ENTRY_SIDEBAR_WIDGET_SLOT`) — renders `EntrySidebarSection`,
   not a card of its own; the rail is one flat surface divided by rules and a
   contribution with its own border is the one floating box in it. Lands after

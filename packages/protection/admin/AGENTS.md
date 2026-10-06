@@ -15,7 +15,6 @@ src/lib/
   presentation/
     protectionPlugin/          the factory
     components/
-      ReviewChip/              the header chip  (ENTRY_HEADER_SLOT)
       ReviewerLabel/           an id → a person, from the open workspace
       ReviewSection/           the rail block   (ENTRY_SIDEBAR_WIDGET_SLOT)
         ReviewerRow/             one person: green check or yellow dot, in words too
@@ -36,16 +35,15 @@ Layered per [ADR-0003](../../../docs/adr/0003-tactical-ddd-inside-plugins.md).
 
 ## What it contributes
 
-| Surface         | Where                         | What it says                                 |
-| --------------- | ----------------------------- | -------------------------------------------- |
-| Review chip     | `ENTRY_HEADER_SLOT`           | "Needs review · 0 of 2"                      |
-| Review block    | `ENTRY_SIDEBAR_WIDGET_SLOT`   | who was asked, who approved, and the actions |
-| Publish verdict | `ENTRY_PUBLISH_GUARD_SLOT`    | whether Publish is held, and why             |
-| Protection tab  | `WORKSPACE_SETTINGS_TAB_SLOT` | which types are protected, and how           |
-| Review column   | `RECORDS_COLUMN_SLOT`         | where each row stands, one request per page  |
-| `reviewState`   | `RECORDS_FILTER_FIELDS_SLOT`  | waiting on review / not requested            |
-| Insights card   | `INSIGHTS_WIDGET_SLOT`        | how much review is outstanding               |
-| Reviews page    | `WORKSPACE_ROUTE_SLOT` + nav  | what is waiting, and on whom                 |
+| Surface         | Where                         | What it says                                                                         |
+| --------------- | ----------------------------- | ------------------------------------------------------------------------------------ |
+| Review block    | `ENTRY_SIDEBAR_WIDGET_SLOT`   | "Needs review · 0 of 2" in its heading, who was asked, who approved, and the actions |
+| Publish verdict | `ENTRY_PUBLISH_GUARD_SLOT`    | whether Publish is held, and why                                                     |
+| Protection tab  | `WORKSPACE_SETTINGS_TAB_SLOT` | which types are protected, and how                                                   |
+| Review column   | `RECORDS_COLUMN_SLOT`         | where each row stands, one request per page                                          |
+| `reviewState`   | `RECORDS_FILTER_FIELDS_SLOT`  | waiting on review / not requested                                                    |
+| Insights card   | `INSIGHTS_WIDGET_SLOT`        | how much review is outstanding                                                       |
+| Reviews page    | `WORKSPACE_ROUTE_SLOT` + nav  | what is waiting, and on whom                                                         |
 
 **The three entry contributions render nothing on an unprotected type** and on a
 non-publishable one. `reviewScopeOf` is the single place that decides, so the
