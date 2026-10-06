@@ -332,6 +332,18 @@ export function AlarmRuleEditorPage({
     const fields = [...filterFields.fields, ...slotFilterFields];
 
     const types = useContentTypes(canRead && isCreate);
+    // The catalogue is **global**; a rule can only watch a collection this
+    // workspace owns (the server refuses any other with the same "unknown
+    // type" as an unregistered one), so the picker offers exactly those —
+    // the own grants, as protection's settings and the ⌘K palette scope it.
+    // A shared-only type is left out too: its records live at the source, so
+    // there is nothing here for a rule to evaluate.
+    const typeOptions = useMemo(() => {
+        const granted = new Set(workspace.content);
+        return (types.data ?? []).filter(
+            (type) => type.kind === 'collection' && granted.has(type.name)
+        );
+    }, [types.data, workspace.content]);
     const create = useCreateAlarmRule();
     const update = useUpdateAlarmRule();
     const preview = usePreviewAlarmRule();
@@ -611,19 +623,14 @@ export function AlarmRuleEditorPage({
                                         />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {(types.data ?? [])
-                                            .filter(
-                                                (type) =>
-                                                    type.kind === 'collection'
-                                            )
-                                            .map((type) => (
-                                                <SelectItem
-                                                    key={type.name}
-                                                    value={type.name}
-                                                >
-                                                    {type.label}
-                                                </SelectItem>
-                                            ))}
+                                        {typeOptions.map((type) => (
+                                            <SelectItem
+                                                key={type.name}
+                                                value={type.name}
+                                            >
+                                                {type.label}
+                                            </SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
                                 <p className="text-xs text-muted-foreground">

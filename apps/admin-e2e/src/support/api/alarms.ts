@@ -142,6 +142,20 @@ export const CONTENT_TYPE_SUMMARY = {
     i18n: true
 };
 
+/**
+ * A collection that is in the deployment's catalogue but **not** granted to the
+ * workspace the suite opens. The catalogue is global, so it reaches the admin
+ * all the same — and the create form's picker must not offer it: the server
+ * refuses a rule on it as an unknown type.
+ */
+export const UNGRANTED_TYPE_SUMMARY = {
+    name: 'test_invoice',
+    kind: 'collection' as const,
+    label: 'Invoices',
+    publishable: true,
+    i18n: false
+};
+
 /** The full schema `GET /api/content-schema/:name` returns. */
 export const CONTENT_SCHEMA = {
     ...CONTENT_TYPE_SUMMARY,
@@ -283,7 +297,9 @@ export async function mockAlarmsApi(
     // The type catalogue, for the create form's picker. Anchored so it does not
     // also swallow the detail and filter-fields sub-routes below.
     await page.route(/\/api\/content-schema(\?.*)?$/, async (route) => {
-        await route.fulfill(json([CONTENT_TYPE_SUMMARY]));
+        await route.fulfill(
+            json([CONTENT_TYPE_SUMMARY, UNGRANTED_TYPE_SUMMARY])
+        );
     });
 
     // One type's schema — what `RECORDS_FILTER_FIELDS_SLOT.useFields` is handed.

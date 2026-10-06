@@ -258,6 +258,14 @@ locally is a hue nobody measured.
 
 ## Details worth keeping
 
+- **The create form's type picker is scoped to the workspace's own grants.**
+  `useContentTypes()` is the deployment's **global** catalogue, so filtering it
+  by `kind` alone offered collections this workspace was never granted — which
+  the server then refused as an unknown type. The picker keeps
+  `workspace.content` ∩ collections, as protection's settings and the ⌘K
+  palette do; a shared-only type is left out, since its records live at the
+  source and a rule here has nothing to evaluate. Pinned in `alarms.spec.ts`
+  ("offers only the collections this workspace was granted").
 - **Query keys carry the workspace id.** Scoping is server-side via the
   `X-Workspace-Id` header the shared `apiClient` attaches, so without the id in
   the key, switching workspaces would serve the previous one's findings out of

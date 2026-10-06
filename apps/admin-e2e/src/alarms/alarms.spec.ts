@@ -1,8 +1,9 @@
 import { expect, test } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
-import { mockWorkspaces } from '../support/api/workspaces';
+import { WORKSPACES_SEED, mockWorkspaces } from '../support/api/workspaces';
 import {
     CONTAINS_RULE,
+    CONTENT_TYPE_SUMMARY,
     OPEN_FINDING,
     mockAlarmsApi,
     type AlarmFindingSeed,
@@ -15,9 +16,23 @@ const WORKSPACE_ID = 'ws_marketing';
 /** A second workspace from the same seed, for the cache-key case. */
 const OTHER_WORKSPACE_ID = 'ws_docs';
 
+/**
+ * The default seed, with the alarms fixture's collection granted to the
+ * workspace the suite opens — the create form offers only granted types, and
+ * the catalogue's other collection (`UNGRANTED_TYPE_SUMMARY`) stays ungranted.
+ */
+const ALARMS_WORKSPACES = WORKSPACES_SEED.map((workspace) =>
+    workspace.id === WORKSPACE_ID
+        ? {
+              ...workspace,
+              content: [...(workspace.content ?? []), CONTENT_TYPE_SUMMARY.name]
+          }
+        : workspace
+);
+
 test.beforeEach(async ({ page }) => {
     await mockSignedIn(page);
-    await mockWorkspaces(page);
+    await mockWorkspaces(page, ALARMS_WORKSPACES);
 });
 
 /**
@@ -523,6 +538,26 @@ test.describe('Creating an alarm', () => {
             page.getByText('Choose a collection above to set conditions.')
         ).toBeVisible();
         await expect(alarmsPage.saveButton()).toBeDisabled();
+    });
+
+    test('offers only the collections this workspace was granted', async ({
+        page,
+        alarmsPage
+    }) => {
+        await mockAlarmsApi(page);
+        await alarmsPage.gotoNewRule(WORKSPACE_ID);
+
+        await page.getByRole('combobox', { name: 'What to watch' }).click();
+        // The control case first, so the absence below is not just an empty
+        // or still-loading list.
+        await expect(
+            page.getByRole('option', { name: 'Articles' })
+        ).toBeVisible();
+        // In the deployment's catalogue, not granted here: the server would
+        // refuse a rule on it as an unknown type.
+        await expect(
+            page.getByRole('option', { name: 'Invoices' })
+        ).toHaveCount(0);
     });
 
     test('creates the alarm and reports what it flagged', async ({
