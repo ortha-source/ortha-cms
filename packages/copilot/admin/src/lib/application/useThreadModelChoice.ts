@@ -6,10 +6,10 @@ import { useUpdateConversation } from './useUpdateConversation';
 /**
  * Writes a chat's **picked** model onto the thread it belongs to.
  *
- * The last of the three places a choice is remembered, and the only one that
- * outlives the tab: the session keeps it across an unmount, the store's seed
- * keeps it across closing the chat, and this keeps it across a reload, another
- * tab, and another day. Reopening a saved conversation then offers the backend
+ * The last of the three places a choice is remembered, and the only one bound
+ * to the thread: the session keeps it across an unmount, the store's seed keeps
+ * it across closing the chat (and, kept in this browser, a reload), and this
+ * keeps it with the conversation — across another tab, browser and day. Reopening a saved conversation then offers the backend
  * the person chose for it rather than silently falling back to the house
  * default — which is the half of the forgetting the client alone could never
  * fix.

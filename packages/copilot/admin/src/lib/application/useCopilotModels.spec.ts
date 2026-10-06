@@ -2,6 +2,7 @@ import { HTTP_STATUS } from '@orthacms/utils-admin';
 import {
     copilotIsOff,
     DEFAULT_MODEL_CHOICE,
+    effectiveModelChoice,
     modelChoiceKey,
     parseModelChoiceKey,
     readStoredModelChoice,
@@ -109,5 +110,33 @@ describe('copilotIsOff', () => {
         expect(copilotIsOff(failure(HTTP_STATUS.FORBIDDEN))).toBe(false);
         expect(copilotIsOff(failure(500))).toBe(false);
         expect(copilotIsOff(new TypeError('Failed to fetch'))).toBe(false);
+    });
+});
+
+/**
+ * What a chat actually runs on. A remembered model — the browser's last pick,
+ * or a saved thread's — may name a backend the deployment has since dropped,
+ * and must not be sent a turn just because it was remembered.
+ */
+describe('effectiveModelChoice', () => {
+    const opus = { provider: 'anthropic', model: 'claude-opus-5' };
+    const sonnet = { provider: 'anthropic', model: 'claude-sonnet-5' };
+
+    it('keeps a choice the catalogue offers', () => {
+        expect(effectiveModelChoice(sonnet, [opus, sonnet])).toBe(sonnet);
+    });
+
+    it('opens on the first entry when nothing was chosen', () => {
+        expect(effectiveModelChoice(null, [opus, sonnet])).toBe(opus);
+    });
+
+    it('falls back to the first entry for a model no longer offered', () => {
+        const gone = { provider: 'ollama', model: 'llama3.1:8b' };
+
+        expect(effectiveModelChoice(gone, [opus, sonnet])).toBe(opus);
+    });
+
+    it('leaves the choice alone until the catalogue has loaded', () => {
+        expect(effectiveModelChoice(sonnet, undefined)).toBe(sonnet);
     });
 });

@@ -51,7 +51,7 @@ export interface ModelPickerProps {
  *
  * What it is **not** is forgotten. A pick is remembered on the chat (so
  * collapsing a window or leaving the Agents view keeps it), seeded into the next
- * chat this tab starts, and written onto the thread — so reopening a saved
+ * chat started in this browser — after a reload too — and written onto the thread — so reopening a saved
  * conversation tomorrow, in another tab, offers the same backend. None of that
  * pins anything: the thread's memory only decides what this picker *starts* on.
  *

@@ -122,7 +122,28 @@ export function useEffectiveModelChoice(
     choice: CopilotModelChoice | null
 ): CopilotModelChoice | null {
     const { data } = useCopilotModels();
-    return choice ?? data?.items[0] ?? null;
+    return effectiveModelChoice(choice, data?.items);
+}
+
+/**
+ * {@link useEffectiveModelChoice}'s rule, pure.
+ *
+ * A choice the catalogue no longer offers falls back like no choice at all. A
+ * remembered model — the browser's last pick, or a saved thread's — can name a
+ * backend the deployment has since dropped from `plugins.ts`, and sending a
+ * turn to it fails where the picker would have shown it as current. Until the
+ * catalogue has loaded there is nothing to check against, so the choice
+ * stands.
+ */
+export function effectiveModelChoice(
+    choice: CopilotModelChoice | null,
+    items: readonly CopilotModelChoice[] | undefined
+): CopilotModelChoice | null {
+    if (!items) return choice;
+    const offered =
+        choice &&
+        items.some((item) => modelChoiceKey(item) === modelChoiceKey(choice));
+    return offered ? choice : (items[0] ?? null);
 }
 
 /**

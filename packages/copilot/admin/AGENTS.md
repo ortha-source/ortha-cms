@@ -860,9 +860,15 @@ nobody chose.
 - **On the session** (`sessions.ts`). Held in `useState` it was lost by
   collapsing a window _and_ by leaving the Agents view — the user picked a model,
   came back, and silently got the default again.
-- **In the store's per-tab seed** (`rememberChoice` / `seedChoice`), so a new
-  chat inherits the last model _picked_. Someone who always wants the bigger
-  model does not re-pick it every time.
+- **In the store's seed** (`rememberChoice` / `seedChoice`), so a new chat
+  inherits the last model _picked_. Someone who always wants the bigger model
+  does not re-pick it every time — nor after a reload: the seed is also kept in
+  this browser's `localStorage` (`orthacms.copilot.last-model`). It used to die
+  with the tab, so every morning opened on `items[0]` again. That is not a
+  hidden setting, because the picker names the model on every chat; and a
+  remembered model the deployment stopped offering is not trusted —
+  `effectiveModelChoice` falls back to `items[0]` rather than send a turn to a
+  backend that is gone (the same rule covers a saved thread's choice).
 - **On the thread** (`copilot_conversations.model_choice`, written through
   `useThreadModelChoice` → `PATCH /copilot/conversations/:id`, read back on
   `ConversationView`). The tab was the ceiling of the other two: reopening a
@@ -876,7 +882,7 @@ Three rules keep that from becoming noise, and each is a unit or e2e case:
   (`adopt-model`, deliberately not `model`). Without it every new conversation
   would record a decision nobody made, and every thread opened would echo its own
   value straight back.
-- **Adopting is not picking**, so it does not touch the per-tab seed either:
+- **Adopting is not picking**, so it does not touch the seed either:
   reading an old conversation must not change what your next new chat starts on.
 - **`'default'` is a legacy value, read but never written.** It was the third
   state, back when "Default" was a selectable option meaning "whatever the

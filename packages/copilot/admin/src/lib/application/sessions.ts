@@ -56,8 +56,9 @@ export interface CopilotSession {
      * and can differ from the last, so a conversation can start cheap and
      * escalate. What is remembered is the *pick*, not a pin — and it is
      * remembered in three places, each covering what the one below it cannot:
-     * here (survives an unmount), in the store's per-tab seed (survives closing
-     * the chat), and on the thread server-side (survives the tab). What all
+     * here (survives an unmount), in the store's seed (survives closing the
+     * chat, and — kept in this browser — a reload), and on the thread
+     * server-side (survives another tab, browser or day). What all
      * three fix is forgetting the choice, which nobody chose.
      */
     choice: CopilotModelChoice | null;

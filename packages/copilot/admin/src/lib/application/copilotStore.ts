@@ -5,7 +5,11 @@ import {
     type SessionsAction
 } from './sessions';
 import type { ChatState } from '../domain/types/chat';
-import type { CopilotModelChoice } from './useCopilotModels';
+import {
+    modelChoiceKey,
+    parseModelChoiceKey,
+    type CopilotModelChoice
+} from './useCopilotModels';
 
 /** Every chat the tab has going, and the transcript of each. */
 export interface CopilotStoreState {
@@ -61,12 +65,59 @@ let counter = 0;
  * The last model the user picked, seeded into the next chat they start.
  *
  * Someone who switches to a bigger model does not want to re-pick it on every
- * new chat — and someone who picked it for one hard question can switch back,
- * which is why this is a **per-tab** memory rather than a stored preference: it
- * dies with the tab, like every chat here, so it can never become a setting
- * nobody remembers turning on.
+ * new chat — nor after every reload, which is what a per-tab memory cost them:
+ * it died with the tab, so each morning opened on the catalogue's first entry
+ * again. So it is **also kept in this browser** ({@link LAST_CHOICE_KEY}), and
+ * this variable is the tab's copy of it.
+ *
+ * It can still never become a setting nobody remembers turning on: the picker
+ * names the model on every chat, so what a new chat inherited is always on
+ * screen, and one pick changes it. A remembered model the deployment stopped
+ * offering is not trusted either — `effectiveModelChoice` falls back to the
+ * first catalogue entry rather than sending a turn to a backend that is gone.
  */
 let lastChoice: CopilotModelChoice | null = null;
+
+/** Where {@link lastChoice} outlives the tab — a per-browser convenience. */
+const LAST_CHOICE_KEY = 'orthacms.copilot.last-model';
+
+/**
+ * This browser's storage, or `null` where there is none — the unit tests' node
+ * runtime, or a private window whose storage throws on access.
+ */
+function browserStorage(): Storage | null {
+    try {
+        return typeof localStorage === 'undefined' ? null : localStorage;
+    } catch {
+        return null;
+    }
+}
+
+function readStoredChoice(): CopilotModelChoice | null {
+    try {
+        const raw = browserStorage()?.getItem(LAST_CHOICE_KEY);
+        // User-writable and carried across deploys, so parsed rather than
+        // trusted: a malformed entry reads as "nothing remembered".
+        return raw ? parseModelChoiceKey(raw) : null;
+    } catch {
+        return null;
+    }
+}
+
+function writeStoredChoice(choice: CopilotModelChoice | null): void {
+    try {
+        const storage = browserStorage();
+        if (!storage) return;
+        if (choice) {
+            storage.setItem(LAST_CHOICE_KEY, modelChoiceKey(choice));
+        } else {
+            storage.removeItem(LAST_CHOICE_KEY);
+        }
+    } catch {
+        // Storage full or blocked: the pick still holds for this tab, and is
+        // lost on reload — the behaviour before it was stored at all.
+    }
+}
 
 /**
  * The skills last staged, seeded into the next chat.
@@ -187,14 +238,22 @@ export function dispatchChat(sessionId: string, action: ChatAction): void {
     });
 }
 
-/** The model a newly opened chat should start on. */
+/**
+ * The model a newly opened chat should start on: this tab's last pick, else
+ * the last one made in this browser.
+ */
 export function seedChoice(): CopilotModelChoice | null {
+    lastChoice ??= readStoredChoice();
     return lastChoice;
 }
 
-/** Records the user's pick, so the next chat they start inherits it. */
+/**
+ * Records the user's pick, so the next chat they start — in this tab or after
+ * a reload — inherits it.
+ */
 export function rememberChoice(choice: CopilotModelChoice | null): void {
     lastChoice = choice;
+    writeStoredChoice(choice);
 }
 
 /** The skills a newly opened chat should start with. */
@@ -248,6 +307,7 @@ export function resetCopilotStore(): void {
     controllers.clear();
     counter = 0;
     lastChoice = null;
+    writeStoredChoice(null);
     lastSkills = [];
     listeners.clear();
     state = { sessions: [], chats: {} };

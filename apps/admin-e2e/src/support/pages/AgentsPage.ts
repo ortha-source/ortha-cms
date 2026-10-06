@@ -1,6 +1,9 @@
 import { type Locator, type Page } from '@playwright/test';
 import { BasePage } from './BasePage';
 
+/** Where the copilot keeps the last model picked in this browser. */
+const LAST_MODEL_KEY = 'orthacms.copilot.last-model';
+
 /**
  * Page object for the **Agents view** (`@orthacms/copilot-admin`) — the
  * full-page chat at `/workspaces/:id/agents`, its thread rail, the composer, and
@@ -681,6 +684,28 @@ export class AgentsPage extends BasePage {
         await this.page
             .getByRole('menuitem', { name: new RegExp(model) })
             .click();
+    }
+
+    /**
+     * Sets, or with `null` clears, the model this browser remembers as the
+     * last one picked — the seed a new chat starts on after a reload.
+     */
+    async setRememberedModel(key: string | null) {
+        await this.page.evaluate(
+            ([storageKey, value]) => {
+                // Through `globalThis` and typed by hand: this package's
+                // tsconfig has no DOM lib (see `CopilotDockPage.storedFrame`).
+                const { localStorage } = globalThis as unknown as {
+                    localStorage: {
+                        setItem(key: string, value: string): void;
+                        removeItem(key: string): void;
+                    };
+                };
+                if (value === null) localStorage.removeItem(storageKey);
+                else localStorage.setItem(storageKey, value);
+            },
+            [LAST_MODEL_KEY, key] as const
+        );
     }
 
     // --- the dock ---------------------------------------------------------

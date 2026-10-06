@@ -331,9 +331,12 @@ test.describe('Agents view — the model a thread was left on', () => {
                 body: { modelChoice: 'openai:gpt-5.2' }
             });
 
-        // A reload is the honest test of "it outlived the tab": the store, the
-        // per-tab seed and every component are gone, so anything the picker
-        // shows now came back over the wire.
+        // A reload is the honest test of "it outlived the tab": the store and
+        // every component are gone. The browser's remembered last pick is
+        // cleared too — it would show the same model and pass this test with
+        // the thread write broken — so what the picker shows came back over
+        // the wire.
+        await agentsPage.setRememberedModel(null);
         await page.reload();
 
         await expect(agentsPage.modelPicker()).toContainText('gpt-5.2');
@@ -373,5 +376,40 @@ test.describe('Agents view — the model a thread was left on', () => {
         // model does not re-pick it because they read an old conversation.
         await expect(agentsPage.welcomeHeading()).toBeVisible();
         await expect(agentsPage.modelPicker()).toContainText('claude-opus-5');
+    });
+
+    /**
+     * The seed used to die with the tab, so every morning opened on the
+     * catalogue's first model again. It is kept in this browser now.
+     */
+    test('a fresh chat after a reload starts on the last model picked', async ({
+        page,
+        agentsPage
+    }) => {
+        await mockCopilotApi(page);
+        await agentsPage.goto(WORKSPACE_ID);
+        // Not the first entry, or the fallback would pass this for free.
+        await agentsPage.chooseModel('claude-opus-5');
+
+        await page.reload();
+
+        await expect(agentsPage.welcomeHeading()).toBeVisible();
+        await expect(agentsPage.modelPicker()).toContainText('claude-opus-5');
+    });
+
+    test('a remembered model the deployment stopped offering falls back to the first', async ({
+        page,
+        agentsPage
+    }) => {
+        await mockCopilotApi(page);
+        await agentsPage.goto(WORKSPACE_ID);
+        await agentsPage.setRememberedModel('ollama:llama3.1:8b');
+
+        await page.reload();
+
+        // Sending a turn to a backend that is gone fails where the picker
+        // would have shown it as current.
+        await expect(agentsPage.welcomeHeading()).toBeVisible();
+        await expect(agentsPage.modelPicker()).toContainText('claude-sonnet-5');
     });
 });
