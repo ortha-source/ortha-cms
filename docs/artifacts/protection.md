@@ -549,15 +549,17 @@ Its refusals arrive as `409` / `403` with `code` ∈ `protection.insufficient_ap
 
 ## 09. Agent surfaces
 
-Three tools, each declaring `surfaces: ['copilot', 'mcp']` **explicitly** — omitting the field
-in `tools/server` means both, so silence would hand a tool to MCP by accident rather than by
-decision.
+Four tools, each declaring `surfaces` **explicitly** — omitting the field in `tools/server`
+means both, so silence would hand a tool to MCP by accident rather than by decision. Three are
+`['copilot', 'mcp']`; `protection_reviewer_candidates` is copilot-only, since a token cannot
+request a review and over MCP it would only expose member emails.
 
-| Tool                        | Requires         | Effect                                                                                                                                                               |
-| --------------------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `protection_review_status`  | `content:read`   | read-only                                                                                                                                                            |
-| `protection_review_diff`    | `content:read`   | read-only — what changed since the caller's last approval                                                                                                            |
-| `protection_request_review` | `content:update` | `apply`, so the copilot's run engine parks it for the in-the-moment prompt like any other write. What it applies is a **request** — never content, never an approval |
+| Tool                             | Requires         | Effect                                                                                                                                                               |
+| -------------------------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `protection_review_status`       | `content:read`   | read-only                                                                                                                                                            |
+| `protection_review_diff`         | `content:read`   | read-only — what changed since the caller's last approval                                                                                                            |
+| `protection_reviewer_candidates` | `content:update` | read-only, copilot-only — who can be asked (the editor picker's list)                                                                                                |
+| `protection_request_review`      | `content:update` | `apply`, so the copilot's run engine parks it for the in-the-moment prompt like any other write. What it applies is a **request** — never content, never an approval |
 
 **There is no fourth tool, and there will not be one.** ADR-0017 §6 settles it: with a rule in
 force the approval _is_ the step that unlocks publication, so handing a model `approve` while

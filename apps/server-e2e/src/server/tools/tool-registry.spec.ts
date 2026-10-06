@@ -180,8 +180,10 @@ describe('Tool registry (one registry, two surfaces)', () => {
          * discoverable by a model to be worth contributing, and the way a
          * capability plugin makes one discoverable is by naming it. The second
          * assertion closes the gap for this package: the protection tools in the
-         * catalogue are exactly the three that are meant to exist, so a fourth
-         * fails here whatever it is called.
+         * catalogue are exactly the ones meant to exist on each surface, so an
+         * extra one fails here whatever it is called. The reviewer-candidates
+         * read is copilot-only: a token names nobody and cannot request a
+         * review, so over MCP it would only hand out member email addresses.
          */
         it('offers no tool that could record an approval, on either surface [protection:I-17]', () => {
             const approveish = /approve|approval|vote|sign.?off/i;
@@ -190,17 +192,24 @@ describe('Tool registry (one registry, two surfaces)', () => {
             expect(mounted?.mcp.length).toBeGreaterThan(0);
             expect(mounted?.copilot.length).toBeGreaterThan(0);
 
-            for (const names of [mounted?.mcp ?? [], mounted?.copilot ?? []]) {
+            const shared = [
+                'protection_request_review',
+                'protection_review_diff',
+                'protection_review_status'
+            ];
+            for (const [names, expected] of [
+                [mounted?.mcp ?? [], shared],
+                [
+                    mounted?.copilot ?? [],
+                    [...shared, 'protection_reviewer_candidates']
+                ]
+            ] as const) {
                 expect(names.filter((name) => approveish.test(name))).toEqual(
                     []
                 );
                 expect(
                     names.filter((name) => name.startsWith('protection_'))
-                ).toEqual([
-                    'protection_request_review',
-                    'protection_review_diff',
-                    'protection_review_status'
-                ]);
+                ).toEqual(expected);
             }
         });
 

@@ -17,7 +17,10 @@ import { PERMISSIONS } from '@orthacms/identity-server';
 import { ReviewStatusQuery } from '../application/review-status.query';
 import { EntryReviewService } from '../application/entry-review.service';
 import { ReviewApprovalRepository } from '../infrastructure/review-approval.repository';
-import { ReviewerCandidatesQuery } from '../infrastructure/reviewer-candidates.query';
+import {
+    ReviewerCandidatesQuery,
+    type ReviewerCandidate
+} from '../infrastructure/reviewer-candidates.query';
 import { HeadRevisionQuery } from '../infrastructure/head-revision.query';
 
 /** What `protection_review_status` answers with. */
@@ -47,7 +50,7 @@ interface ReviewDiffToolView {
  * The agent-facing half of publication protection — what a model may ask and
  * request about a review.
  *
- * **Three tools, and the fourth is absent on purpose.** There is no
+ * **Four tools, and an approve tool is absent on purpose.** There is no
  * `protection_approve`, on the copilot or
  * over MCP, now or later. ADR-0017 §6 carries the argument and it is settled;
  * the short form is that with a rule in force the approval *is* the step that
@@ -81,8 +84,8 @@ interface ReviewDiffToolView {
  * It helps somebody read. `protection_review_diff` is the valuable one — "what
  * changed since the version I approved" is a question revisions answer *exactly*
  * rather than by paraphrase, and it is the question a returning reviewer
- * actually has. The other two let a run report where a review stands and ask for
- * one on the author's behalf.
+ * actually has. The other three let a run report where a review stands, see who
+ * can be asked, and ask for one on the author's behalf.
  */
 @Injectable()
 export class ProtectionToolProvider implements ToolProvider, OnModuleInit {
@@ -104,7 +107,12 @@ export class ProtectionToolProvider implements ToolProvider, OnModuleInit {
     }
 
     tools(): readonly ToolDefinition[] {
-        return [this.reviewStatus(), this.reviewDiff(), this.requestReview()];
+        return [
+            this.reviewStatus(),
+            this.reviewDiff(),
+            this.reviewerCandidates(),
+            this.requestReview()
+        ];
     }
 
     /** `protection_review_status` — where a review stands. */
@@ -192,6 +200,62 @@ export class ProtectionToolProvider implements ToolProvider, OnModuleInit {
         };
     }
 
+    /**
+     * `protection_reviewer_candidates` — who may be asked to review an entry.
+     *
+     * Without it "assign a reviewer" had no way in: the request tool needs
+     * names, and the only list of valid ones came back in its error after a
+     * guess. The answer is the editor picker's own (`ReviewerCandidatesQuery`):
+     * the workspace's other members who can approve — never the whole member
+     * list.
+     *
+     * **Copilot only.** MCP authenticates with API tokens, a token names no user
+     * and so can never request a review, and offering it there would only hand
+     * a credential the members' email addresses.
+     */
+    private reviewerCandidates(): ToolDefinition {
+        return {
+            name: 'protection_reviewer_candidates',
+            title: 'Who can review',
+            description:
+                'List who can be asked to review an entry: the other members of this ' +
+                'workspace who can approve content, by email. These are exactly the ' +
+                'names `protection_request_review` accepts — call this first when the ' +
+                'person asks you to assign a reviewer without naming one, and offer the ' +
+                'list rather than picking somebody yourself. An empty list means nobody ' +
+                'else here can approve. ' +
+                'You cannot approve an entry yourself; a person does that in the editor.',
+            inputSchema: {
+                type: 'object',
+                properties: {
+                    typeName: {
+                        type: 'string',
+                        description: 'The content type’s machine name.'
+                    },
+                    entryId: {
+                        type: 'string',
+                        description:
+                            'The entry a reviewer would be asked about.'
+                    }
+                },
+                required: ['typeName', 'entryId'],
+                additionalProperties: false
+            },
+            // What the editor's picker and the request itself ask: whoever may
+            // ask for a review may see who can be asked.
+            requires: [PERMISSIONS.CONTENT_UPDATE],
+            readOnly: true,
+            effect: 'read',
+            surfaces: ['copilot'],
+            handler: async (input, ctx) =>
+                this.runCandidates(
+                    String(input['typeName']),
+                    String(input['entryId']),
+                    ctx
+                )
+        };
+    }
+
     /** `protection_request_review` — ask somebody to look. */
     private requestReview(): ToolDefinition {
         return {
@@ -200,8 +264,8 @@ export class ProtectionToolProvider implements ToolProvider, OnModuleInit {
             description:
                 'Ask named people to review an entry. Name each reviewer by email address ' +
                 '(or user id); they must be other members of this workspace who can ' +
-                'approve content, and an error lists who can be asked when a name is not ' +
-                'one of them. This records a request; it does not approve anything and does ' +
+                'approve content — `protection_reviewer_candidates` lists them. ' +
+                'This records a request; it does not approve anything and does ' +
                 'not publish, and who is asked does not change whose approval counts. ' +
                 'Asking twice replaces the reviewers on the open request rather than ' +
                 'creating a second one. Refused on an entry that is published and ' +
@@ -335,6 +399,24 @@ export class ProtectionToolProvider implements ToolProvider, OnModuleInit {
             toRevisionNumber: head.number,
             changes,
             unchangedFields
+        };
+    }
+
+    /** The candidates read — the same list the request write checks against. */
+    private async runCandidates(
+        typeName: string,
+        entryId: string,
+        ctx: ToolContext
+    ): Promise<{ candidates: ReviewerCandidate[] }> {
+        await this.assertReachable(typeName, entryId, ctx);
+        const userId = ctx.actor.userId;
+        if (!userId) {
+            throw new Error(
+                'Only a signed-in user can ask for a review, so there is nobody to list.'
+            );
+        }
+        return {
+            candidates: await this.candidates.list(ctx.workspaceId, userId)
         };
     }
 

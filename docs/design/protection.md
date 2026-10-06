@@ -340,15 +340,16 @@ warns at that moment — not a week later on the first failed publish.
 
 ## Agent surfaces
 
-Three tools in the shared registry, each declaring `surfaces` **explicitly** —
+Four tools in the shared registry, each declaring `surfaces` **explicitly** —
 omitting the field in `tools/server` means both, so silence here would hand a
 tool to MCP by accident.
 
-| Tool                        | Surfaces     | Requires         | What                                                                                                                                         |
-| --------------------------- | ------------ | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `protection_review_status`  | copilot, mcp | `content:read`   | The requirement, the approvals, who and on which version.                                                                                    |
-| `protection_review_diff`    | copilot, mcp | `content:read`   | What changed between the head revision and the last one this caller approved. The most useful of the three: revisions make the answer exact. |
-| `protection_request_review` | copilot, mcp | `content:update` | Opens a request naming reviewers by email (or id). A write, so it parks for the in-the-moment prompt like any other.                         |
+| Tool                             | Surfaces     | Requires         | What                                                                                                                                                                              |
+| -------------------------------- | ------------ | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `protection_review_status`       | copilot, mcp | `content:read`   | The requirement, the approvals, who and on which version.                                                                                                                         |
+| `protection_review_diff`         | copilot, mcp | `content:read`   | What changed between the head revision and the last one this caller approved. The most useful of the three: revisions make the answer exact.                                      |
+| `protection_reviewer_candidates` | copilot      | `content:update` | Who can be asked: the other members holding `content:approve`, the picker's list. Copilot-only — a token cannot request a review, so over MCP it would only expose member emails. |
+| `protection_request_review`      | copilot, mcp | `content:update` | Opens a request naming reviewers by email (or id). A write, so it parks for the in-the-moment prompt like any other.                                                              |
 
 **There is no approve tool, and no changes-requested tool.** ADR-0017 §6 carries
 the argument. The tool descriptions — written for a model, not a person — say so

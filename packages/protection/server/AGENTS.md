@@ -330,12 +330,13 @@ heard of, and forgetting the workspace turns a filter into a cross-tenant read),
 only `eq` and `in` are declared and the admin's `FilterField.operators` is
 narrowed to match, and it narrows a list rather than deciding visibility.
 
-## The three tools, and the fourth that does not exist
+## The four tools, and the approve tool that does not exist
 
-`protection_review_status`, `protection_review_diff` and
-`protection_request_review`. Each declares `surfaces` **explicitly** — omitting
-the field in `tools/server` means _both_ consumers, so silence would hand a tool
-to MCP by accident rather than by decision.
+`protection_review_status`, `protection_review_diff`,
+`protection_reviewer_candidates` and `protection_request_review`. Each declares
+`surfaces` **explicitly** — omitting the field in `tools/server` means _both_
+consumers, so silence would hand a tool to MCP by accident rather than by
+decision.
 
 `review_diff` is the valuable one: what changed between the head and the last
 version _this caller_ approved. Revisions make that exact rather than a
@@ -348,6 +349,14 @@ roster to read ids from. It resolves them against `ReviewerCandidatesQuery` and
 writes through `EntryReviewService.requestReview`, the route's own path, so a run
 cannot ask somebody the picker would not offer; an unknown name fails with the
 list of who can be asked, which is what lets a model correct itself in one turn.
+
+`protection_reviewer_candidates` is that list up front — the editor picker's
+own (`ReviewerCandidatesQuery`: the workspace's other members holding
+`content:approve`, never the whole roster), gated on `content:update` like the
+picker. Without it "assign a reviewer" with no name given had nothing to offer
+but a guess. It is **copilot-only**: MCP authenticates with API tokens, a token
+names no user and can never request a review, so there it would only hand a
+credential the members' email addresses.
 
 **There is no approve tool**, on any surface, now or
 later. ADR-0017 §6 carries the argument. `protection:I-17` pins it against the
