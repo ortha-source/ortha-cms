@@ -8,7 +8,11 @@ import { PERMISSIONS } from '@orthacms/identity-server';
 import { ToolRegistry } from '@orthacms/tools-server';
 import type { ToolDefinition, ToolProvider } from '@orthacms/tools-server';
 import { InjectContentRegistry } from '../content.tokens';
-import type { ContentTypeRegistry } from '../registry/content-type-registry';
+import type {
+    ContentTypeRegistry,
+    SerializedContentType
+} from '../registry/content-type-registry';
+import { scopeSerializedType } from '../registry/reachable-schema';
 import { EntriesService } from '../entries/infrastructure/queries/entries.service';
 import { EntryWriterService } from '../entries/infrastructure/persistence/entry-writer.service';
 import { WorkspaceGrantsQuery } from '../content-types/queries/workspace-grants.query';
@@ -142,7 +146,17 @@ export class ContentCopilotToolProvider implements ToolProvider, OnModuleInit {
                         grantedTypes: granted
                     });
                     return {
-                        type: this.registry.serialize(type.name),
+                        // Scoped like the filter surface below: the registry's
+                        // schema is global, and a relation into a type this
+                        // workspace cannot reach is one nobody here can fill —
+                        // the server waives its `required`, and served raw it
+                        // told the model no draft could be saved without it.
+                        type: scopeSerializedType(
+                            this.registry.serialize(
+                                type.name
+                            ) as SerializedContentType,
+                            granted
+                        ),
                         // `fields` is the admin PICKER's list, which omits the
                         // envelope timestamps a person reads off a badge —
                         // `publishedAt` most of all, without which a model

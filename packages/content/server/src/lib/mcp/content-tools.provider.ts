@@ -19,6 +19,7 @@ import type {
     ContentTypeRegistry,
     SerializedContentType
 } from '../registry/content-type-registry';
+import { scopeSerializedType } from '../registry/reachable-schema';
 import { WorkspaceGrantsQuery } from '../content-types/queries/workspace-grants.query';
 import {
     resolveGrantedType,
@@ -176,7 +177,7 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
                 handler: async (input, context) => {
                     const typeName = requireTypeName(input);
                     await this.resolve(typeName, context);
-                    return this.describeType(typeName);
+                    return this.describeType(typeName, context);
                 }
             },
 
@@ -742,7 +743,11 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
         return {
             uri,
             mimeType: 'application/json',
-            text: JSON.stringify(this.describeType(typeName), null, 2)
+            text: JSON.stringify(
+                await this.describeType(typeName, context),
+                null,
+                2
+            )
         };
     }
 
@@ -785,8 +790,15 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
      * valid `values` object. `fieldSchema` is the same generator the OpenAPI
      * document uses, so the two descriptions of a type cannot disagree.
      */
-    private describeType(typeName: string) {
-        const type = this.registry.serialize(typeName) as SerializedContentType;
+    private async describeType(typeName: string, context: ToolContext) {
+        // As this workspace sees it: a relation into a type it cannot reach is
+        // one no caller here can fill, and the server waives its `required`
+        // (`waivedRequiredRelations`). Described raw, it read as a required
+        // field no draft could be saved without.
+        const type = scopeSerializedType(
+            this.registry.serialize(typeName) as SerializedContentType,
+            await this.grants.reachableSlugs(context.workspaceId)
+        );
         const properties: Record<string, unknown> = {};
         for (const field of type.fields.filter(isValueField)) {
             properties[field.name] = fieldSchema(field);

@@ -565,6 +565,16 @@ null value false`. It was not _reachable_, though: **`admin_content_types`
   `admin_content_types`, which returns `filterableFields` built with
   `grantedTypes` — the same grant-pruning the public API applies, so a hop into
   a type the workspace was never granted is never advertised.
+- **The type schema an agent reads is scoped to the workspace too**
+  (`registry/reachable-schema.ts`, `scopeSerializedType`), in
+  `admin_content_types` and MCP's `content_type_get` alike. The registry's
+  schema is global, so served raw it described relations into types the
+  workspace cannot reach — fields nobody there can fill, whose `required` the
+  server waives (`waivedRequiredRelations`). A model read `author: required` on
+  an article in a workspace without `author` and refused to save a draft that
+  would have gone through. Such relations are dropped, except the one the
+  server never waives — a required single relation on a non-publishable type,
+  a `NOT NULL` column that explains why every save there is a 422.
 - **`fields` projects `values`** (`copilot/project-entry.ts`) and is what makes
   "list all the articles" possible at all: a full `EntryRecord` carries every
   richtext body, so a page of 25 exhausts the run's token ceiling long before
