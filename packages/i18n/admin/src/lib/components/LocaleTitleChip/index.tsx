@@ -10,7 +10,7 @@ import {
     DropdownMenuRadioGroup,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
-    badgeVariants,
+    Button,
     cn
 } from '@orthacms/design-system';
 import { useHasPermission } from '@orthacms/identity-admin';
@@ -381,16 +381,16 @@ export function LocaleTitleChip({
         // out of the a11y tree while the menu is open.
         <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
-                {/* A real `<button>`, not the `Badge` `<div>` this chip used to
-                    be: Radix needs a control to hand its menu semantics and its
-                    keyboard contract to. `badgeVariants` gives it the chip's
-                    look with no design-system change. */}
-                <button
+                {/* A plain outline `Button`, like the write actions it
+                    leads in the top bar — not a badge: it is the editor's
+                    locale switcher, and a chip read as a label about the
+                    record rather than a control. It is also the real
+                    `<button>` Radix needs to hand its menu semantics and
+                    keyboard contract to. */}
+                <Button
                     type="button"
-                    className={cn(
-                        badgeVariants({ variant: 'outline' }),
-                        'gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
-                    )}
+                    variant="outline"
+                    size="sm"
                     aria-label={
                         countKnown
                             ? intl.formatMessage(messages.trigger, {
@@ -432,9 +432,9 @@ export function LocaleTitleChip({
                     ) : null}
                     <ChevronDown
                         aria-hidden
-                        className="size-3 text-muted-foreground"
+                        className="text-muted-foreground"
                     />
-                </button>
+                </Button>
             </DropdownMenuTrigger>
             {/* No `aria-label` here: Radix already points the menu's
                 `aria-labelledby` at the trigger, which names it better than a

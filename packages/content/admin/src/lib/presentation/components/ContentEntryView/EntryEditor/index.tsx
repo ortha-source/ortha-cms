@@ -10,7 +10,8 @@ import {
     ConfirmDialog,
     cn,
     toast,
-    TopBarTabs
+    TopBarTabs,
+    useIsMobile
 } from '@orthacms/design-system';
 import type {
     ContentField,
@@ -343,6 +344,18 @@ export function EntryEditor({
     // rendered beside the heading with the surrounding editor's context.
     const slotContext = useEntrySlotContext();
     const headerItems = ENTRY_HEADER_SLOT.getItems();
+    // A contributed header control can act on the record (i18n's locale menu
+    // creates a translation) — none of which a shared record can take from
+    // here, so a foreign record shows none of them.
+    const headerControls =
+        slotContext && headerItems.length > 0 && !foreign
+            ? headerItems.map((item) => (
+                  <item.Component key={item.id} {...slotContext} />
+              ))
+            : null;
+    // Below the breakpoint the top bar has no room beyond the write actions,
+    // so the header controls stay in the page's own header there.
+    const isMobile = useIsMobile();
     // The existing entry's id, or undefined while creating. Many/inverse
     // relations are staged locally either way and sent as a delta on Save.
     const entryId = entry?.id;
@@ -994,8 +1007,13 @@ export function EntryEditor({
                         workspace doesn't own — has no actions at all, not even
                         the menu: every write route refuses it, and a bar of
                         buttons that can only fail is worse than none. */}
-                    {locked ? null : (
-                        <PageActionsPortal>
+                    <PageActionsPortal>
+                        {/* The header controls lead the actions in **one**
+                            portal: two portals into the same host stack in
+                            mount order, so a chip that mounted after the
+                            buttons (or remounted) landed behind them. */}
+                        {isMobile ? null : headerControls}
+                        {locked ? null : (
                             <EntryActions
                                 entry={entry}
                                 publishable={publishable}
@@ -1009,8 +1027,8 @@ export function EntryEditor({
                                 onUnpublish={onUnpublish}
                                 onDelete={onDelete}
                             />
-                        </PageActionsPortal>
-                    )}
+                        )}
+                    </PageActionsPortal>
 
                     <RightPanelPortal
                         title={intl.formatMessage(messages.propertiesPanel)}
@@ -1048,35 +1066,22 @@ export function EntryEditor({
                                 differently — and would have again on the next
                                 change to either.
 
-                                `ENTRY_HEADER_SLOT` items ride the `actions`
-                                region: they are marks *about* the record (the
-                                current locale, a restricted chip), and the
-                                header already keeps them on the title's row
+                                `ENTRY_HEADER_SLOT` items lead the top bar's
+                                actions (see the portal above) on a desktop
+                                viewport. Below the breakpoint the bar has no
+                                room for them, so they ride this header's
+                                `actions` region instead, beside the title
                                 while leaving the `<h1>` the sole heading. */}
                             <ContainerHeader
                                 className="mb-6 min-w-0"
                                 icon={<FileText className="size-4" />}
                                 title={title}
                                 subtitle={subtitle}
+                                // `undefined`, never `[]`: the header draws its
+                                // actions row for anything truthy.
                                 actions={
-                                    // An empty array is truthy, and the header
-                                    // draws its actions row for anything
-                                    // truthy — so a record with no
-                                    // contributions has to hand it `undefined`
-                                    // rather than `[]`.
-                                    slotContext &&
-                                    headerItems.length > 0 &&
-                                    // A contributed header control can act
-                                    // on the record (i18n's locale menu
-                                    // creates a translation) — none of which
-                                    // a shared record can take from here.
-                                    !foreign
-                                        ? headerItems.map((item) => (
-                                              <item.Component
-                                                  key={item.id}
-                                                  {...slotContext}
-                                              />
-                                          ))
+                                    isMobile
+                                        ? (headerControls ?? undefined)
                                         : undefined
                                 }
                             />

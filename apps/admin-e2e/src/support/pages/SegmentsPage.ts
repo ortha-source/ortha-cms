@@ -139,7 +139,7 @@ export class SegmentsPage extends BasePage {
         return this.page.getByText('Changed', { exact: true });
     }
 
-    /** The entry header's access chip. */
+    /** The access chip in the editor's Details block. */
     get accessChip(): Locator {
         return this.page.getByRole('link', {
             name: /Who can read this entry/

@@ -13,7 +13,7 @@ src/lib/
     pages/SegmentsPage/         the directory at /segments
     pages/SegmentEditorPage/    create / edit, at /segments/new and /segments/:id
     components/
-      EntryAccessChip/          the entry header badge
+      EntryAccessChip/          the Access row of the editor's Details block
       EntryAccessTab/           the Access tab — where every decision is made
       EntryAccessBulkActions/   set every matched audience at once
       SegmentStateControl/      one audience's three-state control
@@ -23,14 +23,14 @@ src/lib/
 
 ## What it contributes
 
-| Surface            | Where                   | What it is for                   |
-| ------------------ | ----------------------- | -------------------------------- |
-| Audience directory | `/segments`             | the vocabulary                   |
-| Audience editor    | `/segments/new`, `/:id` | create / edit one                |
-| Entry header chip  | `ENTRY_HEADER_SLOT`     | is this entry restricted         |
-| **Access** tab     | `ENTRY_TAB_SLOT`        | every decision, one per audience |
-| The save step      | `ENTRY_PRESAVE_SLOT`    | applying them, on Save / Publish |
-| Revision row       | `REVISION_EXTRA_SLOT`   | who could read a past version    |
+| Surface            | Where                    | What it is for                   |
+| ------------------ | ------------------------ | -------------------------------- |
+| Audience directory | `/segments`              | the vocabulary                   |
+| Audience editor    | `/segments/new`, `/:id`  | create / edit one                |
+| Access row         | `ENTRY_DETAILS_ROW_SLOT` | is this entry restricted         |
+| **Access** tab     | `ENTRY_TAB_SLOT`         | every decision, one per audience |
+| The save step      | `ENTRY_PRESAVE_SLOT`     | applying them, on Save / Publish |
+| Revision row       | `REVISION_EXTRA_SLOT`    | who could read a past version    |
 
 There is nothing between the directory and the entry — no rule library, no
 assignment screen — because there is nothing in the model between them.
@@ -45,7 +45,7 @@ pagers.
 Three consequences worth keeping:
 
 **A page is not the whole list, so anything holding _ids_ reads by id.** The
-entry header chip and a revision's captured access resolve their labels through
+entry's Access row and a revision's captured access resolve their labels through
 `useSegmentLookup` (`GET /segments/lookup?ids=`), never by searching a page. A
 miss on page one would have rendered as "deleted audience" for an audience that
 is merely on page three — a claim rather than a gap.
@@ -125,7 +125,7 @@ which is what keeps the feature inert for an editor who never opens the tab.
 Toggling back to what is already stored clears the staging (`sameAccess`) rather
 than staging a round trip.
 
-**The header chip says what readers get _now_, the tab says what the next save
+**The Access row says what readers get _now_, the tab says what the next save
 will make of it.** The chip renders from `EntrySlotContext`, which carries no
 `presave` handle, so it cannot see the staging — and that is the honest reading
 anyway: until Save, the restriction the chip reports is still the live one.

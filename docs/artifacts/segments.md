@@ -52,7 +52,7 @@ Segments is the “guest list” for published content. Everything else in the C
 
 #### The editor
 
-Sees a chip by the entry's title (“Everyone” or “Restricted”) and an “Access” tab where each audience has one three-state control. The tab has no “Save” button — the decision travels with the entry's own save.
+Sees an Access row in the entry's Details block (“Everyone” or “Restricted”) and an “Access” tab where each audience has one three-state control. The tab has no “Save” button — the decision travels with the entry's own save.
 
 #### The administrator
 
@@ -89,7 +89,7 @@ The `packages/segments` group is three packages. The split is load-bearing: the 
 | ------- | ------------------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | domain  | @orthacms/segments-domain | The framework-free kernel: the model itself and the decision itself                                        | `canRead`, `isOpen`, `sameAccess`, `isOfferedIn`, `segmentIdsForTags`, the `SegmentResolver` port, `validateSegment` + four limits. **Zero dependencies** in its `package.json`                   |
 | server  | @orthacms/segments-server | The NestJS plugin: two tables, three controllers, one predicate, four agent tools                          | The schema and migrations, `SegmentReadScope` (the `CONTENT_READ_SCOPE` implementation), `EntryAccessWriteExtension`, `AccessFilterProvider`, the catalogue cache, two `AsyncLocalStorage` stores |
-| admin   | @orthacms/segments-admin  | The admin plugin: the audience directory + the “Access” tab + four contributions into other people's slots | `/segments`, `/segments/new`, `/segments/:segmentId`, the chip by the entry's title, the pre-save step, the revision line, the records-list filter fields                                         |
+| admin   | @orthacms/segments-admin  | The admin plugin: the audience directory + the “Access” tab + four contributions into other people's slots | `/segments`, `/segments/new`, `/segments/:segmentId`, the Access row in the entry's Details block, the pre-save step, the revision line, the records-list filter fields                           |
 
 ### How the files are laid out inside
 
@@ -248,10 +248,10 @@ A read does not need them — `entry_id` is unique by itself. But they are what 
 
 **the plugin is registered, no audiences** — the first audience is created → **the catalogue is non-empty, a predicate is emitted** — the last one is deleted → **inert again**
 
-| State    | What `SegmentReadScope` does                                                                                        | What `ReaderMiddleware` does                                                             | What is visible in the admin UI                                                                                                                           |
-| -------- | ------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| inert    | `catalog.configured === false` → returns `undefined`, no fragment is added, and a read is byte for byte what it was | `next()` immediately, the resolver is not called                                         | The chip by the entry's title is not rendered at all; the filter fields are not offered; the “Access” tab shows a “there are no audiences here yet” state |
-| in force | Emits the predicate on every public read and on every relation traversal                                            | Calls the resolver, resolves the tags into ids, puts the reader into `AsyncLocalStorage` | The chip, the tab with its controls, the three filter fields, and the “Who can read this” line in the revision preview                                    |
+| State    | What `SegmentReadScope` does                                                                                        | What `ReaderMiddleware` does                                                             | What is visible in the admin UI                                                                                                                                         |
+| -------- | ------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| inert    | `catalog.configured === false` → returns `undefined`, no fragment is added, and a read is byte for byte what it was | `next()` immediately, the resolver is not called                                         | The Access row in the entry's Details block is not rendered at all; the filter fields are not offered; the “Access” tab shows a “there are no audiences here yet” state |
+| in force | Emits the predicate on every public read and on every relation traversal                                            | Calls the resolver, resolves the tags into ids, puts the reader into `AsyncLocalStorage` | The chip, the tab with its controls, the three filter fields, and the “Who can read this” line in the revision preview                                                  |
 
 Separately: `ReaderMiddleware` also passes through when the resolver is **not configured**. Then every reader is anonymous — and that is a working configuration rather than a broken one: unrestricted content is served, restricted content is not.
 
@@ -296,15 +296,15 @@ There are four ways into the plugin, and they differ in **who is acting**: the a
 7. **`POST /api/segments`.** The server checks the key's uniqueness itself and answers `409` when it is taken. The form deliberately does **not** hold a local list of keys: the directory is paginated, and “the existing keys” would be one page of it — a check that is right most of the time is worse than one that is honestly late.
    _the 409 lands on the key field, remembering the refused key itself — the message clears as soon as another is typed_
 8. **The tags default to the key.** An audience with no tags matches nobody, that is, it can only close content off. An empty workspace list gets no default — the emptiness already means “in all of them”.
-9. **`catalog.reload()` — and from this moment the system is a different one.** `configured` became true: `SegmentReadScope` starts emitting the predicate, `ReaderMiddleware` starts calling the resolver, `AccessFilterProvider` starts offering the three filter fields, and the chip by the entry's title starts rendering.
+9. **`catalog.reload()` — and from this moment the system is a different one.** `configured` became true: `SegmentReadScope` starts emitting the predicate, `ReaderMiddleware` starts calling the resolver, `AccessFilterProvider` starts offering the three filter fields, and the Access row in the entry's Details block starts rendering.
    _leaving the inert state is this feature's only “switch-on”; there is no configuration flag_
 
 ### 7.2 An editor restricts an entry — the main write path
 
 This is the most important flow in the whole plugin, and it is deliberately built **not** to be a request of its own.
 
-1. **The chip by the entry's title.** `EntryAccessChip` in `ENTRY_HEADER_SLOT` asks `useSegments({ workspaceId, pageSize: 1 })` — it needs to know _whether there is any_ audience at all, not which. At `total === 0` it renders **nothing**: a badge asserting anything about access would be an assertion about a system that is not running.
-   _the chip sits by the title rather than in the right-hand properties panel: the moment access matters is the moment before publishing something believed to be public, and that moment happens while writing, not while auditing a properties column_
+1. **The Access row in the editor's Details block.** `EntryAccessChip` in `ENTRY_DETAILS_ROW_SLOT` (order 5) asks `useSegments({ workspaceId, pageSize: 1 })` — it needs to know _whether there is any_ audience at all, not which. At `total === 0` it renders **nothing**: a badge asserting anything about access would be an assertion about a system that is not running.
+   _it used to sit by the title; once the title row became the top bar's actions it crowded Save / Publish and read as one more control, so it moved to Details beside the record's other properties_
 2. **Clicking the chip leads to the tab.** A link, not a popover: the tab is one click away and holds the whole answer, while a hover card would be a second rendering of the same thing to keep in agreement. The path is built explicitly, because on a **singleton** page the editor is mounted on the type itself (`${typePath}/access`), while a collection row nests its tabs under the entry id (`${typePath}/${entry.id}/access`).
 3. **The tab's slug belongs to content, not to us.** `ENTRY_TAB_SLOT` discards an item whose slug is outside `ENTRY_TAB_SLUGS`: the route table would match the segment, and `entryTabFromPath` would not be able to resolve it. So `access` is declared in `ENTRY_TAB` inside `content/admin`.
 4. **The tab issues two requests.** The audience list — **scoped to the current workspace**, with search (250 ms debounce) and pagination; and the entry's saved access — `useEntryAccess(workspaceId, entry.id, entry.updatedAt)`. The row's version is part of the cache key, because access now changes on paths this plugin knows nothing about — restoring a version above all.
@@ -419,7 +419,7 @@ Not workspace-scoped: an audience is an installation-wide concept, like a conten
 
 > **Why lookup is declared before :id**
 >
-> So the literal segment wins the match. The route itself exists because **a page is not the whole list**: a caller holding an _id_ (the chip by the entry's title, the access recorded by a revision) can no longer count on the rows it needs being on the first page. Without it they would print uuids or, worse, claim an audience was deleted when it is merely on page three.
+> So the literal segment wins the match. The route itself exists because **a page is not the whole list**: a caller holding an _id_ (the Access row in the entry's Details block, the access recorded by a revision) can no longer count on the rows it needs being on the first page. Without it they would print uuids or, worse, claim an audience was deleted when it is merely on page three.
 
 > **The ids in the list response is not a page**
 >
@@ -495,7 +495,7 @@ The plugin contributes **three routes** and **six contributions into other peopl
 | Slot                       | Component / hook                                                   | Why                                                                                                                                             |
 | -------------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | SIDEBAR_NAV_SLOT           | a “Segments” item, group `directory`, order 40                     | Carries `permission: SEGMENTS_READ` — otherwise the row would be a dead link for somebody who cannot open the directory                         |
-| ENTRY_HEADER_SLOT          | `EntryAccessChip`                                                  | Whether this entry is restricted **right now**                                                                                                  |
+| ENTRY_DETAILS_ROW_SLOT     | `EntryAccessChip`                                                  | Whether this entry is restricted **right now**                                                                                                  |
 | ENTRY_TAB_SLOT             | `EntryAccessTab`, slug `access`, order 20, `appliesTo: () => true` | All the decisions. On **every** type, unlike the media tab: any entry can be restricted, and the schema says nothing about whether it should be |
 | ENTRY_PRESAVE_SLOT         | `useEntryAccessPresave`                                            | The staging, the `extensions` contribution and `settle`. Mounted **above** the tab, because tabs are routes                                     |
 | REVISION_EXTRA_SLOT        | `RevisionAccessValue`, key `access`, label “Who can read this”     | Who could read a past version — made possible precisely because the write travels with the save                                                 |
@@ -654,7 +654,7 @@ Statements that must always hold. This is at once a review list and a draft set 
 - **I-27** — The tab's bulk action acts on the `ids` from the list response (every match), not on the rows on screen; past `MATCHED_IDS_CAP` the controls are disabled with an explanation.
 - **I-28** — Decisions on audiences absent from the current list are preserved and counted rather than discarded.
 - **I-29** — An entry's access cache key carries the workspace and the row's `updatedAt`; `settle` seeds the saved row and invalidates all the others.
-- **I-30** — The chip by the entry's title renders nothing while the workspace has no audiences.
+- **I-30** — The Access row in the entry's Details block renders nothing while the workspace has no audiences.
 - **I-31** — Agent and public access reads answer from `entry_access`, not through a reader-scoped public entry read.
 - **I-32** — `content_access_set` exists on MCP only; the copilot gets `content_propose_access` with `effect: 'propose'` in its place, and both require `segments:manage`.
 - **I-33** — There is neither a public route nor an agent tool over the audience directory — under any token scope.

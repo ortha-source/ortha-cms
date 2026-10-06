@@ -2,7 +2,7 @@ import { Suspense, lazy } from 'react';
 import type { AdminPlugin } from '@orthacms/bootstrap-admin';
 import { SIDEBAR_NAV_SLOT } from '@orthacms/shell-admin';
 import {
-    ENTRY_HEADER_SLOT,
+    ENTRY_DETAILS_ROW_SLOT,
     ENTRY_PRESAVE_SLOT,
     ENTRY_TAB,
     ENTRY_TAB_SLOT,
@@ -25,7 +25,7 @@ import { RevisionAccessValue } from '../components/RevisionAccessValue';
 
 // Lazy so the directory is code-split into its own chunk. The entry chip and
 // tab are **not** lazy: they mount inside the editor, which is already a chunk
-// of its own, and a suspense boundary around a badge in the title row is a
+// of its own, and a suspense boundary around a badge in the Details block is a
 // flicker on every entry open.
 const SegmentsPage = lazy(() =>
     import('../pages/SegmentsPage').then((module) => ({
@@ -51,8 +51,8 @@ export type SegmentsAdminPlugin = AdminPlugin;
  * — the same customer whichever workspace's content they are reading. Which
  * workspaces may *use* one is a property of the audience, set on its page.
  *
- * The **entry editor** is where every decision is made: a chip in the title row
- * saying whether the entry is restricted, and the Access tab behind it with one
+ * The **entry editor** is where every decision is made: an Access row in the
+ * Details block saying whether the entry is restricted, and the Access tab behind it with one
  * three-state control per audience. There is nothing between the two — no rule
  * library, no assignment screen — because there is nothing in the model
  * between them.
@@ -120,9 +120,18 @@ export function SegmentsPlugin(): SegmentsAdminPlugin {
                 ]
             },
             {
-                slot: ENTRY_HEADER_SLOT,
+                // A row of the Details block, not a chip in the title row: it
+                // is a property of the record, and the title row now lives in
+                // the top bar beside the write actions.
+                slot: ENTRY_DETAILS_ROW_SLOT,
                 items: [
-                    { id: 'segments.entry.chip', Component: EntryAccessChip }
+                    {
+                        id: 'segments.entry.chip',
+                        // Ahead of i18n's translation group (10), a stacked
+                        // id the eye skims past.
+                        order: 5,
+                        Component: EntryAccessChip
+                    }
                 ]
             },
             {

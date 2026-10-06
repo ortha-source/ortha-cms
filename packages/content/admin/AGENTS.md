@@ -999,7 +999,7 @@ contracts, the same idiom as the workspace shell's slots.
 `@orthacms/wysiwyg-admin` fills one (`ENTRY_FIELD_CONTROL_SLOT`, the rich-text
 editor); `@orthacms/transfer-admin` fills three (`ENTRY_MENU_SLOT` and
 `RECORDS_BULK_ACTION_SLOT` to export, `RECORDS_MENU_SLOT` to import);
-`@orthacms/segments-admin` fills three (`ENTRY_HEADER_SLOT`, the restricted chip;
+`@orthacms/segments-admin` fills three (`ENTRY_DETAILS_ROW_SLOT`, the Access row;
 `ENTRY_TAB_SLOT`, the Access tab; and `ENTRY_PRESAVE_SLOT`, which is what applies
 an entry's audiences on Save rather than on a button of its own);
 `@orthacms/activity-admin` fills one (`ENTRY_TAB_SLOT`, the **Activity** tab —
@@ -1083,19 +1083,24 @@ fetching internally.
       first; contributions follow in `order`.
     - It exists because a whole rail block for one read-only line is what the
       rail was being slimmed of: `@orthacms/i18n-admin` fills it with the
-      **translation-group id**, which used to be the tail of a Locale panel.
-- **`ENTRY_HEADER_SLOT`** — an inline element in the entry editor's title row,
-  rendered **after** the `<h1>` (the heading stays the sole `<h1>`) with the
-  same `EntrySlotContext`. Used for the i18n plugin's locale chip, which is
-  also the **locale menu's** trigger.
-  Since `ORT-202` the editor's heading is the shared `ContainerHeader` rather
-  than a hand-rolled `<h1>`, so these items ride its `actions` region: still
-  after the heading in DOM order, still outside it, and now aligned with the
-  header's actions on every other page.
-
-    An **empty** contribution list has to be passed as `undefined`, not `[]` —
-    `ContainerHeader` draws its actions row for anything truthy, and an empty
-    array is truthy.
+      **translation-group id**, which used to be the tail of a Locale panel,
+      and `@orthacms/segments-admin` with the **Access** row (Everyone /
+      Restricted), which used to be a chip in the title row.
+- **`ENTRY_HEADER_SLOT`** — a control **leading the top bar's actions**, before
+  the editor's Save / Publish and ⋯, with the same `EntrySlotContext`. Used for
+  the i18n plugin's locale switcher (an outline button opening the locale menu)
+  and protection's review chip; items render in registration order.
+    - They share **one** `PageActionsPortal` with `EntryActions`, header items
+      first. Two portals into the same host stack in mount order, so a chip
+      that mounted (or remounted) after the buttons used to land behind them.
+    - **Below the breakpoint** the top bar has no room beyond the write actions,
+      so the items ride `ContainerHeader`'s `actions` region instead — after the
+      `<h1>`, outside it. An **empty** list has to be passed there as
+      `undefined`, not `[]`: `ContainerHeader` draws its actions row for
+      anything truthy.
+    - A property _about_ the record that is not a control belongs in
+      `ENTRY_DETAILS_ROW_SLOT`, not here — the access chip moved for that
+      reason.
 
 - **`RECORDS_FILTER_FIELDS_SLOT`** — extra query-builder filter fields, appended
   after the server-derived fields (`useFilterFields`) at the call site.

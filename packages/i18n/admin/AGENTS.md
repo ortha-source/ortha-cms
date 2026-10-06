@@ -49,13 +49,14 @@ slots the content plugin owns).
   content-admin's shared `entryStatusView` / `ENTRY_STATUS_VIEW_VARIANT` (see
   _Publish state_ below), and the state rides the link's accessible name — the
   badge shows the locale slug, so colour alone would convey nothing.
-- **`ENTRY_HEADER_SLOT` → `LocaleTitleChip`** — the chip beside the entry-editor
-  title **and** the editor's **locale switcher**, live in **both** modes. Shown
+- **`ENTRY_HEADER_SLOT` → `LocaleTitleChip`** — the editor's **locale
+  switcher**, an outline button leading the top bar's actions (before Save /
+  Publish), live in **both** modes. Shown
   only when `schema.i18n`. It reads the open locale as **code · name** (e.g.
   `EN · English`) plus a **translated/total** count, and is a
   `DropdownMenuTrigger` over a menu of every configured locale. The current
   locale is resolved by `resolveActiveLocale` (`entry.locale ?? ?locale= ??
-  defaultLocale`) — the plugin's single decision point, which the menu must not
+defaultLocale`) — the plugin's single decision point, which the menu must not
   duplicate (`i18n:I-05`, `I-06`).
     - **The menu opens on a summary**, `LocaleMenuHeader`: a strip of locale
       codes (filled = live on a publishable type / exists otherwise, tinted =
@@ -108,9 +109,11 @@ slots the content plugin owns).
       fires after its own close sequencing — the same shape content's
       `EntryMenu` and `CollectionRecordsMenu` use, and what keeps the closing
       menu's focus restore from fighting the guard dialog's focus trap.
-    - **The trigger is a real `<button>`**, styled with the design system's
-      exported `badgeVariants` — `Badge` is a `<div>` with no `asChild`, and
-      handing Radix a `<div>` would cost the menu its keyboard contract. The
+    - **The trigger is the design system's `Button`** (`variant="outline"`,
+      `size="sm"`), matching the write actions beside it — a real `<button>`,
+      which Radix needs to hand the menu its keyboard contract. It used to be a
+      badge-styled chip, which read as a label about the record rather than a
+      control. The
       current locale is a **checked `DropdownMenuRadioItem`**; an inert one is
       `aria-disabled`, not `disabled`, because Radix skips a disabled item in
       arrow navigation and the stated reason would be unreachable for exactly
@@ -139,10 +142,10 @@ slots the content plugin owns).
           unknown-because-failed; the row states which, because "couldn't load"
           about a running request sends the reader after a fault that is not
           there.
-      Both are pinned by `[i18n:I-30]` cases in
-      `apps/admin-e2e/src/content/i18n-resilience.spec.ts`, which hold the
-      request open (`holdLocales` / `mockI18n().holdEntryLocales`) rather than
-      racing a `delayMs`.
+          Both are pinned by `[i18n:I-30]` cases in
+          `apps/admin-e2e/src/content/i18n-resilience.spec.ts`, which hold the
+          request open (`holdLocales` / `mockI18n().holdEntryLocales`) rather than
+          racing a `delayMs`.
 - **`ENTRY_DETAILS_ROW_SLOT` → `LocaleDetailsRow`** — the record's
   **`localeGroupId`** (the id every locale of it shares) as one row of the
   editor's **Details** block, beneath the entry id, with an `Info` tooltip
@@ -203,7 +206,7 @@ the legend and the card's subtitle move, and all three have to move together or
 the card describes a chart that is no longer on screen.
 
 The two axes use the same palette roles for the same meaning — `series-1` is
-work done, `series-2` is work outstanding — but the *denominator* differs, which
+work done, `series-2` is work outstanding — but the _denominator_ differs, which
 is what the legend swap is for. By language every bar is scaled against the
 workspace's record count, so a bar's length is that language's reach. By type it
 is the biggest type's record count, so length reads as how much content the type
@@ -324,18 +327,18 @@ TanStack Query key:
 ## Error is not empty, and unknown is not default
 
 Three reads gate everything here, and each of them used to fail into something
-that read as an *answer*:
+that read as an _answer_:
 
 - **The locale list fails** → every surface early-returned, so the switcher —
   the only control that can clear a `?locale=` — disappeared while the list
   stayed scoped to that locale. It now renders a retry, and the title chip
   falls back to the record's own `locale` (a BCP-47 tag, so it can name itself).
 - **The group read fails** (`…/:id/locales`, or the batch in create mode) →
-  every locale resolved to "no sibling", so the panel offered to *create* a
+  every locale resolved to "no sibling", so the panel offered to _create_ a
   translation that already existed and whose save then 409s. The panel now says
   the members couldn't be read, and no row is actionable while that is true.
 - **The summary batch fails** → the Locales cell rendered empty, which is what
-  "this record has no other locales" also looks like. It reads *Unavailable*.
+  "this record has no other locales" also looks like. It reads _Unavailable_.
 
 Separately, an **unconfigured `?locale=`** must never resolve to the default.
 The server 400s the unknown slug, so a switcher labelled "English" would be
@@ -350,14 +353,14 @@ than falling back; `resolveActiveLocale` treats a blank `?locale=` as absent).
 server-resolved `dir`, so this plugin states both rather than guessing:
 `localeAttrs(locales, slug)` returns the `{ lang, dir }` pair to spread onto any
 element rendering that locale's text — the switcher's rows and trigger, the
-title chip's name, the panel's rows. A locale's *display name* is written in
+title chip's name, the panel's rows. A locale's _display name_ is written in
 that locale, so it needs this even before any content is opened; the
 surrounding UI copy ("(default)", "Translated fields") stays in the admin's own
 language and is deliberately left outside the marked element.
 
 The entry editor's translated field run carries `lang={entry.locale}` (via
 content-admin's `EntryFieldSections`), with `dir="auto"` on both runs. Field
-*labels* still inherit that `lang` — marking each control individually needs a
+_labels_ still inherit that `lang` — marking each control individually needs a
 pass-through in every branch of `EntryFieldInput` and is tracked separately.
 
 ## Conventions
@@ -384,7 +387,7 @@ pass-through in every branch of `EntryFieldInput` and is tracked separately.
 The package gained a **vitest target** (`vite.config.mts`, jsdom) during the
 invariant sweep; before it there was no test target at all, which is why
 reverting `useLocalizationCoverage`'s `retry: 1` to TanStack's default broke
-nothing anywhere. Widget *behaviour* still belongs in `admin-e2e`; what lives
+nothing anywhere. Widget _behaviour_ still belongs in `admin-e2e`; what lives
 here is what a browser cannot see — how many requests a failing card spent
 (`insights:I-16`) and that the coverage key carries the workspace, so opening a
 second one refetches instead of serving the first one's numbers
