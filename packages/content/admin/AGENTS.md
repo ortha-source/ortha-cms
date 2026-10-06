@@ -271,6 +271,34 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   `multiselect` uses the design-system `MultiSelect` (Popover + Command + Badge)
   rather than native controls. The records pane (`ContentPane`) is `overflow-auto` so
   wide content scrolls inside the work-area island, not the page.
+- **The General tab's outline** (`EntryEditor/EntryFieldOutline`) — a column of
+  short bars in the pane's left padding, one per field and per declared
+  section, the way Notion, Coda and incident.io mark a long document. The bar
+  in view is drawn darker and a field showing an error in the destructive
+  colour; hovered or focused, the bars open into a list of labels, and a pick
+  scrolls the field to the middle of the view and focuses its control
+  (`entry-field-<name>`, else the first focusable thing in the cell).
+    - **Its order is the form's.** `domain/fieldOutline.outlineGeneralTab`
+      branches exactly as `EntryFieldSections` does and uses the same
+      `orderGeneralTab` / `sectionFields` / `layoutFields`, so a bar can never
+      sit above a field drawn below its neighbour.
+    - **A jump into a folded section unfolds it first.** The request reaches
+      `FieldSection` by context (`hooks/useFieldReveal`, a counter so a repeat
+      jump is a new request), and the outline waits a few frames for the field
+      to mount before scrolling.
+    - **The list is transparent, not hidden**, until hovered or focused —
+      `visibility: hidden` would drop it from the tab order and a keyboard could
+      never open it. The bars are `aria-hidden`; the `<nav>` of buttons comes
+      after the form in the DOM, so tabbing through the fields is not preceded
+      by one stop per field.
+    - **Which bar is current is read from the page**: an `IntersectionObserver`
+      over the cells `FieldStack` / `FieldSection` mark (`data-entry-field` /
+      `data-entry-section`), re-collected by a `MutationObserver` because
+      unfolding a section mounts fields. `generalFields` is memoized on the
+      schema for this — a fresh array per render re-attached both observers on
+      every keystroke.
+    - Shown on General only, from `md`, with more than one stop, and never over
+      an expanded field. Pinned by `admin-e2e/src/content/entry-field-outline.spec.ts`.
 - **Relation picker** (`EntryEditor/RelationField/`): the Relations tab opens with
   a one-line subtitle ("Assign related records and set the order they appear in the
   delivery API.") over a stack of **`RelationFieldSection`** **titled cards** — each

@@ -50,6 +50,8 @@ export function FieldStack({
             // intrinsic width; `w-fit` shrinks the boolean segments to
             // themselves instead of framing an empty column.
             className={fieldWidth(field) === 'fit' ? 'w-fit' : 'min-w-0'}
+            // What the outline scrolls to and watches — `EntryFieldOutline`.
+            data-entry-field={field.name}
             {...(localizedLang && field.localized
                 ? { lang: localizedLang }
                 : {})}

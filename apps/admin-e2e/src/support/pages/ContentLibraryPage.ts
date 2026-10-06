@@ -444,10 +444,26 @@ export class ContentLibraryPage extends BasePage {
      * section's counts ("1 to fix before publishing", "2 fields") are inside
      * the button and part of its name, so the match is on the leading label;
      * `aria-expanded` on it is the section's open state.
+     *
+     * Looked up inside the section's `<h2>`: the field outline lists every
+     * section too, as a button named by the same label.
      */
     formSectionToggle(label: string): Locator {
-        return this.page.getByRole('button', {
-            name: new RegExp(`^${label}\\b`)
+        return this.page
+            .getByRole('heading', { level: 2 })
+            .getByRole('button', { name: new RegExp(`^${label}\\b`) });
+    }
+
+    /** The General tab's field outline — bars that open into a list. */
+    fieldOutline(): Locator {
+        return this.page.getByRole('navigation', { name: 'Jump to a field' });
+    }
+
+    /** One stop in the field outline, by its field or section label. */
+    fieldOutlineItem(label: string): Locator {
+        return this.fieldOutline().getByRole('button', {
+            name: label,
+            exact: true
         });
     }
 

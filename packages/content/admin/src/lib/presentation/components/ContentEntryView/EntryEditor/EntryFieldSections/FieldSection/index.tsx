@@ -9,6 +9,7 @@ import { ChevronRight } from 'lucide-react';
 import type { FieldSection as Section } from '../../../../../../domain/fieldSections';
 import type { EntryFormState } from '../../../../../hooks/useEntryForm';
 import { useSectionOpen } from '../../../../../hooks/useSectionOpen';
+import { useFieldRevealRequest } from '../../../../../hooks/useFieldReveal';
 import { FieldStack } from '../FieldStack';
 
 const messages = defineMessages({
@@ -83,12 +84,21 @@ export function FieldSection({
         if (showsError) setOpen(true);
     }, [form.refusals, showsError, setOpen]);
 
+    // Open when the outline jumps to this section or to a field inside it —
+    // a jump that lands on a folded heading and stops there is half a jump.
+    const reveal = useFieldRevealRequest();
+    useEffect(() => {
+        if (reveal?.section === group.key) setOpen(true);
+    }, [reveal, group.key, setOpen]);
+
     return (
         <Collapsible
             open={open}
             onOpenChange={setOpen}
             className="group/section border-t pt-4"
             data-testid={`entry-field-section-${group.key}`}
+            // What the outline scrolls to — see `EntryFieldOutline`.
+            data-entry-section={group.key}
         >
             <h2 className="text-sm font-medium">
                 <CollapsibleTrigger className="-mx-2 flex w-[calc(100%+1rem)] items-center gap-2 rounded-md px-2 py-1.5 text-left outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring">
