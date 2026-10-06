@@ -85,6 +85,10 @@ describe('AccessFilterProvider', () => {
          * filter into a cross-tenant read of who restricted what.
          */
         it.each([
+            [ACCESS_FILTER_FIELD.Visible, FilterOperator.Eq, ACME],
+            [ACCESS_FILTER_FIELD.Hidden, FilterOperator.Eq, ACME],
+            [ACCESS_FILTER_FIELD.Visible, FilterOperator.In, [ACME, GLOBEX]],
+            [ACCESS_FILTER_FIELD.Hidden, FilterOperator.In, [ACME, GLOBEX]],
             [ACCESS_FILTER_FIELD.Allowed, FilterOperator.Eq, ACME],
             [ACCESS_FILTER_FIELD.Denied, FilterOperator.Eq, ACME],
             [ACCESS_FILTER_FIELD.Allowed, FilterOperator.In, [ACME, GLOBEX]],
@@ -121,6 +125,28 @@ describe('AccessFilterProvider', () => {
             expect(query.sql.startsWith('not exists')).toBe(true);
             expect(query.sql).toContain('"entry_access"."workspace_id" = $1');
         });
+
+        it('scopes both halves of audienceVisible [segments:I-37]', async () => {
+            // "Can be seen by" is open-to-everyone OR allowed-and-not-refused,
+            // so it is two subqueries — and an unscoped `NOT EXISTS` in the
+            // first would count an entry restricted in another workspace as
+            // open here.
+            const query = await resolved(
+                ACCESS_FILTER_FIELD.Visible,
+                FilterOperator.Eq,
+                ACME
+            );
+
+            expect(
+                query.sql.match(/"entry_access"\."workspace_id" = \$\d+/g)
+            ).toHaveLength(2);
+            expect(query.sql).toContain('not exists');
+            // The visibility test belongs to the second half only. Built off
+            // one shared select, both halves rendered it — Drizzle's `.where()`
+            // mutates the builder — and the rule matched every entry while the
+            // SQL still *looked* right: one `deny @>` and one `allow @>` here.
+            expect(query.sql.match(/@>/g)).toHaveLength(2);
+        });
     });
 
     describe('operators', () => {
@@ -147,13 +173,18 @@ describe('AccessFilterProvider', () => {
             );
         });
 
-        it('offers the two audience fields only `eq` and `in` [segments:I-37]', async () => {
+        it.each([
+            ACCESS_FILTER_FIELD.Visible,
+            ACCESS_FILTER_FIELD.Hidden,
+            ACCESS_FILTER_FIELD.Allowed,
+            ACCESS_FILTER_FIELD.Denied
+        ])('offers %s only `eq` and `in` [segments:I-37]', async (field) => {
             // The whole answerable set, asserted positively so a *new* operator
             // — a negating one above all — cannot be added without this failing.
             const accepted: string[] = [];
             for (const op of Object.values(FilterOperator)) {
                 try {
-                    await resolved(ACCESS_FILTER_FIELD.Allowed, op, ACME);
+                    await resolved(field, op, ACME);
                     accepted.push(op);
                 } catch (error) {
                     if (!(error instanceof BadRequestException)) throw error;
@@ -193,6 +224,14 @@ describe('AccessFilterProvider', () => {
             );
 
             expect(extension?.fields).toEqual({
+                [ACCESS_FILTER_FIELD.Visible]: {
+                    type: 'enum',
+                    enumValues: [ACME, GLOBEX]
+                },
+                [ACCESS_FILTER_FIELD.Hidden]: {
+                    type: 'enum',
+                    enumValues: [ACME, GLOBEX]
+                },
                 [ACCESS_FILTER_FIELD.Allowed]: {
                     type: 'enum',
                     enumValues: [ACME, GLOBEX]

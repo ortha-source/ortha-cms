@@ -58,6 +58,8 @@ test.describe('Records list — filtering by audience', () => {
         for (const label of [
             'Can be seen by',
             'Cannot be seen by',
+            'Restricted to',
+            'Explicitly excluded',
             'Access restricted'
         ]) {
             await expect(
@@ -86,11 +88,34 @@ test.describe('Records list — filtering by audience', () => {
         await contentLibraryPage.pickEnumValues('Acme Corp', 'Globex');
         await contentLibraryPage.applyFilters();
 
-        await expect(page).toHaveURL(/audienceAllowed/);
+        // What a reader in the audience gets — not the allow list, which is
+        // what this label used to mean and which missed every open entry.
+        await expect(page).toHaveURL(/audienceVisible/);
         await expect(page).toHaveURL(/seg-acme/);
         await expect(page).toHaveURL(/seg-globex/);
-        // `in`, the server's array overlap — "either of them", not "both".
+        // `in` — "either of them", not "both".
         await expect(page).toHaveURL(/%22in%22|"in"/);
+    });
+
+    test('keeps the allow-list field on its stored name, under its own label', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        // Saved views and alarm rules keep the filter tree verbatim, so the
+        // list field's wire name must not move — it was relabelled, and the
+        // visibility question got a field of its own.
+        await mockSegmentsApi(page);
+        await page.goto(ARTICLES_URL);
+        await expect(contentLibraryPage.recordsTable('Articles')).toBeVisible();
+
+        await contentLibraryPage.openFilters();
+        await contentLibraryPage.addRule();
+        await contentLibraryPage.selectField('Restricted to');
+        await contentLibraryPage.pickEnumValues('Acme Corp');
+        await contentLibraryPage.applyFilters();
+
+        await expect(page).toHaveURL(/audienceAllowed/);
+        await expect(page).not.toHaveURL(/audienceVisible/);
     });
 
     test('names the audience in the applied chip, not its uuid', async ({

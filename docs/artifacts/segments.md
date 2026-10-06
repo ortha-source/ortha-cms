@@ -71,7 +71,7 @@ The boundaries matter more than the capabilities here — because the name “se
 - **It is not a rules engine.** There is no rule object, no inheritance, no order of application, no per-collection or per-workspace defaults. There are two lists on an entry, and what the editor put in them is what the reader gets.
 - **It is not personalisation.** The plugin does not serve different content to different readers and does not segment by behaviour. It only answers “yes” or “no” about one specific entry.
 - **It is not reader authentication.** Where a reader's tags come from is something the plugin fundamentally does not know: that is the `SegmentResolver` port, implemented by the host.
-- **It is not a records-list filter in the admin UI.** The three virtual filter fields (“visible to”, “hidden from”, “is it restricted”) are an editor's questions about their own library, not a visibility rule. An editor sees their workspace's entries either way.
+- **It is not a records-list filter in the admin UI.** The virtual filter fields (“can be seen by”, “restricted to”, “is it restricted”, …) are an editor's questions about their own library, not a visibility rule. An editor sees their workspace's entries either way.
 
 > **The architecture's key idea**
 >
@@ -391,7 +391,7 @@ This is the most important flow in the whole plugin, and it is deliberately buil
 
 ### 7.8 Filtering the records list by access
 
-1. **Three virtual fields, not a relation.** `audienceAllowed` and `audienceDenied` (enumerations of the workspace's audiences) and `accessRestricted` (a boolean). It is deliberately not a relation: a relation in the builder means a **content type** — the picker would go to `/content/<target>` and the filter surface would descend into the target's own fields. An audience is a row in this plugin's table with no content model behind it, and modelling it as a relation would advertise a traversal (`audience.tags eq …`) nobody can answer.
+1. **Five virtual fields, not a relation.** `audienceVisible` / `audienceHidden` (“Can be seen by” / “Cannot be seen by” — what a reader in the audience gets, by `canRead`), `audienceAllowed` / `audienceDenied` (“Restricted to” / “Explicitly excluded” — what the entry's lists say), all enumerations of the workspace's audiences, and `accessRestricted` (a boolean). The visibility pair came later: “Can be seen by” was first the label of `audienceAllowed`, which dropped every open entry. The list fields kept their wire names and were relabelled, since saved views and alarm rules store the tree verbatim. It is deliberately not a relation: a relation in the builder means a **content type** — the picker would go to `/content/<target>` and the filter surface would descend into the target's own fields. An audience is a row in this plugin's table with no content model behind it, and modelling it as a relation would advertise a traversal (`audience.tags eq …`) nobody can answer.
 2. **The fields are wired in through content's filter-field registry** (`entryFilterProviderRegistrar`), so they land in the records list's **own** builder: the same filter tree, the same saved views, the same alarm rules.
 3. **The enumeration's values are **ids**, not keys.** Ids are what an entry's lists hold, and the whole point of the indirection is that a key can be renamed without touching them. The admin picker draws the labels.
 4. **The `in` operator means “any of”** — an array intersection. “Both” is an `and` of two `eq` rules, which the builder will compose itself; there is no separate array-containment operator, so that no operator has two readings.
@@ -661,7 +661,7 @@ Statements that must always hold. This is at once a review list and a draft set 
 - **I-34** — An accepted proposal's applier re-checks the workspace grant and writes through the same `setForGroup` as every other path.
 - **I-35** — The reader resolver never rejects a request: an exception is caught, logged as a warning, and yields an anonymous reader.
 - **I-36** — The catalogue is loaded in `onApplicationBootstrap`; an unreadable catalogue **aborts the start**. Every write to the directory reloads the catalogue in full.
-- **I-37** — All three virtual filter fields' subqueries are workspace-scoped, and there is no negation among their operators.
+- **I-37** — All five virtual filter fields' subqueries are workspace-scoped, and there is no negation among their operators.
 - **I-38** — `@orthacms/segments-domain` declares no dependencies at all, and the audience-field validation rules are read from it by both the admin form and the server DTO.
 - **I-39** — A content type with no `id` column makes `SegmentReadScope` **throw** rather than silently omit the fragment.
 - **I-40** — The middlewares are registered on `{*splat}` (Express 5 / path-to-regexp 8), and `PrincipalMiddleware` never short-circuits.
@@ -786,6 +786,8 @@ An entry id names one row in one workspace, and every write path has to say so. 
 
 ### The records-list filter
 
+- **`audienceVisible equals A`** → entries a reader in A can read: open ones, ones allowing A, ones refusing only others — never one refusing A.
+- **`audienceHidden equals A`** → the rest: refusing A, or restricted to audiences that do not include A.
 - **`audienceAllowed is one of [A, B]`** → entries allowing either of the two.
 - **Two `audienceAllowed equals` rules joined by `and`** → entries allowing both.
 - **`accessRestricted equals true`** → exactly the entries that have an `entry_access` row.

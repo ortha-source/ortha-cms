@@ -20,7 +20,7 @@ src/lib/
     entry-access-proposal.applier.ts   …and what carries an accepted one out
   infrastructure/
     segment-read-scope.ts       the CONTENT_READ_SCOPE implementation
-    access-filter.provider.ts   the records list's three access filter fields
+    access-filter.provider.ts   the records list's five access filter fields
     entry-access-write-extension.ts  the EntryWriteExtension — access, written
                                      inside the entry's save and versioned with it
   http/
@@ -238,11 +238,31 @@ page three. Unknown ids are skipped rather than refused: a segment a revision
 captured really can have been deleted since, and that is a state the caller
 renders. It is declared **before** `:id` so the literal segment wins the match.
 
-**Filtering the records list by access is three virtual fields, not a relation.**
-`audienceAllowed` / `audienceDenied` (enums of the workspace's audiences) and
-`accessRestricted` (a boolean), contributed through content's filter-field
-registry so they join the list's own query builder — saveable as a view,
-replayable as an alarm rule.
+**Filtering the records list by access is five virtual fields, not a relation.**
+Two pairs of enums over the workspace's audiences and a boolean, contributed
+through content's filter-field registry so they join the list's own query
+builder — saveable as a view, replayable as an alarm rule:
+
+- **`audienceVisible` / `audienceHidden`** — "Can be seen by" / "Cannot be seen
+  by": what a reader in that audience **gets**, by `canRead`'s rule per
+  audience — not refused, and either an empty allow list or one naming it. An
+  open entry (no row) is visible to every audience; one restricted to Globex is
+  hidden from Acme though no list names Acme.
+- **`audienceAllowed` / `audienceDenied`** — "Restricted to" / "Explicitly
+  excluded": what the entry's own lists **say**.
+- **`accessRestricted`** — whether the entry names any audience at all.
+
+The first pair exists because "Can be seen by" used to be the label of
+`audienceAllowed`, which silently dropped every open entry — the most common
+way to be visible — and every entry refusing only somebody else. The list
+fields kept their wire names and were **relabelled**: a filter tree is stored
+verbatim by saved views and alarm rules, so a name never changes meaning.
+
+`audienceVisible` is two subqueries (`NOT EXISTS` row, or a row passing the
+test), and each needs a **fresh** select: Drizzle's `.where()` mutates the
+builder and returns it, so two `EXISTS` built off one shared select both
+rendered the last condition and the rule matched every entry while the SQL
+looked right. The unit spec counts the `@>` for that reason.
 
 Not a relation, though the query builder has a picker for those: a relation there
 means a **content type**, and the picker would fetch `/content/<target>` while
@@ -250,7 +270,8 @@ the surface walked the target's own fields. An audience is a row in this plugin'
 table with no content model behind it, so modelling it as one would advertise a
 traversal (`audience.tags eq …`) nothing can answer.
 
-`in` is **any of** (array overlap); "both" is an `and` of two `eq` rules, which
+`in` is **any of** (array overlap on the list fields; visible to, or hidden
+from, any one of them on the visibility pair); "both" is an `and` of two `eq` rules, which
 the builder composes. Negation is deliberately absent: `audienceAllowed ne
 "acme"` negates _inside_ the EXISTS — "has some allowed audience other than
 Acme" — which an entry that also allows Acme satisfies. That reads as "not

@@ -501,8 +501,8 @@ the same shape and the same reason as `contentReadScopeRegistrar`.
 every registered provider into the one `EntryFilterExtension` the query path
 already understands, so `EntriesService.listWhere` and `EntryMatchQuery` changed
 by one call each and nothing downstream moved.
-`@orthacms/segments-server` fills it with **who can read this** — `audienceAllowed`,
-`audienceDenied`, `accessRestricted`.
+`@orthacms/segments-server` fills it with **who can read this** — `audienceVisible`,
+`audienceHidden`, `audienceAllowed`, `audienceDenied`, `accessRestricted`.
 
 Three rules a contribution owes:
 

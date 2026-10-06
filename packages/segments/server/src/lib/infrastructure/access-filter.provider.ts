@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { and, eq, exists, not, sql, type SQL } from 'drizzle-orm';
+import { and, eq, exists, not, or, sql, type SQL } from 'drizzle-orm';
 import type { PgColumn } from 'drizzle-orm/pg-core';
 import { InjectDatabase, type Database } from '@orthacms/database';
 import type {
@@ -19,14 +19,27 @@ import { SegmentCatalogService } from '../application/segment-catalog.service';
 import { uuidArray } from './uuid-array';
 
 /**
- * The three virtual filter fields, by wire name.
+ * The virtual filter fields, by wire name.
  *
  * Flat names rather than a dotted `access.allow`: the filter parser walks a
  * dotted path segment-by-segment as a **relation** traversal, and these are not
  * relations — they are answered by a subquery over a table content-server has
  * never heard of.
+ *
+ * The names are a **stored contract**: saved views and alarm rules keep the
+ * filter tree verbatim, so a name never changes meaning. That is why the two
+ * list fields kept theirs when "Can be seen by" turned out to be the wrong
+ * label for them — they were relabelled, and the question that label asks got
+ * fields of its own (`Visible` / `Hidden`).
  */
 export const ACCESS_FILTER_FIELD = {
+    /**
+     * Entries any of the given audiences can **read** — `canRead`'s answer:
+     * not refused, and either open to everyone or allowing the audience.
+     */
+    Visible: 'audienceVisible',
+    /** Entries any of the given audiences **cannot** read — the converse. */
+    Hidden: 'audienceHidden',
     /** Entries whose allow list names any of the given audiences. */
     Allowed: 'audienceAllowed',
     /** Entries whose deny list names any of the given audiences. */
@@ -36,7 +49,13 @@ export const ACCESS_FILTER_FIELD = {
 } as const;
 
 /** The operators each field can actually answer. */
+const AUDIENCE_OPS: ReadonlySet<string> = new Set([
+    FilterOperator.Eq,
+    FilterOperator.In
+]);
 const FIELD_OPS: Record<string, ReadonlySet<string>> = {
+    [ACCESS_FILTER_FIELD.Visible]: AUDIENCE_OPS,
+    [ACCESS_FILTER_FIELD.Hidden]: AUDIENCE_OPS,
     [ACCESS_FILTER_FIELD.Allowed]: new Set([
         FilterOperator.Eq,
         FilterOperator.In
@@ -51,9 +70,15 @@ const FIELD_OPS: Record<string, ReadonlySet<string>> = {
 /**
  * Filtering a collection's records by **who can read them**.
  *
- * Three fields, and they are the three questions an editor actually has:
- * "everything Acme can see", "everything hidden from Acme", and "everything I
- * have restricted at all". Contributed through content's filter-field registry,
+ * Two kinds of field, and the difference between them is the bug this split
+ * fixed. **Visibility** — `audienceVisible` / `audienceHidden`, "can (not) be
+ * seen by" — answers what a reader gets, by the same rule `canRead` applies: an
+ * entry open to everyone is visible to Acme, and one restricted to Globex alone
+ * is hidden from Acme though no list names Acme. **The lists** —
+ * `audienceAllowed` / `audienceDenied`, "restricted to" / "excluded" — answer
+ * what an editor wrote. "Can be seen by" used to be the label of the allow-list
+ * field, so it silently dropped every open entry: the most common way to be
+ * visible. Plus `accessRestricted`, "everything I have restricted at all". Contributed through content's filter-field registry,
  * so they join the records list's own query builder rather than living on a
  * screen of their own — the same filter tree, the same saved views, the same
  * alarm rules.
@@ -110,6 +135,14 @@ export class AccessFilterProvider implements EntryFilterProvider {
         // them. The admin's picker labels them.
         const ids = this.catalog.all().map((segment) => segment.id);
         const fields: FieldSchema = {
+            [ACCESS_FILTER_FIELD.Visible]: {
+                type: ScalarFieldType.Enum,
+                enumValues: ids
+            },
+            [ACCESS_FILTER_FIELD.Hidden]: {
+                type: ScalarFieldType.Enum,
+                enumValues: ids
+            },
             [ACCESS_FILTER_FIELD.Allowed]: {
                 type: ScalarFieldType.Enum,
                 enumValues: ids
@@ -171,6 +204,26 @@ export class AccessFilterProvider implements EntryFilterProvider {
         }
 
         const wanted = this.idsOf(rule, field);
+
+        if (
+            field === ACCESS_FILTER_FIELD.Visible ||
+            field === ACCESS_FILTER_FIELD.Hidden
+        ) {
+            // A **fresh** select per subquery: a Drizzle select builder is
+            // mutated by `.where()` and returns itself, so two `EXISTS` built
+            // off one `rows` both rendered the last condition — and "open or
+            // allowed" became `not exists(X) or exists(X)`, true for every
+            // entry. The SQL looked right; only a real query showed it.
+            return this.visibility(field, wanted, (condition) =>
+                exists(
+                    this.db
+                        .select({ one: sql`1` })
+                        .from(entryAccess)
+                        .where(and(forThisEntry, condition))
+                )
+            );
+        }
+
         const column =
             field === ACCESS_FILTER_FIELD.Allowed
                 ? entryAccess.allow
@@ -184,6 +237,41 @@ export class AccessFilterProvider implements EntryFilterProvider {
                 and(forThisEntry, sql`${column} && ${uuidArray(wanted)}`)
             )
         );
+    }
+
+    /**
+     * Visible to, or hidden from, **any** of `wanted` — per audience, by the
+     * rule `canRead` applies to a reader in that one audience: a refusal wins,
+     * then an empty allow list admits everybody, else the allow list decides.
+     *
+     * Per audience rather than one overlap over the whole list: "visible to
+     * Acme or Globex" is not "the allow list names one of them" — an entry
+     * allowing Acme but refusing Globex is visible to one of the two, and an
+     * open entry refusing only Acme is visible to Globex.
+     *
+     * An entry with **no row** is open to everyone (the writer deletes the row
+     * when both lists empty), so it is visible to every audience and hidden
+     * from none — which is exactly the case the allow-list field used to miss.
+     */
+    private visibility(
+        field: string,
+        wanted: readonly string[],
+        /** `EXISTS` over this entry's access row, narrowed by `condition`. */
+        rowWhere: (condition?: SQL) => SQL
+    ): SQL {
+        const one = (id: string) => uuidArray([id]);
+        const allowEmpty = sql`cardinality(${entryAccess.allow}) = 0`;
+        if (field === ACCESS_FILTER_FIELD.Visible) {
+            const visibleTo = (id: string) =>
+                sql`(not (${entryAccess.deny} @> ${one(id)}) and (${allowEmpty} or ${entryAccess.allow} @> ${one(id)}))`;
+            return or(
+                not(rowWhere()),
+                rowWhere(or(...wanted.map(visibleTo)))
+            ) as SQL;
+        }
+        const hiddenFrom = (id: string) =>
+            sql`(${entryAccess.deny} @> ${one(id)} or (not ${allowEmpty} and not (${entryAccess.allow} @> ${one(id)})))`;
+        return rowWhere(or(...wanted.map(hiddenFrom)));
     }
 
     /**

@@ -9,13 +9,24 @@ import { useCurrentWorkspace } from '@orthacms/workspaces-admin';
 import { useSegments } from './hooks';
 
 const messages = defineMessages({
-    allowed: {
-        id: 'segments.filter.allowed',
+    visible: {
+        id: 'segments.filter.visible',
         defaultMessage: 'Can be seen by'
     },
-    denied: {
-        id: 'segments.filter.denied',
+    hidden: {
+        id: 'segments.filter.hidden',
         defaultMessage: 'Cannot be seen by'
+    },
+    // New ids, not the old ones relabelled: `segments.filter.allowed` /
+    // `.denied` carried "Can be seen by" / "Cannot be seen by", and a
+    // translation of those would now sit on a field that means something else.
+    allowed: {
+        id: 'segments.filter.restrictedTo',
+        defaultMessage: 'Restricted to'
+    },
+    denied: {
+        id: 'segments.filter.excluded',
+        defaultMessage: 'Explicitly excluded'
     },
     restricted: {
         id: 'segments.filter.restricted',
@@ -43,6 +54,8 @@ const GROUP = [messages.group] as const;
  * They are the SQL whitelist's keys, so the two sides must agree exactly.
  */
 const FIELD = {
+    Visible: 'audienceVisible',
+    Hidden: 'audienceHidden',
     Allowed: 'audienceAllowed',
     Denied: 'audienceDenied',
     Restricted: 'accessRestricted'
@@ -60,8 +73,20 @@ const PICKER_LIMIT = 100;
 
 /**
  * The access filter fields contributed to the records query-builder
- * (`RECORDS_FILTER_FIELDS_SLOT`): **Can be seen by** / **Cannot be seen by** —
- * enums of the workspace's audiences — and **Access restricted**, a boolean.
+ * (`RECORDS_FILTER_FIELDS_SLOT`), in two pairs plus a boolean:
+ *
+ * - **Can be seen by** / **Cannot be seen by** — what a reader in that audience
+ *   gets, by the server's `canRead`: an entry open to everyone *can* be seen by
+ *   Acme, and one restricted to Globex alone *cannot*, though no list names
+ *   Acme. These used to be the labels of the list fields below, and so missed
+ *   every open entry — the most common way to be visible.
+ * - **Restricted to** / **Explicitly excluded** — what the entry's own allow and
+ *   deny lists say (the Access tab's "Can see" / "Cannot see"). Same wire
+ *   names as before, so saved views and alarm rules keep their meaning and only
+ *   gain an honest label.
+ * - **Access restricted** — whether the entry names any audience at all.
+ *
+ * The audience fields are enums of the workspace's audiences.
  * Resolved server-side by the segments plugin's virtual-field subqueries, so
  * "every article Acme can read" is one rule in the same filter tree as
  * everything else, saveable as a view and replayable as an alarm rule.
@@ -100,33 +125,31 @@ export function useAccessFilterFields(): FilterField[] {
         }
     }));
 
+    // `is one of` is **any of** on every audience field, matching the server.
+    // "Both" is an `and` of two `equals` rules, which the builder composes —
+    // one operator with two readings is the thing nobody could keep straight.
+    //
+    // It leads, so it is what picking a field opens with: the question is
+    // *which audiences*, and the multi-select answers the one-audience case
+    // too. Led by `equals`, naming a second audience meant first discovering
+    // there was a second operator.
+    const audienceField = (
+        id: string,
+        label: (typeof messages)[keyof typeof messages]
+    ): FilterField => ({
+        id,
+        label,
+        group: GROUP,
+        type: FIELD_TYPE.Enum,
+        operators: [OP.IsOneOf, OP.Equals],
+        enumValues
+    });
+
     return [
-        {
-            id: FIELD.Allowed,
-            label: messages.allowed,
-            group: GROUP,
-            type: FIELD_TYPE.Enum,
-            // `is one of` is **any of**, matching the server's array overlap.
-            // "Both" is an `and` of two `equals` rules, which the builder
-            // composes — one operator with two readings is the thing nobody
-            // could keep straight.
-            //
-            // It leads the list, so it is what picking the field opens with: the
-            // question here is *which audiences*, and the multi-select answers
-            // the one-audience case too (a single tick is the same `in` the
-            // server reads as an overlap). Led by `equals`, naming a second
-            // audience meant first discovering there was a second operator.
-            operators: [OP.IsOneOf, OP.Equals],
-            enumValues
-        },
-        {
-            id: FIELD.Denied,
-            label: messages.denied,
-            group: GROUP,
-            type: FIELD_TYPE.Enum,
-            operators: [OP.IsOneOf, OP.Equals],
-            enumValues
-        },
+        audienceField(FIELD.Visible, messages.visible),
+        audienceField(FIELD.Hidden, messages.hidden),
+        audienceField(FIELD.Allowed, messages.allowed),
+        audienceField(FIELD.Denied, messages.denied),
         {
             id: FIELD.Restricted,
             label: messages.restricted,

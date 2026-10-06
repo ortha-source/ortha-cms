@@ -21,8 +21,9 @@ const VALUES = { text: 'Article', select: 'article' } as const;
 
 /**
  * Filtering the records list by **who can read a record** —
- * `audienceAllowed` / `audienceDenied` / `accessRestricted`, contributed
- * through content's filter-field registry.
+ * `audienceVisible` / `audienceHidden` (what a reader gets),
+ * `audienceAllowed` / `audienceDenied` (what the lists say) and
+ * `accessRestricted`, contributed through content's filter-field registry.
  *
  * They ride the list's own `?filter=` tree, which is what makes this suite worth
  * having in e2e rather than only in a unit: the registry composition, the SQL
@@ -121,6 +122,94 @@ describe('Filtering records by audience', () => {
             .map((item: { values: { text: string } }) => item.values.text)
             .sort();
     }
+
+    /**
+     * "Can be seen by" is `canRead`'s answer, not the allow list's: it used to
+     * be the label of `audienceAllowed`, which dropped every open entry — the
+     * most common way to be visible — and every entry refusing someone else.
+     */
+    describe('audienceVisible / audienceHidden', () => {
+        async function seedMatrix(agent: request.Agent) {
+            await seedEntry(agent, 'Open');
+            await seedEntry(agent, 'For Acme', { allow: [acme] });
+            await seedEntry(agent, 'For Globex', { allow: [globex] });
+            await seedEntry(agent, 'Refuses Acme', { deny: [acme] });
+            await seedEntry(agent, 'Acme not Globex', {
+                allow: [acme],
+                deny: [globex]
+            });
+        }
+
+        it('counts an open entry, and one refusing only others, as visible', async () => {
+            const agent = await login();
+            await seedMatrix(agent);
+
+            await expect(
+                matching(agent, {
+                    and: [{ field: 'audienceVisible', op: 'eq', value: acme }]
+                })
+            ).resolves.toEqual(['Acme not Globex', 'For Acme', 'Open']);
+            // The list field still answers what the lists say — the
+            // difference this split exists for.
+            await expect(
+                matching(agent, {
+                    and: [{ field: 'audienceAllowed', op: 'eq', value: acme }]
+                })
+            ).resolves.toEqual(['Acme not Globex', 'For Acme']);
+        });
+
+        it('counts an entry restricted to someone else as hidden, though no list names the audience', async () => {
+            const agent = await login();
+            await seedMatrix(agent);
+
+            await expect(
+                matching(agent, {
+                    and: [{ field: 'audienceHidden', op: 'eq', value: acme }]
+                })
+            ).resolves.toEqual(['For Globex', 'Refuses Acme']);
+        });
+
+        it('reads `in` as visible to — or hidden from — ANY of them', async () => {
+            const agent = await login();
+            await seedMatrix(agent);
+
+            // Every one of these is readable by Acme or by Globex.
+            await expect(
+                matching(agent, {
+                    and: [
+                        {
+                            field: 'audienceVisible',
+                            op: 'in',
+                            value: [acme, globex]
+                        }
+                    ]
+                })
+            ).resolves.toEqual([
+                'Acme not Globex',
+                'For Acme',
+                'For Globex',
+                'Open',
+                'Refuses Acme'
+            ]);
+            // Only the open entry is readable by both.
+            await expect(
+                matching(agent, {
+                    and: [
+                        {
+                            field: 'audienceHidden',
+                            op: 'in',
+                            value: [acme, globex]
+                        }
+                    ]
+                })
+            ).resolves.toEqual([
+                'Acme not Globex',
+                'For Acme',
+                'For Globex',
+                'Refuses Acme'
+            ]);
+        });
+    });
 
     describe('audienceAllowed', () => {
         it('matches entries whose allow list names the audience', async () => {
