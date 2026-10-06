@@ -1,3 +1,28 @@
+## 0.9.1 (2026-10-06)
+
+### 🚀 Features
+
+- **content-admin:** an outline of the General tab's fields at the editor's edge ([893b69e8](https://github.com/ortha-source/ortha-cms/commit/893b69e8))
+- **copilot-admin:** start new chats on the last model picked, across reloads ([4edd8d5e](https://github.com/ortha-source/ortha-cms/commit/4edd8d5e))
+- **protection-server:** let the copilot see who can review an entry ([1645b495](https://github.com/ortha-source/ortha-cms/commit/1645b495))
+
+### 🩹 Fixes
+
+- **alarms-admin:** offer only the workspace's own collections when creating an alarm ([9a04bbdf](https://github.com/ortha-source/ortha-cms/commit/9a04bbdf))
+- **content-server:** scope the type schema an agent reads to the workspace ([58ec9c29](https://github.com/ortha-source/ortha-cms/commit/58ec9c29))
+- **design-system:** no side scrollbar on a tabs row ([f74c299c](https://github.com/ortha-source/ortha-cms/commit/f74c299c))
+- **segments:** "Can be seen by" filters by who can actually read the entry ([5c5c5701](https://github.com/ortha-source/ortha-cms/commit/5c5c5701))
+
+### 🎨 Design
+
+- **admin:** the locale switcher leads the editor's top bar; access moves to Details ([1e3f4e7b](https://github.com/ortha-source/ortha-cms/commit/1e3f4e7b))
+- **protection-admin:** the review chip heads the Review block ([84397640](https://github.com/ortha-source/ortha-cms/commit/84397640))
+
+### ❤️ Thank You
+
+- Claude Opus 5.5 (1M context)
+- pmknk
+
 ## 0.9.0 (2026-10-05)
 
 ### 🎨 Design
