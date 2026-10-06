@@ -14,7 +14,9 @@ const TabNav = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
         <nav
             ref={ref}
             className={cn(
-                'flex w-full items-center gap-5 overflow-x-auto border-b border-border text-muted-foreground',
+                // `overflow-y-hidden`: `overflow-x-auto` alone makes the y axis
+                // scroll too, and each link's `-mb-px` overflows it by a pixel.
+                'flex w-full items-center gap-5 overflow-x-auto overflow-y-hidden border-b border-border text-muted-foreground',
                 className
             )}
             {...props}

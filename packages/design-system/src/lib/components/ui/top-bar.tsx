@@ -128,8 +128,14 @@ function TopBarTabs({
                 // A fixed 36px (`h-9`): the band is then always the bar's 48 plus
                 // this, and a column beside it (the right panel's header) can
                 // rule itself on the same line.
-                'flex h-9 min-w-0 items-end overflow-x-auto border-b bg-background px-4',
-                '[&>*]:mb-0 [&>*]:border-b-0',
+                //
+                // `overflow-y-hidden` beside `overflow-x-auto`: setting one axis
+                // makes the other `auto` too, and the triggers' `-mb-px` hangs
+                // them a pixel past the row — enough for a scrollbar on the
+                // side of a row that has nothing to scroll. The triggers sit
+                // flush instead (`mb-0`), their underline resting on the rule.
+                'flex h-9 min-w-0 items-end overflow-x-auto overflow-y-hidden border-b bg-background px-4',
+                '[&>*]:mb-0 [&>*]:border-b-0 [&_[role=tab]]:mb-0',
                 className
             )}
         >
