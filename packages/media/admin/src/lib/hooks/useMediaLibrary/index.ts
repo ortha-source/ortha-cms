@@ -149,6 +149,18 @@ export function useMediaLibrary(
     const invalidate = useCallback(() => {
         queryClient.invalidateQueries({ queryKey: mediaKeys.all(workspaceId) });
     }, [queryClient, workspaceId]);
+    /**
+     * {@link invalidate}, but the mutation waits for the refetch. A delete's
+     * confirmation stays busy until then, so it closes onto a grid the deleted
+     * rows are already gone from instead of one still showing them.
+     */
+    const invalidateAndWait = useCallback(
+        () =>
+            queryClient.invalidateQueries({
+                queryKey: mediaKeys.all(workspaceId)
+            }),
+        [queryClient, workspaceId]
+    );
 
     /**
      * Surfaces a mutation failure and resyncs from the server. The API's own
@@ -330,7 +342,7 @@ export function useMediaLibrary(
     });
     const deleteFolderM = useMutation({
         mutationFn: httpMediaGateway.deleteFolder,
-        onSuccess: invalidate,
+        onSuccess: invalidateAndWait,
         onError
     });
     const renameAssetM = useMutation({
@@ -350,7 +362,7 @@ export function useMediaLibrary(
     });
     const deleteAssetsM = useMutation({
         mutationFn: httpMediaGateway.deleteAssets,
-        onSuccess: invalidate,
+        onSuccess: invalidateAndWait,
         onError
     });
     const updateAssetM = useMutation({

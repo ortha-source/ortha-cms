@@ -214,6 +214,8 @@ export function MediaLibraryPage() {
     const [renameTarget, setRenameTarget] = useState<RenameTarget | null>(null);
     const [moveIds, setMoveIds] = useState<string[] | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+    /** A confirmed delete is in flight — the dialog shows a spinner meanwhile. */
+    const [deleting, setDeleting] = useState(false);
 
     /**
      * Puts focus on the grid and **keeps** it there for a few frames.
@@ -356,33 +358,40 @@ export function MediaLibraryPage() {
         store.clearSelection();
     };
 
-    const confirmDelete = () => {
-        if (!deleteTarget) return;
+    /**
+     * Runs the confirmed delete with the dialog held open and `busy` — a
+     * spinner on Delete, no dismissal, no second request — and closes it only
+     * once the server has answered. Closing at dispatch left the tile on screen
+     * with nothing saying a request was running.
+     */
+    const confirmDelete = async () => {
+        if (!deleteTarget || deleting) return;
+        setDeleting(true);
+        let ok: boolean;
         if (deleteTarget.kind === 'assets') {
             const count = deleteTarget.ids.length;
-            void store.deleteAssets(deleteTarget.ids).then((ok) => {
-                if (ok) {
-                    toast.success(
-                        intl.formatMessage(messages.tDeletedAssets, { count })
-                    );
-                }
-            });
+            ok = await store.deleteAssets(deleteTarget.ids);
+            if (ok) {
+                toast.success(
+                    intl.formatMessage(messages.tDeletedAssets, { count })
+                );
+            }
         } else {
             const name = deleteTarget.folder.name;
-            void store.deleteFolder(deleteTarget.folder.id).then((ok) => {
-                if (ok) {
-                    toast.success(
-                        intl.formatMessage(messages.tDeletedFolder, { name })
-                    );
-                }
-            });
+            ok = await store.deleteFolder(deleteTarget.folder.id);
+            if (ok) {
+                toast.success(
+                    intl.formatMessage(messages.tDeletedFolder, { name })
+                );
+            }
         }
-        setDeleteTarget(null);
+        setDeleting(false);
         // The dialog restores focus to whatever opened it — a tile's ⋯ trigger
-        // the delete is about to remove from the DOM, leaving focus on `<body>`.
-        // Claim the close so it lands on the grid instead. Cancelling leaves the
-        // flag false, so the trigger (which still exists) keeps focus.
-        focusGridOnCloseRef.current = true;
+        // the delete has just removed from the DOM, leaving focus on `<body>`.
+        // Claim the close so it lands on the grid instead. Cancelling, or a
+        // failed delete, leaves the flag false: the trigger still exists.
+        focusGridOnCloseRef.current = ok;
+        setDeleteTarget(null);
     };
 
     // What the pending folder delete would take with it, so the confirmation
@@ -751,13 +760,14 @@ export function MediaLibraryPage() {
                 }
                 confirmLabel={intl.formatMessage(messages.confirmDelete)}
                 confirmVariant="destructive"
+                busy={deleting}
                 onCloseAutoFocus={(event) => {
                     if (!focusGridOnCloseRef.current) return;
                     focusGridOnCloseRef.current = false;
                     event.preventDefault();
                     focusGrid();
                 }}
-                onConfirm={confirmDelete}
+                onConfirm={() => void confirmDelete()}
             />
         </div>
     );
