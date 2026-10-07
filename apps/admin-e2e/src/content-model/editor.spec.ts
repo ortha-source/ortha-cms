@@ -10,7 +10,10 @@ import { expectNoA11yViolations } from '../support/a11y';
 
 const EDITABLE = { editable: true, restart: 'watch' } as const;
 
-/** The seed with every type handed to the builder, plus one with two inputs of one rank. */
+/**
+ * The seed with every type handed to the builder, plus one with two inputs of
+ * one rank, and one with a group holding a field and a group holding none.
+ */
 const OWNED: TypeDocSeed[] = [
     ...SCHEMA_TYPES_SEED.map((type) => ({
         ...type,
@@ -28,6 +31,28 @@ const OWNED: TypeDocSeed[] = [
             { key: 'venue.name', name: 'name', spec: { type: 'text' } },
             { key: 'venue.city', name: 'city', spec: { type: 'text' } },
             { key: 'venue.open', name: 'open', spec: { type: 'boolean' } }
+        ],
+        origin: 'builder'
+    },
+    {
+        name: 'place',
+        kind: 'collection',
+        label: 'Places',
+        publishable: false,
+        paranoid: false,
+        i18n: false,
+        groups: [
+            { key: 'location', label: 'Location' },
+            { key: 'extra', label: 'Extra' }
+        ],
+        fields: [
+            { key: 'place.name', name: 'name', spec: { type: 'text' } },
+            {
+                key: 'place.city',
+                name: 'city',
+                spec: { type: 'text', admin: { group: 'location' } }
+            },
+            { key: 'place.open', name: 'open', spec: { type: 'boolean' } }
         ],
         origin: 'builder'
     }
@@ -187,6 +212,109 @@ test.describe('Content model editor', () => {
         await field.getByRole('button', { name: 'Done' }).click();
 
         await expect(contentModelPage.groupTrigger('Location')).toBeVisible();
+    });
+
+    test.describe('groups by drag and drop', () => {
+        test('drags a field into a group, before the field it is dropped on', async ({
+            contentModelPage
+        }) => {
+            await contentModelPage.goto('place');
+            await expect
+                .poll(() => contentModelPage.fieldNames('General'))
+                .toEqual(['name', 'open', 'city']);
+
+            await contentModelPage.dragField(
+                'name',
+                contentModelPage.fieldRow('city')
+            );
+
+            await expect(
+                contentModelPage.announcement(
+                    /^Moved name to the group Location\.$/
+                )
+            ).toBeAttached();
+            await expect(
+                contentModelPage.groupTrigger('Location')
+            ).toContainText('2 fields');
+            await expect
+                .poll(() => contentModelPage.fieldNames('General'))
+                .toEqual(['open', 'name', 'city']);
+            await expect(contentModelPage.changeCount()).toBeVisible();
+
+            // The field's own Display tab says the same.
+            await contentModelPage.editField('name').click();
+            const sheet = contentModelPage.fieldSheet('name');
+            await sheet.getByRole('tab', { name: 'Display' }).click();
+            await expect(
+                sheet.getByLabel('Group on the General tab')
+            ).toContainText('Location');
+        });
+
+        test('drags a field into a group with no fields', async ({
+            contentModelPage
+        }) => {
+            await contentModelPage.goto('place');
+            await contentModelPage.dragField(
+                'open',
+                contentModelPage.emptyGroupDropZone('Extra')
+            );
+
+            await expect(contentModelPage.groupTrigger('Extra')).toContainText(
+                '1 field'
+            );
+            await expect(
+                contentModelPage.emptyGroupDropZone('Extra')
+            ).toHaveCount(0);
+            await expect
+                .poll(() => contentModelPage.fieldNames('General'))
+                .toEqual(['name', 'city', 'open']);
+        });
+
+        test('drags a field out of its group, back to the loose fields', async ({
+            contentModelPage
+        }) => {
+            await contentModelPage.goto('place');
+            await contentModelPage.dragField(
+                'city',
+                contentModelPage.fieldRow('name')
+            );
+
+            await expect(
+                contentModelPage.announcement(
+                    /^Moved city to the fields above the groups\.$/
+                )
+            ).toBeAttached();
+            await expect
+                .poll(() => contentModelPage.fieldNames('General'))
+                .toEqual(['city', 'name', 'open']);
+            // The group it left is empty now, and says so.
+            await expect(
+                contentModelPage.emptyGroupDropZone('Location')
+            ).toBeVisible();
+        });
+
+        test('moves a field into a group by keyboard', async ({
+            contentModelPage
+        }) => {
+            await contentModelPage.goto('place');
+            await contentModelPage.moveFieldByKeyboard(
+                'open',
+                'ArrowDown',
+                /^open is over city, in the group Location\.$/
+            );
+
+            await expect(
+                contentModelPage.announcement(
+                    /^Moved open to the group Location\.$/
+                )
+            ).toBeAttached();
+            await expect(
+                contentModelPage.groupTrigger('Location')
+            ).toContainText('2 fields');
+            await expect
+                .poll(() => contentModelPage.fieldNames('General'))
+                .toEqual(['name', 'open', 'city']);
+        });
     });
 
     test('adds a type from the rail and opens it', async ({

@@ -4,6 +4,7 @@ import { defineMessages, useIntl } from 'react-intl';
 import { GripVertical } from 'lucide-react';
 import type { FieldEntry } from '@orthacms/schema-builder-domain';
 import type { FieldListEditing } from '../../../fieldListEditing';
+import type { SortableListData } from '../../../sortableList';
 import { FieldRow } from '../../../FieldRow';
 
 const messages = defineMessages({
@@ -13,15 +14,22 @@ const messages = defineMessages({
     }
 });
 
-/** A row the list can reorder, by pointer or — from its handle — by keyboard. */
+/**
+ * A row that can be dragged — by pointer or, from its handle, by keyboard —
+ * within its list or into another list of the same scope.
+ */
 export function SortableFieldRow({
     entry,
+    list,
     editing
 }: {
     entry: FieldEntry;
+    /** The id of the list it is drawn in. */
+    list: string;
     editing: FieldListEditing;
 }) {
     const intl = useIntl();
+    const data: SortableListData = { list };
     const {
         attributes,
         listeners,
@@ -30,7 +38,7 @@ export function SortableFieldRow({
         transform,
         transition,
         isDragging
-    } = useSortable({ id: entry.key });
+    } = useSortable({ id: entry.key, data });
     return (
         <li
             ref={setNodeRef}

@@ -3,6 +3,7 @@ import type { SchemaDraftAction } from '../schemaDraftAction';
 import { addField } from './addField';
 import { addType } from './addType';
 import { moveField } from './moveField';
+import { regroupField } from './regroupField';
 import { removeField } from './removeField';
 import { removeType } from './removeType';
 import { setGroups } from './setGroups';
@@ -26,6 +27,7 @@ const HANDLERS: Handlers = {
     'field.update': updateField,
     'field.remove': removeField,
     'field.move': moveField,
+    'field.regroup': regroupField,
     'groups.set': setGroups
 };
 
