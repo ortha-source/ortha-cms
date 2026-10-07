@@ -929,6 +929,26 @@ load-bearing:
   box; two nested rings on focus is the giveaway that a composer was assembled
   rather than designed.
 
+## The composer knows the length limit
+
+`MAX_MESSAGE_LENGTH` comes from `@orthacms/copilot-domain`, the same constant
+the server's `CreateRunDto` enforces. Before the composer read it, an oversized
+paste went out and the `400` came back under "Something went wrong" — a crash as
+far as the person could tell. Now:
+
+- **From 80% of the limit a `count / limit` counter appears** beside the hint.
+  Not earlier: a counter on every one-line question is noise about a limit
+  nobody is near. It sits **outside** the live region, so it is not read aloud
+  per keystroke.
+- **Past the limit, the box refuses**: the border turns destructive, the field
+  is `aria-invalid`, Send is disabled, Enter does nothing, and the hint (the
+  live region) says how many characters over. The text stays in the box.
+- **No `maxLength` on the field**, for the reason the rename dialog has none: a
+  hard cap silently drops the tail of a paste.
+- The count is the trimmed text's UTF-16 length — never fewer than the server's
+  own count, so the box may refuse an emoji-heavy message slightly early but
+  never sends one the server would reject.
+
 ## Attaching files
 
 A paperclip in the composer, plus drag-and-drop onto the box and paste from the

@@ -14,13 +14,11 @@ import {
     ValidateNested
 } from 'class-validator';
 import {
+    MAX_MESSAGE_LENGTH,
     MAX_RUN_SKILLS,
     MAX_SKILL_NAME_LENGTH,
     SKILL_NAME_PATTERN
 } from '@orthacms/copilot-domain';
-
-/** Longest message we accept. Bounds the prompt before the model bounds it. */
-export const MAX_MESSAGE_LENGTH = 8_000;
 
 /**
  * Files one turn may carry.
