@@ -6,17 +6,22 @@
  */
 
 import {
+    defaultValueProblem,
     isWellFormedLanguageTag,
     type RichTextDocument
 } from '@orthacms/content-domain';
 import { CONTENT_FIELD_TYPE, MEDIA_KIND_VALUES } from '../types/fields';
 import type {
     BaseFieldOptions,
+    BooleanFieldOptions,
+    DateFieldOptions,
+    DatetimeFieldOptions,
     FieldSpec,
     FieldType,
     FieldValidation,
     MediaFieldOptions,
     MoneyFieldOptions,
+    MultiselectFieldOptions,
     NumberFieldOptions,
     RelationFieldOptions,
     RelationInverseFieldOptions,
@@ -53,6 +58,27 @@ function base<TType extends FieldType>(
     };
 }
 
+/**
+ * The spec with its `defaultValue` attached — checked against the spec it is a
+ * value of, so a default outside the options, the range or the pattern fails
+ * at definition time (boot) rather than in the first form it prefills. The
+ * same rule the schema builder shows (`checkDefaultValue`).
+ */
+function withDefault<S extends Parameters<typeof defaultValueProblem>[0]>(
+    spec: S,
+    value: unknown
+): S {
+    if (value === undefined) return spec;
+    const problem = defaultValueProblem(spec, value);
+    if (problem !== undefined) {
+        throw new Error(
+            `Invalid defaultValue ${JSON.stringify(value)} on a ${spec.type} ` +
+                `field, which ${problem}.`
+        );
+    }
+    return { ...spec, defaultValue: value };
+}
+
 /** Short text. Validation: minLength / maxLength / pattern. */
 function text<const O extends TextFieldOptions = TextFieldOptions>(
     options?: O
@@ -70,11 +96,14 @@ function text<const O extends TextFieldOptions = TextFieldOptions>(
             );
         }
     }
-    return base(CONTENT_FIELD_TYPE.Text, options, {
-        minLength,
-        maxLength,
-        pattern
-    });
+    return withDefault(
+        base(CONTENT_FIELD_TYPE.Text, options, {
+            minLength,
+            maxLength,
+            pattern
+        }),
+        options?.defaultValue
+    );
 }
 
 /**
@@ -107,7 +136,10 @@ function number<const O extends NumberFieldOptions = NumberFieldOptions>(
     options?: O
 ): FieldSpec<'number', WithRequired<O, number>> {
     const { min, max, integer } = options ?? {};
-    return base(CONTENT_FIELD_TYPE.Number, options, { min, max, integer });
+    return withDefault(
+        base(CONTENT_FIELD_TYPE.Number, options, { min, max, integer }),
+        options?.defaultValue
+    );
 }
 
 /** Money in integer minor units (cents) — exact, no float drift. */
@@ -115,48 +147,66 @@ function money<const O extends MoneyFieldOptions = MoneyFieldOptions>(
     options?: O
 ): FieldSpec<'money', WithRequired<O, number>> {
     const { min, max } = options ?? {};
-    return base(CONTENT_FIELD_TYPE.Money, options, { min, max, integer: true });
+    return withDefault(
+        base(CONTENT_FIELD_TYPE.Money, options, { min, max, integer: true }),
+        options?.defaultValue
+    );
 }
 
 /** True/false. Stored NOT NULL with default false when `required`. */
-function boolean<const O extends BaseFieldOptions = BaseFieldOptions>(
+function boolean<const O extends BooleanFieldOptions = BooleanFieldOptions>(
     options?: O
 ): FieldSpec<'boolean', WithRequired<O, boolean>> {
-    return base(CONTENT_FIELD_TYPE.Boolean, options);
+    return withDefault(
+        base(CONTENT_FIELD_TYPE.Boolean, options),
+        options?.defaultValue
+    );
 }
 
 /** Calendar date (no time of day), ISO `YYYY-MM-DD`. */
-function date<const O extends BaseFieldOptions = BaseFieldOptions>(
+function date<const O extends DateFieldOptions = DateFieldOptions>(
     options?: O
 ): FieldSpec<'date', WithRequired<O, string>> {
-    return base(CONTENT_FIELD_TYPE.Date, options);
+    return withDefault(
+        base(CONTENT_FIELD_TYPE.Date, options),
+        options?.defaultValue
+    );
 }
 
 /** Point in time, stored as timestamptz. */
-function datetime<const O extends BaseFieldOptions = BaseFieldOptions>(
+function datetime<const O extends DatetimeFieldOptions = DatetimeFieldOptions>(
     options?: O
 ): FieldSpec<'datetime', WithRequired<O, Date>> {
-    return base(CONTENT_FIELD_TYPE.Datetime, options);
+    return withDefault(
+        base(CONTENT_FIELD_TYPE.Datetime, options),
+        options?.defaultValue
+    );
 }
 
 /** One of a fixed set of strings. The value type narrows to the options. */
 function select<const O extends SelectFieldOptions>(
     options: O
 ): FieldSpec<'select', WithRequired<O, O['options'][number]>> {
-    return {
-        ...base(CONTENT_FIELD_TYPE.Select, options),
-        options: options.options
-    };
+    return withDefault(
+        {
+            ...base(CONTENT_FIELD_TYPE.Select, options),
+            options: options.options
+        },
+        options.defaultValue
+    );
 }
 
 /** Several of a fixed set of strings, stored as a jsonb array of options. */
-function multiselect<const O extends SelectFieldOptions>(
+function multiselect<const O extends MultiselectFieldOptions>(
     options: O
 ): FieldSpec<'multiselect', WithRequired<O, O['options'][number][]>> {
-    return {
-        ...base(CONTENT_FIELD_TYPE.Multiselect, options),
-        options: options.options
-    };
+    return withDefault(
+        {
+            ...base(CONTENT_FIELD_TYPE.Multiselect, options),
+            options: options.options
+        },
+        options.defaultValue
+    );
 }
 
 /** Arbitrary JSON payload (jsonb). Escape hatch — prefer typed fields. */

@@ -178,7 +178,18 @@ describe('classify — the verdict table', () => {
             'tag',
             ['data', 'constraint-tightened', false]
         ],
-        ['display options only', ['admin'], 'tag', ['safe', 'code-only', false]]
+        [
+            'display options only',
+            ['admin'],
+            'tag',
+            ['safe', 'code-only', false]
+        ],
+        [
+            'the default value',
+            ['defaultValue'],
+            'tag',
+            ['safe', 'code-only', false]
+        ]
     ])('updating %s', (_, keys, type, expected) => {
         expect(
             verdictOf({

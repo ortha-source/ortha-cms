@@ -497,3 +497,54 @@ describe('one-to-one across locales', () => {
         );
     });
 });
+
+describe('defaultValue', () => {
+    it('is carried on the spec of the scalar and choice builders', () => {
+        expect(field.text({ defaultValue: 'Untitled' }).defaultValue).toBe(
+            'Untitled'
+        );
+        expect(field.boolean({ defaultValue: true }).defaultValue).toBe(true);
+        expect(field.date({ defaultValue: 'today' }).defaultValue).toBe(
+            'today'
+        );
+        expect(field.datetime({ defaultValue: 'now' }).defaultValue).toBe(
+            'now'
+        );
+        expect(
+            field.select({ options: ['a', 'b'], defaultValue: 'b' })
+                .defaultValue
+        ).toBe('b');
+        expect(
+            field.multiselect({ options: ['a', 'b'], defaultValue: ['a'] })
+                .defaultValue
+        ).toEqual(['a']);
+    });
+
+    it('is absent when the field declares none', () => {
+        expect('defaultValue' in field.text()).toBe(false);
+    });
+
+    it('rejects a default the field would not accept, at define time', () => {
+        expect(() =>
+            field.select({ options: ['a', 'b'], defaultValue: 'c' as 'a' })
+        ).toThrow(
+            'Invalid defaultValue "c" on a select field, which must be one of: a, b.'
+        );
+        expect(() => field.number({ max: 5, defaultValue: 7 })).toThrow(
+            /which must be ≤ 5\.$/
+        );
+        expect(() => field.date({ defaultValue: '2026-02-30' })).toThrow(
+            /which must be a real calendar date\.$/
+        );
+    });
+
+    it('costs no column default — a prefill, not storage', () => {
+        const post = collection('post', {
+            fields: { title: field.text({ defaultValue: 'Untitled' }) }
+        });
+        const col = (
+            post.table as unknown as Record<string, { hasDefault: boolean }>
+        ).title;
+        expect(col.hasDefault).toBe(false);
+    });
+});

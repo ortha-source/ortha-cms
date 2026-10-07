@@ -42,6 +42,14 @@ export const post = collection('post', {
   references at **define time** — a field naming an undeclared group, or a group
   no field joins, fails boot rather than silently dropping out of the form.
   Served as `groups` on `GET /content-schema/:name`, omitted when empty.
+- The scalar and choice builders (`text`/`number`/`money`/`boolean`/`date`/
+  `datetime`/`select`/`multiselect`) take an optional **`defaultValue`** — what
+  the admin's **create form** starts the field at (`date` may say `'today'`,
+  `datetime` `'now'`). A **prefill, not storage**: no column `DEFAULT`, no
+  migration, an existing entry and an API write are untouched. A default the
+  field would not accept (outside the options, the range, the pattern) is
+  rejected at **define time** by the kernel's `defaultValueProblem`. Served as
+  `defaultValue` on `GET /content-schema/:name`, omitted when unset.
 - Every builder takes an optional **`lang`** — the BCP-47 language this field's
   content is written in, when it is not the entry's own (WCAG 3.1.2). A
   malformed tag is rejected at **define time**, since a `lang` no user agent can

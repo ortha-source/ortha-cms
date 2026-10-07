@@ -154,6 +154,13 @@ export type ContentField = {
         kinds?: readonly string[];
         mimeTypes?: readonly string[];
     };
+    /**
+     * What a new entry's form starts this field at — present only when the
+     * field declares one. A prefill, not a stored default; `'today'` (date)
+     * and `'now'` (datetime) are resolved when the form opens
+     * (`domain/emptyEntryValues`).
+     */
+    defaultValue?: unknown;
 };
 
 /**
