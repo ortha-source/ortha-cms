@@ -296,6 +296,32 @@ describe('the scaffolded app, whatever the features', () => {
         expect(styles).toContain('@source "../../../node_modules/@orthacms";');
         expect(styles).not.toMatch(/@source\s+"[^"]*node_modules[^"]*[*]/);
     });
+
+    /**
+     * Vite copies `apps/admin/public/` into the build, so the same files serve
+     * `orthacms dev` and the `staticDir` of `orthacms start`. Compared against
+     * this repo's own admin rather than against a fixture, so a new icon has
+     * one place to land and the scaffolder cannot keep shipping the old one.
+     */
+    it('ships the favicon of the monorepo admin, and links it [create-orthacms-app:I-38]', () => {
+        const repoPublic = join(__dirname, '../../../../apps/admin/public');
+
+        for (const file of ['favicon.svg', 'favicon.ico']) {
+            expect(
+                readFileSync(join(target, 'apps/admin/public', file)).equals(
+                    readFileSync(join(repoPublic, file))
+                )
+            ).toBe(true);
+        }
+
+        const index = rendered('apps/admin/index.html');
+        expect(index).toContain(
+            '<link rel="icon" href="/favicon.ico" sizes="32x32" />'
+        );
+        expect(index).toContain(
+            '<link rel="icon" href="/favicon.svg" type="image/svg+xml" />'
+        );
+    });
 });
 
 describe('with nothing optional chosen', () => {
@@ -664,10 +690,11 @@ describe('every combination', () => {
 
 describe('a file the template ships as data', () => {
     /**
-     * Today's template is all text, so this is the one property with no fixture
-     * in the template itself — hence a template built here, with a byte
-     * sequence a substitution pass would eat. Running a favicon through a
-     * string replace corrupts it in a way that only shows up in a browser.
+     * The template's real binary, the admin's `favicon.ico`, carries no
+     * placeholder-shaped bytes to prove anything with — hence a template built
+     * here, with a byte sequence a substitution pass would eat. Running a
+     * favicon through a string replace corrupts it in a way that only shows up
+     * in a browser.
      */
     it('is copied byte for byte, with no substitutions [create-orthacms-app:I-30]', () => {
         const source = mkdtempSync(join(tmpdir(), 'create-orthacms-src-'));
