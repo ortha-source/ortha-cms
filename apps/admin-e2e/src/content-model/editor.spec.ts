@@ -143,6 +143,69 @@ test.describe('Content model editor', () => {
         await expect(sheet.getByText('Does not match')).toBeVisible();
     });
 
+    test('typing in a select’s option keeps the focus — every keystroke lands', async ({
+        contentModelPage
+    }) => {
+        await contentModelPage.goto('article');
+        await contentModelPage.editField('kind').click();
+        const sheet = contentModelPage.fieldSheet('kind');
+        await sheet.getByRole('tab', { name: 'Validation' }).click();
+
+        const first = contentModelPage.selectOption(sheet, 1);
+        await first.click();
+        await first.press('End');
+        await first.pressSequentially('-flash');
+        await expect(first).toBeFocused();
+        await expect(first).toHaveValue('news-flash');
+
+        await first.press('Control+A');
+        await first.press('Backspace');
+        await first.pressSequentially('FOOD');
+        await expect(first).toBeFocused();
+        await expect(first).toHaveValue('FOOD');
+        await expect(contentModelPage.selectOption(sheet, 2)).toHaveValue(
+            'opinion'
+        );
+    });
+
+    test('a select’s options stay editable after one is added and one removed', async ({
+        contentModelPage
+    }) => {
+        await contentModelPage.goto('article');
+        await contentModelPage.editField('kind').click();
+        const sheet = contentModelPage.fieldSheet('kind');
+        await sheet.getByRole('tab', { name: 'Validation' }).click();
+
+        const fresh = contentModelPage.newSelectOption(sheet);
+        await fresh.fill('review');
+        await fresh.press('Enter');
+        await expect(fresh).toBeFocused();
+        await expect(fresh).toHaveValue('');
+        await expect(contentModelPage.selectOption(sheet, 3)).toHaveValue(
+            'review'
+        );
+
+        await contentModelPage.removeSelectOption(sheet, 'news').click();
+        await expect(contentModelPage.selectOption(sheet, 1)).toHaveValue(
+            'opinion'
+        );
+        await expect(contentModelPage.selectOption(sheet, 2)).toHaveValue(
+            'review'
+        );
+        await expect(contentModelPage.selectOption(sheet, 3)).toHaveCount(0);
+
+        const last = contentModelPage.selectOption(sheet, 2);
+        await last.click();
+        await last.press('End');
+        await last.pressSequentially('ed');
+        await expect(last).toBeFocused();
+        await expect(last).toHaveValue('reviewed');
+        await expect(contentModelPage.selectOption(sheet, 1)).toHaveValue(
+            'opinion'
+        );
+        await expect(contentModelPage.changeCount()).toBeVisible();
+    });
+
     test('reorders within one rank by keyboard, and refuses a move across ranks', async ({
         contentModelPage
     }) => {

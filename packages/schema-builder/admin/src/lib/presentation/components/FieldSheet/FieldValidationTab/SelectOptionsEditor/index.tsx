@@ -51,10 +51,11 @@ export function SelectOptionsEditor({ options, onChange }: Props) {
             </p>
             <ul className="flex flex-col gap-2">
                 {options.map((option, index) => (
-                    <li
-                        key={`${index}:${option}`}
-                        className="flex items-center gap-2"
-                    >
+                    // Keyed by position, never by value: the value changes on
+                    // every keystroke, and a new key remounts the input and
+                    // drops the focus. Each row is fully controlled, so the
+                    // position is all the identity it needs.
+                    <li key={index} className="flex items-center gap-2">
                         <Input
                             aria-label={intl.formatMessage(messages.option, {
                                 index: index + 1
