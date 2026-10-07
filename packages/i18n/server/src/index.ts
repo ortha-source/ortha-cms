@@ -18,6 +18,9 @@ export type { LocalesView } from './lib/locales/controllers/list-locales.control
 export type {
     EntryLocaleItem,
     EntryLocalesView,
+    EntryTranslationMember,
+    EntryTranslationsItem,
+    EntryTranslationsView,
     LocaleSummaryItem,
     LocaleSummaryView
 } from './lib/content/services/locale-group.service';

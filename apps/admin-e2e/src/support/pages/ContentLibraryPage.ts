@@ -573,6 +573,51 @@ export class ContentLibraryPage extends BasePage {
         });
     }
 
+    /* --- Publish with translations (i18n's bulk action) ------------------- */
+
+    /** The "Publish with translations" picker — the records × locales matrix. */
+    get translationsPicker(): Locator {
+        return this.page.getByRole('dialog', {
+            name: 'Publish with translations'
+        });
+    }
+
+    /** A locale column's checkbox — that locale for every selected record. */
+    translationsLocaleToggle(language: string): Locator {
+        return this.translationsPicker.getByRole('checkbox', {
+            name: `Publish ${language} for every record`
+        });
+    }
+
+    /** A record's row checkbox — every translation of that record. */
+    translationsRecordToggle(record: string): Locator {
+        return this.translationsPicker.getByRole('checkbox', {
+            name: `Publish every translation of ${record}`
+        });
+    }
+
+    /** One (record, locale) cell's checkbox. */
+    translationsCell(record: string, language: string): Locator {
+        return this.translationsPicker.getByRole('checkbox', {
+            name: new RegExp(`^Publish ${record} in ${language} \\(`)
+        });
+    }
+
+    /** One of the picker's quick-pick buttons ("All translations", …). */
+    translationsPreset(label: string): Locator {
+        return this.translationsPicker.getByRole('button', {
+            name: label,
+            exact: true
+        });
+    }
+
+    /** The picker's continue button, which carries the picked count. */
+    get translationsReview(): Locator {
+        return this.translationsPicker.getByRole('button', {
+            name: /^Review \d+ (entry|entries)$/
+        });
+    }
+
     /** The "Changes saved." success toast after an edit save. */
     get savedToast(): Locator {
         return this.page.getByText('Changes saved.', { exact: true });

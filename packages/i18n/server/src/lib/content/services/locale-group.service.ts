@@ -75,6 +75,40 @@ export interface LocaleSummaryView {
     groups: Record<string, LocaleSummaryItem[]>;
 }
 
+/** One live member of a requested entry's translation group, titled. */
+export interface EntryTranslationMember extends LocaleSummaryItem {
+    /**
+     * The member's display title in its own language. Absent when it has none
+     * yet — never the id standing in, for the same reason as the locale panel.
+     */
+    title?: string;
+}
+
+/** One requested entry and the translation group it belongs to. */
+export interface EntryTranslationsItem {
+    /** The entry's translation-group id. */
+    localeGroupId: string;
+    /** The requested entry's own locale. */
+    locale: string;
+    /** The requested entry's own title, when it has one. */
+    title?: string;
+    /**
+     * Every live member of the group in a **configured** locale — the
+     * requested entry included — in config order.
+     */
+    members: EntryTranslationMember[];
+}
+
+/** The `POST /api/i18n/content/:typeName/translations` response envelope. */
+export interface EntryTranslationsView {
+    /**
+     * Keyed by the requested entry ids — exactly those. An id that names no
+     * live row in this workspace (unknown, trashed, another workspace's) is
+     * `null`, so a caller learns nothing it did not already supply.
+     */
+    entries: Record<string, EntryTranslationsItem | null>;
+}
+
 /**
  * Reads over translation groups: the per-entry locale panel (which locales
  * exist, with status) and the records table's batched per-page summary.
@@ -195,22 +229,99 @@ export class LocaleGroupService {
                 )
             )) as Record<string, unknown>[];
 
-        // Config order within each group, so badge order is stable. The map
-        // doubles as the **configured-set filter**: a row in a slug the host no
-        // longer declares is not a translation the UI can offer, and reporting
-        // it here made this endpoint the one place an orphaned locale stayed
-        // visible — the locale panel iterates the configured set, coverage
-        // filters it out, and `?locale=` 400s it, so the records table's badges
-        // contradicted every other view of the same record.
+        for (const [groupId, members] of this.membersByGroup(
+            type,
+            rows,
+            false
+        )) {
+            groups[groupId] = members;
+        }
+        return { groups };
+    }
+
+    /**
+     * The translation groups of a set of **entries**, for the records view's
+     * "publish with translations" picker: per requested id, the row's own
+     * group id, locale and title, plus every live member of that group in a
+     * configured locale (titled, with publish state on a publishable type).
+     *
+     * Keyed by entry id rather than group id because that is what a records
+     * selection holds — it spans pages, so the caller has no row to read a
+     * group id off. Two queries for the whole batch: the requested rows, then
+     * their groups.
+     */
+    async translationsOf(
+        type: AnyContentType,
+        ids: string[],
+        workspaceId: string
+    ): Promise<EntryTranslationsView> {
+        const entries: Record<string, EntryTranslationsItem | null> = {};
+        for (const id of ids) entries[id] = null;
+        if (!ids.length) return { entries };
+
+        const table = type.table as unknown as ContentTable;
+        const requested = (await this.db
+            .select()
+            .from(type.table)
+            .where(
+                this.liveWhere(type, inArray(table['id'], ids), workspaceId)
+            )) as Record<string, unknown>[];
+        if (!requested.length) return { entries };
+
+        const groupIds = [
+            ...new Set(requested.map((row) => row['localeGroupId'] as string))
+        ];
+        const siblings = (await this.db
+            .select()
+            .from(type.table)
+            .where(
+                this.liveWhere(
+                    type,
+                    inArray(table['localeGroupId'], groupIds),
+                    workspaceId
+                )
+            )) as Record<string, unknown>[];
+        const members = this.membersByGroup(type, siblings, true);
+
+        for (const row of requested) {
+            const groupId = row['localeGroupId'] as string;
+            entries[row['id'] as string] = {
+                localeGroupId: groupId,
+                locale: row['locale'] as string,
+                ...this.titleOf(type, row),
+                members: members.get(groupId) ?? []
+            };
+        }
+        return { entries };
+    }
+
+    /**
+     * Groups member rows by translation group, **in config order** so badge and
+     * column order is stable. The order map doubles as the **configured-set
+     * filter**: a row in a slug the host no longer declares is not a
+     * translation the UI can offer, and reporting it made the batch reads the
+     * one place an orphaned locale stayed visible — the locale panel iterates
+     * the configured set, coverage filters it out, and `?locale=` 400s it.
+     */
+    private membersByGroup(
+        type: AnyContentType,
+        rows: Record<string, unknown>[],
+        withTitles: boolean
+    ): Map<string, EntryTranslationMember[]> {
         const order = new Map(
             this.locales.all().map((locale, index) => [locale.slug, index])
         );
+        const groups = new Map<string, EntryTranslationMember[]>();
         for (const row of rows) {
-            const groupId = row['localeGroupId'] as string;
             if (!order.has(row['locale'] as string)) continue;
-            groups[groupId]?.push({
+            // `title` only when asked: the records table's summary is a page of
+            // badges, and a title per member there is bytes nobody renders.
+            const groupId = row['localeGroupId'] as string;
+            const members = groups.get(groupId) ?? [];
+            members.push({
                 locale: row['locale'] as string,
                 entryId: row['id'] as string,
+                ...(withTitles ? this.titleOf(type, row) : {}),
                 ...(type.publishable
                     ? {
                           status: row['status'] as EntryStatus,
@@ -218,8 +329,9 @@ export class LocaleGroupService {
                       }
                     : {})
             });
+            groups.set(groupId, members);
         }
-        for (const members of Object.values(groups)) {
+        for (const members of groups.values()) {
             // Every surviving member is configured, so the lookup always hits.
             members.sort(
                 (a, b) =>
@@ -227,7 +339,7 @@ export class LocaleGroupService {
                     (order.get(b.locale) as number)
             );
         }
-        return { groups };
+        return groups;
     }
 
     /** A row's `published_at` as an ISO string, or null when it never went live. */

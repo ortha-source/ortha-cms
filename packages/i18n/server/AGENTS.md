@@ -278,6 +278,19 @@ and permission-gated; a `:typeName` that isn't localized is a **400**
     `[]` and the rows are workspace-scoped, so a foreign group id and one that
     names nothing come back identical.
 
+- `POST /api/i18n/content/:typeName/translations` — the records **selection's**
+  batched read: `{ ids }` (cap `ENTRY_TRANSLATIONS_MAX_IDS` = 100, content's
+  `BULK_MAX_IDS`) → per requested **entry** id its `localeGroupId`, own
+  `locale` and `title`, and every live member of the group in a configured
+  locale with `title`, `status` and `publishedAt` (`content:read`, 200,
+  `OriginGuard` — the same reasoning as the summary). Keyed by entry rather
+  than group because a selection spans pages, so the caller has no row to read
+  a group id off. An id naming no live row in the workspace is `null`, never
+  missing. Two queries for the batch: the requested rows, then their groups.
+  It feeds the admin's **Publish with translations** picker; the publish
+  itself is content's bulk publish over the picked sibling ids, so this route
+  only reads.
+
 ## The plugin describes its own responses (`src/lib/docs/`)
 
 All three routes answer a hand-written `interface` (`LocalesView`,

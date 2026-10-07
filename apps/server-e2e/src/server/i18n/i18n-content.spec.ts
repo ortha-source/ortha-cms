@@ -1216,6 +1216,103 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             expect(members.map((m) => m.locale).sort()).toEqual(['de', 'en']);
         });
 
+        it('reads a selection’s translation groups by entry id', async () => {
+            const agent = await login();
+            const en = await createArticle(agent);
+            const de = (await createTranslation(agent, en, 'de'))
+                .body as ArticleRow;
+            const lone = await createArticle(agent);
+            // Publish the German row, so the read has a live member to report.
+            await agent
+                .post('/api/content/test_article/bulk/publish')
+                .send({ ids: [de.id] })
+                .expect(200);
+            const unknown = '3f1a7c1e-9d2b-4a6f-8c11-5b8e2f0d7a91';
+
+            const res = await agent
+                .post('/api/i18n/content/test_article/translations')
+                .send({ ids: [en.id, lone.id, unknown] })
+                // A read behind a POST, like the summary: 200, not 201.
+                .expect(200);
+            const entries = res.body.entries as Record<
+                string,
+                {
+                    localeGroupId: string;
+                    locale: string;
+                    title?: string;
+                    members: {
+                        locale: string;
+                        entryId: string;
+                        title?: string;
+                        status?: string;
+                    }[];
+                } | null
+            >;
+
+            // Keyed by exactly the requested ids; an unknown one is null.
+            expect(Object.keys(entries).sort()).toEqual(
+                [en.id, lone.id, unknown].sort()
+            );
+            expect(entries[unknown]).toBeNull();
+
+            const group = entries[en.id];
+            expect(group?.localeGroupId).toBe(en.localeGroupId);
+            expect(group?.locale).toBe('en');
+            // Every member, the requested entry included, in config order,
+            // titled and with its own publish state.
+            expect(group?.members.map((m) => [m.locale, m.entryId])).toEqual([
+                ['en', en.id],
+                ['de', de.id]
+            ]);
+            expect(group?.members.map((m) => m.status)).toEqual([
+                'draft',
+                'published'
+            ]);
+            expect(
+                group?.members.every((m) => typeof m.title === 'string')
+            ).toBe(true);
+
+            expect(entries[lone.id]?.members.map((m) => m.locale)).toEqual([
+                'en'
+            ]);
+        });
+
+        it('leaves a trashed translation out of the group', async () => {
+            const agent = await login();
+            const en = await createArticle(agent);
+            const de = (await createTranslation(agent, en, 'de'))
+                .body as ArticleRow;
+            await agent
+                .post('/api/content/test_article/bulk/delete')
+                .send({ ids: [de.id] })
+                .expect(200);
+
+            const res = await agent
+                .post('/api/i18n/content/test_article/translations')
+                .send({ ids: [en.id, de.id] })
+                .expect(200);
+            expect(
+                res.body.entries[en.id].members.map(
+                    (m: { locale: string }) => m.locale
+                )
+            ).toEqual(['en']);
+            // The trashed row itself names nothing live.
+            expect(res.body.entries[de.id]).toBeNull();
+        });
+
+        it('caps a translations read like a bulk action', async () => {
+            const agent = await login();
+            const ids = Array.from(
+                { length: 101 },
+                (_, i) =>
+                    `3f1a7c1e-9d2b-4a6f-8c11-${String(i).padStart(12, '0')}`
+            );
+            await agent
+                .post('/api/i18n/content/test_article/translations')
+                .send({ ids })
+                .expect(400);
+        });
+
         it('400s the locale endpoints on a non-i18n type', async () => {
             const agent = await login();
             // `seo_meta` is not localized (author is now an i18n type).

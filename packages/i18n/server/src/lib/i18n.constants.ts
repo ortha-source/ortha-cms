@@ -15,6 +15,12 @@ export const I18N_CONFIG = Symbol('I18N_CONFIG');
 /** Cap on `groupIds` per locale-summary batch request. */
 export const LOCALE_SUMMARY_MAX_GROUPS = 100;
 
+/**
+ * Cap on `ids` per entry-translations batch request — content's `BULK_MAX_IDS`,
+ * since the ids are a records selection about to become a bulk publish.
+ */
+export const ENTRY_TRANSLATIONS_MAX_IDS = 100;
+
 /** The `localeFallback` value that widens a list to the default locale. */
 export const LOCALE_FALLBACK_DEFAULT = 'default';
 

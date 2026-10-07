@@ -523,6 +523,49 @@ export async function mockI18n(page: Page): Promise<I18nMock> {
         }
     );
 
+    // POST /api/i18n/content/:type/translations — per selected entry id, its
+    // translation group with titled members (the records selection bar's
+    // "Publish with translations…"). An id naming no live row is `null`.
+    await page.route(
+        /\/api\/i18n\/content\/[^/]+\/translations$/,
+        async (route) => {
+            const body = route.request().postDataJSON() as { ids: string[] };
+            const titleOf = (row: LocalizedRow) =>
+                typeof row.values.title === 'string' && row.values.title
+                    ? { title: row.values.title }
+                    : {};
+            const entries: Record<string, unknown> = {};
+            for (const id of body.ids) {
+                const row = allRows().find((candidate) => candidate.id === id);
+                entries[id] = row
+                    ? {
+                          localeGroupId: row.localeGroupId,
+                          locale: row.locale,
+                          ...titleOf(row),
+                          members: LOCALES.flatMap((locale) =>
+                              liveGroupRows(row.localeGroupId)
+                                  .filter(
+                                      (member) => member.locale === locale.slug
+                                  )
+                                  .map((member) => ({
+                                      locale: member.locale,
+                                      entryId: member.id,
+                                      ...titleOf(member),
+                                      status: member.status,
+                                      publishedAt: member.publishedAt
+                                  }))
+                          )
+                      }
+                    : null;
+            }
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ entries })
+            });
+        }
+    );
+
     // One item per **configured** locale, each carrying the group's row in it
     // or `null`. Shared by the healthy route and the held one, so a test that
     // proves the pending state still lands on the response the real route

@@ -1,7 +1,7 @@
 /**
  * The i18n plugin's pass over the host's OpenAPI document.
  *
- * Three read routes, all of them answering a hand-written `interface` that
+ * Four read routes, all of them answering a hand-written `interface` that
  * `@nestjs/swagger` cannot see (`packages/bootstrap/server/AGENTS.md` → "The
  * response-schema gap"). This is the mechanism content-server already uses:
  * plain schema objects written onto the finished document, no decorator and no
@@ -55,6 +55,13 @@ const CONTENT_ROUTES: Record<string, Record<string, OperationSpec>> = {
             schema: 'I18nLocaleSummaryView',
             description:
                 'The requested groups and their live members. A read, so it answers 200 rather than a 201 claiming it created something.'
+        }
+    },
+    '/translations': {
+        post: {
+            schema: 'I18nEntryTranslationsView',
+            description:
+                'Each requested entry’s translation group, its members titled and with their publish state. A read, so it answers 200.'
         }
     }
 };
@@ -116,7 +123,7 @@ function describeItem(
         const typed = operation as Operation;
         setSuccessResponse(typed, ref(spec.schema), spec.description);
         if (contentScoped) {
-            // Both content routes resolve `:typeName` through the same
+            // Every content route resolves `:typeName` through the same
             // `resolveI18nType`, which draws exactly this line: a name nobody
             // registered is a missing resource, a registered type that is not
             // localized is a caller bug.
@@ -135,7 +142,7 @@ function describeItem(
 }
 
 /**
- * Adds this plugin's schemas to `document` and attaches them to its own three
+ * Adds this plugin's schemas to `document` and attaches them to its own four
  * operations.
  */
 export function describeI18nApi(

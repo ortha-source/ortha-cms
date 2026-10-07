@@ -89,6 +89,29 @@ export type LocaleSummariesResult = {
     groups: Record<string, LocaleSummaryItem[]>;
 };
 
+/** One live member of a requested entry's translation group, titled. */
+export type EntryTranslationMember = LocaleSummaryItem & {
+    /** The member's title in its own language — absent when it has none. */
+    title?: string;
+};
+
+/** One requested entry and its translation group. */
+export type EntryTranslationsItem = {
+    localeGroupId: string;
+    /** The requested entry's own locale. */
+    locale: string;
+    /** The requested entry's own title — absent when it has none. */
+    title?: string;
+    /** Every live group member (the entry included), config-ordered. */
+    members: EntryTranslationMember[];
+};
+
+/** The `POST /api/i18n/content/:type/translations` envelope. */
+export type EntryTranslationsResult = {
+    /** Per requested entry id; `null` when it names no live row. */
+    entries: Record<string, EntryTranslationsItem | null>;
+};
+
 /** How much of the workspace's localized content exists in one locale. */
 export type LocaleCoverage = {
     locale: string;

@@ -53,8 +53,15 @@ export const SLOT_ITEM_ID = {
     EntryParams: 'i18n.entryParams',
     PublishAll: 'i18n.publishAllLocales',
     UnpublishAll: 'i18n.unpublishAllLocales',
+    PublishWithTranslations: 'i18n.publishWithTranslations',
     CoverageWidget: 'insights.i18n.coverage'
 } as const;
+
+/**
+ * Most entry ids one `…/translations` request may carry — the server's
+ * `ENTRY_TRANSLATIONS_MAX_IDS`. A larger selection is read in slices.
+ */
+export const ENTRY_TRANSLATIONS_MAX_IDS = 100;
 
 /** Virtual filter field ids — must match the server extension's names. */
 export const LOCALE_FILTER_FIELD = {

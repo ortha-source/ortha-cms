@@ -18,6 +18,7 @@ import type {
     RevisionListView,
     WireFilterField
 } from '../../domain/types/contentType';
+import { BULK_MAX_IDS } from '../../domain/constants';
 import type { ContentEntriesParams } from '../contentKeys';
 import {
     toContentType,
@@ -391,14 +392,39 @@ export const httpContentGateway: ContentGateway = {
         }
     },
 
-    bulkPreviewPublish(
+    // The two publish calls are split into `BULK_MAX_IDS`-sized requests and
+    // their answers concatenated, in request order. That is safe for both
+    // because both were already per-id: the dry run is a verdict per id, and
+    // the commit is partial-success by design — a chunk is just a shorter list.
+    // Chunks run one after another, never in parallel: a commit chunk takes
+    // row locks, and two of them racing on one workspace buys nothing.
+    async bulkPreviewPublish(
         name: string,
         ids: string[]
     ): Promise<BulkPublishPreview> {
-        return bulkPost<BulkPublishPreview>(name, 'publish/preview', ids);
+        const items: BulkPublishPreview['items'] = [];
+        for (const chunk of chunks(ids, BULK_MAX_IDS)) {
+            const page = await bulkPost<BulkPublishPreview>(
+                name,
+                'publish/preview',
+                chunk
+            );
+            items.push(...page.items);
+        }
+        return { items };
     },
-    bulkPublish(name: string, ids: string[]): Promise<BulkPublishResult> {
-        return bulkPost<BulkPublishResult>(name, 'publish', ids);
+    async bulkPublish(name: string, ids: string[]): Promise<BulkPublishResult> {
+        const result: BulkPublishResult = { published: [], skipped: [] };
+        for (const chunk of chunks(ids, BULK_MAX_IDS)) {
+            const page = await bulkPost<BulkPublishResult>(
+                name,
+                'publish',
+                chunk
+            );
+            result.published.push(...page.published);
+            result.skipped.push(...page.skipped);
+        }
+        return result;
     },
     bulkUnpublish(name: string, ids: string[]): Promise<BulkActionResult> {
         return bulkPost<BulkActionResult>(name, 'unpublish', ids);
@@ -413,6 +439,15 @@ export const httpContentGateway: ContentGateway = {
         return bulkPost<BulkActionResult>(name, 'purge', ids);
     }
 };
+
+/** `ids` in consecutive slices of at most `size` (none for an empty list). */
+function chunks(ids: string[], size: number): string[][] {
+    const out: string[][] = [];
+    for (let start = 0; start < ids.length; start += size) {
+        out.push(ids.slice(start, start + size));
+    }
+    return out;
+}
 
 /** Shared POST helper for the bulk endpoints (`/content/:name/bulk/:suffix`). */
 async function bulkPost<T>(

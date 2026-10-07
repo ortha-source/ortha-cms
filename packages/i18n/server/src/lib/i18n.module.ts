@@ -10,6 +10,7 @@ import { EntryLocaleExtensionService } from './content/services/entry-locale-ext
 import { LocaleGroupService } from './content/services/locale-group.service';
 import { GetEntryLocalesController } from './content/controllers/get-entry-locales.controller';
 import { LocaleSummaryController } from './content/controllers/locale-summary.controller';
+import { EntryTranslationsController } from './content/controllers/entry-translations.controller';
 import { LocalizationCoverageQuery } from './insights/infrastructure/queries/localization-coverage.query';
 import { LocalizationCoverageController } from './insights/http/controllers/localization-coverage.controller';
 import { I18nCopilotToolProvider } from './copilot/i18n-tool.provider';
@@ -35,13 +36,15 @@ export class I18nModule {
             global: true,
             controllers: [
                 ListLocalesController,
-                // Reads only: the per-entry locale panel and the records
-                // table's batched group summary. Sibling *creation* goes
+                // Reads only: the per-entry locale panel, the records table's
+                // batched group summary, and a selection's translation groups
+                // (for "publish with translations"). Sibling *creation* goes
                 // through `POST /api/content/:type` with a `localeGroupId`
                 // (the extension stamps the group), so this plugin owns no
                 // entry-write route.
                 GetEntryLocalesController,
                 LocaleSummaryController,
+                EntryTranslationsController,
                 // The Insights read-model. Mounted under `insights/` with
                 // content's and media's, not this plugin's `i18n/` prefix —
                 // one card, one endpoint, grouped by what they are.

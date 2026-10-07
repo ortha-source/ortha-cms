@@ -1,10 +1,10 @@
 /**
- * The response schemas of the i18n plugin's three read routes, as plain
+ * The response schemas of the i18n plugin's four read routes, as plain
  * OpenAPI objects.
  *
  * They are built rather than reflected because the shapes they describe are
  * TypeScript `interface`s (`LocalesView`, `EntryLocalesView`,
- * `LocaleSummaryView`) — erased at compile time, invisible to
+ * `LocaleSummaryView`, `EntryTranslationsView`) — erased at compile time, invisible to
  * `@nestjs/swagger`'s scanner, and impossible to decorate. See
  * `packages/bootstrap/server/AGENTS.md` → "The response-schema gap".
  *
@@ -102,7 +102,7 @@ const ENTRY_ROW_SCHEMA: OpenApiSchema = {
  * about every response rather than a guess: the locales route maps the
  * registry, the per-entry panel iterates the configured set, and the batch
  * summary drops any row whose slug the host no longer declares. A locale the
- * config does not name cannot appear in any of the three.
+ * config does not name cannot appear in any of them.
  */
 export function buildI18nSchemas(
     localeSlugs: readonly string[]
@@ -204,6 +204,67 @@ export function buildI18nSchemas(
                 }
             },
             required: ['groups']
+        },
+        I18nEntryTranslationMember: {
+            type: 'object',
+            description:
+                'One live member of a requested entry’s translation group — the requested entry included.',
+            properties: {
+                locale: slugSchema,
+                entryId: {
+                    type: 'string',
+                    format: 'uuid',
+                    description: 'The member row’s entry id.'
+                },
+                title: {
+                    type: 'string',
+                    description:
+                        'The member’s display title in its own language. Absent when it has none yet.'
+                },
+                status: STATUS_SCHEMA,
+                publishedAt: PUBLISHED_AT_SCHEMA
+            },
+            required: ['locale', 'entryId']
+        },
+        I18nEntryTranslationsView: {
+            type: 'object',
+            description:
+                'Per requested entry id, the translation group it belongs to.',
+            properties: {
+                entries: {
+                    type: 'object',
+                    description:
+                        'Keyed by the entry ids the request asked for — **exactly** those. An id naming no live row in the open workspace is `null`, whatever the reason, so a caller learns nothing it did not already supply.',
+                    // Inlined and `nullable`, not a `$ref` — see
+                    // `ENTRY_ROW_SCHEMA` for why a nullable reference cannot
+                    // be spelled in OpenAPI 3.0.
+                    additionalProperties: {
+                        type: 'object',
+                        nullable: true,
+                        properties: {
+                            localeGroupId: {
+                                type: 'string',
+                                format: 'uuid',
+                                description: 'The entry’s translation-group id.'
+                            },
+                            locale: slugSchema,
+                            title: {
+                                type: 'string',
+                                description:
+                                    'The entry’s own display title. Absent when it has none yet.'
+                            },
+                            members: {
+                                type: 'array',
+                                description:
+                                    'Every live member of the group in a configured locale, in config order.',
+                                items: ref('I18nEntryTranslationMember')
+                            }
+                        },
+                        required: ['localeGroupId', 'locale', 'members']
+                    }
+                }
+            },
+            required: ['entries']
         }
     };
 }

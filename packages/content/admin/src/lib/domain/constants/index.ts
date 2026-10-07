@@ -196,6 +196,14 @@ export const CONTENT_FIELD_TYPE = {
 } as const;
 
 /**
+ * Most ids one bulk request may carry — the server's `BULK_MAX_IDS`, which
+ * answers a longer list with a 400. The gateway splits a bulk publish (dry run
+ * and commit) into requests of this size, because a set built from a selection
+ * *and its translations* outgrows it with a few dozen records.
+ */
+export const BULK_MAX_IDS = 100;
+
+/**
  * Per-entry verdicts in a bulk-publish dry run — the admin mirror of the
  * server's `BULK_VERDICT` (`@orthacms/content-server`). Drives the icon/label
  * for each row in the {@link BulkPublishDialog}. Must stay in lock-step.
