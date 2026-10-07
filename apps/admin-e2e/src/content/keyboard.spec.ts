@@ -61,20 +61,54 @@ test.describe('Entry editor keyboard operability', () => {
         await openEditor(page);
         await contentLibraryPage.editorSave.waitFor();
 
-        // Opened from the keyboard, Radix puts focus on the **first** row
-        // (English, the current locale) — opening by pointer does not, so the
-        // two are different states and this is the one being asserted.
+        // Focus lands in the search box and stays there; the highlight starts
+        // on the current locale (English) and the arrows move it.
         await contentLibraryPage.editorTitleChip.focus();
         await page.keyboard.press('Enter');
-        await expect(contentLibraryPage.localeMenuItem('English')).toBeFocused();
+        await expect(contentLibraryPage.localeMenuSearch).toBeFocused();
+        await contentLibraryPage.expectLocaleMenuHighlight(
+            contentLibraryPage.localeMenuItem('English')
+        );
 
         await page.keyboard.press('ArrowDown');
-        await expect(contentLibraryPage.switchLocale('Deutsch')).toBeFocused();
+        await contentLibraryPage.expectLocaleMenuHighlight(
+            contentLibraryPage.switchLocale('Deutsch')
+        );
 
         await page.keyboard.press('ArrowDown');
+        await contentLibraryPage.expectLocaleMenuHighlight(
+            contentLibraryPage.createTranslation('Français')
+        );
+        await expect(contentLibraryPage.localeMenuSearch).toBeFocused();
+    });
+
+    test('the search narrows the menu and Enter picks the match', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        await openEditor(page);
+        await contentLibraryPage.editorSave.waitFor();
+        await contentLibraryPage.openLocaleMenu();
+
+        // By the language's name…
+        await page.keyboard.type('deut');
+        await expect(contentLibraryPage.switchLocale('Deutsch')).toBeVisible();
+        await expect(contentLibraryPage.localeMenuItem('English')).toHaveCount(
+            0
+        );
         await expect(
             contentLibraryPage.createTranslation('Français')
-        ).toBeFocused();
+        ).toHaveCount(0);
+
+        // …or by the record's title in that language.
+        await contentLibraryPage.localeMenuSearch.fill('winterstiefel');
+        await contentLibraryPage.expectLocaleMenuHighlight(
+            contentLibraryPage.switchLocale('Deutsch')
+        );
+
+        await page.keyboard.press('Enter');
+        await expect(contentLibraryPage.localeMenu).toHaveCount(0);
+        await expect(page).toHaveURL(/\/localized_post\/lp-de-1/);
     });
 
     test('Escape closes the menu and returns focus to the chip', async ({

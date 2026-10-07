@@ -1,16 +1,13 @@
-import { useEffect } from 'react';
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuRadioGroup,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
     Button,
+    Input,
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
     cn
 } from '@orthacms/design-system';
 import { useHasPermission } from '@orthacms/identity-admin';
@@ -38,8 +35,11 @@ import {
     beginLocaleSwitch,
     cancelPendingLocaleSwitch
 } from '../../utils/localeTransition';
-import { LocaleMenuHeader, type LocaleChipState } from './LocaleMenuHeader';
-import { LocaleMenuItem } from './LocaleMenuItem';
+import { LocaleMenuSummary } from './LocaleMenuSummary';
+import {
+    LocaleMenuItem,
+    type LocaleMenuItemInertReason
+} from './LocaleMenuItem';
 
 const messages = defineMessages({
     label: {
@@ -80,8 +80,25 @@ const messages = defineMessages({
     retry: {
         id: 'i18n.widget.retry',
         defaultMessage: 'Try again'
+    },
+    search: {
+        id: 'i18n.localeMenu.search',
+        defaultMessage: 'Find a locale…'
+    },
+    list: {
+        id: 'i18n.localeMenu.list',
+        defaultMessage: 'Locales'
+    },
+    noMatch: {
+        id: 'i18n.localeMenu.noMatch',
+        defaultMessage: 'No locale matches “{query}”.'
     }
 });
+
+/** Case-insensitive match of the search query against a row's text. */
+function matches(haystack: string, query: string): boolean {
+    return haystack.toLowerCase().includes(query.trim().toLowerCase());
+}
 
 /**
  * What a read **is** right now — three states, never two.
@@ -135,14 +152,21 @@ type Sibling = {
  * and — when the create is a translation into an existing group — jump to a
  * sibling that already exists (its members come from `useLocaleSummaries`).
  *
+ * The menu is a **searchable listbox** in a popover — the records toolbar's
+ * `LocaleSwitcher` pattern: focus stays in the search box (`role="combobox"`),
+ * ↑/↓ move an `aria-activedescendant` highlight, Enter picks. A deployment can
+ * run two dozen locales, and a menu's type-ahead (first letter, one match at a
+ * time) is no way to find "Portuguese (Brazil)" among them; the search matches
+ * the name, the code and the record's title in that language.
+ *
  * **Everything stateful lives here, not in the menu.** A pick does not navigate
  * immediately: `beginLocaleSwitch` schedules the swap behind the cover, and
  * `cancelPendingLocaleSwitch` (registered below as an unmount cleanup, so a
- * user who leaves in that window isn't yanked back) would kill it. Radix
- * unmounts `DropdownMenuContent` on select — inside that very window — so a
- * cleanup registered in there would cancel every pick made through it. This
- * component is mounted by the header slot and stays mounted across every open
- * and close, which is why it owns the queries, the permission, the guard and
+ * user who leaves in that window isn't yanked back) would kill it. The popover
+ * content unmounts on close — inside that very window — so a cleanup
+ * registered in there would cancel every pick made through it. This component
+ * is mounted by the header slot and stays mounted across every open and close,
+ * which is why it owns the queries, the permission, the guard, the search and
  * the timers, and `LocaleMenuItem` owns none of them.
  */
 export function LocaleTitleChip({
@@ -159,6 +183,18 @@ export function LocaleTitleChip({
     const location = useLocation();
     const guard = useUnsavedChangesApi();
     const canCreate = useHasPermission(CONTENT_CREATE);
+    const [open, setOpen] = useState(false);
+    const [query, setQuery] = useState('');
+    const [activeIndex, setActiveIndex] = useState(0);
+    const listId = useId();
+    const triggerId = useId();
+    const listRef = useRef<HTMLDivElement>(null);
+    // Set by an arrow key, so only the keyboard scrolls the highlight into
+    // view: doing it on hover too scrolls a half-visible row under the
+    // pointer, which then hovers the next one, and so on to the end.
+    const scrollToHighlight = useRef(false);
+    // The pick waiting for the popover to finish closing (see `pick`).
+    const pendingPick = useRef<(() => void) | null>(null);
     const {
         locales,
         defaultLocale,
@@ -209,6 +245,14 @@ export function LocaleTitleChip({
     // in that window — the user clicked something else, which the overlay
     // deliberately lets through — the navigation is stale and must not fire.
     useEffect(() => cancelPendingLocaleSwitch, []);
+
+    useEffect(() => {
+        if (!scrollToHighlight.current) return;
+        scrollToHighlight.current = false;
+        listRef.current
+            ?.querySelector('[data-highlighted]')
+            ?.scrollIntoView({ block: 'nearest' });
+    }, [activeIndex]);
 
     if (!schema.i18n) return null;
 
@@ -302,21 +346,18 @@ export function LocaleTitleChip({
             : undefined;
     };
 
-    // How each locale reads in the menu's summary strip, and how many count
-    // toward its figure: **live** on a publishable type (published, or
-    // Modified — live content with edits on top), merely existing otherwise.
-    const chipState = (slug: string): LocaleChipState => {
-        if (membersUnknown) return 'unknown';
+    // How many locales count toward the summary's figure: **live** on a
+    // publishable type (published, or Modified — live content with edits on
+    // top), merely existing otherwise. None while the members are unknown.
+    const isDone = (slug: string): boolean => {
         const sibling = siblingFor(slug);
-        if (!sibling) return 'missing';
-        if (!schema.publishable) return 'done';
-        return sibling.status === 'published' || !!sibling.publishedAt
-            ? 'done'
-            : 'present';
+        if (!sibling) return false;
+        if (!schema.publishable) return true;
+        return sibling.status === 'published' || !!sibling.publishedAt;
     };
-    const doneCount = locales.filter(
-        (locale) => chipState(locale.slug) === 'done'
-    ).length;
+    const doneCount = membersUnknown
+        ? 0
+        : locales.filter((locale) => isDone(locale.slug)).length;
 
     const selectLocale = (slug: string, sibling?: Sibling) => {
         const name = localeName(locales, slug) ?? slug;
@@ -375,19 +416,112 @@ export function LocaleTitleChip({
         else run();
     };
 
+    // Every configured locale with what the chip knows about it, narrowed by
+    // the search. The record's own title in that language is searchable too —
+    // a translator looking for "Winterstiefel" finds the German row by it.
+    const rows = locales
+        .map((locale) => {
+            const sibling = siblingFor(locale.slug);
+            const isCurrent = locale.slug === currentLocale;
+            // Why a missing locale is inert, so the row reads as a stated state
+            // rather than an unexplained ghost. Unknown members outrank
+            // permission — we genuinely don't know whether it is missing — and
+            // the two ways of not knowing are told apart, because "couldn't
+            // load" on a read that is merely still running is the same false
+            // claim in a smaller place.
+            const inertReason: LocaleMenuItemInertReason | undefined =
+                isCurrent || sibling
+                    ? undefined
+                    : membersState === 'pending'
+                      ? 'pending'
+                      : membersState === 'failed'
+                        ? 'unknown'
+                        : !canCreate
+                          ? 'forbidden'
+                          : undefined;
+            // Existing → switch (any role); missing → create (gated). Nothing
+            // is actionable while the members are unknown — **pending as much
+            // as failed**: an "Add" we cannot stand behind is worse than no
+            // affordance, and until the group read lands every sibling looks
+            // missing whether it is or not.
+            const actionable =
+                !isCurrent && !membersUnknown && (!!sibling || canCreate);
+            return { locale, sibling, isCurrent, inertReason, actionable };
+        })
+        .filter(({ locale, sibling }) =>
+            matches(
+                `${locale.slug} ${locale.name} ${sibling?.title ?? ''}`,
+                query
+            )
+        );
+    type Row = (typeof rows)[number];
+    // Narrowing the search can leave the highlight past the end of the list,
+    // which would make Enter a no-op.
+    const highlight = Math.min(activeIndex, rows.length - 1);
+    const optionId = (slug: string) => `${listId}-${slug}`;
+
+    const pick = (row: Row) => {
+        // Inert: nothing happened, so the menu stays open — closing it would
+        // read as the pick having been taken.
+        if (row.inertReason) return;
+        // The current locale: there is nothing to switch to.
+        if (!row.actionable) {
+            setOpen(false);
+            return;
+        }
+        // Run once the popover has closed and handed focus back to the trigger
+        // (`onCloseAutoFocus` below). The unsaved-changes guard may open a
+        // dialog with a focus trap of its own, and the closing popover's focus
+        // restore must not land after it and fight it.
+        pendingPick.current = () => requestLocale(row.locale.slug, row.sibling);
+        setOpen(false);
+    };
+
+    const onSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+        if (rows.length === 0) return;
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            scrollToHighlight.current = true;
+            setActiveIndex((highlight + 1) % rows.length);
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            scrollToHighlight.current = true;
+            setActiveIndex((highlight - 1 + rows.length) % rows.length);
+        } else if (event.key === 'Enter') {
+            const row = rows[highlight];
+            if (!row) return;
+            event.preventDefault();
+            pick(row);
+        }
+    };
+
     return (
-        // `modal={false}`, like every other menu in this admin: a modal Radix
-        // menu `aria-hidden`s the page root, so the editor's own `<h1>` drops
-        // out of the a11y tree while the menu is open.
-        <DropdownMenu modal={false}>
-            <DropdownMenuTrigger asChild>
-                {/* A plain outline `Button`, like the write actions it
-                    leads in the top bar — not a badge: it is the editor's
-                    locale switcher, and a chip read as a label about the
-                    record rather than a control. It is also the real
-                    `<button>` Radix needs to hand its menu semantics and
-                    keyboard contract to. */}
+        <Popover
+            open={open}
+            onOpenChange={(next) => {
+                setOpen(next);
+                setQuery('');
+                // Open on the current locale, so arrowing starts from where
+                // the reader already is.
+                if (next) {
+                    setActiveIndex(
+                        Math.max(
+                            0,
+                            locales.findIndex(
+                                (locale) => locale.slug === currentLocale
+                            )
+                        )
+                    );
+                }
+            }}
+        >
+            <PopoverTrigger asChild>
+                {/* A plain outline `Button`, like the write actions it leads
+                    in the top bar — not a badge: it is the editor's locale
+                    switcher, and a chip read as a label about the record
+                    rather than a control. */}
                 <Button
+                    id={triggerId}
                     type="button"
                     variant="outline"
                     size="sm"
@@ -435,50 +569,42 @@ export function LocaleTitleChip({
                         className="text-muted-foreground"
                     />
                 </Button>
-            </DropdownMenuTrigger>
-            {/* No `aria-label` here: Radix already points the menu's
-                `aria-labelledby` at the trigger, which names it better than a
-                bare "Locales" would — and `aria-labelledby` wins anyway, so one
-                would only be dead markup. */}
-            <DropdownMenuContent
+            </PopoverTrigger>
+            <PopoverContent
                 align="end"
-                // Wide enough for a code, a translated title and a status on
-                // one line; capped so a long locale list scrolls inside the
-                // menu (under the sticky summary) instead of off the screen.
-                className="w-[34rem] max-w-[calc(100vw-2rem)] max-h-[min(32rem,var(--radix-dropdown-menu-content-available-height))]"
+                // Named by its trigger, which states the locale and the count —
+                // better than a bare "Locales" would.
+                aria-labelledby={triggerId}
+                onCloseAutoFocus={() => {
+                    const run = pendingPick.current;
+                    pendingPick.current = null;
+                    // After Radix's own focus restore, which runs right after
+                    // this handler returns.
+                    if (run) queueMicrotask(run);
+                }}
+                // Wide enough for a name, its code and a status on one line;
+                // capped so a long locale list scrolls inside the popover (under
+                // the search box) instead of off the screen.
+                className="flex w-[28rem] max-w-[calc(100vw-2rem)] max-h-[min(32rem,var(--radix-popover-content-available-height))] flex-col p-0"
             >
-                {localesState === 'known' && locales.length > 0 ? (
-                    <LocaleMenuHeader
-                        chips={locales.map((locale) => ({
-                            slug: locale.slug,
-                            state: chipState(locale.slug),
-                            isCurrent: locale.slug === currentLocale
-                        }))}
-                        done={doneCount}
-                        total={locales.length}
-                        publishable={!!schema.publishable}
-                        countKnown={!membersUnknown}
-                    />
-                ) : null}
                 {membersState === 'failed' ? (
-                    <>
-                        <DropdownMenuLabel className="font-normal text-destructive">
+                    <div className="flex items-center gap-3 border-b px-3 py-2.5">
+                        <p className="min-w-0 flex-1 text-sm text-destructive">
                             {intl.formatMessage(messages.loadFailed)}
-                        </DropdownMenuLabel>
-                        <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
-                            // Keep the menu open: the retry's whole point is
-                            // that the rows below it fill in.
-                            onSelect={(event) => {
-                                event.preventDefault();
+                        </p>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="shrink-0"
+                            onClick={() => {
                                 if (isCreate) groupSummaries.refetch();
                                 else void entryLocales.refetch();
                             }}
                         >
                             {intl.formatMessage(messages.retry)}
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                    </>
+                        </Button>
+                    </div>
                 ) : null}
                 {localesState === 'pending' ? (
                     // Still loading. It must **not** borrow either of the two
@@ -487,9 +613,9 @@ export function LocaleTitleChip({
                     // claiming a failure here means the menu asserts a broken
                     // config, and offers a retry for it, while the request is
                     // still in flight.
-                    <DropdownMenuLabel className="font-normal text-muted-foreground">
+                    <p className="px-3 py-3 text-sm text-muted-foreground">
                         {intl.formatMessage(messages.localesPending)}
-                    </DropdownMenuLabel>
+                    </p>
                 ) : locales.length === 0 ? (
                     // Nothing to choose from — but *why* is two different
                     // answers, and the retry is only honest about one of them.
@@ -497,10 +623,10 @@ export function LocaleTitleChip({
                     // still exist is a real state (see the i18n dossier), and
                     // reading it as "couldn't load" sends the reader looking
                     // for a network fault that isn't there.
-                    <>
-                        <DropdownMenuLabel
+                    <div className="flex flex-col items-start gap-2 px-3 py-3">
+                        <p
                             className={cn(
-                                'font-normal',
+                                'text-sm',
                                 localesState === 'failed'
                                     ? 'text-destructive'
                                     : 'text-muted-foreground'
@@ -511,92 +637,111 @@ export function LocaleTitleChip({
                                     ? messages.localesUnavailable
                                     : messages.localesNone
                             )}
-                        </DropdownMenuLabel>
-                        <DropdownMenuItem
-                            onSelect={(event) => {
-                                event.preventDefault();
-                                refetchConfiguredLocales();
-                            }}
+                        </p>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => refetchConfiguredLocales()}
                         >
                             {intl.formatMessage(messages.localesRetry)}
-                        </DropdownMenuItem>
-                    </>
+                        </Button>
+                    </div>
                 ) : (
-                    <DropdownMenuRadioGroup value={currentLocale}>
-                        {locales.map((locale) => {
-                            const sibling = siblingFor(locale.slug);
-                            const isCurrent = locale.slug === currentLocale;
-                            // Existing → switch (any role); missing → create
-                            // (gated). Nothing is actionable while the members
-                            // are unknown — **pending as much as failed**: an
-                            // "Add" we cannot stand behind is worse than no
-                            // affordance, and until the group read lands every
-                            // sibling looks missing whether it is or not.
-                            const actionable =
-                                !isCurrent &&
-                                !membersUnknown &&
-                                (!!sibling || canCreate);
-                            return (
-                                <LocaleMenuItem
-                                    key={locale.slug}
-                                    slug={locale.slug}
-                                    name={locale.name}
-                                    title={sibling?.title}
-                                    nameAttrs={localeAttrs(
-                                        locales,
-                                        locale.slug
-                                    )}
-                                    isCurrent={isCurrent}
-                                    exists={!!sibling}
-                                    // Why a missing locale is inert, so the row
-                                    // reads as a stated state rather than an
-                                    // unexplained ghost. Unknown members
-                                    // outrank permission — we genuinely don't
-                                    // know whether it is missing — and the two
-                                    // ways of not knowing are told apart,
-                                    // because "couldn't load" on a read that is
-                                    // merely still running is the same false
-                                    // claim in a smaller place.
-                                    inertReason={
-                                        isCurrent || sibling
-                                            ? undefined
-                                            : membersState === 'pending'
-                                              ? 'pending'
-                                              : membersState === 'failed'
-                                                ? 'unknown'
-                                                : !canCreate
-                                                  ? 'forbidden'
-                                                  : undefined
-                                    }
-                                    // Publish state is **publishable-only**: an
-                                    // always-live type has no publish workflow,
-                                    // so a "Draft" chip beside a locale would
-                                    // name a state the type doesn't have.
-                                    status={
-                                        schema.publishable
-                                            ? sibling?.status
-                                            : undefined
-                                    }
-                                    publishedAt={
-                                        schema.publishable
-                                            ? sibling?.publishedAt
-                                            : undefined
-                                    }
-                                    onSelect={
-                                        actionable
-                                            ? () =>
-                                                  requestLocale(
-                                                      locale.slug,
-                                                      sibling
-                                                  )
-                                            : undefined
-                                    }
-                                />
-                            );
-                        })}
-                    </DropdownMenuRadioGroup>
+                    <>
+                        <div className="border-b p-2">
+                            <Input
+                                autoFocus
+                                value={query}
+                                onChange={(event) => {
+                                    setQuery(event.target.value);
+                                    setActiveIndex(0);
+                                }}
+                                onKeyDown={onSearchKeyDown}
+                                placeholder={intl.formatMessage(
+                                    messages.search
+                                )}
+                                aria-label={intl.formatMessage(messages.search)}
+                                // `aria-activedescendant` is only honoured on
+                                // a role that owns options — on a bare textbox
+                                // the highlight moves silently.
+                                role="combobox"
+                                aria-expanded={rows.length > 0}
+                                aria-haspopup="listbox"
+                                aria-autocomplete="list"
+                                aria-controls={listId}
+                                aria-activedescendant={
+                                    rows[highlight]
+                                        ? optionId(rows[highlight].locale.slug)
+                                        : undefined
+                                }
+                                className="h-8 rounded-lg shadow-none"
+                            />
+                            <LocaleMenuSummary
+                                done={doneCount}
+                                total={locales.length}
+                                publishable={!!schema.publishable}
+                                countKnown={!membersUnknown}
+                            />
+                        </div>
+                        {rows.length === 0 ? (
+                            <p className="px-3 py-6 text-center text-sm text-muted-foreground">
+                                {intl.formatMessage(messages.noMatch, {
+                                    query: query.trim()
+                                })}
+                            </p>
+                        ) : (
+                            // Only the list scrolls (a plain container, so the
+                            // mouse wheel works); the search box stays put.
+                            <div
+                                ref={listRef}
+                                id={listId}
+                                role="listbox"
+                                aria-label={intl.formatMessage(messages.list)}
+                                className="min-h-0 flex-1 overflow-y-auto p-1"
+                            >
+                                {rows.map((row, index) => (
+                                    <LocaleMenuItem
+                                        key={row.locale.slug}
+                                        id={optionId(row.locale.slug)}
+                                        slug={row.locale.slug}
+                                        name={row.locale.name}
+                                        title={row.sibling?.title}
+                                        nameAttrs={localeAttrs(
+                                            locales,
+                                            row.locale.slug
+                                        )}
+                                        isCurrent={row.isCurrent}
+                                        exists={!!row.sibling}
+                                        actionable={row.actionable}
+                                        inertReason={row.inertReason}
+                                        // Publish state is **publishable-only**:
+                                        // an always-live type has no publish
+                                        // workflow, so a "Draft" chip beside a
+                                        // locale would name a state the type
+                                        // doesn't have.
+                                        status={
+                                            schema.publishable
+                                                ? row.sibling?.status
+                                                : undefined
+                                        }
+                                        publishedAt={
+                                            schema.publishable
+                                                ? row.sibling?.publishedAt
+                                                : undefined
+                                        }
+                                        highlighted={index === highlight}
+                                        onHighlight={() =>
+                                            setActiveIndex(index)
+                                        }
+                                        onSelect={() => pick(row)}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </>
                 )}
-            </DropdownMenuContent>
-        </DropdownMenu>
+            </PopoverContent>
+        </Popover>
     );
 }

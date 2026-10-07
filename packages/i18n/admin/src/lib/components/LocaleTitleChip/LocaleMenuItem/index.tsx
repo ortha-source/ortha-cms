@@ -1,6 +1,6 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { Plus } from 'lucide-react';
-import { DropdownMenuRadioItem, cn } from '@orthacms/design-system';
+import { Check, Plus } from 'lucide-react';
+import { cn } from '@orthacms/design-system';
 import { EntryStatusBadge, type EntryStatus } from '@orthacms/content-admin';
 
 const messages = defineMessages({
@@ -28,10 +28,6 @@ const messages = defineMessages({
     missing: {
         id: 'i18n.localeMenu.missing',
         defaultMessage: 'Missing'
-    },
-    notTranslated: {
-        id: 'i18n.localeMenu.notTranslated',
-        defaultMessage: 'Not translated'
     }
 });
 
@@ -56,35 +52,45 @@ const REASON_LABEL: Record<
 };
 
 /**
- * One locale in the title chip's menu. The current locale is the **checked**
- * radio item; an **existing** sibling is a switch target (with its publish
- * status); a **missing** locale re-targets the form to it.
+ * One locale in the title chip's menu — an `option` of its listbox. The current
+ * locale is the **selected** option; an **existing** sibling is a switch target
+ * (with its publish status); a **missing** locale re-targets the form to it.
  *
- * **Purely presentational, and deliberately so.** This is the only thing
- * rendered inside `DropdownMenuContent`, which Radix unmounts the moment an
- * item is selected — while the switch it just started is still waiting out the
- * cover delay. So it owns no query, no timer, and above all **no unmount
- * cleanup**: `cancelPendingLocaleSwitch` here would cancel the very pick that
- * unmounted it. All of that lives in `LocaleTitleChip`, which stays mounted.
+ * The row leads with the language **name**, the code beside it on the same
+ * line, and the record's title in that language beneath when there is one. The
+ * name is what a reader scans and searches for; the code used to sit in a
+ * fixed narrow column of its own, where anything longer than `de-DE` broke
+ * across two lines.
  *
- * An inert row **states why**, and is `aria-disabled` rather than `disabled`:
- * Radix skips a `disabled` item in arrow navigation, so the reason would be
- * unreachable for exactly the keyboard user who needs it. `onSelect` is
- * `preventDefault`ed instead, which also leaves the menu open.
+ * **Purely presentational, and deliberately so.** Focus never leaves the
+ * search box: the chip moves an `aria-activedescendant` highlight over these
+ * rows (`tabIndex={-1}`, so two dozen locales aren't a Tab gauntlet) and owns
+ * every query, timer and cleanup — the popover content unmounts on every close,
+ * including the one a pick causes.
+ *
+ * An inert row **states why**, and is `aria-disabled` rather than absent from
+ * the highlight order, so the reason is reachable for the keyboard user who
+ * needs it.
  */
 export function LocaleMenuItem({
+    id,
     slug,
     name,
     title,
     nameAttrs,
     isCurrent,
     exists,
+    actionable,
     status,
     publishedAt,
     inertReason,
+    highlighted,
+    onHighlight,
     onSelect
 }: {
-    /** The locale's slug — the radio group's value for this row. */
+    /** DOM id — the target of the search box's `aria-activedescendant`. */
+    id: string;
+    /** The locale's slug, shown beside the name. */
     slug: string;
     /** Display name of the locale. */
     name: string;
@@ -103,6 +109,8 @@ export function LocaleMenuItem({
     isCurrent: boolean;
     /** Whether a translation exists in this locale. */
     exists: boolean;
+    /** Whether picking this row switches to it or creates it. */
+    actionable: boolean;
     /** The sibling row's publish status (publishable types only). */
     status?: EntryStatus;
     /**
@@ -113,21 +121,25 @@ export function LocaleMenuItem({
     publishedAt?: string | null;
     /** Why this row is inert, when it is. Rendered as the row's state. */
     inertReason?: LocaleMenuItemInertReason;
-    /** Switch to / create this locale. Absent = not actionable. */
-    onSelect?: () => void;
+    /** Whether the keyboard/pointer highlight is on this row. */
+    highlighted: boolean;
+    /** Move the highlight here (pointer hover). */
+    onHighlight: () => void;
+    /** Pick this row — the chip decides whether that does anything. */
+    onSelect: () => void;
 }) {
     const intl = useIntl();
     const missing = !exists && !isCurrent;
     const inert = !!inertReason;
-    const actionable = !!onSelect && !isCurrent && !inert;
-    // Missing *and* known to be: a pending or failed group read leaves every
-    // locale looking missing, which the row must not assert (`i18n:I-30`).
-    const knownMissing =
-        missing && inertReason !== 'pending' && inertReason !== 'unknown';
 
     return (
-        <DropdownMenuRadioItem
-            value={slug}
+        <button
+            id={id}
+            type="button"
+            role="option"
+            tabIndex={-1}
+            aria-selected={isCurrent}
+            aria-disabled={inert || undefined}
             // The visible row carries a status badge and an "Add" hint, which
             // would join the accessible name as loose words. An actionable row
             // states what selecting it does instead.
@@ -139,48 +151,50 @@ export function LocaleMenuItem({
                       )
                     : undefined
             }
-            aria-disabled={inert || undefined}
-            // Radix types ahead on the item's text, which here starts with
-            // the code and the record title; the locale **name** is what a
-            // reader types ("Deu…"), so it is the text to match.
-            textValue={name}
-            className="group/locale gap-3 py-2"
-            onSelect={(event) => {
-                if (!actionable) {
-                    // Keep the menu open: nothing happened, and closing it
-                    // would read as the pick having been taken.
-                    if (inert) event.preventDefault();
-                    return;
-                }
-                onSelect?.();
-            }}
+            data-highlighted={highlighted ? '' : undefined}
+            onMouseMove={highlighted ? undefined : onHighlight}
+            // Keep focus in the search box: a pointer pick must not move it
+            // onto a row the keyboard contract never focuses.
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={onSelect}
+            className={cn(
+                'group/locale flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm outline-none',
+                'data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground',
+                inert && 'cursor-default'
+            )}
         >
-            <span className="w-8 shrink-0 font-mono text-xs font-semibold uppercase">
-                {slug}
-            </span>
+            <Check
+                aria-hidden
+                className={cn(
+                    'size-4 shrink-0',
+                    isCurrent ? 'opacity-100' : 'opacity-0'
+                )}
+            />
             <span className="min-w-0 flex-1">
-                {/* The record in this language — what a translator is looking
-                    for — over the language's own name. Without a title to show
-                    the name leads alone; "Not translated" is said only when it
-                    is known, never while the group is still loading. */}
-                <span
-                    className={cn(
-                        'block truncate',
-                        (missing || inert) && 'text-muted-foreground'
-                    )}
-                    {...(knownMissing ? {} : nameAttrs)}
-                >
-                    {title ??
-                        (knownMissing
-                            ? intl.formatMessage(messages.notTranslated)
-                            : name)}
+                <span className="flex min-w-0 items-baseline gap-2">
+                    <span
+                        className={cn(
+                            'truncate',
+                            missing || inert
+                                ? 'text-muted-foreground'
+                                : 'font-medium'
+                        )}
+                        {...nameAttrs}
+                    >
+                        {name}
+                    </span>
+                    <span className="shrink-0 whitespace-nowrap font-mono text-xs text-muted-foreground uppercase">
+                        {slug}
+                    </span>
                 </span>
-                {title || knownMissing ? (
+                {title ? (
+                    // The record in this language — what a translator is
+                    // looking for once they have found the language.
                     <span
                         className="block truncate text-xs text-muted-foreground"
                         {...nameAttrs}
                     >
-                        {name}
+                        {title}
                     </span>
                 ) : null}
             </span>
@@ -188,8 +202,8 @@ export function LocaleMenuItem({
                 {status ? (
                     // `explainModified={false}`: this row **is** a control, and
                     // Modified's tooltip trigger is a `<button>` — nesting one
-                    // inside a menu item is `nested-interactive`, a serious
-                    // WCAG failure the row's own axe scan catches.
+                    // inside an option is `nested-interactive`, a serious WCAG
+                    // failure the menu's own axe scan catches.
                     <EntryStatusBadge
                         entry={{ status, publishedAt }}
                         explainModified={false}
@@ -203,7 +217,7 @@ export function LocaleMenuItem({
                         <span className="rounded-full bg-destructive-soft px-2 py-0.5 text-xs font-medium text-destructive-soft-foreground group-data-[highlighted]/locale:hidden">
                             {intl.formatMessage(messages.missing)}
                         </span>
-                        <span className="hidden items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium group-data-[highlighted]/locale:inline-flex">
+                        <span className="hidden items-center gap-1 rounded-full border bg-background px-2 py-0.5 text-xs font-medium group-data-[highlighted]/locale:inline-flex">
                             <Plus aria-hidden className="size-3" />
                             {intl.formatMessage(messages.add)}
                         </span>
@@ -218,6 +232,6 @@ export function LocaleMenuItem({
                     </span>
                 ) : null}
             </span>
-        </DropdownMenuRadioItem>
+        </button>
     );
 }

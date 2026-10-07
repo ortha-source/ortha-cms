@@ -331,17 +331,17 @@ test.describe('Content i18n', () => {
         );
 
         await contentLibraryPage.openLocaleMenu();
-        // The current locale is the checked radio item.
+        // The current locale is the selected option.
         await expect(
             contentLibraryPage.localeMenuItem('English')
-        ).toHaveAttribute('aria-checked', 'true');
+        ).toHaveAttribute('aria-selected', 'true');
         // The de sibling exists → switch; fr is missing → create.
         await expect(contentLibraryPage.switchLocale('Deutsch')).toBeVisible();
         await expect(
             contentLibraryPage.createTranslation('Français')
         ).toBeVisible();
         // The summary counts the group against every configured locale, and
-        // each existing row leads with that locale's own record title.
+        // each existing row carries that locale's own record title.
         await expect(contentLibraryPage.localeMenuSummary).toHaveText(
             /^\d of 4 published · \d+%$/
         );
@@ -350,7 +350,7 @@ test.describe('Content i18n', () => {
         );
         await expect(
             contentLibraryPage.createTranslation('Français')
-        ).toContainText('Not translated');
+        ).toContainText('Missing');
         // Each existing sibling carries its publish state.
         await expect(contentLibraryPage.switchLocale('Deutsch')).toContainText(
             /Published|Draft|Modified/
