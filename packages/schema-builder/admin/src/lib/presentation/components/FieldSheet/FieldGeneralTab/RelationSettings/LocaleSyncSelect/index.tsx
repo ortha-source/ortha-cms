@@ -42,7 +42,7 @@ const messages = defineMessages({
     mirroredGap: {
         id: 'schemaBuilder.relation.localeSync.mirroredGap',
         defaultMessage:
-            'Where a linked {target} entry has no translation in a locale, that locale goes without the link until the translation exists. Nothing is translated or created for you.'
+            'Where a linked {target} entry has no translation in a locale, that locale goes without the link. Nothing is translated or created for you, and a translation added later is not linked by itself — set the link again once it exists.'
     },
     separate: {
         id: 'schemaBuilder.relation.localeSync.separate',
