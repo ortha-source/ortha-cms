@@ -364,6 +364,63 @@ test.describe('Content i18n', () => {
         await expect(contentLibraryPage.localeGroupId('G1')).toBeVisible();
     });
 
+    test('the default locale leads the locale menu, tagged, whatever the configured order', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        // The host lists the default **last**; the menu must still lead with it.
+        await page.route(/\/api\/i18n\/locales$/, (route) =>
+            route.fulfill({
+                json: {
+                    items: [
+                        {
+                            slug: 'de',
+                            name: 'Deutsch',
+                            isDefault: false,
+                            dir: 'ltr'
+                        },
+                        {
+                            slug: 'fr',
+                            name: 'Français',
+                            isDefault: false,
+                            dir: 'ltr'
+                        },
+                        {
+                            slug: 'ar',
+                            name: 'العربية',
+                            isDefault: false,
+                            dir: 'rtl'
+                        },
+                        {
+                            slug: 'en',
+                            name: 'English',
+                            isDefault: true,
+                            dir: 'ltr'
+                        }
+                    ]
+                }
+            })
+        );
+        await page.goto(
+            `/workspaces/${I18N_WORKSPACE.id}/content/localized_post/lp-de-1`
+        );
+        await contentLibraryPage.editorSave.waitFor();
+        await contentLibraryPage.openLocaleMenu();
+
+        const rows = contentLibraryPage.localeMenu.getByRole('option');
+        await expect(rows.first()).toContainText('English');
+        await expect(rows.first()).toContainText('Default');
+        // Only the default carries the tag; the rest keep the host's order.
+        await expect(
+            contentLibraryPage.localeMenu.getByText('Default', { exact: true })
+        ).toHaveCount(1);
+        await expect(rows.nth(1)).toContainText('Deutsch');
+        await expect(rows.nth(2)).toContainText('Français');
+        // A search that matches it keeps it first too.
+        await contentLibraryPage.localeMenuSearch.fill('e');
+        await expect(rows.first()).toContainText('English');
+    });
+
     test('the rail carries no Locale block and no Revisions block [ORT-227]', async ({
         contentLibraryPage
     }) => {

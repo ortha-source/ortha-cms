@@ -28,6 +28,10 @@ const messages = defineMessages({
     missing: {
         id: 'i18n.localeMenu.missing',
         defaultMessage: 'Missing'
+    },
+    default: {
+        id: 'i18n.localeMenu.default',
+        defaultMessage: 'Default'
     }
 });
 
@@ -68,6 +72,10 @@ const REASON_LABEL: Record<
  * every query, timer and cleanup — the popover content unmounts on every close,
  * including the one a pick causes.
  *
+ * The **default** locale is pinned first by the chip and set apart here: a
+ * tinted row, a "Default" tag, and a divider beneath it, so the source most
+ * translations start from is found without reading the list.
+ *
  * An inert row **states why**, and is `aria-disabled` rather than absent from
  * the highlight order, so the reason is reachable for the keyboard user who
  * needs it.
@@ -79,6 +87,7 @@ export function LocaleMenuItem({
     title,
     nameAttrs,
     isCurrent,
+    isDefault,
     exists,
     actionable,
     status,
@@ -107,6 +116,8 @@ export function LocaleMenuItem({
     nameAttrs?: { lang?: string; dir?: 'ltr' | 'rtl' };
     /** Whether this is the locale the editor currently has open. */
     isCurrent: boolean;
+    /** Whether this is the deployment's default locale. */
+    isDefault: boolean;
     /** Whether a translation exists in this locale. */
     exists: boolean;
     /** Whether picking this row switches to it or creates it. */
@@ -159,6 +170,11 @@ export function LocaleMenuItem({
             onClick={onSelect}
             className={cn(
                 'group/locale flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm outline-none',
+                // The default row is tinted at rest, and sits above a divider
+                // drawn by its margin + border, so it reads as the anchor of
+                // the list rather than its first entry.
+                isDefault &&
+                    'relative mb-1.5 bg-muted/70 after:absolute after:inset-x-1 after:-bottom-1 after:border-b after:border-border after:content-[""]',
                 'data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground',
                 inert && 'cursor-default'
             )}
@@ -186,6 +202,11 @@ export function LocaleMenuItem({
                     <span className="shrink-0 whitespace-nowrap font-mono text-xs text-muted-foreground uppercase">
                         {slug}
                     </span>
+                    {isDefault ? (
+                        <span className="shrink-0 rounded border bg-background px-1.5 text-[0.6875rem] leading-4 font-medium text-muted-foreground">
+                            {intl.formatMessage(messages.default)}
+                        </span>
+                    ) : null}
                 </span>
                 {title ? (
                     // The record in this language — what a translator is

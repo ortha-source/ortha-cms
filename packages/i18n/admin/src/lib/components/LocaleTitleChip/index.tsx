@@ -416,10 +416,18 @@ export function LocaleTitleChip({
         else run();
     };
 
+    // The default locale leads the list, whatever order the host configured —
+    // it is the source most translations start from, so it is the one row a
+    // reader should never have to hunt for. `sort` is stable, so the rest keep
+    // their configured order.
+    const orderedLocales = [...locales].sort(
+        (a, b) => Number(b.isDefault) - Number(a.isDefault)
+    );
+
     // Every configured locale with what the chip knows about it, narrowed by
     // the search. The record's own title in that language is searchable too —
     // a translator looking for "Winterstiefel" finds the German row by it.
-    const rows = locales
+    const rows = orderedLocales
         .map((locale) => {
             const sibling = siblingFor(locale.slug);
             const isCurrent = locale.slug === currentLocale;
@@ -507,7 +515,7 @@ export function LocaleTitleChip({
                     setActiveIndex(
                         Math.max(
                             0,
-                            locales.findIndex(
+                            orderedLocales.findIndex(
                                 (locale) => locale.slug === currentLocale
                             )
                         )
@@ -712,6 +720,7 @@ export function LocaleTitleChip({
                                             row.locale.slug
                                         )}
                                         isCurrent={row.isCurrent}
+                                        isDefault={row.locale.isDefault}
                                         exists={!!row.sibling}
                                         actionable={row.actionable}
                                         inertReason={row.inertReason}

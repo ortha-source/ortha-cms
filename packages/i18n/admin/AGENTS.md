@@ -77,6 +77,11 @@ defaultLocale`) — the plugin's single decision point, which the menu must not
       right — a publish badge, **Missing** (turning into **+ Add** on the
       highlighted row), or the inert reason. "Missing" is claimed only when the
       members are known (`i18n:I-30`).
+    - **The default locale always leads**, whatever order the host configured
+      (and in search results that include it): a tinted row with a "Default"
+      tag and a divider beneath it. It is the source most translations start
+      from, so it is the one row a reader should never hunt for. The rest keep
+      the configured order (a stable sort).
     - **The count costs no request.** Edit mode counts the `useEntryLocales`
       items that have an `entry` against all of them; create mode counts the
       group's live summary members against **`useLocales().locales.length`** — a
