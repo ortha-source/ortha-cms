@@ -454,6 +454,21 @@ export class ContentLibraryPage extends BasePage {
             .getByRole('button', { name: new RegExp(`^${label}\\b`) });
     }
 
+    /**
+     * Clicks a form section's description, by its text, where a pointer would.
+     * It sits outside the toggle (not part of its name) but under the toggle's
+     * stretched hit area, so Playwright's hit-target check reports it covered
+     * and refuses. `force` skips only that check: the click is still a real
+     * pointer click at the description's centre, landing on whatever is on top
+     * — the toggle, if the hit area really covers it.
+     */
+    async clickFormSectionDescription(text: string): Promise<void> {
+        await this.page
+            .locator('[data-entry-section]')
+            .getByText(text, { exact: true })
+            .click({ force: true });
+    }
+
     /** The General tab's field outline — bars that open into a list. */
     fieldOutline(): Locator {
         return this.page.getByRole('navigation', { name: 'Jump to a field' });

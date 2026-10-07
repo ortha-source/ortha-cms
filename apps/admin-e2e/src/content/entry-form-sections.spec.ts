@@ -54,6 +54,26 @@ test.describe('Entry form sections', () => {
         await expect(contentLibraryPage.fieldSpinbutton('Price')).toBeVisible();
     });
 
+    test('the whole header folds and unfolds, description included', async ({
+        contentLibraryPage
+    }) => {
+        await contentLibraryPage.gotoNewEntry(
+            LIBRARY_WORKSPACE.id,
+            'blog_post'
+        );
+        const pricing = contentLibraryPage.formSectionToggle('Pricing');
+        await expect(pricing).toHaveAttribute('aria-expanded', 'false');
+
+        // The description sits outside the button — it is not part of the
+        // name — yet a click on it lands on the trigger's stretched hit area.
+        await contentLibraryPage.clickFormSectionDescription(
+            'What the post costs to read.'
+        );
+        await expect(pricing).toHaveAttribute('aria-expanded', 'true');
+        await expect(contentLibraryPage.fieldSpinbutton('Price')).toBeVisible();
+        await expect(pricing).not.toHaveAccessibleName(/costs to read/);
+    });
+
     test('a folded section still names the blocker inside it', async ({
         contentLibraryPage
     }) => {

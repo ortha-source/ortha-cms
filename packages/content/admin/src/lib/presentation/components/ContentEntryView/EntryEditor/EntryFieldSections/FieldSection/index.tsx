@@ -41,8 +41,11 @@ const messages = defineMessages({
  *
  * The heading is an `<h2>` wrapping the trigger button, so heading navigation
  * lands on the section and the button carries `aria-expanded`; the counts sit
- * inside the button and are read as part of its name. Collapsed content is
- * unmounted, which loses nothing: the values live in the form, not the DOM.
+ * inside the button and are read as part of its name. The description stays
+ * outside the button (it is not part of the name), but the button's hit area
+ * is stretched over it, so the whole header block folds and unfolds.
+ * Collapsed content is unmounted, which loses nothing: the values live in the
+ * form, not the DOM.
  */
 export function FieldSection({
     section,
@@ -100,39 +103,44 @@ export function FieldSection({
             // What the outline scrolls to — see `EntryFieldOutline`.
             data-entry-section={group.key}
         >
-            <h2 className="text-sm font-medium">
-                <CollapsibleTrigger className="-mx-2 flex w-[calc(100%+1rem)] items-center gap-2 rounded-md px-2 py-1.5 text-left outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring">
-                    <ChevronRight
-                        aria-hidden
-                        className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]/section:rotate-90"
-                    />
-                    <span className="flex-1 truncate">{group.label}</span>
-                    {blocking > 0 && (
-                        <span className="rounded-full bg-destructive-soft px-2 py-0.5 text-xs font-medium text-destructive-soft-foreground">
-                            {intl.formatMessage(messages.blocking, {
-                                count: blocking
+            {/* The whole header block — description included — is the click
+                target: the trigger's `::after` stretches over it, and the
+                block takes the button's hover and focus styles. */}
+            <div className="relative -mx-2 rounded-md px-2 py-1.5 transition-colors has-[button:hover]:bg-accent has-[button:focus-visible]:ring-2 has-[button:focus-visible]:ring-ring">
+                <h2 className="text-sm font-medium">
+                    <CollapsibleTrigger className="flex w-full items-center gap-2 text-left outline-none after:absolute after:inset-0 after:rounded-md">
+                        <ChevronRight
+                            aria-hidden
+                            className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]/section:rotate-90"
+                        />
+                        <span className="flex-1 truncate">{group.label}</span>
+                        {blocking > 0 && (
+                            <span className="rounded-full bg-destructive-soft px-2 py-0.5 text-xs font-medium text-destructive-soft-foreground">
+                                {intl.formatMessage(messages.blocking, {
+                                    count: blocking
+                                })}
+                            </span>
+                        )}
+                        {changed > 0 && (
+                            <span className="rounded-full bg-warning-soft px-2 py-0.5 text-xs font-medium text-warning-soft-foreground">
+                                {intl.formatMessage(messages.changed, {
+                                    count: changed
+                                })}
+                            </span>
+                        )}
+                        <span className="text-xs font-normal text-muted-foreground tabular-nums">
+                            {intl.formatMessage(messages.fieldCount, {
+                                count: fields.length
                             })}
                         </span>
-                    )}
-                    {changed > 0 && (
-                        <span className="rounded-full bg-warning-soft px-2 py-0.5 text-xs font-medium text-warning-soft-foreground">
-                            {intl.formatMessage(messages.changed, {
-                                count: changed
-                            })}
-                        </span>
-                    )}
-                    <span className="text-xs font-normal text-muted-foreground tabular-nums">
-                        {intl.formatMessage(messages.fieldCount, {
-                            count: fields.length
-                        })}
-                    </span>
-                </CollapsibleTrigger>
-            </h2>
-            {group.description && (
-                <p className="mt-0.5 pl-6 text-xs text-muted-foreground">
-                    {group.description}
-                </p>
-            )}
+                    </CollapsibleTrigger>
+                </h2>
+                {group.description && (
+                    <p className="mt-0.5 pl-6 text-xs text-muted-foreground">
+                        {group.description}
+                    </p>
+                )}
+            </div>
             <CollapsibleContent className="pt-4 pl-6">
                 <FieldStack
                     fields={fields}
