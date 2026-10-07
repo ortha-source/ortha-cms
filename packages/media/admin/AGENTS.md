@@ -141,6 +141,12 @@ of the server's RBAC, which is the real enforcer).
   `ConfirmDialog`'s `onCloseAutoFocus` and focuses a labelled, `tabIndex={-1}`
   "Assets" section, reclaiming it for a few frames if another layer's restore
   lands later. Cancelling is untouched — its trigger still exists.
+- **A confirmed delete holds the dialog open until the server answers.** The
+  confirm is `busy` (spinner on Delete, no dismissal, no second request) while
+  the request runs, and the two delete mutations await their refetch, so the
+  dialog closes onto a grid the deleted tiles are already gone from. Closing at
+  dispatch left the tile on screen with nothing saying a request was running. A
+  failed delete closes without claiming focus — the trigger still exists.
 
 ## The content editor's Media tab
 
