@@ -107,7 +107,10 @@ export function createOpenAiProvider(
                 if (choice.delta?.content) {
                     yield { type: 'text-delta', text: choice.delta.content };
                 }
-                toolCalls.add(choice.delta?.tool_calls ?? []);
+                // A call is announced as soon as it is named, and handed over
+                // whole only once the stream ends — its arguments can be the
+                // longest thing the model writes all turn.
+                yield* toolCalls.add(choice.delta?.tool_calls ?? []);
                 if (choice.finish_reason) {
                     stopReason = toStopReason(choice.finish_reason);
                 }

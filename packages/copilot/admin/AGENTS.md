@@ -551,6 +551,19 @@ sentences, and a run that made six calls should read back as six of them.
   hostile: control and format characters (bidi overrides included) are stripped,
   every whitespace run collapses, and it is cut on **code points** so a
   truncation cannot split a character. Rendered as a text node, never as markup.
+- **A step appears when the model starts writing it**, not when it finishes.
+  `tool-call-start` puts it on screen as a running, `drafting` step — the
+  arguments are still being written and nothing has run — and the `tool-call`
+  completes it **in place**. Before this, "I'll create it now" sat on screen
+  with nothing under it for as long as the model spent writing a whole entry
+  body, then the step, its result and its card landed at once. A run that ends
+  mid-draft (Stop, a ceiling, a failure) drops the step: it never happened,
+  and the reopened transcript would not have it either.
+- **Prose that has stopped is not a status.** `turnActivity` stands down under
+  text only while it is _arriving_; once the newest prose has sat unchanged for
+  `PROSE_STALL_MS` (`MessageList`'s `useProseStalled`) the line comes back as
+  "Thinking…". That covers the gaps no event announces — a model thinking
+  after it spoke, or an adapter that cannot say a call has started.
 - **The gap between calls says which call it was.** The pending line under a
   streaming turn is chosen by `MessageList/activity.ts` (pure, unit-tested), not
   by a condition in JSX: after a completed step it reads "Searched content —

@@ -48,10 +48,13 @@ moment it actually matters.
 
 ## Streaming
 
-`client.messages.stream(...)` is iterated for `text_delta` events only; tool
-calls come from **`stream.finalMessage()`**, not from reassembled
-`input_json_delta` fragments. That means a tool call reaches the engine once,
-whole, and already parsed — the engine never has to handle half a call.
+`client.messages.stream(...)` is iterated for `text_delta` events, plus the
+`content_block_start` of each `tool_use` block, which becomes a
+`tool-call-start` carrying the block's id and name — the transcript shows the
+step while the model is still writing its arguments. The calls themselves come
+from **`stream.finalMessage()`**, not from reassembled `input_json_delta`
+fragments. That means a tool call reaches the engine once, whole, and already
+parsed — the engine never has to handle half a call.
 
 Aborting the caller's signal ends the stream with `stopReason: 'aborted'` rather
 than throwing, per the port's contract. Usage is reported as zero there: a

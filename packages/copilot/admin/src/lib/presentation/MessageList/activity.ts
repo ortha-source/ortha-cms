@@ -24,6 +24,8 @@ export type TurnActivity =
  *   phrase. Doubling that up with a status line saying the same words is noise.
  * - **Prose still arriving** — the newest block is text. The words *are* the
  *   status; a pulsing "thinking" under a sentence being typed contradicts it.
+ *   Prose that has *stopped* arriving (`proseStalled`) no longer is, and gets
+ *   "Thinking…" back.
  * - **A failed turn**, which has an alert instead.
  * - **A permission prompt waiting for an answer**: the run is blocked on the
  *   user, not working, and saying otherwise moves their eye away from the one
@@ -34,7 +36,22 @@ export type TurnActivity =
  * arrived, so a turn that explained itself, searched, and then thought for
  * three seconds showed a finished step and nothing else.
  */
-export function turnActivity(turn: ChatMessage): TurnActivity | null {
+export function turnActivity(
+    turn: ChatMessage,
+    {
+        proseStalled = false
+    }: {
+        /**
+         * The newest block is text and has stopped growing. The prose stood
+         * in for a status only while it was *arriving*: after "I'll update
+         * it now" the model can go quiet for a long while — thinking, or
+         * writing a call no adapter announced — and a sentence that has
+         * stopped moving says nothing about that. The caller decides when
+         * text has stalled, because that is a fact about time, not the turn.
+         */
+        proseStalled?: boolean;
+    } = {}
+): TurnActivity | null {
     if (!turn.streaming || turn.error) {
         return null;
     }
@@ -51,7 +68,11 @@ export function turnActivity(turn: ChatMessage): TurnActivity | null {
 
     const newest = turn.blocks[turn.blocks.length - 1];
     if (newest?.kind === 'text' && newest.text) {
-        return null;
+        // Stalled prose is followed by "Thinking…", never by the step before
+        // it: the words written since are what happened last, and "Searched
+        // content — working out what to do next" under them would reach back
+        // past the sentence the reader just finished.
+        return proseStalled ? { kind: 'thinking' } : null;
     }
 
     // Searching from the end, and past a change card: a `proposal` block is

@@ -231,6 +231,67 @@ describe('createAnthropicProvider', () => {
             });
         });
 
+        it('announces a tool call when its block opens, before the arguments arrive', async () => {
+            mockStream.mockReturnValue(
+                sdkStream(
+                    [
+                        textDelta('Creating it now.'),
+                        {
+                            type: 'content_block_start',
+                            index: 1,
+                            content_block: {
+                                type: 'tool_use',
+                                id: 'toolu_1',
+                                name: 'content_propose_create',
+                                input: {}
+                            }
+                        },
+                        {
+                            type: 'content_block_delta',
+                            index: 1,
+                            delta: {
+                                type: 'input_json_delta',
+                                partial_json: '{"summary":'
+                            }
+                        }
+                    ],
+                    finalMessage({
+                        stop_reason: 'tool_use',
+                        content: [
+                            { type: 'text', text: 'Creating it now.' },
+                            {
+                                type: 'tool_use',
+                                id: 'toolu_1',
+                                name: 'content_propose_create',
+                                input: { summary: 'A post' }
+                            }
+                        ]
+                    })
+                )
+            );
+
+            const events = await drain(
+                createAnthropicProvider(config).stream(request)
+            );
+
+            expect(events.map((event) => event.type)).toEqual([
+                'text-delta',
+                'tool-call-start',
+                'tool-call',
+                'done'
+            ]);
+            // Same id on both, or the transcript's pending step never resolves.
+            expect(events[1]).toEqual({
+                type: 'tool-call-start',
+                id: 'toolu_1',
+                name: 'content_propose_create'
+            });
+            expect(events[2]).toMatchObject({
+                id: 'toolu_1',
+                input: { summary: 'A post' }
+            });
+        });
+
         it('emits tool calls from the assembled message, parsed and whole', async () => {
             mockStream.mockReturnValue(
                 sdkStream(

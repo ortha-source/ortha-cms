@@ -430,6 +430,57 @@ describe('RunEngine streaming', () => {
             expect.objectContaining({ type: 'done', stopReason: 'end' })
         ]);
     });
+
+    /**
+     * The gap this closes: prose saying "I'll create it", then nothing on
+     * screen for as long as the model spends writing the call's arguments, then
+     * the step, its result and its card all at once. The start has to reach the
+     * client while the provider is still writing — and nothing may run on it.
+     */
+    it('forwards a tool-call-start while the call is still being written, and runs nothing on it', async () => {
+        const held = gate();
+        const { engine, tools } = harness(async function* () {
+            yield { type: 'text-delta', text: "I'll create it." };
+            yield {
+                type: 'tool-call-start',
+                id: 'call-1',
+                name: 'fixture_read'
+            };
+            await held.closed;
+            yield {
+                type: 'tool-call',
+                id: 'call-1',
+                name: 'fixture_read',
+                input: {}
+            };
+            yield {
+                type: 'done',
+                stopReason: 'tool_use',
+                usage: { inputTokens: 1, outputTokens: 1 }
+            };
+        });
+        const controller = new AbortController();
+        const events = engine.run(startInput(controller.signal));
+
+        await events.next(); // run-started
+        await events.next(); // the prose
+        const start = await nextWithin(events.next());
+        expect(start).not.toBe(STILL_WAITING);
+        expect((start as IteratorResult<CopilotRunEvent>).value).toEqual({
+            type: 'tool-call-start',
+            id: 'call-1',
+            name: 'fixture_read'
+        });
+        expect(tools.call).not.toHaveBeenCalled();
+
+        // Stop the run once the call is handed over; what follows is the
+        // ordinary tool path, covered elsewhere.
+        held.open();
+        const next = await events.next();
+        expect(next.value).toMatchObject({ type: 'tool-call', id: 'call-1' });
+        controller.abort();
+        await events.return(undefined);
+    });
 });
 
 describe('RunEngine when a run ends badly', () => {

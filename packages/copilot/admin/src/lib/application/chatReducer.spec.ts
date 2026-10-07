@@ -258,6 +258,95 @@ describe('chatReducer', () => {
         ]);
     });
 
+    describe('a call the model is still writing', () => {
+        const announce: ChatAction = {
+            type: 'event',
+            event: { type: 'text-delta', text: "I'll create it." }
+        };
+        const start: ChatAction = {
+            type: 'event',
+            event: {
+                type: 'tool-call-start',
+                id: 't1',
+                name: 'content_propose_create'
+            }
+        };
+        const call: ChatAction = {
+            type: 'event',
+            event: {
+                type: 'tool-call',
+                id: 't1',
+                name: 'content_propose_create',
+                input: { summary: 'A post' }
+            }
+        };
+
+        // The reported gap: the prose announcing a change, then nothing on
+        // screen until the finished call landed with its result.
+        it('shows the step as soon as the model starts writing it', () => {
+            const state = play(submit, started, announce, start);
+            const last = state.messages[1];
+
+            expect(last.blocks.map((block) => block.kind)).toEqual([
+                'text',
+                'step'
+            ]);
+            expect(steps(last)).toEqual([
+                {
+                    id: 't1',
+                    name: 'content_propose_create',
+                    input: undefined,
+                    status: 'running',
+                    drafting: true
+                }
+            ]);
+        });
+
+        it('completes that step in place when the call arrives', () => {
+            const state = play(submit, started, announce, start, call);
+            const last = state.messages[1];
+
+            expect(last.blocks).toHaveLength(2);
+            expect(steps(last)).toEqual([
+                {
+                    id: 't1',
+                    name: 'content_propose_create',
+                    input: { summary: 'A post' },
+                    status: 'running'
+                }
+            ]);
+        });
+
+        it('announces a step once, however often it is announced', () => {
+            const state = play(submit, started, start, start);
+            expect(steps(state.messages[1])).toHaveLength(1);
+        });
+
+        it('still appends a call nobody announced', () => {
+            const state = play(submit, started, announce, call);
+            expect(steps(state.messages[1])).toEqual([
+                expect.objectContaining({ id: 't1', status: 'running' })
+            ]);
+        });
+
+        it.each<[string, ChatAction]>([
+            ['the run ends', done],
+            ['the user stops it', { type: 'cancelled' }],
+            ['the transport fails', { type: 'failed', message: 'offline' }]
+        ])('drops a step that was never finished when %s', (_, ending) => {
+            const state = play(submit, started, announce, start, ending);
+            const last = state.messages[1];
+
+            expect(steps(last)).toEqual([]);
+            expect(prose(last)).toBe("I'll create it.");
+        });
+
+        it('keeps a finished step when the run ends', () => {
+            const state = play(submit, started, start, call, done);
+            expect(steps(state.messages[1])).toHaveLength(1);
+        });
+    });
+
     it('resolves the matching step only, leaving others running', () => {
         const state = play(
             submit,

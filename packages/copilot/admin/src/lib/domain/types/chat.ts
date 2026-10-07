@@ -8,6 +8,13 @@ export interface ChatToolStep {
     input: unknown;
     /** `running` until the result frame lands. */
     status: 'running' | 'ok' | 'error';
+    /**
+     * True while the model is still **writing** the call — its name is known,
+     * its arguments are not, and nothing has run. Set by `tool-call-start` and
+     * cleared by the `tool-call` that completes it; a step the run ends on
+     * while still drafting is dropped, because it never happened.
+     */
+    drafting?: boolean;
     /** One line describing the outcome, e.g. `12 results`. */
     summary?: string;
     /** The full result, shown when the step is expanded. */

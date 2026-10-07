@@ -169,4 +169,55 @@ describe('turnActivity', () => {
             step: expect.objectContaining({ name: 'content_propose_update' })
         });
     });
+    describe('prose that has stopped arriving', () => {
+        it('stays silent while the sentence is still being written', () => {
+            expect(
+                turnActivity(streaming([text('t1', "I'll create it.")]))
+            ).toBeNull();
+        });
+
+        // The reported bug: "I'll do it", then nothing at all on screen while
+        // the model thought or wrote a long call, then the result.
+        it('says thinking once the sentence has stalled', () => {
+            expect(
+                turnActivity(streaming([text('t1', "I'll create it.")]), {
+                    proseStalled: true
+                })
+            ).toEqual({ kind: 'thinking' });
+        });
+
+        it('does not reach back past the prose to the step before it', () => {
+            expect(
+                turnActivity(
+                    streaming([
+                        step('c1', 'admin_content_search', 'ok'),
+                        text('t1', 'Found it. Updating now.')
+                    ]),
+                    { proseStalled: true }
+                )
+            ).toEqual({ kind: 'thinking' });
+        });
+
+        it('still stands down for a step being drafted', () => {
+            expect(
+                turnActivity(
+                    streaming([
+                        text('t1', "I'll create it."),
+                        {
+                            kind: 'step',
+                            id: 'c1',
+                            step: {
+                                id: 'c1',
+                                name: 'content_propose_create',
+                                input: undefined,
+                                status: 'running',
+                                drafting: true
+                            }
+                        }
+                    ]),
+                    { proseStalled: true }
+                )
+            ).toBeNull();
+        });
+    });
 });

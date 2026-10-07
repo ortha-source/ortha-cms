@@ -127,14 +127,15 @@ function playbackEvents(
         ...chunkText(text, chunkSize).map(
             (piece): ModelStreamEvent => ({ type: 'text-delta', text: piece })
         ),
-        ...toolCalls.map(
-            (call, index): ModelStreamEvent => ({
-                type: 'tool-call',
-                id: call.id ?? `fake-tool-${callIndex}-${index}`,
-                name: call.name,
-                input: call.input
-            })
-        ),
+        // Each call announced and then handed over, as a streaming adapter
+        // does, so the engine's forwarding of the start is exercised end to end.
+        ...toolCalls.flatMap((call, index): ModelStreamEvent[] => {
+            const id = call.id ?? `fake-tool-${callIndex}-${index}`;
+            return [
+                { type: 'tool-call-start', id, name: call.name },
+                { type: 'tool-call', id, name: call.name, input: call.input }
+            ];
+        }),
         {
             type: 'done',
             stopReason:

@@ -70,6 +70,48 @@ describe('createToolCallAccumulator', () => {
         expect(accumulator.drain()).toEqual([]);
     });
 
+    it('announces a call once, in the chunk that names it', () => {
+        const accumulator = createToolCallAccumulator();
+
+        expect(
+            accumulator.add([
+                {
+                    index: 0,
+                    id: 'a',
+                    function: { name: 'search', arguments: '{"q"' }
+                }
+            ])
+        ).toEqual([{ type: 'tool-call-start', id: 'a', name: 'search' }]);
+        // The arguments still arriving announce nothing further.
+        expect(
+            accumulator.add([{ index: 0, function: { arguments: ':"x"}' } }])
+        ).toEqual([]);
+    });
+
+    it('waits for the id before announcing, so the start and the call agree', () => {
+        const accumulator = createToolCallAccumulator();
+
+        expect(
+            accumulator.add([{ index: 0, function: { name: 'search' } }])
+        ).toEqual([]);
+        expect(accumulator.add([{ index: 0, id: 'a' }])).toEqual([
+            { type: 'tool-call-start', id: 'a', name: 'search' }
+        ]);
+    });
+
+    it('never announces a call whose id the server never sent', () => {
+        const accumulator = createToolCallAccumulator();
+
+        // It is drained under a synthesised id the start could not have known,
+        // so it runs unannounced rather than leaving a step that never resolves.
+        expect(
+            accumulator.add([
+                { index: 3, function: { name: 'search', arguments: '{}' } }
+            ])
+        ).toEqual([]);
+        expect(accumulator.drain()).toHaveLength(1);
+    });
+
     it('is empty when nothing was added', () => {
         expect(createToolCallAccumulator().drain()).toEqual([]);
     });

@@ -39,6 +39,11 @@ const messages = defineMessages({
         id: 'copilot.step.status.running',
         defaultMessage: 'Running'
     },
+    // The model is still writing the call's arguments; nothing has run yet.
+    statusDrafting: {
+        id: 'copilot.step.status.drafting',
+        defaultMessage: 'Preparing'
+    },
     statusSucceeded: {
         id: 'copilot.step.status.succeeded',
         defaultMessage: 'Succeeded'
@@ -120,11 +125,13 @@ export function ToolStep({ step }: { step: ChatToolStep }) {
                     do not reach. */}
                 <span className="sr-only">
                     {intl.formatMessage(
-                        running
-                            ? messages.statusRunning
-                            : step.status === 'error'
-                              ? messages.statusFailed
-                              : messages.statusSucceeded
+                        step.drafting
+                            ? messages.statusDrafting
+                            : running
+                              ? messages.statusRunning
+                              : step.status === 'error'
+                                ? messages.statusFailed
+                                : messages.statusSucceeded
                     )}
                 </span>
                 {/* The running step is the one thing on this list that is
@@ -175,10 +182,15 @@ export function ToolStep({ step }: { step: ChatToolStep }) {
                     label={intl.formatMessage(messages.toolName)}
                     value={step.name}
                 />
-                <Payload
-                    label={intl.formatMessage(messages.input)}
-                    value={step.input}
-                />
+                {/* Not while drafting: the arguments are still being
+                    written, and an empty box would read as a call made with
+                    none. */}
+                {!step.drafting && (
+                    <Payload
+                        label={intl.formatMessage(messages.input)}
+                        value={step.input}
+                    />
+                )}
                 {/* The owning plugin's rendering, **above** the raw payload
                     and never in place of it. A result that is itself the
                     answer — a list of flagged records — deserves better than a
