@@ -237,6 +237,39 @@ test.describe('Agents view — regressions', () => {
         await expect(agentsPage.composerHint()).toContainText(/Enter to send/);
     });
 
+    test('a thread reopened after a trip through the CMS still has its latest turn', async ({
+        page,
+        agentsPage
+    }) => {
+        const THREAD = 'Which articles are missing a summary?';
+        const spy = await mockCopilotApi(page, { persistRuns: true });
+
+        // Opening the thread fetches its transcript — and caches it.
+        await agentsPage.gotoThread(WORKSPACE_ID, 'c_summary');
+        await expect(agentsPage.transcript()).toContainText('Three have none.');
+
+        await agentsPage.ask('One more thing');
+        await expect(agentsPage.transcript()).toContainText(
+            'Afterwards: the change is saved.'
+        );
+        await expect(agentsPage.sendButton()).toBeVisible();
+        expect(spy.runs[0]).toMatchObject({ conversationId: 'c_summary' });
+
+        // The reported bug: an idle chat is closed on leaving, and coming back
+        // reloaded the thread from the transcript cached *before* that turn.
+        // The refetch that followed was ignored, so the answer was missing
+        // until a full reload.
+        await agentsPage.switchView('CMS');
+        await agentsPage.switchView('Agents');
+        await agentsPage.railRow(THREAD).click();
+        await expect(page).toHaveURL(/\/agents\/c_summary$/);
+
+        await expect(agentsPage.transcript()).toContainText('One more thing');
+        await expect(agentsPage.transcript()).toContainText(
+            'Persisted answer 1.'
+        );
+    });
+
     test('a truncated run explains itself in a translatable sentence', async ({
         page,
         agentsPage

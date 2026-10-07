@@ -13,6 +13,7 @@ import {
 } from './copilotStore';
 import type { ChatAction } from './chatReducer';
 import { conversationsScopeKey } from './useConversations';
+import { conversationKey } from './useConversation';
 import { CopilotRunError, streamRun, type StartRunRequest } from './runStream';
 import { useDecideToolPermission } from './useDecideToolPermission';
 import { useExtendToolPermission } from './useExtendToolPermission';
@@ -195,6 +196,12 @@ export function useCopilotChat(
                 ...(skills?.length ? { skills } : {})
             });
 
+            // The thread this run writes into — known at send time for a saved
+            // thread, from `run-started` for a new one. Kept here rather than
+            // re-read in `finally`, because by then the chat may be showing
+            // another thread.
+            let threadId: string | null = null;
+
             void (async () => {
                 try {
                     // Read at send time, not from the render that created this
@@ -202,6 +209,7 @@ export function useCopilotChat(
                     // still in flight when the next turn is queued.
                     const conversationId =
                         chatStateOf(sessionId).conversationId;
+                    threadId = conversationId;
                     const events = streamRun(
                         {
                             message: trimmed,
@@ -273,6 +281,9 @@ export function useCopilotChat(
                                 queryKey: conversationsScopeKey(workspaceId)
                             });
                         }
+                        if (event.type === 'run-started') {
+                            threadId = event.conversationId;
+                        }
                         dispatch({ type: 'event', event });
                     }
                 } catch (error) {
@@ -310,6 +321,18 @@ export function useCopilotChat(
                     void queryClient.invalidateQueries({
                         queryKey: conversationsScopeKey(workspaceId)
                     });
+                    // The cached transcript of this thread predates the turn
+                    // that just ran. *Removed*, not invalidated: the Agents
+                    // page loads a cached transcript the instant it reopens a
+                    // thread and ignores the background refetch that follows
+                    // (by then its chat is already on the thread), so a merely
+                    // stale entry still came back without this answer — and
+                    // the turn reappeared only on a full reload.
+                    if (threadId) {
+                        queryClient.removeQueries({
+                            queryKey: conversationKey(threadId)
+                        });
+                    }
                 }
             })();
         },
