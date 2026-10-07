@@ -86,7 +86,8 @@ export function FieldGeneralTab({ editor, type, document, nameError }: Props) {
                     }
                 />
             )}
-            {type.i18n && !inverse && (
+            {/* A relation says how its links behave per locale in its own settings. */}
+            {type.i18n && !isRelation && (
                 <SwitchField
                     id="field-localized"
                     label={intl.formatMessage(messages.localized)}
