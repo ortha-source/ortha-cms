@@ -44,6 +44,15 @@ Layered per [ADR-0003](../../../docs/adr/0003-tactical-ddd-inside-plugins.md).
 | `reviewState`   | `RECORDS_FILTER_FIELDS_SLOT`  | waiting on review / not requested                                                    |
 | Insights card   | `INSIGHTS_WIDGET_SLOT`        | how much review is outstanding                                                       |
 | Reviews page    | `WORKSPACE_ROUTE_SLOT` + nav  | what is waiting, and on whom                                                         |
+| Approval notes  | `PUBLISH_ANNOTATION_SLOT`     | in the Publish Manager: "Approvals 1/2" on a held entry, "Approved" on a ready one   |
+
+**The Publish Manager's notes decide nothing.** `usePublishReviewAnnotations`
+reads the records column's own status endpoint, once per type in the set and
+again after each commit (the manager's `version`), and marks a held entry
+`blocking` so the reader sees it before the commit refuses it. A held entry the
+reader picks anyway goes to content's bulk publish, where this plugin's server
+guard refuses it and the manager reports "held by a publish rule". An entry of
+an unprotected type gets no note at all.
 
 **The three entry contributions render nothing on an unprotected type** and on a
 non-publishable one. `reviewScopeOf` is the single place that decides, so the

@@ -62,7 +62,7 @@ of them arrives transitively anyway, so an import resolves on npm's flat
 something the app owns. An undeclared import works until a version conflict
 nests a copy, and never works under pnpm.
 
-That leaves **15** of the 70 published packages out of a default app, and
+That leaves **15** of the 71 published packages out of a default app, and
 `features.spec.ts` asserts the list in full: the four unpicked storage adapters,
 the two hosted copilot backends, the three SSO adapters, the mail queue and its
 SMTP adapter, `content-graphql`, `mcp-server`, and the two

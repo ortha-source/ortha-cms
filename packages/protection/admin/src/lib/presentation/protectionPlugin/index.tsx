@@ -17,6 +17,10 @@ import {
     WORKSPACE_ROUTE_SLOT,
     WORKSPACE_SETTINGS_TAB_SLOT
 } from '@orthacms/workspaces-admin';
+import {
+    PUBLISH_ANNOTATION_SLOT,
+    type PublishAnnotationItem
+} from '@orthacms/publishing-admin';
 import { Shield, ShieldCheck } from 'lucide-react';
 import { ProtectionSettings } from '../components/ProtectionSettings';
 import { ReviewsSkeleton } from '../components/ReviewsSkeleton';
@@ -26,6 +30,7 @@ import { ReviewColumnCell } from '../components/ReviewColumnCell';
 import { ProtectionInsightsCard } from '../components/ProtectionInsightsCard';
 import { useReviewStateFilterFields } from '../../application/useReviewStateFilterFields';
 import { useReviewStatusByEntry } from '../../application/hooks';
+import { usePublishReviewAnnotations } from '../publishing/usePublishReviewAnnotations';
 
 // Lazy so the Reviews page is its own chunk, fetched when somebody first opens
 // it — every other surface this plugin has is a slot contribution that rides
@@ -42,7 +47,7 @@ export type ProtectionAdminPlugin = AdminPlugin;
 /**
  * Creates the admin-side protection plugin.
  *
- * **Eight contributions and one route of its own.** Almost everything this plugin
+ * **Nine contributions and one route of its own.** Almost everything this plugin
  * shows lives inside somebody else's screen — three in the entry editor, where
  * the requirement is met or missed, and one in workspace settings, where a rule
  * is made. The Reviews page is the exception, and it has to be: an ask arrives
@@ -56,9 +61,24 @@ export type ProtectionAdminPlugin = AdminPlugin;
  * one, so it has to be visible before there is anything to see.
  */
 export function ProtectionPlugin(): ProtectionAdminPlugin {
+    const publishAnnotationItem: PublishAnnotationItem = {
+        id: 'protection.publishing.approvals',
+        label: {
+            id: 'protection.publishing.label',
+            defaultMessage: 'Approval status'
+        },
+        useAnnotations: usePublishReviewAnnotations
+    };
     return {
         name: 'protection',
         slots: [
+            {
+                // Approval status in the Publish Manager's cells, so an entry
+                // a rule will hold is visible before the commit refuses it.
+                // Silent on an unprotected type, like every entry surface here.
+                slot: PUBLISH_ANNOTATION_SLOT,
+                items: [publishAnnotationItem]
+            },
             {
                 slot: WORKSPACE_ROUTE_SLOT,
                 items: [

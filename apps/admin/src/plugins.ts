@@ -16,6 +16,7 @@ import { transferAdminPlugin } from '@orthacms/transfer-admin';
 import { AlarmsPlugin } from '@orthacms/alarms-admin';
 import { SegmentsPlugin } from '@orthacms/segments-admin';
 import { ProtectionPlugin } from '@orthacms/protection-admin';
+import { PublishingPlugin } from '@orthacms/publishing-admin';
 import { SchemaBuilderPlugin } from '@orthacms/schema-builder-admin';
 
 /**
@@ -94,6 +95,11 @@ export function buildPlugins(): AdminPlugin[] {
         // the publish verdict — so it reads after ContentPlugin() like every
         // other library filler. It owns no page of its own.
         ProtectionPlugin(),
+        // The Publish Manager: a page for publishing a selection together with
+        // its translations and linked drafts, opened from the records selection
+        // bar and the editor's ⋯ menu. It fills Content Library slots and
+        // declares two of its own, which i18n and protection fill.
+        PublishingPlugin(),
         UsersPlugin(),
         ActivityPlugin(),
         // Global token-management page in the main sidebar (no workspace

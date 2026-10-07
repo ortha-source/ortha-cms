@@ -21,13 +21,15 @@ import { InjectContentRegistry } from '../../../content.tokens';
 import type { ContentTypeRegistry } from '../../../registry/content-type-registry';
 import { EntryWriterService } from '../../infrastructure/persistence/entry-writer.service';
 import { BulkPublishPreviewQuery } from '../../infrastructure/queries/bulk-publish-preview.query';
+import { BulkPublishContextQuery } from '../../infrastructure/queries/bulk-publish-context.query';
 import { BulkPublishEntriesUseCase } from '../../application/use-cases/bulk-publish-entries.use-case';
 import { BulkUnpublishEntriesUseCase } from '../../application/use-cases/bulk-unpublish-entries.use-case';
 import { BulkIdsDto } from '../dto/bulk-ids.dto';
 import type {
     BulkActionResult,
     BulkPublishPreview,
-    BulkPublishResult
+    BulkPublishResult,
+    PublishContextView
 } from '../../types/bulk-publish';
 import { resolveType } from './resolve-type';
 import { toActor } from './to-actor';
@@ -49,6 +51,7 @@ export class BulkEntriesController {
         private readonly registry: ContentTypeRegistry,
         private readonly writer: EntryWriterService,
         private readonly bulkPublishPreview: BulkPublishPreviewQuery,
+        private readonly bulkPublishContext: BulkPublishContextQuery,
         private readonly bulkPublishEntries: BulkPublishEntriesUseCase,
         private readonly bulkUnpublishEntries: BulkUnpublishEntriesUseCase
     ) {}
@@ -64,6 +67,24 @@ export class BulkEntriesController {
     ): Promise<BulkPublishPreview> {
         const type = resolveType(this.registry, typeName);
         return this.bulkPublishPreview.preview(type, body.ids, workspaceId);
+    }
+
+    /**
+     * What publishing these ids would involve, before any dry run: each
+     * entry's title, publish state and translation group, and the unpublished
+     * records it links to (one hop) that this workspace could publish too. The
+     * admin's Publish Manager reads it; it writes nothing.
+     */
+    @Post(':typeName/bulk/publish/context')
+    @HttpCode(HttpStatus.OK)
+    @RequirePermissions(PERMISSIONS.CONTENT_PUBLISH)
+    publishContext(
+        @Param('typeName') typeName: string,
+        @Body() body: BulkIdsDto,
+        @CurrentWorkspace() workspaceId: string
+    ): Promise<PublishContextView> {
+        const type = resolveType(this.registry, typeName);
+        return this.bulkPublishContext.context(type, body.ids, workspaceId);
     }
 
     @Post(':typeName/bulk/publish')

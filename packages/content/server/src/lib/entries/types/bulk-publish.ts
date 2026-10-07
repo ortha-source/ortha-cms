@@ -92,3 +92,51 @@ export interface BulkPublishResult {
 export interface BulkActionResult {
     count: number;
 }
+
+/**
+ * One record as the publish context describes it — enough to name it, place it
+ * in its translation group and say what publishing it would change. Shared by
+ * the requested entries and their linked drafts.
+ */
+export interface PublishContextRecord {
+    id: string;
+    /** The content type's name — a linked draft may be of another type. */
+    type: string;
+    /** Display title; absent when the row has none (never the id standing in). */
+    title?: string;
+    status: EntryStatus;
+    /** When it last went live, or `null` if never — separates Draft from Modified. */
+    publishedAt: string | null;
+    /** The row's locale — localized types only. */
+    locale?: string;
+    /** The row's translation group — localized types only. */
+    localeGroupId?: string;
+}
+
+/** A draft one of the requested entries links to, and through which field. */
+export interface PublishContextLink extends PublishContextRecord {
+    /** The relation field on the requested entry. */
+    field: string;
+    /** That field's admin label, else its name. */
+    fieldLabel: string;
+}
+
+/** One requested entry and the unpublished records it links to. */
+export interface PublishContextEntry extends PublishContextRecord {
+    /**
+     * Unpublished records this entry links to through its own relation fields
+     * (one hop), in field order — only targets this workspace may publish:
+     * a publishable type it holds an own grant for, a row it owns.
+     */
+    linked: PublishContextLink[];
+    /** Whether {@link linked} was cut at `PUBLISH_CONTEXT_MAX_LINKED`. */
+    linkedTruncated: boolean;
+}
+
+/**
+ * The publish-context response: per requested id, the entry and its linked
+ * drafts, or `null` when the id names no live row in the workspace.
+ */
+export interface PublishContextView {
+    entries: Record<string, PublishContextEntry | null>;
+}

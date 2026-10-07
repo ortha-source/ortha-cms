@@ -555,3 +555,39 @@ export type BulkPublishResult = {
 export type BulkActionResult = {
     count: number;
 };
+
+/**
+ * One record as the publish context describes it — mirrors the server's
+ * `PublishContextRecord`. A linked draft may be of another type than the entry
+ * that links to it, hence `type`.
+ */
+export type PublishContextRecord = {
+    id: string;
+    type: string;
+    /** Display title; absent when the row has none. */
+    title?: string;
+    status: EntryStatus;
+    publishedAt: string | null;
+    /** Localized types only. */
+    locale?: string;
+    /** Localized types only. */
+    localeGroupId?: string;
+};
+
+/** An unpublished record a requested entry links to, and through which field. */
+export type PublishContextLink = PublishContextRecord & {
+    field: string;
+    fieldLabel: string;
+};
+
+/** One requested entry and the unpublished records it links to (one hop). */
+export type PublishContextEntry = PublishContextRecord & {
+    linked: PublishContextLink[];
+    /** Whether `linked` was cut at the server's cap. */
+    linkedTruncated: boolean;
+};
+
+/** `POST /content/:name/bulk/publish/context` — `null` for an id naming nothing. */
+export type PublishContext = {
+    entries: Record<string, PublishContextEntry | null>;
+};

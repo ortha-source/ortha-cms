@@ -40,6 +40,9 @@
         },
         {
             "path": "../../bootstrap/admin/tsconfig.lib.json"
+        },
+        {
+            "path": "../../publishing/admin/tsconfig.lib.json"
         }
     ]
 }

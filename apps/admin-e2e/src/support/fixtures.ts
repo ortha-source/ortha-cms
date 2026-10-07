@@ -27,6 +27,7 @@ import { WebhooksPage } from './pages/WebhooksPage';
 import { ContentModelPage } from './pages/ContentModelPage';
 import { HostPage } from './pages/HostPage';
 import { TransferPage } from './pages/TransferPage';
+import { PublishManagerPage } from './pages/PublishManagerPage';
 
 /**
  * The tag whitelist every scan runs under.
@@ -121,6 +122,7 @@ interface Fixtures {
     contentModelPage: ContentModelPage;
     hostPage: HostPage;
     transferPage: TransferPage;
+    publishManagerPage: PublishManagerPage;
     /**
      * Factory for a fresh axe scanner scoped to the current page, tagged
      * {@link AXE_TAGS} and with {@link AXE_KNOWN_GAPS} turned back off. Call it
@@ -211,6 +213,9 @@ export const test = base.extend<Fixtures>({
     },
     hostPage: async ({ page }, use) => {
         await use(new HostPage(page));
+    },
+    publishManagerPage: async ({ page }, use) => {
+        await use(new PublishManagerPage(page));
     },
     transferPage: async ({ page }, use) => {
         await use(new TransferPage(page));

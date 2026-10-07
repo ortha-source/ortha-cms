@@ -21,6 +21,15 @@ export { FILTER_MAX_LENGTH } from '@orthacms/utils-server';
 export const BULK_MAX_IDS = 100;
 
 /**
+ * Most linked drafts the publish context reports **per requested entry**. A
+ * many-relation can hold thousands of links; the Publish Manager offers the
+ * drafts among them as a convenience, and a list longer than this is a job for
+ * the target type's own records view. Past the cap the entry says it was
+ * truncated rather than pretending the list is whole.
+ */
+export const PUBLISH_CONTEXT_MAX_LINKED = 50;
+
+/**
  * Max items a single bulk **save** may carry.
  *
  * Lower than {@link BULK_MAX_IDS} on purpose: a bulk action ships a list of

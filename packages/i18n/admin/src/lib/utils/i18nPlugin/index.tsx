@@ -7,7 +7,6 @@ import {
     ENTRY_MENU_SLOT,
     ENTRY_DETAILS_ROW_SLOT,
     ENTRY_PARAMS_SLOT,
-    RECORDS_BULK_ACTION_SLOT,
     RECORDS_COLUMN_SLOT,
     RECORDS_FILTER_FIELDS_SLOT,
     RECORDS_TOOLBAR_SLOT,
@@ -17,13 +16,16 @@ import {
     type ContentOverlayItem,
     type EntryHeaderItem,
     type EntryMenuItem,
-    type RecordsBulkActionItem,
     type RecordsColumnItem,
     type RecordsToolbarItem,
     type EntryDetailsRowItem,
     type RecordsFilterFieldsItem,
     type EntryParamsItem
 } from '@orthacms/content-admin';
+import {
+    PUBLISH_EXPANSION_SLOT,
+    type PublishExpansionItem
+} from '@orthacms/publishing-admin';
 import {
     INSIGHTS_SECTION_IDS,
     INSIGHTS_WIDGET_SLOT
@@ -38,7 +40,7 @@ import { useLocaleSummaries } from '../../api/useLocaleSummaries';
 import { useLocaleFilterFields } from '../../hooks/useLocaleFilterFields';
 import { usePublishAllLocales } from '../../hooks/usePublishAllLocales';
 import { useUnpublishAllLocales } from '../../hooks/useUnpublishAllLocales';
-import { usePublishWithTranslations } from '../../hooks/usePublishWithTranslations';
+import { usePublishTranslationsExpansion } from '../../hooks/usePublishTranslationsExpansion';
 import { LocaleSwitcher } from '../../components/LocaleSwitcher';
 import { LocalesColumnCell } from '../../components/LocalesColumnCell';
 import { LocaleDetailsRow } from '../../components/LocaleDetailsRow';
@@ -50,6 +52,10 @@ const messages = defineMessages({
     localesColumn: {
         id: 'i18n.column.header',
         defaultMessage: 'Locales'
+    },
+    translationsExpansion: {
+        id: 'i18n.publishing.translations',
+        defaultMessage: 'Translations'
     }
 });
 
@@ -71,8 +77,8 @@ export type I18nAdminPlugin = AdminPlugin;
  *   (per-locale publish status, open a sibling, create a translation);
  * - the record's **translation-group id** as a row of the editor's Details
  *   block;
- * - **Publish with translations…** in the records selection bar — pick which
- *   locales of the selected records to publish, for every record or per record;
+ * - **Translations** in the Publish Manager — every localized record's other
+ *   locales as cells to pick, for every record or per record;
  * - **Has locale / Missing locale / Locale count** filter fields;
  * - entry param plumbing: the single-page read and the create body carry the
  *   active locale, and relation-picker candidates are scoped to the source
@@ -174,16 +180,13 @@ export function I18nPlugin(): I18nAdminPlugin {
         order: 20,
         useItem: useUnpublishAllLocales
     };
-    // The records selection bar's ⋯ menu: the "deep" bulk publish. The hook
-    // hides itself in the trash and without `content:publish`.
-    const publishWithTranslationsItem: RecordsBulkActionItem = {
-        id: SLOT_ITEM_ID.PublishWithTranslations,
-        // Before transfer's Export (10): it is a publish, so it belongs beside
-        // the built-in Publish / Unpublish it extends.
-        order: 5,
-        appliesTo: (schema: ContentTypeDetail) =>
-            !!schema.i18n && !!schema.publishable,
-        useItem: usePublishWithTranslations
+    // The Publish Manager's cells: each localized record's other translations,
+    // under the configured locales. Returns null for a set with no localized
+    // record, which is how it stays out of a plain type's page.
+    const translationsExpansionItem: PublishExpansionItem = {
+        id: SLOT_ITEM_ID.PublishTranslations,
+        label: messages.translationsExpansion,
+        useExpansion: usePublishTranslationsExpansion
     };
     return {
         name: 'i18n',
@@ -216,8 +219,8 @@ export function I18nPlugin(): I18nAdminPlugin {
                 items: [publishAllItem, unpublishAllItem]
             },
             {
-                slot: RECORDS_BULK_ACTION_SLOT,
-                items: [publishWithTranslationsItem]
+                slot: PUBLISH_EXPANSION_SLOT,
+                items: [translationsExpansionItem]
             },
             { slot: ENTRY_HEADER_SLOT, items: [titleChipItem] },
             { slot: CONTENT_OVERLAY_SLOT, items: [switchOverlayItem] },

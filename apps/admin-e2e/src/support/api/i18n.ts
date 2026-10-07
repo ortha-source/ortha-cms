@@ -89,6 +89,13 @@ const LOCALIZED_SCHEMA = {
 /** One seed row of the localized collection. */
 interface LocalizedRow {
     id: string;
+    /**
+     * The content type, when it is not `localized_post` — a linked draft of
+     * another type (see {@link I18nMockOptions.linked}). Such a row has an
+     * empty `locale` and `localeGroupId`: it is not localized, and no list or
+     * locale panel ever shows it.
+     */
+    type?: string;
     status: 'draft' | 'published';
     /**
      * When the row last went live, `null` if never. Stamped on publish and
@@ -209,7 +216,32 @@ export type I18nMock = {
  * Register every route the i18n suite needs on `page`: the schema list + detail,
  * the locale-scoped records list, and the four `/api/i18n/**` endpoints.
  */
-export async function mockI18n(page: Page): Promise<I18nMock> {
+/** A draft one seeded entry links to — for the Publish Manager's linked drafts. */
+export type LinkedDraftSeed = {
+    /** The relation field on the linking entry, and its label. */
+    field: string;
+    fieldLabel: string;
+    /** The linked record — stored beside the seed so bulk publish finds it. */
+    id: string;
+    type: string;
+    title: string;
+    status: 'draft' | 'published';
+};
+
+/** Optional extras for {@link mockI18n}. */
+export type I18nMockOptions = {
+    /**
+     * Drafts each entry links to, by linking entry id. Answered by
+     * `POST …/bulk/publish/context` (live ones are filtered out, as the server
+     * does), and publishable through the same bulk routes as the seed.
+     */
+    linked?: Record<string, LinkedDraftSeed[]>;
+};
+
+export async function mockI18n(
+    page: Page,
+    options: I18nMockOptions = {}
+): Promise<I18nMock> {
     // Rows created during the test (via POST). Kept in-memory so that after a
     // create the editor's canonical read (`/:type/:id`) and the locale panel
     // resolve the brand-new row — letting a spec exercise the full
@@ -221,6 +253,22 @@ export async function mockI18n(page: Page): Promise<I18nMock> {
     // the cross-test bleed `page.route`'s per-page lifetime is supposed to
     // prevent.
     const seeded: LocalizedRow[] = ROWS.map((row) => ({ ...row }));
+    // Linked drafts live beside the seed, so the bulk routes publish them like
+    // any row. Their empty locale keeps them out of every list and panel.
+    for (const link of Object.values(options.linked ?? {}).flat()) {
+        if (seeded.some((row) => row.id === link.id)) continue;
+        seeded.push({
+            id: link.id,
+            type: link.type,
+            status: link.status,
+            publishedAt: link.status === 'published' ? ISO : null,
+            locale: '',
+            localeGroupId: '',
+            createdAt: ISO,
+            updatedAt: ISO,
+            values: { title: link.title }
+        });
+    }
     const allRows = (): LocalizedRow[] => [...seeded, ...created];
     const liveGroupRows = (groupId: string): LocalizedRow[] =>
         allRows().filter((row) => row.localeGroupId === groupId);
@@ -438,6 +486,61 @@ export async function mockI18n(page: Page): Promise<I18nMock> {
                 status: 200,
                 contentType: 'application/json',
                 body: JSON.stringify({ count: rows.length })
+            });
+        }
+    );
+
+    // POST /api/content/:name/bulk/publish/context — what the Publish Manager
+    // reads first: each requested entry described, plus its linked drafts.
+    // Registered after the bulk route above so this narrower one wins.
+    await page.route(
+        /\/api\/content\/[^/]+\/bulk\/publish\/context$/,
+        async (route) => {
+            const { ids = [] } = (route.request().postDataJSON() ?? {}) as {
+                ids?: string[];
+            };
+            const describeRow = (row: LocalizedRow) => ({
+                id: row.id,
+                type: row.type ?? LOCALIZED_SCHEMA.name,
+                ...(typeof row.values.title === 'string' && row.values.title
+                    ? { title: row.values.title }
+                    : {}),
+                status: row.status,
+                publishedAt: row.publishedAt,
+                ...(row.locale
+                    ? { locale: row.locale, localeGroupId: row.localeGroupId }
+                    : {})
+            });
+            const entries: Record<string, unknown> = {};
+            for (const id of ids) {
+                const row = allRows().find((candidate) => candidate.id === id);
+                entries[id] = row
+                    ? {
+                          ...describeRow(row),
+                          linkedTruncated: false,
+                          linked: (options.linked?.[id] ?? []).flatMap(
+                              (link) => {
+                                  const target = allRows().find(
+                                      (candidate) => candidate.id === link.id
+                                  );
+                                  return target && target.status !== 'published'
+                                      ? [
+                                            {
+                                                ...describeRow(target),
+                                                field: link.field,
+                                                fieldLabel: link.fieldLabel
+                                            }
+                                        ]
+                                      : [];
+                              }
+                          )
+                      }
+                    : null;
+            }
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ entries })
             });
         }
     );

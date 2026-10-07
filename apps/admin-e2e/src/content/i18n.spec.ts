@@ -696,6 +696,7 @@ test.describe('Content i18n', () => {
                 'Save draft',
                 'Save & publish',
                 'Unpublish',
+                'Open in Publish Manager',
                 'Publish all locales',
                 'Unpublish all locales',
                 'Export…',

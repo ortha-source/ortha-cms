@@ -40,6 +40,9 @@
             "path": "../../packages/protection/admin/tsconfig.lib.json"
         },
         {
+            "path": "../../packages/publishing/admin/tsconfig.lib.json"
+        },
+        {
             "path": "../../packages/webhooks/admin/tsconfig.lib.json"
         },
         {

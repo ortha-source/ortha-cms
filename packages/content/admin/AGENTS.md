@@ -402,12 +402,18 @@ staged.added`), not the values bag it doesn't live in — mirroring the server's
   something other than a table selection — `labels` (heading/body) and
   `labelFor(id)`, which renames a row when the verdict's own title is the wrong
   handle (every locale sibling carries the _same_ record title, so the locale is
-  what tells them apart). i18n's **Publish with translations…** bulk action reaches it the same way,
-  with the selected records' picked translations. The gateway splits the dry run
-  and the commit into requests of `BULK_MAX_IDS` (100, the server's cap) and
-  concatenates the answers in request order — safe because both are per-id
-  already, the commit being partial-success by design — so a set larger than one
-  request no longer 400s. `useBulkEntryActions` is exported for the same reason —
+  what tells them apart). The same calls are exported as **plain functions**
+  (`fetchPublishContext`, `previewBulkPublish`, `commitBulkPublish`) for a
+  caller acting on records of **several types** at once — the Publish Manager
+  (`@orthacms/publishing-admin`) runs one dry run and one commit per type in its
+  set, which a per-type hook cannot express; they refresh no caches, so the
+  caller runs `refreshEntryCaches` per type touched. The gateway splits the dry
+  run, the commit and the publish context into requests of `BULK_MAX_IDS` (100,
+  the server's cap) and concatenates the answers in request order — safe because
+  each is per-id already, the commit being partial-success by design — so a set
+  larger than one request no longer 400s. `BULK_VERDICT` mirrors the server's
+  whole verdict set, `guard-refused` included (only a commit reports it).
+  `useBulkEntryActions` is exported for the same reason —
   i18n's "unpublish all locales" is `bulk/unpublish` over the sibling ids, since
   unpublish has no pre-flight to run. Destructive actions confirm through the design-system
   **`ConfirmDialog`** (shared, i18n-free — pass localized labels). Mutations —
@@ -1027,7 +1033,8 @@ of the package — `infrastructure/contentInsightsGateway` (the port),
 The library exposes sixteen named slots (`presentation/slots/contentSlots`, via
 `createSlot`) another admin plugin contributes into — no coupling beyond the
 contracts, the same idiom as the workspace shell's slots.
-`@orthacms/i18n-admin` fills nine; `@orthacms/media-admin` fills two
+`@orthacms/i18n-admin` fills eight; `@orthacms/publishing-admin` fills two
+(`RECORDS_BULK_ACTION_SLOT` and `ENTRY_MENU_SLOT`, to open the Publish Manager); `@orthacms/media-admin` fills two
 (`ENTRY_TAB_SLOT`, the Media tab, and `ENTRY_PRESAVE_SLOT`, its staged uploads);
 `@orthacms/wysiwyg-admin` fills one (`ENTRY_FIELD_CONTROL_SLOT`, the rich-text
 editor); `@orthacms/transfer-admin` fills three (`ENTRY_MENU_SLOT` and
@@ -1088,9 +1095,9 @@ fetching internally.
     - **The trigger renders only when an item resolves** — a viewer with neither
       publish nor delete, and no contribution, sees no ⋯ button.
     - `@orthacms/transfer-admin` fills it with **Export**, and
-      `@orthacms/i18n-admin` with **Publish with translations…**, which picks
-      the selected records' other locales and hands their ids to
-      `BulkPublishDialog`.
+      `@orthacms/publishing-admin` with **Open in Publish Manager**, the
+      selection's "deep" publish — its translations and linked drafts, on a
+      page of their own.
 - **`RECORDS_COLUMN_SLOT`** — an extension table column (`COLUMN_KIND.Extension`)
   that joins the column picker like any column (non-sortable header); optional
   `useRowsData` batches per-page data once for all its cells.

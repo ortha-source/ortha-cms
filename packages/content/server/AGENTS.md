@@ -415,6 +415,27 @@ failing the batch. That is also the server half of "publish every locale": the
 i18n menu sends the sibling ids as one bulk publish, so a per-id verdict is a
 per-locale verdict.
 
+### The publish context (`POST …/bulk/publish/context`)
+
+`BulkPublishContextQuery` answers what the admin's **Publish Manager**
+(`@orthacms/publishing-admin`) needs before it offers anything: per requested
+id, the entry described — title, status, `publishedAt`, and locale + group on a
+localized type — and the **unpublished records it links to**, or `null` for an
+id naming no live row here. `content:publish`, `BulkIdsDto` (cap 100), 200,
+reads only and takes no lock — the answer is advisory and the commit
+re-validates.
+
+A linked draft is deliberately narrow, because every one is an **offer to
+publish** (`content:I-57`): reached through an **owning** relation (a single FK
+or a many join — an inverse lists records pointing _here_, which are not this
+page's dependencies), one hop, to a **publishable** type the workspace holds an
+**own** grant for (anything else bulk publish would 404), a **live row the
+workspace owns** (a shared source's rows publish at their source), and **not
+`published`** — a Modified target counts, since its live copy is not what the
+link will show once its edits ship. At most `PUBLISH_CONTEXT_MAX_LINKED` (50)
+per entry; past it the entry says `linkedTruncated`. One join query per
+many-relation field and one row read per target type, for the whole batch.
+
 ### The entry-write extension port (`ENTRY_WRITE_EXTENSION`)
 
 `src/lib/extension/entry-write-extension.ts` declares a third port: how a

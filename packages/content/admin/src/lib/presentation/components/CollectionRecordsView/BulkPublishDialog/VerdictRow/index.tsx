@@ -32,6 +32,10 @@ const messages = defineMessages({
         id: 'content.bulkPublish.notFound',
         defaultMessage: 'No longer available'
     },
+    guardRefused: {
+        id: 'content.bulkPublish.guardRefused',
+        defaultMessage: 'Held by a publish rule'
+    },
     blocked: {
         id: 'content.bulkPublish.blocked',
         defaultMessage: '{count, plural, one {# issue} other {# issues}}'
@@ -94,6 +98,18 @@ export function VerdictRow({
                 />
             ),
             note: intl.formatMessage(messages.notFound),
+            danger: false
+        },
+        // Never in a dry run (guards are asked only on commit); listed so the
+        // verdict set stays the server's, whole.
+        [BULK_VERDICT.GuardRefused]: {
+            icon: (
+                <AlertCircle
+                    className="size-4 text-muted-foreground"
+                    aria-hidden
+                />
+            ),
+            note: intl.formatMessage(messages.guardRefused),
             danger: false
         },
         [BULK_VERDICT.Blocked]: {

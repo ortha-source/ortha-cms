@@ -53,7 +53,7 @@ export const SLOT_ITEM_ID = {
     EntryParams: 'i18n.entryParams',
     PublishAll: 'i18n.publishAllLocales',
     UnpublishAll: 'i18n.unpublishAllLocales',
-    PublishWithTranslations: 'i18n.publishWithTranslations',
+    PublishTranslations: 'i18n.publishTranslations',
     CoverageWidget: 'insights.i18n.coverage'
 } as const;
 

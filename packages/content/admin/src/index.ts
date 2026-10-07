@@ -77,6 +77,31 @@ export { ENTRY_STATUS } from './lib/domain/constants';
 // with them. They invalidate the same caches the library's own writes do.
 export { useBulkEntryActions } from './lib/application/useBulkEntryActions';
 
+// The bulk-publish calls as plain functions, for a plugin acting on records of
+// **several** types at once (the Publish Manager runs a dry run and a commit per
+// type in its set). They refresh no caches — call `refreshEntryCaches` per type
+// touched, after the commit.
+export {
+    commitBulkPublish,
+    fetchPublishContext,
+    previewBulkPublish
+} from './lib/application/bulkPublishCalls';
+export { BULK_VERDICT } from './lib/domain/constants';
+export type {
+    BulkPublishCheck,
+    BulkPublishPreview,
+    BulkPublishResult,
+    BulkPublishVerdict,
+    BulkVerdictKind,
+    PublishContext,
+    PublishContextEntry,
+    PublishContextLink,
+    PublishContextRecord
+} from './lib/domain/types/contentType';
+// An entry's editor URL, so a plugin linking to a record builds the same path
+// the library's own links do.
+export { contentEntryPath } from './lib/domain/contentEntryPath';
+
 // The publish pre-flight, exported so a plugin acting on a *known* set of
 // records reuses the dry-run → verdicts → commit dialog instead of building a
 // second one (the i18n plugin's "publish all locales"). `labels` + `labelFor`

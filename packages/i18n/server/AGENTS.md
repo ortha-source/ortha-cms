@@ -287,9 +287,9 @@ and permission-gated; a `:typeName` that isn't localized is a **400**
   than group because a selection spans pages, so the caller has no row to read
   a group id off. An id naming no live row in the workspace is `null`, never
   missing. Two queries for the batch: the requested rows, then their groups.
-  It feeds the admin's **Publish with translations** picker; the publish
-  itself is content's bulk publish over the picked sibling ids, so this route
-  only reads.
+  It feeds the **Publish Manager**'s translation cells (i18n-admin's
+  `PUBLISH_EXPANSION_SLOT` contribution); the publish itself is content's bulk
+  publish over the picked sibling ids, so this route only reads.
 
 ## The plugin describes its own responses (`src/lib/docs/`)
 

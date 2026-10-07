@@ -212,7 +212,13 @@ export const BULK_VERDICT = {
     Publishable: 'publishable',
     AlreadyPublished: 'already-published',
     Blocked: 'blocked',
-    NotFound: 'not-found'
+    NotFound: 'not-found',
+    /**
+     * A publish guard refused it (approvals outstanding, typically). Only the
+     * **commit** reports it — a guard needs the database, the dry run does not
+     * ask — so it appears in `BulkPublishResult.skipped`, never in a preview.
+     */
+    GuardRefused: 'guard-refused'
 } as const;
 
 /** Multi-entry collection vs. standalone page — mirror of the server's `kind`. */

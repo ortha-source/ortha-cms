@@ -214,6 +214,9 @@
             "path": "./packages/protection/admin"
         },
         {
+            "path": "./packages/publishing/admin"
+        },
+        {
             "path": "./packages/mail/provider-console"
         },
         {

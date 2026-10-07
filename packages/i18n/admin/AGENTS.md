@@ -25,14 +25,15 @@
   importing across the boundary (the FE anti-corruption convention).
 
 The admin counterpart to `@orthacms/i18n-server` — content localization in the
-Content Library UI. It contributes **no routes, no layout, no nav item**: ten
-of its eleven contributions fill nine of `@orthacms/content-admin`'s extension
-slots, and the last is the **Translation coverage** card on the Insights page
-(see below).
+Content Library UI. It contributes **no routes, no layout, no nav item**: nine
+of its eleven contributions fill eight of `@orthacms/content-admin`'s extension
+slots, one adds translations to `@orthacms/publishing-admin`'s Publish Manager,
+and the last is the **Translation coverage** card on the Insights page (see
+below).
 Register it in `createAdmin({ plugins })` **after** `ContentPlugin()` (it fills
 slots the content plugin owns).
 
-## What it contributes (the nine content slots)
+## What it contributes (the content and publishing slots)
 
 - **`RECORDS_TOOLBAR_SLOT` → `LocaleSwitcher`** — a searchable dropdown
   (design-system `Popover` + `Command`) of the configured locales, shown **only
@@ -179,39 +180,25 @@ defaultLocale`) — the plugin's single decision point, which the menu must not
       unpublish unconditionally), so it is a `ConfirmDialog` naming the locales
       that are currently **live**, then content's exported `useBulkEntryActions`
       → `bulk/unpublish` over their ids. Shown only when something is live.
-- **`RECORDS_BULK_ACTION_SLOT` → `usePublishWithTranslations`** — **Publish
-  with translations…** in the records selection bar's ⋯ menu (order 5, so it
-  sits beside the built-in Publish / Unpublish and before transfer's Export):
-  the "deep" bulk publish. The built-in Publish acts on the selected rows,
-  which are one locale of each record; this one takes their other translations
-  along. Hidden unless the type is localized **and** publishable, the trash is
-  not open, and the user holds `content:publish`.
-    - **Step one is `PublishTranslationsDialog`**, a records × locales matrix
-      fed by `useEntryTranslations` (`POST …/translations`, keyed by the
-      selection's **entry** ids — a selection spans pages, so there is no row to
-      read a group id off). A **column** header checkbox picks that locale for
-      every record, a **row** checkbox every translation of one record, a
-      **cell** one translation; quick picks are _All translations_ (the starting
-      state — it is what the action is for), _Selected locale only_ (what plain
-      bulk publish does) and _Clear_. The selection rules live once, in the
-      pure `domain/translationPicks` (unit-tested), so the three kinds of toggle
-      cannot disagree about what "picked" means.
-    - **Only translations with something to publish are options.** A missing
-      locale is a dash; a **live** one is stated ("Published") and not offered,
-      because the dry run would only answer "already published" and pad the
-      review with rows that say nothing.
-    - **Step two is content's `BulkPublishDialog`** over the picked ids, rows
-      named "{title} · {language}" via `labelFor`. No endpoint of its own:
-      translations are entries of the same type, so validation, publish guards
-      and partial success are exactly a plain bulk publish's. Content's gateway
-      splits a bulk publish into requests of `BULK_MAX_IDS`, which a selection
-      multiplied by its locales outgrows quickly.
-    - The read is refetched on every open but **not** on window focus — the
-      picker re-seeds its picks from each answer, and tabbing away to check a
-      record must not wipe what was ticked. The selection is cleared only after
-      the publish went through (the overlay unmounts with the selection bar),
-      and the Locales column and locale panels are invalidated with it.
-    - Pinned by `apps/admin-e2e/src/content/i18n-publish-translations.spec.ts`.
+- **`PUBLISH_EXPANSION_SLOT` → `usePublishTranslationsExpansion`** — the one
+  contribution to **`@orthacms/publishing-admin`**'s slot rather than
+  content's: in the **Publish Manager**, every localized record of the set —
+  selected, or reached through a link — gets its other translations as cells,
+  and the configured locales become the columns they sit in (every one, so a
+  column of dashes says "nobody translated this"). That is what lets a
+  selection of English rows go out in the languages the reader picks, for
+  every record at once or one record at a time.
+    - **It only reads.** `fetchEntryTranslations` (`POST …/translations`, keyed
+      by **entry** id because a set is ids spanning pages) runs through
+      `useQueries`, one query per localized type in the set, keyed with the
+      manager's `version` so it is re-read after a commit, and never on window
+      focus — the manager carries the reader's picks across every answer. The
+      publish is the manager's: content's dry run and commit per type, since
+      translations are entries of the same type.
+    - Returns `null` for a set with no localized record, which is how it stays
+      off a plain type's page. A failed read is reported by the manager by name
+      ("Translations couldn't load"), never drawn as missing translations.
+    - Pinned by `apps/admin-e2e/src/content/publish-manager.spec.ts`.
 - **`ENTRY_PARAMS_SLOT`** — non-visual plumbing: the single-mode one-entry read
   carries the active locale (`listParamKeys = ['locale']`), the **create body**
   carries the locale **and** the target group (`createBodyKeys = ['locale',

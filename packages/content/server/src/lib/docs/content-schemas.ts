@@ -8,6 +8,7 @@
 
 import { ENTRY_STATUS } from '../types/content-type';
 import { REVISION_STATUS } from '../revisions/domain/revision-status';
+import { PUBLISH_CONTEXT_MAX_LINKED } from '../entries/entries.constants';
 import type { SerializedContentType } from '../registry/content-type-registry';
 import { fieldSchema, isValueField, type OpenApiSchema } from './field-schema';
 
@@ -397,6 +398,90 @@ function sharedSchemas(): Record<string, OpenApiSchema> {
                 items: { type: 'array', items: ref('BulkPublishVerdict') }
             },
             required: ['items']
+        },
+        PublishContextRecord: {
+            type: 'object',
+            description:
+                'One record as the publish context describes it — enough to name it, place it in its translation group and say what publishing it would change.',
+            properties: {
+                id: UUID,
+                type: {
+                    type: 'string',
+                    description:
+                        'The content type — a linked draft may be of another type.'
+                },
+                title: {
+                    type: 'string',
+                    description: 'Display title; absent when the row has none.'
+                },
+                status: { type: 'string', enum: Object.values(ENTRY_STATUS) },
+                publishedAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    nullable: true,
+                    description:
+                        'When it last went live, or `null` if never — `draft` with a `publishedAt` is live content carrying unpublished edits.'
+                },
+                locale: {
+                    type: 'string',
+                    description: 'The row’s locale — localized types only.'
+                },
+                localeGroupId: {
+                    ...UUID,
+                    description:
+                        'The row’s translation group — localized types only.'
+                }
+            },
+            required: ['id', 'type', 'status', 'publishedAt']
+        },
+        PublishContextLink: {
+            allOf: [
+                ref('PublishContextRecord'),
+                {
+                    type: 'object',
+                    properties: {
+                        field: {
+                            type: 'string',
+                            description:
+                                'The relation field on the requested entry.'
+                        },
+                        fieldLabel: { type: 'string' }
+                    },
+                    required: ['field', 'fieldLabel']
+                }
+            ]
+        },
+        PublishContext: {
+            type: 'object',
+            description:
+                'Per requested id, the entry and the unpublished records it links to (one hop, owning relations, targets this workspace may publish) — or `null` when the id names no live row here.',
+            properties: {
+                entries: {
+                    type: 'object',
+                    additionalProperties: {
+                        type: 'object',
+                        nullable: true,
+                        allOf: [
+                            ref('PublishContextRecord'),
+                            {
+                                type: 'object',
+                                properties: {
+                                    linked: {
+                                        type: 'array',
+                                        items: ref('PublishContextLink')
+                                    },
+                                    linkedTruncated: {
+                                        type: 'boolean',
+                                        description: `Whether \`linked\` was cut at ${PUBLISH_CONTEXT_MAX_LINKED}.`
+                                    }
+                                },
+                                required: ['linked', 'linkedTruncated']
+                            }
+                        ]
+                    }
+                }
+            },
+            required: ['entries']
         },
         BulkPublishResult: {
             type: 'object',

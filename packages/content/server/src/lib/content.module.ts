@@ -43,6 +43,7 @@ import { EntryWriterService } from './entries/infrastructure/persistence/entry-w
 import { EntryCounterService } from './entries/infrastructure/persistence/entry-counter.service';
 import { RelationLinkService } from './entries/infrastructure/persistence/relation-link.service';
 import { BulkPublishPreviewQuery } from './entries/infrastructure/queries/bulk-publish-preview.query';
+import { BulkPublishContextQuery } from './entries/infrastructure/queries/bulk-publish-context.query';
 import { PublishEntryUseCase } from './entries/application/use-cases/publish-entry.use-case';
 import { UnpublishEntryUseCase } from './entries/application/use-cases/unpublish-entry.use-case';
 import { BulkPublishEntriesUseCase } from './entries/application/use-cases/bulk-publish-entries.use-case';
@@ -222,6 +223,7 @@ export class ContentModule {
                 BulkPublishEntriesUseCase,
                 BulkUnpublishEntriesUseCase,
                 BulkPublishPreviewQuery,
+                BulkPublishContextQuery,
                 // Public API: the bearer guard (which resolves a token through
                 // identity's exported `ApiTokenService`), the workspace
                 // resolver, and the narrow published-only read.

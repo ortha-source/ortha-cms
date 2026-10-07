@@ -16,6 +16,7 @@ import { AlarmsPlugin } from '@orthacms/alarms-admin';
 import { transferAdminPlugin } from '@orthacms/transfer-admin';
 import { SegmentsPlugin } from '@orthacms/segments-admin';
 import { ProtectionPlugin } from '@orthacms/protection-admin';
+import { PublishingPlugin } from '@orthacms/publishing-admin';
 import { SchemaBuilderPlugin } from '@orthacms/schema-builder-admin';
 
 /**
@@ -74,6 +75,9 @@ export function buildPlugins(): AdminPlugin[] {
         // block and publish verdict. A Content Library slot filler, so it
         // reads after ContentPlugin() like the others.
         ProtectionPlugin(),
+        // The Publish Manager: publish a selection together with its
+        // translations and linked drafts. A Content Library slot filler.
+        PublishingPlugin(),
         UsersPlugin(),
         ActivityPlugin(),
         ApiTokensPlugin(),

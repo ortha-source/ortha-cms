@@ -21,6 +21,7 @@
         "@orthacms/design-system": "*",
         "@orthacms/identity-admin": "*",
         "@orthacms/insights-admin": "*",
+        "@orthacms/publishing-admin": "*",
         "@orthacms/query-builder-admin": "*",
         "@orthacms/utils-admin": "*",
         "@orthacms/workspaces-admin": "*",

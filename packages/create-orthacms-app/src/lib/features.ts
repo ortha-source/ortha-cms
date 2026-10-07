@@ -147,6 +147,7 @@ export const CORE_PACKAGES: readonly string[] = [
     '@orthacms/protection-admin',
     '@orthacms/protection-domain',
     '@orthacms/protection-server',
+    '@orthacms/publishing-admin',
     '@orthacms/query-builder-admin',
     '@orthacms/schema-builder-admin',
     '@orthacms/schema-builder-domain',

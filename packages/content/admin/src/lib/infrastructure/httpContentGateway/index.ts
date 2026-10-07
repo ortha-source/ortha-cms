@@ -16,7 +16,8 @@ import type {
     RelationFieldView,
     RevisionDetail,
     RevisionListView,
-    WireFilterField
+    WireFilterField,
+    PublishContext
 } from '../../domain/types/contentType';
 import { BULK_MAX_IDS } from '../../domain/constants';
 import type { ContentEntriesParams } from '../contentKeys';
@@ -412,6 +413,21 @@ export const httpContentGateway: ContentGateway = {
             items.push(...page.items);
         }
         return { items };
+    },
+    async bulkPublishContext(
+        name: string,
+        ids: string[]
+    ): Promise<PublishContext> {
+        const entries: PublishContext['entries'] = {};
+        for (const chunk of chunks(ids, BULK_MAX_IDS)) {
+            const page = await bulkPost<PublishContext>(
+                name,
+                'publish/context',
+                chunk
+            );
+            Object.assign(entries, page.entries);
+        }
+        return { entries };
     },
     async bulkPublish(name: string, ids: string[]): Promise<BulkPublishResult> {
         const result: BulkPublishResult = { published: [], skipped: [] };

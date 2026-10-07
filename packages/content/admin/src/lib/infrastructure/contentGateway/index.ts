@@ -12,7 +12,8 @@ import type {
     RelationFieldView,
     RevisionDetail,
     RevisionListView,
-    WireFilterField
+    WireFilterField,
+    PublishContext
 } from '../../domain/types/contentType';
 import type { ContentEntriesParams } from '../contentKeys';
 
@@ -188,6 +189,12 @@ export type ContentGateway = {
         name: string,
         ids: string[]
     ): Promise<BulkPublishPreview>;
+    /**
+     * Reads what publishing `ids` would involve — each entry described plus the
+     * unpublished records it links to — via
+     * `POST /content/:name/bulk/publish/context`.
+     */
+    bulkPublishContext(name: string, ids: string[]): Promise<PublishContext>;
     /** Commits a bulk publish via `POST /content/:name/bulk/publish`. */
     bulkPublish(name: string, ids: string[]): Promise<BulkPublishResult>;
     /** Bulk unpublish via `POST /content/:name/bulk/unpublish`. */

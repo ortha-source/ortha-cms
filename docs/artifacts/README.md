@@ -31,6 +31,7 @@ will diverge from these.
 | wysiwyg             | [wysiwyg.md](wysiwyg.md)                         |
 | alarms              | [alarms.md](alarms.md)                           |
 | protection          | [protection.md](protection.md)                   |
+| publishing          | [publishing.md](publishing.md)                   |
 | schema-builder      | [schema-builder.md](schema-builder.md)           |
 | transfer            | [transfer.md](transfer.md)                       |
 | copilot             | [copilot.md](copilot.md)                         |
