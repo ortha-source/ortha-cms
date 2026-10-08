@@ -77,6 +77,7 @@ export {
     wasCutShort
 } from './lib/run/run-limits';
 export type { RunLimits, RunStopReason } from './lib/run/run-limits';
+export { MAX_MESSAGE_LENGTH } from './lib/run/message';
 export type {
     CopilotRunEvent,
     RunStartedEvent,

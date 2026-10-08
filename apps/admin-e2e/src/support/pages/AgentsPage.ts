@@ -413,6 +413,15 @@ export class AgentsPage extends BasePage {
         return this.main.getByRole('status', { name: 'Composer status' });
     }
 
+    /**
+     * The `count / limit` beside the hint. Shown only near the limit, and kept
+     * **outside** the live region so it is not read aloud per keystroke — so
+     * it has no role to find it by, and its text is the handle.
+     */
+    composerCounter(): Locator {
+        return this.main.getByText(/^[\d,]+ \/ 32,000$/);
+    }
+
     // --- attachments ------------------------------------------------------
 
     /** The paperclip. Absent on a surface that passes no attachment state. */
