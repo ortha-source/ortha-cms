@@ -61,6 +61,14 @@ export function TypeEditor({ type, capabilities, access, draft }: Props) {
                       key,
                       before
                   }),
+              onRegroup: (key, group, before) =>
+                  draft.dispatch({
+                      type: 'field.regroup',
+                      typeName: type.name,
+                      key,
+                      group,
+                      before
+                  }),
               // Adding a field is a page with steps over the same draft (`?addField`).
               onAddField: () =>
                   navigate(

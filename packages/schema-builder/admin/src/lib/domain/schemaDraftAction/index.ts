@@ -36,4 +36,13 @@ export type SchemaDraftAction =
       }
     | { type: 'field.remove'; typeName: string; key: string }
     | { type: 'field.move'; typeName: string; key: string; before: string }
+    | {
+          type: 'field.regroup';
+          typeName: string;
+          key: string;
+          /** The group it joins; `null` takes it out to the loose fields. */
+          group: string | null;
+          /** The field it lands before; `null` puts it last. */
+          before: string | null;
+      }
     | { type: 'groups.set'; typeName: string; groups: GroupDoc[] };

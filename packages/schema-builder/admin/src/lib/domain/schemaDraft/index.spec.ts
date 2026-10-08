@@ -124,6 +124,87 @@ describe('schemaDraft', () => {
         ).toEqual(doc);
     });
 
+    it('puts a field in a group, before another one or last', () => {
+        const before = schemaDraft(doc, {
+            type: 'field.regroup',
+            typeName: 'article',
+            key: 'article.title',
+            group: 'seo',
+            before: 'article.slug'
+        });
+        const fields = fieldsOf(before, 'article');
+        expect(fields.map((f) => f.name)).toEqual([
+            'body',
+            'kind',
+            'author',
+            'cover',
+            'title',
+            'slug'
+        ]);
+        // Its other display options stay.
+        expect(fields.find((f) => f.name === 'title')?.spec.admin).toEqual({
+            label: 'Title',
+            group: 'seo'
+        });
+        expect(fields.find((f) => f.key === 'article.title')?.key).toBe(
+            'article.title'
+        );
+        expect(
+            diffDocuments(doc, before)
+                .map((c) => c.kind)
+                .sort()
+        ).toEqual(['field.reorder', 'field.update']);
+
+        const last = schemaDraft(doc, {
+            type: 'field.regroup',
+            typeName: 'article',
+            key: 'article.body',
+            group: 'seo',
+            before: null
+        });
+        expect(fieldsOf(last, 'article').map((f) => f.name)).toEqual([
+            'title',
+            'kind',
+            'author',
+            'cover',
+            'slug',
+            'body'
+        ]);
+    });
+
+    it('takes a field out of its group', () => {
+        const out = schemaDraft(doc, {
+            type: 'field.regroup',
+            typeName: 'article',
+            key: 'article.slug',
+            group: null,
+            before: 'article.title'
+        });
+        const fields = fieldsOf(out, 'article');
+        expect(fields.map((f) => f.name)).toEqual([
+            'body',
+            'slug',
+            'title',
+            'kind',
+            'author',
+            'cover'
+        ]);
+        expect(fields.find((f) => f.name === 'slug')?.spec.admin).toEqual({});
+    });
+
+    it('ignores a group the type does not declare, or a key that is not there', () => {
+        const move = {
+            type: 'field.regroup',
+            typeName: 'article',
+            key: 'article.title',
+            group: 'seo',
+            before: null
+        } as const;
+        expect(schemaDraft(doc, { ...move, group: 'nope' })).toEqual(doc);
+        expect(schemaDraft(doc, { ...move, key: 'nope' })).toEqual(doc);
+        expect(schemaDraft(doc, { ...move, before: 'nope' })).toEqual(doc);
+    });
+
     it('sets the groups, and draws a field whose group went loose again', () => {
         const ungrouped = schemaDraft(doc, {
             type: 'groups.set',

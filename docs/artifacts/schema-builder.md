@@ -349,7 +349,9 @@ editing is its own empty state. A read-only server says why in one notice.
 ### Accessibility details worth keeping
 
 - Reordering works from the handle by keyboard; dnd-kit's announcements are replaced with ones
-  that name fields, and a drop on itself says nothing.
+  that name fields and lists, and a drop on itself says nothing.
+- A field is dragged into a group on General, an empty one included, and back out to the loose
+  fields — by pointer or by keyboard; the move sets or clears `admin.group` (`field.regroup`).
 - A drop across ranks above the groups is refused (`canMoveField`): the entry editor would
   re-sort it, so the builder will not pretend.
 - Apply's disabled state is explained by text tied to the button with `aria-describedby`.

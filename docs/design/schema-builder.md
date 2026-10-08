@@ -73,7 +73,9 @@ media fields on Media, so "group" and "width" are hidden for them.
 Above the groups the editor orders fields by control shape — inputs, then
 choices, then long text — and keeps declaration order only within a rank.
 Inside a group the author's order holds. The builder therefore only allows a
-reorder within one rank or one group.
+reorder within one rank or one group — while a field dragged into a group, or
+out of one to the loose fields, is always a change the editor shows, so that
+drop is allowed wherever it lands.
 
 ### Not in the DSL yet
 
