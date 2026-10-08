@@ -166,6 +166,12 @@ export function setRecords(
     return records.reduce((acc, record) => setRecord(acc, record, on), picks);
 }
 
+/** A tri-state checkbox's `checked` value for a pick state. */
+export function checkedOf(state: PickState): boolean | 'indeterminate' {
+    if (state === PICK_STATE.All) return true;
+    return state === PICK_STATE.Some ? 'indeterminate' : false;
+}
+
 /** Folds a count of picked options against a count of options. */
 function fold(picked: number, options: number): PickState {
     if (options === 0) return PICK_STATE.Unavailable;
@@ -235,6 +241,27 @@ export function pickedCells(
 
 /** One request's worth of work: entry ids of one type. */
 export type PublishBatch = { type: string; ids: string[] };
+
+/**
+ * Every **option** of the set, per type — what the page dry-runs on its own,
+ * picked or not. The verdict of an entry does not depend on what else is
+ * picked, so checking the options once (and again after a commit) lets every
+ * locale show what it is missing before the reader decides anything.
+ */
+export function optionBatches(
+    records: readonly PublishRecord[]
+): PublishBatch[] {
+    const byType = new Map<string, string[]>();
+    for (const record of records) {
+        for (const axis of optionAxes(record)) {
+            const cell = record.cells.get(axis) as PublishCell;
+            const ids = byType.get(cell.type) ?? [];
+            if (!ids.includes(cell.id)) ids.push(cell.id);
+            byType.set(cell.type, ids);
+        }
+    }
+    return [...byType].map(([type, ids]) => ({ type, ids }));
+}
 
 /**
  * The picked entries as publish batches, **dependencies first**: every type's

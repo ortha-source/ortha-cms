@@ -67,26 +67,59 @@ export class PublishManagerPage extends BasePage {
         return this.page.getByRole('button', { name: label, exact: true });
     }
 
-    /** The running count / check summary. */
+    /** The running summary — picked, ready, needing fixes. */
     get summary(): Locator {
         return this.page.getByRole('status').filter({
-            hasText: /picked|ready to publish|can publish|Nothing picked/
+            hasText: /picked|Nothing picked|Checking/
         });
     }
 
-    /** The first step: "Check N entries". */
-    get check(): Locator {
-        return this.page.getByRole('button', { name: /^Check \d+ entr/ });
+    /** Ask the dry run again. */
+    get recheck(): Locator {
+        return this.page.getByRole('button', { name: 'Re-check' });
     }
 
-    /** The second step: "Publish N entries". */
+    /** "Publish N entries". */
     get publish(): Locator {
         return this.page.getByRole('button', { name: /^Publish \d+ entr/ });
     }
 
-    /** The list of entries the last check refused. */
-    get problems(): Locator {
-        return this.page.getByRole('region', { name: /can’t publish yet/ });
+    /** "Expand all" / "Collapse all". */
+    toggleAll(label: 'Expand all' | 'Collapse all'): Locator {
+        return this.page.getByRole('button', { name: label, exact: true });
+    }
+
+    /** One record card's fold toggle. */
+    cardToggle(record: string, action: 'Show' | 'Hide'): Locator {
+        return this.page.getByRole('button', {
+            name: `${action} the entries of ${record}`
+        });
+    }
+
+    /** One record card, by its record name. */
+    card(record: string): Locator {
+        return this.page
+            .locator('[data-state]')
+            .filter({
+                has: this.page.getByRole('checkbox', {
+                    name: `Publish everything picked for ${record}`
+                })
+            })
+            .first();
+    }
+
+    /** The failing fields of one entry ("{record}, {axis}"), always on screen. */
+    failing(entry: string): Locator {
+        return this.page.getByRole('list', {
+            name: `What ${entry} is missing`
+        });
+    }
+
+    /** The toggle opening one entry's full field checklist. */
+    allChecks(entry: string): Locator {
+        return this.page.getByRole('button', {
+            name: new RegExp(`^Show all \\d+ field checks? for ${entry}$`)
+        });
     }
 
     /** The commit's outcome callout. */

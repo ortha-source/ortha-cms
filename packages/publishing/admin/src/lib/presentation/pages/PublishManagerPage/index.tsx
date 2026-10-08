@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { useSearchParams } from 'react-router-dom';
 import { ListChecks } from 'lucide-react';
@@ -17,6 +17,7 @@ import { BULK_VERDICT, useContentTypes } from '@orthacms/content-admin';
 import { CONTENT_PUBLISH } from '../../../domain/constants';
 import { parsePublishSet } from '../../../domain/publishSet';
 import {
+    optionBatches,
     PICK_PRESET,
     pickedCells,
     presetPicks,
@@ -34,11 +35,7 @@ import { usePublishContext } from '../../../application/usePublishContext';
 import { usePublishRun } from '../../../application/usePublishRun';
 import { usePublishRecords } from '../../hooks/usePublishRecords';
 import { PublishActionBar } from '../../components/PublishActionBar';
-import { PublishSectionTable } from '../../components/PublishSectionTable';
-import {
-    PublishProblems,
-    type PublishProblem
-} from '../../components/PublishProblems';
+import { PublishSection } from '../../components/PublishSection';
 import { PublishOutcomeSummary } from '../../components/PublishOutcomeSummary';
 
 /** One empty id list, so a page with no set hands the hooks a stable input. */
@@ -113,9 +110,12 @@ const messages = defineMessages({
  * plugins add cells (`PUBLISH_EXPANSION_SLOT` — translations) and notes
  * (`PUBLISH_ANNOTATION_SLOT` — approvals), and the reader picks.
  *
- * The flow is **pick → check → publish**. Publish is offered only after a
- * check, and any change to the picks returns to "check", so what is committed
- * is what was just checked.
+ * The layout is one **collapsible card per record**, its locales stacked as
+ * rows, so it keeps working at two dozen languages where a records × locales
+ * table turns into a horizontal scroll. Content's dry run runs **by itself**
+ * over every option, so each locale shows the fields it is missing before
+ * anything is picked; **Publish** sends the picked entries the last check
+ * found ready.
  */
 export function PublishManagerPage() {
     const intl = useIntl();
@@ -139,7 +139,13 @@ export function PublishManagerPage() {
             version
         }
     );
-    const run = usePublishRun(workspace.id, () => setVersion((v) => v + 1));
+    // The option set the last automatic check ran over; `null` forces the
+    // next one (after a commit, whose outcome may have changed nothing).
+    const [checkedKey, setCheckedKey] = useState<string | null>(null);
+    const run = usePublishRun(workspace.id, () => {
+        setVersion((v) => v + 1);
+        setCheckedKey(null);
+    });
 
     // Picks follow the records: seeded from the preset when records first
     // appear, carried across every later change (an expansion landing, the
@@ -156,11 +162,35 @@ export function PublishManagerPage() {
     }
 
     const working = run.isChecking || run.isCommitting;
-    // Any change to the picks invalidates the last check.
-    const updatePicks = (update: (current: Picks) => Picks) => {
+    const updatePicks = (update: (current: Picks) => Picks) =>
         setPicksState(update);
-        run.resetCheck();
-    };
+
+    // The dry run runs **by itself** over every option of the set — picked or
+    // not, since a verdict belongs to the entry — once the records have
+    // settled (the context read and every expansion landed), and again
+    // whenever the options change. That is what lets each locale show what it
+    // is missing before the reader has decided anything.
+    const optionKey = useMemo(
+        () => JSON.stringify(optionBatches(view.records)),
+        [view.records]
+    );
+    const settled =
+        !!context.data &&
+        !context.isFetching &&
+        !view.expanding &&
+        !run.isCommitting;
+    useEffect(() => {
+        if (!settled || optionKey === checkedKey) return;
+        setCheckedKey(optionKey);
+        const batches = optionBatches(view.records);
+        if (batches.length) void run.check(batches).catch(() => undefined);
+        // `run.check` is a fresh closure each render; the key is the trigger.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [settled, optionKey, checkedKey]);
+
+    // Every card starts open; the reader folds what they are done with.
+    const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
+    const allOpen = view.records.every((record) => !collapsed.has(record.key));
     const applyPreset = (next: PickPreset) => {
         setPreset(next);
         updatePicks(() => presetPicks(view.records, next));
@@ -168,10 +198,12 @@ export function PublishManagerPage() {
 
     const picked = pickedCells(picks, view.records);
     const batches = publishBatches(picks, view.records);
-    const checked = run.verdicts.size > 0;
+    const verdictOf = (id: string) => run.verdicts.get(id)?.verdict;
     const ready = picked.filter(
-        (cell) =>
-            run.verdicts.get(cell.id)?.verdict === BULK_VERDICT.Publishable
+        (cell) => verdictOf(cell.id) === BULK_VERDICT.Publishable
+    ).length;
+    const blocked = picked.filter(
+        (cell) => verdictOf(cell.id) === BULK_VERDICT.Blocked
     ).length;
 
     // "{record} · {axis}" for every cell — the name a problem, a toast or the
@@ -194,21 +226,8 @@ export function PublishManagerPage() {
             });
         }
     }
-    const problems: PublishProblem[] = picked.flatMap((cell) => {
-        const verdict = run.verdicts.get(cell.id);
-        return verdict?.verdict === BULK_VERDICT.Blocked
-            ? [
-                  {
-                      verdict,
-                      type: cell.type,
-                      name: names.get(cell.id)?.name ?? cell.id
-                  }
-              ]
-            : [];
-    });
-
-    const onCheck = () => {
-        void run.check(batches).catch(() => undefined);
+    const onRecheck = () => {
+        void run.check(optionBatches(view.records)).catch(() => undefined);
     };
     const onPublish = () => {
         run.commit(batches)
@@ -288,13 +307,25 @@ export function PublishManagerPage() {
                         <PublishActionBar
                             pickedCount={picked.length}
                             readyCount={ready}
-                            checked={checked}
+                            blockedCount={blocked}
+                            allOpen={allOpen}
                             isChecking={run.isChecking}
                             isCommitting={run.isCommitting}
                             checkFailed={run.checkFailed}
                             busy={view.expanding || context.isFetching}
                             onPreset={applyPreset}
-                            onCheck={onCheck}
+                            onToggleAll={(open) =>
+                                setCollapsed(
+                                    open
+                                        ? new Set()
+                                        : new Set(
+                                              view.records.map(
+                                                  (record) => record.key
+                                              )
+                                          )
+                                )
+                            }
+                            onRecheck={onRecheck}
                             onPublish={onPublish}
                         />
 
@@ -341,13 +372,8 @@ export function PublishManagerPage() {
                             </div>
                         ))}
 
-                        <PublishProblems
-                            workspaceId={workspace.id}
-                            problems={problems}
-                        />
-
                         {view.sections.map((section) => (
-                            <PublishSectionTable
+                            <PublishSection
                                 key={section.type}
                                 section={section}
                                 typeLabel={typeLabel(section.type)}
@@ -357,7 +383,17 @@ export function PublishManagerPage() {
                                 annotations={view.annotations}
                                 verdicts={run.verdicts}
                                 outcomes={run.result?.outcomes}
+                                checking={run.isChecking}
                                 disabled={working}
+                                isOpen={(key) => !collapsed.has(key)}
+                                onOpenChange={(key, open) =>
+                                    setCollapsed((current) => {
+                                        const next = new Set(current);
+                                        if (open) next.delete(key);
+                                        else next.add(key);
+                                        return next;
+                                    })
+                                }
                                 onPicks={updatePicks}
                             />
                         ))}

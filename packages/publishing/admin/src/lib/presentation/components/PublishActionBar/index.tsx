@@ -1,5 +1,5 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { RefreshCw, Send } from 'lucide-react';
+import { ChevronsDownUp, ChevronsUpDown, RefreshCw, Send } from 'lucide-react';
 import { Button, Spinner, cn } from '@orthacms/design-system';
 import { PICK_PRESET, type PickPreset } from '../../../domain/publishPicks';
 
@@ -14,19 +14,19 @@ const messages = defineMessages({
         defaultMessage: 'Selected only'
     },
     none: { id: 'publishing.bar.none', defaultMessage: 'Clear' },
-    picked: {
-        id: 'publishing.bar.picked',
-        defaultMessage:
-            '{count, plural, =0 {Nothing picked yet.} one {# entry picked.} other {# entries picked.}}'
+    expandAll: { id: 'publishing.bar.expandAll', defaultMessage: 'Expand all' },
+    collapseAll: {
+        id: 'publishing.bar.collapseAll',
+        defaultMessage: 'Collapse all'
     },
-    checkedSummary: {
-        id: 'publishing.bar.checkedSummary',
-        defaultMessage:
-            '{ready, plural, =0 {None of the # picked can publish.} one {# of {count} ready to publish.} other {# of {count} ready to publish.}}'
+    checking: {
+        id: 'publishing.bar.checking',
+        defaultMessage: 'Checking what can publish…'
     },
-    check: {
-        id: 'publishing.bar.check',
-        defaultMessage: 'Check {count, plural, one {# entry} other {# entries}}'
+    summary: {
+        id: 'publishing.bar.summary',
+        defaultMessage:
+            '{picked, plural, =0 {Nothing picked yet.} one {# picked · {ready} ready to publish} other {# picked · {ready} ready to publish}}{blocked, plural, =0 {} one { · # needs fixes} other { · # need fixes}}'
     },
     recheck: { id: 'publishing.bar.recheck', defaultMessage: 'Re-check' },
     publish: {
@@ -36,41 +36,47 @@ const messages = defineMessages({
     },
     checkFailed: {
         id: 'publishing.bar.checkFailed',
-        defaultMessage: 'Couldn’t check these entries. Please try again.'
+        defaultMessage: 'Couldn’t check these entries. Re-check to try again.'
     }
 });
 
 /**
- * The manager's controls: the quick picks, a running count, and the two steps
- * — **Check** (content's dry run over every picked entry, per type) and then
- * **Publish** (only what the check found ready). Publishing is never offered
- * before a check, and any change to the picks takes the page back to "Check",
- * so what goes out is always what was just checked.
+ * The manager's controls, sticky over the cards: the quick picks, expanding
+ * or folding every card, a running summary — picked, ready, needing fixes —
+ * and the two actions. The check runs **by itself** whenever the set changes
+ * (a verdict belongs to the entry, not to the pick), so there is no "check"
+ * step to remember: **Re-check** asks again, **Publish** sends the picked
+ * entries the last check found ready.
  */
 export function PublishActionBar({
     pickedCount,
     readyCount,
-    checked,
+    blockedCount,
+    allOpen,
     isChecking,
     isCommitting,
     checkFailed,
     busy,
     onPreset,
-    onCheck,
+    onToggleAll,
+    onRecheck,
     onPublish
 }: {
     pickedCount: number;
-    /** Ready after the last check — meaningful only when `checked`. */
+    /** Picked and found ready by the last check. */
     readyCount: number;
-    /** A check has answered for the current picks. */
-    checked: boolean;
+    /** Picked and blocked by the last check. */
+    blockedCount: number;
+    /** Every card is open. */
+    allOpen: boolean;
     isChecking: boolean;
     isCommitting: boolean;
     checkFailed: boolean;
-    /** Something is still loading; hold the steps. */
+    /** Something is still loading; hold the actions. */
     busy: boolean;
     onPreset: (preset: PickPreset) => void;
-    onCheck: () => void;
+    onToggleAll: (open: boolean) => void;
+    onRecheck: () => void;
     onPublish: () => void;
 }) {
     const intl = useIntl();
@@ -112,9 +118,24 @@ export function PublishActionBar({
                     {intl.formatMessage(messages.none)}
                 </Button>
             </div>
+            <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => onToggleAll(!allOpen)}
+            >
+                {allOpen ? (
+                    <ChevronsDownUp className="size-4" aria-hidden />
+                ) : (
+                    <ChevronsUpDown className="size-4" aria-hidden />
+                )}
+                {intl.formatMessage(
+                    allOpen ? messages.collapseAll : messages.expandAll
+                )}
+            </Button>
 
             {/* Announced, so a screen-reader user hears what each toggle did
-                to the total and why a step is disabled. */}
+                to the totals and why Publish is disabled. */}
             <p
                 role="status"
                 className={cn(
@@ -124,58 +145,40 @@ export function PublishActionBar({
             >
                 {checkFailed
                     ? intl.formatMessage(messages.checkFailed)
-                    : checked
-                      ? intl.formatMessage(messages.checkedSummary, {
+                    : isChecking
+                      ? intl.formatMessage(messages.checking)
+                      : intl.formatMessage(messages.summary, {
+                            picked: pickedCount,
                             ready: readyCount,
-                            count: pickedCount
-                        })
-                      : intl.formatMessage(messages.picked, {
-                            count: pickedCount
+                            blocked: blockedCount
                         })}
             </p>
 
-            {checked ? (
-                <>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        className="shadow-none"
-                        disabled={working || busy}
-                        onClick={onCheck}
-                    >
-                        <RefreshCw
-                            className={cn('size-4', isChecking && 'ds-spinner')}
-                            aria-hidden
-                        />
-                        {intl.formatMessage(messages.recheck)}
-                    </Button>
-                    <Button
-                        type="button"
-                        disabled={working || busy || readyCount === 0}
-                        onClick={onPublish}
-                    >
-                        {isCommitting ? (
-                            <Spinner aria-hidden />
-                        ) : (
-                            <Send className="size-4" aria-hidden />
-                        )}
-                        {intl.formatMessage(messages.publish, {
-                            count: readyCount
-                        })}
-                    </Button>
-                </>
-            ) : (
-                <Button
-                    type="button"
-                    disabled={working || busy || pickedCount === 0}
-                    onClick={onCheck}
-                >
-                    {isChecking ? <Spinner aria-hidden /> : null}
-                    {intl.formatMessage(messages.check, {
-                        count: pickedCount
-                    })}
-                </Button>
-            )}
+            <Button
+                type="button"
+                variant="outline"
+                className="shadow-none"
+                disabled={working || busy}
+                onClick={onRecheck}
+            >
+                <RefreshCw
+                    className={cn('size-4', isChecking && 'ds-spinner')}
+                    aria-hidden
+                />
+                {intl.formatMessage(messages.recheck)}
+            </Button>
+            <Button
+                type="button"
+                disabled={working || busy || readyCount === 0}
+                onClick={onPublish}
+            >
+                {isCommitting ? (
+                    <Spinner aria-hidden />
+                ) : (
+                    <Send className="size-4" aria-hidden />
+                )}
+                {intl.formatMessage(messages.publish, { count: readyCount })}
+            </Button>
         </div>
     );
 }

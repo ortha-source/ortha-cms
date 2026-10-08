@@ -236,6 +236,15 @@ export type I18nMockOptions = {
      * does), and publishable through the same bulk routes as the seed.
      */
     linked?: Record<string, LinkedDraftSeed[]>;
+    /**
+     * Entries the bulk dry run reports **blocked**, with the failing fields.
+     * Their checklist carries the failure plus a passing `category` check, so
+     * a spec can tell "the failing fields" from "every field".
+     */
+    blocked?: Record<
+        string,
+        { field: string; label: string; message: string }[]
+    >;
 };
 
 export async function mockI18n(
@@ -440,22 +449,57 @@ export async function mockI18n(
                     status: 200,
                     contentType: 'application/json',
                     body: JSON.stringify({
-                        items: rows.map((row) => ({
-                            id: row.id,
-                            title: String(row.values.title ?? row.id),
-                            status: row.status,
-                            verdict:
+                        items: rows.map((row) => {
+                            const failing =
                                 row.status === 'published'
-                                    ? 'already-published'
-                                    : 'publishable',
-                            issues: [],
-                            // The per-field publish-gate checklist each row
-                            // expands to. Required by the verdict contract —
-                            // omitting it is what the dialog reads `.length` of.
-                            checks: [
-                                { field: 'title', label: 'Title', ok: true }
-                            ]
-                        }))
+                                    ? undefined
+                                    : options.blocked?.[row.id];
+                            if (failing) {
+                                return {
+                                    id: row.id,
+                                    title: String(row.values.title ?? row.id),
+                                    status: row.status,
+                                    verdict: 'blocked',
+                                    issues: failing.map(
+                                        ({ field, message }) => ({
+                                            field,
+                                            message
+                                        })
+                                    ),
+                                    checks: [
+                                        ...failing.map(
+                                            ({ field, label, message }) => ({
+                                                field,
+                                                label,
+                                                ok: false,
+                                                message
+                                            })
+                                        ),
+                                        {
+                                            field: 'category',
+                                            label: 'Category',
+                                            ok: true
+                                        }
+                                    ]
+                                };
+                            }
+                            return {
+                                id: row.id,
+                                title: String(row.values.title ?? row.id),
+                                status: row.status,
+                                verdict:
+                                    row.status === 'published'
+                                        ? 'already-published'
+                                        : 'publishable',
+                                issues: [],
+                                // The per-field publish-gate checklist each row
+                                // expands to. Required by the verdict contract —
+                                // omitting it is what the dialog reads `.length` of.
+                                checks: [
+                                    { field: 'title', label: 'Title', ok: true }
+                                ]
+                            };
+                        })
                     })
                 });
             }

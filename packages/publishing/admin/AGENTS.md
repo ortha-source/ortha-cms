@@ -48,21 +48,49 @@ cap in its label**, not silently cut. A hand-edited URL degrades instead
    each carrying how it was reached (`via`). Two selected locales of one group
    are one record.
 3. **Expansions** (`PUBLISH_EXPANSION_SLOT`) add cells — i18n adds each
-   localized record's other translations and defines the locale columns.
+   localized record's other translations and defines the locales.
    `withExpandedCells` never lets an expansion overwrite a cell the context
    already gave.
 4. **Annotations** (`PUBLISH_ANNOTATION_SLOT`) add per-entry notes —
    protection's approval status.
-5. **Sections** — one table per type, the set's own type first; a localized
-   section shows every configured locale as a column, translated or not.
+5. **Sections** — one per type, the set's own type first: a heading with a
+   toggle for the whole type, a **locale bar** on a localized type, then one
+   **collapsible card per record**.
+
+## The layout — cards, not a matrix
+
+A records × locales table was the first version, and it stops working at the
+number of languages real deployments run: twenty columns is a horizontal scroll
+in which the record names, the only thing that says whose row you are in, have
+scrolled away. So the page is one column wide **whatever the locale count**:
+
+- **The locale bar** — one chip per configured locale (`EN 1/2`): a tri-state
+  checkbox picking that locale for every record of the type that has something
+  to publish in it, and how many of those are picked. Chips **wrap**, so twenty
+  locales cost a second line. A locale with nothing to publish anywhere is a
+  dashed chip, disabled but readable — faded text fails AA contrast.
+- **A card per record** (`PublishRecordCard`, a `Collapsible`, open by
+  default; **Expand all / Collapse all** in the action bar). The header is the
+  record at a glance: its checkbox, name and editor link, how a link reached it,
+  a strip of its locales tinted by state (decoration — the rows say it in
+  words), "1 of 2 picked" and "1 entry needs fixes". The body stacks its entries
+  as rows, then names the locales it has **no** translation in on one line
+  ("Not translated: Français, Español, …") rather than a dash per locale.
+- **An entry row** (`PublishEntryRow`) — checkbox (only on an option), code and
+  language, the status badge, plugin notes, what the dry run says, and its
+  **field checklist**: the failing fields always on screen, every field (passed
+  ones included) on demand. A field translated per locale wears a **globe**, read
+  from the type's schema, so "the German title is missing" reads differently
+  from "a shared field is missing everywhere".
 
 ## Picks — `domain/publishPicks`
 
 A pick is one (record, axis) pair; only an **option** can be picked — an entry
 that exists and is not already `published`. A live entry is stated in its cell
 and never offered: the dry run would only say "already published". Toggles
-exist at four levels — **cell**, **record**, **axis** (a section's column, i.e.
-one locale for every record) and **section** — plus three presets:
+exist at four levels — **cell** (an entry row), **record** (a card), **axis**
+(a locale chip: one locale for every record of a type) and **section** — plus
+three presets:
 **Everything** (the start), **Selected only** (exactly the selected entries —
 what plain bulk publish does) and **Clear**.
 
@@ -72,11 +100,15 @@ survives while its cell is still an option, an option that is new follows the
 preset, and an option the reader saw and left unticked stays unticked. Without
 it, a late translation would either wipe what was ticked or slip in unannounced.
 
-## Pick → Check → Publish — `usePublishRun`
+## The check runs by itself — `usePublishRun`
 
-- **Check** dry-runs every picked entry through content's `previewBulkPublish`,
-  per type. **Publish** is only offered after a check, and **any change to the
-  picks returns to Check**, so what is committed is what was just checked.
+- **The dry run is automatic.** Once the records have settled (the context read
+  and every expansion landed), the page runs content's `previewBulkPublish` over
+  **every option of the set**, picked or not (`optionBatches`), per type — and
+  again whenever the options change (after a commit, or when a translation
+  arrives). A verdict belongs to the entry, not to the pick, so ticking boxes
+  never invalidates it, and every locale shows what it is missing before the
+  reader has decided anything. **Re-check** asks again on demand.
 - **Publish** commits through `commitBulkPublish`, per type, sending only what
   the check found `publishable`, **linked drafts first** (`publishBatches`):
   nothing in the database needs that order, but a reader of the site would
@@ -120,12 +152,14 @@ must not look alike.
 
 - Every checkbox has a name that says what it picks ("Publish Winter boots,
   Deutsch (Modified)", "Publish Deutsch for every Localized posts record").
-  Annotation badges and check results are tied to the cell's checkbox with
-  `aria-describedby`, so a column of identical boxes is not told apart by
-  colour alone.
+  The status, notes and check result are tied to the entry's checkbox with
+  `aria-describedby`, so a list of identical boxes is not told apart by colour
+  alone. A card's fold toggle names the record ("Show the entries of …"); an
+  entry's failing fields are a labelled list ("What Winter boots, Deutsch is
+  missing"), and its full checklist toggle names the entry too.
 - The running count / check summary is a `role="status"` live region.
-- Each type's section is a labelled region; record names are sticky so a wide
-  locale matrix still says whose row the reader is in.
+- Each type's section is a labelled region; the locale chips are a labelled
+  group.
 - Pinned by an axe scan in `apps/admin-e2e/src/content/publish-manager.spec.ts`.
 
 ## Commands

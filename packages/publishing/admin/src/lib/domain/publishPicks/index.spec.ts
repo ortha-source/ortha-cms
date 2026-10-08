@@ -7,6 +7,7 @@ import {
     PICK_STATE,
     pickedCells,
     presetPicks,
+    optionBatches,
     publishBatches,
     reconcilePicks,
     recordState,
@@ -111,6 +112,13 @@ describe('publishPicks', () => {
         expect(publishBatches(picks, records)).toEqual([
             { type: 'tag', ids: ['t1'] },
             { type: 'article', ids: ['a-en', 'a-de', 'b-en'] }
+        ]);
+    });
+
+    it('lists every option for the check, picked or not, never a live one', () => {
+        expect(optionBatches(records)).toEqual([
+            { type: 'article', ids: ['a-en', 'a-de', 'b-en'] },
+            { type: 'tag', ids: ['t1'] }
         ]);
     });
 

@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
     BULK_VERDICT,
@@ -25,15 +25,17 @@ export type PublishRunResult = {
 
 /** What {@link usePublishRun} exposes to the page. */
 export type PublishRun = {
-    /** Dry-run every batch; resolves when all have answered. */
+    /**
+     * Dry-run every batch; resolves when all have answered. The page passes
+     * every option of the set (picked or not), since a verdict belongs to the
+     * entry and not to the pick.
+     */
     check: (batches: PublishBatch[]) => Promise<void>;
     /** The verdicts of the last check, per entry id. */
     verdicts: ReadonlyMap<string, BulkPublishVerdict>;
     isChecking: boolean;
     /** The last check did not complete. */
     checkFailed: boolean;
-    /** Forget the last check (the picks changed under it). */
-    resetCheck: () => void;
     /**
      * Commit every batch, in order — dependencies first, as `publishBatches`
      * orders them — sending only the entries the last check found publishable.
@@ -77,10 +79,10 @@ export function usePublishRun(
             }
             return next;
         },
-        onSuccess: (next) => {
-            setVerdicts(next);
-            setResult(null);
-        }
+        // The last commit's outcome stays up across the re-check that follows
+        // it — the check runs because the commit changed the records, and
+        // wiping the result the reader is reading would be the wrong answer.
+        onSuccess: (next) => setVerdicts(next)
     });
 
     const commitMutation = useMutation({
@@ -122,15 +124,12 @@ export function usePublishRun(
         },
         onSuccess: (next) => {
             setResult(next);
+            // What was just published is no longer an option; the re-check
+            // that follows the re-read answers for what is left.
             setVerdicts(new Map());
             onCommitted();
         }
     });
-
-    const resetCheck = useCallback(() => {
-        setVerdicts(new Map());
-        checkMutation.reset();
-    }, [checkMutation]);
 
     return {
         check: async (batches) => {
@@ -139,7 +138,6 @@ export function usePublishRun(
         verdicts,
         isChecking: checkMutation.isPending,
         checkFailed: checkMutation.isError,
-        resetCheck,
         commit: (batches) => commitMutation.mutateAsync(batches),
         isCommitting: commitMutation.isPending,
         result

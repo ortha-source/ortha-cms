@@ -49,11 +49,11 @@ What it is **not**:
 
 ## 02. Composition
 
-| Layer           | What lives there                                                                                   |
-| --------------- | -------------------------------------------------------------------------------------------------- |
-| `domain/`       | `publishSet` (URL codec), `publishRecords` (records + sections), `publishPicks` (the pick algebra) |
-| `application/`  | `usePublishContext` (the context read), `usePublishRun` (check + commit, per type, in order)       |
-| `presentation/` | the page, section table, record row, cell, action bar, problems, outcome; the two slots            |
+| Layer           | What lives there                                                                                           |
+| --------------- | ---------------------------------------------------------------------------------------------------------- |
+| `domain/`       | `publishSet` (URL codec), `publishRecords` (records + sections), `publishPicks` (the pick algebra)         |
+| `application/`  | `usePublishContext` (the context read), `usePublishRun` (check + commit, per type, in order)               |
+| `presentation/` | the page, section, locale bar, record card, entry row, field checklist, action bar, outcome; the two slots |
 
 Contributions **into** other plugins: `WORKSPACE_ROUTE_SLOT` (`publish`),
 `RECORDS_BULK_ACTION_SLOT` and `ENTRY_MENU_SLOT` (**Open in Publish Manager**).
@@ -84,25 +84,28 @@ can be neither described nor published from here — the context never offers on
 2. **Records.** One per translation group, or per entry on a type without locales; selected
    first, then linked ones in the order reached. Two selected locales of one group are **one**
    record. A linked record keeps every link that reached it ("Tags on “Rain jacket”").
-3. **Expansions** add cells (translations) and define the locale columns; they fill gaps and
+3. **Expansions** add cells (translations) and define the locales; they fill gaps and
    never overwrite a cell the context gave.
 4. **Annotations** add per-entry notes (approvals).
-5. **Sections.** One table per type, the set's own type first. A localized section shows every
-   configured locale as a column, translated or not — a column of dashes is information.
+5. **Sections.** One per type, the set's own type first: a **locale bar** (a wrapping row of
+   chips, one per configured locale, each picking that locale for every record of the type)
+   and one **collapsible card per record**, open by default, its entries stacked as rows. The
+   page stays one column wide however many locales there are; the locales a record lacks are
+   named on one line of its card.
 
 ## 06. Picks
 
-A pick is a (record, axis) pair — axis being a locale, or the single "Entry" column of a type
-without locales. Only an **option** can be picked: an entry that exists and is not already
+A pick is a (record, axis) pair — axis being a locale, or the single "Entry" of a type without
+locales. Only an **option** can be picked: an entry that exists and is not already
 `published`. A live entry is stated in its cell, never offered.
 
-| Toggle  | Scope                                                        |
-| ------- | ------------------------------------------------------------ |
-| Cell    | one entry                                                    |
-| Record  | every option of one record                                   |
-| Axis    | one locale for every record of a section (the column header) |
-| Section | every option of every record of one type                     |
-| Presets | **Everything** (initial) · **Selected only** · **Clear**     |
+| Toggle  | Scope                                                    |
+| ------- | -------------------------------------------------------- |
+| Cell    | one entry                                                |
+| Record  | every option of one record                               |
+| Axis    | one locale for every record of a section (a locale chip) |
+| Section | every option of every record of one type                 |
+| Presets | **Everything** (initial) · **Selected only** · **Clear** |
 
 Picks are **reconciled**, not reset, when the records change underneath (a translation read
 landing after first paint; the re-read after a commit): kept while still an option, a new
@@ -110,15 +113,18 @@ option follows the preset, an option seen and left unticked stays unticked.
 
 ## 07. Check and publish
 
-- **Check** — content's dry run over every picked entry, one request per type (chunked at
-  100). Cells show _Ready_, _N issues_, _Already published_ or _No longer available_; a
-  **problems** list spells out each blocked entry's issues with a link to its editor.
-- **Publish** — offered only after a check; any change to the picks returns to **Check**.
-  Sends only what the check found ready, **linked drafts first**, one type at a time,
-  sequentially. A transport failure stops the run and the outcome names where it stopped.
+- **The check runs by itself** — content's dry run over **every option** of the set, picked or
+  not, one request per type (chunked at 100), once the records settle and again whenever the
+  options change. A verdict belongs to the entry, so picking never invalidates it. Each entry
+  row shows _Ready_, _N issues_, _Already published_ or _No longer available_, and its **field
+  checklist** — failing fields always visible, every field on demand, translated fields marked
+  with a globe. **Re-check** asks again.
+- **Publish** sends the picked entries the last check found ready, **linked drafts first**,
+  one type at a time, sequentially. A transport failure stops the run and the outcome names
+  where it stopped.
 - **After** — `refreshEntryCaches` per type touched; the context and every slot read are
-  re-read (`version`); the outcome lists what went live and what did not, with a guard's
-  refusal ("held by a publish rule") told apart from a failed check.
+  re-read (`version`) and checked again; the outcome lists what went live and what did not,
+  with a guard's refusal ("held by a publish rule") told apart from a failed check.
 
 ## 08. Extension slots
 
@@ -144,9 +150,10 @@ key** — it is bumped after each commit. A failed read is named on the page wit
 
 ## 10. Accessibility
 
-Every checkbox is named for what it picks; annotation badges and results are tied to the
-cell's checkbox through `aria-describedby`; the count / check summary is a live region; each
-section is a labelled region with a sticky record column; the outcome is an `Alert`. Scanned
+Every checkbox is named for what it picks; status, notes and results are tied to the entry's
+checkbox through `aria-describedby`; a card's fold toggle and an entry's checklist toggle name
+what they fold; the summary is a live region; each section is a labelled region and its locale
+chips a labelled group; the outcome is an `Alert`. Scanned
 by axe in the admin-e2e suite.
 
 ## 11. Invariants
@@ -156,8 +163,9 @@ by axe in the admin-e2e suite.
   be bypassed from this page.
 - **I-02** — Only an option can be picked — an existing entry that is not `published`. A
   missing locale is a dash; a live entry is stated, never a checkbox.
-- **I-03** — Publish is offered only after a check, and any change to the picks invalidates
-  the check; the commit sends only entries the latest check found `publishable`.
+- **I-03** — The commit sends only picked entries the latest check found `publishable`; the
+  check runs over every option by itself whenever the options change, and picking never
+  invalidates a verdict.
 - **I-04** — Linked drafts are committed before selected records, type by type; a batch that
   fails in transport stops the run and the outcome says where.
 - **I-05** — An expansion never overwrites a cell the publish context gave; a failed
@@ -179,8 +187,9 @@ by axe in the admin-e2e suite.
   (`content:I-57`) and the translations read in `i18n-content.spec.ts`.
 - **Admin-e2e** — `apps/admin-e2e/src/content/publish-manager.spec.ts`: opening from a
   selection and from the editor menu, the initial picks, a live locale stated, a linked draft
-  with its origin, the protection note, every toggle level, check → publish with dependency
-  order, the empty state, and an axe scan.
+  with its origin, the protection note, every toggle level, folding the cards, a blocked
+  locale's failing fields (and the globe on a translated one) with the full checklist on demand,
+  publish with dependency order, the empty state, and axe scans.
 
 ## 13. Boundaries of responsibility
 

@@ -102,10 +102,10 @@ test.describe('Publish Manager', () => {
         await expect(manager.section('Localized posts')).toContainText(
             'Approvals 0/1'
         );
-        await expect(manager.summary).toHaveText('3 entries picked.');
-
-        await manager.check.click();
-        await expect(manager.summary).toHaveText('3 of 3 ready to publish.');
+        // The dry run has already answered for every option.
+        await expect(manager.summary).toHaveText(
+            '3 picked · 3 ready to publish'
+        );
         await manager.publish.click();
         await expect(manager.outcome).toContainText('3 entries published');
 
@@ -126,7 +126,9 @@ test.describe('Publish Manager', () => {
 
         // What a plain bulk publish would do: just the selected rows.
         await manager.preset('Selected only').click();
-        await expect(manager.summary).toHaveText('1 entry picked.');
+        await expect(manager.summary).toHaveText(
+            '1 picked · 1 ready to publish'
+        );
 
         // German for every record, from its column.
         await manager.axisToggle('Deutsch', 'Localized posts').click();
@@ -138,16 +140,11 @@ test.describe('Publish Manager', () => {
         await manager.sectionToggle('tag').click();
         await expect(manager.cell('Outerwear', 'Entry')).toBeChecked();
         await manager.cell('Outerwear', 'Entry').click();
-        await expect(manager.summary).toHaveText('1 entry picked.');
-
-        await manager.check.click();
+        await expect(manager.summary).toHaveText(
+            '1 picked · 1 ready to publish'
+        );
         await expect(manager.publish).toHaveText('Publish 1 entry');
-        // Changing the picks takes the page back to "check".
-        await manager.cell('Rain jacket', 'English').click();
-        await expect(manager.check).toHaveText('Check 2 entries');
-        await manager.cell('Rain jacket', 'English').click();
 
-        await manager.check.click();
         await manager.publish.click();
         await expect(manager.outcome).toContainText('1 entry published');
         expect(committedBatches()).toEqual([['lp-de-1']]);
@@ -169,7 +166,32 @@ test.describe('Publish Manager', () => {
             /publish\?type=localized_post&ids=lp-en-1$/
         );
         await expect(manager.cell('Winter boots', 'Deutsch')).toBeChecked();
-        await expect(manager.summary).toHaveText('1 entry picked.');
+        await expect(manager.summary).toHaveText(
+            '1 picked · 1 ready to publish'
+        );
+    });
+
+    test('folds every card away and back', async ({
+        publishManagerPage: manager
+    }) => {
+        await manager.goto(I18N_WORKSPACE.id, 'localized_post', [
+            'lp-en-1',
+            'lp-en-2'
+        ]);
+        await expect(manager.cell('Rain jacket', 'English')).toBeVisible();
+
+        await manager.toggleAll('Collapse all').click();
+        await expect(manager.cell('Rain jacket', 'English')).toBeHidden();
+        // Folding hides the rows, not the picks.
+        await expect(manager.summary).toHaveText(
+            '3 picked · 3 ready to publish'
+        );
+        await manager.cardToggle('Rain jacket', 'Show').click();
+        await expect(manager.cell('Rain jacket', 'English')).toBeVisible();
+        await expect(manager.cell('Winter boots', 'Deutsch')).toBeHidden();
+
+        await manager.toggleAll('Expand all').click();
+        await expect(manager.cell('Winter boots', 'Deutsch')).toBeVisible();
     });
 
     test('says what to do when opened on nothing', async ({
@@ -191,9 +213,55 @@ test.describe('Publish Manager', () => {
             'lp-en-1',
             'lp-en-2'
         ]);
-        await expect(manager.cell('Outerwear', 'Entry')).toBeVisible();
-        await manager.check.click();
         await expect(manager.publish).toBeEnabled();
+        await expectNoA11yViolations(makeAxe());
+    });
+});
+
+test.describe('Publish Manager — what each locale is missing', () => {
+    test.beforeEach(async ({ page }) => {
+        await mockSignedIn(page);
+        await mockWorkspaces(page, [I18N_WORKSPACE]);
+        // The German boots is missing its (translated) title.
+        await mockI18n(page, {
+            blocked: {
+                'lp-de-1': [
+                    { field: 'title', label: 'Title', message: 'is required' }
+                ]
+            }
+        });
+        await mockReviewStatus(page, {});
+    });
+
+    test('shows the failing fields per locale, and every field on demand', async ({
+        publishManagerPage: manager,
+        makeAxe
+    }) => {
+        await manager.goto(I18N_WORKSPACE.id, 'localized_post', [
+            'lp-en-1',
+            'lp-en-2'
+        ]);
+        await expect(manager.summary).toHaveText(
+            '2 picked · 1 ready to publish · 1 needs fixes'
+        );
+        await expect(manager.card('Winter boots')).toContainText(
+            '1 entry needs fixes'
+        );
+
+        // The failure is on screen without asking, and the title is marked as
+        // a field translated per locale.
+        const failing = manager.failing('Winter boots, Deutsch');
+        await expect(failing).toContainText('Title');
+        await expect(failing).toContainText('is required');
+        await expect(failing).toContainText('(translated per locale)');
+        await expect(failing).not.toContainText('Category');
+
+        // The whole checklist, passing fields included, folds open.
+        await manager.allChecks('Winter boots, Deutsch').click();
+        await expect(manager.card('Winter boots')).toContainText('Category');
+
+        // Only the ready entry is offered for publishing.
+        await expect(manager.publish).toHaveText('Publish 1 entry');
         await expectNoA11yViolations(makeAxe());
     });
 });

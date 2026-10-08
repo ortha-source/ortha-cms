@@ -130,9 +130,11 @@
   so registering it changes nothing until a workspace writes a rule.
 - `packages/publishing/admin` — the **Publish Manager**: one workspace page for
   publishing a set of records **together** — the selection, its other
-  translations and the drafts it links to (one hop). The reader picks per
-  column, record, section or cell; **Check** runs content's bulk dry run per
-  type and **Publish** commits only what it found ready, linked drafts first.
+  translations and the drafts it links to (one hop). One collapsible card per
+  record, its locales stacked as rows; the reader picks per locale, record,
+  section or entry. Content's bulk dry run runs by itself per type, so each
+  locale shows the fields it is missing, and **Publish** commits only what it
+  found ready, linked drafts first.
   It adds no endpoint and owns no tables — content describes the set
   (`bulk/publish/context`), and two slots of its own let other plugins add to
   it: i18n contributes the translations, protection the approval status. A
