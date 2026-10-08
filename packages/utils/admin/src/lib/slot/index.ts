@@ -7,19 +7,23 @@ export type Slot<T> = {
     /** Unique slot identifier. */
     readonly name: string;
     /**
-     * Every item registered to this slot, as a fresh array — a consumer that
-     * sorts, filters in place, or pushes cannot rewrite what the next consumer
-     * of the same slot sees.
+     * Every item registered to this slot, as a **frozen snapshot** — a
+     * consumer that sorts, filters in place, or pushes throws instead of
+     * rewriting what the next consumer of the same slot sees.
+     *
+     * The snapshot keeps its identity until the slot's contents change, so it
+     * is safe to depend on: `useMemo(…, [slot.getItems()])` recomputes only
+     * after a registration or a reset, not on every render.
      */
-    getItems(): T[];
+    getItems(): readonly T[];
     /** Registers items into this slot. Used by the host wiring only. */
     _register(items: T[]): void;
     /**
      * Empties the slot. Used by the host wiring only, immediately before it
      * re-runs the registration loop.
      *
-     * A slot closes over one array that lives as long as the module, while
-     * `_register` is a bare `push` — so anything that runs the host's wiring
+     * A slot's items live as long as the module, while `_register` only ever
+     * appends — so anything that runs the host's wiring
      * loop a second time against the same module doubles every contribution.
      * A Vite hot update does exactly that: the dev sidebar filled with
      * duplicates and compounded with each save until a hard reload. Making the
@@ -45,19 +49,24 @@ export type SlotContribution<T = unknown> = {
  * ```
  */
 export function createSlot<T>(name: string): Slot<T> {
-    const items: T[] = [];
+    // One frozen array, replaced on every write and handed out as-is on every
+    // read. Frozen because a slot is read by every plugin that consumes it, so
+    // handing out a mutable list would make one consumer's in-place
+    // `sort()`/`push()` a change to shared plugin state. Handed out as-is —
+    // not as a fresh copy per call — because a copy is a new identity on every
+    // render, which made every `useMemo`/effect keyed on a slot's items rerun
+    // each time and the "boot-frozen, so stable" reading at the call sites
+    // untrue. All three members close over this one binding, so reassigning
+    // it is what keeps them in step.
+    let items: readonly T[] = Object.freeze([]);
     return {
         name,
-        // A copy, not the live array: a slot is read by every plugin that
-        // consumes it, so handing out the internal list makes one consumer's
-        // in-place `sort()`/`push()` a change to shared plugin state.
-        getItems: () => items.slice(),
-        _register: (newItems: T[]) => items.push(...newItems),
-        // `length = 0`, not a fresh array: `getItems` and `_register` close
-        // over this one, so rebinding it here would leave them writing to and
-        // reading from an array nobody else can see.
+        getItems: () => items,
+        _register: (newItems: T[]) => {
+            items = Object.freeze([...items, ...newItems]);
+        },
         _reset: () => {
-            items.length = 0;
+            items = Object.freeze([]);
         }
     };
 }
@@ -70,9 +79,9 @@ export function createSlot<T>(name: string): Slot<T> {
  * is the load-bearing part, and that is a property of the slot mechanism rather
  * than of the composition root:
  *
- * - A slot closes over one array that lives as long as its module, and
- *   `_register` is a bare `push`. Anything that runs the host's boot wiring a
- *   second time against those same closures doubles every contribution.
+ * - A slot's items live as long as its module, and `_register` only ever
+ *   appends. Anything that runs the host's boot wiring a second time against
+ *   those same closures doubles every contribution.
  * - A Vite hot update does exactly that — it re-executes the entry module
  *   instead of reloading the page. Observed in dev: every nav entry and every
  *   workspace listed twice, compounding with each save until a hard reload,

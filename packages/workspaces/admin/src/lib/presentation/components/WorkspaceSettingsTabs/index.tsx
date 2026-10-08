@@ -8,6 +8,7 @@ import {
     Users
 } from 'lucide-react';
 import { TabNav, TabNavLink, TopBarTabs } from '@orthacms/design-system';
+import { byOrder } from '@orthacms/utils-admin';
 import { WORKSPACE_SETTINGS_TAB_SLOT } from '../../slots/workspaceSlots';
 import { SettingsTabLink } from './SettingsTabLink';
 
@@ -102,9 +103,9 @@ export function WorkspaceSettingsTabs({
           ]
         : [];
 
-    const contributed = WORKSPACE_SETTINGS_TAB_SLOT.getItems().sort(
-        (a, b) => a.order - b.order
-    );
+    // `byOrder` sorts a copy: the slot's own array is shared (and frozen), so
+    // an in-place `sort()` here would throw.
+    const contributed = byOrder(WORKSPACE_SETTINGS_TAB_SLOT.getItems());
 
     return (
         <TopBarTabs>
