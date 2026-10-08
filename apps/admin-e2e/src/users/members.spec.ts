@@ -1,5 +1,6 @@
 import { test, expect } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
+import { expectNoA11yViolations } from '../support/a11y';
 import {
     DEFAULT_MEMBERS,
     INVITE_TOKEN,
@@ -9,7 +10,10 @@ import {
     spyInvite,
     spyResendInvite
 } from '../support/api/members';
-import { mockWorkspaces } from '../support/api/workspaces';
+import {
+    mockWorkspaces,
+    mockWorkspacesUnavailable
+} from '../support/api/workspaces';
 
 /** Alan — the roster's one pending invite, the only member Resend applies to. */
 const PENDING_MEMBER = DEFAULT_MEMBERS.filter(
@@ -217,6 +221,40 @@ test.describe('Members page', () => {
         expect(invite.count).toBe(1);
     });
 
+    test('holds Send while the workspaces could not be read, and offers a retry', async ({
+        membersPage,
+        page,
+        makeAxe
+    }) => {
+        const invite = await spyInvite(page);
+        // A refusal rather than a 500, which the query client retries with
+        // backoff before admitting it failed — the state is the same, only
+        // slower to reach.
+        await mockWorkspacesUnavailable(page, 403);
+        await membersPage.goto();
+
+        await membersPage.inviteButton.click();
+        await membersPage.inviteEmail().fill('new@orthacms.dev');
+        await membersPage.continueToRole().click();
+        await membersPage.continueToWorkspaces().click();
+
+        // Send used to stay live under this error. "All workspaces" then sent
+        // the empty list it had failed to load — an invite into nothing, under
+        // a choice that read as "everything".
+        await expect(membersPage.workspacesError()).toBeVisible();
+        await expect(membersPage.sendInvite()).toBeDisabled();
+        expect(invite.count).toBe(0);
+        await expectNoA11yViolations(makeAxe());
+
+        // The way forward is on the alert itself. Later routes win.
+        await mockWorkspaces(page);
+        await membersPage.retryWorkspaces().click();
+        await expect(
+            membersPage.inviteWorkspace('Marketing site')
+        ).toBeVisible();
+        await expect(membersPage.sendInvite()).toBeEnabled();
+    });
+
     test('assigns all workspaces via the "All workspaces" mode', async ({
         membersPage,
         page
@@ -323,6 +361,9 @@ test.describe('Members page', () => {
         await expect(membersPage.paginationRange()).toHaveText(/^1.5 of 7$/);
         await membersPage.nextPage().click();
         await expect(membersPage.paginationRange()).toHaveText(/^6.7 of 7$/);
+        // The landmark is named by the page, through react-intl — the design
+        // system has no i18n, so its own default is untranslated English.
+        await expect(membersPage.paginationNav()).toBeVisible();
     });
 
     test('shows status-specific actions for a pending invite', async ({

@@ -1,13 +1,31 @@
 import { test, expect } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
 import { mockWorkspaces } from '../support/api/workspaces';
-import { mockSegmentsApi } from '../support/api/segments';
+import { mockSegmentsApi, type SegmentSeed } from '../support/api/segments';
 import { expectNoA11yViolations } from '../support/a11y';
 
 test.beforeEach(async ({ page }) => {
     await mockSignedIn(page);
     await mockWorkspaces(page);
 });
+
+/**
+ * `count` audiences, zero-padded so `Audience 02` cannot also match
+ * `Audience 20` — and fresh per call, because the mock deletes from it.
+ */
+function pagedSeed(count: number): SegmentSeed[] {
+    return Array.from({ length: count }, (_unused, index) => {
+        const n = String(index + 1).padStart(2, '0');
+        return {
+            id: `seg-${n}`,
+            key: `audience-${n}`,
+            label: `Audience ${n}`,
+            tags: [`audience-${n}`],
+            workspaceIds: [],
+            usageCount: 0
+        };
+    });
+}
 
 /**
  * The audience directory and its editor pages.
@@ -107,6 +125,49 @@ test.describe('The audience directory', () => {
             .click();
 
         await expect.poll(() => api.deleted).toEqual(['seg-acme']);
+    });
+
+    test('deleting the last audience on the last page steps back one page', async ({
+        page,
+        segmentsPage
+    }) => {
+        // 21 at ten a page: page three holds exactly one.
+        await mockSegmentsApi(page, { segments: pagedSeed(21) });
+        await segmentsPage.goto();
+        await segmentsPage.setPageSize(10);
+        await segmentsPage.nextPage.click();
+        await segmentsPage.nextPage.click();
+        await expect(segmentsPage.pageReadout).toHaveText('Page 3 of 3');
+
+        await segmentsPage.deleteAudience('Audience 21');
+
+        // Once — not twice. The page is settled from the refetched total, and
+        // a decrement on top of that would land on page one.
+        await expect(segmentsPage.pageReadout).toHaveText('Page 2 of 2');
+        await expect(segmentsPage.row('Audience 20')).toBeVisible();
+    });
+
+    test('pulls the page back when the list shrinks under it', async ({
+        page,
+        segmentsPage
+    }) => {
+        // 22 at ten a page: page three holds two, so deleting one of them
+        // through this tab leaves a page — until somebody else deletes the
+        // other. Only a clamp on the fresh total catches that; arithmetic on
+        // the rows this tab happened to be showing cannot.
+        const api = await mockSegmentsApi(page, { segments: pagedSeed(22) });
+        await segmentsPage.goto();
+        await segmentsPage.setPageSize(10);
+        await segmentsPage.nextPage.click();
+        await segmentsPage.nextPage.click();
+        await expect(segmentsPage.pageReadout).toHaveText('Page 3 of 3');
+        await expect(segmentsPage.row('Audience 22')).toBeVisible();
+
+        api.remove('seg-21');
+        await segmentsPage.deleteAudience('Audience 22');
+
+        await expect(segmentsPage.pageReadout).toHaveText('Page 2 of 2');
+        await expect(segmentsPage.row('Audience 20')).toBeVisible();
     });
 
     test('sketches the table while it loads, rather than spinning', async ({

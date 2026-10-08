@@ -16,6 +16,9 @@ import { ASSETS_PAGE_SIZE_OPTIONS } from '../../constants';
 
 /** Intl descriptors for {@link MediaPagination}, co-located here. */
 const messages = defineMessages({
+    // Names the `<nav>` landmark. The design system's own default is an
+    // untranslated, lower-case "pagination".
+    nav: { id: 'media.pagination.nav', defaultMessage: 'Pagination' },
     perPage: {
         id: 'media.pagination.perPage',
         defaultMessage: 'Assets per page'
@@ -108,7 +111,10 @@ export function MediaPagination({
                     {intl.formatMessage(messages.range, { from, to, total })}
                 </span>
                 {pageCount > 1 ? (
-                    <Pagination className="mx-0 w-auto">
+                    <Pagination
+                        className="mx-0 w-auto"
+                        aria-label={intl.formatMessage(messages.nav)}
+                    >
                         <PaginationContent className="gap-3">
                             <PaginationItem>
                                 <Button

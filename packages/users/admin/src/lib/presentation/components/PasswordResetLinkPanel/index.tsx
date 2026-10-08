@@ -59,9 +59,9 @@ type PasswordResetLinkPanelProps = {
  * that already exists, so whoever opens it is *taking over* something rather
  * than claiming something unclaimed.
  *
- * It exists because nothing emails resets yet — the admin is the delivery
- * channel. When a mailer lands (identity epic #11) this becomes a fallback for
- * deployments with no SMTP rather than the only path.
+ * It exists for deployments with no mail provider configured — the default —
+ * where the admin is the delivery channel. With one (`MAIL_PROVIDER`), the
+ * server emails the link, returns no token, and this is never shown.
  */
 export function PasswordResetLinkPanel({
     link,

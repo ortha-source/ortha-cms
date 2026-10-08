@@ -42,7 +42,7 @@ the vocabulary, the other decides against it — so they use one
 `SegmentsPagination`. A reader moving between them should not meet two different
 pagers.
 
-Three consequences worth keeping:
+Four consequences worth keeping:
 
 **A page is not the whole list, so anything holding _ids_ reads by id.** The
 entry's Access row and a revision's captured access resolve their labels through
@@ -62,6 +62,14 @@ and an audience can be narrowed away from this workspace after an entry named
 it. The tab counts those below the list rather than dropping them, because
 dropping them would rewrite who can read published content from a screen that
 never mentioned them.
+
+**The page is clamped to the fresh total, in both lists.** A delete on the last
+page, or another administrator's delete picked up by a refetch, leaves `page`
+past `pageCount`, and the server answers that page with no rows — an empty table
+over "Page 3 of 2". Each list pulls `page` back in an effect once a
+non-placeholder response lands. The directory used to decrement in the delete's
+`onSuccess` instead, which only knew about its own delete; with the clamp in
+place that decrement would step back twice, so it is gone.
 
 ## The decisions that are easy to get wrong
 

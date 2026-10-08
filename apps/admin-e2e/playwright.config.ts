@@ -29,12 +29,14 @@ export default defineConfig({
     /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
     use: {
         baseURL,
-        /* `on-first-retry` produced a trace exactly never: the preset sets
-           `retries` to 0 outside CI and this repo has no CI, so there was no
-           first retry to collect on. Keep retries at 0 — a flake must stay
-           visible as a failure rather than be papered over — and retain the
-           trace on every failure instead, since a local run is the only
-           post-mortem anyone gets. See https://playwright.dev/docs/trace-viewer */
+        /* `on-first-retry` never produced a trace locally: the preset sets
+           `retries` to 0 outside CI, so there is no first retry to collect
+           on. In CI (`.github/workflows/ci.yml`, the `admin-e2e` job) it
+           retries twice, and a test that passes on a retry is reported as
+           flaky rather than hidden. Either way the trace of every failed
+           attempt is kept, which is what makes a local run — and the CI
+           job's uploaded `test-output/` — a usable post-mortem.
+           See https://playwright.dev/docs/trace-viewer */
         trace: 'retain-on-failure'
     },
     /* Run the admin dev server before starting the tests. Specs mock `/api`

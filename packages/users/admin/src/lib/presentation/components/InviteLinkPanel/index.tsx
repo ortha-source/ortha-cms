@@ -54,9 +54,9 @@ type InviteLinkPanelProps = {
  * in the caller's state, is never re-fetchable, and this is the single chance to
  * capture it.
  *
- * It exists because nothing emails invites yet — the admin is the delivery
- * channel. When a mailer lands (identity epic #11) this becomes a fallback for
- * deployments with no SMTP rather than the only path.
+ * It exists for deployments with no mail provider configured — the default —
+ * where the admin is the delivery channel. With one (`MAIL_PROVIDER`), the
+ * server emails the invitation, returns no token, and this is never shown.
  */
 export function InviteLinkPanel({
     link,

@@ -173,11 +173,28 @@ export function SegmentsPage() {
     // that matches plenty.
     useEffect(() => setPage(1), [debounced, pageSize]);
 
-    const { data, isPending, isError, refetch } = useSegments({
-        query: debounced || undefined,
-        page,
-        pageSize
-    });
+    const { data, isPending, isError, isPlaceholderData, refetch } =
+        useSegments({
+            query: debounced || undefined,
+            page,
+            pageSize
+        });
+
+    const total = data?.total ?? 0;
+    const pageCount = Math.max(1, Math.ceil(total / pageSize));
+
+    // The list can shrink under the page it is on — deleting the last audience
+    // of the last page, or another administrator deleting one while this tab
+    // sits there — and the refetch then answers that page with no rows: an
+    // empty table over "Page 3 of 2", with the pager the only way back. Pull
+    // the page back once the fresh total lands. Guarded on `!isPlaceholderData`
+    // so it reads that total, not the previous page's that `keepPreviousData`
+    // holds while the request is in flight.
+    useEffect(() => {
+        if (data && !isPlaceholderData && page > pageCount) {
+            setPage(pageCount);
+        }
+    }, [data, isPlaceholderData, page, pageCount]);
 
     const [pending, setPending] = useState<Segment | null>(null);
     const remove = useDeleteSegment();
@@ -218,8 +235,6 @@ export function SegmentsPage() {
 
     const failed = () => toast.error(intl.formatMessage(messages.writeError));
     const segments = data?.items ?? [];
-    const total = data?.total ?? 0;
-    const pageCount = Math.max(1, Math.ceil(total / pageSize));
 
     return (
         <>
@@ -539,18 +554,10 @@ export function SegmentsPage() {
                 confirmVariant="destructive"
                 onConfirm={() => {
                     if (pending) {
-                        remove.mutate(pending.id, {
-                            onError: failed,
-                            // Deleting the last row of the last page would
-                            // otherwise strand the reader on a page that no
-                            // longer exists, looking at an empty table.
-                            onSuccess: () =>
-                                setPage((current) =>
-                                    segments.length === 1 && current > 1
-                                        ? current - 1
-                                        : current
-                                )
-                        });
+                        // No page arithmetic here: the clamp above settles
+                        // the page from the refetched total, and a decrement
+                        // on top of it would step back twice.
+                        remove.mutate(pending.id, { onError: failed });
                     }
                     setPending(null);
                 }}

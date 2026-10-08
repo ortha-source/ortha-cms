@@ -80,7 +80,8 @@ export type MemberGateway = {
     /**
      * Invites a person via `POST /api/users/invites` (`409` = email taken).
      * Resolves with the new member **and** their one-time invite token — the
-     * only moment it is readable, since no mailer sends the link yet.
+     * only moment it is readable — or `null` for the token when a configured
+     * mail provider sent the link instead.
      */
     invite(input: InviteMemberInput): Promise<InvitedMember>;
     /**

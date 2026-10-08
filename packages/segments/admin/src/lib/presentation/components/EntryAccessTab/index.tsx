@@ -137,6 +137,25 @@ export function EntryAccessTab({
         page,
         pageSize
     });
+    // Nothing on this tab deletes an audience, but the directory can still
+    // shrink under the page it is on — another administrator deleting one, and
+    // a focus refetch bringing back the smaller total — and that page then
+    // answers with no rows. Same clamp as the directory page, and the same
+    // `!isPlaceholderData` guard, so it reads the fresh total.
+    const segmentsPageCount = Math.max(
+        1,
+        Math.ceil((segments.data?.total ?? 0) / pageSize)
+    );
+    useEffect(() => {
+        if (
+            segments.data &&
+            !segments.isPlaceholderData &&
+            page > segmentsPageCount
+        ) {
+            setPage(segmentsPageCount);
+        }
+    }, [segments.data, segments.isPlaceholderData, page, segmentsPageCount]);
+
     const saved = useEntryAccess(workspaceId, entry?.id, entry?.updatedAt);
     const staging = presave[ENTRY_ACCESS_PRESAVE_ID] as
         | EntryAccessStaging
@@ -163,7 +182,7 @@ export function EntryAccessTab({
     const list = segments.data?.items ?? [];
     const total = segments.data?.total ?? 0;
     const matchedIds = segments.data?.ids ?? [];
-    const pageCount = Math.max(1, Math.ceil(total / pageSize));
+    const pageCount = segmentsPageCount;
     const locked = readOnly || !canManage || !staging;
 
     // Nothing offered here at all — a different situation from a search that

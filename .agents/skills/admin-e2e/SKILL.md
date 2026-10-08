@@ -170,9 +170,11 @@ npx nx run-many -t typecheck lint -p admin-e2e
 npx nx format:write -- --uncommitted          # never bare: it reformats the repo
 ```
 
-**There is no CI.** `.github/workflows/` holds `release.yml` and nothing else —
-no `e2e`, no `lint`, no `typecheck`. Whatever you run locally *is* the gate for
-this suite and `server-e2e` both, so run the whole thing before you merge and
-never merge red. `chromium` is likewise the only declared project; the mobile
+**CI runs this suite** — `.github/workflows/ci.yml` has an `admin-e2e` job
+(`npx nx e2e admin-e2e`, chromium, on every pull request and on `main`) beside
+the `server-e2e` job and a `check` job for `sync:check`, `typecheck`, `lint`
+and `test`. Run the suite locally anyway before you push: CI retries a failed
+test twice (the Nx preset's `retries` under `CI`), so a flake shows up there as
+"flaky", not as red. `chromium` is the only declared project; the mobile
 and branded entries in `playwright.config.ts` are commented out, so
 `--project=firefox` errors rather than doing anything.
