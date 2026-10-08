@@ -54,7 +54,7 @@ import {
     type EntrySlotContext
 } from '../../slots/contentSlots';
 import {
-    emptyEntryValues,
+    initialEntryValues,
     mergeEntryValues
 } from '../../../domain/emptyEntryValues';
 import { EntryEditor } from './EntryEditor';
@@ -382,14 +382,15 @@ export function ContentEntryView({
         entry?: EntryRecord;
     } | null => {
         if (!schema) return null;
-        // A blank create form, optionally pre-seeded with the shared fields of
-        // a source record (translation flow).
+        // A blank create form — each field at its declared default — optionally
+        // pre-seeded with the shared fields of a source record (translation
+        // flow), whose values win over the defaults.
         const blank = () =>
             seedRelationValues(
                 schema,
                 applyTranslatePrefill(
                     schema,
-                    emptyEntryValues(schema),
+                    initialEntryValues(schema),
                     translateFrom
                 )
             );

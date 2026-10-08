@@ -203,6 +203,11 @@ genuinely belongs to a framework-free core:
   the proposal is what the _human_ is being asked to decide, and a client
   renders the step list from one and the card from the other. A client reducer written against this union turns a new
   event kind into a compile error rather than a silently ignored frame.
+- `MAX_MESSAGE_LENGTH` — the longest message a turn may carry. Here, not on the
+  server's DTO, because the admin composer counts against the same number and
+  refuses to send past it; with the bound on one side only, an oversized paste
+  reached the server and came back as a validation sentence under "Something
+  went wrong".
 - `RunLimits` / `DEFAULT_RUN_LIMITS` / `RunStopReason` — the three ceilings
   (steps, wall clock, tokens) and why a run ended. `RunStopReason` is a superset
   of `ModelStopReason`: the model reports why _it_ stopped, this reports why the

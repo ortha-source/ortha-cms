@@ -6,9 +6,10 @@ import {
     CollapsibleContent,
     CollapsibleTrigger
 } from '@orthacms/design-system';
-import type { GeneralTabGroup } from '../../../../../domain/generalTabLayout';
+import type { GroupDoc } from '@orthacms/schema-builder-domain';
 import type { FieldListEditing } from '../fieldListEditing';
 import { FieldRows } from '../FieldRows';
+import type { SortableList } from '../sortableList';
 
 const messages = defineMessages({
     collapsed: {
@@ -22,19 +23,30 @@ const messages = defineMessages({
     empty: {
         id: 'schemaBuilder.group.empty',
         defaultMessage: 'No fields — the schema refuses an empty group.'
+    },
+    emptyDrop: {
+        id: 'schemaBuilder.group.emptyDrop',
+        defaultMessage:
+            'No fields — the schema refuses an empty group. Drag a field here.'
     }
 });
 
 /**
  * A group as the entry editor draws it: an accordion block inside General.
  * Open here whatever `collapsed` says — this page is about what is inside —
- * with the flag shown as a badge instead.
+ * with the flag shown as a badge instead. Its fields are one list of the
+ * General tab's sortable scope, so a field can be dragged in — an empty group
+ * included — or out.
  */
 export function GroupAccordion({
     group,
-    fields,
+    list,
     editing
-}: GeneralTabGroup & { editing?: FieldListEditing }) {
+}: {
+    group: GroupDoc;
+    list: SortableList;
+    editing?: FieldListEditing;
+}) {
     const intl = useIntl();
     return (
         <Collapsible defaultOpen className="mx-4 my-3 rounded-lg border">
@@ -63,20 +75,22 @@ export function GroupAccordion({
                 </span>
                 <span className="ml-auto shrink-0 text-xs text-muted-foreground">
                     {intl.formatMessage(messages.count, {
-                        count: fields.length
+                        count: list.fields.length
                     })}
                 </span>
             </CollapsibleTrigger>
-            <CollapsibleContent>
-                {fields.length === 0 ? (
-                    <p className="border-t px-4 py-3 text-xs text-destructive">
-                        {intl.formatMessage(messages.empty)}
-                    </p>
-                ) : (
-                    <div className="border-t">
-                        <FieldRows fields={fields} editing={editing} />
-                    </div>
-                )}
+            <CollapsibleContent className="border-t">
+                <FieldRows
+                    list={list}
+                    editing={editing}
+                    empty={
+                        <p className="px-4 py-3 text-xs text-destructive">
+                            {intl.formatMessage(
+                                editing ? messages.emptyDrop : messages.empty
+                            )}
+                        </p>
+                    }
+                />
             </CollapsibleContent>
         </Collapsible>
     );

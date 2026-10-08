@@ -1,134 +1,73 @@
-import {
-    closestCenter,
-    DndContext,
-    KeyboardSensor,
-    PointerSensor,
-    useSensor,
-    useSensors,
-    type Announcements,
-    type DragEndEvent
-} from '@dnd-kit/core';
+import type { ReactNode } from 'react';
+import { useDndContext, useDroppable } from '@dnd-kit/core';
 import {
     SortableContext,
-    sortableKeyboardCoordinates,
     verticalListSortingStrategy
 } from '@dnd-kit/sortable';
-import { defineMessages, useIntl } from 'react-intl';
-import type { FieldEntry } from '@orthacms/schema-builder-domain';
-import { canMoveField } from '../../../../../../domain/canMoveField';
+import { cn } from '@orthacms/design-system';
 import type { FieldListEditing } from '../../fieldListEditing';
+import {
+    listOf,
+    type SortableList,
+    type SortableListData
+} from '../../sortableList';
 import { SortableFieldRow } from './SortableFieldRow';
 
-const messages = defineMessages({
-    instructions: {
-        id: 'schemaBuilder.reorder.instructions',
-        defaultMessage:
-            'Press space to pick up a field, the arrow keys to move it, space again to drop it, escape to cancel.'
-    },
-    pickedUp: {
-        id: 'schemaBuilder.reorder.pickedUp',
-        defaultMessage: 'Picked up {name}.'
-    },
-    over: {
-        id: 'schemaBuilder.reorder.over',
-        defaultMessage: '{name} is over {target}.'
-    },
-    dropped: {
-        id: 'schemaBuilder.reorder.dropped',
-        defaultMessage: 'Dropped {name}.'
-    },
-    refused: {
-        id: 'schemaBuilder.reorder.refused',
-        defaultMessage:
-            '{name} stays where it is: the form orders fields of different kinds itself.'
-    },
-    cancelled: {
-        id: 'schemaBuilder.reorder.cancelled',
-        defaultMessage: 'Moving {name} was cancelled.'
-    }
-});
-
-type Props = { fields: readonly FieldEntry[]; editing: FieldListEditing };
+type Props = {
+    list: SortableList;
+    editing: FieldListEditing;
+    /** Drawn — and dropped on — when the list has no fields. */
+    empty?: ReactNode;
+};
 
 /**
- * One list of fields the person can reorder. Each list — the loose fields,
- * each group, Relations, Media — is its own context, so a field never leaves
- * its list; a drop the entry editor would undo (across ranks) is refused and
- * said so. Announcements name fields, not internal keys.
+ * One list of a `SortableFieldScope`. Its rows are the drop targets; an empty
+ * list is one itself, so a field can still be dragged into it. A field
+ * dragged in from another list lights the list up.
  */
-export function SortableFieldRows({ fields, editing }: Props) {
-    const intl = useIntl();
-    const sensors = useSensors(
-        useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-        useSensor(KeyboardSensor, {
-            coordinateGetter: sortableKeyboardCoordinates
-        })
-    );
-    const byKey = (key: string | number | undefined) =>
-        fields.find((entry) => entry.key === key);
-    const nameOf = (key: string | number | undefined) =>
-        byKey(key)?.name ?? String(key);
-    const allowed = (
-        from: string | number,
-        to: string | number | undefined
-    ) => {
-        const field = byKey(from);
-        const target = byKey(to);
-        return Boolean(field && target && canMoveField(field, target));
-    };
-    const announcements: Announcements = {
-        onDragStart: ({ active }) =>
-            intl.formatMessage(messages.pickedUp, { name: nameOf(active.id) }),
-        onDragOver: ({ active, over }) =>
-            // Over itself is where it started: nothing to say.
-            over && over.id !== active.id
-                ? intl.formatMessage(messages.over, {
-                      name: nameOf(active.id),
-                      target: nameOf(over.id)
-                  })
-                : undefined,
-        onDragEnd: ({ active, over }) =>
-            !over || active.id === over.id || allowed(active.id, over.id)
-                ? intl.formatMessage(messages.dropped, {
-                      name: nameOf(active.id)
-                  })
-                : intl.formatMessage(messages.refused, {
-                      name: nameOf(active.id)
-                  }),
-        onDragCancel: ({ active }) =>
-            intl.formatMessage(messages.cancelled, { name: nameOf(active.id) })
-    };
-    const onDragEnd = ({ active, over }: DragEndEvent) => {
-        if (!over || active.id === over.id || !allowed(active.id, over.id))
-            return;
-        editing.onMove(String(active.id), String(over.id));
-    };
+export function SortableFieldRows({ list, editing, empty }: Props) {
+    const data: SortableListData = { list: list.id };
+    const { setNodeRef } = useDroppable({
+        id: list.id,
+        data,
+        // A list with rows is reached through them; as a target of its own it
+        // would compete with them for the drop.
+        disabled: list.fields.length > 0
+    });
+    const { active, over } = useDndContext();
+    const incoming =
+        active !== null &&
+        listOf(over) === list.id &&
+        listOf(active) !== list.id;
     return (
-        <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={onDragEnd}
-            accessibility={{
-                announcements,
-                screenReaderInstructions: {
-                    draggable: intl.formatMessage(messages.instructions)
-                }
-            }}
+        <div
+            ref={setNodeRef}
+            data-drop-target={incoming || undefined}
+            className={cn(
+                'transition-colors',
+                incoming && 'bg-accent/60 ring-2 ring-inset ring-ring'
+            )}
         >
-            <SortableContext
-                items={fields.map((entry) => entry.key)}
-                strategy={verticalListSortingStrategy}
-            >
-                <ul className="divide-y">
-                    {fields.map((entry) => (
-                        <SortableFieldRow
-                            key={entry.key}
-                            entry={entry}
-                            editing={editing}
-                        />
-                    ))}
-                </ul>
-            </SortableContext>
-        </DndContext>
+            {list.fields.length === 0 ? (
+                empty
+            ) : (
+                <SortableContext
+                    id={list.id}
+                    items={list.fields.map((entry) => entry.key)}
+                    strategy={verticalListSortingStrategy}
+                >
+                    <ul className="divide-y">
+                        {list.fields.map((entry) => (
+                            <SortableFieldRow
+                                key={entry.key}
+                                entry={entry}
+                                list={list.id}
+                                editing={editing}
+                            />
+                        ))}
+                    </ul>
+                </SortableContext>
+            )}
+        </div>
     );
 }

@@ -100,7 +100,10 @@ draft` is unpublish. There is **no** separate `unpublished`/`archived` status
       `single()` always ran them. The DSL throws the **first** issue's message,
       and those messages are the boot errors `define.spec.ts` pins — **do not
       reword one without updating that spec**.
-    - `OPTION_RULES` (`checkFieldOptions`) — `lang`, `pattern`, media `accept`.
+    - `OPTION_RULES` (`checkFieldOptions`) — `lang`, `pattern`, media `accept`,
+      `defaultValue` (`lib/fields/default-value.ts`: which types take one, the
+      relative `'today'` / `'now'`, and `defaultValueProblem`, which runs the
+      default through `validateFieldValue`).
       The DSL's field builders throw on these before a type exists; a schema
       held as data (the schema builder's document) runs them here. `pattern`
       goes through `compilePattern`, so "accepted here" means "applied at

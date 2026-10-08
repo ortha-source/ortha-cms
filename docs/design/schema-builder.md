@@ -49,8 +49,13 @@ Exactly what the DSL can express — `ContentTypeOptions`, `*FieldOptions`,
 - **Type:** `label`, `description`, `path` (pages), `publishable`, `paranoid`,
   `i18n`, `groups`. The flags are fixed after creation except turning trash on.
 - **Field, General tab:** label, machine name, `required`, `localized` (i18n
-  types only), `lang`; for a relation its target, cardinality, inverse field
-  and `onDelete`.
+  types only), `lang`; for a relation its target, cardinality, inverse field,
+  `onDelete` and — on an i18n type, in place of `localized` — `syncAcrossLocales`
+  as a two-way choice ("Links in translations"). The "sync" option is named
+  for the mode it actually runs in, which the **target** decides: the same
+  entry in every locale (untranslated target) or the target's translation in
+  each locale (translated target), with a note that a missing translation
+  leaves that locale without the link rather than creating anything.
 - **Field, Validation tab:** text `minLength`/`maxLength`/`pattern`; richtext
   `minLength`/`maxLength`/`structure`; number `min`/`max`/`integer`; money
   `min`/`max`; select and multiselect `options`; media `multiple` and `accept`.
@@ -68,24 +73,38 @@ media fields on Media, so "group" and "width" are hidden for them.
 Above the groups the editor orders fields by control shape — inputs, then
 choices, then long text — and keeps declaration order only within a rank.
 Inside a group the author's order holds. The builder therefore only allows a
-reorder within one rank or one group.
+reorder within one rank or one group — while a field dragged into a group, or
+out of one to the loose fields, is always a change the editor shows, so that
+drop is allowed wherever it lands.
 
 ### Not in the DSL yet
 
-Default values, option labels, uniqueness of a scalar field, item counts, date
-ranges, currency on money, cross-field checks, conditional visibility,
-repeatable blocks. Each is a separate change to the DSL first.
+Option labels, uniqueness of a scalar field, item counts, date ranges, currency
+on money, cross-field checks, conditional visibility, repeatable blocks. Each is
+a separate change to the DSL first.
+
+### Default values are a prefill
+
+`defaultValue` (DSL) is what the entry editor's **create form** starts a field
+at — the builder offers it on the General tab with that said under the control.
+It is not a column `DEFAULT`: an existing entry keeps what it holds, and an
+entry created through the API without the field stays without it. It is offered
+on `text`, `number`, `money`, `boolean`, `date` (`'today'` or a fixed day),
+`datetime` (`'now'` or a fixed minute), `select` and `multiselect` — never on a
+relation or media field, whose value is a row id and so data, not code. A
+default must be a value the field accepts (`checkDefaultValue`); changing one
+is code-only.
 
 ## Change classification
 
-| Change                                                                        | Verdict                               |
-| ----------------------------------------------------------------------------- | ------------------------------------- |
-| New type; new optional field; label, order, display options                   | safe                                  |
-| Tightened validation; `required` on a live type; relation `unique`/`onDelete` | needs a data check                    |
-| Field removed; type removed                                                   | destructive — confirmed one by one    |
-| Type granted to a workspace or referenced by another, then removed            | blocked                               |
-| Rename, retype, `i18n`/`publishable` toggled, trash turned off                | blocked in v1                         |
-| Required field added to a non-publishable type with rows                      | blocked (no default value in the DSL) |
+| Change                                                                        | Verdict                                                  |
+| ----------------------------------------------------------------------------- | -------------------------------------------------------- |
+| New type; new optional field; label, order, display options                   | safe                                                     |
+| Tightened validation; `required` on a live type; relation `unique`/`onDelete` | needs a data check                                       |
+| Field removed; type removed                                                   | destructive — confirmed one by one                       |
+| Type granted to a workspace or referenced by another, then removed            | blocked                                                  |
+| Rename, retype, `i18n`/`publishable` toggled, trash turned off                | blocked in v1                                            |
+| Required field added to a non-publishable type with rows                      | blocked (a default is a prefill, not a column `DEFAULT`) |
 
 ## Invariants
 

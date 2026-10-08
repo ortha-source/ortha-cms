@@ -13,6 +13,7 @@ import {
     TooltipTrigger
 } from '@orthacms/design-system';
 import type { CopilotSession } from '../../application/sessions';
+import { chatsStatus } from '../../application/chatsStatus';
 import {
     NEW_CHAT_KEY_SHORTCUTS,
     shortcutModifierGlyph
@@ -178,8 +179,7 @@ export function CopilotDock({
         );
     }
 
-    const attention = sessions.filter((s) => s.awaiting || s.unread).length;
-    const anyAwaiting = sessions.some((s) => s.awaiting);
+    const { attention, awaiting: anyAwaiting } = chatsStatus(sessions);
     const launcherLabel = intl.formatMessage(
         attention > 0 ? messages.chatsAttention : messages.chats,
         { count: sessions.length, attention }

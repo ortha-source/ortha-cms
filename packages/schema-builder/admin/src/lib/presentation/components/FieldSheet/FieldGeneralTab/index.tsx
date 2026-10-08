@@ -3,6 +3,7 @@ import { InputField } from '@orthacms/design-system';
 import type { SchemaDocument, TypeDoc } from '@orthacms/schema-builder-domain';
 import type { FieldEditor } from '../../../../application/useFieldEditor';
 import { SwitchField } from '../SwitchField';
+import { DefaultValueField } from './DefaultValueField';
 import { RelationSettings } from './RelationSettings';
 
 const messages = defineMessages({
@@ -45,7 +46,7 @@ type Props = {
     nameError?: string;
 };
 
-/** Label, name, required, locale — and for a relation, what it links to. */
+/** Label, name, required, locale, the default — and for a relation, what it links to. */
 export function FieldGeneralTab({ editor, type, document, nameError }: Props) {
     const intl = useIntl();
     const { entry } = editor;
@@ -86,7 +87,8 @@ export function FieldGeneralTab({ editor, type, document, nameError }: Props) {
                     }
                 />
             )}
-            {type.i18n && !inverse && (
+            {/* A relation says how its links behave per locale in its own settings. */}
+            {type.i18n && !isRelation && (
                 <SwitchField
                     id="field-localized"
                     label={intl.formatMessage(messages.localized)}
@@ -108,6 +110,7 @@ export function FieldGeneralTab({ editor, type, document, nameError }: Props) {
                     }
                 />
             )}
+            <DefaultValueField spec={spec} onChange={editor.setSpec} />
             {spec.type === 'relation' && (
                 <RelationSettings
                     spec={spec}

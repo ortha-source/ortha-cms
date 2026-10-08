@@ -3,12 +3,16 @@ import { useLocation, useMatch, useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { Layers, Sparkles } from 'lucide-react';
 import {
+    cn,
     SegmentedControl,
+    SegmentedControlCount,
     SegmentedControlItem,
     SidebarGroup
 } from '@orthacms/design-system';
 import { useHasPermission } from '@orthacms/identity-admin';
 import { useCopilotAvailable } from '../../application/useCopilotModels';
+import { useCopilotSessions } from '../../application/useCopilotSessions';
+import { chatsStatus } from '../../application/chatsStatus';
 import {
     COPILOT_USE,
     agentsPath,
@@ -29,6 +33,19 @@ const messages = defineMessages({
     agents: {
         id: 'copilot.viewSwitcher.agents',
         defaultMessage: 'Agents'
+    },
+    // The segment's name once chats are open — the same words the dock's
+    // "Ask Ortha AI" uses. It still starts with the visible label, so "click
+    // Agents" keeps working by voice (2.5.3), and the count and the marker are
+    // said, not only drawn.
+    agentsChats: {
+        id: 'copilot.viewSwitcher.agentsChats',
+        defaultMessage: 'Agents — {count, plural, one {# chat} other {# chats}}'
+    },
+    agentsChatsAttention: {
+        id: 'copilot.viewSwitcher.agentsChatsAttention',
+        defaultMessage:
+            'Agents — {count, plural, one {# chat} other {# chats}}, {attention} waiting for you or finished'
     }
 });
 
@@ -82,6 +99,11 @@ function readCmsPath(workspaceId: string): string | null {
  * to ask a question should not have to navigate back to it, and the round trip
  * is the whole reason both surfaces exist.
  *
+ * **The Agents half carries the dock's status** — the count of open chats and
+ * the same amber/primary dot "Ask Ortha AI" shows when one is waiting for you
+ * or finished. It matters most on the Agents view itself, where the dock stands
+ * down and this is the only place a background chat can still say so.
+ *
  * It renders in the sidebar's contextual region — **above**
  * `CurrentWorkspaceProvider`, like every other section there — so it resolves the
  * open workspace from the route rather than from context. Nothing renders
@@ -99,6 +121,11 @@ export function ViewSwitcher() {
     const deploymentRunsCopilot = useCopilotAvailable({ enabled: canUse });
     const location = useLocation();
     const navigate = useNavigate();
+    // The dock's chats — the ones running, finished or waiting **off** the
+    // page. On the Agents view the dock stands down, so this segment is the
+    // one place that still says a chat in the background finished or is
+    // waiting; a chat the page itself is showing is already on screen.
+    const status = chatsStatus(useCopilotSessions().dock);
 
     const inAgents = isAgentsPath(location.pathname);
     const here = `${location.pathname}${location.search}`;
@@ -113,6 +140,16 @@ export function ViewSwitcher() {
     if (!workspaceId || !canUse || !deploymentRunsCopilot) {
         return null;
     }
+
+    const agentsLabel =
+        status.count === 0
+            ? intl.formatMessage(messages.agents)
+            : intl.formatMessage(
+                  status.attention > 0
+                      ? messages.agentsChatsAttention
+                      : messages.agentsChats,
+                  { count: status.count, attention: status.attention }
+              );
 
     const change = (value: string) => {
         // Radix clears the value when the selected item is clicked again. That
@@ -161,10 +198,35 @@ export function ViewSwitcher() {
                 </SegmentedControlItem>
                 <SegmentedControlItem
                     value={AGENTS}
+                    aria-label={agentsLabel}
                     className="text-sidebar-foreground hover:text-sidebar-foreground data-[state=on]:bg-sidebar-accent data-[state=on]:text-sidebar-foreground flex-1 justify-center px-2"
                 >
                     <Sparkles className="size-3.5" aria-hidden />
                     {intl.formatMessage(messages.agents)}
+                    {/* The count and the marker, exactly as "Ask Ortha AI"
+                        draws them: amber for a chat waiting on you, primary
+                        for one that finished off screen. Both are in the
+                        segment's name as well — colour is never the only
+                        signal. Full sidebar tokens in both states, for the
+                        reason the segment's own text uses them. */}
+                    {status.count > 0 && (
+                        <SegmentedControlCount
+                            aria-hidden
+                            className="bg-sidebar-foreground text-sidebar group-data-[state=on]:bg-sidebar-foreground group-data-[state=on]:text-sidebar relative h-4 min-w-4 px-1 text-[0.625rem]"
+                        >
+                            {status.count}
+                            {status.attention > 0 && (
+                                <span
+                                    className={cn(
+                                        'ring-sidebar absolute -top-0.5 -right-0.5 size-2 rounded-full ring-2',
+                                        status.awaiting
+                                            ? 'bg-warning'
+                                            : 'bg-primary'
+                                    )}
+                                />
+                            )}
+                        </SegmentedControlCount>
+                    )}
                 </SegmentedControlItem>
             </SegmentedControl>
         </SidebarGroup>

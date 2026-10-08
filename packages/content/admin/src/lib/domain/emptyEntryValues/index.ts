@@ -1,3 +1,4 @@
+import { isRelativeDefault } from '@orthacms/content-domain';
 import type { ContentField, ContentTypeDetail } from '../types/contentType';
 import { CONTENT_FIELD_TYPE } from '../constants';
 
@@ -23,6 +24,53 @@ export function emptyValueFor(field: ContentField): unknown {
         default:
             return '';
     }
+}
+
+const pad = (n: number) => String(n).padStart(2, '0');
+
+/**
+ * A relative default at `now`, in the form's own formats — the local calendar
+ * date (`YYYY-MM-DD`) or the local minute (`YYYY-MM-DDTHH:mm`), the strings
+ * the date field writes, so a prefilled value is indistinguishable from a
+ * picked one.
+ */
+function resolveRelative(type: string, now: Date): string {
+    const day = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    return type === CONTENT_FIELD_TYPE.Datetime
+        ? `${day}T${pad(now.getHours())}:${pad(now.getMinutes())}`
+        : day;
+}
+
+/**
+ * The value a **new** entry's form starts one field at: its declared
+ * `defaultValue`, else its empty value. Only a create seeds through this — an
+ * existing record's untouched field stays empty (`mergeEntryValues`), because
+ * a default is what a blank form offers, never what a stored record is
+ * assumed to hold.
+ */
+export function initialValueFor(field: ContentField, now: Date): unknown {
+    const value = field.defaultValue;
+    if (value === undefined || value === null) return emptyValueFor(field);
+    if (isRelativeDefault(field.type, value))
+        return resolveRelative(field.type, now);
+    // A fresh array, so editing the form never reaches the cached schema.
+    return Array.isArray(value) ? [...value] : value;
+}
+
+/**
+ * The `values` bag a create form starts from — every field at its declared
+ * default, or empty. `now` resolves the relative defaults; the caller passes
+ * it so one seed reads one clock.
+ */
+export function initialEntryValues(
+    schema: ContentTypeDetail,
+    now: Date = new Date()
+): Record<string, unknown> {
+    const values: Record<string, unknown> = {};
+    for (const field of schema.fields) {
+        values[field.name] = initialValueFor(field, now);
+    }
+    return values;
 }
 
 /** A blank `values` bag for a content type — every field at its empty value. */

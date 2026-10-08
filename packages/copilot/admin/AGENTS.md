@@ -52,6 +52,7 @@ application/
   useComposerSkills.ts     # joins that catalogue to the chat's staged selection
   useManageSkills.ts       # the admin list, one skill, and the three writes
   tabBadge.ts              # pure: what the tab's (n) counts (tested)
+  chatsStatus.ts           # pure: count + attention, for the dock and the switcher (tested)
   useTabBadge.ts           # the effect over it: title + favicon dot
   useConversations.ts      # thread list (query)
   useConversation.ts       # one thread: a query (the page) + a mutation (the panel)
@@ -189,6 +190,15 @@ left** (remembered per workspace in `sessionStorage`), not to the workspace's
 default section. Someone who breaks off mid-entry to ask a question should not
 have to navigate back to it; that round trip is the whole reason both surfaces
 exist.
+
+The switcher's **Agents** segment carries the dock's status — the count of open
+dock chats and the same dot, amber for "waiting for you", primary for
+"finished" — through the same `chatsStatus` the launcher reads, so the two
+cannot disagree. Both are in the segment's accessible name too ("Agents — 2
+chats, 1 waiting for you or finished"). It counts `sessions.dock`, not every
+chat: a chat the page is presenting is already on screen. On the Agents view,
+where the launcher stands down, it is the only thing still saying a background
+chat wants you.
 
 Why a page at all, when the panel exists: the panel is for a question _about the
 page you are on_, and it is deliberately small and non-modal. The page is for the
@@ -928,6 +938,26 @@ load-bearing:
   stripped of both. The controls row is inside that wrapper, so it reads as one
   box; two nested rings on focus is the giveaway that a composer was assembled
   rather than designed.
+
+## The composer knows the length limit
+
+`MAX_MESSAGE_LENGTH` comes from `@orthacms/copilot-domain`, the same constant
+the server's `CreateRunDto` enforces. Before the composer read it, an oversized
+paste went out and the `400` came back under "Something went wrong" — a crash as
+far as the person could tell. Now:
+
+- **From 80% of the limit a `count / limit` counter appears** beside the hint.
+  Not earlier: a counter on every one-line question is noise about a limit
+  nobody is near. It sits **outside** the live region, so it is not read aloud
+  per keystroke.
+- **Past the limit, the box refuses**: the border turns destructive, the field
+  is `aria-invalid`, Send is disabled, Enter does nothing, and the hint (the
+  live region) says how many characters over. The text stays in the box.
+- **No `maxLength` on the field**, for the reason the rename dialog has none: a
+  hard cap silently drops the tail of a paste.
+- The count is the trimmed text's UTF-16 length — never fewer than the server's
+  own count, so the box may refuse an emoji-heavy message slightly early but
+  never sends one the server would reject.
 
 ## Attaching files
 

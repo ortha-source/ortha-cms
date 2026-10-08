@@ -200,7 +200,9 @@ kind). `storage: false` means no migration is generated for it.
 | `i18n` or `publishable` toggled, trash turned off              | `blocked`     | `flag-needs-data-migration` | yes     |
 
 "Live" means non-publishable: there `required` is `NOT NULL` (`content:I-07`), so a required
-column added to a table with rows would fail the `ALTER` — and the DSL has no default value.
+column added to a table with rows would fail the `ALTER` — and a field's `defaultValue` does not
+help: it prefills the create form, it is not a column `DEFAULT`. Changing a default is
+`safe` / `code-only`.
 
 A blocked plan is **answered**, not thrown: the review shows why, files and SQL stay empty.
 An apply re-plans and refuses a blocked one with `422 schema-builder.blocked`.
@@ -326,17 +328,17 @@ Errors carry `{ statusCode, code, message, details? }`:
 `/content-model` and `/content-model/:typeName`, in the global sidebar's directory group
 (order 50), gated on `content:read`. Global because types are the same in every workspace.
 
-| Element        | What it does                                                                                                                                                                                                                                                                                                                                   |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Header         | "N unsaved changes", Discard, Review changes (off while the draft breaks a rule)                                                                                                                                                                                                                                                               |
-| Type rail      | Every type, its origin, a dot for a changed one; New content type                                                                                                                                                                                                                                                                              |
-| Type editor    | Settings and flags, the issues, the field list under General (loose fields by rank, then group accordions), Relations, Media                                                                                                                                                                                                                   |
-| Add-field page | `?addField`, a stepper and one card: the kind (each says what it is for; "Long text" is rich text with the textarea widget) → basics (relation: target and how many) → rules and display; joins the draft only on Add                                                                                                                          |
-| Field sheet    | General (label, machine name, required, localized, lang; for a relation its target and Many-to-one / One-to-one / Many-to-many, each explained), Validation (only the rules the type takes), Display (help text, placeholder, width, group, hidden — no control picker, the kind is the control; no row key, two adjacent halves share a line) |
-| Groups sheet   | General's accordion blocks — never sections, never tabs                                                                                                                                                                                                                                                                                        |
-| Review page    | `?review` on the same page, a stepper and one card: changes and confirmations → files and SQL → migration name and Apply                                                                                                                                                                                                                       |
-| Apply progress | The review card after Apply: three steps in one `role="status"`, then the outcome; a failure is an alert that says the draft is kept                                                                                                                                                                                                           |
-| Grant dialog   | Active workspaces as searchable tiles with their monograms, "Select all shown", Grant / Not now                                                                                                                                                                                                                                                |
+| Element        | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Header         | "N unsaved changes", Discard, Review changes (off while the draft breaks a rule)                                                                                                                                                                                                                                                                                                                                                                    |
+| Type rail      | Every type, its origin, a dot for a changed one; New content type                                                                                                                                                                                                                                                                                                                                                                                   |
+| Type editor    | Settings and flags, the issues, the field list under General (loose fields by rank, then group accordions), Relations, Media                                                                                                                                                                                                                                                                                                                        |
+| Add-field page | `?addField`, a stepper and one card: the kind (each says what it is for; "Long text" is rich text with the textarea widget) → basics (relation: target and how many) → rules and display; joins the draft only on Add                                                                                                                                                                                                                               |
+| Field sheet    | General (label, machine name, required, localized, lang, the default value with a hint that it only prefills a new entry's form — not on relations and media; for a relation its target and Many-to-one / One-to-one / Many-to-many, each explained), Validation (only the rules the type takes), Display (help text, placeholder, width, group, hidden — no control picker, the kind is the control; no row key, two adjacent halves share a line) |
+| Groups sheet   | General's accordion blocks — never sections, never tabs                                                                                                                                                                                                                                                                                                                                                                                             |
+| Review page    | `?review` on the same page, a stepper and one card: changes and confirmations → files and SQL → migration name and Apply                                                                                                                                                                                                                                                                                                                            |
+| Apply progress | The review card after Apply: three steps in one `role="status"`, then the outcome; a failure is an alert that says the draft is kept                                                                                                                                                                                                                                                                                                                |
+| Grant dialog   | Active workspaces as searchable tiles with their monograms, "Select all shown", Grant / Not now                                                                                                                                                                                                                                                                                                                                                     |
 
 ### States
 
@@ -347,7 +349,9 @@ editing is its own empty state. A read-only server says why in one notice.
 ### Accessibility details worth keeping
 
 - Reordering works from the handle by keyboard; dnd-kit's announcements are replaced with ones
-  that name fields, and a drop on itself says nothing.
+  that name fields and lists, and a drop on itself says nothing.
+- A field is dragged into a group on General, an empty one included, and back out to the loose
+  fields — by pointer or by keyboard; the move sets or clears `admin.group` (`field.regroup`).
 - A drop across ranks above the groups is refused (`canMoveField`): the entry editor would
   re-sort it, so the builder will not pretend.
 - Apply's disabled state is explained by text tied to the button with `aria-describedby`.
@@ -476,8 +480,9 @@ routes, the scratch folder, the lock and the operation log, and the `/content-mo
 
 - Renames, retypes and flag changes beyond the trash: each needs a data migration the builder
   would have to guess.
-- Default values, option labels, uniqueness of a scalar, conditional fields: not in the DSL
-  yet (I-13 — the DSL first).
+- Option labels, uniqueness of a scalar, conditional fields: not in the DSL yet (I-13 — the
+  DSL first). Default values are, as a create-form prefill only — never a stored default,
+  and never on a relation or media field.
 - A form preview: the entry editor is the preview.
 
 ## 15. Where the code and the documentation diverge

@@ -98,7 +98,7 @@ test.describe('Content i18n — degraded reads and edge locales', () => {
         );
         // …with a way to ask again, rather than a dead end.
         await expect(
-            contentLibraryPage.localeMenu.getByRole('menuitem', {
+            contentLibraryPage.localeMenu.getByRole('button', {
                 name: 'Try again'
             })
         ).toBeVisible();
@@ -140,7 +140,7 @@ test.describe('Content i18n — degraded reads and edge locales', () => {
             contentLibraryPage.localeMenu.getByText(/couldn’t be loaded/)
         ).toHaveCount(0);
         await expect(
-            contentLibraryPage.localeMenu.getByRole('menuitem', {
+            contentLibraryPage.localeMenu.getByRole('button', {
                 name: 'Reload locales'
             })
         ).toHaveCount(0);

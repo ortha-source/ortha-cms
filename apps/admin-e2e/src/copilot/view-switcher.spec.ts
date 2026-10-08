@@ -121,4 +121,51 @@ test.describe('CMS ⇄ Agents switcher', () => {
         await expect(agentsPage.dock).toBeVisible();
         await expect(copilotDockPage.panel()).toBeVisible();
     });
+
+    test('the Agents segment counts the open chats, like "Ask Ortha AI"', async ({
+        agentsPage,
+        contentLibraryPage,
+        copilotDockPage
+    }) => {
+        await contentLibraryPage.goto(WORKSPACE_ID);
+        await expect(agentsPage.viewTab('Agents')).toHaveAccessibleName(
+            'Agents'
+        );
+
+        await copilotDockPage.startChat();
+
+        // Said, not only drawn: the count is in the segment's name, and the
+        // name still starts with the visible label.
+        await expect(agentsPage.viewTab('Agents')).toHaveAccessibleName(
+            'Agents — 1 chat'
+        );
+        await expect(agentsPage.viewTab('Agents')).toContainText('1');
+    });
+
+    test('…and says a background chat finished, on the Agents view too', async ({
+        page,
+        agentsPage,
+        contentLibraryPage,
+        copilotDockPage
+    }) => {
+        // Held open so the window is collapsed while the run is still going —
+        // `unread` is only ever set on a chat that is off screen when it ends.
+        await mockCopilotApi(page, { runDelayMs: 1_500 });
+        await contentLibraryPage.goto(WORKSPACE_ID);
+        await copilotDockPage.startChat();
+        await copilotDockPage.ask('Set the summary please');
+        await copilotDockPage.composer().press('Escape');
+
+        await expect(agentsPage.viewTab('Agents')).toHaveAccessibleName(
+            'Agents — 1 chat, 1 waiting for you or finished'
+        );
+
+        // The launcher stands down here, so this is the one place left that
+        // still says the chat in the background wants the user back.
+        await agentsPage.switchView('Agents');
+        await expect(agentsPage.dock).toBeHidden();
+        await expect(agentsPage.viewTab('Agents')).toHaveAccessibleName(
+            /waiting for you or finished/
+        );
+    });
 });

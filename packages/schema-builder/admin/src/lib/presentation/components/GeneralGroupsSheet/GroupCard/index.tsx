@@ -30,7 +30,7 @@ const messages = defineMessages({
     empty: {
         id: 'schemaBuilder.groups.empty',
         defaultMessage:
-            'No fields yet — the schema refuses an empty group. Put one in it from a field’s Display tab.'
+            'No fields yet — the schema refuses an empty group. Drag a field into it, or pick it on a field’s Display tab.'
     }
 });
 

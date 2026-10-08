@@ -759,6 +759,7 @@ Statements that must always hold. Both a review list and a starting set of test 
 - **I-35** — Mail is the one group whose answer may be **nothing**, and the two offline adapters are reachable from no picker: `mail-domain`, `mail-provider-console` and `mail-provider-testkit` are installed in every application and named by no template, while `mail-server` and `mail-provider-smtp` arrive only with the chosen backend. An application that configures none registers no mail plugin, keeps returning the raw invite link, and ships no `config/mail.ts` at all.
 - **I-36** — The generated application's content plumbing agrees with the code that owns it: `src/content/index.ts` is byte for byte `renderManifest([])`, the baseline migration is what `drizzle-kit generate` makes of that manifest (a re-run reports no changes), and the drizzle config's `out`, `ContentPlugin`'s migrations descriptor — resolved from source and from the compiled output — and the schema builder's default name **one** folder.
 - **I-37** — Every server-side TypeScript project of the generated application resolves package subpath exports (`node16`), because the manifest and every type file import `@orthacms/content-server/define`.
+- **I-38** — The generated admin ships this repository's favicon (`apps/admin/public/favicon.{svg,ico}`) byte for byte and links both from `index.html`, so a scaffolded app carries the same tab icon in `orthacms dev` and behind `staticDir` in `orthacms start`.
 
 ## 09. Testing checklist
 

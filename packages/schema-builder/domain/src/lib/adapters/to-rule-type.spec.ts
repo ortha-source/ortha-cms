@@ -64,6 +64,47 @@ describe('toRuleField', () => {
     });
 });
 
+describe('toRuleField — a default and what it is checked against', () => {
+    it('carries the options and the value rules alongside the default', () => {
+        expect(
+            toRuleField({
+                type: 'select',
+                options: ['a', 'b'],
+                defaultValue: 'a'
+            })
+        ).toEqual({
+            type: 'select',
+            required: false,
+            defaultValue: 'a',
+            options: ['a', 'b'],
+            validation: {}
+        });
+        expect(
+            toRuleField({ type: 'money', max: 10, defaultValue: 5 })
+        ).toMatchObject({ validation: { max: 10, integer: true } });
+    });
+
+    it('leaves the facts out without a default', () => {
+        expect(toRuleField({ type: 'select', options: ['a'] })).toEqual({
+            type: 'select',
+            required: false
+        });
+    });
+
+    it('lets the kernel catch a default the options no longer hold', () => {
+        const event = typeOf('event', {
+            stage: { type: 'select', options: ['a'], defaultValue: 'b' },
+            seats: { type: 'number', min: 1, defaultValue: 0 }
+        });
+        expect(
+            checkTypes([toRuleType(event)]).map((issue) => issue.message)
+        ).toEqual([
+            'Field "event.stage" has default value "b", which must be one of: a.',
+            'Field "event.seats" has default value 0, which must be ≥ 1.'
+        ]);
+    });
+});
+
 describe('toRuleType', () => {
     it('lets the kernel judge a document the way it judges the DSL', () => {
         const post = typeOf(

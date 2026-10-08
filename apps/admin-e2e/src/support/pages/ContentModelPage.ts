@@ -160,6 +160,65 @@ export class ContentModelPage extends BasePage {
         );
     }
 
+    /** A field's row, by its machine name. */
+    fieldRow(name: string): Locator {
+        return this.page
+            .getByRole('listitem')
+            .filter({ has: this.editField(name) });
+    }
+
+    /** The drop zone a General-tab group with no fields draws. */
+    emptyGroupDropZone(label: string): Locator {
+        return this.groupTrigger(label)
+            .locator('xpath=..')
+            .getByText(/the schema refuses an empty group/);
+    }
+
+    /**
+     * Drags a field by its handle with the pointer and drops it onto `target`
+     * — a field row (landing before it) or an empty list's drop zone. The row
+     * is moved so its centre sits just above the target's: dnd-kit picks the
+     * target by the closest centre, and the upper half means "before".
+     */
+    async dragField(name: string, target: Locator): Promise<void> {
+        await target.scrollIntoViewIfNeeded();
+        const handle = await this.reorderHandle(name).boundingBox();
+        const row = await this.fieldRow(name).boundingBox();
+        const to = await target.boundingBox();
+        if (!handle || !row || !to)
+            throw new Error(`Cannot drag ${name}: not on screen`);
+        const x = handle.x + handle.width / 2;
+        const y = handle.y + handle.height / 2;
+        const dy = to.y + to.height / 2 - (row.y + row.height / 2) - 4;
+        await this.page.mouse.move(x, y);
+        await this.page.mouse.down();
+        // Past the 4px activation distance first, so the drag starts.
+        await this.page.mouse.move(x, y + (dy < 0 ? -8 : 8), { steps: 4 });
+        await this.page.mouse.move(x, y + dy, { steps: 16 });
+        await this.page.mouse.move(x, y + dy + 1);
+        await this.page.mouse.up();
+    }
+
+    /**
+     * Moves a field one step by keyboard from its handle — into another list
+     * when that is the nearest row that way — waiting for the announcement
+     * that says where it is (`over`) before dropping it.
+     */
+    async moveFieldByKeyboard(
+        name: string,
+        key: 'ArrowUp' | 'ArrowDown',
+        over: RegExp
+    ): Promise<void> {
+        const announced = (text: RegExp) =>
+            this.page.getByText(text).first().waitFor({ state: 'attached' });
+        await this.reorderHandle(name).focus();
+        await this.page.keyboard.press('Space');
+        await announced(new RegExp(`^Picked up ${name}\\.$`));
+        await this.page.keyboard.press(key);
+        await announced(over);
+        await this.page.keyboard.press('Space');
+    }
+
     /** A drag-and-drop announcement, as screen readers hear it. */
     announcement(text: RegExp): Locator {
         return this.page.getByText(text).first();
@@ -168,6 +227,27 @@ export class ContentModelPage extends BasePage {
     /** The General block's "Groups" button. */
     groupsButton(): Locator {
         return this.tab('General').getByRole('button', { name: 'Groups' });
+    }
+
+    /** A select field's option input in its sheet's Validation tab, 1-based. */
+    selectOption(sheet: Locator, index: number): Locator {
+        return sheet.getByRole('textbox', {
+            name: `Option ${index}`,
+            exact: true
+        });
+    }
+
+    /** The "Remove <option>" button beside a select's option. */
+    removeSelectOption(sheet: Locator, option: string): Locator {
+        return sheet.getByRole('button', {
+            name: `Remove ${option}`,
+            exact: true
+        });
+    }
+
+    /** The select's "New option" input. */
+    newSelectOption(sheet: Locator): Locator {
+        return sheet.getByRole('textbox', { name: 'New option' });
     }
 
     /** The groups sheet. */

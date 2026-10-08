@@ -16,6 +16,7 @@ domain/
   builtInTab/          which entry-editor tab a field lands on
   generalTabLayout/    General as the editor draws it: loose fields by rank, then groups
   fieldFacts/          what a field row says besides its name and type
+  fieldDrop/           what a dragged field's drop does: reorder, regroup, or refused
 infrastructure/
   httpSchemaGateway/   the impl — the ONLY apiClient user
   schemaKeys/          query keys
@@ -94,10 +95,16 @@ Hand-written types stay read-only and say how to hand them over.
   on (`canChangeFlag`) — every other flip needs a data migration. Judged
   against the **served** type, so a flag the draft changed can always be
   switched back before an apply.
-- **Order.** Each list (loose fields, each group, Relations, Media) is its own
-  sortable context; `canMoveField` refuses a drop across ranks above the groups,
-  because the entry editor would re-sort it. Reordering works from the handle
-  by keyboard; dnd-kit's announcements are replaced with ones that name fields.
+- **Order and groups by drag.** Each list (loose fields, each group,
+  Relations, Media) is its own sortable context, but General's lists share one
+  `SortableFieldScope`, so a field is dragged into a group — an empty one is a
+  drop target of its own — and back out to the loose fields (`field.regroup`
+  sets or clears `admin.group`). `fieldDrop` decides a drop: inside one list a
+  reorder that `canMoveField` refuses across ranks above the groups, because
+  the entry editor would re-sort it; into another list always allowed.
+  Relations and Media are a scope each — nothing there joins a group. Dragging
+  works from the handle by keyboard too; dnd-kit's announcements are replaced
+  with ones that name fields and lists.
 - **Groups** are edited in `GeneralGroupsSheet` — accordion blocks on General,
   never sections or tabs. An empty one is flagged: the schema refuses it.
 - **Leaving** the page with a draft asks first (`useUnsavedChanges`). The rail

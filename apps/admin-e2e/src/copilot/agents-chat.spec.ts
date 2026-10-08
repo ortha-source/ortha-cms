@@ -270,6 +270,51 @@ test.describe('Agents view — regressions', () => {
         );
     });
 
+    test('a message over the length limit is refused in the box, not by the server', async ({
+        page,
+        agentsPage
+    }) => {
+        // `MAX_MESSAGE_LENGTH` in `@orthacms/copilot-domain`. The server's
+        // `CreateRunDto` enforces the same number; before the composer knew it,
+        // an oversized paste went out and came back as "Something went wrong".
+        const max = 32_000;
+        const spy = await mockCopilotApi(page);
+        await agentsPage.goto(WORKSPACE_ID);
+        await agentsPage.welcomeHeading().waitFor();
+
+        // Short of the threshold: no counter for a limit nobody is near.
+        await agentsPage.composer().fill('How many authors are there?');
+        await expect(agentsPage.composerCounter()).toHaveCount(0);
+
+        await agentsPage.composer().fill('x'.repeat(max + 5));
+        await expect(agentsPage.composerHint()).toContainText(
+            /5 characters over the 32,000-character limit/
+        );
+        await expect(agentsPage.composerCounter()).toHaveText(
+            '32,005 / 32,000'
+        );
+        await expect(agentsPage.composer()).toHaveAttribute(
+            'aria-invalid',
+            'true'
+        );
+        await expect(agentsPage.sendButton()).toBeDisabled();
+
+        // Enter is refused too, and the text stays — nothing is truncated.
+        await agentsPage.composer().press('Enter');
+        await expect(agentsPage.composer()).toHaveValue('x'.repeat(max + 5));
+        expect(spy.runs).toHaveLength(0);
+
+        // Exactly at the limit is allowed, and goes out whole.
+        await agentsPage.composer().fill('x'.repeat(max));
+        await expect(agentsPage.composerHint()).toContainText(/Enter to send/);
+        await expect(agentsPage.composerCounter()).toHaveText(
+            '32,000 / 32,000'
+        );
+        await agentsPage.composer().press('Enter');
+        await expect.poll(() => spy.runs.length).toBe(1);
+        expect(spy.runs[0]?.['message']).toHaveLength(max);
+    });
+
     test('a truncated run explains itself in a translatable sentence', async ({
         page,
         agentsPage

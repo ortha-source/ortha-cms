@@ -11,6 +11,7 @@ import {
 } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { ArrowUp, Paperclip, Square } from 'lucide-react';
+import { MAX_MESSAGE_LENGTH } from '@orthacms/copilot-domain';
 import { Button, Textarea, cn } from '@orthacms/design-system';
 import { AttachmentChip } from '../AttachmentChip';
 import { SkillChip } from '../SkillChip';
@@ -73,6 +74,19 @@ const messages = defineMessages({
         id: 'copilot.composer.busyHint',
         defaultMessage:
             'Still answering — wait for it to finish, or press Stop to send this now.'
+    },
+    // The server refuses past the same number, and used to be the only thing
+    // that did: the box sent anything, and the refusal came back as a
+    // validation sentence under "Something went wrong" — a crash, as far as
+    // the person could tell, with their message apparently lost.
+    tooLong: {
+        id: 'copilot.composer.tooLong',
+        defaultMessage:
+            'Too long to send — {over, number} {over, plural, one {character} other {characters}} over the {max, number}-character limit.'
+    },
+    counter: {
+        id: 'copilot.composer.counter',
+        defaultMessage: '{count, number} / {max, number}'
     }
 });
 
@@ -85,6 +99,15 @@ const messages = defineMessages({
  * that the answer above stays on screen.
  */
 const MAX_HEIGHT = 152;
+
+/**
+ * Show the character count from this share of {@link MAX_MESSAGE_LENGTH} on.
+ *
+ * Not always: a counter on every one-line question is noise about a limit
+ * nobody is near. From here on it is the warning that arrives before the
+ * refusal, which is the point of having it at all.
+ */
+const COUNTER_FROM = 0.8;
 
 export interface ComposerProps {
     /** True while a run is in flight — the button becomes Stop. */
@@ -209,9 +232,23 @@ export function Composer({
     // between "attached" and "still uploading" once the message is gone.
     const blocked = busy || attachments?.uploading === true;
 
+    // Counted on what would be sent — the trimmed text — and in UTF-16 units,
+    // which is never fewer than the server's own count (it treats a surrogate
+    // pair as one character). So the box may refuse an emoji-heavy message a
+    // little early, but never lets through one the server would reject.
+    const length = value.trim().length;
+    const tooLong = length > MAX_MESSAGE_LENGTH;
+    const showCounter = length >= MAX_MESSAGE_LENGTH * COUNTER_FROM;
+
     const submit = () => {
         const text = value.trim();
         if (!text) {
+            return;
+        }
+        // Kept in the box, and the hint below already says why — no
+        // `maxLength` on the field either, since a hard cap silently drops the
+        // tail of a paste and leaves the person to find out which part went.
+        if (tooLong) {
             return;
         }
         if (blocked) {
@@ -302,7 +339,14 @@ export function Composer({
                 the field, so the controls below read as part of one box. The
                 field itself is stripped of both — two nested rings on focus is
                 the giveaway that a composer was assembled rather than designed. */}
-            <div className="border-input bg-card focus-within:border-primary focus-within:ring-primary/15 rounded-lg border shadow-xs transition-colors focus-within:ring-2">
+            <div
+                className={cn(
+                    'bg-card rounded-lg border shadow-xs transition-colors focus-within:ring-2',
+                    tooLong
+                        ? 'border-destructive focus-within:border-destructive focus-within:ring-destructive/15'
+                        : 'border-input focus-within:border-primary focus-within:ring-primary/15'
+                )}
+            >
                 {/* Skills above the files, because they change how the whole
                     turn is answered while a file is one thing in it. */}
                 {skills && skills.staged.length + skills.always.length > 0 ? (
@@ -358,6 +402,7 @@ export function Composer({
                     onPaste={onPaste}
                     placeholder={intl.formatMessage(messages.placeholder)}
                     aria-label={intl.formatMessage(messages.placeholder)}
+                    aria-invalid={tooLong || undefined}
                     rows={2}
                     className="min-h-0 resize-none overflow-y-auto border-0 bg-transparent px-3 py-2.5 shadow-none focus-visible:border-0 focus-visible:ring-0"
                 />
@@ -414,7 +459,8 @@ export function Composer({
                         onClick={busy ? onStop : submit}
                         disabled={
                             !busy &&
-                            (value.trim().length === 0 ||
+                            (length === 0 ||
+                                tooLong ||
                                 attachments?.uploading === true)
                         }
                         aria-label={intl.formatMessage(
@@ -429,32 +475,58 @@ export function Composer({
                     </Button>
                 </div>
             </div>
-            <p
-                className={cn(
-                    'mt-1.5 text-[11px]',
-                    attachments?.error || refused
-                        ? 'text-destructive'
-                        : 'text-muted-foreground'
-                )}
-                // A live region so the count refusal and the upload wait are
-                // announced, not just drawn — both are the reason a send did
-                // not happen, which a screen-reader user otherwise meets as
-                // silence.
-                role="status"
-                // Named, because it is no longer the only status region in the
-                // view: `MessageList` added one for the run's phase (`ORT-116`).
-                // Two unnamed live regions in one surface is precisely the
-                // ambiguity that fix was about — a screen-reader user hears two
-                // voices and cannot tell which is which.
-                aria-label={intl.formatMessage(messages.hintLabel)}
-            >
-                {attachments?.error ??
-                    (attachments?.uploading
-                        ? intl.formatMessage(messages.uploadingHint)
-                        : refused
-                          ? intl.formatMessage(messages.busyHint)
-                          : intl.formatMessage(messages.hint))}
-            </p>
+            <div className="mt-1.5 flex items-baseline justify-between gap-3 text-[11px]">
+                <p
+                    className={cn(
+                        'min-w-0',
+                        attachments?.error || tooLong || refused
+                            ? 'text-destructive'
+                            : 'text-muted-foreground'
+                    )}
+                    // A live region so the count refusal, the upload wait and
+                    // the length refusal are announced, not just drawn — each
+                    // is the reason a send did not happen, which a
+                    // screen-reader user otherwise meets as silence.
+                    role="status"
+                    // Named, because it is no longer the only status region in
+                    // the view: `MessageList` added one for the run's phase
+                    // (`ORT-116`). Two unnamed live regions in one surface is
+                    // precisely the ambiguity that fix was about — a
+                    // screen-reader user hears two voices and cannot tell
+                    // which is which.
+                    aria-label={intl.formatMessage(messages.hintLabel)}
+                >
+                    {attachments?.error ??
+                        (attachments?.uploading
+                            ? intl.formatMessage(messages.uploadingHint)
+                            : tooLong
+                              ? intl.formatMessage(messages.tooLong, {
+                                    over: length - MAX_MESSAGE_LENGTH,
+                                    max: MAX_MESSAGE_LENGTH
+                                })
+                              : refused
+                                ? intl.formatMessage(messages.busyHint)
+                                : intl.formatMessage(messages.hint))}
+                </p>
+                {/* Outside the live region on purpose: inside it, every
+                    keystroke past the threshold would be read aloud. The
+                    refusal above is the part that has to be heard. */}
+                {showCounter ? (
+                    <span
+                        className={cn(
+                            'shrink-0 tabular-nums',
+                            tooLong
+                                ? 'text-destructive'
+                                : 'text-muted-foreground'
+                        )}
+                    >
+                        {intl.formatMessage(messages.counter, {
+                            count: length,
+                            max: MAX_MESSAGE_LENGTH
+                        })}
+                    </span>
+                ) : null}
+            </div>
         </div>
     );
 }

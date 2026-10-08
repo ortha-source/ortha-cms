@@ -210,7 +210,20 @@ export interface BaseFieldOptions {
     admin?: AdminProps;
 }
 
-export interface TextFieldOptions extends BaseFieldOptions {
+/**
+ * What the entry editor's create form starts a field at. A **prefill**, not a
+ * column `DEFAULT`: existing entries keep what they hold, and an entry written
+ * through the API without the field stays without it. It must be a value the
+ * field accepts (checked at define time). Offered on the scalar and choice
+ * types only — a relation or media id is data, and differs per environment.
+ */
+interface DefaultValueOption<V> {
+    defaultValue?: V;
+}
+
+export interface TextFieldOptions
+    extends BaseFieldOptions,
+        DefaultValueOption<string> {
     minLength?: number;
     maxLength?: number;
     /** Regex source the value must match. */
@@ -232,7 +245,9 @@ export interface RichTextFieldOptions extends BaseFieldOptions {
     structure?: RichTextStructureMode;
 }
 
-export interface NumberFieldOptions extends BaseFieldOptions {
+export interface NumberFieldOptions
+    extends BaseFieldOptions,
+        DefaultValueOption<number> {
     min?: number;
     max?: number;
     /** Restrict to whole numbers. */
@@ -240,16 +255,41 @@ export interface NumberFieldOptions extends BaseFieldOptions {
 }
 
 /** Money is stored as integer minor units (cents) — exact, no float drift. */
-export interface MoneyFieldOptions extends BaseFieldOptions {
+export interface MoneyFieldOptions
+    extends BaseFieldOptions,
+        DefaultValueOption<number> {
     /** Minimum amount in minor units. */
     min?: number;
     /** Maximum amount in minor units. */
     max?: number;
 }
 
+export interface BooleanFieldOptions
+    extends BaseFieldOptions,
+        DefaultValueOption<boolean> {}
+
+/** `'today'` prefills the day the form is opened; otherwise a `YYYY-MM-DD`. */
+export interface DateFieldOptions
+    extends BaseFieldOptions,
+        DefaultValueOption<'today' | (string & {})> {}
+
+/** `'now'` prefills the minute the form is opened; otherwise an ISO date-time. */
+export interface DatetimeFieldOptions
+    extends BaseFieldOptions,
+        DefaultValueOption<'now' | (string & {})> {}
+
 export interface SelectFieldOptions<
     TOptions extends readonly string[] = readonly string[]
-> extends BaseFieldOptions {
+> extends BaseFieldOptions,
+        DefaultValueOption<TOptions[number]> {
+    /** Allowed values. */
+    options: TOptions;
+}
+
+export interface MultiselectFieldOptions<
+    TOptions extends readonly string[] = readonly string[]
+> extends BaseFieldOptions,
+        DefaultValueOption<readonly TOptions[number][]> {
     /** Allowed values. */
     options: TOptions;
 }
@@ -349,6 +389,8 @@ export interface FieldSpec<
     readonly multiple?: boolean;
     /** Accepted-asset restriction — media fields only. */
     readonly accept?: MediaAccept;
+    /** The create form's prefill — present only when the field declares one. */
+    readonly defaultValue?: unknown;
     /** Phantom compile-time value type. Never assigned. */
     readonly _value?: TValue;
 }
