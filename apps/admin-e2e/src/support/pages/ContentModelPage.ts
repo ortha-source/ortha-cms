@@ -170,6 +170,27 @@ export class ContentModelPage extends BasePage {
         return this.tab('General').getByRole('button', { name: 'Groups' });
     }
 
+    /** A select field's option input in its sheet's Validation tab, 1-based. */
+    selectOption(sheet: Locator, index: number): Locator {
+        return sheet.getByRole('textbox', {
+            name: `Option ${index}`,
+            exact: true
+        });
+    }
+
+    /** The "Remove <option>" button beside a select's option. */
+    removeSelectOption(sheet: Locator, option: string): Locator {
+        return sheet.getByRole('button', {
+            name: `Remove ${option}`,
+            exact: true
+        });
+    }
+
+    /** The select's "New option" input. */
+    newSelectOption(sheet: Locator): Locator {
+        return sheet.getByRole('textbox', { name: 'New option' });
+    }
+
     /** The groups sheet. */
     groupsSheet(): Locator {
         return this.page.getByRole('dialog', {
