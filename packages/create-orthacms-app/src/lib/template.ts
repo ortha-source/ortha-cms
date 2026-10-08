@@ -132,9 +132,9 @@ function filesIn(dir: string, base = dir): string[] {
  * Copies the template into `target`: conditional blocks applied, placeholders
  * substituted, renames performed.
  *
- * Binary files are copied verbatim — a distinction worth keeping even though
- * today's template is all text, since running a favicon through a string
- * replace corrupts it in a way that only shows up in a browser.
+ * Binary files are copied verbatim: the admin's `favicon.ico` is one, and
+ * running it through a string replace corrupts it in a way that only shows up
+ * in a browser.
  */
 export function renderTemplate(
     templateDir: string,

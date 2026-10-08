@@ -6,7 +6,13 @@
         <base href="/" />
 
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+        <!-- The SVG is the icon every current browser uses, and it follows the
+             OS colour scheme on its own; the ICO is the fallback for whatever
+             cannot read SVG. `sizes` on the ICO is what stops Chromium from
+             preferring it over the SVG. The same pair ships in the scaffolder's
+             template (`packages/create-orthacms-app/templates/default`). -->
+        <link rel="icon" href="/favicon.ico" sizes="32x32" />
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="/src/styles.css" />
         <script>
             /* Apply the persisted theme before first paint so a dark-mode user
