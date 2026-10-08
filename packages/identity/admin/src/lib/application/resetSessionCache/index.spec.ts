@@ -1,5 +1,6 @@
 import { QueryClient } from '@tanstack/react-query';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { SESSION_RESET_SLOT } from '../sessionReset';
 import { resetSessionCache } from './index';
 
 /** A client holding one cached value per key, as a signed-in session would. */
@@ -24,6 +25,8 @@ function clientWith(entries: [readonly unknown[], unknown][]): QueryClient {
  * is calling this from.
  */
 describe('resetSessionCache', () => {
+    afterEach(() => SESSION_RESET_SLOT._reset());
+
     it('drops everything the outgoing session cached [identity:I-30]', () => {
         const queryClient = clientWith([
             [['workspaces'], [{ id: 'ws_1' }]],
@@ -98,5 +101,23 @@ describe('resetSessionCache', () => {
         // Contrast: the API that *would* have taken it with it.
         queryClient.clear();
         expect(queryClient.getMutationCache().getAll()).toEqual([]);
+    });
+
+    // The query cache is not the only place a session leaves state. The
+    // copilot keeps its chats in module scope so a run outlives the component
+    // showing it — and so they outlived the account too: the next person to
+    // sign in on the tab opened the dock onto the previous one's chats.
+    it('runs every plugin’s session reset too [identity:I-30]', () => {
+        const copilot = vi.fn();
+        const other = vi.fn();
+        SESSION_RESET_SLOT._register([
+            { id: 'copilot', reset: copilot },
+            { id: 'other', reset: other }
+        ]);
+
+        resetSessionCache(new QueryClient());
+
+        expect(copilot).toHaveBeenCalledOnce();
+        expect(other).toHaveBeenCalledOnce();
     });
 });

@@ -1,11 +1,13 @@
 import { Suspense, lazy } from 'react';
 import type { AdminPlugin } from '@orthacms/bootstrap-admin';
+import { SESSION_RESET_SLOT } from '@orthacms/identity-admin';
 import { SIDEBAR_FOOTER_SLOT } from '@orthacms/shell-admin';
 import {
     WORKSPACE_ROUTE_SLOT,
     WORKSPACE_SECTION_SLOT
 } from '@orthacms/workspaces-admin';
 import { AGENTS_SEGMENT, SKILLS_SEGMENT } from '../../domain/agentsRoute';
+import { endCopilotSession } from '../../application/copilotStore';
 import { AgentsPageSkeleton, SkillsPageSkeleton } from '../AgentsSkeleton';
 import { CopilotLauncher } from '../CopilotLauncher';
 import { ViewSwitcher } from '../ViewSwitcher';
@@ -70,6 +72,14 @@ export function CopilotPlugin(): CopilotAdminPlugin {
     return {
         name: 'copilot',
         slots: [
+            {
+                // The chats live outside React and outlive every component,
+                // so they outlived the account too until this: a sign-out, or
+                // somebody else signing in on the tab, now ends them and
+                // aborts whatever is still streaming.
+                slot: SESSION_RESET_SLOT,
+                items: [{ id: 'copilot', reset: endCopilotSession }]
+            },
             {
                 slot: SIDEBAR_FOOTER_SLOT,
                 // Before the account menu (which sits at a higher order): the

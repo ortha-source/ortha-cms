@@ -39,7 +39,8 @@ export interface CopilotStoreState {
  * (`stopReason: 'aborted'`), so a run cannot outlive the page that started it
  * without the server keeping it alive and replaying frames on reconnect. That is
  * a different, much larger feature; this is the honest version of "keeps running
- * while you work".
+ * while you work". It is also bounded by **who is signed in**: a change of
+ * identity ends every chat ({@link endCopilotSession}).
  *
  * The reducers are the same pure ones as before (`sessionsReducer`,
  * `chatReducer`) and are still unit-tested on their own — this module owns
@@ -299,7 +300,45 @@ export function abortRun(sessionId: string): void {
     controllers.delete(sessionId);
 }
 
-/** Empties the store. For tests — nothing in the app resets it. */
+/**
+ * Ends every chat — for a change of the identity behind the tab.
+ *
+ * The flip side of living outside React: nothing that unmounts on sign-out
+ * takes the chats with it, so without this the next person to sign in on the
+ * tab opened the dock onto the previous account's conversations, and a run
+ * still in flight kept streaming on a session that had ended. Registered into
+ * identity's `SESSION_RESET_SLOT` by the plugin, so signing out, signing in as
+ * someone else and a session lost to a `401` all land here.
+ *
+ * Every run is **aborted**, which is also what tells the server to stop it (a
+ * client disconnect is an abort there), and the skills seed goes with the
+ * chats — they are the outgoing account's workspace's names. Two things stay,
+ * on purpose:
+ *
+ * - **The session-id counter.** A run that has not yet noticed its abort must
+ *   not find a brand-new chat under its old id to write into.
+ * - **The remembered model.** It is this browser's preference, kept in
+ *   `localStorage` across sign-ins already, names no content, and is on screen
+ *   in every chat's picker.
+ *
+ * Unlike {@link resetCopilotStore} it keeps the subscribers — the dock is
+ * still mounted when a sign-out's `onSuccess` runs, and has to hear that its
+ * chats are gone. Idempotent, because more than one path can report the same
+ * change of identity.
+ */
+export function endCopilotSession(): void {
+    for (const controller of controllers.values()) {
+        controller.abort();
+    }
+    controllers.clear();
+    lastSkills = [];
+    if (state.sessions.length === 0 && Object.keys(state.chats).length === 0) {
+        return;
+    }
+    commit({ sessions: [], chats: {} });
+}
+
+/** Empties the store. For tests — the app ends chats with {@link endCopilotSession}. */
 export function resetCopilotStore(): void {
     for (const controller of controllers.values()) {
         controller.abort();

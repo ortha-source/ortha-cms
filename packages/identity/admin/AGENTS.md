@@ -99,6 +99,9 @@ owns auth). `src/lib` is organized into:
   (e.g. the workspaces "New workspace" button on `workspaces:create`)
 - `useAuth` — reads the current `AuthState`; `AuthState` / `AuthUser` are the
   types
+- `SESSION_RESET_SLOT` / `SessionResetItem` — where a plugin registers how to
+  drop the state it keeps outside the query cache when the identity behind the
+  tab changes (see _One tab, one identity_)
 - `useLogoutMutation` — `POST /api/auth/logout`, then writes `null` into
   `currentUserKey` and clears the rest of the cache, so the gate flips to
   unauthenticated and redirects to sign-in with nothing of the account left
@@ -265,6 +268,21 @@ owns auth). `src/lib` is organized into:
   tab inherits them until each query refetches. Logout does it on the way out
   and login on the way in, because a session can also end without a logout
   (revoked elsewhere, expired), and that path only nulls the probe.
+    - **Not everything a session holds is in the query cache.**
+      `SESSION_RESET_SLOT` (`application/sessionReset`, exported) is where a
+      plugin that keeps state of its own registers a `reset()`;
+      `resetSessionCache` runs every contribution after its sweep. The copilot
+      is the first: its chats live in module state so a run outlives the
+      component showing it, and so they outlived the account too — the next
+      person to sign in opened the dock onto the previous one's chats while a
+      run kept streaming. A slot, so identity never learns which plugins hold
+      session state, and the dependency keeps pointing the way it already did.
+    - **A lost session runs them too**, from `AuthProvider`'s fall from
+      authenticated to unauthenticated — not only at the next sign-in. A revoked
+      or suspended account's copilot run would otherwise keep going until
+      somebody signed in again. Resets are idempotent, so a sign-out running
+      them twice (its own sweep, then the fall) is a no-op the second time, and
+      one that throws is logged without stopping the rest.
 
 ## Usage
 
@@ -286,12 +304,12 @@ createAdmin({
 
 - **They are links, not buttons with handlers.** Signing in through a provider
   is a full-page navigation to `/api/auth/sso/:name/start`, which answers `302`.
-  An anchor *is* a navigation, so middle-click and open-in-new-tab behave and no
+  An anchor _is_ a navigation, so middle-click and open-in-new-tab behave and no
   JavaScript stands between the person and the redirect. `Button asChild` is the
   design system's way to style one. The admin-e2e suite asserts the `link` role
   precisely so this cannot regress into a scripted click.
 - **It renders nothing on loading, on error, and on an empty list.** The
-  password form *is* the sign-in page; this is an addition to it. A spinner
+  password form _is_ the sign-in page; this is an addition to it. A spinner
   would make every visitor wait on a feature most deployments do not use, and an
   error would hand someone a problem they cannot act on while they are trying to
   sign in a way that still works.
