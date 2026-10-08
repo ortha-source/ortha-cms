@@ -50,6 +50,13 @@
       "when": 1787520476385,
       "tag": "0006_sso_session_link",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791442636981,
+      "tag": "0007_throttle_buckets",
+      "breakpoints": true
     }
   ]
 }

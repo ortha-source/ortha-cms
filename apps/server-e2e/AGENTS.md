@@ -193,18 +193,19 @@ The guards are asserted by `src/harness/harness-guards.spec.ts`.
 - **`@Post` returns `201` by default** (no `@HttpCode` on login/logout), not 200. Assert `201`.
 - **Rate limit:** the app boots with a relaxed login limit so suites don't
   self-throttle. To test the `429` path, boot a dedicated app with
-  `createTestApp({ rateLimit: { ttlSeconds, limit } })`. The throttle is
-  per-app + in-memory, so it never bleeds across suites.
-  The throttler's bucket is in-memory **per app**, so it never bleeds across
-  suites — but it does persist across _tests in one file_. A throttle suite
-  therefore boots per test (`beforeEach`), or each test uses addresses no other
-  test touches; otherwise the second test's expected status depends on the
-  first, the file passes as a whole, and it fails under `-t`.
+  `createTestApp({ rateLimit: { ttlSeconds, limit } })`. The buckets live in
+  Postgres (`throttle_buckets`) and are shared by **every app on the
+  database**, exactly as they are by every instance in production — so it is
+  `resetDb` truncating that table that keeps them from bleeding across suites
+  and tests. A throttle suite therefore resets per test (`beforeEach`), or each
+  test uses addresses no other test touches; otherwise the second test's
+  expected status depends on the first, the file passes as a whole, and it
+  fails under `-t`.
 - **`maxWorkers: 1`** — one shared container; suites run serially so they don't
   race on `resetDb`. Enforced in `global-setup`, not merely configured (see
   **Failure modes**). Parallelism would need a DB-per-worker scheme.
-- Each spec **file** gets its own module registry (own app instance, own pool,
-  own throttler) — that's why `closeTestApp` closes the pool per file. Two apps
+- Each spec **file** gets its own module registry (own app instance, own pool)
+  — that's why `closeTestApp` closes the pool per file. Two apps
   _in sequence_ in one file are fine; two apps _open at once_ are not, because
   the `@orthacms/database` handle is a module singleton.
 

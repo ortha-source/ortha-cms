@@ -927,7 +927,11 @@ const RESET_SQL = [
         // `users` cascade never reaches it — and left out, a message queued by
         // one test is sent by the next test's `drainMail`, which then counts
         // three invitations where it made one.
-        'mail_deliveries ' +
+        'mail_deliveries, ' +
+        // Identity's rate-limit buckets. Shared across instances on purpose —
+        // which means shared across *apps* here too, so a login suite's
+        // attempts would otherwise count against the next suite's limit.
+        'throttle_buckets ' +
         'RESTART IDENTITY CASCADE',
     // After the TRUNCATE: `users` is gone, so nothing references these any
     // more. `role_permissions` is ON DELETE CASCADE.

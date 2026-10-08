@@ -8,7 +8,7 @@ Identity answers the two questions without which no other plugin works: **who ha
 
 - **7** packages in the group
 - **19** HTTP routes
-- **11** database tables
+- **12** database tables
 - **7** migrations
 - **30** permission keys
 - **3** system roles
@@ -76,7 +76,7 @@ The `packages/identity` group is seven packages. The split is not cosmetic: a pr
 
 | Package         | npm name                           | Role                                                                                                                           | What it owns                                                                         |
 | --------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
-| server          | @orthacms/identity-server          | The NestJS plugin: routes, use cases, guards, the database schema, migrations, seeders                                         | 11 tables, 19 routes, RBAC, sessions, API tokens, the SSO core                       |
+| server          | @orthacms/identity-server          | The NestJS plugin: routes, use cases, guards, the database schema, migrations, seeders                                         | 12 tables, 19 routes, RBAC, sessions, API tokens, the SSO core                       |
 | admin           | @orthacms/identity-admin           | The admin plugin: the sign-in and one-time-link screens plus the "auth kit" (context, provider, route gate)                    | `/identity/*`, `AuthProvider`, `RequireAuth`, `useHasPermission`                     |
 | domain          | @orthacms/identity-domain          | The framework-free core of the SSO seam: the `SsoProvider` port, the profile, open-redirect protection, a conformance test set | The contract every adapter must fulfil. **Zero dependencies** in its `package.json`  |
 | provider-oidc   | @orthacms/identity-provider-oidc   | Generic OpenID Connect plus 5 presets (Google, Entra, Okta, Auth0, Keycloak)                                                   | Authorization Code + PKCE, id-token verification through `jose`/JWKS                 |
@@ -134,7 +134,7 @@ The three system roles are created at application start idempotently (`ON CONFLI
 
 ## 04. Data model
 
-Identity owns eleven tables and **carries its own migrations** (`drizzle.config.ts` plus committed `migrations/*.sql`, applied by the host through `nx run server:db:migrate`, with its own migration journal table `__drizzle_migrations_identity`). The plugin opens no database connection — the client is injected from `@orthacms/database`.
+Identity owns twelve tables and **carries its own migrations** (`drizzle.config.ts` plus committed `migrations/*.sql`, applied by the host through `nx run server:db:migrate`, with its own migration journal table `__drizzle_migrations_identity`). The plugin opens no database connection — the client is injected from `@orthacms/database`.
 
 | Table                | Purpose                                              | Key columns and constraints                                                                                                                                                                                                                                                                                         |
 | -------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -149,6 +149,7 @@ Identity owns eleven tables and **carries its own migrations** (`drizzle.config.
 | api_token_workspaces | The token's scope                                    | PK `(token_id, workspace_id)`, cascading on the token. **There is no FK onto the workspace** — plugins are not bound by schema; existence is checked through the `WORKSPACE_DIRECTORY` port                                                                                                                         |
 | sso_identities       | The link between an account and an external provider | Unique both on `(provider, subject)` and on `(provider, user_id)` · `last_login_at`                                                                                                                                                                                                                                 |
 | sso_auth_requests    | One SSO sign-in attempt                              | `id` = the SHA-256 of the browser token · `state` unique · `nonce` · `code_verifier` · `redirect_to` · `invite_token_hash` nullable · `consumed_at`                                                                                                                                                                 |
+| throttle_buckets     | One rate-limit bucket                                | `key` PK — the throttler's hash of route + tracker · `hits` · `window_ends_at` · `blocked_until` nullable.<br>Shared by every instance, counted by **one** `INSERT … ON CONFLICT DO UPDATE … RETURNING` per request; finished buckets are swept at most once a minute per process                                   |
 
 > **The secret-storage rule**
 >
@@ -475,7 +476,6 @@ The plugin documents the absence of a signing secret as a decision, and handshak
 - A CSRF token for expensive mutations (currently `OriginGuard` + `SameSite`).
 - `helmet`'s security headers — the host's business, not the plugin's.
 - Cleanup of expired sessions (the rows remain but are invalid).
-- A shared store for the rate limit — needed with more than one instance.
 - An interactive CLI / break-glass command: the root administrator is provisioned only from configuration and the environment.
 
 ## 11. Invariants
@@ -511,7 +511,8 @@ Statements that must always hold. This doubles as a review list and as a startin
 - **I-27** — The `identity-domain` package declares no dependencies; the `domain/` layer in `identity-server` imports neither NestJS, nor Drizzle, nor class-validator.
 - **I-28** — In the admin UI, a "who am I" probe failing for any reason other than `401` gives the `unavailable` state rather than a redirect to sign-in.
 - **I-29** — `useHasPermission` is fail-closed: `false` in every state except `authenticated`.
-- **I-30** — A change of identity in a tab clears the whole query cache except the `auth` namespace.
+- **I-30** — A change of identity in a tab clears the whole query cache except the `auth` namespace, and runs every `SESSION_RESET_SLOT` contribution — the state a plugin keeps outside the cache (the copilot's chats and their in-flight runs) goes with it. A session lost to a `401` runs the contributions too, without waiting for the next sign-in.
+- **I-31** — The rate limit's buckets live in `throttle_buckets`, not in the process: every instance counts against one limit, and each request is counted by a single upsert rather than a read followed by a write.
 
 ## 12. Testing checklist
 
