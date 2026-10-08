@@ -20,7 +20,11 @@ export interface WebhooksPluginConfig {
      */
     batchSize?: number;
 
-    /** Per-request timeout in milliseconds. */
+    /**
+     * Per-request timeout in milliseconds — a deadline on the **whole**
+     * exchange (connect, headers and the body read together), which is what
+     * makes {@link claimTimeoutMs} a sound bound to compare it with.
+     */
     timeoutMs?: number;
 
     /** How many attempts a delivery gets before it is given up on. */

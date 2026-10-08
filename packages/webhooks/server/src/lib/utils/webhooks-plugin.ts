@@ -18,6 +18,13 @@ export interface WebhooksServerPluginType extends ServerPlugin {
  * `claimTimeoutMs` under the request timeout reclaims deliveries out from under
  * live requests and sends every slow one twice. Both are far cheaper to catch
  * at construction than to diagnose from a delivery log.
+ *
+ * The comparison is sound because each side is a bound on one request: the
+ * worker renews a row's claim immediately before sending it (so a batch's
+ * serial sends do not add up against the last row), and `timeoutMs` is a
+ * deadline on the whole exchange rather than on each of its phases. A worker
+ * that overruns anyway only loses its write — every attempt-closing update is
+ * fenced on the claim.
  */
 function assertConfig(config: WebhooksPluginConfig): void {
     const positive: Array<[keyof WebhooksPluginConfig, number | undefined]> = [

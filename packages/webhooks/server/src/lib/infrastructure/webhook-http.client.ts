@@ -96,7 +96,14 @@ export class WebhookHttpClient {
                 // is the simplest way to be walked to an internal address
                 // after the first hop already passed the address check.
                 headersTimeout: this.config.timeoutMs,
-                bodyTimeout: this.config.timeoutMs
+                bodyTimeout: this.config.timeoutMs,
+                // The three timeouts above are per *phase*, and `bodyTimeout`
+                // is an idle timer between chunks — so connect, headers and a
+                // body trickled a byte at a time could each take most of
+                // `timeoutMs` and the body indefinitely. The claim timeout is
+                // only safe against a bound on the whole exchange, and this is
+                // it: it aborts the request, or the body read, at the deadline.
+                signal: AbortSignal.timeout(this.config.timeoutMs)
             });
 
             const snippet = await this.readSnippet(response.body);
@@ -272,7 +279,8 @@ function describeFailure(error: unknown): string {
         const code = (error as NodeJS.ErrnoException).code;
         if (
             code === 'UND_ERR_HEADERS_TIMEOUT' ||
-            code === 'UND_ERR_BODY_TIMEOUT'
+            code === 'UND_ERR_BODY_TIMEOUT' ||
+            error.name === 'TimeoutError'
         ) {
             return 'The receiver did not respond in time.';
         }
