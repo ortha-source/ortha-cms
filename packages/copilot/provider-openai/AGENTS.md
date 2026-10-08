@@ -75,6 +75,10 @@ Three shapes have to collapse into the port's vocabulary:
 - **Tool calls.** Arrive as `arguments` **fragments** keyed by `index`, across
   many chunks. They are accumulated in a map and emitted only once the stream
   ends, sorted by index — so a call reaches the engine once, whole, and parsed.
+  A `tool-call-start` goes out as soon as a call's id **and** name are both
+  known; a call whose id never arrives is drained under a synthesised one the
+  start could not have named, so it runs unannounced rather than leaving the
+  transcript a step that never resolves.
   Malformed JSON yields `{}` rather than crashing the run: the engine then fails
   schema validation and returns a tool error the model can recover from.
 - **Usage.** Requested with `stream_options: { include_usage: true }`, which

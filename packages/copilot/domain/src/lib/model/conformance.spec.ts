@@ -27,6 +27,7 @@ interface Misbehaviour {
     extraDone?: boolean;
     omitDone?: boolean;
     toolInputAsString?: boolean;
+    startIdMismatch?: boolean;
     oneBigDelta?: boolean;
     negativeUsage?: boolean;
     ignoresUnknownModel?: boolean;
@@ -78,6 +79,14 @@ function stubProvider(
                 yield { type: 'text-delta', text };
             }
         } else {
+            // Announced first, as a streaming adapter does — the default stub
+            // must pass with a start in it, or the kit could not tell a
+            // conforming start from a broken one.
+            yield {
+                type: 'tool-call-start',
+                id: misbehaviour.startIdMismatch ? 'block_0' : 'call_1',
+                name: 'search'
+            };
             yield {
                 type: 'tool-call',
                 id: 'call_1',
@@ -223,6 +232,16 @@ describe('runModelProviderConformance', () => {
 
         expect(report['tool-call-is-whole-and-parsed']).toMatch(
             /requires parsed arguments/
+        );
+    });
+
+    it('catches a tool-call-start whose id no tool call carries', async () => {
+        const report = await runModelProviderConformance(
+            conformanceCase({ startIdMismatch: true })
+        );
+
+        expect(report['tool-call-is-whole-and-parsed']).toMatch(
+            /announced id `block_0`/
         );
     });
 

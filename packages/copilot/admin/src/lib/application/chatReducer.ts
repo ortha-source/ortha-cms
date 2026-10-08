@@ -136,7 +136,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
                 ...state,
                 busy: false,
                 messages: mapLastAssistant(state.messages, (message) => ({
-                    ...message,
+                    ...dropDrafts(message),
                     streaming: false,
                     error: action.message
                 }))
@@ -152,7 +152,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
                 ...state,
                 busy: false,
                 messages: mapLastAssistant(state.messages, (message) => ({
-                    ...message,
+                    ...dropDrafts(message),
                     streaming: false,
                     stopReason: 'aborted'
                 }))
@@ -198,25 +198,73 @@ function applyEvent(state: ChatState, event: CopilotRunEvent): ChatState {
                 }))
             };
 
+        case 'tool-call-start':
+            // The step goes on screen the moment the model starts writing the
+            // call, not when it finishes. For a write carrying a whole entry
+            // body that is most of the turn, and it used to be dead air: the
+            // prose announcing the change stopped, nothing else appeared, and
+            // then the step, its result and its card all landed at once.
+            return {
+                ...state,
+                messages: mapLastAssistant(state.messages, (message) =>
+                    message.blocks.some(
+                        (block) =>
+                            block.kind === 'step' && block.id === event.id
+                    )
+                        ? message
+                        : {
+                              ...message,
+                              blocks: [
+                                  ...message.blocks,
+                                  {
+                                      kind: 'step',
+                                      id: event.id,
+                                      step: {
+                                          id: event.id,
+                                          name: event.name,
+                                          input: undefined,
+                                          status: 'running',
+                                          drafting: true
+                                      }
+                                  }
+                              ]
+                          }
+                )
+            };
+
         case 'tool-call':
             return {
                 ...state,
-                messages: mapLastAssistant(state.messages, (message) => ({
-                    ...message,
-                    blocks: [
-                        ...message.blocks,
-                        {
-                            kind: 'step',
-                            id: event.id,
-                            step: {
-                                id: event.id,
-                                name: event.name,
-                                input: event.input,
-                                status: 'running'
-                            }
-                        }
-                    ]
-                }))
+                messages: mapLastAssistant(state.messages, (message) => {
+                    const step = {
+                        id: event.id,
+                        name: event.name,
+                        input: event.input,
+                        status: 'running' as const
+                    };
+                    // Completes the drafting step **in place**, where the model
+                    // started writing it — not appended again below whatever
+                    // arrived meanwhile. A provider that announces nothing
+                    // leaves no step to find, and the call is appended as it
+                    // always was.
+                    const drafted = message.blocks.some(
+                        (block) =>
+                            block.kind === 'step' && block.id === event.id
+                    );
+                    return {
+                        ...message,
+                        blocks: drafted
+                            ? message.blocks.map((block) =>
+                                  block.kind === 'step' && block.id === event.id
+                                      ? { ...block, step }
+                                      : block
+                              )
+                            : [
+                                  ...message.blocks,
+                                  { kind: 'step', id: event.id, step }
+                              ]
+                    };
+                })
             };
 
         case 'tool-permission-request':
@@ -325,7 +373,7 @@ function applyEvent(state: ChatState, event: CopilotRunEvent): ChatState {
                 ...state,
                 busy: false,
                 messages: mapLastAssistant(state.messages, (message) => ({
-                    ...message,
+                    ...dropDrafts(message),
                     // Adopt the server's id so a later transcript refetch
                     // reconciles onto the same row instead of duplicating it.
                     id: event.messageId ?? message.id,
@@ -353,6 +401,27 @@ function appendText(blocks: ChatBlock[], text: string): ChatBlock[] {
         return [...blocks.slice(0, -1), { ...last, text: last.text + text }];
     }
     return [...blocks, { kind: 'text', id: `text-${blocks.length}`, text }];
+}
+
+/**
+ * Removes the steps the model started writing and never finished.
+ *
+ * A run can end mid-call — a token ceiling, Stop, a failure — and the call it
+ * was drafting never ran. Leaving it would leave a spinner on a finished turn,
+ * and finishing it as "done" would claim an action nobody took; the reopened
+ * transcript, built from what was stored, has no such step either.
+ */
+function dropDrafts(message: ChatMessage): ChatMessage {
+    return message.blocks.some(
+        (block) => block.kind === 'step' && block.step.drafting
+    )
+        ? {
+              ...message,
+              blocks: message.blocks.filter(
+                  (block) => !(block.kind === 'step' && block.step.drafting)
+              )
+          }
+        : message;
 }
 
 /** Applies `change` to one permission request, wherever it sits. */

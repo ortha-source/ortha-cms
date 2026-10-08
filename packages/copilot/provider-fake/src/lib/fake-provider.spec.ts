@@ -66,6 +66,11 @@ describe('createFakeProvider', () => {
 
         const turnOne = await drain(provider.stream(request));
         expect(turnOne).toContainEqual({
+            type: 'tool-call-start',
+            id: 'fake-tool-0-0',
+            name: 'admin_content_search'
+        });
+        expect(turnOne).toContainEqual({
             type: 'tool-call',
             id: 'fake-tool-0-0',
             name: 'admin_content_search',

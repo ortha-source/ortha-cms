@@ -212,6 +212,22 @@ async function checkToolCall(
             };
         }
     }
+    // A start is optional, but one that names an id no call then carries
+    // leaves the transcript a step that never resolves. The scenario finishes
+    // its call, so here every start must be answered — and before it, not after.
+    for (const [index, start] of events.entries()) {
+        if (start.type !== 'tool-call-start') continue;
+        const answered = events
+            .slice(index + 1)
+            .some(
+                (event) => event.type === 'tool-call' && event.id === start.id
+            );
+        if (!answered) {
+            return {
+                'tool-call-is-whole-and-parsed': `a \`tool-call-start\` announced id \`${start.id}\` but no later \`tool-call\` carried it`
+            };
+        }
+    }
     return { 'tool-call-is-whole-and-parsed': null };
 }
 

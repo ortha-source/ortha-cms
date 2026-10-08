@@ -148,6 +148,43 @@ const STATUS_SETTLE_MS = 700;
 const FOLLOW_SLACK = 48;
 
 /**
+ * How long prose has to sit unchanged before the turn says it is still working,
+ * in ms.
+ *
+ * Long enough that the ordinary pauses between streamed tokens — a slow
+ * provider, a busy network — never flash "Thinking…" under a sentence that is
+ * still being written; short enough that a model which has stopped talking to
+ * go and think, or to write a long call, is not left looking finished.
+ */
+const PROSE_STALL_MS = 1200;
+
+/**
+ * Whether the turn's newest prose has stopped growing while the run goes on.
+ *
+ * Keyed on the block and its length, so every delta restarts the clock and the
+ * value can never be stale: it is true only for exactly the text the timer
+ * fired on.
+ */
+function useProseStalled(turn: ChatMessage): boolean {
+    const newest = turn.blocks[turn.blocks.length - 1];
+    const watching =
+        turn.streaming && newest?.kind === 'text'
+            ? `${newest.id}:${newest.text.length}`
+            : null;
+    const [stalledOn, setStalledOn] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (watching === null) {
+            return;
+        }
+        const timer = setTimeout(() => setStalledOn(watching), PROSE_STALL_MS);
+        return () => clearTimeout(timer);
+    }, [watching]);
+
+    return watching !== null && stalledOn === watching;
+}
+
+/**
  * Stop reasons that mean the answer above is **truncated**, phrased to complete
  * "Stopped because it …". `end` is the normal case and says nothing; `aborted`
  * is deliberate and handled separately below.
@@ -363,7 +400,8 @@ function Turn({
     // Cancelling is something the user did on purpose, so it gets a quiet note
     // rather than a warning banner telling them about their own action.
     const cancelled = turn.stopReason === 'aborted';
-    const activity = turnActivity(turn);
+    const proseStalled = useProseStalled(turn);
+    const activity = turnActivity(turn, { proseStalled });
 
     if (turn.role === 'user') {
         return (

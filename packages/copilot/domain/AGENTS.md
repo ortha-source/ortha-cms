@@ -49,9 +49,15 @@ something here needs a dependency, it belongs in a layer above.
   system prompt, messages, tools, output ceiling. **No sampling parameters**:
   current frontier models reject `temperature`/`top_p`/`top_k` outright, so the
   port doesn't pretend to carry them.
-- `ModelStreamEvent` — `text-delta` | `tool-call` | `done`. Two wire formats,
-  two tool-call encodings and two usage shapes collapse to this one vocabulary,
-  so the engine never grows a branch per vendor.
+- `ModelStreamEvent` — `text-delta` | `tool-call-start` | `tool-call` | `done`.
+  Two wire formats, two tool-call encodings and two usage shapes collapse to
+  this one vocabulary, so the engine never grows a branch per vendor.
+  `tool-call-start` is **optional and informational**: it names a call the
+  model has begun writing, so the transcript can show the step while its
+  arguments are still being written (for a write carrying an entry body, most
+  of the turn — and it was dead air). Nothing is dispatched on it; the whole
+  `tool-call` still follows, carrying the **same id**, which the conformance
+  kit checks.
 - `ModelUsage` / `ModelStopReason` — the inputs to cost accounting and to the
   "why did it stop" line the UI shows.
 - `normalizeTranscript(messages)` — the one repair a **replayed** thread needs.

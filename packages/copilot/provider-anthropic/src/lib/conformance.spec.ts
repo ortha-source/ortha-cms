@@ -98,18 +98,34 @@ describe('ModelProvider conformance', () => {
                 };
             },
             toolCall: () => {
-                armStream([], {
-                    content: [
+                // The block opens before its arguments stream, as on the wire;
+                // the kit then checks the start's id is the call's.
+                armStream(
+                    [
                         {
-                            type: 'tool_use',
-                            id: 'toolu_1',
-                            name: 'admin_content_search',
-                            input: { q: 'launch' }
+                            type: 'content_block_start',
+                            index: 0,
+                            content_block: {
+                                type: 'tool_use',
+                                id: 'toolu_1',
+                                name: 'admin_content_search',
+                                input: {}
+                            }
                         }
                     ],
-                    stop_reason: 'tool_use',
-                    usage: { input_tokens: 12, output_tokens: 3 }
-                });
+                    {
+                        content: [
+                            {
+                                type: 'tool_use',
+                                id: 'toolu_1',
+                                name: 'admin_content_search',
+                                input: { q: 'launch' }
+                            }
+                        ],
+                        stop_reason: 'tool_use',
+                        usage: { input_tokens: 12, output_tokens: 3 }
+                    }
+                );
                 return { provider: createAnthropicProvider(config), request };
             },
             unknownModel: 'gpt-4o',

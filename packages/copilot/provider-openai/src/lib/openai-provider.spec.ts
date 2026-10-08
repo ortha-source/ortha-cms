@@ -129,6 +129,17 @@ describe('createOpenAiProvider', () => {
                 input: { q: 'launch' }
             }
         ]);
+        // Announced from the first fragment, ahead of the arguments.
+        expect(events.map((event) => event.type)).toEqual([
+            'tool-call-start',
+            'tool-call',
+            'done'
+        ]);
+        expect(events[0]).toEqual({
+            type: 'tool-call-start',
+            id: 'call_1',
+            name: 'admin_content_search'
+        });
         expect(events.at(-1)).toMatchObject({ stopReason: 'tool_use' });
     });
 

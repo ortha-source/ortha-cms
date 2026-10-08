@@ -577,6 +577,17 @@ export class RunEngine {
                 // feature off: the answer arrives in one burst when the model
                 // finishes, which looks exactly like a slow non-streaming API.
                 yield { type: 'text-delta', text: event.text };
+            } else if (event.type === 'tool-call-start') {
+                // Forwarded, never acted on: nothing runs until the whole call
+                // arrives below. It is what lets the transcript show the step
+                // while the model is still writing its arguments — which, for a
+                // write carrying an entry body, is most of the turn, and was
+                // dead air under the prose that announced it.
+                yield {
+                    type: 'tool-call-start',
+                    id: event.id,
+                    name: event.name
+                };
             } else if (event.type === 'tool-call') {
                 toolUses.push({
                     type: 'tool_use',

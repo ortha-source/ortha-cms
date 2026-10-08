@@ -64,6 +64,19 @@ export function createAnthropicProvider(
                     event.delta.type === 'text_delta'
                 ) {
                     yield { type: 'text-delta', text: event.delta.text };
+                } else if (
+                    event.type === 'content_block_start' &&
+                    event.content_block.type === 'tool_use'
+                ) {
+                    // Announced as soon as the block opens: its arguments are
+                    // still to come, and can take longer to write than the
+                    // whole answer did. The id is the block's own, which is
+                    // the one `finalMessage()` hands back below.
+                    yield {
+                        type: 'tool-call-start',
+                        id: event.content_block.id,
+                        name: event.content_block.name
+                    };
                 }
             }
 

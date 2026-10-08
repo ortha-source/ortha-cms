@@ -1,4 +1,7 @@
-import type { ToolCallEvent } from '@orthacms/copilot-domain';
+import type {
+    ToolCallEvent,
+    ToolCallStartEvent
+} from '@orthacms/copilot-domain';
 import type { ToolCallDelta } from './types';
 
 /** An in-flight tool call, assembled from `arguments` fragments. */
@@ -6,12 +9,22 @@ interface PartialToolCall {
     id?: string;
     name?: string;
     args: string;
+    /** Whether its `tool-call-start` has gone out. */
+    announced: boolean;
 }
 
 /** Collects tool-call fragments across chunks and emits them once complete. */
 export interface ToolCallAccumulator {
-    /** Folds one chunk's `tool_calls` deltas into the pending set. */
-    add(deltas: readonly ToolCallDelta[]): void;
+    /**
+     * Folds one chunk's `tool_calls` deltas into the pending set, returning a
+     * start for each call whose id **and** name this chunk completed.
+     *
+     * Both, not the name alone: the start's id must be the one `drain` hands
+     * the finished call, and a call whose id never arrives is drained under a
+     * fallback the start could not have known. Such a call is simply not
+     * announced — it still runs.
+     */
+    add(deltas: readonly ToolCallDelta[]): ToolCallStartEvent[];
     /**
      * The finished calls, in `index` order, arguments parsed. Called only once
      * the stream ends — a call must reach the engine whole, never as
@@ -49,15 +62,30 @@ export function createToolCallAccumulator(): ToolCallAccumulator {
     const pending = new Map<number, PartialToolCall>();
 
     return {
-        add(deltas: readonly ToolCallDelta[]): void {
+        add(deltas: readonly ToolCallDelta[]): ToolCallStartEvent[] {
+            const started: ToolCallStartEvent[] = [];
             for (const delta of deltas) {
-                const existing = pending.get(delta.index) ?? { args: '' };
-                pending.set(delta.index, {
+                const existing = pending.get(delta.index) ?? {
+                    args: '',
+                    announced: false
+                };
+                const call: PartialToolCall = {
                     id: delta.id ?? existing.id,
                     name: delta.function?.name ?? existing.name,
-                    args: existing.args + (delta.function?.arguments ?? '')
-                });
+                    args: existing.args + (delta.function?.arguments ?? ''),
+                    announced: existing.announced
+                };
+                if (!call.announced && call.id && call.name) {
+                    call.announced = true;
+                    started.push({
+                        type: 'tool-call-start',
+                        id: call.id,
+                        name: call.name
+                    });
+                }
+                pending.set(delta.index, call);
             }
+            return started;
         },
 
         drain(): ToolCallEvent[] {

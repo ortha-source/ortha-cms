@@ -30,6 +30,27 @@ export interface RunTextDeltaEvent {
 }
 
 /**
+ * The model has started writing a tool call, and is still writing its
+ * arguments.
+ *
+ * Sent the moment the call's name is known, so the transcript can show the
+ * step — "Creating an entry…" — for the whole time the model spends composing
+ * it. That can be the longest stretch of a turn, and it used to be dead air:
+ * the prose before it ("I'll create it now") stopped, nothing else appeared,
+ * and then the finished call, its result and its change card all landed at
+ * once. **Nothing has run.** The matching {@link RunToolCallEvent} (same `id`)
+ * follows once the arguments are complete; a run that ends first — a token
+ * ceiling, an abort — never sends it, and a client drops the unfinished step.
+ */
+export interface RunToolCallStartEvent {
+    type: 'tool-call-start';
+    /** Provider-assigned call id; the {@link RunToolCallEvent} echoes it. */
+    id: string;
+    /** The tool's name, e.g. `content_propose_create`. */
+    name: string;
+}
+
+/**
  * The copilot is about to run a tool. Emitted **before** execution so the UI
  * can render the step as pending — "no invisible actions" (§2) means the user
  * sees the call even if it then fails or hangs.
@@ -198,6 +219,7 @@ export interface RunErrorEvent {
 export type CopilotRunEvent =
     | RunStartedEvent
     | RunTextDeltaEvent
+    | RunToolCallStartEvent
     | RunToolCallEvent
     | RunToolResultEvent
     | RunPermissionRequestEvent

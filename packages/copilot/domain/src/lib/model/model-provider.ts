@@ -65,6 +65,30 @@ export interface TextDeltaEvent {
 }
 
 /**
+ * The model has **started** writing a tool call: its id and name are known,
+ * its arguments are not yet.
+ *
+ * Optional, and purely informational — the engine forwards it so the
+ * transcript can show the step while the model is still writing it, and
+ * nothing is dispatched on it. It exists because a call's arguments can be
+ * the longest thing the model writes in a turn (a whole entry body), and
+ * without it the user watched "I'll create it" sit on screen with nothing
+ * else happening until the finished call landed all at once.
+ *
+ * An adapter that emits it must use the id the matching {@link ToolCallEvent}
+ * will carry. One that cannot know the id or the name up front simply does
+ * not emit it. A start with no matching call is legal — a response cut short
+ * by `max_tokens` or an abort never finishes the call it began.
+ */
+export interface ToolCallStartEvent {
+    type: 'tool-call-start';
+    /** Provider-assigned id — the same one the {@link ToolCallEvent} carries. */
+    id: string;
+    /** The requested tool's name. */
+    name: string;
+}
+
+/**
  * A complete tool call. Providers buffer partial argument JSON internally and
  * emit this only once the arguments parse — the engine never sees half a call.
  */
@@ -92,7 +116,11 @@ export interface DoneEvent {
  * tool-call encodings and two usage shapes collapse to this one vocabulary, so
  * the engine never branches per vendor.
  */
-export type ModelStreamEvent = TextDeltaEvent | ToolCallEvent | DoneEvent;
+export type ModelStreamEvent =
+    | TextDeltaEvent
+    | ToolCallStartEvent
+    | ToolCallEvent
+    | DoneEvent;
 
 /**
  * The model boundary. Implementations live in separate packages
