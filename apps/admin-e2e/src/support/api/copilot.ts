@@ -498,6 +498,14 @@ export interface CopilotMockOptions {
      * default is prose → tool call → change card → prose, ending `end`.
      */
     runBody?(conversationId: string): string;
+    /**
+     * Behave like the real run route about **where** a turn goes: answer on the
+     * thread the request names (else mint `c_new`), and append the question and
+     * the answer to that thread's served transcript, so reopening it shows the
+     * turn. Off by default — the stock run always answers on `c_new` and stores
+     * nothing, which the suites written against it rely on.
+     */
+    persistRuns?: boolean;
 }
 
 /**
@@ -632,13 +640,42 @@ export async function mockCopilotApi(
         );
     });
 
+    // Turns a persisting run has written, per thread, after the seeded ones.
+    const persisted = new Map<string, PersistedMessage[]>();
+
     await page.route('**/api/copilot/runs', async (route) => {
-        spy.runs.push(
-            JSON.parse(route.request().postData() ?? '{}') as Record<
-                string,
-                unknown
-            >
-        );
+        const request = JSON.parse(
+            route.request().postData() ?? '{}'
+        ) as Record<string, unknown>;
+        spy.runs.push(request);
+        const conversationId =
+            options.persistRuns && typeof request['conversationId'] === 'string'
+                ? request['conversationId']
+                : 'c_new';
+        if (options.persistRuns) {
+            // Like the real engine: the question is stored before the model
+            // runs, the answer before `done` goes out.
+            const turn = spy.runs.length;
+            persisted.set(conversationId, [
+                ...(persisted.get(conversationId) ?? []),
+                {
+                    id: `m_q${turn}`,
+                    runId: `r_${turn}`,
+                    role: 'user',
+                    content: [{ type: 'text', text: request['message'] }],
+                    stopReason: null
+                },
+                {
+                    id: `m_a${turn}`,
+                    runId: `r_${turn}`,
+                    role: 'assistant',
+                    content: [
+                        { type: 'text', text: `Persisted answer ${turn}.` }
+                    ],
+                    stopReason: 'end'
+                }
+            ]);
+        }
         if (options.runDelayMs) {
             await new Promise((r) => setTimeout(r, options.runDelayMs));
         }
@@ -663,7 +700,7 @@ export async function mockCopilotApi(
             await route.fulfill({
                 status: 200,
                 contentType: 'text/event-stream',
-                body: (options.runBody ?? runBody)('c_new')
+                body: (options.runBody ?? runBody)(conversationId)
             });
         } catch {
             // Stop cancels the `fetch` while a delayed run is still being held
@@ -719,12 +756,14 @@ export async function mockCopilotApi(
         return route.fulfill(
             json({
                 conversation,
-                messages:
-                    id === 'c_summary'
+                messages: [
+                    ...(id === 'c_summary'
                         ? SUMMARY_TRANSCRIPT
                         : id === 'c_attached'
                           ? ATTACHED_TRANSCRIPT
-                          : []
+                          : []),
+                    ...(persisted.get(id ?? '') ?? [])
+                ]
             })
         );
     });

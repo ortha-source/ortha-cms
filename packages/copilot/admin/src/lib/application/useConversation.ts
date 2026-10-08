@@ -88,6 +88,10 @@ export function useOpenConversation() {
  * Cached per thread, which is what makes flicking between two conversations
  * instant on the second visit. The cache is only ever *read* when arriving at a
  * thread the chat is not on; while you are in one, the reducer is the truth.
+ * Which is why a run **removes** its thread's entry when it ends
+ * (`useCopilotChat`): the page loads whatever is cached and never looks at the
+ * refetch, so a cached transcript from before the turn would come back without
+ * it.
  */
 export function useConversationDetail(conversationId: string | null) {
     return useQuery({
