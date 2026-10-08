@@ -150,6 +150,31 @@ export function withExpandedCells(
     });
 }
 
+/**
+ * Marks the cells the last dry run blocked. Works on a copy, and only a record
+ * that has a blocked cell is copied, so a render that changes nothing keeps the
+ * records' identity. The **unmarked** records are what the next check runs
+ * over — a blocked entry has to be asked again, or fixing it would never show.
+ */
+export function withBlocked(
+    records: readonly PublishRecord[],
+    isBlocked: (entryId: string) => boolean
+): PublishRecord[] {
+    return records.map((record) => {
+        const cells = [...record.cells];
+        if (!cells.some(([, cell]) => isBlocked(cell.id))) return record;
+        return {
+            ...record,
+            cells: new Map(
+                cells.map(([axis, cell]) => [
+                    axis,
+                    isBlocked(cell.id) ? { ...cell, blocked: true } : cell
+                ])
+            )
+        };
+    });
+}
+
 /** One content type's records, in page order. */
 export type PublishSection = {
     type: string;

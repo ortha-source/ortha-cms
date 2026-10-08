@@ -115,6 +115,41 @@ describe('publishPicks', () => {
         ]);
     });
 
+    it('never offers a blocked entry, and drops it from the picks', () => {
+        const picks = presetPicks(records, PICK_PRESET.Everything);
+        const fixedLater = [
+            record(
+                'article:A',
+                [
+                    cell('a-en', 'article', 'en'),
+                    { ...cell('a-de', 'article', 'de'), blocked: true }
+                ],
+                ['a-en']
+            ),
+            jacket,
+            tag
+        ];
+        const next = reconcilePicks(
+            picks,
+            records,
+            fixedLater,
+            PICK_PRESET.Everything
+        );
+        expect(ids(pickedCells(next, fixedLater))).toEqual([
+            'a-en',
+            'b-en',
+            't1'
+        ]);
+        // Fixed and checked again: it is an option again, and follows the preset.
+        const again = reconcilePicks(
+            next,
+            fixedLater,
+            records,
+            PICK_PRESET.Everything
+        );
+        expect(ids(pickedCells(again, records))).toContain('a-de');
+    });
+
     it('lists every option for the check, picked or not, never a live one', () => {
         expect(optionBatches(records)).toEqual([
             { type: 'article', ids: ['a-en', 'a-de', 'b-en'] },

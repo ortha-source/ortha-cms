@@ -29,48 +29,36 @@ export class PublishManagerPage extends BasePage {
         });
     }
 
-    /** One content type's section, by its heading. */
-    section(typeLabel: string): Locator {
-        return this.page.getByRole('region', { name: typeLabel, exact: true });
+    /** A titled list — the type's records, or "Linked drafts". */
+    list(title: string): Locator {
+        return this.page.getByRole('region', { name: title });
     }
 
-    /** A section's own toggle — everything in that type. */
-    sectionToggle(typeLabel: string): Locator {
+    /** A locale chip — that locale for every record. */
+    axisToggle(axis: string): Locator {
         return this.page.getByRole('checkbox', {
-            name: `Publish everything picked in ${typeLabel}`
+            name: `Publish ${axis} for every record`
         });
     }
 
-    /** A column's toggle — one axis (a locale) for every record of a type. */
-    axisToggle(axis: string, typeLabel: string): Locator {
-        return this.page.getByRole('checkbox', {
-            name: `Publish ${axis} for every ${typeLabel} record`
-        });
-    }
-
-    /** A record's toggle — every entry of it that can publish. */
+    /** A record's checkbox — every entry of it that can publish. */
     recordToggle(record: string): Locator {
         return this.page.getByRole('checkbox', {
             name: `Publish everything picked for ${record}`
         });
     }
 
-    /** One (record, axis) cell's checkbox. */
+    /** One locale pill's checkbox. */
     cell(record: string, axis: string): Locator {
         return this.page.getByRole('checkbox', {
             name: new RegExp(`^Publish ${record}, ${axis} \\(`)
         });
     }
 
-    /** One of the quick picks ("Everything", "Selected only", "Clear"). */
-    preset(label: string): Locator {
-        return this.page.getByRole('button', { name: label, exact: true });
-    }
-
-    /** The running summary — picked, ready, needing fixes. */
+    /** The running summary — picked, and what needs attention. */
     get summary(): Locator {
         return this.page.getByRole('status').filter({
-            hasText: /picked|Nothing picked|Checking/
+            hasText: /picked|Checking/
         });
     }
 
@@ -84,42 +72,9 @@ export class PublishManagerPage extends BasePage {
         return this.page.getByRole('button', { name: /^Publish \d+ entr/ });
     }
 
-    /** "Expand all" / "Collapse all". */
-    toggleAll(label: 'Expand all' | 'Collapse all'): Locator {
-        return this.page.getByRole('button', { name: label, exact: true });
-    }
-
-    /** One record card's fold toggle. */
-    cardToggle(record: string, action: 'Show' | 'Hide'): Locator {
-        return this.page.getByRole('button', {
-            name: `${action} the entries of ${record}`
-        });
-    }
-
-    /** One record card, by its record name. */
-    card(record: string): Locator {
-        return this.page
-            .locator('[data-state]')
-            .filter({
-                has: this.page.getByRole('checkbox', {
-                    name: `Publish everything picked for ${record}`
-                })
-            })
-            .first();
-    }
-
-    /** The failing fields of one entry ("{record}, {axis}"), always on screen. */
-    failing(entry: string): Locator {
-        return this.page.getByRole('list', {
-            name: `What ${entry} is missing`
-        });
-    }
-
-    /** The toggle opening one entry's full field checklist. */
-    allChecks(entry: string): Locator {
-        return this.page.getByRole('button', {
-            name: new RegExp(`^Show all \\d+ field checks? for ${entry}$`)
-        });
+    /** The "Needs attention" list. */
+    get attention(): Locator {
+        return this.page.getByRole('region', { name: 'Needs attention' });
     }
 
     /** The commit's outcome callout. */

@@ -184,8 +184,7 @@ defaultLocale`) — the plugin's single decision point, which the menu must not
   contribution to **`@orthacms/publishing-admin`**'s slot rather than
   content's: in the **Publish Manager**, every localized record of the set —
   selected, or reached through a link — gets its other translations as cells,
-  and the configured locales become the page's locale chips (every one, so a
-  record's card can say which languages it was never translated into). That is what lets a
+  and the configured locales name the page's locale pills and chips. That is what lets a
   selection of English rows go out in the languages the reader picks, for
   every record at once or one record at a time.
     - **It only reads.** `fetchEntryTranslations` (`POST …/translations`, keyed

@@ -41,6 +41,13 @@ export type PublishEntry = {
 export type PublishCell = PublishEntry & {
     /** The column it sits in: a locale slug, or {@link BASE_AXIS}. */
     axis: string;
+    /**
+     * The last dry run refused it (a field fails its publish gate). A blocked
+     * entry is not an option until it is fixed and checked again — offering a
+     * box whose tick would be silently dropped at publish is the clutter this
+     * page exists to remove.
+     */
+    blocked?: boolean;
 };
 
 /** One column of a section — a locale, or the single base column. */
@@ -83,8 +90,10 @@ export type PublishRecord = {
 };
 
 /** Whether an entry has something to publish — anything not already live. */
-export function isPublishable(entry: Pick<PublishEntry, 'status'>): boolean {
-    return entry.status !== LIVE_STATUS;
+export function isPublishable(
+    entry: Pick<PublishCell, 'status' | 'blocked'>
+): boolean {
+    return entry.status !== LIVE_STATUS && !entry.blocked;
 }
 
 /** A record's display title: the first titled cell, else its anchor id. */

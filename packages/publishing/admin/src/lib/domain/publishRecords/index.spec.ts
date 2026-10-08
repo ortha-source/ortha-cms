@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { PublishContext } from '@orthacms/content-admin';
 import { BASE_AXIS } from '../types';
-import { buildRecords, sectionsOf, withExpandedCells } from './index';
+import {
+    buildRecords,
+    sectionsOf,
+    withBlocked,
+    withExpandedCells
+} from './index';
 
 const draft = { status: 'draft' as const, publishedAt: null };
 
@@ -132,6 +137,14 @@ describe('buildRecords', () => {
         const boots = merged[0];
         expect([...boots.cells.keys()]).toEqual(['en', 'de', 'fr']);
         expect(boots.cells.get('en')?.id).toBe('a-en');
+    });
+
+    it('marks a blocked cell without touching the other records', () => {
+        const marked = withBlocked(built.records, (id) => id === 'a-de');
+        expect(marked[0].cells.get('de')?.blocked).toBe(true);
+        expect(marked[0].cells.get('en')?.blocked).toBeUndefined();
+        // Untouched records keep their identity, so nothing re-renders.
+        expect(marked[1]).toBe(built.records[1]);
     });
 
     it('sections by type, the set’s own type first', () => {

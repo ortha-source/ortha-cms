@@ -49,11 +49,11 @@ What it is **not**:
 
 ## 02. Composition
 
-| Layer           | What lives there                                                                                           |
-| --------------- | ---------------------------------------------------------------------------------------------------------- |
-| `domain/`       | `publishSet` (URL codec), `publishRecords` (records + sections), `publishPicks` (the pick algebra)         |
-| `application/`  | `usePublishContext` (the context read), `usePublishRun` (check + commit, per type, in order)               |
-| `presentation/` | the page, section, locale bar, record card, entry row, field checklist, action bar, outcome; the two slots |
+| Layer           | What lives there                                                                                          |
+| --------------- | --------------------------------------------------------------------------------------------------------- |
+| `domain/`       | `publishSet` (URL codec), `publishRecords` (records + sections), `publishPicks` (the pick algebra)        |
+| `application/`  | `usePublishContext` (the context read), `usePublishRun` (check + commit, per type, in order)              |
+| `presentation/` | the page, toolbar + locale chips, record list + row + locale pill, attention list, outcome; the two slots |
 
 Contributions **into** other plugins: `WORKSPACE_ROUTE_SLOT` (`publish`),
 `RECORDS_BULK_ACTION_SLOT` and `ENTRY_MENU_SLOT` (**Open in Publish Manager**).
@@ -87,11 +87,10 @@ can be neither described nor published from here — the context never offers on
 3. **Expansions** add cells (translations) and define the locales; they fill gaps and
    never overwrite a cell the context gave.
 4. **Annotations** add per-entry notes (approvals).
-5. **Sections.** One per type, the set's own type first: a **locale bar** (a wrapping row of
-   chips, one per configured locale, each picking that locale for every record of the type)
-   and one **collapsible card per record**, open by default, its entries stacked as rows. The
-   page stays one column wide however many locales there are; the locales a record lacks are
-   named on one line of its card.
+5. **Layout.** Only what is a decision: a toolbar (a chip per locale **with something to
+   publish**, the count, Re-check, Publish), one line per record with a pill per pending
+   locale, the linked drafts under their own heading, and — only when something will not
+   publish — **Needs attention**. Live locales and missing translations are not shown.
 
 ## 06. Picks
 
@@ -99,13 +98,11 @@ A pick is a (record, axis) pair — axis being a locale, or the single "Entry" o
 locales. Only an **option** can be picked: an entry that exists and is not already
 `published`. A live entry is stated in its cell, never offered.
 
-| Toggle  | Scope                                                    |
-| ------- | -------------------------------------------------------- |
-| Cell    | one entry                                                |
-| Record  | every option of one record                               |
-| Axis    | one locale for every record of a section (a locale chip) |
-| Section | every option of every record of one type                 |
-| Presets | **Everything** (initial) · **Selected only** · **Clear** |
+| Toggle | Scope                                                    |
+| ------ | -------------------------------------------------------- |
+| Pill   | one locale of one record                                 |
+| Record | every option of one record                               |
+| Axis   | one locale for every record of a section (a locale chip) |
 
 Picks are **reconciled**, not reset, when the records change underneath (a translation read
 landing after first paint; the re-read after a commit): kept while still an option, a new
@@ -115,10 +112,10 @@ option follows the preset, an option seen and left unticked stays unticked.
 
 - **The check runs by itself** — content's dry run over **every option** of the set, picked or
   not, one request per type (chunked at 100), once the records settle and again whenever the
-  options change. A verdict belongs to the entry, so picking never invalidates it. Each entry
-  row shows _Ready_, _N issues_, _Already published_ or _No longer available_, and its **field
-  checklist** — failing fields always visible, every field on demand, translated fields marked
-  with a globe. **Re-check** asks again.
+  options change. A **blocked** locale stops being an option: its pill turns red and **Needs
+  attention** names each failing field (a globe on a field translated per locale), next to
+  any approval a rule is waiting for. Fixed and checked again, it is offered again.
+  **Re-check** asks on demand.
 - **Publish** sends the picked entries the last check found ready, **linked drafts first**,
   one type at a time, sequentially. A transport failure stops the run and the outcome names
   where it stopped.
@@ -150,10 +147,10 @@ key** — it is bumped after each commit. A failed read is named on the page wit
 
 ## 10. Accessibility
 
-Every checkbox is named for what it picks; status, notes and results are tied to the entry's
-checkbox through `aria-describedby`; a card's fold toggle and an entry's checklist toggle name
-what they fold; the summary is a live region; each section is a labelled region and its locale
-chips a labelled group; the outcome is an `Alert`. Scanned
+Every checkbox is named for what it picks — a pill's name carries the language, the status
+and "awaiting approval" when held; a blocked or published pill says so in hidden text; the
+summary is a live region; each list and **Needs attention** is a labelled region and the
+locale chips a labelled group; the outcome is an `Alert`. Scanned
 by axe in the admin-e2e suite.
 
 ## 11. Invariants
@@ -161,8 +158,9 @@ by axe in the admin-e2e suite.
 - **I-01** — The plugin publishes nothing itself: every dry run and every commit is content's
   bulk endpoint for that type, so no validation rule, required relation or publish guard can
   be bypassed from this page.
-- **I-02** — Only an option can be picked — an existing entry that is not `published`. A
-  missing locale is a dash; a live entry is stated, never a checkbox.
+- **I-02** — Only an option can be picked — an existing entry that is not `published` and
+  was not blocked by the last check. Live locales and missing translations are not shown; a
+  blocked locale is a red pill and an entry in **Needs attention**, never a checkbox.
 - **I-03** — The commit sends only picked entries the latest check found `publishable`; the
   check runs over every option by itself whenever the options change, and picking never
   invalidates a verdict.
@@ -187,9 +185,9 @@ by axe in the admin-e2e suite.
   (`content:I-57`) and the translations read in `i18n-content.spec.ts`.
 - **Admin-e2e** — `apps/admin-e2e/src/content/publish-manager.spec.ts`: opening from a
   selection and from the editor menu, the initial picks, a live locale stated, a linked draft
-  with its origin, the protection note, every toggle level, folding the cards, a blocked
-  locale's failing fields (and the globe on a translated one) with the full checklist on demand,
-  publish with dependency order, the empty state, and axe scans.
+  with its origin, chips only for pending locales, every toggle level, a blocked locale shown
+  as a red pill and named in Needs attention (with the globe on a translated field), a held
+  entry still pickable, publish with dependency order, the empty state, and axe scans.
 
 ## 13. Boundaries of responsibility
 

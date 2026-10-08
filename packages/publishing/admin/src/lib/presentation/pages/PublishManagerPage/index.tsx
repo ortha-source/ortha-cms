@@ -17,25 +17,31 @@ import { BULK_VERDICT, useContentTypes } from '@orthacms/content-admin';
 import { CONTENT_PUBLISH } from '../../../domain/constants';
 import { parsePublishSet } from '../../../domain/publishSet';
 import {
+    optionAxes,
     optionBatches,
     PICK_PRESET,
     pickedCells,
-    presetPicks,
     publishBatches,
     reconcilePicks,
-    type PickPreset,
+    setAxis,
     type Picks
 } from '../../../domain/publishPicks';
+import { withBlocked } from '../../../domain/publishRecords';
 import {
     BASE_AXIS,
+    LIVE_STATUS,
     recordTitle,
     type PublishRecord
 } from '../../../domain/types';
 import { usePublishContext } from '../../../application/usePublishContext';
 import { usePublishRun } from '../../../application/usePublishRun';
 import { usePublishRecords } from '../../hooks/usePublishRecords';
-import { PublishActionBar } from '../../components/PublishActionBar';
-import { PublishSection } from '../../components/PublishSection';
+import { PublishToolbar } from '../../components/PublishToolbar';
+import { PublishRecordList } from '../../components/PublishRecordList';
+import {
+    AttentionList,
+    type AttentionEntry
+} from '../../components/AttentionList';
 import { PublishOutcomeSummary } from '../../components/PublishOutcomeSummary';
 
 /** One empty id list, so a page with no set hands the hooks a stable input. */
@@ -93,29 +99,28 @@ const messages = defineMessages({
     cellName: {
         id: 'publishing.page.cellName',
         defaultMessage: '{record} · {axis}'
-    }
+    },
+    linked: { id: 'publishing.page.linked', defaultMessage: 'Linked drafts' }
 });
 
 /**
- * **The Publish Manager** — one page for publishing a set of records *together*:
- * the records that were selected, their other translations, and the drafts
- * they link to. Opened with a set in the URL (`?type=…&ids=…`, see
- * `domain/publishSet`) from the records selection bar or a record's ⋯ menu.
+ * **The Publish Manager** — publish a set of records *together*: the records
+ * that were selected, their other translations, and the drafts they link to.
+ * Opened with a set in the URL (`?type=…&ids=…`) from the records selection bar
+ * or a record's ⋯ menu.
  *
- * It owns no publishing of its own. What can go out is decided by content's
- * dry run, per type, and what does go out by content's bulk publish, per type —
- * so every validation rule, publish guard and partial-success answer is the
- * same as everywhere else. What this page adds is the **set**: content
- * describes the entries and their linked drafts (`bulk/publish/context`), other
- * plugins add cells (`PUBLISH_EXPANSION_SLOT` — translations) and notes
- * (`PUBLISH_ANNOTATION_SLOT` — approvals), and the reader picks.
+ * Deliberately small. It shows only what is a decision: a line per record with
+ * a pill per locale that has something to publish (live locales and missing
+ * translations are not decisions, so they are not shown), the drafts those
+ * records link to, and — only when there is any — one **Needs attention** list
+ * naming what a locale is missing. Content's dry run runs by itself, so a
+ * blocked locale is never offered: it appears in that list instead, and comes
+ * back as a pill once it is fixed and checked again.
  *
- * The layout is one **collapsible card per record**, its locales stacked as
- * rows, so it keeps working at two dozen languages where a records × locales
- * table turns into a horizontal scroll. Content's dry run runs **by itself**
- * over every option, so each locale shows the fields it is missing before
- * anything is picked; **Publish** sends the picked entries the last check
- * found ready.
+ * It owns no publishing: the dry run and the commit are content's bulk
+ * endpoints, per type, linked drafts first. Content describes the set
+ * (`bulk/publish/context`); other plugins add translations
+ * (`PUBLISH_EXPANSION_SLOT`) and approval notes (`PUBLISH_ANNOTATION_SLOT`).
  */
 export function PublishManagerPage() {
     const intl = useIntl();
@@ -134,10 +139,7 @@ export function PublishManagerPage() {
         set?.ids ?? NO_IDS,
         set?.type ?? '',
         context.data,
-        {
-            workspaceId: workspace.id,
-            version
-        }
+        { workspaceId: workspace.id, version }
     );
     // The option set the last automatic check ran over; `null` forces the
     // next one (after a commit, whose outcome may have changed nothing).
@@ -147,29 +149,34 @@ export function PublishManagerPage() {
         setCheckedKey(null);
     });
 
-    // Picks follow the records: seeded from the preset when records first
-    // appear, carried across every later change (an expansion landing, the
-    // re-read after a commit) by `reconcilePicks` — adjusted during render, the
-    // React idiom for state derived from a changing input.
-    const [preset, setPreset] = useState<PickPreset>(PICK_PRESET.Everything);
-    const [picks, setPicksState] = useState<Picks>(new Map());
+    // The records as the reader sees them: a cell the last check blocked is
+    // not an option. The unmarked records are what the check runs over, so a
+    // fixed entry is asked again and comes back.
+    const records = useMemo(
+        () =>
+            withBlocked(
+                view.records,
+                (id) => run.verdicts.get(id)?.verdict === BULK_VERDICT.Blocked
+            ),
+        [view.records, run.verdicts]
+    );
+
+    // Picks follow the records — everything that can publish starts picked,
+    // and `reconcilePicks` carries the reader's choices across every change
+    // (a translation arriving, a verdict landing, the re-read after a commit).
+    const [picks, setPicks] = useState<Picks>(new Map());
     const [seenRecords, setSeenRecords] = useState<readonly PublishRecord[]>(
         []
     );
-    if (seenRecords !== view.records) {
-        setSeenRecords(view.records);
-        setPicksState(reconcilePicks(picks, seenRecords, view.records, preset));
+    if (seenRecords !== records) {
+        setSeenRecords(records);
+        setPicks(
+            reconcilePicks(picks, seenRecords, records, PICK_PRESET.Everything)
+        );
     }
 
-    const working = run.isChecking || run.isCommitting;
-    const updatePicks = (update: (current: Picks) => Picks) =>
-        setPicksState(update);
-
-    // The dry run runs **by itself** over every option of the set — picked or
-    // not, since a verdict belongs to the entry — once the records have
-    // settled (the context read and every expansion landed), and again
-    // whenever the options change. That is what lets each locale show what it
-    // is missing before the reader has decided anything.
+    // The dry run runs by itself over every entry that could publish, once the
+    // records have settled, and again whenever that set changes.
     const optionKey = useMemo(
         () => JSON.stringify(optionBatches(view.records)),
         [view.records]
@@ -188,49 +195,68 @@ export function PublishManagerPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [settled, optionKey, checkedKey]);
 
-    // Every card starts open; the reader folds what they are done with.
-    const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
-    const allOpen = view.records.every((record) => !collapsed.has(record.key));
-    const applyPreset = (next: PickPreset) => {
-        setPreset(next);
-        updatePicks(() => presetPicks(view.records, next));
-    };
-
-    const picked = pickedCells(picks, view.records);
-    const batches = publishBatches(picks, view.records);
-    const verdictOf = (id: string) => run.verdicts.get(id)?.verdict;
-    const ready = picked.filter(
-        (cell) => verdictOf(cell.id) === BULK_VERDICT.Publishable
+    const working = run.isChecking || run.isCommitting;
+    const picked = pickedCells(picks, records);
+    const publishCount = picked.filter(
+        (cell) =>
+            run.verdicts.get(cell.id)?.verdict === BULK_VERDICT.Publishable
     ).length;
-    const blocked = picked.filter(
-        (cell) => verdictOf(cell.id) === BULK_VERDICT.Blocked
-    ).length;
+    const optionCount = records.reduce(
+        (sum, record) => sum + optionAxes(record).length,
+        0
+    );
+    const held = (id: string) =>
+        (view.annotations.get(id) ?? []).some((note) => note.blocking);
 
-    // "{record} · {axis}" for every cell — the name a problem, a toast or the
-    // outcome uses for an entry.
-    const axisName = (key: string) =>
-        key === BASE_AXIS ? '' : (view.axes.get(key)?.label ?? key);
-    const names = new Map<string, { name: string; type: string }>();
-    for (const record of view.records) {
+    // "{record} · {language}" for every entry — the name the attention list,
+    // the outcome and the toasts use.
+    const names = new Map<string, string>();
+    for (const record of records) {
         const title = recordTitle(record);
         for (const cell of record.cells.values()) {
-            const axis = axisName(cell.axis);
-            names.set(cell.id, {
-                type: record.type,
-                name: axis
+            const axis =
+                cell.axis === BASE_AXIS
+                    ? ''
+                    : (view.axes.get(cell.axis)?.label ?? cell.axis);
+            names.set(
+                cell.id,
+                axis
                     ? intl.formatMessage(messages.cellName, {
                           record: cell.title ?? title,
                           axis
                       })
                     : (cell.title ?? title)
-            });
+            );
         }
     }
+    const attention: AttentionEntry[] = records.flatMap((record) =>
+        [...record.cells.values()].flatMap((cell) => {
+            if (cell.status === LIVE_STATUS) return [];
+            const verdict = cell.blocked
+                ? run.verdicts.get(cell.id)
+                : undefined;
+            const notes = (view.annotations.get(cell.id) ?? []).filter(
+                (note) => note.blocking
+            );
+            return verdict || notes.length
+                ? [
+                      {
+                          entryId: cell.id,
+                          type: cell.type,
+                          name: names.get(cell.id) ?? cell.id,
+                          verdict,
+                          notes
+                      }
+                  ]
+                : [];
+        })
+    );
+
     const onRecheck = () => {
         void run.check(optionBatches(view.records)).catch(() => undefined);
     };
     const onPublish = () => {
-        run.commit(batches)
+        run.commit(publishBatches(picks, records))
             .then((result) => {
                 const count = [...result.outcomes.values()].filter(
                     (outcome) => outcome.kind === 'published'
@@ -272,6 +298,17 @@ export function PublishManagerPage() {
         );
     }
 
+    const listProps = {
+        typeLabel,
+        workspaceId: workspace.id,
+        axes: view.axes,
+        picks,
+        held,
+        outcomes: run.result?.outcomes,
+        disabled: working,
+        onPicks: setPicks
+    };
+
     return (
         <>
             {header}
@@ -303,26 +340,22 @@ export function PublishManagerPage() {
                         </Button>
                     </div>
                 ) : (
-                    <div className="flex flex-col gap-6">
-                        <PublishActionBar
+                    <div className="flex max-w-4xl flex-col gap-5">
+                        <PublishToolbar
+                            axes={[...view.axes.values()]}
+                            records={records}
+                            picks={picks}
                             pickedCount={picked.length}
-                            readyCount={ready}
-                            blockedCount={blocked}
-                            allOpen={allOpen}
+                            optionCount={optionCount}
+                            attentionCount={attention.length}
+                            publishCount={publishCount}
                             isChecking={run.isChecking}
                             isCommitting={run.isCommitting}
                             checkFailed={run.checkFailed}
                             busy={view.expanding || context.isFetching}
-                            onPreset={applyPreset}
-                            onToggleAll={(open) =>
-                                setCollapsed(
-                                    open
-                                        ? new Set()
-                                        : new Set(
-                                              view.records.map(
-                                                  (record) => record.key
-                                              )
-                                          )
+                            onToggleAxis={(axis, on) =>
+                                setPicks((current) =>
+                                    setAxis(current, records, axis, on)
                                 )
                             }
                             onRecheck={onRecheck}
@@ -332,22 +365,10 @@ export function PublishManagerPage() {
                         {run.result && (
                             <PublishOutcomeSummary
                                 result={run.result}
-                                nameOf={(id) => names.get(id)?.name ?? id}
+                                nameOf={(id) => names.get(id) ?? id}
                             />
                         )}
 
-                        {view.missing.length > 0 && (
-                            <p className="text-sm text-muted-foreground">
-                                {intl.formatMessage(messages.missing, {
-                                    count: view.missing.length
-                                })}
-                            </p>
-                        )}
-                        {view.linkedTruncated && (
-                            <p className="text-sm text-muted-foreground">
-                                {intl.formatMessage(messages.truncated)}
-                            </p>
-                        )}
                         {view.failed.map((source) => (
                             <div
                                 key={source.id}
@@ -372,31 +393,38 @@ export function PublishManagerPage() {
                             </div>
                         ))}
 
-                        {view.sections.map((section) => (
-                            <PublishSection
-                                key={section.type}
-                                section={section}
-                                typeLabel={typeLabel(section.type)}
-                                workspaceId={workspace.id}
-                                definedAxes={view.axes}
-                                picks={picks}
-                                annotations={view.annotations}
-                                verdicts={run.verdicts}
-                                outcomes={run.result?.outcomes}
-                                checking={run.isChecking}
-                                disabled={working}
-                                isOpen={(key) => !collapsed.has(key)}
-                                onOpenChange={(key, open) =>
-                                    setCollapsed((current) => {
-                                        const next = new Set(current);
-                                        if (open) next.delete(key);
-                                        else next.add(key);
-                                        return next;
-                                    })
-                                }
-                                onPicks={updatePicks}
-                            />
-                        ))}
+                        <PublishRecordList
+                            title={typeLabel(set.type)}
+                            records={records.filter(
+                                (record) => record.selected
+                            )}
+                            {...listProps}
+                        />
+                        <PublishRecordList
+                            title={intl.formatMessage(messages.linked)}
+                            records={records.filter(
+                                (record) => !record.selected
+                            )}
+                            {...listProps}
+                        />
+
+                        <AttentionList
+                            workspaceId={workspace.id}
+                            entries={attention}
+                        />
+
+                        {view.missing.length > 0 || view.linkedTruncated ? (
+                            <p className="text-xs text-muted-foreground">
+                                {view.missing.length > 0
+                                    ? intl.formatMessage(messages.missing, {
+                                          count: view.missing.length
+                                      })
+                                    : null}{' '}
+                                {view.linkedTruncated
+                                    ? intl.formatMessage(messages.truncated)
+                                    : null}
+                            </p>
+                        ) : null}
                     </div>
                 )}
             </Container>

@@ -5,56 +5,60 @@ import {
     I18N_WORKSPACE,
     mockI18n,
     spyEntryWrites,
-    type EntryWrite
+    type EntryWrite,
+    type I18nMockOptions
 } from '../support/api/i18n';
-import { mockReviewStatus } from '../support/api/publishing';
+import {
+    mockReviewStatus,
+    type ReviewStatusSeed
+} from '../support/api/publishing';
 import { expectNoA11yViolations } from '../support/a11y';
 import { type ContentLibraryPage } from '../support/pages/ContentLibraryPage';
 
 /**
  * The **Publish Manager** (`@orthacms/publishing-admin`) — publishing a set of
- * records together with their translations and the drafts they link to, on a
- * page of its own. The seed (`mockI18n`), in the default English list:
+ * records together with their translations and the drafts they link to. The
+ * seed (`mockI18n`), in the default English list:
  *
- * - **Winter boots** — English live, German **Modified**, no French/Arabic.
- *   Its German row is held by an approval rule (0 of 1).
- * - **Rain jacket** — an English draft, nothing else; it links a draft tag,
- *   **Outerwear**, through its Tags field.
+ * - **Winter boots** — English live, German **Modified**.
+ * - **Rain jacket** — an English draft; it links a draft tag, **Outerwear**,
+ *   through its Tags field.
  *
- * So "everything" is three entries: the German boots (a translation), the
- * English jacket (selected) and the tag (a linked draft). The live English
- * boots is never on offer.
+ * So everything that can publish is three entries: the German boots (a
+ * translation), the English jacket (selected) and the tag (a linked draft).
+ * The live English boots is not a decision, so the page does not show it.
  */
+
+const LINKED: I18nMockOptions['linked'] = {
+    'lp-en-2': [
+        {
+            field: 'tags',
+            fieldLabel: 'Tags',
+            id: 'tag-1',
+            type: 'tag',
+            title: 'Outerwear',
+            status: 'draft'
+        }
+    ]
+};
+
+const HELD: ReviewStatusSeed = {
+    protected: true,
+    required: 1,
+    given: 0,
+    stale: 0,
+    requested: true,
+    blocked: true
+};
+
 test.describe('Publish Manager', () => {
     let writes: EntryWrite[];
 
     test.beforeEach(async ({ page }) => {
         await mockSignedIn(page);
         await mockWorkspaces(page, [I18N_WORKSPACE]);
-        await mockI18n(page, {
-            linked: {
-                'lp-en-2': [
-                    {
-                        field: 'tags',
-                        fieldLabel: 'Tags',
-                        id: 'tag-1',
-                        type: 'tag',
-                        title: 'Outerwear',
-                        status: 'draft'
-                    }
-                ]
-            }
-        });
-        await mockReviewStatus(page, {
-            'lp-de-1': {
-                protected: true,
-                required: 1,
-                given: 0,
-                stale: 0,
-                requested: true,
-                blocked: true
-            }
-        });
+        await mockI18n(page, { linked: LINKED });
+        await mockReviewStatus(page, {});
         writes = spyEntryWrites(page);
     });
 
@@ -88,61 +92,51 @@ test.describe('Publish Manager', () => {
         );
         await expect(manager.heading).toBeVisible();
 
-        // Everything with something to publish starts picked…
+        // Everything that can publish starts picked…
         await expect(manager.cell('Winter boots', 'Deutsch')).toBeChecked();
         await expect(manager.cell('Rain jacket', 'English')).toBeChecked();
-        await expect(manager.cell('Outerwear', 'Entry')).toBeChecked();
-        // …the live English boots is stated, not offered…
+        await expect(manager.recordToggle('Outerwear')).toBeChecked();
+        // …the live English boots is not shown at all…
         await expect(manager.cell('Winter boots', 'English')).toHaveCount(0);
-        // …and the linked draft says where it came from, in its own section.
-        await expect(manager.section('tag')).toContainText(
-            'Linked draft · Tags on “Rain jacket”'
+        // …and the linked draft says where it came from.
+        await expect(manager.list('Linked drafts')).toContainText(
+            'tag · via Tags on “Rain jacket”'
         );
-        // Protection's note on the held German row.
-        await expect(manager.section('Localized posts')).toContainText(
-            'Approvals 0/1'
-        );
-        // The dry run has already answered for every option.
-        await expect(manager.summary).toHaveText(
-            '3 picked · 3 ready to publish'
-        );
+        // Only the locales with something to publish get a chip.
+        await expect(manager.axisToggle('English')).toBeVisible();
+        await expect(manager.axisToggle('Deutsch')).toBeVisible();
+        await expect(manager.axisToggle('Français')).toHaveCount(0);
+        // A clean set has no attention list.
+        await expect(manager.attention).toHaveCount(0);
+
+        await expect(manager.summary).toHaveText('3 of 3 picked');
         await manager.publish.click();
         await expect(manager.outcome).toContainText('3 entries published');
 
         // Dependencies first: the tag goes out before the records linking it.
         expect(committedBatches()).toEqual([['tag-1'], ['lp-de-1', 'lp-en-2']]);
-        // Re-read after the commit: nothing left to pick.
-        await expect(manager.cell('Rain jacket', 'English')).toHaveCount(0);
     });
 
-    test('picks per column, per record, per section and per cell', async ({
+    test('picks per locale, per record and per entry', async ({
         publishManagerPage: manager
     }) => {
         await manager.goto(I18N_WORKSPACE.id, 'localized_post', [
             'lp-en-1',
             'lp-en-2'
         ]);
-        await expect(manager.cell('Rain jacket', 'English')).toBeVisible();
+        await expect(manager.summary).toHaveText('3 of 3 picked');
 
-        // What a plain bulk publish would do: just the selected rows.
-        await manager.preset('Selected only').click();
-        await expect(manager.summary).toHaveText(
-            '1 picked · 1 ready to publish'
-        );
-
-        // German for every record, from its column.
-        await manager.axisToggle('Deutsch', 'Localized posts').click();
-        await expect(manager.cell('Winter boots', 'Deutsch')).toBeChecked();
-        // The jacket off, as a whole record.
+        // German off for every record, from its chip.
+        await manager.axisToggle('Deutsch').click();
+        await expect(manager.cell('Winter boots', 'Deutsch')).not.toBeChecked();
+        // The jacket off as a whole record, the tag off as well.
         await manager.recordToggle('Rain jacket').click();
-        await expect(manager.cell('Rain jacket', 'English')).not.toBeChecked();
-        // The linked tags on, as a section, then the one tag off again.
-        await manager.sectionToggle('tag').click();
-        await expect(manager.cell('Outerwear', 'Entry')).toBeChecked();
-        await manager.cell('Outerwear', 'Entry').click();
-        await expect(manager.summary).toHaveText(
-            '1 picked · 1 ready to publish'
-        );
+        await manager.recordToggle('Outerwear').click();
+        await expect(manager.summary).toHaveText('Nothing picked');
+        await expect(manager.publish).toBeDisabled();
+        // One locale pill back on.
+        await manager.cell('Winter boots', 'Deutsch').click();
+        await expect(manager.summary).toHaveText('1 of 3 picked');
         await expect(manager.publish).toHaveText('Publish 1 entry');
 
         await manager.publish.click();
@@ -166,32 +160,7 @@ test.describe('Publish Manager', () => {
             /publish\?type=localized_post&ids=lp-en-1$/
         );
         await expect(manager.cell('Winter boots', 'Deutsch')).toBeChecked();
-        await expect(manager.summary).toHaveText(
-            '1 picked · 1 ready to publish'
-        );
-    });
-
-    test('folds every card away and back', async ({
-        publishManagerPage: manager
-    }) => {
-        await manager.goto(I18N_WORKSPACE.id, 'localized_post', [
-            'lp-en-1',
-            'lp-en-2'
-        ]);
-        await expect(manager.cell('Rain jacket', 'English')).toBeVisible();
-
-        await manager.toggleAll('Collapse all').click();
-        await expect(manager.cell('Rain jacket', 'English')).toBeHidden();
-        // Folding hides the rows, not the picks.
-        await expect(manager.summary).toHaveText(
-            '3 picked · 3 ready to publish'
-        );
-        await manager.cardToggle('Rain jacket', 'Show').click();
-        await expect(manager.cell('Rain jacket', 'English')).toBeVisible();
-        await expect(manager.cell('Winter boots', 'Deutsch')).toBeHidden();
-
-        await manager.toggleAll('Expand all').click();
-        await expect(manager.cell('Winter boots', 'Deutsch')).toBeVisible();
+        await expect(manager.summary).toHaveText('1 of 1 picked');
     });
 
     test('says what to do when opened on nothing', async ({
@@ -218,22 +187,24 @@ test.describe('Publish Manager', () => {
     });
 });
 
-test.describe('Publish Manager — what each locale is missing', () => {
+test.describe('Publish Manager — what needs attention', () => {
     test.beforeEach(async ({ page }) => {
         await mockSignedIn(page);
         await mockWorkspaces(page, [I18N_WORKSPACE]);
-        // The German boots is missing its (translated) title.
+        // The German boots is missing its (translated) title; the jacket is
+        // held by an approval rule.
         await mockI18n(page, {
+            linked: LINKED,
             blocked: {
                 'lp-de-1': [
                     { field: 'title', label: 'Title', message: 'is required' }
                 ]
             }
         });
-        await mockReviewStatus(page, {});
+        await mockReviewStatus(page, { 'lp-en-2': HELD });
     });
 
-    test('shows the failing fields per locale, and every field on demand', async ({
+    test('names what a locale is missing, and never offers it', async ({
         publishManagerPage: manager,
         makeAxe
     }) => {
@@ -242,26 +213,26 @@ test.describe('Publish Manager — what each locale is missing', () => {
             'lp-en-2'
         ]);
         await expect(manager.summary).toHaveText(
-            '2 picked · 1 ready to publish · 1 needs fixes'
+            '2 of 2 picked · 2 need attention'
         );
-        await expect(manager.card('Winter boots')).toContainText(
-            '1 entry needs fixes'
+        // The blocked German boots is a red pill, not a checkbox…
+        await expect(manager.cell('Winter boots', 'Deutsch')).toHaveCount(0);
+        await expect(manager.list('Localized posts')).toContainText(
+            'Deutsch: needs fixes before it can publish'
         );
+        // …and the attention list says why, the translated field marked.
+        await expect(manager.attention).toContainText(
+            'Winterstiefel · Deutsch'
+        );
+        await expect(manager.attention).toContainText('Title is required');
+        await expect(manager.attention).toContainText(
+            '(translated per locale)'
+        );
+        // The held jacket stays pickable; the rule decides at publish.
+        await expect(manager.cell('Rain jacket', 'English')).toBeChecked();
+        await expect(manager.attention).toContainText('Approvals 0/1');
 
-        // The failure is on screen without asking, and the title is marked as
-        // a field translated per locale.
-        const failing = manager.failing('Winter boots, Deutsch');
-        await expect(failing).toContainText('Title');
-        await expect(failing).toContainText('is required');
-        await expect(failing).toContainText('(translated per locale)');
-        await expect(failing).not.toContainText('Category');
-
-        // The whole checklist, passing fields included, folds open.
-        await manager.allChecks('Winter boots, Deutsch').click();
-        await expect(manager.card('Winter boots')).toContainText('Category');
-
-        // Only the ready entry is offered for publishing.
-        await expect(manager.publish).toHaveText('Publish 1 entry');
+        await expect(manager.publish).toHaveText('Publish 2 entries');
         await expectNoA11yViolations(makeAxe());
     });
 });
