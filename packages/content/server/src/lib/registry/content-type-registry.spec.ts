@@ -75,6 +75,24 @@ describe('ContentTypeRegistry', () => {
             expect(byName['tags'].relation?.unique).toBeUndefined();
         });
 
+        it('serves a declared defaultValue and omits an undeclared one', () => {
+            const event = collection('event', {
+                fields: {
+                    stage: field.select({
+                        options: ['draft', 'final'],
+                        defaultValue: 'draft'
+                    }),
+                    title: field.text()
+                }
+            });
+            const fields = new ContentTypeRegistry([event]).serialize(
+                'event'
+            )!.fields;
+            const byName = Object.fromEntries(fields.map((x) => [x.name, x]));
+            expect(byName['stage'].defaultValue).toBe('draft');
+            expect('defaultValue' in byName['title']).toBe(false);
+        });
+
         it('returns undefined for an unknown type', () => {
             expect(registry.serialize('nope')).toBeUndefined();
         });

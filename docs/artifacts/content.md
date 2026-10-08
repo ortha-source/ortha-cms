@@ -183,6 +183,10 @@ The reference application currently has **6** host migrations (`0000_content-typ
 | relation    | An `<field>_id` FK column or a join table             | Not directly                 | Filtering goes by **paths** (`author.name`), not by the raw uuid                                                                            |
 | media       | a uuid or a jsonb array of uuids **in the value bag** | No                           | Not an FK — the assets live in the media plugin's schema. Existence and `accept` are checked by the port                                    |
 
+> **`defaultValue` is a prefill, not storage**
+>
+> `text`, `number`, `money`, `boolean`, `date`, `datetime`, `select` and `multiselect` take a `defaultValue` — what the admin's **create form** starts the field at (`date` may say `'today'`, `datetime` `'now'`, resolved when the form opens). It costs no column `DEFAULT` and no migration: an existing entry keeps what it holds, an untouched field of an existing entry is still shown empty, and a write through the API without the field stays without it. It must be a value the field accepts — checked at define time through the same validator as an entry's values. A relation or media field takes none: its value names a row, which is data and differs per environment.
+
 ### Relations: four cardinalities, two storage shapes
 
 | Cardinality  | Declaration                                                   | Storage                                                                                         |

@@ -6,13 +6,16 @@ export type {
 } from './document-envelope';
 export type { FieldAdminDoc } from './field-admin-doc';
 export type {
+    BooleanFieldDoc,
+    DateFieldDoc,
     FieldDoc,
     FieldDocType,
+    JsonFieldDoc,
     MediaAcceptDoc,
     MediaFieldDoc,
     MoneyFieldDoc,
+    MultiselectFieldDoc,
     NumberFieldDoc,
-    PlainFieldDoc,
     RelationFieldDoc,
     RichTextFieldDoc,
     SelectFieldDoc,

@@ -15,6 +15,7 @@ export type SchemaIssueCode =
     | 'field.lang'
     | 'field.pattern'
     | 'field.media-kind'
+    | 'field.default-value'
     | 'relation.unique-many'
     | 'relation.sync-without-i18n'
     | 'relation.localized-sync'

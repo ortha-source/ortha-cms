@@ -39,6 +39,14 @@ export {
 } from './lib/fields/media-value';
 export type { MediaValueRef, MediaValueInput } from './lib/fields/media-value';
 export { MEDIA_KIND_VALUES, isMediaKind } from './lib/fields/media-kind';
+export {
+    DEFAULT_NOW,
+    DEFAULT_TODAY,
+    DEFAULT_VALUE_FIELD_TYPES,
+    defaultValueProblem,
+    isRelativeDefault,
+    takesDefaultValue
+} from './lib/fields/default-value';
 export type { MediaKind } from './lib/fields/media-kind';
 
 export { RICH_TEXT_MARK, RICH_TEXT_NODE } from './lib/richtext/rich-text-node';

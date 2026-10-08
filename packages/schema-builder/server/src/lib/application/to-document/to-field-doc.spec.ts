@@ -1,3 +1,4 @@
+import { field } from '@orthacms/content-server/define';
 import { post } from '../../../testing/types';
 import { toFieldDoc } from './to-field-doc';
 
@@ -41,6 +42,17 @@ describe('toFieldDoc', () => {
     it('copies choice options', () => {
         expect(docOf('kind')).toEqual({ type: 'select', options: ['a', 'b'] });
         expect(docOf('tags')).toEqual({ type: 'multiselect', options: ['x'] });
+    });
+
+    it('carries a default value, the relative ones included', () => {
+        expect(
+            toFieldDoc(field.select({ options: ['a', 'b'], defaultValue: 'b' }))
+        ).toEqual({ type: 'select', options: ['a', 'b'], defaultValue: 'b' });
+        expect(toFieldDoc(field.date({ defaultValue: 'today' }))).toEqual({
+            type: 'date',
+            defaultValue: 'today'
+        });
+        expect(toFieldDoc(field.boolean())).not.toHaveProperty('defaultValue');
     });
 
     it('copies media accept and multiple', () => {

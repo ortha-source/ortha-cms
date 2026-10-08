@@ -13,6 +13,7 @@ const KEY_ORDER = [
     'min',
     'max',
     'integer',
+    'defaultValue',
     'multiple',
     'accept',
     'many',

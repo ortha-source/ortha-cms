@@ -1,3 +1,5 @@
+import type { FieldValidationRules } from '../fields/field-spec';
+
 /**
  * A content type as the schema rules see it: plain data. The DSL builds one
  * from its field specs (thunks resolved to names), the schema builder from its
@@ -21,6 +23,10 @@ export interface RuleField {
     readonly lang?: string;
     readonly pattern?: string;
     readonly accept?: { readonly kinds?: readonly string[] };
+    /** The prefill a new entry's form starts from, and what it is checked against. */
+    readonly defaultValue?: unknown;
+    readonly options?: readonly string[];
+    readonly validation?: FieldValidationRules;
     /** `admin.width` / `admin.group` as declared — unknown values are the point. */
     readonly width?: unknown;
     readonly group?: unknown;

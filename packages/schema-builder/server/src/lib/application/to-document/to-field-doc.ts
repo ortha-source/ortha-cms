@@ -46,6 +46,9 @@ export function toFieldDoc(spec: AnyFieldSpec): FieldDoc {
         ...(spec.lang !== undefined ? { lang: spec.lang } : {}),
         ...rules,
         ...(spec.options ? { options: [...spec.options] } : {}),
+        ...(spec.defaultValue !== undefined
+            ? { defaultValue: structuredClone(spec.defaultValue) }
+            : {}),
         ...(spec.type === 'media' && spec.multiple ? { multiple: true } : {}),
         ...(spec.accept ? { accept: toAcceptDoc(spec.accept) } : {}),
         ...(spec.relation ? toRelationDoc(spec, spec.relation) : {}),

@@ -61,6 +61,12 @@ export interface SerializedField {
      * present only when the field sets one. The admin picker filters by it.
      */
     accept?: { kinds?: readonly string[]; mimeTypes?: readonly string[] };
+    /**
+     * What the create form starts the field at — present only when the field
+     * declares one. A prefill, not a stored default: `'today'` (date) and
+     * `'now'` (datetime) are resolved by the form when it opens.
+     */
+    defaultValue?: unknown;
 }
 
 /** Wire shape of a content type (summary, wizard-compatible). */
@@ -164,6 +170,9 @@ export class ContentTypeRegistry {
             validation: { ...spec.validation },
             admin: { ...spec.admin },
             ...(spec.options ? { options: spec.options } : {}),
+            ...(spec.defaultValue !== undefined
+                ? { defaultValue: spec.defaultValue }
+                : {}),
             ...(spec.type === CONTENT_FIELD_TYPE.Media
                 ? {
                       multiple: !!spec.multiple,

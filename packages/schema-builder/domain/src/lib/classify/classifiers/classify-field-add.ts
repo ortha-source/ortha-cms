@@ -3,8 +3,9 @@ import { isLiveType, type ClassifyContext } from '../change-facts';
 import { verdict } from '../classified-change';
 
 /**
- * On a live type `required` is NOT NULL, and the DSL has no default value, so
- * existing rows would fail the ALTER. A required boolean gets DEFAULT false.
+ * On a live type `required` is NOT NULL, and a field's `defaultValue` only
+ * prefills the create form — it is no column DEFAULT — so existing rows would
+ * fail the ALTER. A required boolean gets DEFAULT false.
  * Relations and media store no column on the main table when they are many,
  * but a single relation is still a column — every field add is storage.
  */

@@ -38,6 +38,26 @@ describe('renderField — one DSL call per field type, defaults left out', () =>
             { type: 'media', multiple: true, accept: { kinds: ['image'] } },
             "field.media({ multiple: true, accept: { kinds: ['image'] } })"
         ],
+        [
+            { type: 'select', options: ['a', 'b'], defaultValue: 'b' },
+            "field.select({ options: ['a', 'b'], defaultValue: 'b' })"
+        ],
+        [
+            { type: 'multiselect', options: ['a'], defaultValue: ['a'] },
+            "field.multiselect({ options: ['a'], defaultValue: ['a'] })"
+        ],
+        [
+            { type: 'number', required: true, max: 5, defaultValue: 0 },
+            'field.number({ required: true, max: 5, defaultValue: 0 })'
+        ],
+        [
+            { type: 'boolean', defaultValue: false },
+            'field.boolean({ defaultValue: false })'
+        ],
+        [
+            { type: 'date', defaultValue: 'today' },
+            "field.date({ defaultValue: 'today' })"
+        ],
         [{ type: 'media', multiple: false }, 'field.media()']
     ] as const)('%j', (spec, source) => {
         expect(renderField(spec as never)).toBe(source);
