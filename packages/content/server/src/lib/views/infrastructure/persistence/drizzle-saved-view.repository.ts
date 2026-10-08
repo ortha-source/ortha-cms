@@ -25,6 +25,13 @@ const COLUMNS = {
     updatedAt: savedViews.updatedAt
 };
 
+/**
+ * A private advisory-lock class (the first `pg_advisory_xact_lock` key)
+ * namespacing the per-owner view-cap lock, so its hashed key cannot collide with
+ * any other advisory lock the app takes. Arbitrary but fixed.
+ */
+const SAVED_VIEW_OWNER_LOCK_CLASS = 0x5356; // 'SV'
+
 /** Narrows the enum column's `string` back to the domain union. */
 function toRecord(row: {
     id: string;
@@ -91,6 +98,18 @@ export class DrizzleSavedViewRepository implements SavedViewRepository {
             .where(eq(savedViews.id, id))
             .limit(1);
         return row ? toRecord(row) : null;
+    }
+
+    async lockOwner(
+        workspaceId: string,
+        scope: string,
+        ownerId: string
+    ): Promise<void> {
+        // Transaction-scoped: released by the commit or rollback of the unit of
+        // work this runs in, so there is no unlock to forget.
+        await this.db.execute(
+            sql`select pg_advisory_xact_lock(${SAVED_VIEW_OWNER_LOCK_CLASS}, hashtext(${`${workspaceId}:${scope}:${ownerId}`}))`
+        );
     }
 
     async countForOwner(

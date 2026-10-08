@@ -45,7 +45,13 @@ export { WorkspaceGrantsQuery } from './lib/content-types/queries/workspace-gran
 // call — ADR-0005 §5 requires an applied proposal to run the ordinary
 // use-case, so an applier reaching for anything else is the bug the port
 // exists to prevent.
-export { EntryWriterService } from './lib/entries/infrastructure/persistence/entry-writer.service';
+export {
+    EntryWriterService,
+    // The entry-id shape, for the plugins whose agent tools look an entry up
+    // by an id the model supplied: a malformed one must read as "no such
+    // entry" rather than reach Postgres as a uuid cast error.
+    UUID_RE
+} from './lib/entries/infrastructure/persistence/entry-writer.service';
 // Exported for the bound CONTENT_ENTRY_EXTENSION, which syncs relation links
 // across locale siblings and must write them through the same service the
 // entries pipeline does.
@@ -157,6 +163,7 @@ export {
 } from './lib/extension/media-asset-resolver';
 export type {
     MediaAssetResolver,
+    MediaResolveOptions,
     ResolvedMediaAsset
 } from './lib/extension/media-asset-resolver';
 

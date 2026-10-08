@@ -13,6 +13,7 @@ import {
     eq,
     inArray,
     isNull,
+    sql,
     type AnyColumn,
     type SQL
 } from 'drizzle-orm';
@@ -27,6 +28,7 @@ import { ContentReadScopeRegistry } from '../../extension/read-scope';
 import { ENTRY_STATUS, type AnyContentType } from '../../types/content-type';
 import { CONTENT_FIELD_TYPE } from '../../types/fields';
 import { RelationLinkService } from '../../entries/infrastructure/persistence/relation-link.service';
+import { UUID_RE } from '../../entries/infrastructure/persistence/entry-writer.service';
 import type {
     PublicMediaFieldView,
     PublicRelationFieldView
@@ -684,6 +686,10 @@ export class PublicEntriesQuery {
             // Called for its validation, not its predicate — an unknown slug
             // throws here. Do not "clean up" the unused return value.
             this.extension?.listScope(type, workspaceId, { locale });
+            // A malformed id names no row: the same 404 as a missing one, not
+            // a uuid cast error. The routes' `ParseUUIDPipe` never lets one
+            // through; the MCP tools hand over whatever the model sent.
+            if (!UUID_RE.test(locator.id)) return sql`false`;
             return and(
                 eq(table['id'], locator.id),
                 this.liveWhere(type, workspaceId, visibility, mode)
@@ -694,6 +700,7 @@ export class PublicEntriesQuery {
         // not have, which is a different mistake from naming a group that does
         // not exist (a 404).
         this.assertLocalized(type, 'localeGroupId');
+        if (!UUID_RE.test(locator.localeGroupId)) return sql`false`;
         return and(
             eq(table['localeGroupId'], locator.localeGroupId),
             this.liveWhere(type, workspaceId, visibility, mode),

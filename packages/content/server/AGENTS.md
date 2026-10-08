@@ -130,7 +130,11 @@ id (uuid / uuid[]). Verifying an asset **exists in the workspace** and **matches
 inversion as `CONTENT_ENTRY_EXTENSION`. `EntryWriterService.assertMediaTargets`
 injects it `@Optional()` and runs alongside `assertRelationTargets`: a missing,
 cross-workspace, or disallowed asset is a uniform **422** (no
-not-found-vs-forbidden enumeration signal). Unbound (media plugin absent) it is a
+not-found-vs-forbidden enumeration signal). Both checks run **inside** the
+write's transaction and hold what they read — relation targets `FOR KEY SHARE`,
+assets through the port's `{ lock: true }` (media reads on the ambient unit of
+work, `FOR KEY SHARE`) — because an asset id has no FK: checked beforehand, an
+asset deleted in between left an id naming nothing. Unbound (media plugin absent) it is a
 no-op — media fields shape-validate and store, but skip existence/restriction.
 `GET /content/:type/:id/media` (`MediaRefsQuery`) resolves an entry's media ids
 to display refs (name/thumbnail-url/kind), and the revision detail's `mediaRefs`

@@ -12,9 +12,14 @@ const UUID_RE =
 export class AssetId {
     private constructor(private readonly id: string) {}
 
+    /** Whether `value` has the shape of an asset id at all. */
+    static isValid(value: string): boolean {
+        return UUID_RE.test(value);
+    }
+
     /** Builds an {@link AssetId} from a raw string, rejecting non-UUIDs. */
     static create(value: string): AssetId {
-        if (!UUID_RE.test(value)) {
+        if (!AssetId.isValid(value)) {
             throw new InvalidMediaIdError('asset', value);
         }
         return new AssetId(value);

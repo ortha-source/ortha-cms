@@ -3,6 +3,7 @@ import { and, eq, inArray, isNull, type AnyColumn } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@orthacms/database';
 import {
     entryTitle,
+    UUID_RE,
     type AnyContentType,
     type EntryStatus
 } from '@orthacms/content-server';
@@ -98,11 +99,16 @@ export class LocaleGroupService {
         workspaceId: string
     ): Promise<EntryLocalesView> {
         const table = type.table as unknown as ContentTable;
-        const [row] = (await this.db
-            .select()
-            .from(type.table)
-            .where(this.liveWhere(type, eq(table['id'], id), workspaceId))
-            .limit(1)) as Record<string, unknown>[];
+        // A malformed id names no entry: the same 404 as a missing one, rather
+        // than a uuid cast error. The route parses its id; the copilot's
+        // translation tools hand over whatever the model sent.
+        const [row] = UUID_RE.test(id)
+            ? ((await this.db
+                  .select()
+                  .from(type.table)
+                  .where(this.liveWhere(type, eq(table['id'], id), workspaceId))
+                  .limit(1)) as Record<string, unknown>[])
+            : [];
         if (!row) {
             throw new NotFoundException(
                 `No entry "${id}" on content type "${type.name}".`

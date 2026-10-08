@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { and, eq, inArray } from 'drizzle-orm';
-import { InjectDatabase, type Database } from '@orthacms/database';
+import { InjectDatabase, UnitOfWork, type Database } from '@orthacms/database';
 import type {
     MediaAssetResolver,
+    MediaResolveOptions,
     ResolvedMediaAsset
 } from '@orthacms/content-server';
 import { mediaAsset } from '../schema/media-asset';
@@ -19,17 +20,24 @@ import { mediaAsset } from '../schema/media-asset';
  */
 @Injectable()
 export class MediaAssetResolverQuery implements MediaAssetResolver {
-    constructor(@InjectDatabase() private readonly db: Database) {}
+    constructor(
+        @InjectDatabase() private readonly db: Database,
+        private readonly uow: UnitOfWork
+    ) {}
 
     async resolve(
         ids: readonly string[],
-        workspaceId: string
+        workspaceId: string,
+        options: MediaResolveOptions = {}
     ): Promise<Map<string, ResolvedMediaAsset>> {
         const unique = [...new Set(ids)];
         const result = new Map<string, ResolvedMediaAsset>();
         if (!unique.length) return result;
 
-        const rows = await this.db
+        // A locking read joins the entry write's transaction, so the lock is
+        // that write's and lasts until it commits; `FOR KEY SHARE` is the lock a
+        // foreign key would take, which blocks a delete and nothing else.
+        const query = (options.lock ? this.uow.current() : this.db)
             .select({
                 id: mediaAsset.id,
                 kind: mediaAsset.kind,
@@ -46,6 +54,7 @@ export class MediaAssetResolverQuery implements MediaAssetResolver {
                     eq(mediaAsset.workspaceId, workspaceId)
                 )
             );
+        const rows = await (options.lock ? query.for('key share') : query);
 
         for (const row of rows) {
             const raw = `/api/media/assets/${row.id}/raw`;
