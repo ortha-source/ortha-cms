@@ -53,3 +53,45 @@ describe('activity_recent', () => {
         expect(() => provider().onModuleInit()).not.toThrow();
     });
 });
+
+describe('activity_recent with an unparseable date', () => {
+    /**
+     * The route refuses one with `@IsISO8601`; the tool had no DTO, so the
+     * string reached the query as `new Date('last tuesday')` and failed in the
+     * driver — a message the model cannot act on. It is now the argument
+     * error the route would give, and the query never runs.
+     */
+    it.each([
+        ['from', 'last tuesday'],
+        ['to', '2026-13-01']
+    ])('refuses %s=%s before querying', async (name, value) => {
+        const list = jest.fn();
+        const [tool] = new ActivityCopilotToolProvider(
+            { list } as unknown as ActivityService,
+            undefined
+        ).tools();
+
+        await expect(
+            tool.handler({ [name]: value }, {} as never)
+        ).rejects.toThrow(`\`${name}\` must be an ISO 8601 date`);
+        expect(list).not.toHaveBeenCalled();
+    });
+
+    it('still accepts a date the route accepts', async () => {
+        const list = jest.fn(async () => ({
+            items: [],
+            total: 0,
+            page: 1,
+            pageSize: 10
+        }));
+        const [tool] = new ActivityCopilotToolProvider(
+            { list } as unknown as ActivityService,
+            undefined
+        ).tools();
+
+        await tool.handler({ from: '2026-01-31' }, {} as never);
+        expect(list).toHaveBeenCalledWith(
+            expect.objectContaining({ from: '2026-01-31' })
+        );
+    });
+});

@@ -181,6 +181,22 @@ describe('entryBelongsTo', () => {
         expect(source.sqlOf(0)).not.toContain('deleted_at');
     });
 
+    it('refuses a malformed id as it refuses an unknown one, without querying', async () => {
+        // `content_access_set` takes the id straight from the agent, and the
+        // probe compares it to a uuid column: a cast error, not a refusal.
+        const source = reader([{ id: ENGLISH }]);
+
+        await expect(
+            entryBelongsTo(
+                source.handle as never,
+                typeOf(localized, true),
+                'my-post',
+                WORKSPACE
+            )
+        ).resolves.toBe(false);
+        expect(source.wheres).toHaveLength(0);
+    });
+
     it('refuses a type missing either column rather than passing', async () => {
         const source = reader([{ id: ENGLISH }]);
 
