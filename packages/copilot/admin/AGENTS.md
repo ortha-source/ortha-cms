@@ -1155,7 +1155,8 @@ plugin contributes `endCopilotSession` to identity's `SESSION_RESET_SLOT`, which
 runs on sign-out, sign-in, accepting an invite and a session lost to a `401`; it
 aborts every run (which is what stops it server-side) and drops the chats and
 the skills seed, keeping the browser's remembered model and the session-id
-counter. Unit-tested in `copilotStore.spec.ts`; `session-change.spec.ts` drives
+counter. The `ViewSwitcher`'s remembered CMS pages (`forgetCmsPaths`) go too:
+"where I was" belongs to the person, not the tab. Unit-tested in `copilotStore.spec.ts`; `session-change.spec.ts` drives
 it through a real sign-out and sign-in.
 
 ## Commands

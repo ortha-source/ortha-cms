@@ -10,7 +10,7 @@ import { AGENTS_SEGMENT, SKILLS_SEGMENT } from '../../domain/agentsRoute';
 import { endCopilotSession } from '../../application/copilotStore';
 import { AgentsPageSkeleton, SkillsPageSkeleton } from '../AgentsSkeleton';
 import { CopilotLauncher } from '../CopilotLauncher';
-import { ViewSwitcher } from '../ViewSwitcher';
+import { ViewSwitcher, forgetCmsPaths } from '../ViewSwitcher';
 
 const AgentsPage = lazy(() =>
     import('../AgentsPage').then((module) => ({
@@ -76,9 +76,18 @@ export function CopilotPlugin(): CopilotAdminPlugin {
                 // The chats live outside React and outlive every component,
                 // so they outlived the account too until this: a sign-out, or
                 // somebody else signing in on the tab, now ends them and
-                // aborts whatever is still streaming.
+                // aborts whatever is still streaming. The switcher's
+                // remembered CMS pages go with them.
                 slot: SESSION_RESET_SLOT,
-                items: [{ id: 'copilot', reset: endCopilotSession }]
+                items: [
+                    {
+                        id: 'copilot',
+                        reset: () => {
+                            endCopilotSession();
+                            forgetCmsPaths();
+                        }
+                    }
+                ]
             },
             {
                 slot: SIDEBAR_FOOTER_SLOT,

@@ -6,6 +6,16 @@ import { mockCopilotApi, spyRunAborts } from '../support/api/copilot';
 
 const WORKSPACE_ID = 'ws_marketing';
 const PASSWORD = 'SecurePass123!';
+/** The key the CMS ⇄ Agents switcher remembers this workspace's page under. */
+const RETURN_KEY = `orthacms:agents:return:${WORKSPACE_ID}`;
+
+/** The browser's `sessionStorage`, typed for a suite compiled without DOM. */
+type SessionStore = {
+    sessionStorage: {
+        getItem(key: string): string | null;
+        setItem(key: string, value: string): void;
+    };
+};
 
 /**
  * The chats across a change of **who is signed in**.
@@ -29,7 +39,7 @@ test.describe('Ortha CMS AI across a change of account', () => {
         await spyLogout(page);
     });
 
-    test('the next account does not inherit the previous one’s chats', async ({
+    test('the next account does not inherit the previous one’s chats or places', async ({
         page,
         loginPage,
         contentLibraryPage,
@@ -40,10 +50,28 @@ test.describe('Ortha CMS AI across a change of account', () => {
         await copilotDockPage.startChat();
         await copilotDockPage.startChat();
         await expect(copilotDockPage.launcher).toHaveAccessibleName(/2 chats/);
+        // The CMS ⇄ Agents switcher's memory of where this account was.
+        await page.evaluate(
+            (key) =>
+                (globalThis as unknown as SessionStore).sessionStorage.setItem(
+                    key,
+                    '/workspaces/ws_marketing/content/articles'
+                ),
+            RETURN_KEY
+        );
 
         await contentLibraryPage.openAccountMenu();
         await contentLibraryPage.accountMenuItem('Logout').click();
         await expect(loginPage.heading).toBeVisible();
+        expect(
+            await page.evaluate(
+                (key) =>
+                    (
+                        globalThis as unknown as SessionStore
+                    ).sessionStorage.getItem(key),
+                RETURN_KEY
+            )
+        ).toBeNull();
 
         // Somebody else, on the same tab and in the same page load — a reload
         // would wipe module state and prove nothing. The gate stashed the

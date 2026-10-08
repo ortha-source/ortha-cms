@@ -209,13 +209,12 @@ The guards are asserted by `src/harness/harness-guards.spec.ts`.
   _in sequence_ in one file are fine; two apps _open at once_ are not, because
   the `@orthacms/database` handle is a module singleton.
 
-## No CI runs this suite
+## CI
 
-**No CI pipeline runs these tests today** — the only workflow is
-`.github/workflows/release.yml` (`npm ci`, `typecheck`, `nx release`). Until
-that changes, a local `npx nx e2e server-e2e` is the only gate on a merge, which
-is why the harness defends itself against the two failure modes above rather
-than trusting the runner.
+The `server-e2e` job in `.github/workflows/ci.yml` runs this suite on every
+pull request and on `main`, alongside the `check` job. The harness still
+defends itself against the two failure modes above rather than trusting the
+runner — they were found on developer machines, which run it too.
 
 ## Commands
 
