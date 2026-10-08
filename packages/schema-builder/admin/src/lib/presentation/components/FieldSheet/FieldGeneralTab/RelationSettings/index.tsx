@@ -21,8 +21,8 @@ import {
     toRelationFlags,
     type Cardinality
 } from '../../../../../domain/relationCardinality';
-import { SwitchField } from '../../SwitchField';
 import { CardinalityOption } from './CardinalityOption';
+import { LocaleSyncSelect } from './LocaleSyncSelect';
 
 const messages = defineMessages({
     target: { id: 'schemaBuilder.relation.target', defaultMessage: 'Links to' },
@@ -90,10 +90,6 @@ const messages = defineMessages({
     restrict: {
         id: 'schemaBuilder.relation.restrict',
         defaultMessage: 'Refuse the delete'
-    },
-    sync: {
-        id: 'schemaBuilder.relation.sync',
-        defaultMessage: 'Same links in every locale'
     },
     inverse: {
         id: 'schemaBuilder.relation.inverse',
@@ -217,13 +213,12 @@ export function RelationSettings({ spec, type, document, onChange }: Props) {
                 </Select>
             </div>
             {type.i18n && (
-                <SwitchField
-                    id="relation-sync"
-                    label={intl.formatMessage(messages.sync)}
-                    checked={spec.syncAcrossLocales ?? !spec.localized}
-                    onChange={(syncAcrossLocales) =>
-                        onChange({ syncAcrossLocales })
-                    }
+                <LocaleSyncSelect
+                    syncAcrossLocales={spec.syncAcrossLocales}
+                    localized={spec.localized}
+                    targetI18n={Boolean(target?.i18n)}
+                    names={names}
+                    onChange={onChange}
                 />
             )}
         </div>

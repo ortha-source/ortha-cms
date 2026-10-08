@@ -49,8 +49,13 @@ Exactly what the DSL can express — `ContentTypeOptions`, `*FieldOptions`,
 - **Type:** `label`, `description`, `path` (pages), `publishable`, `paranoid`,
   `i18n`, `groups`. The flags are fixed after creation except turning trash on.
 - **Field, General tab:** label, machine name, `required`, `localized` (i18n
-  types only), `lang`; for a relation its target, cardinality, inverse field
-  and `onDelete`.
+  types only), `lang`; for a relation its target, cardinality, inverse field,
+  `onDelete` and — on an i18n type, in place of `localized` — `syncAcrossLocales`
+  as a two-way choice ("Links in translations"). The "sync" option is named
+  for the mode it actually runs in, which the **target** decides: the same
+  entry in every locale (untranslated target) or the target's translation in
+  each locale (translated target), with a note that a missing translation
+  leaves that locale without the link rather than creating anything.
 - **Field, Validation tab:** text `minLength`/`maxLength`/`pattern`; richtext
   `minLength`/`maxLength`/`structure`; number `min`/`max`/`integer`; money
   `min`/`max`; select and multiselect `options`; media `multiple` and `accept`.
