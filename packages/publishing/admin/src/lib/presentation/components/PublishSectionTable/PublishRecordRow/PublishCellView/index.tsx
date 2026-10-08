@@ -187,15 +187,16 @@ export function PublishCellView({
     if (!isPublishable(cell)) {
         return (
             <TableCell className="text-center align-top text-xs text-muted-foreground">
-                <span className="inline-flex flex-col items-center gap-1">
-                    {status}
-                    {line && outcome ? (
-                        <span className="inline-flex items-center gap-1">
-                            {line.icon}
-                            {line.text}
-                        </span>
-                    ) : null}
-                </span>
+                {/* An entry this run just published says so once — its stored
+                    status would only repeat the word beside the result. */}
+                {line && outcome ? (
+                    <span className="inline-flex items-center gap-1">
+                        {line.icon}
+                        {line.text}
+                    </span>
+                ) : (
+                    status
+                )}
             </TableCell>
         );
     }
