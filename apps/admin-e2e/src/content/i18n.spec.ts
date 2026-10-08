@@ -331,17 +331,17 @@ test.describe('Content i18n', () => {
         );
 
         await contentLibraryPage.openLocaleMenu();
-        // The current locale is the checked radio item.
+        // The current locale is the selected option.
         await expect(
             contentLibraryPage.localeMenuItem('English')
-        ).toHaveAttribute('aria-checked', 'true');
+        ).toHaveAttribute('aria-selected', 'true');
         // The de sibling exists → switch; fr is missing → create.
         await expect(contentLibraryPage.switchLocale('Deutsch')).toBeVisible();
         await expect(
             contentLibraryPage.createTranslation('Français')
         ).toBeVisible();
         // The summary counts the group against every configured locale, and
-        // each existing row leads with that locale's own record title.
+        // each existing row carries that locale's own record title.
         await expect(contentLibraryPage.localeMenuSummary).toHaveText(
             /^\d of 4 published · \d+%$/
         );
@@ -350,7 +350,7 @@ test.describe('Content i18n', () => {
         );
         await expect(
             contentLibraryPage.createTranslation('Français')
-        ).toContainText('Not translated');
+        ).toContainText('Missing');
         // Each existing sibling carries its publish state.
         await expect(contentLibraryPage.switchLocale('Deutsch')).toContainText(
             /Published|Draft|Modified/
@@ -362,6 +362,63 @@ test.describe('Content i18n', () => {
         await expect(contentLibraryPage.localeGroupLabel).toBeVisible();
         await expect(contentLibraryPage.localeGroupHelp).toBeVisible();
         await expect(contentLibraryPage.localeGroupId('G1')).toBeVisible();
+    });
+
+    test('the default locale leads the locale menu, tagged, whatever the configured order', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        // The host lists the default **last**; the menu must still lead with it.
+        await page.route(/\/api\/i18n\/locales$/, (route) =>
+            route.fulfill({
+                json: {
+                    items: [
+                        {
+                            slug: 'de',
+                            name: 'Deutsch',
+                            isDefault: false,
+                            dir: 'ltr'
+                        },
+                        {
+                            slug: 'fr',
+                            name: 'Français',
+                            isDefault: false,
+                            dir: 'ltr'
+                        },
+                        {
+                            slug: 'ar',
+                            name: 'العربية',
+                            isDefault: false,
+                            dir: 'rtl'
+                        },
+                        {
+                            slug: 'en',
+                            name: 'English',
+                            isDefault: true,
+                            dir: 'ltr'
+                        }
+                    ]
+                }
+            })
+        );
+        await page.goto(
+            `/workspaces/${I18N_WORKSPACE.id}/content/localized_post/lp-de-1`
+        );
+        await contentLibraryPage.editorSave.waitFor();
+        await contentLibraryPage.openLocaleMenu();
+
+        const rows = contentLibraryPage.localeMenu.getByRole('option');
+        await expect(rows.first()).toContainText('English');
+        await expect(rows.first()).toContainText('Default');
+        // Only the default carries the tag; the rest keep the host's order.
+        await expect(
+            contentLibraryPage.localeMenu.getByText('Default', { exact: true })
+        ).toHaveCount(1);
+        await expect(rows.nth(1)).toContainText('Deutsch');
+        await expect(rows.nth(2)).toContainText('Français');
+        // A search that matches it keeps it first too.
+        await contentLibraryPage.localeMenuSearch.fill('e');
+        await expect(rows.first()).toContainText('English');
     });
 
     test('the rail carries no Locale block and no Revisions block [ORT-227]', async ({

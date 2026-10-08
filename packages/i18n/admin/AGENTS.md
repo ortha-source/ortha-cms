@@ -54,21 +54,34 @@ slots the content plugin owns).
   Publish), live in **both** modes. Shown
   only when `schema.i18n`. It reads the open locale as **code · name** (e.g.
   `EN · English`) plus a **translated/total** count, and is a
-  `DropdownMenuTrigger` over a menu of every configured locale. The current
+  `PopoverTrigger` over a **searchable list** of every configured locale. The
+  current
   locale is resolved by `resolveActiveLocale` (`entry.locale ?? ?locale= ??
 defaultLocale`) — the plugin's single decision point, which the menu must not
   duplicate (`i18n:I-05`, `I-06`).
-    - **The menu opens on a summary**, `LocaleMenuHeader`: a strip of locale
-      codes (filled = live on a publishable type / exists otherwise, tinted =
-      draft, outlined = missing, dashed = unknown), "N of M published · P%", and
-      a progress bar. It is an overview, not a control — the strip and bar are
-      `aria-hidden`, the sentence is read — and it is **sticky** while the rows
-      scroll under it, since a deployment may run two dozen locales. Each row
-      leads with that locale's **record title** (served as `entry.title` by the
-      locale panel), the language name beneath it, and its state on the right;
-      "Not translated" is claimed only when the members are known
-      (`i18n:I-30`). Radix type-ahead matches the language **name**
-      (`textValue`), not the code or the title the row starts with.
+    - **The menu is a search box over a listbox** — the records toolbar's
+      `LocaleSwitcher` pattern, because a deployment may run two dozen locales
+      and a menu's first-letter type-ahead cannot find one among them. Focus
+      stays in the search box (`role="combobox"`), ↑/↓ move an
+      `aria-activedescendant` highlight (starting on the current locale), Enter
+      picks; rows are `tabIndex={-1}` options. The search matches the language
+      name, the code and the record's title in that language. Under it,
+      `LocaleMenuSummary` reads "N of M published · P%" beside a progress bar
+      (`aria-hidden`; the sentence is read). It used to open on a strip of every
+      locale code coloured by state — a repeat of the rows that, at two dozen
+      locales, pushed the list half off the menu.
+    - **Each row leads with the language name**, the code beside it on the same
+      line (it used to sit in a fixed narrow column, where `zh-Hans` broke over
+      two lines), the record's **title** in that language beneath when it
+      exists (served as `entry.title` by the locale panel), and its state on the
+      right — a publish badge, **Missing** (turning into **+ Add** on the
+      highlighted row), or the inert reason. "Missing" is claimed only when the
+      members are known (`i18n:I-30`).
+    - **The default locale always leads**, whatever order the host configured
+      (and in search results that include it): a tinted row with a "Default"
+      tag and a divider beneath it. It is the source most translations start
+      from, so it is the one row a reader should never hunt for. The rest keep
+      the configured order (a stable sort).
     - **The count costs no request.** Edit mode counts the `useEntryLocales`
       items that have an `entry` against all of them; create mode counts the
       group's live summary members against **`useLocales().locales.length`** — a
@@ -100,24 +113,23 @@ defaultLocale`) — the plugin's single decision point, which the menu must not
     - **The chip owns every piece of state; `LocaleMenuItem` owns none.** A pick
       does not navigate — `beginLocaleSwitch` schedules the swap behind the
       cover, and `cancelPendingLocaleSwitch` is registered as the chip's unmount
-      cleanup. Radix unmounts `DropdownMenuContent` the instant an item is
-      selected, i.e. **inside that 220 ms window**, so any query, timer or
-      cleanup living in there would cancel the very pick that unmounted it and
-      the choice would silently do nothing. The chip is mounted by the header
-      slot and survives every open and close, which is where all of it belongs.
-      The switch is driven from `DropdownMenuItem`'s `onSelect`, which Radix
-      fires after its own close sequencing — the same shape content's
-      `EntryMenu` and `CollectionRecordsMenu` use, and what keeps the closing
-      menu's focus restore from fighting the guard dialog's focus trap.
+      cleanup. The popover content unmounts the instant a row is picked, i.e.
+      **inside that 220 ms window**, so any query, timer or cleanup living in
+      there would cancel the very pick that unmounted it and the choice would
+      silently do nothing. The chip is mounted by the header slot and survives
+      every open and close, which is where all of it belongs (the search query
+      included). A pick closes the popover first and runs from its
+      `onCloseAutoFocus`, after Radix has handed focus back to the trigger — so
+      the closing popover's focus restore cannot land after, and fight, the
+      unsaved-changes guard's focus trap.
     - **The trigger is the design system's `Button`** (`variant="outline"`,
       `size="sm"`), matching the write actions beside it — a real `<button>`,
-      which Radix needs to hand the menu its keyboard contract. It used to be a
+      which Enter / Space need to open the popover. It used to be a
       badge-styled chip, which read as a label about the record rather than a
-      control. The
-      current locale is a **checked `DropdownMenuRadioItem`**; an inert one is
-      `aria-disabled`, not `disabled`, because Radix skips a disabled item in
-      arrow navigation and the stated reason would be unreachable for exactly
-      the keyboard user who needs it.
+      control. The popover is `aria-labelledby` the trigger. The current locale
+      is the **selected** option; an inert one is `aria-disabled` but stays in
+      the highlight order, so its stated reason is reachable for exactly the
+      keyboard user who needs it.
     - **A failed `useLocales` read costs the choices, not the chip.** The
       trigger still renders (on a saved record the row's own `locale` names it),
       and the menu carries an "unavailable + retry" row — the same posture as

@@ -938,16 +938,38 @@ export class ContentLibraryPage extends BasePage {
     }
 
     /**
-     * The locale menu the title chip opens.
+     * The locale menu the title chip opens — a popover (`dialog`) holding a
+     * search box over a listbox of locales.
      *
-     * Named after its **trigger** — Radix points the content's
-     * `aria-labelledby` at the button, which is both the better name and the
-     * one that wins over any `aria-label` the component might set.
+     * Named after its **trigger**: the popover's `aria-labelledby` points at
+     * the button, which states the open locale and the count.
      */
     get localeMenu(): Locator {
-        return this.page.getByRole('menu', {
+        return this.page.getByRole('dialog', {
             name: /Choose a locale|Current locale/
         });
+    }
+
+    /**
+     * The locale menu's search box — a combobox that keeps focus while ↑/↓
+     * move an `aria-activedescendant` highlight over the rows.
+     */
+    get localeMenuSearch(): Locator {
+        return this.localeMenu.getByRole('combobox', {
+            name: 'Find a locale…'
+        });
+    }
+
+    /**
+     * Assert that the keyboard highlight is on `row`: the search box keeps
+     * focus, so "focused row" means the one its `aria-activedescendant` names.
+     */
+    async expectLocaleMenuHighlight(row: Locator): Promise<void> {
+        const id = await row.getAttribute('id');
+        await expect(this.localeMenuSearch).toHaveAttribute(
+            'aria-activedescendant',
+            id ?? ''
+        );
     }
 
     /** Open the title chip's locale menu and wait for it. */
@@ -963,8 +985,8 @@ export class ContentLibraryPage extends BasePage {
     }
 
     /**
-     * The locale menu's summary sentence ("2 of 4 published · 50%"). The chip
-     * strip and progress bar beside it are `aria-hidden`; this is what is read.
+     * The locale menu's summary sentence ("2 of 4 published · 50%"). The
+     * progress bar beside it is `aria-hidden`; this is what is read.
      */
     get localeMenuSummary(): Locator {
         return this.localeMenu.getByText(/\d+ of \d+ (published|translated)/);
@@ -972,7 +994,7 @@ export class ContentLibraryPage extends BasePage {
 
     /** One row of the locale menu, by whatever it is named. */
     localeMenuItem(name: string | RegExp): Locator {
-        return this.localeMenu.getByRole('menuitemradio', { name });
+        return this.localeMenu.getByRole('option', { name });
     }
 
     /** The create row for a not-yet-translated locale, in the open menu. */
