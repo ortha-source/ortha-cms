@@ -265,7 +265,7 @@ function publicSharedSchemas(
         PublicMediaRef: {
             type: 'object',
             description:
-                'One attached asset. The URLs take the **same bearer token** as the read that produced them, so a server-side consumer can fetch the bytes with the credential it already holds — but a browser `<img src>` sends no `Authorization` header and will not load one. Proxy them from whatever holds the token.',
+                "One attached asset. By default the URLs take the **same bearer token** as the read that produced them, so a server-side consumer can fetch the bytes with the credential it already holds — but a browser `<img src>` sends no `Authorization` header and will not load one. Proxy them from whatever holds the token. A deployment that publishes its storage provider’s CDN URLs (`publicUrls: 'provider'`) reports those instead for the assets it publishes — absolute `https://` URLs that need no token.",
             properties: {
                 id: UUID,
                 name: {
@@ -274,16 +274,32 @@ function publicSharedSchemas(
                 },
                 url: {
                     type: 'string',
-                    description: 'Route the original bytes stream from.'
+                    description:
+                        'Where the original bytes are fetched — the token route, or the asset’s public URL when the deployment publishes it.'
                 },
                 thumbUrl: {
                     type: 'string',
                     description:
-                        '~320px derivative, when one was generated (absent for non-images, SVGs, and images too small to derive).'
+                        '~320px derivative, when one was generated (absent for non-images, SVGs, and images too small to derive) — or, for a published video, the storage provider’s poster frame.'
                 },
                 previewUrl: {
                     type: 'string',
                     description: '~1280px derivative, same caveats.'
+                },
+                streams: {
+                    type: 'object',
+                    description:
+                        'Adaptive streaming manifests, for a published video whose storage provider transcodes. Absent otherwise. Public URLs — no token needed.',
+                    properties: {
+                        hls: {
+                            type: 'string',
+                            description: 'HLS playlist (`.m3u8`).'
+                        },
+                        dash: {
+                            type: 'string',
+                            description: 'MPEG-DASH manifest (`.mpd`).'
+                        }
+                    }
                 },
                 kind: {
                     type: 'string',

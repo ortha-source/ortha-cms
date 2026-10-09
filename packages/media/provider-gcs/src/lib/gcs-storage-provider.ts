@@ -95,7 +95,10 @@ export function createGcsStorageProvider(
         capabilities: {
             directUrl: canSign,
             contentTypeMetadata: true,
-            streamingPut: true
+            streamingPut: true,
+            // A bucket is private unless someone made it otherwise, and this
+            // adapter has no way to know whether they did.
+            publicUrls: false
         },
 
         async put(object: PutObject): Promise<StoredObject> {

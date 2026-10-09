@@ -76,7 +76,8 @@ describe('createS3StorageProvider', () => {
         expect(provider().capabilities).toEqual({
             directUrl: true,
             contentTypeMetadata: true,
-            streamingPut: true
+            streamingPut: true,
+            publicUrls: false
         });
     });
 

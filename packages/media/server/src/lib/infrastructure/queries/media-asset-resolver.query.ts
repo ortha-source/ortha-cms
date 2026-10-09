@@ -6,6 +6,8 @@ import type {
     ResolvedMediaAsset
 } from '@orthacms/content-server';
 import { mediaAsset } from '../schema/media-asset';
+import { PublicAssetUrlsQuery } from '../public-urls/public-asset-urls';
+import { assetUrlsFor, rawRoute } from './to-asset-view';
 
 /**
  * Binds content-server's {@link MediaAssetResolver} port to the media schema:
@@ -14,12 +16,19 @@ import { mediaAsset } from '../schema/media-asset';
  * An id that names no asset in the workspace is simply omitted from the map, so
  * a missing and a cross-workspace asset are indistinguishable to the caller.
  *
- * `url` is the app's own raw-stream route — the same one {@link toAssetView}
- * produces — so a revision preview or field control can render the asset.
+ * The URLs are the ones {@link toAssetView} reports — the app's own raw-stream
+ * route, or the provider's public URL when the deployment publishes the asset
+ * — so a revision preview, a field control or an embedded image renders it
+ * the same way the library does. A published asset also carries `public`,
+ * which is what tells content's public API it may hand the URL to an anonymous
+ * reader instead of rewriting it to the token route.
  */
 @Injectable()
 export class MediaAssetResolverQuery implements MediaAssetResolver {
-    constructor(@InjectDatabase() private readonly db: Database) {}
+    constructor(
+        @InjectDatabase() private readonly db: Database,
+        private readonly publicUrls: PublicAssetUrlsQuery
+    ) {}
 
     async resolve(
         ids: readonly string[],
@@ -37,7 +46,8 @@ export class MediaAssetResolverQuery implements MediaAssetResolver {
                 name: mediaAsset.name,
                 alt: mediaAsset.alt,
                 tracks: mediaAsset.tracks,
-                variants: mediaAsset.variants
+                variants: mediaAsset.variants,
+                storageKey: mediaAsset.storageKey
             })
             .from(mediaAsset)
             .where(
@@ -47,32 +57,56 @@ export class MediaAssetResolverQuery implements MediaAssetResolver {
                 )
             );
 
+        // One batch for every asset on the page; an empty map with the switch
+        // off, without the provider ever being asked.
+        const published = await this.publicUrls.forAssets(rows);
+
         for (const row of rows) {
-            const raw = `/api/media/assets/${row.id}/raw`;
-            const variants = (row.variants ?? {}) as Record<string, unknown>;
-            const variantUrl = (name: string) =>
-                variants[name] ? `${raw}?variant=${name}` : undefined;
+            const publicUrls = published.get(row.id);
+            // Derivatives come through the same `?variant=` route the
+            // library's own tiles use (or their public URL), so a record's
+            // media costs the editor a thumbnail, not an original.
+            const { url, thumbUrl, previewUrl, streams } = assetUrlsFor(
+                row.id,
+                row.variants,
+                publicUrls
+            );
             result.set(row.id, {
                 id: row.id,
                 kind: row.kind,
                 mimeType: row.mimeType,
                 name: row.name,
-                url: raw,
-                // Same `?variant=` route the library's own tiles use, so a
-                // record's media costs the editor a thumbnail, not an original.
-                thumbUrl: variantUrl('thumb'),
-                previewUrl: variantUrl('preview'),
+                url,
+                thumbUrl,
+                previewUrl,
                 alt: row.alt,
                 // The track's `src` is the WebVTT asset's own raw route, not
                 // this asset's — the pointer is stored as an id so the file
                 // stays an ordinary library asset with its own permissions.
+                // It stays on the app's route even when the deployment
+                // publishes: `text/vtt` is outside the default MIME gate, and
+                // resolving it would mean a second lookup per page.
                 tracks: (row.tracks ?? []).map((track) => ({
                     kind: track.kind,
                     srclang: track.srclang,
                     label: track.label,
-                    src: `/api/media/assets/${track.assetId}/raw`,
+                    src: rawRoute(track.assetId),
                     ...(track.default ? { default: true as const } : {})
-                }))
+                })),
+                ...(publicUrls
+                    ? {
+                          public: {
+                              url: publicUrls.url,
+                              ...(publicUrls.thumbUrl
+                                  ? { thumbUrl: publicUrls.thumbUrl }
+                                  : {}),
+                              ...(publicUrls.previewUrl
+                                  ? { previewUrl: publicUrls.previewUrl }
+                                  : {}),
+                              ...(streams ? { streams } : {})
+                          }
+                      }
+                    : {})
             });
         }
         return result;

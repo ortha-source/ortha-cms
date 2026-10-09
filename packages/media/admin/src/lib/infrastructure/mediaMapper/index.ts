@@ -15,6 +15,13 @@ export type AssetResponse = {
     mimeType: string;
     size: number;
     url: string;
+    /**
+     * Where the `thumb` / `preview` derivatives are fetched. Explicit because
+     * `url` may be a CDN URL (ADR-0021), where `?variant=` means nothing.
+     * Optional only for a server older than the field.
+     */
+    thumbUrl?: string;
+    previewUrl?: string;
     variants: string[];
     width: number | null;
     height: number | null;
@@ -59,8 +66,20 @@ export function toMediaFolder(dto: FolderResponse): MediaFolder {
     };
 }
 
-/** The `?variant=` download URL when the asset has that derivative, else null. */
-function variantUrl(dto: AssetResponse, name: string): string | undefined {
+/**
+ * Where a derivative is fetched: the server's explicit URL, else — for a server
+ * that predates the field, and so can only ever report its own `/raw` route as
+ * `url` — that route's `?variant=` form when the derivative exists.
+ *
+ * The server's field wins because `url` may be a CDN URL, which ignores the
+ * query string and would quietly load the full original into every tile.
+ */
+function variantUrl(
+    dto: AssetResponse,
+    name: 'thumb' | 'preview'
+): string | undefined {
+    const explicit = name === 'thumb' ? dto.thumbUrl : dto.previewUrl;
+    if (explicit) return explicit;
     return dto.variants.includes(name)
         ? `${dto.url}?variant=${name}`
         : undefined;

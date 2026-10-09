@@ -44,5 +44,6 @@ routine, easily-reversed changes.
 - [0018 — One mail provider per deployment, and the message is built where the secret is](0018-mail-provider.md)
 - [0019 — Shared workspaces are a read-only exception to workspace isolation](0019-shared-workspaces.md)
 - [0020 — The schema builder writes code, and only in development](0020-schema-builder-writes-code.md)
+- [0021 — A storage provider may publish public URLs, and the operator decides whether the API reports them](0021-storage-providers-may-publish-public-urls.md)
 
 <!-- Add new ADRs to this index. -->

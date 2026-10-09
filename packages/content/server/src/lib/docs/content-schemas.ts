@@ -278,12 +278,13 @@ function sharedSchemas(): Record<string, OpenApiSchema> {
                 name: { type: 'string' },
                 url: {
                     type: 'string',
-                    description: 'Raw-stream route for the original bytes.'
+                    description:
+                        'Raw-stream route for the original bytes — or the storage provider’s public URL, when the deployment publishes the asset.'
                 },
                 thumbUrl: {
                     type: 'string',
                     description:
-                        '~320px derivative, when one was generated (absent for non-images, SVGs, and images too small to derive).'
+                        '~320px derivative, when one was generated (absent for non-images, SVGs, and images too small to derive) — or, for a published video, the provider’s poster frame.'
                 },
                 previewUrl: {
                     type: 'string',

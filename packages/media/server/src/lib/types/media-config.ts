@@ -1,4 +1,8 @@
 import type { DirectServeMode } from '../http/direct-serve';
+import type {
+    PublicUrlsMode,
+    PublicUrlTypes
+} from '../infrastructure/public-urls/public-asset-urls';
 
 /**
  * The media plugin's host-supplied config.
@@ -29,4 +33,24 @@ export interface MediaPluginConfig {
      * the route that mints it re-authorizes on every request.
      */
     directServeTtlSeconds?: number;
+    /**
+     * Whether the API reports the storage provider's **permanent public URLs**
+     * (a CDN in front of the backend) instead of the app's own authorized
+     * routes. Defaults to `off`.
+     *
+     * `provider` hands out URLs that bypass every check the app makes on a
+     * download — membership, the token's workspace, reader entitlements — and
+     * that are served with the CDN's headers rather than the app's hardening.
+     * The plugin refuses to boot it against a provider that declares no
+     * `publicUrls` capability (ADR-0021).
+     */
+    publicUrls?: PublicUrlsMode;
+    /**
+     * Which assets may be published, by stored MIME type. Defaults to
+     * `inline-safe`: only types the download route itself serves inline
+     * (raster images, audio, video, PDF, plain text), so an uploaded `.html` or
+     * `.svg` keeps the app's route. `all` is for a CDN that sets
+     * `nosniff`, a sandboxing CSP and attachment disposition itself.
+     */
+    publicUrlTypes?: PublicUrlTypes;
 }

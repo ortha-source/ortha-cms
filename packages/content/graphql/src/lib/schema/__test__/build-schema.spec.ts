@@ -96,6 +96,17 @@ describe('buildContentSchema', () => {
             expect(sdl()).toMatch(/cover\([\s\S]*?\): \[MediaAsset!\]!/);
         });
 
+        it('carries a published video’s streaming manifests, as REST does', () => {
+            // Same `PublicMediaRef` the REST expansion returns, so a field
+            // the adapter left out would be data REST serves and GraphQL hides.
+            expect(sdl()).toMatch(
+                /type MediaAsset \{[\s\S]*?streams: MediaStreams\n/
+            );
+            expect(sdl()).toMatch(
+                /type MediaStreams \{[\s\S]*?hls: String[\s\S]*?dash: String/
+            );
+        });
+
         it('serves an owning single relation as the target, not a list', () => {
             // A many-to-one holds at most one target, so `secret { code }`
             // beats making a consumer unwrap `secret { items { code } }`.

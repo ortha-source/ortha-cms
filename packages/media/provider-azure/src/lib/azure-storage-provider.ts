@@ -163,7 +163,10 @@ export function createAzureStorageProvider(
         capabilities: {
             directUrl: Boolean(sharedKey),
             contentTypeMetadata: true,
-            streamingPut: true
+            streamingPut: true,
+            // No CDN is configured here, and a container's public access level
+            // is the operator's to set, not this adapter's to assume.
+            publicUrls: false
         },
 
         async put(object: PutObject): Promise<StoredObject> {

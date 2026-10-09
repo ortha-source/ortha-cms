@@ -194,6 +194,19 @@ export interface TestConfigOverrides {
     /** Lifetime of those signed URLs, so a suite can assert it is passed on. */
     directServeTtlSeconds?: number;
     /**
+     * Report the storage provider's public URLs instead of the app's routes
+     * (ADR-0021). `'provider'` also swaps in a provider that publishes them —
+     * the plugin refuses to boot the setting against one that cannot.
+     */
+    publicUrls?: 'off' | 'provider';
+    /** Which stored MIME types may be published. */
+    publicUrlTypes?: 'inline-safe' | 'all';
+    /**
+     * Boot on the publishing provider even with `publicUrls` off, so a suite
+     * can prove the operator's switch — not the provider — decides.
+     */
+    publishingProvider?: boolean;
+    /**
      * Replace the configured content locales. Defaults to the host's
      * en/de/fr. A suite pins a **single** locale to prove the coverage rule
      * that `notLocalized` is then forced to `0` — with nowhere to translate
@@ -403,6 +416,12 @@ export function buildTestConfig(
                     ? {
                           directServeTtlSeconds: overrides.directServeTtlSeconds
                       }
+                    : {}),
+                ...(overrides.publicUrls
+                    ? { publicUrls: overrides.publicUrls }
+                    : {}),
+                ...(overrides.publicUrlTypes
+                    ? { publicUrlTypes: overrides.publicUrlTypes }
                     : {})
             },
             // The GraphQL endpoint's cost budget. Left at the shipped defaults

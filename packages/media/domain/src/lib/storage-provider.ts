@@ -47,6 +47,13 @@ export interface StorageCapabilities {
     contentTypeMetadata: boolean;
     /** Whether `put` streams the body rather than buffering it whole. */
     streamingPut: boolean;
+    /**
+     * Whether {@link StorageProvider.publicUrls} is implemented — the backend
+     * (or a CDN in front of it) serves stored objects at permanent URLs anyone
+     * can fetch. The core reports them only when the operator also sets
+     * `publicUrls: 'provider'` in the media config (ADR-0021).
+     */
+    publicUrls: boolean;
 }
 
 /** How a direct URL must present the blob it points at. */
@@ -64,6 +71,50 @@ export interface DirectUrlOptions {
     contentType: string;
     /** How long the URL stays valid, in seconds. */
     expiresInSeconds: number;
+}
+
+/**
+ * Permanent, unauthenticated URLs for one stored object — what a CDN in front of
+ * the backend serves it at.
+ *
+ * **A public URL is a capability grant.** Whoever holds it can fetch the bytes
+ * with no session, no token, no workspace scope and no reader entitlement, for
+ * as long as the backend keeps serving it, and the response carries whatever
+ * headers the CDN sets rather than the hardening the app's own download route
+ * applies. That is why the core reports these only when the operator opts in,
+ * and by default only for types a browser renders inertly (ADR-0021).
+ */
+export interface PublicAssetUrls {
+    /** The object itself, as an absolute `http(s)` URL. */
+    url: string;
+    /**
+     * A provider-native poster or thumbnail — a video service's poster frame,
+     * say. Used when the core generated no `thumb` derivative of its own.
+     */
+    thumbnailUrl?: string;
+    /** Adaptive streaming manifests, for a backend that transcodes video. */
+    streams?: {
+        /** HLS playlist (`.m3u8`). */
+        hls?: string;
+        /** MPEG-DASH manifest (`.mpd`). */
+        dash?: string;
+    };
+}
+
+/** What the core tells {@link StorageProvider.publicUrls} about the object. */
+export interface PublicUrlContext {
+    /**
+     * The object's content type: the asset's stored MIME type for an original,
+     * the derivative's own (`image/webp`) for a derivative.
+     */
+    mimeType: string;
+    /** The asset's coarse kind — `image` / `video` / `audio` / `document` / `archive`. */
+    kind: string;
+    /**
+     * Set when the key is a generated derivative rather than the upload itself
+     * — the derivative's name (`thumb`, `preview`). Absent for an original.
+     */
+    variant?: string;
 }
 
 /**
@@ -116,6 +167,26 @@ export interface StorageProvider {
      * streams through the app until direct serving is switched on.
      */
     directUrl?(storageKey: string, options: DirectUrlOptions): Promise<string>;
+    /**
+     * Permanent public URLs for a stored object, or `undefined` when this
+     * object has none (a key the CDN does not front, a route this backend keeps
+     * private). Implemented only when `capabilities.publicUrls` is true.
+     *
+     * Called for originals **and** for derivative keys (`context.variant` says
+     * which), batched per page of assets, so it should be cheap: build the URL
+     * from the key, do not round-trip to the backend per call. It may be
+     * synchronous or return a promise.
+     *
+     * The core never calls it unless the operator set `publicUrls: 'provider'`,
+     * and never for an asset whose type its MIME gate holds back — so a
+     * provider describes **where** an object is public, and the deployment
+     * decides **whether** to say so. A throw, or a value that is not an
+     * absolute `http(s)` URL, falls back to the app's own authorized route.
+     */
+    publicUrls?(
+        storageKey: string,
+        context: PublicUrlContext
+    ): PublicAssetUrls | undefined | Promise<PublicAssetUrls | undefined>;
     /**
      * Cheap liveness check run once at boot — credentials, bucket, writability.
      * Optional: a provider with nothing to verify simply omits it. Throwing

@@ -68,9 +68,9 @@ the rule** — it is how the rule erodes without anything going red.
   the factory it imports).
 - **The object describes itself.** `id` is the provider's own name — recorded on
   every asset row — and `capabilities` (`directUrl`, `contentTypeMetadata`,
-  `streamingPut`) is what stops the core assuming the weakest backend. Declaring
-  `directUrl: true` without implementing the method fails the eager check in
-  `MediaServerPlugin`.
+  `streamingPut`, `publicUrls`) is what stops the core assuming the weakest
+  backend. Declaring `directUrl: true` or `publicUrls: true` without
+  implementing the method fails the eager check in `MediaServerPlugin`.
 - **There is no registry, resolver or `defaultProvider`.** Bytes go to one
   place, so there is nothing to route between and no name for the host to
   register. Swapping backend is swapping the expression in `plugins.ts`.
@@ -170,6 +170,61 @@ Three rules, all in `http/direct-serve.ts`, and none of them optional:
 
 The redirect carries `Cache-Control: private, no-store`: the URL expires, and a
 shared cache holding the 302 would serve a dead URL to the next viewer.
+
+### Public URLs: reporting a CDN instead of the route (opt-in)
+
+[ADR-0021](../../../docs/adr/0021-storage-providers-may-publish-public-urls.md).
+Every URL this plugin reports is, by default, one of its own authorized routes.
+A deployment with a CDN in front of its storage can report **that** instead, so
+a public reader can load an asset from an `<img src>`, published rich text, or a
+video player:
+
+```typescript
+MediaServerPlugin({
+    // The host's own adapter — no first-party one publishes.
+    provider: createCdnStorageProvider(config.plugins.media.storage),
+    config: { ...config.plugins.media, publicUrls: 'provider' }
+});
+```
+
+Three parts, all required:
+
+- **The provider describes** where an object is public:
+  `publicUrls(storageKey, { mimeType, kind, variant? })` returns
+  `{ url, thumbnailUrl?, streams?: { hls?, dash? } }` or `undefined`, and
+  `capabilities.publicUrls` says the method exists. It is asked about originals
+  **and** derivative keys, once per page in one concurrent batch, so it should
+  build URLs from the key rather than call the backend. No first-party adapter
+  declares it.
+- **The operator decides**: `publicUrls: 'off' | 'provider'`, default `'off'`.
+  Off, the provider is never called and every response is what it was before
+  the feature existed. `'provider'` against a provider without the capability
+  fails the boot, like `directServe: 'signed-url'` against one that cannot sign.
+- **The core gates by type**: `publicUrlTypes: 'inline-safe' | 'all'`, default
+  `'inline-safe'` — the same `isInlineSafe` allowlist the download route uses.
+  A CDN applies none of this plugin's `nosniff`, CSP or attachment disposition,
+  so an SVG or HTML asset keeps the authorized route unless the operator says
+  their CDN hardens it. The decision is per asset, on the original's type, and
+  covers its derivatives.
+
+`infrastructure/public-urls/public-asset-urls.ts` (`PublicAssetUrlsQuery`) is
+the one place that asks, for every surface: the library list, the post-write
+refetch (`AssetViewQuery`, behind upload, update and duplicate on both
+surfaces), and `MediaAssetResolverQuery` — which also marks a published asset
+with `public`, the block content's public API reads instead of rewriting the
+URL to its token route. A provider that throws, or answers with anything but
+an absolute `http(s)` URL, falls back to the route for that object with a
+warning in the log.
+
+What it costs, stated where an operator will look: **a published URL is a
+capability grant.** Membership, the token's workspace and reader entitlements
+still decide what the API hands out, never who can fetch a URL once it is out.
+Revoking access to an asset no longer revokes access to its bytes. The
+authorized routes keep serving exactly as before either way.
+
+`AssetView` now carries `thumbUrl` / `previewUrl` (and `streams`) explicitly —
+`${url}?variant=` is meaningless on a CDN URL and would load the original into
+every tile. Timed-text track `src`s stay on the route in this iteration.
 
 ### A download failure is a 404, except when it is a corrupted row
 
@@ -305,7 +360,9 @@ and resolved for display in the editor + revision preview. The resolved ref
 carries the **derivative** routes too (`thumbUrl` / `previewUrl`, the same
 `?variant=` URLs the library's own tiles use), so a record's media costs the
 editor a thumbnail rather than a full-size original; an asset with no derivative
-(non-image, SVG, tiny) omits them and the admin falls back to `url`. Same open-host
+(non-image, SVG, tiny) omits them and the admin falls back to `url`. With
+public URLs on, the ref reports the same URLs `AssetView` does, plus `public`
+for an asset the deployment publishes (see above). Same open-host
 inversion as i18n binding content's `CONTENT_ENTRY_EXTENSION`: content declares
 the port, media binds it (hence the `@orthacms/content-server` dependency; no
 cycle — content doesn't depend on media). Both modules are global, so content's

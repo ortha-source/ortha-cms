@@ -40,6 +40,13 @@ import {
     type DirectServeConfig,
     type DirectServeMode
 } from './http/direct-serve';
+import {
+    PUBLIC_URLS,
+    PublicAssetUrlsQuery,
+    type PublicUrlsConfig,
+    type PublicUrlsMode,
+    type PublicUrlTypes
+} from './infrastructure/public-urls/public-asset-urls';
 import { ListFoldersController } from './http/controllers/list-folders.controller';
 import { CreateFolderController } from './http/controllers/create-folder.controller';
 import { RenameFolderController } from './http/controllers/rename-folder.controller';
@@ -60,6 +67,10 @@ export interface MediaModuleOptions {
     directServe?: DirectServeMode;
     /** Lifetime of a signed URL, in seconds. */
     directServeTtlSeconds?: number;
+    /** Whether the API reports the provider's public URLs (ADR-0021). */
+    publicUrls?: PublicUrlsMode;
+    /** Which stored MIME types may be published. */
+    publicUrlTypes?: PublicUrlTypes;
     /**
      * Hard ceiling on a single upload, in bytes — the host's
      * `config.plugins.media.maxUploadBytes`. Bounds the memory multer buffers
@@ -97,6 +108,10 @@ export class MediaModule {
             ttlSeconds:
                 options.directServeTtlSeconds ??
                 DEFAULT_DIRECT_SERVE_TTL_SECONDS
+        };
+        const publicUrls: PublicUrlsConfig = {
+            mode: options.publicUrls ?? 'off',
+            types: options.publicUrlTypes ?? 'inline-safe'
         };
 
         return {
@@ -143,6 +158,10 @@ export class MediaModule {
                 // How a download travels: proxied through the app, or a
                 // short-lived redirect the browser follows itself.
                 { provide: DIRECT_SERVE, useValue: directServe },
+                // Whether a reported URL may be the provider's public one, and
+                // the one place every surface asks for it.
+                { provide: PUBLIC_URLS, useValue: publicUrls },
+                PublicAssetUrlsQuery,
                 // Image processing — probes dimensions + generates derivatives.
                 { provide: IMAGE_PROCESSOR, useClass: SharpImageProcessor },
                 // Ports → Drizzle adapters.

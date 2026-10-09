@@ -107,7 +107,10 @@ export function createMemoryStorageProvider(
             // `put` buffers: the whole point is that a test's fixture is small
             // and the store is a `Map`. Declared honestly so nobody plans a
             // large upload around it.
-            streamingPut: false
+            streamingPut: false,
+            // Same reason as `directUrl`: nothing outside the process can
+            // reach a `Map`.
+            publicUrls: false
         },
 
         async put(object: PutObject): Promise<StoredObject> {

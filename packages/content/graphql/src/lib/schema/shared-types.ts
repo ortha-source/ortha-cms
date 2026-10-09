@@ -64,15 +64,39 @@ export const MediaTrackType = new GraphQLObjectType({
 });
 
 /**
+ * Streaming manifests for a published video (ADR-0021). Declared before
+ * {@link MediaAssetType} for the same reason {@link MediaTrackType} is.
+ */
+export const MediaStreamsType = new GraphQLObjectType({
+    name: 'MediaStreams',
+    description:
+        'Adaptive streaming manifests for a video, from a storage provider that transcodes. Public URLs — no token needed.',
+    fields: {
+        hls: {
+            type: GraphQLString,
+            description: 'HLS playlist (`.m3u8`).'
+        },
+        dash: {
+            type: GraphQLString,
+            description: 'MPEG-DASH manifest (`.mpd`).'
+        }
+    }
+});
+
+/**
  * One media asset attached to an entry.
  *
- * **The URLs are authenticated routes.** They point at the CMS's own media
- * endpoints, which take the same bearer token as the query that produced them —
- * so a server-side consumer fetches the bytes with the credential it already
- * holds. They are not public: a browser `<img src>` sends no `Authorization`
- * header, so an anonymous visitor will not load one. Proxy them, or fetch and
- * re-serve them, from whatever holds the token. Genuinely public URLs would need
- * signed links with an expiry, which do not exist yet.
+ * **By default the URLs are authenticated routes.** They point at the CMS's own
+ * media endpoints, which take the same bearer token as the query that produced
+ * them — so a server-side consumer fetches the bytes with the credential it
+ * already holds. They are not public: a browser `<img src>` sends no
+ * `Authorization` header, so an anonymous visitor will not load one. Proxy them,
+ * or fetch and re-serve them, from whatever holds the token.
+ *
+ * A deployment that publishes its storage provider's CDN URLs reports those
+ * instead, for the assets it publishes (ADR-0021) — an absolute URL rather than
+ * a path. Those need no token. Same values as the REST `?media=preview` items,
+ * since both are built by `PublicExpansionQuery`.
  */
 export const MediaAssetType = new GraphQLObjectType({
     name: 'MediaAsset',
@@ -87,15 +111,21 @@ export const MediaAssetType = new GraphQLObjectType({
         url: {
             type: new GraphQLNonNull(GraphQLString),
             description:
-                'Where the bytes stream from. **Requires the same bearer token as this query** — not a public URL.'
+                'Where the bytes are fetched. A path **requires the same bearer token as this query**; an absolute URL is the storage provider’s public one, published by the deployment, and needs none.'
         },
         thumbUrl: {
             type: GraphQLString,
-            description: 'The ~320px derivative, when one was generated.'
+            description:
+                'The ~320px derivative, when one was generated — or, for a published video, the storage provider’s poster frame.'
         },
         previewUrl: {
             type: GraphQLString,
             description: 'The ~1280px derivative, when one was generated.'
+        },
+        streams: {
+            type: MediaStreamsType,
+            description:
+                'Streaming manifests, for a published video whose storage provider transcodes. Null otherwise.'
         },
         kind: {
             type: new GraphQLNonNull(GraphQLString),

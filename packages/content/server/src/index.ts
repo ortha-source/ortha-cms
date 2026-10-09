@@ -157,7 +157,8 @@ export {
 } from './lib/extension/media-asset-resolver';
 export type {
     MediaAssetResolver,
-    ResolvedMediaAsset
+    ResolvedMediaAsset,
+    ResolvedPublicMedia
 } from './lib/extension/media-asset-resolver';
 
 // Row ↔ record mappers, exported for extension plugins (e.g. i18n's
@@ -325,6 +326,7 @@ export type {
 export type {
     PublicMediaFieldView,
     PublicMediaRef,
+    PublicMediaStreams,
     PublicRelationFieldView
 } from './lib/public-api/types/public-expansion';
 export {
