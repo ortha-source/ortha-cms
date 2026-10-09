@@ -110,6 +110,20 @@ export class AgentsPage extends BasePage {
         return this.rail.getByRole('button', { name: title, exact: true });
     }
 
+    /**
+     * A thread row that says what the thread is doing — "Working…" or
+     * "Waiting for your answer" — as part of its accessible name.
+     */
+    railRowWithStatus(title: string, status: string): Locator {
+        const escape = (text: string) =>
+            text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        // The status is visually hidden text, which the browser sets off with
+        // a space of its own: "title , status".
+        return this.rail.getByRole('button', {
+            name: new RegExp(`^${escape(title)}\\s*,\\s*${escape(status)}$`)
+        });
+    }
+
     /** Every thread row currently listed, in rail order. */
     railRows(): Locator {
         return this.rail.getByRole('listitem');
