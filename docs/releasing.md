@@ -1,7 +1,7 @@
 # Releasing to npm
 
 Every package under `packages/` is published to the `@orthacms` scope in one
-lockstep release: one version, one tag, one GitHub Release, 37 tarballs.
+lockstep release: one version, one tag, one GitHub Release, 71 tarballs (as of 0.10.0 — one per non-private package under `packages/`).
 
 ## Running a release from your machine
 
@@ -116,7 +116,7 @@ existing.
 
 3. **`nx-release-publish`** — publishes that staging directory rather than the
    project root, via `packageRoot`. It runs `@orthacms/nx:release-publish`
-   rather than the `@nx/js` one, because 37 publishes in a row is more than
+   rather than the `@nx/js` one, because 71 publishes in a row is more than
    npm will take at full speed — see [Rate limits](#rate-limits) below.
 
 The staging directory lives at the workspace root, not beside the package, on
@@ -127,7 +127,7 @@ name, and npm then refuses to run at all.
 ## Rate limits
 
 npm rate-limits how fast one account may write, and a lockstep release asks it
-to accept 37 tarballs back to back. Published as fast as Nx can schedule them,
+to accept 71 tarballs back to back. Published as fast as Nx can schedule them,
 the registry starts answering **429 Too Many Requests** partway down the list —
 and by then the version is already committed, tagged and pushed, so the repo
 says a release happened that the registry only half has.
@@ -159,7 +159,7 @@ Two consequences worth knowing:
   not meter the way it meters writes. A version that is already there is
   skipped without sending anything at all. That is what makes
   `npm run release:publish` a safe and cheap way to finish a release that died
-  halfway: a resume that only has 12 packages left spends 12 writes, not 37.
+  halfway: a resume that only has 12 packages left spends 12 writes, not 71.
   (A republish that slips through anyway is still caught: npm answers it with a
   403, which the executor also reads as "this one already went out".)
 - **A failed publish is reported per package.** Nx fails the run, the packages

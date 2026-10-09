@@ -46,7 +46,7 @@ const DEFAULT_HEARTBEAT = 60_000;
  * Runs `publish` as the only publish happening in this workspace, and no
  * sooner than `spacing` milliseconds after the previous one finished.
  *
- * npm rate-limits writes per account, and a lockstep release fires ~37 of
+ * npm rate-limits writes per account, and a lockstep release fires ~70 of
  * them back to back; without a gap the registry starts answering 429 and the
  * release dies half-published. Nx runs `nx-release-publish` as ordinary tasks
  * — in parallel, in forked workers — so the gap cannot be enforced inside one

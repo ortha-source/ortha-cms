@@ -85,7 +85,7 @@ alongside the `@nx/*` plugins in the root `nx.json`.
 
     - `release-publish` — publishes one staged package to npm, in place of
       `@nx/js:release-publish`. npm rate-limits an account's writes and a
-      lockstep release fires ~37 of them, so every publish takes a turn
+      lockstep release fires ~70 of them, so every publish takes a turn
       through a workspace-wide slot (a file lock under `dist/.release-publish`)
       that serialises them and leaves a gap in between, and a publish refused
       with a 429, a 5xx or a dropped socket is retried with exponential

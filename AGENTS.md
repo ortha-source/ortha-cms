@@ -279,7 +279,7 @@ package; the admin app's Vite transpiles the design-system source directly.
   manifest: `build` compiles it and `pack` stages a rewritten manifest under
   `dist/pack/`, because the workspace resolves from source and a consumer
   cannot. The publishes are **throttled and retried** — npm rate-limits an
-  account's writes and 37 tarballs go out in one run, so they are serialised
+  account's writes and 71 tarballs go out in one run, so they are serialised
   with a gap and a 429 is backed off rather than failing the release. See
   [`docs/releasing.md`](docs/releasing.md)
 - **First-run smoke** — `npm run smoke:scaffold` is what the tarballs have to

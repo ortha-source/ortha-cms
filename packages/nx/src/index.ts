@@ -178,7 +178,7 @@ function packageTargets(
             outputs: [`{workspaceRoot}/dist/pack/${projectRoot}`]
         },
         // Ours rather than `@nx/js:release-publish`, because npm rate-limits
-        // an account's writes and this workspace publishes ~37 packages in one
+        // an account's writes and this workspace publishes ~70 packages in one
         // release — see the executor.
         //
         // The executor is named **twice**: here, and in `nx.json`'s

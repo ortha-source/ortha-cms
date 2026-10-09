@@ -6,7 +6,7 @@
  * the publish executor — a workspace-wide slot with a gap, and a backoff on
  * 429 (see `packages/nx/src/lib/release/`). Creating a **brand-new package
  * name** is metered on its own, far tighter, per-day schedule that no backoff
- * outlasts, and a lockstep release asks for 37 of them at once. The release
+ * outlasts, and a lockstep release asks for ~70 of them at once. The release
  * versions, commits, tags and pushes *before* it publishes, so a name refused
  * partway down the list leaves a tag in the repository and half a release on
  * the registry.

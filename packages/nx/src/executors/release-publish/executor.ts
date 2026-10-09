@@ -56,7 +56,7 @@ const DEFAULTS = {
 /**
  * Publishes one package to npm, in place of `@nx/js:release-publish`.
  *
- * The lockstep release publishes ~37 packages in one go, and npm rate-limits
+ * The lockstep release publishes ~70 packages in one go, and npm rate-limits
  * an account's writes: run them as fast as Nx can schedule them and the
  * registry starts answering 429 partway through, leaving a tagged commit and
  * half a release. So every publish takes a turn through a workspace-wide slot
