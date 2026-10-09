@@ -175,7 +175,7 @@ describe('media public URLs', () => {
             .get(`/api/content/test_article/${entry}/media`)
             .expect(200);
         return new Map(
-            (res.body.attachments as Urls[]).map((ref) => [ref.id, ref])
+            (res.body.media.attachments as Urls[]).map((ref) => [ref.id, ref])
         );
     }
 
