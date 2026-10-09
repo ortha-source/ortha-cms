@@ -183,7 +183,7 @@ test.describe('Content model editor', () => {
         await expect(first).toBeFocused();
         await expect(first).toHaveValue('news-flash');
 
-        await first.press('Control+A');
+        await first.press('ControlOrMeta+A');
         await first.press('Backspace');
         await first.pressSequentially('FOOD');
         await expect(first).toBeFocused();
