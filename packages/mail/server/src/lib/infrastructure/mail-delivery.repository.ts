@@ -18,9 +18,18 @@ export interface MailToQueue {
     expiresAt: Date;
 }
 
-/** A claimed row, as the worker needs it. */
-export interface ClaimedMail {
+/**
+ * The lease a worker holds on one message: the row, and the `next_attempt_at`
+ * its claim pushed forward. The worker's retry and dead-letter writes are
+ * fenced on both, so they land only while that lease is still the row's.
+ */
+export interface MailLease {
     id: string;
+    leaseUntil: Date;
+}
+
+/** A claimed row, as the worker needs it. */
+export interface ClaimedMail extends MailLease {
     kind: string;
     toAddress: string;
     subject: string;
@@ -141,8 +150,29 @@ export class MailDeliveryRepository {
                     )
                 );
 
-            return rows;
+            return rows.map((row) => ({ ...row, leaseUntil }));
         });
+    }
+
+    /**
+     * Extends a lease just before its message is handed over, returning the
+     * new lease — or `null` when another worker already holds the row.
+     *
+     * A batch is leased at one instant and sent one message at a time, so
+     * without this the last message of a batch behind a slow relay could lose
+     * its lease before its own hand-off began, and be claimed and sent twice.
+     */
+    async renewLease(
+        lease: MailLease,
+        leaseMs: number
+    ): Promise<MailLease | null> {
+        const leaseUntil = new Date(Date.now() + leaseMs);
+        const rows = await this.db
+            .update(mailDeliveries)
+            .set({ nextAttemptAt: leaseUntil })
+            .where(this.heldBy(lease))
+            .returning({ id: mailDeliveries.id });
+        return rows.length > 0 ? { id: lease.id, leaseUntil } : null;
     }
 
     /**
@@ -156,14 +186,17 @@ export class MailDeliveryRepository {
         await this.db.delete(mailDeliveries).where(eq(mailDeliveries.id, id));
     }
 
-    /** Records a failed attempt that will be tried again at `nextAttemptAt`. */
+    /**
+     * Records a failed attempt that will be tried again at `nextAttemptAt`.
+     * Returns `false`, writing nothing, when the lease no longer holds.
+     */
     async markRetrying(
-        id: string,
+        lease: MailLease,
         error: string,
         nextAttemptAt: Date,
         providerId: string
-    ): Promise<void> {
-        await this.db
+    ): Promise<boolean> {
+        const rows = await this.db
             .update(mailDeliveries)
             .set({
                 attempts: sql`${mailDeliveries.attempts} + 1`,
@@ -171,20 +204,23 @@ export class MailDeliveryRepository {
                 lastError: error,
                 providerId
             })
-            .where(eq(mailDeliveries.id, id));
+            .where(this.heldBy(lease))
+            .returning({ id: mailDeliveries.id });
+        return rows.length > 0;
     }
 
     /**
      * Gives up on a message — the budget spent, or a rejection that will not
      * change. The row stays: it is the dead-letter surface, and an
      * administrator who invited somebody needs to learn the message never left.
+     * Returns `false`, writing nothing, when the lease no longer holds.
      */
     async markDead(
-        id: string,
+        lease: MailLease,
         error: string,
         providerId: string
-    ): Promise<void> {
-        await this.db
+    ): Promise<boolean> {
+        const rows = await this.db
             .update(mailDeliveries)
             .set({
                 attempts: sql`${mailDeliveries.attempts} + 1`,
@@ -192,7 +228,29 @@ export class MailDeliveryRepository {
                 lastError: error,
                 providerId
             })
-            .where(eq(mailDeliveries.id, id));
+            .where(this.heldBy(lease))
+            .returning({ id: mailDeliveries.id });
+        return rows.length > 0;
+    }
+
+    /**
+     * The fence on the worker's attempt-closing writes: the row is still live
+     * and still leased **to this claim**.
+     *
+     * A hand-off that outlives the lease is not dead, only slow, and another
+     * worker may have taken the row and be sending it again — pushing
+     * `next_attempt_at` to a lease of its own. Updating by id alone let the
+     * first worker's late failure reschedule or dead-letter a row the second
+     * one held, and count the attempt twice. `markDelivered` is deliberately
+     * unfenced: a message that reached the relay should lose its secret
+     * whichever worker sent it.
+     */
+    private heldBy(lease: MailLease) {
+        return and(
+            eq(mailDeliveries.id, lease.id),
+            isNull(mailDeliveries.deadAt),
+            eq(mailDeliveries.nextAttemptAt, lease.leaseUntil)
+        );
     }
 
     /**

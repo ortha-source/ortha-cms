@@ -67,6 +67,19 @@ export interface SavedViewRepository {
     /** One view by id, or `null` when it does not exist. */
     findById(id: string): Promise<SavedViewRecord | null>;
 
+    /**
+     * Serialises this owner's view creation in this workspace + scope until
+     * the surrounding unit of work ends. Taken before {@link countForOwner} so
+     * the cap is a decision about a count nobody else can change mid-flight —
+     * two concurrent saves at 99 would otherwise both read 99 and both insert.
+     * Meaningful only inside `UnitOfWork.run`.
+     */
+    lockOwner(
+        workspaceId: string,
+        scope: string,
+        ownerId: string
+    ): Promise<void>;
+
     /** How many views this owner already holds in this workspace + scope. */
     countForOwner(
         workspaceId: string,

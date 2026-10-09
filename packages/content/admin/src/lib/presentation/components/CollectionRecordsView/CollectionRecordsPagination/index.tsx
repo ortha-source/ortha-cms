@@ -15,6 +15,9 @@ import {
 
 /** Intl descriptors for {@link CollectionRecordsPagination}, co-located. */
 const messages = defineMessages({
+    // Names the `<nav>` landmark. The design system's own default is an
+    // untranslated, lower-case "pagination".
+    nav: { id: 'content.pagination.nav', defaultMessage: 'Pagination' },
     rowsPerPage: {
         id: 'content.pagination.rowsPerPage',
         defaultMessage: 'Rows per page'
@@ -96,7 +99,10 @@ export function CollectionRecordsPagination({
                     {intl.formatMessage(messages.range, { from, to, total })}
                 </span>
                 {pageCount > 1 ? (
-                    <Pagination className="mx-0 w-auto">
+                    <Pagination
+                        className="mx-0 w-auto"
+                        aria-label={intl.formatMessage(messages.nav)}
+                    >
                         <PaginationContent className="gap-3">
                             <PaginationItem>
                                 <Button

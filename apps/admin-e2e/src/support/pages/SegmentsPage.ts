@@ -70,6 +70,31 @@ export class SegmentsPage extends BasePage {
         return this.page.getByRole('button', { name: `Actions for ${name}` });
     }
 
+    /** Delete one audience through its row menu and the confirm dialog. */
+    async deleteAudience(name: string): Promise<void> {
+        await this.rowMenu(name).click();
+        await this.page.getByRole('menuitem', { name: 'Delete' }).click();
+        await this.page
+            .getByRole('dialog')
+            .getByRole('button', { name: 'Delete' })
+            .click();
+    }
+
+    /** The pager's "Page X of Y" readout — drawn only past one page. */
+    get pageReadout(): Locator {
+        return this.page.getByText(/^Page \d+ of \d+$/);
+    }
+
+    /** Pick a rows-per-page size from the footer control. */
+    async setPageSize(size: number): Promise<void> {
+        await this.page
+            .getByRole('combobox', { name: 'Rows per page' })
+            .click();
+        await this.page
+            .getByRole('option', { name: String(size), exact: true })
+            .click();
+    }
+
     /** The "Offered in" cell's badge for one audience. */
     offeredIn(name: string): Locator {
         return this.row(name).getByText(/Every workspace|\d+ workspaces?/);

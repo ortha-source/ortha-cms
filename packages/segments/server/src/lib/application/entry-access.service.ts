@@ -12,7 +12,7 @@ import {
     type Database,
     type EventActor
 } from '@orthacms/database';
-import type { AnyContentType } from '@orthacms/content-server';
+import { UUID_RE, type AnyContentType } from '@orthacms/content-server';
 import {
     isOfferedIn,
     isOpen,
@@ -73,6 +73,11 @@ export class EntryAccessService {
         entryId: string,
         executor: AccessExecutor = this.db
     ): Promise<EntryAccessView> {
+        // A malformed id names no entry, and the answer for an id that names
+        // none is "unrestricted" — so it gets that, rather than reaching the
+        // uuid column as a cast error. `content_access_get` passes the model's
+        // argument straight through.
+        if (!UUID_RE.test(entryId)) return OPEN;
         const [row] = await executor
             .select()
             .from(entryAccess)
@@ -91,14 +96,15 @@ export class EntryAccessService {
         workspaceId: string,
         entryIds: readonly string[]
     ): Promise<Map<string, EntryAccessView>> {
-        if (!entryIds.length) return new Map();
+        const wanted = entryIds.filter((id) => UUID_RE.test(id));
+        if (!wanted.length) return new Map();
         const rows = await this.db
             .select()
             .from(entryAccess)
             .where(
                 and(
                     eq(entryAccess.workspaceId, workspaceId),
-                    inArray(entryAccess.entryId, [...entryIds])
+                    inArray(entryAccess.entryId, wanted)
                 )
             );
         return new Map(

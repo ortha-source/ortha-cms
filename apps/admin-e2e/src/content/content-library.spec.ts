@@ -530,6 +530,38 @@ test.describe('Content Library', () => {
         await expect(contentLibraryPage.selectionCount).toHaveCount(0);
     });
 
+    test('a selection stays with its collection', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
+        await contentLibraryPage.goto(LIBRARY_WORKSPACE.id);
+        await contentLibraryPage.expandGroup('Collections');
+
+        // Visit Products first, so its schema is cached. That is the whole
+        // precondition: an uncached schema shows the skeleton in between and
+        // remounts the table anyway, which hid this.
+        await contentLibraryPage.typeLink('Products').click();
+        await expect(contentLibraryPage.recordsTable('Products')).toBeVisible();
+
+        await contentLibraryPage.typeLink('Blog posts').click();
+        await expect(
+            contentLibraryPage.recordsTable('Blog posts')
+        ).toBeVisible();
+        await contentLibraryPage.rowCheckbox('Blog posts', 0).click();
+        await contentLibraryPage.rowCheckbox('Blog posts', 1).click();
+        await expect(contentLibraryPage.selectionCount).toHaveText(
+            '2 selected'
+        );
+
+        // The route is one element for every collection. Kept mounted, the
+        // view kept the blog posts' ids selected over the products table, and
+        // a bulk action there would have submitted them.
+        await contentLibraryPage.typeLink('Products').click();
+        await expect(contentLibraryPage.recordsTable('Products')).toBeVisible();
+        await expect(contentLibraryPage.selectionCount).toHaveCount(0);
+    });
+
     test('row actions menu offers Edit, Publish, and Copy ID', async ({
         page,
         contentLibraryPage

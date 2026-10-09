@@ -548,27 +548,32 @@ The subtlety is that naively reading the `<h1>` right after a path change announ
 
 ## 07. The slot system
 
-A slot is a named extension point into which plugins put **pure data**. The primitive lives in `@orthacms/utils-admin`, slots are defined by the consuming plugins, and the host does exactly one thing: it wires the contributions up before the first render. Today's build defines **26 slots across six packages**.
+A slot is a named extension point into which plugins put **pure data**. The primitive lives in `@orthacms/utils-admin`, slots are defined by the consuming plugins, and the host does exactly one thing: it wires the contributions up before the first render. Today's build defines **30 slots across seven packages**.
 
 | Owner            | Slots | What is extended                                                                                                                                                                                                                       |
 | ---------------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| content/admin    | 14    | The Content Library: the records list's toolbar and columns, filter fields, menus and bulk actions, the side widgets and entry settings, entry tabs and menu, the header, overlays, pre-save, an extra revision block, a field control |
+| content/admin    | 16    | The Content Library: the records list's toolbar and columns, filter fields, menus and bulk actions, the side widgets and entry settings, entry tabs and menu, the header, overlays, pre-save, an extra revision block, a field control |
 | shell/admin      | 5     | Sidebar navigation, sidebar sections, the sidebar footer, home-page sections, the command palette                                                                                                                                      |
-| workspaces/admin | 3     | Navigation inside a workspace, sections, workspace routes                                                                                                                                                                              |
+| workspaces/admin | 4     | Navigation inside a workspace, sections, workspace routes, settings tabs                                                                                                                                                               |
 | insights/admin   | 2     | Dashboard widgets and band sections                                                                                                                                                                                                    |
 | copilot/admin    | 1     | Rendering a tool's result in the transcript                                                                                                                                                                                            |
+| identity/admin   | 1     | Dropping a plugin's own session state when the identity behind the tab changes (`SESSION_RESET_SLOT`)                                                                                                                                  |
 | wysiwyg/admin    | 1     | Media sources for the editor                                                                                                                                                                                                           |
 
 ### 7.1 The primitive in full
 
 ```
 export function createSlot<T>(name: string): Slot<T> {
-    const items: T[] = [];
+    let items: readonly T[] = Object.freeze([]);
     return {
         name,
-        getItems: () => items.slice(),      // a copy, not the live array
-        _register: (newItems: T[]) => items.push(...newItems),
-        _reset: () => { items.length = 0; } // the length, not a new array
+        getItems: () => items,              // frozen, and stable until a write
+        _register: (newItems: T[]) => {
+            items = Object.freeze([...items, ...newItems]);
+        },
+        _reset: () => {
+            items = Object.freeze([]);
+        }
     };
 }
 
@@ -580,8 +585,8 @@ export type SlotContribution<T = unknown> = {
 
 Two lines here each stand for one defect.
 
-- **`getItems` hands back a copy.** A slot is read by several plugins, and handing out the internal list would turn any one consumer's `sort()` or `push()` into a change of shared plugin state.
-- **`_reset` zeroes the length rather than reassigning the array.** `getItems` and `_register` close over that specific array; reassigning would leave them writing to and reading from an array nobody else can see.
+- **`getItems` hands back a frozen snapshot.** A slot is read by several plugins, and handing out a mutable list would turn any one consumer's `sort()` or `push()` into a change of shared plugin state — frozen, those throw instead. It used to be a fresh `slice()` per call, which protected the list but was a new identity on every render, so every `useMemo` or effect keyed on a slot's items reran each time (the records view's toolbar and column memos, and its saved-view hydration effect behind them).
+- **The snapshot is replaced, never edited, and only on a write.** `getItems`, `_register` and `_reset` share one binding, so a reset is visible to the next read and a snapshot already handed out never changes under its holder.
 
 ### 7.2 Wiring up: why it is a function and not a loop at the call site
 
@@ -705,13 +710,13 @@ createServer({
 
 | Variable         | Read by                                | What it becomes                                                                | Default                           |
 | ---------------- | -------------------------------------- | ------------------------------------------------------------------------------ | --------------------------------- |
-| PORT             | orthacms.config.ts                        | `createServer.port`                                                            | 3000                              |
-| TRUST_PROXY      | orthacms.config.ts                        | `trustProxy`: a hop count → a boolean → a preset string, checked in that order | unset — proxy headers are ignored |
-| MAX_REQUEST_BODY | orthacms.config.ts                        | `bodyLimit`                                                                    | `'1mb'`                           |
-| API_DOCS         | orthacms.config.ts                        | `docs.enabled`                                                                 | `NODE_ENV !== 'production'`       |
+| PORT             | orthacms.config.ts                     | `createServer.port`                                                            | 3000                              |
+| TRUST_PROXY      | orthacms.config.ts                     | `trustProxy`: a hop count → a boolean → a preset string, checked in that order | unset — proxy headers are ignored |
+| MAX_REQUEST_BODY | orthacms.config.ts                     | `bodyLimit`                                                                    | `'1mb'`                           |
+| API_DOCS         | orthacms.config.ts                     | `docs.enabled`                                                                 | `NODE_ENV !== 'production'`       |
 | NODE_ENV         | **the host itself**, in `setupApiDocs` | the default for `docs.enabled` when the option is not passed                   | —                                 |
-| DATABASE_URL     | orthacms.config.ts                        | the `database` plugin's configuration, not the host's                          | required                          |
-| ADMIN_PORT       | orthacms.config.ts                        | the dev admin UI's origin, for plugin settings; nothing to do with the host    | 4200                              |
+| DATABASE_URL     | orthacms.config.ts                     | the `database` plugin's configuration, not the host's                          | required                          |
+| ADMIN_PORT       | orthacms.config.ts                     | the dev admin UI's origin, for plugin settings; nothing to do with the host    | 4200                              |
 
 > **The one environment read inside the host**
 >
@@ -806,7 +811,7 @@ Statements that must always hold. This is at once a review list and a draft set 
 - **I-20** — Migrations are applied in plugin-array order, with no transaction spanning two plugins; a failure names the plugin and how many are already committed.
 - **I-21** — Authentication schemes come **only** from `ServerPlugin.docs`; the host invents none.
 - **I-22** — Every slot contribution is wired **before the first render**, in one call, **from an empty state** — a second run does not double the items.
-- **I-23** — `Slot.getItems()` returns a copy: one consumer's changes are invisible to another.
+- **I-23** — `Slot.getItems()` returns a frozen snapshot: no consumer can change what another reads, and the snapshot keeps its identity until the slot's contents change.
 - **I-24** — The host neither defines nor reads a single slot.
 - **I-25** — Public routes are mounted as top-level siblings, private ones as children of exactly one pathless parent carrying the first `layout` found.
 - **I-26** — The `*` → `/` wildcard lives **inside** the private group, not beside it.

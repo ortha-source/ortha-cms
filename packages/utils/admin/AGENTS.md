@@ -76,10 +76,14 @@ singletons live in one place instead of inside `bootstrap-admin`.
   wires contributions in once at boot. Pure data (no `react`), so it lives in
   this leaf rather than the host. The _generic_ mechanism only — concrete slots
   (e.g. the shell's `SIDEBAR_NAV_SLOT`) are defined by their owning plugin.
-  `getItems()` returns a **copy**: one slot is read by every plugin that
-  consumes it, so handing back the internal array would make one consumer's
-  in-place `sort()` or `push()` a rewrite of shared plugin state. Read it fresh
-  rather than holding the array across a registration.
+  `getItems()` returns a **frozen snapshot**: one slot is read by every plugin
+  that consumes it, so a mutable array would make one consumer's in-place
+  `sort()` or `push()` a rewrite of shared plugin state — frozen, those throw
+  (sort through `byOrder`, which copies). The snapshot keeps its **identity**
+  until a `_register` / `_reset`, so `useMemo(…, [SLOT.getItems()])` is stable;
+  it used to be a fresh `slice()` per call, which reran every memo and effect
+  keyed on it on every render. Read it fresh rather than holding the array
+  across a registration.
 - `wireSlotContributions(contributions)` — what the host calls at boot to
   register every plugin's contributions. It registers **from empty**, which is
   the load-bearing part: a slot closes over one array that lives as long as its

@@ -14,6 +14,9 @@ import {
 // The product is **Ortha CMS AI**; the code keeps `copilot`. See the naming note in
 // `docs/design/copilot.md`.
 const messages = defineMessages({
+    // Names the breadcrumb `<nav>`; the design system's own default is an
+    // untranslated "breadcrumb".
+    nav: { id: 'copilot.agents.skeleton.nav', defaultMessage: 'Breadcrumb' },
     root: {
         id: 'copilot.agents.topbar.root',
         defaultMessage: 'Ortha CMS AI'
@@ -46,7 +49,10 @@ function AgentsBarSkeleton() {
             <TopBarIcon className="bg-primary/10 text-primary">
                 <Sparkles />
             </TopBarIcon>
-            <Breadcrumb className="min-w-0 overflow-hidden">
+            <Breadcrumb
+                aria-label={intl.formatMessage(messages.nav)}
+                className="min-w-0 overflow-hidden"
+            >
                 <BreadcrumbList className="flex-nowrap font-medium">
                     <BreadcrumbItem className="min-w-0 whitespace-nowrap">
                         <BreadcrumbPage className="flex min-w-0 items-center truncate font-medium">

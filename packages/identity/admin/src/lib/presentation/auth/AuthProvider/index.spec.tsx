@@ -13,6 +13,7 @@ import {
     markSessionEnded,
     takeExpectedSignOut
 } from '../../../application/sessionEnded';
+import { SESSION_RESET_SLOT } from '../../../application/sessionReset';
 import { AuthStatus, useAuth, type AuthState } from '../authContext';
 import { AuthProvider } from './index';
 
@@ -110,6 +111,7 @@ beforeEach(() => {
 
 afterEach(() => {
     vi.restoreAllMocks();
+    SESSION_RESET_SLOT._reset();
 });
 
 /**
@@ -379,6 +381,42 @@ describe('AuthProvider', () => {
 
                 expect(markSessionEnded).toHaveBeenCalledTimes(1);
                 expect(warn).toHaveBeenCalledTimes(1);
+            });
+
+            // A session revoked underneath a copilot run would otherwise keep
+            // streaming it until somebody next signed in — on an account an
+            // administrator may just have suspended. The fall is the one
+            // signal every way of losing a session produces, so the plugins'
+            // resets ride it rather than the next sign-in alone.
+            it('ends what plugins hold for the lost session [identity:I-30]', () => {
+                const reset = vi.fn();
+                SESSION_RESET_SLOT._register([{ id: 'copilot', reset }]);
+                probeReturns({
+                    data: {
+                        id: 'usr_1',
+                        email: 'ada@orthacms.dev',
+                        name: null,
+                        permissions: []
+                    }
+                });
+                const view = renderProvider();
+                expect(reset).not.toHaveBeenCalled();
+
+                probeReturns({ data: null });
+                reprobe(view);
+                reprobe(view);
+
+                expect(reset).toHaveBeenCalledTimes(1);
+            });
+
+            it('leaves them alone on a tab that never held a session', () => {
+                const reset = vi.fn();
+                SESSION_RESET_SLOT._register([{ id: 'copilot', reset }]);
+                probeReturns({ data: null });
+
+                renderProvider();
+
+                expect(reset).not.toHaveBeenCalled();
             });
         });
 

@@ -7,9 +7,9 @@ public registration; the only route into an account is an admin's invite,
 redeemed through the accept pair below.
 
 It currently defines its **persistence model** — the Drizzle schema in
-`src/lib/schema` — eleven tables: users, roles, permissions, role_permissions,
+`src/lib/schema` — twelve tables: users, roles, permissions, role_permissions,
 sessions, tokens, api_tokens, api_token_workspaces, user_preferences,
-sso_identities, sso_auth_requests. `api_token_workspaces` is owned here but
+sso_identities, sso_auth_requests, throttle_buckets. `api_token_workspaces` is owned here but
 **purged** by `workspaces-server`'s local `ApiTokenGrantsPurger`, because that
 package depends on this one and so cannot be depended on back) — and **ships its migrations** (`drizzle.config.ts` + committed
 `migrations/`, applied by `@orthacms/nx`'s `db:migrate`). It also **seeds the
@@ -419,7 +419,10 @@ error, and type the barrel exports keeps its path, so no consumer import moved.
   path that flips `status` without revoking. All of it reads as a plain `401`,
   so a suspended account is indistinguishable from an expired session.
 - **Login hardening (#8).** `/auth/login` is guarded by `ThrottlerGuard`
-  (10/min, in-memory — per-instance; needs a shared store at scale) against
+  (10/min, counted in the `throttle_buckets` table by
+  `PostgresThrottlerStorage` — one upsert per request — so every instance
+  shares one limit; the library's default in-process store made it N× looser
+  behind N instances) against
   brute-force and bcrypt CPU-DoS, and by `OriginGuard`,
   which rejects browser requests whose `Origin` is not in
   `config.allowedOrigins` (login-CSRF defense; missing-`Origin` non-browser

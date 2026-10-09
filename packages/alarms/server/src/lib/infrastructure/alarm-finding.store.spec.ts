@@ -1,3 +1,5 @@
+import type { SQL } from 'drizzle-orm';
+import { PgDialect } from 'drizzle-orm/pg-core';
 import { AlarmFindingStore } from './alarm-finding.store';
 
 /**
@@ -140,5 +142,40 @@ describe('AlarmFindingStore.reconcile', () => {
         expect(insertedBatches).toEqual([]);
         expect(updateBatches).toEqual([]);
         expect(result).toEqual({ opened: 0, resolved: 0 });
+    });
+});
+
+describe('AlarmFindingStore with a malformed rule id', () => {
+    /**
+     * `admin_alarms_findings` forwards the model's `ruleId` as a filter, and
+     * `alarm_findings.rule_id` is a uuid column — so `'missing-author'` used to
+     * be a Postgres cast error. It names no rule, so it matches nothing: the
+     * empty answer an unknown id gets.
+     */
+    it('matches no finding and never binds the id', async () => {
+        const wheres: SQL[] = [];
+        const db = {
+            select: () => {
+                const query = {
+                    from: () => query,
+                    innerJoin: () => query,
+                    where: (where: SQL) => {
+                        wheres.push(where);
+                        return query;
+                    },
+                    groupBy: async () => []
+                };
+                return query;
+            }
+        };
+        const store = new AlarmFindingStore(db as never);
+
+        await expect(
+            store.severityCounts(RULE.workspaceId, { ruleId: 'missing-author' })
+        ).resolves.toEqual({ error: 0, warn: 0, info: 0 });
+
+        const rendered = new PgDialect().sqlToQuery(wheres[0]);
+        expect(rendered.params).not.toContain('missing-author');
+        expect(rendered.sql).toContain('false');
     });
 });

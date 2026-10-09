@@ -14,6 +14,7 @@ import {
     inArray,
     isNotNull,
     isNull,
+    sql,
     type AnyColumn,
     type SQL
 } from 'drizzle-orm';
@@ -92,8 +93,12 @@ type Row = Record<string, unknown>;
  * shape-checked at the DTO since it was written; a single relation's FK arrives
  * inside the free-form `values` bag, which no decorator can reach, so the guard
  * has to live here.
+ *
+ * Exported because the same is true of an entry id handed to a lookup by an
+ * agent tool rather than a route: no `ParseUUIDPipe` stands in front of it, and
+ * a malformed one has to read as "no such entry", never as a cast error.
  */
-const UUID_RE =
+export const UUID_RE =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /**
@@ -322,10 +327,11 @@ export class EntryWriterService {
     /**
      * The locale of one live row, or `undefined` on a type that has none.
      *
-     * A relation link may not cross locales, and an update's target checks run
-     * before the transaction opens — so the row's locale has to be read up
-     * front. Costs one indexed lookup, and only on localized types: a non-i18n
-     * type short-circuits without touching the database.
+     * A relation link may not cross locales, and an update resolves group-
+     * addressed relations and runs its one-to-one check before the transaction
+     * opens — so the row's locale has to be read up front. Costs one indexed
+     * lookup, and only on localized types: a non-i18n type short-circuits
+     * without touching the database.
      */
     private async localeOf(
         type: AnyContentType,
@@ -540,7 +546,6 @@ export class EntryWriterService {
         );
         coerced = coerceValues(type, folded.values);
         relations = folded.relations;
-        await this.assertRelationTargets(type, coerced, workspaceId, rowLocale);
         await this.assertUniqueRelations(
             type,
             coerced,
@@ -555,7 +560,6 @@ export class EntryWriterService {
                     | undefined
             }
         );
-        await this.assertMediaTargets(type, coerced, workspaceId);
         // The required relations this workspace cannot satisfy (their target
         // type isn't granted to it) — read once, before the transaction, and
         // applied to both halves of the required check below.
@@ -589,6 +593,18 @@ export class EntryWriterService {
                         },
                         workspaceId
                     );
+                    // The targets are checked here, inside the write and
+                    // holding what they read (see `assertRelationTargets`),
+                    // rather than before it: a relation target deleted in
+                    // between turned this insert's FK into a 500, and an asset
+                    // — no FK at all — into an id that named nothing.
+                    await this.assertRelationTargets(
+                        type,
+                        coerced,
+                        workspaceId,
+                        rowLocale
+                    );
+                    await this.assertMediaTargets(type, coerced, workspaceId);
                     const [inserted] = await tx
                         .insert(type.table)
                         .values({
@@ -852,7 +868,7 @@ export class EntryWriterService {
         workspaceId: string
     ): Promise<Row | undefined> {
         const own = await this.findLive(type, id, workspaceId);
-        if (own || !this.shared) return own;
+        if (own || !this.shared || !UUID_RE.test(id)) return own;
         const t = this.columns(type);
         const [row] = await this.db
             .select()
@@ -918,8 +934,9 @@ export class EntryWriterService {
         const actorId = revisionActorId(actor);
         let coerced = coerceValues(type, values);
         // The row's own locale is what a relation link must match. Read up front
-        // (one indexed lookup, and only on localized types) so the pre-transaction
-        // target checks can apply the same rule the in-transaction link writes do.
+        // (one indexed lookup, and only on localized types) so the group-addressed
+        // `set` resolution and the one-to-one check, both ahead of the
+        // transaction, apply the same rule the in-transaction checks do.
         const { locale: rowLocale, localeGroupId: rowGroup } =
             await this.localeOf(type, id, workspaceId);
         const folded = await this.foldSingleRelationSets(
@@ -931,13 +948,6 @@ export class EntryWriterService {
         );
         coerced = coerceValues(type, folded.values);
         relations = folded.relations;
-        await this.assertRelationTargets(
-            type,
-            coerced,
-            workspaceId,
-            rowLocale,
-            await this.findLive(type, id, workspaceId)
-        );
         await this.assertUniqueRelations(
             type,
             coerced,
@@ -945,7 +955,6 @@ export class EntryWriterService {
             rowLocale,
             { id, localeGroupId: rowGroup }
         );
-        await this.assertMediaTargets(type, coerced, workspaceId);
         // Whether this write must satisfy the type's required rules now (its
         // scalar values up front, its link-managed relations after the links are
         // written). A **publishable** type's save always produces a **draft**
@@ -984,6 +993,17 @@ export class EntryWriterService {
                 { localeGroupId: rowGroup ?? undefined },
                 workspaceId
             );
+            // In the transaction and holding what they read, as on create —
+            // and against `before`, the row this write actually replaces, so
+            // an unchanged FK is judged by what is stored now.
+            await this.assertRelationTargets(
+                type,
+                coerced,
+                workspaceId,
+                rowLocale,
+                before
+            );
+            await this.assertMediaTargets(type, coerced, workspaceId);
             const [updated] = await tx
                 .update(type.table)
                 .set({
@@ -1687,6 +1707,11 @@ export class EntryWriterService {
         id: string,
         workspaceId: string
     ): SQL | undefined {
+        // A malformed id names no row, and every id-addressed read and write
+        // goes through here — so it matches nothing (each caller's own 404)
+        // rather than reaching Postgres as a uuid cast error. The routes put
+        // a `ParseUUIDPipe` in front; an agent tool's argument has none.
+        if (!UUID_RE.test(id)) return sql`false`;
         const t = this.columns(type);
         return and(
             eq(t['id'], id),
@@ -1922,6 +1947,10 @@ export class EntryWriterService {
             // Owning single FKs may name a visible shared-workspace record
             // (ADR-0019); inverse arrays may not. One probe with the wider
             // rule, then the inverse refs are held to their own workspace.
+            // `FOR KEY SHARE` — the lock a foreign key check takes — holds the
+            // targets for the rest of the write: a delete of one waits for this
+            // save to commit instead of landing between the check and the
+            // write. It blocks nothing but a delete or a key change.
             const rows = (await this.uow
                 .current()
                 .select()
@@ -1931,7 +1960,8 @@ export class EntryWriterService {
                         inArray(t['id'], ids),
                         this.relations.linkableWhere(target, workspaceId)
                     )
-                )) as Row[];
+                )
+                .for('key share')) as Row[];
             const present = new Set(rows.map((row) => row['id'] as string));
             const local = new Set(
                 rows
@@ -2008,9 +2038,13 @@ export class EntryWriterService {
         }
         if (!refs.length) return;
 
+        // `lock`: read on this write's transaction and hold the assets until
+        // it commits. Asset ids carry no FK, so this is the only thing that
+        // stops an asset being deleted between the check and the write.
         const resolved = await this.mediaResolver.resolve(
             [...new Set(refs.map((ref) => ref.id))],
-            workspaceId
+            workspaceId,
+            { lock: true }
         );
         const issues: ValidationIssue[] = [];
         for (const ref of refs) {

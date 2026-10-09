@@ -1,4 +1,10 @@
-import { Injectable, Optional, type OnModuleInit } from '@nestjs/common';
+import {
+    BadRequestException,
+    Injectable,
+    Optional,
+    type OnModuleInit
+} from '@nestjs/common';
+import { isISO8601 } from 'class-validator';
 import { PERMISSIONS } from '@orthacms/identity-server';
 import { ToolRegistry } from '@orthacms/tools-server';
 import type { ToolDefinition, ToolProvider } from '@orthacms/tools-server';
@@ -131,6 +137,13 @@ export class ActivityCopilotToolProvider implements ToolProvider, OnModuleInit {
                     pageSize?: number;
                 };
 
+                // The route's DTO refuses a bad date with `@IsISO8601`; the
+                // tool has no DTO in front of it, and an unparseable date
+                // reached the driver as an `Invalid time value` — a failure
+                // the model could not read as "fix the argument".
+                assertDate('from', args.from);
+                assertDate('to', args.to);
+
                 // Clamped here as well as declared in the schema: the
                 // validator is defence in depth, not the boundary.
                 const pageSize = Math.min(
@@ -168,5 +181,23 @@ export class ActivityCopilotToolProvider implements ToolProvider, OnModuleInit {
                 };
             }
         };
+    }
+}
+
+/**
+ * Refuses a `from` / `to` that is not a date the query can use — the same
+ * `@IsISO8601` rule the route applies, plus a parse, since the pattern accepts
+ * a few strings (`2026-13-01`) no `Date` can represent.
+ */
+function assertDate(name: 'from' | 'to', value: unknown): void {
+    if (value === undefined || value === '') return;
+    if (
+        typeof value !== 'string' ||
+        !isISO8601(value) ||
+        Number.isNaN(Date.parse(value))
+    ) {
+        throw new BadRequestException(
+            `\`${name}\` must be an ISO 8601 date or date-time, e.g. "2026-01-31" or "2026-01-31T09:00:00Z".`
+        );
     }
 }

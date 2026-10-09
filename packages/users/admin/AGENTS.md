@@ -32,18 +32,18 @@ pilot. `src/lib` is organized into four layers, not the legacy per-hook `api/` +
   implementation (the one place `apiClient` is used), `memberMapper` (the
   wire→view anti-corruption layer, formerly `utils/toMember`, keeping the
   presentation-only `initials`/`color` enrichment), and `membersKeys`.
-  - **The mapper does not invent a role.** A key outside the three assignable
-    system roles maps to `role: null`, not to a guessed `viewer` — the server's
-    `Role.create` accepts any non-empty key, so a custom role is a shape this
-    admin must expect. Everything downstream renders `roleName` (the server's own
-    label) when `role` is `null` and refuses to offer a change, so the UI never
-    asserts a privilege level someone does not hold.
-  - **`membersKeys.sessions(id)` is rooted at `member-sessions`, not under the
-    member's detail key.** TanStack matches by prefix, so nesting it would make
-    every member mutation invalidate every cached session list — which no member
-    mutation can affect, and which runs at `staleTime: 0` so it refetches
-    immediately. The separate root is what keeps the broad `membersKeys.all`
-    invalidation honest. `membersKeys/index.spec.ts` pins the scoping.
+    - **The mapper does not invent a role.** A key outside the three assignable
+      system roles maps to `role: null`, not to a guessed `viewer` — the server's
+      `Role.create` accepts any non-empty key, so a custom role is a shape this
+      admin must expect. Everything downstream renders `roleName` (the server's own
+      label) when `role` is `null` and refuses to offer a change, so the UI never
+      asserts a privilege level someone does not hold.
+    - **`membersKeys.sessions(id)` is rooted at `member-sessions`, not under the
+      member's detail key.** TanStack matches by prefix, so nesting it would make
+      every member mutation invalidate every cached session list — which no member
+      mutation can affect, and which runs at `staleTime: 0` so it refetches
+      immediately. The separate root is what keeps the broad `membersKeys.all`
+      invalidation honest. `membersKeys/index.spec.ts` pins the scoping.
 - **`presentation/`** — pages, components, the `usersPlugin` factory, the
   `userDetailContext` Outlet provider, and `membersFilterFields`; consumes view
   models + hooks + the `MemberEntity` only, never wire types or `apiClient`.
@@ -132,15 +132,18 @@ defers the move so it lands after Radix's own restoration rather than racing it.
 
 **Per-item accessible names carry the target.** Every session's visible label is
 just "Revoke", so the `aria-label` names the device and last-seen time, and the
-confirm dialog's *title* does too — a dialog's accessible name is its title, and
+confirm dialog's _title_ does too — a dialog's accessible name is its title, and
 "Revoke this session?" on all four cards tells a screen-reader user nothing.
 
 ## The invite link hand-off
 
-Nothing emails an invite yet (identity epic #11), so the **admin is the delivery
-channel** and the raw token comes back exactly once. Two surfaces exist for that
-one moment, both built on `InviteLinkPanel` (read-only link + copy button +
-a plain warning that whoever opens it becomes that person):
+Outgoing mail is optional (`@orthacms/mail-*`, inert until `MAIL_PROVIDER`
+names a backend — ADR-0018). With a provider configured the server emails the
+invitation and returns `inviteToken: null`, and `InviteSent` says where it went
+instead of drawing a link. Without one — the default — the **admin is the
+delivery channel** and the raw token comes back exactly once. Two surfaces exist
+for that one moment, both built on `InviteLinkPanel` (read-only link + copy
+button + a plain warning that whoever opens it becomes that person):
 
 - the invite wizard ends on `InviteSent` instead of redirecting — navigating
   away before copying would mean resending;
@@ -149,12 +152,13 @@ a plain warning that whoever opens it becomes that person):
 
 `inviteLinkFor(token)` builds the URL from `window.location.origin` — the admin
 is already looking at the app on the origin the invitee should use, so there is
-no `publicBaseUrl` to misconfigure and no host header to poison. A server-side
-base URL becomes necessary only when the mailer lands.
+no `publicBaseUrl` to misconfigure and no host header to poison. The mailed
+link is built server-side, from the mail plugin's configured `appUrl`; this
+one is only ever the copy-it-yourself path.
 
 **Losing the link is guarded, because losing it is not recoverable.** Esc, an
 overlay click and the close button all reach `onOpenChange(false)` by reflex, and
-a resend has *already* rotated the token — so a dismissal before copying leaves
+a resend has _already_ rotated the token — so a dismissal before copying leaves
 the invitee with a dead link and the admin with no live one, fixable only by
 resending, which rotates again. `InviteLinkDialog` therefore tracks whether Copy
 was pressed (`InviteLinkPanel`'s `onCopied`) and intercepts the first uncopied
@@ -168,8 +172,10 @@ component here could intercept on its own.
 The Access tab's `PasswordResetCard` mints a single-use reset link for an
 **active** member and reveals it through `PasswordResetLinkDialog` /
 `PasswordResetLinkPanel` — the same reveal-once shape as the invite pair,
-because it is the same situation: no mailer exists, so the admin is the delivery
-channel and the raw token is readable exactly once.
+because it is the same situation: with no mail provider configured the admin is
+the delivery channel and the raw token is readable exactly once. With one, the
+server emails the link, returns `resetToken: null`, and the card toasts where it
+went instead of opening the dialog.
 
 Three details are deliberate:
 
@@ -217,7 +223,7 @@ and points at identity's `/identity/reset-password` route.
 
 ## Tests
 
-Component *behaviour* lives in `apps/admin-e2e`, which drives a real browser —
+Component _behaviour_ lives in `apps/admin-e2e`, which drives a real browser —
 `src/users/` covers the roster, the wizard, the detail tabs, the destructive-action
 confirmations and the Role tab's guardrails. The package's own `vitest` specs
 (`npx nx test @orthacms/users-admin`) hold only what a browser can't reach: the

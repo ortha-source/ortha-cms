@@ -210,6 +210,10 @@ const messages = defineMessages({
         id: 'users.invitePage.workspacesError',
         defaultMessage: 'Couldn’t load workspaces. Try again in a moment.'
     },
+    workspacesRetry: {
+        id: 'users.invitePage.workspacesRetry',
+        defaultMessage: 'Try again'
+    },
     selectedCount: {
         id: 'users.invitePage.selectedCount',
         defaultMessage:
@@ -339,6 +343,13 @@ export function InviteMemberPage() {
     // rows); "specific" sends the checked ones.
     const workspaceIds =
         wsMode === 'all' ? options.map((w) => w.id) : [...selected];
+
+    // Send waits for the list this step is choosing from. Without it, a failed
+    // (or still loading) read left Send live under the error: "All workspaces"
+    // then sent `options` — an empty list — so the member was invited into
+    // nothing while the admin believed they had granted everything, and
+    // "Specific" sent a choice the admin was never shown.
+    const workspacesUnavailable = workspaces.isPending || workspaces.isError;
 
     // The use-case hook owns the orchestration (validate → invite → toast →
     // navigate); this page just hands it the collected fields.
@@ -599,10 +610,28 @@ export function InviteMemberPage() {
                                     <WorkspaceOptionsSkeleton />
                                 ) : workspaces.isError ? (
                                     <Alert variant="destructive">
-                                        <AlertDescription>
-                                            {intl.formatMessage(
-                                                messages.workspacesError
-                                            )}
+                                        <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+                                            <span>
+                                                {intl.formatMessage(
+                                                    messages.workspacesError
+                                                )}
+                                            </span>
+                                            {/* Send waits on this list, so the
+                                                way forward has to be here. */}
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                className="shadow-none"
+                                                disabled={workspaces.isFetching}
+                                                onClick={() =>
+                                                    workspaces.refetch()
+                                                }
+                                            >
+                                                {intl.formatMessage(
+                                                    messages.workspacesRetry
+                                                )}
+                                            </Button>
                                         </AlertDescription>
                                     </Alert>
                                 ) : options.length === 0 ? (
@@ -784,7 +813,10 @@ export function InviteMemberPage() {
                                         <Button
                                             type="button"
                                             onClick={submit}
-                                            disabled={flow.submitting}
+                                            disabled={
+                                                flow.submitting ||
+                                                workspacesUnavailable
+                                            }
                                         >
                                             {flow.submitting ? (
                                                 <>

@@ -14,6 +14,9 @@ import {
 } from '@orthacms/design-system';
 
 const messages = defineMessages({
+    // Names the `<nav>` landmark. The design system's own default is an
+    // untranslated, lower-case "pagination".
+    nav: { id: 'segments.pagination.nav', defaultMessage: 'Pagination' },
     rowsPerPage: {
         id: 'segments.pagination.rowsPerPage',
         defaultMessage: 'Rows per page'
@@ -102,7 +105,10 @@ export function SegmentsPagination({
                     {intl.formatMessage(messages.range, { from, to, total })}
                 </span>
                 {pageCount > 1 ? (
-                    <Pagination className="mx-0 w-auto">
+                    <Pagination
+                        className="mx-0 w-auto"
+                        aria-label={intl.formatMessage(messages.nav)}
+                    >
                         <PaginationContent className="gap-3">
                             <PaginationItem>
                                 <Button

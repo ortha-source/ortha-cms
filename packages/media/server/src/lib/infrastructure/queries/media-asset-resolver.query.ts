@@ -1,12 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { and, eq, inArray } from 'drizzle-orm';
-import { InjectDatabase, type Database } from '@orthacms/database';
+import { InjectDatabase, UnitOfWork, type Database } from '@orthacms/database';
 import type {
     MediaAssetResolver,
+    MediaResolveOptions,
     ResolvedMediaAsset
 } from '@orthacms/content-server';
 import { mediaAsset } from '../schema/media-asset';
-import { PublicAssetUrlsQuery } from '../public-urls/public-asset-urls';
+import {
+    PublicAssetUrlsQuery,
+    type AssetPublicUrls
+} from '../public-urls/public-asset-urls';
 import { assetUrlsFor, rawRoute } from './to-asset-view';
 
 /**
@@ -27,18 +31,23 @@ import { assetUrlsFor, rawRoute } from './to-asset-view';
 export class MediaAssetResolverQuery implements MediaAssetResolver {
     constructor(
         @InjectDatabase() private readonly db: Database,
+        private readonly uow: UnitOfWork,
         private readonly publicUrls: PublicAssetUrlsQuery
     ) {}
 
     async resolve(
         ids: readonly string[],
-        workspaceId: string
+        workspaceId: string,
+        options: MediaResolveOptions = {}
     ): Promise<Map<string, ResolvedMediaAsset>> {
         const unique = [...new Set(ids)];
         const result = new Map<string, ResolvedMediaAsset>();
         if (!unique.length) return result;
 
-        const rows = await this.db
+        // A locking read joins the entry write's transaction, so the lock is
+        // that write's and lasts until it commits; `FOR KEY SHARE` is the lock a
+        // foreign key would take, which blocks a delete and nothing else.
+        const query = (options.lock ? this.uow.current() : this.db)
             .select({
                 id: mediaAsset.id,
                 kind: mediaAsset.kind,
@@ -56,10 +65,16 @@ export class MediaAssetResolverQuery implements MediaAssetResolver {
                     eq(mediaAsset.workspaceId, workspaceId)
                 )
             );
+        const rows = await (options.lock ? query.for('key share') : query);
 
         // One batch for every asset on the page; an empty map with the switch
-        // off, without the provider ever being asked.
-        const published = await this.publicUrls.forAssets(rows);
+        // off, without the provider ever being asked. Not asked at all on a
+        // locking read: that is an entry write checking existence and
+        // `accept`, which reads no URL, and a provider call made while the
+        // write's transaction holds its locks would only lengthen it.
+        const published = options.lock
+            ? new Map<string, AssetPublicUrls>()
+            : await this.publicUrls.forAssets(rows);
 
         for (const row of rows) {
             const publicUrls = published.get(row.id);

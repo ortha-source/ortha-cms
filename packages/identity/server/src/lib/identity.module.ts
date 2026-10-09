@@ -1,10 +1,12 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { DATABASE_TOKEN, type Database } from '@orthacms/database';
 import { SSO_REGISTRY, SSO_ROLE_RESOLVER } from '@orthacms/identity-domain';
 import type { IdentityPluginConfig, IdentityRateLimitConfig } from './types';
 import type { IdentityPluginOptions } from './utils/identity-plugin';
 import { IDENTITY_CONFIG } from './identity.tokens';
+import { PostgresThrottlerStorage } from './infrastructure/throttling/postgres-throttler.storage';
 import { RolesService } from './rbac/services/roles.service';
 import { PermissionsService } from './rbac/services/permissions.service';
 import { PermissionsGuard } from './rbac/guards/permissions.guard';
@@ -105,17 +107,28 @@ export class IdentityModule {
             module: IdentityModule,
             global: true,
             imports: [
-                // Per-instance, in-memory rate limit guarding /auth/login
-                // against brute-force + bcrypt CPU-DoS. The bucket key is
-                // `req.ip`, so it is only per-client if the host set Express
-                // `trust proxy` — `createServer`'s `trustProxy` option, fed by
-                // `TRUST_PROXY`. Unset behind a load balancer, every caller
-                // reports the proxy's address and shares one bucket, which
-                // turns one attacker's quota into a global login outage. For
-                // multi-instance deploys also swap in a shared store (Redis).
-                ThrottlerModule.forRoot([
-                    { ttl: rateLimit.ttlSeconds * 1000, limit: rateLimit.limit }
-                ])
+                // Rate limit guarding /auth/login against brute-force + bcrypt
+                // CPU-DoS. The buckets live in Postgres (`throttle_buckets`),
+                // so every instance counts against one limit — the default
+                // in-process store let N instances allow N times as many
+                // attempts. The bucket key is `req.ip`, so it is only
+                // per-client if the host set Express `trust proxy` —
+                // `createServer`'s `trustProxy` option, fed by `TRUST_PROXY`.
+                // Unset behind a load balancer, every caller reports the
+                // proxy's address and shares one bucket, which turns one
+                // attacker's quota into a global login outage.
+                ThrottlerModule.forRootAsync({
+                    inject: [DATABASE_TOKEN],
+                    useFactory: (db: Database) => ({
+                        throttlers: [
+                            {
+                                ttl: rateLimit.ttlSeconds * 1000,
+                                limit: rateLimit.limit
+                            }
+                        ],
+                        storage: new PostgresThrottlerStorage(db)
+                    })
+                })
             ],
             controllers: [
                 LoginController,

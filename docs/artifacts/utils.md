@@ -135,7 +135,7 @@ The `src/index.ts` barrel serves **31 symbols**: 25 values and 6 types. Below is
 | HTTP_STATUS            | `constants` | The six codes the UI actually branches on: 400, 401, 403, 404, 409, 429                                                                                             | Form and page error handlers; `apiClient` itself compares against `UNAUTHORIZED`                                                                                                    | 9     |
 | ApiError               | `class`     | A normalized transport error: `status: number \| null` (`null` means there was no network) and `details: unknown` (the response body as is)                         | Everywhere an error is shown: `instanceof`, reading `status`, parsing `details.issues`                                                                                              | 23    |
 | toApiError             | `function`  | Unwraps an arbitrary thrown value (usually an axios error) into an `ApiError`, so the caller never touches axios internals                                          | Every query function's `catch`; internally, `queryClient`'s retry predicate                                                                                                         | 18    |
-| createSlot\<T>         | `factory`   | Creates a named extension point: `name`, `getItems()` (returns a **copy**), and the internal `_register` / `_reset`                                                 | 25 slots across 6 plugins: `content` (14), `shell` (4), `workspaces` (3), `insights` (2), `copilot` (1), `wysiwyg` (1)                                                              | 8     |
+| createSlot\<T>         | `factory`   | Creates a named extension point: `name`, `getItems()` (a **frozen, stable** snapshot), and the internal `_register` / `_reset`                                      | 30 slots across 7 plugins: `content` (16), `shell` (5), `workspaces` (4), `insights` (2), `copilot` (1), `identity` (1), `wysiwyg` (1)                                              | 8     |
 | wireSlotContributions  | `host only` | Registers every plugin's contributions **from scratch**: first a separate pass clearing the target slots, then the filling                                          | `bootstrap-admin`, `createAdmin` — the only call site                                                                                                                               | 1     |
 | Slot\<T>               | `type`      | The slot contract. Exported for the signatures of plugins that declare slots of their own                                                                           | Inferred from `createSlot`; no explicit imports                                                                                                                                     | 0     |
 | SlotContribution\<T>   | `type`      | `{ slot, items }` — what a plugin puts in its descriptor's `slots` field                                                                                            | `bootstrap-admin` (the type of the `AdminPlugin.slots` field)                                                                                                                       | 1     |
@@ -203,13 +203,13 @@ The one applied default is the retry predicate. The logic: **a 4xx is a consider
 
 The maximum is 3 attempts. A hook that needs otherwise overrides `retry` for itself. The predicate reads the status through `toApiError`, so it works with an axios error and with an already-normalized `ApiError` alike.
 
-### Slots: a copy on read, registration from scratch on write
+### Slots: a frozen snapshot on read, registration from scratch on write
 
 A slot is a named shared list. A consumer creates it and reads `getItems()`, plugins put contributions in through their descriptor, and the host wires everything once at startup. The mechanism here is only the _shared_ part; the individual slots (for instance `shell.sidebar.nav`) are declared by the plugin that owns them. The implementation is pure data, with no React, which is why it lives in the leaf rather than the host.
 
-1. **`getItems()` returns a copy.**One slot is read by several plugins. Hand out the internal array and someone's in-place `sort()` rewrites the shared state for everyone else. For the same reason sorting is factored out into `byOrder`, which also copies.
-   _items.slice()_
-2. **`_reset()` zeroes the length rather than re-creating the array.**`getItems` and `_register` close over that specific array; reassigning it would leave them writing to and reading from an array nobody else can see.
+1. **`getItems()` returns a frozen snapshot.** One slot is read by several plugins. Hand out a mutable array and someone's in-place `sort()` rewrites the shared state for everyone else — frozen, it throws instead. For the same reason sorting is factored out into `byOrder`, which copies. The snapshot is the **same array** until the slot's contents change: a fresh `slice()` per call was a new identity on every render, which reran every `useMemo` and effect keyed on a slot's items.
+   _Object.freeze([...items, ...newItems])_
+2. **Writes replace the snapshot; they never edit it.** `getItems`, `_register` and `_reset` share one binding, so a reset is what the next read sees, and a snapshot already handed out never changes under its holder.
    _items.length = 0_
 3. **`wireSlotContributions` registers from scratch.**A slot closes over an array that lives as long as the module, and `_register` is a bare `push`. Anything that runs the wiring a second time doubles every contribution. Vite's hot reload does exactly that: in dev the sidebar filled with duplicates that multiplied with every save.
    _first a reset over the set of slots, then the pushes_
@@ -737,8 +737,8 @@ Statements where violating any one is a defect rather than a change in behaviour
 
 #### Slots
 
-- **I-11** — **`getItems()` returns a copy.** The internal array never leaves.
-- **I-12** — **`_reset()` zeroes the length rather than re-creating the array** — otherwise the `getItems`/`_register` closures stay on the old one.
+- **I-11** — **`getItems()` returns a frozen snapshot, stable until the slot changes.** No consumer can write through it, and its identity changes only on `_register` / `_reset`.
+- **I-12** — **`_reset()` empties the slot for every later read and write** — `getItems` and `_register` share the one binding it replaces, so neither is left on the old contents.
 - **I-13** — **Wiring is idempotent.** Calling `wireSlotContributions` again with the same input gives the same result rather than a doubled one.
 - **I-14** — **The reset is a separate pass over the distinct slots**, before the registration loop.
 - **I-15** — **`byOrder` does not sort in place.**
@@ -805,7 +805,7 @@ The group currently has **27 spec files and 245 tests**: 13 files / 103 tests in
 #### Slots and the host
 
 - **The sidebar does not double after editing a file in dev** — the main symptom of non-idempotent wiring
-- **One consumer's sorting does not change another's order** — the copy from `getItems()`
+- **One consumer's sorting does not change another's order** — the frozen snapshot from `getItems()`
 - **Contributions from several plugins into one slot are all preserved** — the reset in a separate pass
 - **A plugin with no `slots` field breaks nothing** — the `?? []` in the host
 

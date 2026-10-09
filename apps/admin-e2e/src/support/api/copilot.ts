@@ -786,3 +786,53 @@ export async function mockCopilotApi(
 
     return spy;
 }
+
+/** The bit of `fetch` {@link spyRunAborts} wraps — this project has no DOM lib. */
+interface RunAbortGlobals {
+    fetch(
+        input: unknown,
+        init?: {
+            signal?: {
+                addEventListener(type: 'abort', listener: () => void): void;
+            };
+        }
+    ): Promise<unknown>;
+    __orthacmsRunAborts?: number;
+}
+
+/**
+ * Counts the run requests the **client** cancelled.
+ *
+ * Playwright reports a routed request neither as finished nor as failed while
+ * its handler still holds it open, so a run kept in flight with `runDelayMs`
+ * cannot be seen to end from the outside. This listens on the request's own
+ * `AbortSignal` inside the page instead — the same signal whose abort tells the
+ * real server to stop (a client disconnect is an abort there). Install it
+ * before the app loads, like any init script.
+ */
+export async function spyRunAborts(
+    page: Page
+): Promise<{ count(): Promise<number> }> {
+    await page.addInitScript(() => {
+        const scope = globalThis as unknown as RunAbortGlobals;
+        const original = scope.fetch.bind(scope);
+        scope.__orthacmsRunAborts = 0;
+        scope.fetch = (input, init) => {
+            if (String(input).includes('/api/copilot/runs')) {
+                init?.signal?.addEventListener('abort', () => {
+                    scope.__orthacmsRunAborts =
+                        (scope.__orthacmsRunAborts ?? 0) + 1;
+                });
+            }
+            return original(input, init);
+        };
+    });
+    return {
+        count: () =>
+            page.evaluate(
+                () =>
+                    (globalThis as unknown as RunAbortGlobals)
+                        .__orthacmsRunAborts ?? 0
+            )
+    };
+}

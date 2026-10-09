@@ -48,6 +48,12 @@ const messages = defineMessages({
         defaultMessage: 'Rebuild the storefront'
     },
     url: { id: 'webhooks.form.url', defaultMessage: 'URL' },
+    // An example, not a value — but still copy a translator may need to
+    // localize (an example domain, a path in their language).
+    urlPlaceholder: {
+        id: 'webhooks.form.urlPlaceholder',
+        defaultMessage: 'https://example.com/hooks/orthacms'
+    },
     urlHint: {
         id: 'webhooks.form.urlHint',
         defaultMessage: 'Must be https:// and reachable on the public internet.'
@@ -170,6 +176,14 @@ const messages = defineMessages({
     headerValue: {
         id: 'webhooks.form.headerValue',
         defaultMessage: 'Header value'
+    },
+    headerNamePlaceholder: {
+        id: 'webhooks.form.headerNamePlaceholder',
+        defaultMessage: 'Authorization'
+    },
+    headerValuePlaceholder: {
+        id: 'webhooks.form.headerValuePlaceholder',
+        defaultMessage: 'Bearer …'
     },
     addHeader: { id: 'webhooks.form.addHeader', defaultMessage: 'Add header' },
     removeHeader: {
@@ -474,7 +488,7 @@ export function WebhookForm({
                     label={intl.formatMessage(messages.url)}
                     value={values.url}
                     type="url"
-                    placeholder="https://example.com/hooks/orthacms"
+                    placeholder={intl.formatMessage(messages.urlPlaceholder)}
                     description={intl.formatMessage(messages.urlHint)}
                     error={urlError}
                     onChange={(event) =>
@@ -543,7 +557,9 @@ export function WebhookForm({
                                 <Input
                                     id={`webhook-header-name-${row.key}`}
                                     value={row.name}
-                                    placeholder="Authorization"
+                                    placeholder={intl.formatMessage(
+                                        messages.headerNamePlaceholder
+                                    )}
                                     className="font-mono text-sm"
                                     aria-invalid={
                                         headerErrors[index] !== null
@@ -573,7 +589,9 @@ export function WebhookForm({
                                 <Input
                                     id={`webhook-header-value-${row.key}`}
                                     value={row.value}
-                                    placeholder="Bearer …"
+                                    placeholder={intl.formatMessage(
+                                        messages.headerValuePlaceholder
+                                    )}
                                     className="font-mono text-sm"
                                     onChange={(event) =>
                                         setHeaders(

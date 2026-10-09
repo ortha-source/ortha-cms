@@ -2,7 +2,8 @@ import { createTestkitMailProvider } from '@orthacms/mail-provider-testkit';
 import { MailDeliveryWorker } from './mail-delivery.worker';
 import type {
     ClaimedMail,
-    MailDeliveryRepository
+    MailDeliveryRepository,
+    MailLease
 } from './mail-delivery.repository';
 import { resolveMailConfig } from '../types/mail-config';
 
@@ -13,11 +14,24 @@ const claimed: ClaimedMail = {
     subject: 'You have been invited',
     bodyText: 'https://cms.example.com/identity/accept-invite?token=s3cret',
     bodyHtml: '<p>link</p>',
-    attempts: 0
+    attempts: 0,
+    leaseUntil: new Date('2026-01-01T00:01:00.000Z')
 };
 
+/** The lease the worker renewed just before the hand-off. */
+const RENEWED_UNTIL = new Date('2026-01-01T00:02:00.000Z');
+
+/** The lease the worker's retry and dead-letter writes are fenced on. */
+const renewedLease = expect.objectContaining({
+    id: 'delivery-1',
+    leaseUntil: RENEWED_UNTIL
+});
+
 /** A repository double that records what the worker did to each row. */
-function fakeRepository(queue: ClaimedMail[] = []) {
+function fakeRepository(
+    queue: ClaimedMail[] = [],
+    lease: { renewHeld?: boolean; held?: boolean } = {}
+) {
     return {
         // Typed signatures rather than bare `jest.fn()`: the assertions below
         // read the recorded arguments, and an untyped mock makes every one of
@@ -25,12 +39,19 @@ function fakeRepository(queue: ClaimedMail[] = []) {
         claim: jest.fn<Promise<ClaimedMail[]>, [number, number]>(async () =>
             queue.splice(0, queue.length)
         ),
-        markDelivered: jest.fn<Promise<void>, [string]>(async () => undefined),
-        markRetrying: jest.fn<Promise<void>, [string, string, Date, string]>(
-            async () => undefined
+        renewLease: jest.fn<Promise<MailLease | null>, [MailLease, number]>(
+            async (held) =>
+                lease.renewHeld === false
+                    ? null
+                    : { id: held.id, leaseUntil: RENEWED_UNTIL }
         ),
-        markDead: jest.fn<Promise<void>, [string, string, string]>(
-            async () => undefined
+        markDelivered: jest.fn<Promise<void>, [string]>(async () => undefined),
+        markRetrying: jest.fn<
+            Promise<boolean>,
+            [MailLease, string, Date, string]
+        >(async () => lease.held ?? true),
+        markDead: jest.fn<Promise<boolean>, [MailLease, string, string]>(
+            async () => lease.held ?? true
         ),
         sweepExpired: jest.fn<Promise<number>, []>(async () => 0)
     };
@@ -100,7 +121,7 @@ describe('the mail delivery worker', () => {
 
         expect(repository.markDead).not.toHaveBeenCalled();
         expect(repository.markRetrying).toHaveBeenCalledWith(
-            'delivery-1',
+            renewedLease,
             expect.stringContaining('connection refused'),
             // Scheduled, not immediate: the backoff is what keeps a relay that
             // is merely down from being hammered for the message's whole life.
@@ -122,7 +143,7 @@ describe('the mail delivery worker', () => {
         // land in the dead letters beside a real outage.
         expect(repository.markRetrying).not.toHaveBeenCalled();
         expect(repository.markDead).toHaveBeenCalledWith(
-            'delivery-1',
+            renewedLease,
             expect.stringContaining('unknown recipient'),
             'testkit'
         );
@@ -140,10 +161,47 @@ describe('the mail delivery worker', () => {
         await worker.runOnce();
 
         expect(repository.markDead).toHaveBeenCalledWith(
-            'delivery-1',
+            renewedLease,
             expect.stringContaining('Gave up after 5 attempts'),
             'testkit'
         );
+    });
+
+    it('renews the lease before the hand-off and fences its writes on it', async () => {
+        const repository = fakeRepository([claimed]);
+        const { worker, provider } = workerFor(repository, undefined, {
+            appUrl: 'https://cms.example.com',
+            from: 'no-reply@example.com',
+            claimLeaseMs: 30_000
+        });
+        provider.failNext(1, 'connection refused');
+
+        await worker.runOnce();
+
+        expect(repository.renewLease).toHaveBeenCalledWith(
+            expect.objectContaining({
+                id: 'delivery-1',
+                leaseUntil: claimed.leaseUntil
+            }),
+            30_000
+        );
+        expect(repository.markRetrying).toHaveBeenCalledWith(
+            renewedLease,
+            expect.any(String),
+            expect.any(Date),
+            'testkit'
+        );
+    });
+
+    it('does not send a message another worker already holds', async () => {
+        const repository = fakeRepository([claimed], { renewHeld: false });
+        const { worker, provider } = workerFor(repository);
+
+        await worker.runOnce();
+
+        expect(provider.sent).toHaveLength(0);
+        expect(repository.markDelivered).not.toHaveBeenCalled();
+        expect(repository.markRetrying).not.toHaveBeenCalled();
     });
 
     it('claims the batch size it was configured with, and leases it', async () => {

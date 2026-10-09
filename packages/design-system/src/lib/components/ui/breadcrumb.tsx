@@ -98,8 +98,13 @@ const BreadcrumbEllipsis = ({
         className={cn('flex h-9 w-9 items-center justify-center', className)}
         {...props}
     >
+        {/* No `sr-only` text, unlike upstream shadcn: the wrapper is
+            `aria-hidden`, so any text in here is unreachable by construction —
+            and it was an untranslated English "More" in a library with no
+            i18n of its own. A collapsed trail that should be reachable makes
+            the ellipsis a labelled trigger instead (same as
+            `PaginationEllipsis`). */}
         <MoreHorizontal className="h-4 w-4" />
-        <span className="sr-only">More</span>
     </span>
 );
 BreadcrumbEllipsis.displayName = 'BreadcrumbElipssis';

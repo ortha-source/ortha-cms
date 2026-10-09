@@ -1183,14 +1183,24 @@ them were written before the code was right and found real bugs: the always-on
 skill was being sent in the request body, and the picker button's `aria-label`
 was hiding its own count.
 
-**One known gap, and it is a defect rather than missing coverage.** The
-"reopening a thread focuses the window already on it" guard lives on the
-sessions reducer's `open` action, which is the path the Agents rail takes. The
-panel's own **history dropdown** does not go through it — it calls `chat.load()`
-and reports the id afterwards as `meta`, which has no such check — so two windows
-_can_ end up on one `conversationId`, holding two transcripts that immediately
-disagree. Fixing it means routing the picker through a session-level "open this
-thread" instead of loading straight into the chat.
+**The history dropdown goes through the same guard as the rail.** This was
+listed here as a known gap — the dropdown called `chat.load()` directly, so two
+windows could end up on one `conversationId` — and it is closed: the picker asks
+`onAdoptConversation` first, which refuses when another window already holds the
+thread and focuses that one instead (see _Several chats at once_). `dock.spec.ts`
+pins it ("the history dropdown will not open a thread a second window already
+holds").
+
+**A change of account ends every chat.** The store outlives every component, so
+it outlived the account too: signing out left the previous person's chats in the
+dock for whoever signed in next on the tab, with a run still streaming. The
+plugin contributes `endCopilotSession` to identity's `SESSION_RESET_SLOT`, which
+runs on sign-out, sign-in, accepting an invite and a session lost to a `401`; it
+aborts every run (which is what stops it server-side) and drops the chats and
+the skills seed, keeping the browser's remembered model and the session-id
+counter. The `ViewSwitcher`'s remembered CMS pages (`forgetCmsPaths`) go too:
+"where I was" belongs to the person, not the tab. Unit-tested in `copilotStore.spec.ts`; `session-change.spec.ts` drives
+it through a real sign-out and sign-in.
 
 ## Commands
 

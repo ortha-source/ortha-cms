@@ -13,6 +13,9 @@ import {
 
 /** Intl descriptors for the insights skeleton, co-located here. */
 const messages = defineMessages({
+    // Names the breadcrumb `<nav>`; the design system's own default is an
+    // untranslated "breadcrumb".
+    nav: { id: 'insights.skeleton.nav', defaultMessage: 'Breadcrumb' },
     title: {
         id: 'insights.page.title',
         defaultMessage: 'Insights'
@@ -74,7 +77,7 @@ export function InsightsPageSkeleton() {
                 <TopBarIcon className="bg-warning-soft text-warning-soft-foreground">
                     <BarChart3 />
                 </TopBarIcon>
-                <Breadcrumb>
+                <Breadcrumb aria-label={intl.formatMessage(messages.nav)}>
                     <BreadcrumbList className="font-medium">
                         <BreadcrumbItem>
                             <BreadcrumbPage className="font-medium">

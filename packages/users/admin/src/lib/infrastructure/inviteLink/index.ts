@@ -13,9 +13,9 @@ const ACCEPT_INVITE_PATH = '/identity/accept-invite';
  * The origin comes from the browser rather than server config on purpose: the
  * admin is *already* looking at the app on the URL the invitee should use, so
  * `window.location.origin` is right by construction — no `publicBaseUrl` to
- * misconfigure, and no host header to poison. When the mailer lands (identity
- * epic #11) the server will need its own configured base URL; this stays the
- * copy-it-yourself path.
+ * misconfigure, and no host header to poison. A mailed invitation's link is
+ * built server-side from the mail plugin's configured `appUrl`; this is
+ * only ever the copy-it-yourself path.
  */
 export function inviteLinkFor(token: string): string {
     const url = new URL(ACCEPT_INVITE_PATH, window.location.origin);

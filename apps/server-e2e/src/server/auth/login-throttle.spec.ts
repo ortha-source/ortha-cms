@@ -13,20 +13,22 @@ const PASSWORD = 'SecurePass123!';
  * Rate limiting on `POST /api/auth/login`, with **no proxy trusted** — a
  * directly-exposed server. This suite boots a dedicated app with the limit
  * pinned low (3 per window) so the throttled response is deterministic; other
- * suites run with a relaxed limit. The throttle is per-app and in-memory, so it
- * doesn't bleed into them.
+ * suites run with a relaxed limit. The buckets live in Postgres and are shared
+ * by every app on this database (`login-throttle-shared.spec.ts`), so it is
+ * `resetDb` truncating `throttle_buckets` that keeps them from bleeding into
+ * other suites.
  *
  * Its sibling `login-throttle-proxy.spec.ts` boots the same limit with
  * `trustProxy` set. They are separate files for readability; a second app in one
  * file is safe now that `closeTestApp` clears the database memo as well as
  * ending the pool.
  *
- * A **fresh app per test**, not per file: the throttler's bucket is in-memory
- * per app, so a `beforeAll` boot leaves the second test running against a bucket
- * the first one consumed. That made each test's expected status depend on the
- * one before it — the suite passed as a whole and failed under `-t`, which is
- * the shape of order-dependence that is hardest to diagnose and easiest to
- * mistake for a product bug.
+ * A **fresh reset per test**, not per file: a bucket outlives its test unless
+ * `resetDb` clears it, so a `beforeAll` setup leaves the second test running
+ * against a bucket the first one consumed. That made each test's expected
+ * status depend on the one before it — the suite passed as a whole and failed
+ * under `-t`, which is the shape of order-dependence that is hardest to
+ * diagnose and easiest to mistake for a product bug.
  */
 describe('POST /api/auth/login (rate limit)', () => {
     let harness: TestApp;

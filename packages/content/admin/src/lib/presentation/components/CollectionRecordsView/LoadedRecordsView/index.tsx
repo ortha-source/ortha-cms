@@ -375,6 +375,9 @@ export function LoadedRecordsView({
     );
 
     // Row selection — by id, persisting across paging; cleared via the bar.
+    // Scoped to this one list: the parent keys this view per type, trash and
+    // source, so an id selected here can never reach another list's bulk
+    // action.
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const toggleRow = useCallback((id: string) => {
         setSelectedIds((prev) => {
@@ -727,11 +730,11 @@ export function LoadedRecordsView({
     //
     // **Every arrival, not once per mount.** This route is `:typeName`, one
     // element for every collection, so React Router keeps this component
-    // mounted across the two navigations that matter most here: the sidebar
-    // link back to the list you are already on, and the sidebar link to a
-    // different collection. A one-shot ref meant a default only ever applied on
-    // a full page load — set one, click the collection in the sidebar, and the
-    // plain list came back.
+    // mounted across the navigation that matters most here: the sidebar link
+    // back to the list you are already on. (A different collection remounts
+    // it — `CollectionRecordsView` keys it per list.) A one-shot ref meant a
+    // default only ever applied on a full page load — set one, click the
+    // collection in the sidebar, and the plain list came back.
     //
     // What separates an arrival from the reader's own moves is the navigation
     // type: `updateParams` and `applyView` always **replace**, so picking

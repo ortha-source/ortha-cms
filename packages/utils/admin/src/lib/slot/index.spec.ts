@@ -36,14 +36,46 @@ describe('createSlot', () => {
     // shared plugin state for every other consumer of the same slot.
     it('does not let a consumer mutate the slot through the returned array [bootstrap:I-23] [shell:I-06] [utils:I-11]', () => {
         const slot = createSlot<Item>('t');
+        slot._register([
+            { order: 1, id: 'a' },
+            { order: 2, id: 'b' }
+        ]);
+
+        // Typed `readonly`, and frozen at runtime too: a consumer that casts
+        // the type away still cannot write through it.
+        const items = slot.getItems() as Item[];
+        expect(Object.isFrozen(items)).toBe(true);
+        expect(() => items.push({ order: 3, id: 'c' })).toThrow(TypeError);
+        expect(() =>
+            items.sort((left, right) => right.order - left.order)
+        ).toThrow(TypeError);
+
+        expect(slot.getItems().map((item) => item.id)).toEqual(['a', 'b']);
+    });
+
+    // A fresh copy per call was a new identity per render, so every
+    // `useMemo(…, [SLOT.getItems()])` recomputed and every effect keyed on one
+    // re-ran on each render — the records view's toolbar and column memos, and
+    // through them its saved-view hydration effect.
+    it('hands back the same array until its contents change [utils:I-11]', () => {
+        const slot = createSlot<Item>('t');
+        const empty = slot.getItems();
+        expect(slot.getItems()).toBe(empty);
+
         slot._register([{ order: 1, id: 'a' }]);
+        const one = slot.getItems();
+        expect(one).not.toBe(empty);
+        expect(slot.getItems()).toBe(one);
+        expect(slot.getItems()).toBe(one);
 
-        const items = slot.getItems();
-        items.push({ order: 3, id: 'c' });
-        items.sort((left, right) => right.order - left.order);
-        items.length = 0;
+        slot._register([{ order: 2, id: 'b' }]);
+        expect(slot.getItems()).not.toBe(one);
+        // The snapshot already handed out is not rewritten under its holder.
+        expect(one.map((item) => item.id)).toEqual(['a']);
 
-        expect(slot.getItems().map((item) => item.id)).toEqual(['a']);
+        slot._reset();
+        expect(slot.getItems()).toEqual([]);
+        expect(slot.getItems()).toBe(slot.getItems());
     });
 
     it('empties the slot on reset', () => {
@@ -55,9 +87,9 @@ describe('createSlot', () => {
         expect(slot.getItems()).toEqual([]);
     });
 
-    it('keeps reading and writing the same array after a reset', () => {
-        // `length = 0`, not a fresh array: rebinding would leave `getItems` and
-        // `_register` closed over an array nobody else can see.
+    it('keeps reading and writing the same slot after a reset', () => {
+        // `getItems` and `_register` must both see what `_reset` did — the
+        // regression was a reset that left them on an array nobody else saw.
         const slot = createSlot<Item>('t');
         slot._register([{ order: 1, id: 'a' }]);
         slot._reset();

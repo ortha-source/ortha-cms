@@ -3,6 +3,7 @@ import { PERMISSIONS } from '@orthacms/identity-server';
 import type { ProposalDraft } from '@orthacms/copilot-domain';
 import { ToolRegistry } from '@orthacms/tools-server';
 import type { ToolDefinition, ToolProvider } from '@orthacms/tools-server';
+import { AssetId } from '../domain/value-objects/asset-id';
 import { AssetViewQuery } from '../infrastructure/queries/asset-view.query';
 import { MEDIA_PROPOSAL_KINDS } from './proposal-kinds';
 
@@ -130,11 +131,12 @@ export class AltTextProposalToolProvider implements ToolProvider, OnModuleInit {
 
                 // Workspace-scoped, so an id from another workspace reads as
                 // absent — and the failure lands here rather than after a human
-                // has approved something that cannot be applied.
-                const asset = await this.assets.byId(
-                    args.assetId,
-                    ctx.workspaceId
-                );
+                // has approved something that cannot be applied. A malformed id
+                // is absent too: `byId` filters a uuid column, and handing it
+                // one would be a cast error rather than "no such asset".
+                const asset = AssetId.isValid(args.assetId)
+                    ? await this.assets.byId(args.assetId, ctx.workspaceId)
+                    : null;
                 if (!asset) {
                     throw new Error(`No asset "${args.assetId}".`);
                 }
