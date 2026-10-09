@@ -49,7 +49,6 @@ export const SLOT_ITEM_ID = {
     DetailsRow: 'i18n.localeDetailsRow',
     TitleChip: 'i18n.localeTitleChip',
     FilterFields: 'i18n.filterFields',
-    SwitchOverlay: 'i18n.localeSwitchOverlay',
     EntryParams: 'i18n.entryParams',
     PublishAll: 'i18n.publishAllLocales',
     UnpublishAll: 'i18n.unpublishAllLocales',

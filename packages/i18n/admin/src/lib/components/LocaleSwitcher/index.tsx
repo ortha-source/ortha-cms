@@ -14,15 +14,10 @@ import { LOCALE_PARAM } from '../../constants';
 import {
     findLocale,
     localeAttrs,
-    localeName,
     resolveActiveLocale,
     toLocaleListParam
 } from '../../domain/localePolicy';
 import { useLocales } from '../../api/useLocales';
-import {
-    beginLocaleSwitch,
-    cancelPendingLocaleSwitch
-} from '../../utils/localeTransition';
 
 const messages = defineMessages({
     label: {
@@ -126,11 +121,6 @@ export function LocaleSwitcher({
     // which would make Enter a no-op.
     useEffect(() => setActiveIndex(0), [query, open]);
 
-    // A pick schedules its re-scope behind the cover; if this toolbar goes away
-    // first the swap is stale, so drop it rather than re-scoping a list the
-    // user has left.
-    useEffect(() => cancelPendingLocaleSwitch, []);
-
     if (!schema.i18n) return null;
 
     if (isError) {
@@ -163,19 +153,17 @@ export function LocaleSwitcher({
 
     const select = (slug: string) => {
         setOpen(false);
-        // Re-selecting the active locale is a no-op — no re-scope, no flourish.
+        // Re-selecting the active locale is a no-op — no re-scope.
         // Skipped while the URL names an unknown locale: there the "no-op" is
         // the one press that clears the bad param, so it has to go through.
         if (!unknownSlug && slug === active?.slug) return;
-        const name = localeName(locales, slug) ?? slug;
-        // Defer the re-scope until the overlay covers the page (see
-        // `beginLocaleSwitch`) so the table doesn't visibly swap under the blur.
-        beginLocaleSwitch(name, () => {
-            updateParams({
-                // Default locale = clean URL — the server scopes to it when the
-                // param is absent, so the two spellings can't drift.
-                [LOCALE_PARAM]: toLocaleListParam(slug, defaultLocale?.slug)
-            });
+        // At once: the records list keeps its previous page on screen while
+        // the new locale's loads (`keepPreviousData`), so there is nothing to
+        // cover and no reason to wait.
+        updateParams({
+            // Default locale = clean URL — the server scopes to it when the
+            // param is absent, so the two spellings can't drift.
+            [LOCALE_PARAM]: toLocaleListParam(slug, defaultLocale?.slug)
         });
     };
 

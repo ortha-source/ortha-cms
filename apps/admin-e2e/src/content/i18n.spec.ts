@@ -75,7 +75,6 @@ test.describe('Content i18n', () => {
         await openCollection(contentLibraryPage);
         await contentLibraryPage.selectLocale(/Deutsch/);
         await expect(page).toHaveURL(/locale=de/);
-        await contentLibraryPage.localeSwitchSettled();
 
         // The row's editor link carries the locale the table was showing…
         await contentLibraryPage.recordLink('Winterstiefel').click();
@@ -187,15 +186,18 @@ test.describe('Content i18n', () => {
         );
     });
 
-    test('switching locale plays a brief "Switching…" overlay', async ({
+    test('switching locale re-scopes the list at once, with no cover', async ({
+        page,
         contentLibraryPage
     }) => {
         await openCollection(contentLibraryPage);
         await contentLibraryPage.selectLocale(/Deutsch/);
-        // The transition flourish names the target locale.
-        await expect(contentLibraryPage.localeSwitchOverlay).toHaveText(
-            /Switching to Deutsch/
-        );
+        await expect(page).toHaveURL(/locale=de/);
+        await expect(
+            contentLibraryPage.recordLink('Winterstiefel')
+        ).toBeVisible();
+        // Nothing stands between the pick and the list: no "Switching to…".
+        await expect(page.getByText(/Switching to/)).toHaveCount(0);
     });
 
     test('the Locales column shows per-group locale badges', async ({
@@ -298,7 +300,6 @@ test.describe('Content i18n', () => {
     }) => {
         await openCollection(contentLibraryPage);
         await contentLibraryPage.selectLocale(/Deutsch/);
-        await contentLibraryPage.localeSwitchSettled();
         await contentLibraryPage.recordLink('Winterstiefel').click();
         await expect(contentLibraryPage.editorSave).toBeVisible();
 
@@ -449,11 +450,9 @@ test.describe('Content i18n', () => {
 
         await contentLibraryPage.switchToLocale('Deutsch');
 
-        // The switch flourish plays and carries across the navigation.
-        await expect(contentLibraryPage.localeSwitchOverlay).toHaveText(
-            /Switching to Deutsch/
-        );
+        // At once, and onto a record the open menu already prefetched.
         await expect(page).toHaveURL(/\/localized_post\/lp-de-1$/);
+        await expect(page.getByText(/Switching to/)).toHaveCount(0);
         // The title chip follows the open locale.
         await expect(contentLibraryPage.editorTitleChip).toHaveText(
             'DE · Deutsch2/4'
@@ -527,7 +526,6 @@ test.describe('Content i18n', () => {
         // Start a French translation of group G1 (which already has en + de).
         await contentLibraryPage.startTranslation('Français');
         await expect(page).toHaveURL(/localeGroupId=G1/);
-        await contentLibraryPage.localeSwitchSettled();
 
         // On that draft form the chip still knows the group's members, so the
         // existing German sibling is a switch target.
@@ -558,7 +556,6 @@ test.describe('Content i18n', () => {
 
         // Confirming still completes the navigation: the switch was scheduled
         // behind the cover, and nothing in the closing menu may cancel it.
-        await contentLibraryPage.localeSwitchSettled();
         await expect(page).toHaveURL(/\/localized_post\/lp-de-1$/);
     });
 
@@ -664,7 +661,6 @@ test.describe('Content i18n', () => {
             await expect(page).toHaveURL(/locale=de/);
             // The switch cover holds the page inert until the destination has
             // loaded, so typing before it lifts goes nowhere.
-            await contentLibraryPage.localeSwitchSettled();
 
             await contentLibraryPage
                 .fieldTextbox('Title')
@@ -694,7 +690,6 @@ test.describe('Content i18n', () => {
 
             await contentLibraryPage.startTranslation('Deutsch');
             await expect(page).toHaveURL(/locale=de/);
-            await contentLibraryPage.localeSwitchSettled();
 
             await contentLibraryPage
                 .fieldTextbox('Title')
@@ -797,7 +792,6 @@ test.describe('Content i18n', () => {
             // Details block reads **Modified** — the state you publish from.
             await openCollection(contentLibraryPage);
             await contentLibraryPage.selectLocale(/Deutsch/);
-            await contentLibraryPage.localeSwitchSettled();
             await contentLibraryPage.recordLink('Winterstiefel').click();
             await expect(contentLibraryPage.editorSave).toBeVisible();
             await expect(contentLibraryPage.entryDetailsStatus).toHaveText(

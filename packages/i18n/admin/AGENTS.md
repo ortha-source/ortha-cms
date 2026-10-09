@@ -25,21 +25,21 @@
   importing across the boundary (the FE anti-corruption convention).
 
 The admin counterpart to `@orthacms/i18n-server` — content localization in the
-Content Library UI. It contributes **no routes, no layout, no nav item**: eight
-of its nine contributions fill `@orthacms/content-admin`'s extension slots, and
-the ninth is the **Translation coverage** card on the Insights page (see below).
+Content Library UI. It contributes **no routes, no layout, no nav item**: seven
+of its eight contributions fill `@orthacms/content-admin`'s extension slots, and
+the eighth is the **Translation coverage** card on the Insights page (see below).
 Register it in `createAdmin({ plugins })` **after** `ContentPlugin()` (it fills
 slots the content plugin owns).
 
-## What it contributes (the eight slots)
+## What it contributes (the seven slots)
 
 - **`RECORDS_TOOLBAR_SLOT` → `LocaleSwitcher`** — a searchable dropdown
   (design-system `Popover` + `Command`) of the configured locales, shown **only
   when `schema.i18n`**. It owns the `?locale=` list param (`listParamKeys`), so
   the records list is scoped to the active locale server-side; the **default
   locale keeps a clean URL** (no `?locale=`), matching the server's default
-  scoping. Picking a **different** locale plays the **switch flourish** (see
-  below).
+  scoping. Picking a **different** locale re-scopes the list **at once** (see
+  _A switch is immediate_ below).
 - **`RECORDS_COLUMN_SLOT` → `LocalesColumnCell`** — an optional **Locales**
   column (`appliesTo: s => !!s.i18n`; hidden by default, toggled in the column
   picker) showing one status-tinted badge per live locale of the row's
@@ -58,106 +58,92 @@ slots the content plugin owns).
   current
   locale is resolved by `resolveActiveLocale` (`entry.locale ?? ?locale= ??
 defaultLocale`) — the plugin's single decision point, which the menu must not
-  duplicate (`i18n:I-05`, `I-06`).
-    - **The menu is a search box over a listbox** — the records toolbar's
-      `LocaleSwitcher` pattern, because a deployment may run two dozen locales
-      and a menu's first-letter type-ahead cannot find one among them. Focus
-      stays in the search box (`role="combobox"`), ↑/↓ move an
-      `aria-activedescendant` highlight (starting on the current locale), Enter
-      picks; rows are `tabIndex={-1}` options. The search matches the language
-      name, the code and the record's title in that language. Under it,
-      `LocaleMenuSummary` reads "N of M published · P%" beside a progress bar
-      (`aria-hidden`; the sentence is read). It used to open on a strip of every
-      locale code coloured by state — a repeat of the rows that, at two dozen
-      locales, pushed the list half off the menu.
-    - **Each row leads with the language name**, the code beside it on the same
-      line (it used to sit in a fixed narrow column, where `zh-Hans` broke over
-      two lines), the record's **title** in that language beneath when it
-      exists (served as `entry.title` by the locale panel), and its state on the
-      right — a publish badge, **Missing** (turning into **+ Add** on the
-      highlighted row), or the inert reason. "Missing" is claimed only when the
-      members are known (`i18n:I-30`).
-    - **The default locale always leads**, whatever order the host configured
-      (and in search results that include it): a tinted row with a "Default"
-      tag and a divider beneath it. It is the source most translations start
-      from, so it is the one row a reader should never hunt for. The rest keep
-      the configured order (a stable sort).
-    - **The count costs no request.** Edit mode counts the `useEntryLocales`
-      items that have an `entry` against all of them; create mode counts the
-      group's live summary members against **`useLocales().locales.length`** — a
-      summary holds only live members, so deriving the total from it reads `2/2`
-      for a group missing two locales. It is withheld, never guessed, while the
-      members are unknown.
-    - A locale whose translation already exists is a switch target (with its
-      publish status, **on a publishable type only** — an always-live type has
-      no publish state, so the chip withholds `status`/`publishedAt` and the row
-      draws no badge) → navigates to that sibling's editor, or `?locale=` for
-      singles. A missing locale **re-targets the form** to that locale (a draft
-      create form scoped to that locale + the same group:
-      `/:type/new?locale=<slug>&localeGroupId=<gid>` for collections,
-      `?locale=…&localeGroupId=…` for singles), carrying the source's values in
-      router `state.translateFrom`. Creating the sibling is then just the
-      editor's normal **Save (draft) / Publish** (gated `content:create`) —
-      there is **no** dedicated create-translation call. Every one of those
-      navigations appends the slot context's **`tabSegment`**, so a switch made
-      from the Relations tab lands on the sibling's Relations tab instead of
-      dumping the user back on General.
-    - On a **saved** record the group's members come from `useEntryLocales` (by
-      the saved id).
-    - On a **new/unsaved** record you can still switch the form's target locale
-      before filling it in — re-scoping `?locale=` in place. When the create is
-      a translation into an existing group (the URL carries a `localeGroupId`),
-      the group's members are read by `useLocaleSummaries` (batched by that group
-      id) so an already-existing sibling is a live switch target; a fresh create
-      (no group) simply re-scopes to the picked locale.
-    - **The chip owns every piece of state; `LocaleMenuItem` owns none.** A pick
-      does not navigate — `beginLocaleSwitch` schedules the swap behind the
-      cover, and `cancelPendingLocaleSwitch` is registered as the chip's unmount
-      cleanup. The popover content unmounts the instant a row is picked, i.e.
-      **inside that 220 ms window**, so any query, timer or cleanup living in
-      there would cancel the very pick that unmounted it and the choice would
-      silently do nothing. The chip is mounted by the header slot and survives
-      every open and close, which is where all of it belongs (the search query
-      included). A pick closes the popover first and runs from its
-      `onCloseAutoFocus`, after Radix has handed focus back to the trigger — so
-      the closing popover's focus restore cannot land after, and fight, the
-      unsaved-changes guard's focus trap.
-    - **The trigger is the design system's `Button`** (`variant="outline"`,
-      `size="sm"`), matching the write actions beside it — a real `<button>`,
-      which Enter / Space need to open the popover. It used to be a
-      badge-styled chip, which read as a label about the record rather than a
-      control. The popover is `aria-labelledby` the trigger. The current locale
-      is the **selected** option; an inert one is `aria-disabled` but stays in
-      the highlight order, so its stated reason is reachable for exactly the
-      keyboard user who needs it.
-    - **A failed `useLocales` read costs the choices, not the chip.** The
-      trigger still renders (on a saved record the row's own `locale` names it),
-      and the menu carries an "unavailable + retry" row — the same posture as
-      the records toolbar's switcher, which is the only way back out of a
-      non-default locale.
-    - **Each of its two reads has three states, and the chip branches on all
-      three** (`ReadState` = `pending | failed | known`). This is `i18n:I-30`
-      applied to the read that has not landed yet, and both halves of it were
-      shipped wrong once:
-        - The **locale list** is pending on any deep link into an editor, where
-          the entry read can settle first. Keying the "nothing to choose from"
-          branch on `locales.length === 0` made the menu assert a broken config,
-          and offer a retry for it, while the request was still in flight. A
-          settled-and-empty list is a real state too (a locale dropped from the
-          host config while rows in it still exist), so it gets its own
-          sentence rather than borrowing the failure's.
-        - The **group members** are pending for a moment on every editor open,
-          and until they land every locale resolves to `undefined` — i.e. looks
-          missing. Offering "+ Add" there opens a create form whose save **409s**
-          against the sibling that is already there. The documented precedence
-          (unknown outranks forbidden) covers unknown-because-pending as well as
-          unknown-because-failed; the row states which, because "couldn't load"
-          about a running request sends the reader after a fault that is not
-          there.
-          Both are pinned by `[i18n:I-30]` cases in
-          `apps/admin-e2e/src/content/i18n-resilience.spec.ts`, which hold the
-          request open (`holdLocales` / `mockI18n().holdEntryLocales`) rather than
-          racing a `delayMs`.
+  duplicate (`i18n:I-05`, `I-06`). - **The menu is a search box over a listbox** — the records toolbar's
+  `LocaleSwitcher` pattern, because a deployment may run two dozen locales
+  and a menu's first-letter type-ahead cannot find one among them. Focus
+  stays in the search box (`role="combobox"`), ↑/↓ move an
+  `aria-activedescendant` highlight (starting on the current locale), Enter
+  picks; rows are `tabIndex={-1}` options. The search matches the language
+  name, the code and the record's title in that language. Under it,
+  `LocaleMenuSummary` reads "N of M published · P%" beside a progress bar
+  (`aria-hidden`; the sentence is read). It used to open on a strip of every
+  locale code coloured by state — a repeat of the rows that, at two dozen
+  locales, pushed the list half off the menu. - **Each row leads with the language name**, the code beside it on the same
+  line (it used to sit in a fixed narrow column, where `zh-Hans` broke over
+  two lines), the record's **title** in that language beneath when it
+  exists (served as `entry.title` by the locale panel), and its state on the
+  right — a publish badge, **Missing** (turning into **+ Add** on the
+  highlighted row), or the inert reason. "Missing" is claimed only when the
+  members are known (`i18n:I-30`). - **The default locale always leads**, whatever order the host configured
+  (and in search results that include it): a tinted row with a "Default"
+  tag and a divider beneath it. It is the source most translations start
+  from, so it is the one row a reader should never hunt for. The rest keep
+  the configured order (a stable sort). - **The count costs no request.** Edit mode counts the `useEntryLocales`
+  items that have an `entry` against all of them; create mode counts the
+  group's live summary members against **`useLocales().locales.length`** — a
+  summary holds only live members, so deriving the total from it reads `2/2`
+  for a group missing two locales. It is withheld, never guessed, while the
+  members are unknown. - A locale whose translation already exists is a switch target (with its
+  publish status, **on a publishable type only** — an always-live type has
+  no publish state, so the chip withholds `status`/`publishedAt` and the row
+  draws no badge) → navigates to that sibling's editor, or `?locale=` for
+  singles. A missing locale **re-targets the form** to that locale (a draft
+  create form scoped to that locale + the same group:
+  `/:type/new?locale=<slug>&localeGroupId=<gid>` for collections,
+  `?locale=…&localeGroupId=…` for singles), carrying the source's values in
+  router `state.translateFrom`. Creating the sibling is then just the
+  editor's normal **Save (draft) / Publish** (gated `content:create`) —
+  there is **no** dedicated create-translation call. Every one of those
+  navigations appends the slot context's **`tabSegment`**, so a switch made
+  from the Relations tab lands on the sibling's Relations tab instead of
+  dumping the user back on General. - On a **saved** record the group's members come from `useEntryLocales` (by
+  the saved id). - On a **new/unsaved** record you can still switch the form's target locale
+  before filling it in — re-scoping `?locale=` in place. When the create is
+  a translation into an existing group (the URL carries a `localeGroupId`),
+  the group's members are read by `useLocaleSummaries` (batched by that group
+  id) so an already-existing sibling is a live switch target; a fresh create
+  (no group) simply re-scopes to the picked locale. - **The chip owns every piece of state; `LocaleMenuItem` owns none.** The
+  popover content unmounts the instant a row is picked, so any query or
+  handler living in there would go with the pick that unmounted it. The
+  chip is mounted by the header slot and survives every open and close,
+  which is where all of it belongs (the search query included). Opening the
+  menu **prefetches every saved sibling** into the editor's own cache
+  (content's `usePrefetchContentEntry`), so a pick usually lands on a
+  record already loaded. A pick closes the popover first and runs from its
+  `onCloseAutoFocus`, after Radix has handed focus back to the trigger — so
+  the closing popover's focus restore cannot land after, and fight, the
+  unsaved-changes guard's focus trap. - **The trigger is the design system's `Button`** (`variant="outline"`,
+  `size="sm"`), matching the write actions beside it — a real `<button>`,
+  which Enter / Space need to open the popover. It used to be a
+  badge-styled chip, which read as a label about the record rather than a
+  control. The popover is `aria-labelledby` the trigger. The current locale
+  is the **selected** option; an inert one is `aria-disabled` but stays in
+  the highlight order, so its stated reason is reachable for exactly the
+  keyboard user who needs it. - **A failed `useLocales` read costs the choices, not the chip.** The
+  trigger still renders (on a saved record the row's own `locale` names it),
+  and the menu carries an "unavailable + retry" row — the same posture as
+  the records toolbar's switcher, which is the only way back out of a
+  non-default locale. - **Each of its two reads has three states, and the chip branches on all
+  three** (`ReadState` = `pending | failed | known`). This is `i18n:I-30`
+  applied to the read that has not landed yet, and both halves of it were
+  shipped wrong once: - The **locale list** is pending on any deep link into an editor, where
+  the entry read can settle first. Keying the "nothing to choose from"
+  branch on `locales.length === 0` made the menu assert a broken config,
+  and offer a retry for it, while the request was still in flight. A
+  settled-and-empty list is a real state too (a locale dropped from the
+  host config while rows in it still exist), so it gets its own
+  sentence rather than borrowing the failure's. - The **group members** are pending for a moment on every editor open,
+  and until they land every locale resolves to `undefined` — i.e. looks
+  missing. Offering "+ Add" there opens a create form whose save **409s**
+  against the sibling that is already there. The documented precedence
+  (unknown outranks forbidden) covers unknown-because-pending as well as
+  unknown-because-failed; the row states which, because "couldn't load"
+  about a running request sends the reader after a fault that is not
+  there.
+  Both are pinned by `[i18n:I-30]` cases in
+  `apps/admin-e2e/src/content/i18n-resilience.spec.ts`, which hold the
+  request open (`holdLocales` / `mockI18n().holdEntryLocales`) rather than
+  racing a `delayMs`.
 - **`ENTRY_DETAILS_ROW_SLOT` → `LocaleDetailsRow`** — the record's
   **`localeGroupId`** (the id every locale of it shares) as one row of the
   editor's **Details** block, beneath the entry id, with an `Info` tooltip
@@ -170,9 +156,6 @@ defaultLocale`) — the plugin's single decision point, which the menu must not
 - **`RECORDS_FILTER_FIELDS_SLOT` → `useLocaleFilterFields`** — **Has locale /
   Missing locale / Locale count** filter fields, resolved server-side by the
   i18n plugin's virtual-field subqueries. Empty for a non-i18n type.
-- **`CONTENT_OVERLAY_SLOT` → `LocaleSwitchOverlay`** — the switch cover, mounted
-  at the library's page level so it outlives the editor's loading state (see
-  _Switch flourish_ below).
 - **`ENTRY_MENU_SLOT` → `usePublishAllLocales` / `useUnpublishAllLocales`** — two
   items in the entry editor's ⋯ menu (the `extras` group) that act on **every
   locale of the open record at once**. Both are hooks (the slot's contract) that
@@ -250,37 +233,23 @@ Three things the widget is careful about:
 It is the reason this package depends on `@orthacms/insights-admin` — the same
 direction as any slot filler.
 
-## Switch flourish (`LocaleSwitchOverlay` + `utils/localeTransition`)
+## A switch is immediate
 
-Both the toolbar switcher **and** the editor's locale widget trigger a
-non-interactive full-screen overlay — a `Languages` glyph, a spinner, and
-"Switching to <locale>…" — that appears **immediately** over the current view
-and holds until the destination has loaded. A trigger calls
-`beginLocaleSwitch(name, apply)` (a tiny module-level store), passing the
-**actual swap** (`updateParams` on the toolbar, `navigate` in the widget) as
-`apply` rather than running it inline. The store **defers `apply`** (~`COVER_MS`)
-so the layout change happens **behind** the now-covering overlay — otherwise
-React commits the new content and the overlay in the same frame and you'd see
-the new locale flash through the blur. The backdrop is near-opaque
-(`bg-background/95 backdrop-blur-sm`).
+There is no switch flourish. Both triggers perform the swap the moment a locale
+is picked — `updateParams` in the toolbar, `navigate` in the editor's chip —
+because there is nothing left to cover: the records list keeps its previous
+page on screen while the new locale's loads (`keepPreviousData`), and the
+chip's menu prefetches every saved sibling as it opens, so the destination
+editor usually draws from the cache. A cold sibling shows the editor's ordinary
+loading state.
 
-**The host is page-level, not in-view.** It is contributed to content-admin's
-`CONTENT_OVERLAY_SLOT`, which `ContentLibraryPage` renders outside its routes.
-It used to be rendered by the locale widget and the toolbar switcher — i.e.
-_inside_ the editor, which unmounts itself for its loading state while the
-destination record loads. So the cover vanished mid-transition, exposing the
-editor's full-page spinner, and reappeared when the editor re-rendered: two
-loaders blinking in sequence. A cover has to outlive the thing it covers.
-
-**The hold is data-driven, not timed.** `LocaleSwitchOverlay` watches
-`useIsFetching()` and calls `settleLocaleSwitch()` once nothing is in flight;
-the store enforces a `MIN_HOLD_MS` floor (a "no requests" reading taken before
-the destination's queries are even issued means nothing) and a `MAX_HOLD_MS`
-ceiling so a stalled request can never leave the page covered. The cover
-therefore lifts onto a rendered form rather than onto a spinner. A rapid
-re-switch cancels the pending `apply` (last pick wins). Purely visual
-(`pointer-events-none`, `motion-reduce:animate-none`), portalled to
-`document.body`.
+It used to be a full-screen cover (`LocaleSwitchOverlay` + a module-level
+`localeTransition` store, in `CONTENT_OVERLAY_SLOT`): about 220 ms before the
+swap, a 380 ms floor, a hold until every request settled and a 300 ms fade —
+the better part of a second on every switch, cached or not. It existed to hide
+the editor's loading state; prefetching removes most of that state instead of
+hiding it. The slot stays in content-admin for whoever needs a page-level
+overlay next.
 
 ## Publish state — reuse content-admin's classifier, don't re-derive it
 

@@ -841,26 +841,6 @@ export class ContentLibraryPage extends BasePage {
         await this.localeOption(name).click();
     }
 
-    /** The transient "Switching to …" overlay shown while a locale switch plays. */
-    get localeSwitchOverlay(): Locator {
-        return this.page.getByText(/Switching to/);
-    }
-
-    /**
-     * Wait for a locale switch to finish covering the page.
-     *
-     * The cover marks the app root `inert` while it is up — it is opaque, so
-     * input must not reach the controls behind it. Anything a spec does to the
-     * page during that window is therefore dropped on the floor, exactly as it
-     * would be for a user, which shows up as a fill that never lands rather
-     * than as an error. Await this before interacting after a switch.
-     */
-    async localeSwitchSettled(): Promise<void> {
-        await this.localeSwitchOverlay
-            .first()
-            .waitFor({ state: 'detached', timeout: 10_000 });
-    }
-
     /**
      * A **rail block** heading, by name, inside the Properties panel.
      *

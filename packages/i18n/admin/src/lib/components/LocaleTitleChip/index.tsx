@@ -14,6 +14,7 @@ import { useHasPermission } from '@orthacms/identity-admin';
 import { useUnsavedChangesApi } from '@orthacms/utils-admin';
 import {
     ENTRY_MODE,
+    usePrefetchContentEntry,
     type EntryStatus,
     type EntrySlotContext
 } from '@orthacms/content-admin';
@@ -31,10 +32,6 @@ import {
 import { useLocales } from '../../api/useLocales';
 import { useEntryLocales } from '../../api/useEntryLocales';
 import { useLocaleSummaries } from '../../api/useLocaleSummaries';
-import {
-    beginLocaleSwitch,
-    cancelPendingLocaleSwitch
-} from '../../utils/localeTransition';
 import { LocaleMenuSummary } from './LocaleMenuSummary';
 import {
     LocaleMenuItem,
@@ -159,15 +156,16 @@ type Sibling = {
  * time) is no way to find "Portuguese (Brazil)" among them; the search matches
  * the name, the code and the record's title in that language.
  *
- * **Everything stateful lives here, not in the menu.** A pick does not navigate
- * immediately: `beginLocaleSwitch` schedules the swap behind the cover, and
- * `cancelPendingLocaleSwitch` (registered below as an unmount cleanup, so a
- * user who leaves in that window isn't yanked back) would kill it. The popover
- * content unmounts on close — inside that very window — so a cleanup
- * registered in there would cancel every pick made through it. This component
- * is mounted by the header slot and stays mounted across every open and close,
- * which is why it owns the queries, the permission, the guard, the search and
- * the timers, and `LocaleMenuItem` owns none of them.
+ * **Everything stateful lives here, not in the menu.** The popover content
+ * unmounts the instant a row is picked, so anything living in there — a query,
+ * the search, the pick's own navigation — would go with it. This component is
+ * mounted by the header slot and stays mounted across every open and close,
+ * which is why it owns the queries, the permission, the guard and the search,
+ * and `LocaleMenuItem` owns none of them.
+ *
+ * **A switch is immediate.** Opening the menu prefetches every saved
+ * sibling's record into the editor's own cache, so by the time a row is picked
+ * the destination draws at once — no cover over the page, no wait.
  */
 export function LocaleTitleChip({
     schema,
@@ -180,6 +178,7 @@ export function LocaleTitleChip({
 }: EntrySlotContext) {
     const intl = useIntl();
     const navigate = useNavigate();
+    const prefetchEntry = usePrefetchContentEntry();
     const location = useLocation();
     const guard = useUnsavedChangesApi();
     const canCreate = useHasPermission(CONTENT_CREATE);
@@ -240,11 +239,6 @@ export function LocaleTitleChip({
         [urlGroupId],
         !!schema.i18n && isCreate && !!urlGroupId
     );
-
-    // A pick schedules its navigation behind the cover. If the editor unmounts
-    // in that window — the user clicked something else, which the overlay
-    // deliberately lets through — the navigation is stale and must not fire.
-    useEffect(() => cancelPendingLocaleSwitch, []);
 
     useEffect(() => {
         if (!scrollToHighlight.current) return;
@@ -360,7 +354,6 @@ export function LocaleTitleChip({
         : locales.filter((locale) => isDone(locale.slug)).length;
 
     const selectLocale = (slug: string, sibling?: Sibling) => {
-        const name = localeName(locales, slug) ?? slug;
         // The draft's shared fields come from the source values: the saved
         // entry (edit mode), or whatever the create form already carries
         // (create mode — a translation draft's prefill), preserved as-is.
@@ -374,33 +367,27 @@ export function LocaleTitleChip({
                   translateFrom: entry?.values,
                   translateFromLocale: entry?.locale
               };
-        // Play the switch flourish, then navigate **behind** the overlay once it
-        // covers (see `beginLocaleSwitch`) so the editor doesn't visibly swap
-        // under the blur. The module-level store carries the flourish across the
-        // navigation so the destination editor's overlay host picks it up.
-        beginLocaleSwitch(name, () => {
-            if (mode === ENTRY_MODE.Single) {
-                if (sibling) {
-                    navigate(
-                        isDefaultLocale(slug, defaultLocale?.slug)
-                            ? `${typePath}${tabSegment}`
-                            : `${typePath}${tabSegment}?${LOCALE_PARAM}=${slug}`
-                    );
-                } else {
-                    navigate(`${typePath}${tabSegment}?${createSearch(slug)}`, {
-                        state
-                    });
-                }
-                return;
-            }
+        if (mode === ENTRY_MODE.Single) {
             if (sibling) {
-                navigate(`${typePath}/${sibling.id}${tabSegment}`);
+                navigate(
+                    isDefaultLocale(slug, defaultLocale?.slug)
+                        ? `${typePath}${tabSegment}`
+                        : `${typePath}${tabSegment}?${LOCALE_PARAM}=${slug}`
+                );
             } else {
-                navigate(`${typePath}/new${tabSegment}?${createSearch(slug)}`, {
+                navigate(`${typePath}${tabSegment}?${createSearch(slug)}`, {
                     state
                 });
             }
-        });
+            return;
+        }
+        if (sibling) {
+            navigate(`${typePath}/${sibling.id}${tabSegment}`);
+        } else {
+            navigate(`${typePath}/new${tabSegment}?${createSearch(slug)}`, {
+                state
+            });
+        }
     };
 
     // Switch to an existing locale, or re-target the form to a missing one
@@ -509,6 +496,16 @@ export function LocaleTitleChip({
             onOpenChange={(next) => {
                 setOpen(next);
                 setQuery('');
+                // Warm every saved sibling a pick could open, so the switch
+                // draws the destination at once rather than its loading state.
+                // A collection's only — a single resolves its row by `?locale=`
+                // through a read of its own, and the siblings here are few.
+                if (next && mode !== ENTRY_MODE.Single) {
+                    for (const item of entryItems ?? []) {
+                        if (item.entry && item.entry.id !== entry?.id)
+                            prefetchEntry(schema.name, item.entry.id);
+                    }
+                }
                 // Open on the current locale, so arrowing starts from where
                 // the reader already is.
                 if (next) {
