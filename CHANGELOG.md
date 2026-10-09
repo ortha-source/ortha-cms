@@ -1,3 +1,42 @@
+## 0.10.0 (2026-10-09)
+
+### 🚀 Features
+
+- **admin:** add a favicon to the admin and the scaffolded app ([#314](https://github.com/ortha-source/ortha-cms/pull/314))
+- **content:** a field's default value, as a create-form prefill ([d7ad2e48](https://github.com/ortha-source/ortha-cms/commit/d7ad2e48))
+- **copilot-admin:** show open chats' status on the sidebar's Agents switch ([#319](https://github.com/ortha-source/ortha-cms/pull/319))
+- **i18n-admin:** searchable locale menu, readable rows ([e0b1c737](https://github.com/ortha-source/ortha-cms/commit/e0b1c737))
+- **i18n-admin:** pin the default locale first in the locale menu ([6cf4862a](https://github.com/ortha-source/ortha-cms/commit/6cf4862a))
+- **media:** opt-in public (CDN) URLs from the storage provider ([f779aa30](https://github.com/ortha-source/ortha-cms/commit/f779aa30))
+- **schema-builder:** explain relation locale behaviour as a choice ([#311](https://github.com/ortha-source/ortha-cms/pull/311))
+
+### 🩹 Fixes
+
+- **admin:** stale selection, unclamped pages, invite submit, i18n ([5ad84dd4](https://github.com/ortha-source/ortha-cms/commit/5ad84dd4))
+- **content-admin:** the whole form-section header folds and unfolds ([9ea4598e](https://github.com/ortha-source/ortha-cms/commit/9ea4598e))
+- **content-server:** malformed ids, in-write target checks, saved-view cap ([7d0fa0ef](https://github.com/ortha-source/ortha-cms/commit/7d0fa0ef))
+- **copilot:** show a tool step while the model is still writing it ([0748638d](https://github.com/ortha-source/ortha-cms/commit/0748638d))
+- **copilot:** raise the message limit to 32,000 and enforce it in the composer ([#318](https://github.com/ortha-source/ortha-cms/pull/318))
+- **copilot-admin:** keep the latest turn when an Agents thread is reopened ([477dafc9](https://github.com/ortha-source/ortha-cms/commit/477dafc9))
+- **copilot-admin:** forget the switcher's remembered pages with the session ([62539694](https://github.com/ortha-source/ortha-cms/commit/62539694))
+- **copilot-server:** never show driver errors to the user or the model ([ccdc8cfe](https://github.com/ortha-source/ortha-cms/commit/ccdc8cfe))
+- **design-system:** round dialogs and space stacked footer buttons on mobile ([19d0e046](https://github.com/ortha-source/ortha-cms/commit/19d0e046))
+- **identity-admin, copilot-admin:** end copilot chats when the session ends ([b759d90b](https://github.com/ortha-source/ortha-cms/commit/b759d90b))
+- **identity-server:** share login rate-limit buckets across instances ([d3c2d79d](https://github.com/ortha-source/ortha-cms/commit/d3c2d79d))
+- **media-admin:** show a loader while a media delete is in flight ([9f4c62a1](https://github.com/ortha-source/ortha-cms/commit/9f4c62a1))
+- **schema-builder-admin:** keep focus while typing in a select option ([76babd36](https://github.com/ortha-source/ortha-cms/commit/76babd36))
+- **schema-builder-admin:** drag a field into a group on General, and back out ([d2f941bd](https://github.com/ortha-source/ortha-cms/commit/d2f941bd))
+- **segments-server, alarms-server, activity-server:** refuse malformed tool arguments ([a76c3545](https://github.com/ortha-source/ortha-cms/commit/a76c3545))
+- **utils-admin:** slots hand out one stable, frozen array ([55d9eea1](https://github.com/ortha-source/ortha-cms/commit/55d9eea1))
+- **webhooks-domain:** judge IPv6 literals by the IPv4 they embed ([2b07a4e8](https://github.com/ortha-source/ortha-cms/commit/2b07a4e8))
+- **webhooks-server, mail-server:** fence attempt writes on the claim ([62724a7d](https://github.com/ortha-source/ortha-cms/commit/62724a7d))
+
+### ❤️ Thank You
+
+- Claude
+- Claude Opus 5.5
+- Pavel Makhanko @pmknk
+
 ## 0.9.1 (2026-10-06)
 
 ### 🚀 Features
