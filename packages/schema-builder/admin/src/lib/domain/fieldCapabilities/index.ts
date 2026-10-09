@@ -8,7 +8,6 @@ export type ValidationEditor =
     | 'structure'
     | 'range'
     | 'integer'
-    | 'options'
     | 'mediaAccept';
 
 /** What the field sheet offers for one field type. */
@@ -51,16 +50,10 @@ export const FIELD_CAPABILITIES: Readonly<
     boolean: { validation: [], layout: true, placeholder: false },
     date: { validation: [], layout: true, placeholder: false },
     datetime: { validation: [], layout: true, placeholder: false },
-    select: {
-        validation: ['options'],
-        layout: true,
-        placeholder: false
-    },
-    multiselect: {
-        validation: ['options'],
-        layout: true,
-        placeholder: false
-    },
+    // A select's options are a basic, not a rule: the default is picked
+    // from them, so they sit above it on the General tab.
+    select: { validation: [], layout: true, placeholder: false },
+    multiselect: { validation: [], layout: true, placeholder: false },
     json: { validation: [], layout: true, placeholder: false },
     relation: {
         validation: [],

@@ -26,18 +26,22 @@ export type FieldDrop =
       };
 
 /**
- * Decides a drop of `field` from list `from` onto list `to` — on the field
- * `over`, in its upper or lower half (`after`), or on the list itself when it
- * is empty. Inside one list it is a reorder `canMoveField` allows or refuses.
- * Into another list it is always allowed: joining a group, or leaving one for
- * the loose fields, is a change the entry editor shows wherever it lands.
+ * Decides a drop of `field` from list `from` onto list `to`, on the field
+ * `over` — or on nothing, an empty list's own drop zone included.
+ *
+ * Inside one list it is a reorder `canMoveField` allows or refuses. Into
+ * another list it is always allowed: joining a group, or leaving one for the
+ * loose fields, is a change the entry editor shows wherever it lands. `to` is
+ * the list as the drag drew it, so it may already hold the field — moved
+ * there while it was dragged over — and the field then lands where `over` is,
+ * the way a reorder does. Not yet in it, the field goes before `over`, or
+ * last.
  */
 export function fieldDrop(
     field: FieldEntry,
     from: FieldDropList,
     to: FieldDropList,
-    over: FieldEntry | null,
-    after = false
+    over: FieldEntry | null
 ): FieldDrop {
     if (from.group === to.group) {
         if (!over || over.key === field.key) return { kind: 'none' };
@@ -45,13 +49,18 @@ export function fieldDrop(
             ? { kind: 'move', before: over.key }
             : { kind: 'refused' };
     }
-    const index = over
-        ? to.fields.findIndex((entry) => entry.key === over.key)
-        : -1;
-    const at = index < 0 ? to.fields.length : index + (after ? 1 : 0);
-    return {
-        kind: 'regroup',
-        group: to.group,
-        before: to.fields[at]?.key ?? null
-    };
+    const keys = to.fields
+        .map((entry) => entry.key)
+        .filter((key) => key !== field.key);
+    const target = over ? keys.indexOf(over.key) : -1;
+    const drawn = to.fields.findIndex((entry) => entry.key === field.key);
+    let at: number;
+    if (target < 0) {
+        // On itself, or on no field: where the drag drew it, else last.
+        at = drawn < 0 ? keys.length : drawn;
+    } else {
+        // Where `over` is — after it when the field was drawn above it.
+        at = drawn >= 0 && drawn <= target ? target + 1 : target;
+    }
+    return { kind: 'regroup', group: to.group, before: keys[at] ?? null };
 }

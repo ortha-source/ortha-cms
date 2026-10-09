@@ -13,6 +13,12 @@ export type FieldListEditing = {
         group: string | null,
         before: string | null
     ) => void;
+    /** Moves the General-tab group with `key` to where the group `over` is. */
+    readonly onMoveGroup: (key: string, over: string) => void;
+    /** Opens the General-tab group with `key` in its own sheet. */
+    readonly onEditGroup: (key: string) => void;
+    /** Removes a group; its fields stay, above the groups. */
+    readonly onRemoveGroup: (key: string) => void;
     readonly onAddField: () => void;
     readonly onManageGroups: () => void;
     /** How many schema-rule issues a field has, by name. */

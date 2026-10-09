@@ -17,6 +17,8 @@ domain/
   generalTabLayout/    General as the editor draws it: loose fields by rank, then groups
   fieldFacts/          what a field row says besides its name and type
   fieldDrop/           what a dragged field's drop does: reorder, regroup, or refused
+  moveGroup/           a group dragged to where another one is
+  selectOptions/       a select's options edited, the default carried along
 infrastructure/
   httpSchemaGateway/   the impl — the ONLY apiClient user
   schemaKeys/          query keys
@@ -86,6 +88,11 @@ Hand-written types stay read-only and say how to hand them over.
   (not to relations or media — they have their own tab). Clearing an input
   drops the option (`fieldPatch`), so it falls back to the DSL default; unknown
   `admin` keys survive.
+- **A select's options are a basic, not a rule.** They sit on General — the
+  "Basics" step when adding — above the default that is picked from them, so
+  the default can be chosen as soon as the options exist. Renaming the option
+  the default names carries the default along; removing it clears it
+  (`selectOptions`).
 - **Fewer knobs than the DSL, on purpose.** There is no control picker — the
   kind is the control (`kindOf`: long text is a textarea, rich text the
   editor) — and no row key: two adjacent half-width fields share a line in the
@@ -99,14 +106,24 @@ Hand-written types stay read-only and say how to hand them over.
   Relations, Media) is its own sortable context, but General's lists share one
   `SortableFieldScope`, so a field is dragged into a group — an empty one is a
   drop target of its own — and back out to the loose fields (`field.regroup`
-  sets or clears `admin.group`). `fieldDrop` decides a drop: inside one list a
-  reorder that `canMoveField` refuses across ranks above the groups, because
-  the entry editor would re-sort it; into another list always allowed.
+  sets or clears `admin.group`). Mid-drag the scope keeps its own order of
+  the lists (`DragOrderContext`): over another list's row the field moves into
+  that list there, so its rows make room as they do for a reorder. The list it
+  left closes up and slides the row it was put before under it, so it is
+  pinned there until dragged past that row's middle (by keyboard, until the
+  next arrow key). `fieldDrop` decides a drop: inside one list a reorder that
+  `canMoveField` refuses across ranks above the groups, because the entry
+  editor would re-sort it; into another list always allowed, landing where
+  the drag drew it. The groups are a second sortable context in the same
+  scope, dragged by their own handle (`moveGroup`); collisions and keyboard
+  steps are filtered by kind, so a group never lands on a field.
   Relations and Media are a scope each — nothing there joins a group. Dragging
   works from the handle by keyboard too; dnd-kit's announcements are replaced
   with ones that name fields and lists.
 - **Groups** are edited in `GeneralGroupsSheet` — accordion blocks on General,
-  never sections or tabs. An empty one is flagged: the schema refuses it.
+  never sections or tabs — or one at a time from the block's own menu
+  (`GroupSheet`: title, description, starts folded, remove). An empty one is
+  flagged: the schema refuses it. Removing one keeps its fields, loose.
 - **Leaving** the page with a draft asks first (`useUnsavedChanges`). The rail
   is marked `data-keeps-unsaved-changes`, so moving between types does not.
 

@@ -49,16 +49,44 @@ describe('fieldDrop', () => {
             });
         });
 
-        it('lands after that field on its lower half — last, past the last one', () => {
-            expect(fieldDrop(title, loose, seo, slug, true)).toEqual({
+        it('lands where the drag drew it, the list already holding it', () => {
+            // Drawn between slug and meta, dropped on itself.
+            const drawn: FieldDropList = {
+                group: 'seo',
+                fields: [slug, title, meta]
+            };
+            expect(fieldDrop(title, loose, drawn, title)).toEqual({
                 kind: 'regroup',
                 group: 'seo',
                 before: meta.key
             });
-            expect(fieldDrop(title, loose, seo, meta, true)).toEqual({
+            expect(fieldDrop(title, loose, drawn, null)).toEqual({
+                kind: 'regroup',
+                group: 'seo',
+                before: meta.key
+            });
+        });
+
+        it('then moves to where the field it is over is, as a reorder does', () => {
+            const drawn: FieldDropList = {
+                group: 'seo',
+                fields: [title, slug, meta]
+            };
+            // Down over meta: after it, last.
+            expect(fieldDrop(title, loose, drawn, meta)).toEqual({
                 kind: 'regroup',
                 group: 'seo',
                 before: null
+            });
+            const below: FieldDropList = {
+                group: 'seo',
+                fields: [slug, meta, title]
+            };
+            // Up over slug: before it, first.
+            expect(fieldDrop(title, loose, below, slug)).toEqual({
+                kind: 'regroup',
+                group: 'seo',
+                before: slug.key
             });
         });
 

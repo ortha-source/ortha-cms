@@ -21,7 +21,7 @@ const messages = defineMessages({
     description: {
         id: 'schemaBuilder.addField.basicsDescription',
         defaultMessage:
-            'Its label and machine name, whether it is required — and for a relation, what it links to and how many.'
+            'Its label and machine name, whether it is required, a choice’s options and its default — and for a relation, what it links to and how many.'
     },
     empty: {
         id: 'schemaBuilder.addField.nameEmpty',

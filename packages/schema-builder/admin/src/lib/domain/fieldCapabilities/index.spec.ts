@@ -23,4 +23,13 @@ describe('validationEditors', () => {
         ]);
         expect(validationEditors({ type: 'boolean' })).toEqual([]);
     });
+
+    it('offers a select no rules — its options are a basic, above the default', () => {
+        expect(validationEditors({ type: 'select', options: ['a'] })).toEqual(
+            []
+        );
+        expect(
+            validationEditors({ type: 'multiselect', options: ['a'] })
+        ).toEqual([]);
+    });
 });

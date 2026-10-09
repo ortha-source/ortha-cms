@@ -10,7 +10,6 @@ import { LengthRules } from './LengthRules';
 import { MediaAcceptRules } from './MediaAcceptRules';
 import { PatternRule } from './PatternRule';
 import { RangeRules } from './RangeRules';
-import { SelectOptionsEditor } from './SelectOptionsEditor';
 import { StructureRule } from './StructureRule';
 
 type Spec = FieldDoc & Record<string, unknown>;
@@ -43,12 +42,6 @@ const EDITORS: Readonly<Record<ValidationEditor, Render>> = {
     ),
     integer: (spec, onChange) => (
         <IntegerRule integer={spec['integer'] as boolean} onChange={onChange} />
-    ),
-    options: (spec, onChange) => (
-        <SelectOptionsEditor
-            options={(spec['options'] as string[]) ?? []}
-            onChange={onChange}
-        />
     ),
     mediaAccept: (spec, onChange) => (
         <MediaAcceptRules

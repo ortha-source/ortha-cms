@@ -29,7 +29,9 @@ const messages = defineMessages({
 
 /**
  * One collapsible section of the General tab — a group the schema declared
- * (`groups` on the type, `admin.group` on the field).
+ * (`groups` on the type, `admin.group` on the field) — drawn as a framed
+ * block, the way a relation is, so where a group starts and ends is seen
+ * rather than inferred from a rule above it.
  *
  * Folding a section must never hide a problem, so its header carries what is
  * inside it: how many fields still block publishing (counted from the form's
@@ -98,7 +100,7 @@ export function FieldSection({
         <Collapsible
             open={open}
             onOpenChange={setOpen}
-            className="group/section border-t pt-4"
+            className="group/section rounded-xl border bg-card"
             data-testid={`entry-field-section-${group.key}`}
             // What the outline scrolls to — see `EntryFieldOutline`.
             data-entry-section={group.key}
@@ -106,9 +108,9 @@ export function FieldSection({
             {/* The whole header block — description included — is the click
                 target: the trigger's `::after` stretches over it, and the
                 block takes the button's hover and focus styles. */}
-            <div className="relative -mx-2 rounded-md px-2 py-1.5 transition-colors has-[button:hover]:bg-accent has-[button:focus-visible]:ring-2 has-[button:focus-visible]:ring-ring">
+            <div className="relative rounded-xl px-4 py-3 transition-colors group-data-[state=open]/section:rounded-b-none has-[button:hover]:bg-accent/60 has-[button:focus-visible]:ring-2 has-[button:focus-visible]:ring-ring">
                 <h2 className="text-sm font-medium">
-                    <CollapsibleTrigger className="flex w-full items-center gap-2 text-left outline-none after:absolute after:inset-0 after:rounded-md">
+                    <CollapsibleTrigger className="flex w-full items-center gap-2 text-left outline-none after:absolute after:inset-0 after:rounded-xl">
                         <ChevronRight
                             aria-hidden
                             className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]/section:rotate-90"
@@ -141,7 +143,7 @@ export function FieldSection({
                     </p>
                 )}
             </div>
-            <CollapsibleContent className="pt-4 pl-6">
+            <CollapsibleContent className="border-t px-4 py-4">
                 <FieldStack
                     fields={fields}
                     form={form}
