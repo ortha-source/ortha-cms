@@ -1351,12 +1351,15 @@ one, and **one** media resolve). Notes:
   endpoint.
 - A `?fields=` selection still carries the columns an expansion needs (a single
   relation's FK, a media field's ids), even though they never appear in `values`.
-- **Media URLs require a session.** The returned `url`/`thumbUrl` are the CMS's
-  own media routes, which are `media:read` + membership gated; a bearer token
-  gets **401** (verified). They identify the asset and work for a session-holding
-  server-side caller, but a browser `<img src>` will not load one. A
-  token-fetchable URL needs either a token-authenticated media route or signed
-  URLs — neither exists yet.
+- **Media URLs take the token, unless the deployment publishes the asset.** By
+  default `url`/`thumbUrl`/`previewUrl` (and track `src`s) are rewritten to
+  `/api/v1/media/assets/:id/raw`, which accepts the same bearer token as the
+  read — fine for a server-side consumer, useless in a browser `<img src>`. A
+  deployment that sets media's `publicUrls: 'provider'` (ADR-0021) reports the
+  storage provider's CDN URLs instead, plus `streams` for a transcoded video,
+  for the assets the media plugin marked `public` on `ResolvedMediaAsset`.
+  `publicMediaUrls` reads that block and nothing else — an absolute URL in the
+  resolver's `url` is never taken as permission to publish.
 
 **Localization.** A localized type stores one row per locale, siblings sharing a
 `locale_group_id`. Every public read already scopes to a single locale through

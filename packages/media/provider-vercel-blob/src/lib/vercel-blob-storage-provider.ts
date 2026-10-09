@@ -104,7 +104,11 @@ export function createVercelBlobStorageProvider(
             // what keeps the app's membership check on the request path.
             directUrl: false,
             contentTypeMetadata: true,
-            streamingPut: true
+            streamingPut: true,
+            // The blob *is* public, but its URL comes from a `head` round trip
+            // per key, and `publicUrls()` is called for a whole page at once.
+            // Not offered until the URL can be derived from the key alone.
+            publicUrls: false
         },
 
         async put(object: PutObject): Promise<StoredObject> {

@@ -12,6 +12,7 @@ import {
 } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@orthacms/database';
 import { mediaAsset, mediaKind } from '../schema/media-asset';
+import { PublicAssetUrlsQuery } from '../public-urls/public-asset-urls';
 import { InvalidAssetFilterError } from '../../domain/errors/invalid-asset-filter.error';
 import type { AssetListView } from '../../types/asset-view';
 import { toAssetView } from './to-asset-view';
@@ -93,7 +94,10 @@ export interface ListAssetsParams {
  */
 @Injectable()
 export class ListAssetsQuery {
-    constructor(@InjectDatabase() private readonly db: Database) {}
+    constructor(
+        @InjectDatabase() private readonly db: Database,
+        private readonly publicUrls: PublicAssetUrlsQuery
+    ) {}
 
     /** Runs the listing. */
     async execute(params: ListAssetsParams): Promise<AssetListView> {
@@ -148,16 +152,22 @@ export class ListAssetsQuery {
                 .where(where)
         ]);
 
-        const uploaderNames = await resolveUploaderNames(
-            this.db,
-            rows.map((row) => row.uploadedBy)
-        );
+        // One batch for the page, beside the uploader names — never a provider
+        // call per row in sequence.
+        const [uploaderNames, published] = await Promise.all([
+            resolveUploaderNames(
+                this.db,
+                rows.map((row) => row.uploadedBy)
+            ),
+            this.publicUrls.forAssets(rows)
+        ]);
 
         return {
             items: rows.map((row) =>
                 toAssetView(
                     row,
-                    uploaderNames.get(row.uploadedBy) ?? UNKNOWN_UPLOADER
+                    uploaderNames.get(row.uploadedBy) ?? UNKNOWN_UPLOADER,
+                    published.get(row.id)
                 )
             ),
             total: totals[0]?.value ?? 0,

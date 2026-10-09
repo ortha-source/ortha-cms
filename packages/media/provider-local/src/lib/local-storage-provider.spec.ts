@@ -555,7 +555,8 @@ describe('createLocalStorageProvider', () => {
         expect(provider.capabilities).toEqual({
             directUrl: false,
             contentTypeMetadata: false,
-            streamingPut: true
+            streamingPut: true,
+            publicUrls: false
         });
         expect(provider.directUrl).toBeUndefined();
     });

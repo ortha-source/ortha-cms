@@ -45,6 +45,30 @@ export interface ResolvedMediaTrack {
     default?: boolean;
 }
 
+/**
+ * An asset's **public** addresses — permanent, unauthenticated URLs a storage
+ * provider publishes (a CDN in front of the bucket), which an anonymous reader
+ * can load from an `<img src>`.
+ *
+ * Present on a {@link ResolvedMediaAsset} only when the media plugin has
+ * decided the asset may be published: the operator opted in, the provider
+ * declares the capability, and the asset's type passed the MIME gate. Carried
+ * as its own block, rather than inferred from the shape of {@link
+ * ResolvedMediaAsset.url}, because content-server cannot ask media-server and
+ * must not guess: the public API rewrites every other URL to its own
+ * token-authenticated route (ADR-0021).
+ */
+export interface ResolvedPublicMedia {
+    /** The original. */
+    url: string;
+    /** The ~320px derivative, or the provider's own poster for a video. */
+    thumbUrl?: string;
+    /** The ~1280px derivative. */
+    previewUrl?: string;
+    /** Adaptive streaming manifests, for a provider that transcodes video. */
+    streams?: { hls?: string; dash?: string };
+}
+
 /** The subset of a media asset content-server needs to enforce a media field. */
 export interface ResolvedMediaAsset {
     /** Asset id (uuid). */
@@ -55,7 +79,10 @@ export interface ResolvedMediaAsset {
     mimeType: string;
     /** Display name (the original file name). */
     name: string;
-    /** The route the browser fetches to stream the bytes. */
+    /**
+     * Where the browser fetches the bytes — the app's own session route, or
+     * the asset's public URL when it has one (see {@link public}).
+     */
     url: string;
     /**
      * Route for the small (~320px) derivative, when the media plugin generated
@@ -77,6 +104,11 @@ export interface ResolvedMediaAsset {
      * 508 503.4 (`ORT-92`).
      */
     tracks: ResolvedMediaTrack[];
+    /**
+     * The asset's public addresses, when the deployment publishes it. Absent
+     * means every address for it requires authorization.
+     */
+    public?: ResolvedPublicMedia;
 }
 
 /** How {@link MediaAssetResolver.resolve} reads. */

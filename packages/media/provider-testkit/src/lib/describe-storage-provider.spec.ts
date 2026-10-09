@@ -24,7 +24,8 @@ function createReferenceProvider(): StorageProvider {
         capabilities: {
             directUrl: false,
             contentTypeMetadata: false,
-            streamingPut: false
+            streamingPut: false,
+            publicUrls: false
         },
         async put(object: PutObject): Promise<StoredObject> {
             const chunks: Buffer[] = [];
@@ -67,32 +68,59 @@ function createReferenceProvider(): StorageProvider {
     };
 }
 
+/**
+ * The reference provider behind a pretend CDN — so the `publicUrls` cases run
+ * against an implementation that answers, rather than passing vacuously.
+ */
+function createPublishingReferenceProvider(): StorageProvider {
+    const inner = createReferenceProvider();
+    return {
+        ...inner,
+        capabilities: { ...inner.capabilities, publicUrls: true },
+        publicUrls(storageKey, context) {
+            const url = `https://cdn.test/${storageKey}`;
+            return context.kind === 'video'
+                ? { url, streams: { hls: `${url}/manifest.m3u8` } }
+                : { url };
+        }
+    };
+}
+
 const stores = new Map<StorageProvider, () => string[]>();
 
-describeStorageProvider('reference (in-memory)', {
-    create() {
-        const provider = createReferenceProvider();
-        // Read the keys back through the provider's own surface: the kit only
-        // needs to know what survived, and reaching into the `Map` would test
-        // the harness rather than the provider.
-        const keys = new Set<string>();
-        const put = provider.put.bind(provider);
-        const wrapped: StorageProvider = {
-            ...provider,
-            async put(object) {
-                const stored = await put(object);
-                keys.add(stored.storageKey);
-                return stored;
-            },
-            async remove(storageKey) {
-                keys.delete(storageKey);
-                return provider.remove(storageKey);
-            }
-        };
-        stores.set(wrapped, () => [...keys].sort());
-        return wrapped;
-    },
-    storedKeys(provider) {
-        return stores.get(provider)?.() ?? [];
-    }
-});
+/** Runs the kit against one reference build, tracking the keys it holds. */
+function describeReference(name: string, build: () => StorageProvider): void {
+    describeStorageProvider(name, {
+        create() {
+            const provider = build();
+            // Read the keys back through the provider's own surface: the kit
+            // only needs to know what survived, and reaching into the `Map`
+            // would test the harness rather than the provider.
+            const keys = new Set<string>();
+            const put = provider.put.bind(provider);
+            const wrapped: StorageProvider = {
+                ...provider,
+                async put(object) {
+                    const stored = await put(object);
+                    keys.add(stored.storageKey);
+                    return stored;
+                },
+                async remove(storageKey) {
+                    keys.delete(storageKey);
+                    return provider.remove(storageKey);
+                }
+            };
+            stores.set(wrapped, () => [...keys].sort());
+            return wrapped;
+        },
+        storedKeys(provider) {
+            return stores.get(provider)?.() ?? [];
+        }
+    });
+}
+
+describeReference('reference (in-memory)', createReferenceProvider);
+describeReference(
+    'reference (in-memory, publishing)',
+    createPublishingReferenceProvider
+);

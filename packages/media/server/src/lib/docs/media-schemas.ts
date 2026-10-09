@@ -99,13 +99,38 @@ export function buildMediaSchemas(): Record<string, OpenApiSchema> {
                 url: {
                     type: 'string',
                     description:
-                        'Path of the route that streams the original bytes — always the session route `/api/media/assets/{id}/raw`, on both surfaces. A bearer-token client fetches the same asset at `/api/v1/media/assets/{id}/raw` instead.'
+                        "Where the original bytes are fetched. By default the path of the session route `/api/media/assets/{id}/raw`, on both surfaces — a bearer-token client fetches the same asset at `/api/v1/media/assets/{id}/raw` instead. A deployment that sets `publicUrls: 'provider'` reports the storage provider’s permanent public (CDN) URL here instead, as an absolute `https://` URL, for assets that pass its MIME gate (by default raster images, audio, video, PDF and plain text — never SVG or HTML). Such a URL needs no credential and bypasses every check the app makes on a download."
+                },
+                thumbUrl: {
+                    type: 'string',
+                    description:
+                        'Where the ~320px derivative is fetched — its public URL, or the app’s `?variant=thumb` route. For a published video it may be the storage provider’s poster frame. Absent when there is neither.'
+                },
+                previewUrl: {
+                    type: 'string',
+                    description:
+                        'Where the ~1280px derivative is fetched, by the same rules as `thumbUrl` (no poster fallback). Absent when the asset has no `preview` derivative.'
+                },
+                streams: {
+                    type: 'object',
+                    description:
+                        'Adaptive streaming manifests for a published video whose storage provider transcodes. Absent otherwise.',
+                    properties: {
+                        hls: {
+                            type: 'string',
+                            description: 'HLS playlist (`.m3u8`).'
+                        },
+                        dash: {
+                            type: 'string',
+                            description: 'MPEG-DASH manifest (`.mpd`).'
+                        }
+                    }
                 },
                 variants: {
                     type: 'array',
                     items: { type: 'string' },
                     description:
-                        'Names of the generated derivatives — fetch each at `${url}?variant=<name>`. The shipped image processor emits `thumb` and `preview`; the names are not enumerated here because `ImageProcessor` is a port a deployment may swap. Empty for non-images and for images too small to derive.'
+                        'Names of the generated derivatives. Fetch them at `thumbUrl` / `previewUrl`: `${url}?variant=<name>` only holds while `url` is the app’s own route. The shipped image processor emits `thumb` and `preview`; the names are not enumerated here because `ImageProcessor` is a port a deployment may swap. Empty for non-images and for images too small to derive.'
                 },
                 width: {
                     type: 'integer',

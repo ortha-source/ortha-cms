@@ -11,10 +11,16 @@ export type {
     StorageCapabilities,
     StoredObject,
     PutObject,
-    DirectUrlOptions
+    DirectUrlOptions,
+    PublicAssetUrls,
+    PublicUrlContext
 } from '@orthacms/media-domain';
 export { STORAGE_PROVIDER } from '@orthacms/media-domain';
 export type { DirectServeMode } from './lib/http/direct-serve';
+export type {
+    PublicUrlsMode,
+    PublicUrlTypes
+} from './lib/infrastructure/public-urls/public-asset-urls';
 // Re-exported for the plugins that already depend on this package. The provider
 // packages take it from `@orthacms/media-domain` instead: it is a *value*, and
 // importing it from here dragged this barrel — and with it `MediaModule` and

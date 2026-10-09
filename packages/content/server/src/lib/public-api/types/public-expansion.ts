@@ -30,25 +30,37 @@ export interface PublicRelationFieldView {
 /**
  * One media asset attached to an entry.
  *
- * The URLs point at `/api/v1/media/assets/:id/raw`, which takes the **same
- * bearer token** as the read that produced them — so a server-side consumer can
- * fetch the bytes with the credential it already has. They are still not public:
- * a browser `<img src>` sends no `Authorization` header, so an anonymous visitor
- * will not load one. Proxy them, or fetch and re-serve them, from whatever is
- * holding the token. (Genuinely public, unauthenticated URLs would need signed
- * links with an expiry, which do not exist yet.)
+ * By default the URLs point at `/api/v1/media/assets/:id/raw`, which takes the
+ * **same bearer token** as the read that produced them — so a server-side
+ * consumer can fetch the bytes with the credential it already has. They are
+ * still not public: a browser `<img src>` sends no `Authorization` header, so an
+ * anonymous visitor will not load one. Proxy them, or fetch and re-serve them,
+ * from whatever is holding the token.
+ *
+ * A deployment that publishes its storage provider's CDN URLs (`publicUrls:
+ * 'provider'` in the media config, ADR-0021) reports those instead, for the
+ * assets it publishes — an absolute `https://` URL rather than a path is the
+ * tell. Those need no token, and are reachable by anyone who holds them.
  */
 export interface PublicMediaRef {
     /** Asset id. */
     id: string;
     /** Display name — the original file name. */
     name: string;
-    /** Route the bytes stream from. See the caveat above. */
+    /** Where the bytes are fetched. See the caveat above. */
     url: string;
-    /** Route for the ~320px derivative, when one was generated. */
+    /**
+     * The ~320px derivative, when one was generated — or, for a published
+     * video, the storage provider's own poster frame.
+     */
     thumbUrl?: string;
-    /** Route for the ~1280px derivative, when one was generated. */
+    /** The ~1280px derivative, when one was generated. */
     previewUrl?: string;
+    /**
+     * Adaptive streaming manifests (HLS / DASH), for a published video whose
+     * storage provider transcodes. Absent otherwise.
+     */
+    streams?: PublicMediaStreams;
     /** Coarse kind — image / video / audio / document / archive. */
     kind: string;
     /** MIME type, e.g. `image/png`. */
@@ -72,6 +84,14 @@ export interface PublicMediaRef {
      * nobody has captioned (`ORT-92`).
      */
     tracks: PublicMediaTrack[];
+}
+
+/** Streaming manifests for a published video. Either may be absent. */
+export interface PublicMediaStreams {
+    /** HLS playlist (`.m3u8`). */
+    hls?: string;
+    /** MPEG-DASH manifest (`.mpd`). */
+    dash?: string;
 }
 
 /** One timed-text track on a published video or audio asset. */

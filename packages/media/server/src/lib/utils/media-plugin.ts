@@ -5,6 +5,16 @@ import { MediaModule } from '../media.module';
 import { describeMediaApi } from '../docs/describe-media-api';
 import { describeMediaInsightsApi } from '../docs/describe-media-insights-api';
 import type { MediaPluginConfig } from '../types/media-config';
+import type {
+    PublicUrlsMode,
+    PublicUrlTypes
+} from '../infrastructure/public-urls/public-asset-urls';
+
+/** Every accepted `publicUrls` value — checked at boot, since config is often env-derived. */
+const PUBLIC_URLS_MODES: readonly PublicUrlsMode[] = ['off', 'provider'];
+
+/** Every accepted `publicUrlTypes` value. */
+const PUBLIC_URL_TYPES: readonly PublicUrlTypes[] = ['inline-safe', 'all'];
 
 /** The media plugin shape, with its config attached. */
 export type MediaServerPluginDefinition = ServerPlugin & {
@@ -76,6 +86,38 @@ function assertOptions(options: MediaPluginOptions): void {
                 'operator believing an optimization is on that is not.'
         );
     }
+    if (provider.capabilities.publicUrls && !provider.publicUrls) {
+        throw new Error(
+            `The storage provider "${provider.id}" declares \`capabilities.publicUrls\` but implements ` +
+                'no `publicUrls()`. Declare the capability only when the method exists.'
+        );
+    }
+    const publicUrls = options.config.publicUrls;
+    if (publicUrls !== undefined && !PUBLIC_URLS_MODES.includes(publicUrls)) {
+        throw new Error(
+            `MediaServerPlugin's publicUrls must be one of ${PUBLIC_URLS_MODES.map((mode) => `'${mode}'`).join(', ')} ` +
+                `(got ${JSON.stringify(publicUrls)}).`
+        );
+    }
+    const publicUrlTypes = options.config.publicUrlTypes;
+    if (
+        publicUrlTypes !== undefined &&
+        !PUBLIC_URL_TYPES.includes(publicUrlTypes)
+    ) {
+        throw new Error(
+            `MediaServerPlugin's publicUrlTypes must be one of ${PUBLIC_URL_TYPES.map((types) => `'${types}'`).join(', ')} ` +
+                `(got ${JSON.stringify(publicUrlTypes)}).`
+        );
+    }
+    if (publicUrls === 'provider' && !provider.capabilities.publicUrls) {
+        throw new Error(
+            `MediaServerPlugin's \`publicUrls: 'provider'\` needs a provider that publishes them, and ` +
+                `"${provider.id}" declares \`capabilities.publicUrls: false\`. Either drop the setting — ` +
+                "every URL is then the app's own authorized route, which is the default — or run a backend " +
+                "that implements `publicUrls()`. Silently reporting the app's routes instead would leave the " +
+                'operator believing public URLs are on when they are not.'
+        );
+    }
     const ttl = options.config.directServeTtlSeconds;
     if (ttl !== undefined && (!Number.isFinite(ttl) || ttl <= 0)) {
         throw new Error(
@@ -125,6 +167,12 @@ export function MediaServerPlugin(
                       directServeTtlSeconds:
                           options.config.directServeTtlSeconds
                   }
+                : {}),
+            ...(options.config.publicUrls
+                ? { publicUrls: options.config.publicUrls }
+                : {}),
+            ...(options.config.publicUrlTypes
+                ? { publicUrlTypes: options.config.publicUrlTypes }
                 : {})
         }),
         mediaConfig: options.config,

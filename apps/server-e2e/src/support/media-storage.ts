@@ -72,3 +72,41 @@ export function createSigningStorageProvider(): StorageProvider {
         }
     };
 }
+
+/** Where the publishing provider below pretends its CDN lives. */
+export const PUBLIC_URL_HOST = 'https://cdn.test';
+
+/** Where it pretends its video service lives, poster and manifests included. */
+export const VIDEO_URL_HOST = 'https://video.test';
+
+/**
+ * The in-memory provider behind a pretend CDN, for the public-URL suites
+ * (ADR-0021).
+ *
+ * Shaped like the host this feature was built for: images and documents on a
+ * plain CDN keyed by the storage key, video on a streaming service that also
+ * answers with a poster and HLS/DASH manifests. It publishes **every** key it
+ * is asked about — including an SVG's — so a suite can tell the core's MIME
+ * gate apart from a provider that simply declined.
+ */
+export function createPublishingStorageProvider(): StorageProvider {
+    const inner = createInMemoryStorageProvider();
+    return {
+        ...inner,
+        capabilities: { ...inner.capabilities, publicUrls: true },
+        publicUrls(storageKey, context) {
+            if (context.kind === 'video' && !context.variant) {
+                const url = `${VIDEO_URL_HOST}/${storageKey}`;
+                return {
+                    url,
+                    thumbnailUrl: `${url}/thumbnails/thumbnail.jpg`,
+                    streams: {
+                        hls: `${url}/manifest/video.m3u8`,
+                        dash: `${url}/manifest/video.mpd`
+                    }
+                };
+            }
+            return { url: `${PUBLIC_URL_HOST}/${storageKey}` };
+        }
+    };
+}

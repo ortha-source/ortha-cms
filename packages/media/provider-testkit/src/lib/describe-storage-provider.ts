@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { ObjectNotFoundError } from '@orthacms/media-domain';
-import type { StorageProvider } from '@orthacms/media-domain';
+import type { PublicAssetUrls, StorageProvider } from '@orthacms/media-domain';
 
 /** How the kit builds and tears down the provider under test. */
 export interface StorageProviderHarness {
@@ -47,6 +47,34 @@ function failingBody(): Readable {
             this.push(Buffer.alloc(1024, 7));
         }
     });
+}
+
+/** True for an absolute `http:` / `https:` URL — the only kind the core reports. */
+function isAbsoluteHttpUrl(value: unknown): boolean {
+    if (typeof value !== 'string' || !value.trim()) return false;
+    try {
+        const { protocol } = new URL(value);
+        return protocol === 'https:' || protocol === 'http:';
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Asserts one `publicUrls()` answer: nothing, or a usable `url` plus optional
+ * extras of the same kind. The core falls back to its own route for anything
+ * else — so a provider that fails here does not break, it silently never
+ * publishes, which is the failure worth catching before a deployment does.
+ */
+function expectPublicUrls(value: PublicAssetUrls | undefined): void {
+    if (value === undefined) return;
+    expect(isAbsoluteHttpUrl(value.url)).toBe(true);
+    if (value.thumbnailUrl !== undefined) {
+        expect(isAbsoluteHttpUrl(value.thumbnailUrl)).toBe(true);
+    }
+    for (const stream of [value.streams?.hls, value.streams?.dash]) {
+        if (stream !== undefined) expect(isAbsoluteHttpUrl(stream)).toBe(true);
+    }
 }
 
 const WORKSPACE = '11111111-1111-4111-8111-111111111111';
@@ -105,13 +133,58 @@ export function describeStorageProvider(
                 expect(provider.capabilities).toEqual({
                     directUrl: expect.any(Boolean),
                     contentTypeMetadata: expect.any(Boolean),
-                    streamingPut: expect.any(Boolean)
+                    streamingPut: expect.any(Boolean),
+                    publicUrls: expect.any(Boolean)
                 });
             });
 
             it('implements directUrl() exactly when it claims to', () => {
                 expect(typeof provider.directUrl === 'function').toBe(
                     provider.capabilities.directUrl
+                );
+            });
+
+            it('implements publicUrls() exactly when it claims to', () => {
+                // The plugin refuses `publicUrls: 'provider'` against a
+                // provider that does not declare the capability, so a method
+                // nobody declared is one no deployment can ever switch on.
+                expect(typeof provider.publicUrls === 'function').toBe(
+                    provider.capabilities.publicUrls
+                );
+            });
+        });
+
+        // Vacuous for a provider that does not publish — there is nothing to
+        // ask it. For one that does, these are the shapes the core accepts.
+        describe('publicUrls', () => {
+            it('answers for an original with nothing, or absolute http(s) URLs', async () => {
+                if (!provider.publicUrls) return;
+                const stored = await put();
+
+                expectPublicUrls(
+                    await provider.publicUrls(stored.storageKey, {
+                        mimeType: 'image/png',
+                        kind: 'image'
+                    })
+                );
+            });
+
+            it('answers for a derivative key the same way', async () => {
+                // The core asks about `thumb` / `preview` keys too, so a CDN
+                // that fronts them serves a 320px tile instead of the original.
+                if (!provider.publicUrls) return;
+                const stored = await put({
+                    fileName: 'thumb.webp',
+                    contentType: 'image/webp',
+                    isVariant: true
+                });
+
+                expectPublicUrls(
+                    await provider.publicUrls(stored.storageKey, {
+                        mimeType: 'image/webp',
+                        kind: 'image',
+                        variant: 'thumb'
+                    })
                 );
             });
         });

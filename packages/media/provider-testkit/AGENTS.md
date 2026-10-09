@@ -30,12 +30,17 @@ describeStorageProvider('media-provider-local', {
 ## What it asserts
 
 - **identity** — a non-empty `id`, a complete `capabilities`, and `directUrl()`
-  present exactly when `capabilities.directUrl` says so.
+  / `publicUrls()` each present exactly when its capability says so.
+- **`publicUrls`** — for an original and for a derivative key, the answer is
+  `undefined` or an absolute `http(s)` `url` (plus, optionally, a
+  `thumbnailUrl` and `streams` of the same kind). Vacuous for a provider that
+  does not publish. The core falls back to its own route for anything else, so
+  a provider failing this would not break — it would silently never publish.
 - **`put`** — true size and sha256; bytes round-trip through `get`; two assets
   with the same file name get distinct keys; a derivative never collides with an
   original called `thumb.webp`; a body that fails mid-stream leaves nothing.
 - **`get`** — rejects for a key that was never written, and for one that was
-  removed. Rejecting *before* the stream opens is the point: the download route
+  removed. Rejecting _before_ the stream opens is the point: the download route
   turns a rejection into a 404, and once bytes flow the response is a streaming
   200 that can no longer become one.
 - **`remove`** — idempotent, and a no-op for a key that never existed. Reclaim
@@ -56,8 +61,9 @@ remote provider ends up failing for the wrong reason.
 - `npx nx typecheck @orthacms/media-provider-testkit` /
   `npx nx lint @orthacms/media-provider-testkit`
 - `npx nx test @orthacms/media-provider-testkit` — the kit against its own
-  reference in-memory provider, so a suite no correct implementation passes
-  cannot ship unnoticed. All six adapters call it: local, memory, s3, gcs,
+  reference in-memory provider, twice (once behind a pretend CDN, so the
+  `publicUrls` cases run against an implementation that answers), so a suite no
+  correct implementation passes cannot ship unnoticed. All six adapters call it: local, memory, s3, gcs,
   azure and vercel-blob.
 
 ## The structural half: `adapter-packages.spec.ts`
@@ -73,7 +79,7 @@ and that the one Ortha CMS package an adapter reaches for is `@orthacms/media-do
 Then it walks the **whole import graph** out of each adapter's entry point,
 through the workspace packages it reaches, and fails if a forbidden package
 turns up anywhere in the closure. That half exists because the manifest scan
-missed the real breach: every adapter imported `ObjectNotFoundError` — a *value*
+missed the real breach: every adapter imported `ObjectNotFoundError` — a _value_
 — from `@orthacms/media-server`, whose barrel re-exports `MediaModule`, so
 `require('@orthacms/media-provider-local')` loaded `@nestjs/common` three hops
 away while declaring and importing no framework at all. The port moved to

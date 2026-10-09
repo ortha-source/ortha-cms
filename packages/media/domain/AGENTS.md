@@ -4,23 +4,23 @@ The **storage port** — the interface every `@orthacms/media-provider-*` speaks
 and the one error `get` promises to reject with. No NestJS, no Drizzle, no
 React, and **no dependencies at all**.
 
-| File                            | What lives there                                                          |
-| ------------------------------- | ------------------------------------------------------------------------- |
-| `storage-provider.ts`           | `StorageProvider`, its capability and payload types, and the DI token.    |
-| `errors/object-not-found.error` | What `get` rejects with when the row survives and the bytes do not.       |
+| File                            | What lives there                                                                   |
+| ------------------------------- | ---------------------------------------------------------------------------------- |
+| `storage-provider.ts`           | `StorageProvider`, its capability, payload and public-URL types, and the DI token. |
+| `errors/object-not-found.error` | What `get` rejects with when the row survives and the bytes do not.                |
 
 ## Why this is a package
 
 An application picks **one** backend and must not pay for the other six. That
 was true of the adapters' own imports — each one carries its vendor SDK and
 nothing else — and false of the port they reached it through: `ObjectNotFoundError`
-is a *value*, it came from `@orthacms/media-server`, and that package's root
+is a _value_, it came from `@orthacms/media-server`, and that package's root
 barrel re-exports `MediaModule`. So `require('@orthacms/media-provider-local')`
 loaded `@nestjs/common`, and `@orthacms/media-server` sat in every adapter's
 runtime `dependencies`, which made `npm i @orthacms/media-provider-s3` install
 NestJS, Drizzle, Express and Sharp to talk to a bucket.
 
-The dossier had claimed the adapters "depend only on the port's *type* (erased
+The dossier had claimed the adapters "depend only on the port's _type_ (erased
 at compile time)". They now do, plus one exception the type system cannot
 express — an error class — which is why this package exists rather than a
 subpath export: a subpath would have fixed the require-graph and left the
@@ -31,7 +31,7 @@ manifest alone, and the manifest is what `npm i` reads.
 **No dependencies, ever — `dependencies`, `peerDependencies`, anything.** Seven
 adapters and the server inherit whatever is added here, which is exactly how a
 "framework-free kernel" stops being one without a single line of it changing.
-The one entry in the *published* manifest is `tslib`, which
+The one entry in the _published_ manifest is `tslib`, which
 `tools/release/pack.mjs` adds to every package because the workspace compiles
 with `externalHelpers`; it is not something this package asked for.
 `package-manifest.spec.ts` fails on the checked-in manifest, and

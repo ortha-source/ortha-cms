@@ -29,7 +29,9 @@ export type {
     StorageCapabilities,
     StoredObject,
     PutObject,
-    DirectUrlOptions
+    DirectUrlOptions,
+    PublicAssetUrls,
+    PublicUrlContext
 } from './lib/storage-provider';
 export { STORAGE_PROVIDER } from './lib/storage-provider';
 

@@ -84,6 +84,35 @@ function publicAssetUrl(id: string, variant?: 'thumb' | 'preview'): string {
 }
 
 /**
+ * The addresses one asset is published under in a public read.
+ *
+ * Where the media plugin marked the asset public (`asset.public` — the
+ * deployment opted in and the asset passed its MIME gate), those permanent URLs
+ * are reported as they are, since they are the point: an anonymous `<img src>`
+ * can load them. Everything else is rewritten to the token-fetchable route —
+ * the resolver's own URLs are the admin's session routes, which a bearer cannot
+ * reach. Presence of a derivative is still read from the resolver, since it is
+ * what knows whether one was generated (ADR-0021).
+ */
+function publicMediaUrls(
+    asset: ResolvedMediaAsset
+): Pick<PublicMediaRef, 'url' | 'thumbUrl' | 'previewUrl' | 'streams'> {
+    const published = asset.public;
+    const thumbUrl =
+        published?.thumbUrl ??
+        (asset.thumbUrl ? publicAssetUrl(asset.id, 'thumb') : undefined);
+    const previewUrl =
+        published?.previewUrl ??
+        (asset.previewUrl ? publicAssetUrl(asset.id, 'preview') : undefined);
+    return {
+        url: published?.url ?? publicAssetUrl(asset.id),
+        ...(thumbUrl ? { thumbUrl } : {}),
+        ...(previewUrl ? { previewUrl } : {}),
+        ...(published?.streams ? { streams: published.streams } : {})
+    };
+}
+
+/**
  * Resolves the public API's opt-in **relation** and **media** expansions for a
  * page of entries.
  *
@@ -450,22 +479,7 @@ export class PublicExpansionQuery {
                     ({ ref, asset }): PublicMediaRef => ({
                         id: asset.id,
                         name: asset.name,
-                        // The resolver's own URLs are the admin's; rewrite to
-                        // the token-fetchable route. Presence of a derivative is
-                        // still read from the resolver — it is what knows
-                        // whether one was generated — but the address is ours.
-                        url: publicAssetUrl(asset.id),
-                        ...(asset.thumbUrl
-                            ? { thumbUrl: publicAssetUrl(asset.id, 'thumb') }
-                            : {}),
-                        ...(asset.previewUrl
-                            ? {
-                                  previewUrl: publicAssetUrl(
-                                      asset.id,
-                                      'preview'
-                                  )
-                              }
-                            : {}),
+                        ...publicMediaUrls(asset),
                         kind: asset.kind,
                         mimeType: asset.mimeType,
                         alt: publicAlt(ref, asset.alt),

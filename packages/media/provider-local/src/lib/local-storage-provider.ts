@@ -184,7 +184,9 @@ export function createLocalStorageProvider(
             // Accepted and dropped — a filesystem has nowhere to put it. The
             // authoritative type stays `media_asset.mime_type`.
             contentTypeMetadata: false,
-            streamingPut: true
+            streamingPut: true,
+            // A directory has no URL; only the app's own route serves it.
+            publicUrls: false
         },
 
         async put(object: PutObject): Promise<StoredObject> {

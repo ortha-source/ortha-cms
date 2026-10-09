@@ -1,6 +1,7 @@
 import type { DynamicModule, ValueProvider } from '@nestjs/common';
 import { STORAGE_PROVIDER, type StorageProvider } from '@orthacms/media-domain';
 import type { MediaPluginConfig } from '../types/media-config';
+import { PUBLIC_URLS } from '../infrastructure/public-urls/public-asset-urls';
 import { MediaServerPlugin, type MediaPluginOptions } from './media-plugin';
 
 const provider = (overrides: Partial<StorageProvider> = {}): StorageProvider =>
@@ -9,7 +10,8 @@ const provider = (overrides: Partial<StorageProvider> = {}): StorageProvider =>
         capabilities: {
             directUrl: false,
             contentTypeMetadata: false,
-            streamingPut: true
+            streamingPut: true,
+            publicUrls: false
         },
         put: () => Promise.reject(new Error('not called')),
         get: () => Promise.reject(new Error('not called')),
@@ -82,7 +84,8 @@ describe('MediaServerPlugin()', () => {
                         capabilities: {
                             directUrl: true,
                             contentTypeMetadata: true,
-                            streamingPut: true
+                            streamingPut: true,
+                            publicUrls: false
                         }
                     })
                 })
@@ -109,7 +112,8 @@ describe('MediaServerPlugin()', () => {
                         capabilities: {
                             directUrl: true,
                             contentTypeMetadata: true,
-                            streamingPut: true
+                            streamingPut: true,
+                            publicUrls: false
                         },
                         directUrl: () => Promise.resolve('https://cdn.test/x')
                     }),
@@ -117,6 +121,112 @@ describe('MediaServerPlugin()', () => {
                 })
             )
         ).not.toThrow();
+    });
+
+    /** A provider that publishes, declared honestly. */
+    const publishing = () =>
+        provider({
+            capabilities: {
+                directUrl: false,
+                contentTypeMetadata: false,
+                streamingPut: true,
+                publicUrls: true
+            },
+            publicUrls: (key) => ({ url: `https://cdn.test/${key}` })
+        });
+
+    it('rejects a declared publicUrls capability with no publicUrls() [media:I-42]', () => {
+        expect(() =>
+            MediaServerPlugin(
+                options({
+                    provider: provider({
+                        capabilities: {
+                            directUrl: false,
+                            contentTypeMetadata: false,
+                            streamingPut: true,
+                            publicUrls: true
+                        }
+                    })
+                })
+            )
+        ).toThrow(/declares `capabilities.publicUrls` but implements/);
+    });
+
+    it('refuses public URLs on a backend that publishes none, naming it [media:I-42]', () => {
+        // Same reasoning as `signed-url`: reporting the app's own routes while
+        // the operator believes CDN URLs are on is the failure to avoid.
+        expect(() =>
+            MediaServerPlugin(
+                options({ config: config({ publicUrls: 'provider' }) })
+            )
+        ).toThrow(
+            /`publicUrls: 'provider'` needs a provider.*"local" declares `capabilities.publicUrls: false`/s
+        );
+    });
+
+    it('accepts public URLs on a backend that declares them', () => {
+        expect(() =>
+            MediaServerPlugin(
+                options({
+                    provider: publishing(),
+                    config: config({
+                        publicUrls: 'provider',
+                        publicUrlTypes: 'all'
+                    })
+                })
+            )
+        ).not.toThrow();
+    });
+
+    it('boots a publishing backend with the switch off — the provider does not decide [media:I-41]', () => {
+        expect(() =>
+            MediaServerPlugin(options({ provider: publishing() }))
+        ).not.toThrow();
+    });
+
+    it('rejects an unknown publicUrls or publicUrlTypes value [media:I-42]', () => {
+        // Config is routinely env-derived; `'on'` or `'true'` would otherwise
+        // read as "not provider" and quietly stay off.
+        expect(() =>
+            MediaServerPlugin(
+                options({
+                    provider: publishing(),
+                    config: config({
+                        publicUrls: 'on' as unknown as 'provider'
+                    })
+                })
+            )
+        ).toThrow(/publicUrls must be one of 'off', 'provider' \(got "on"\)/);
+        expect(() =>
+            MediaServerPlugin(
+                options({
+                    provider: publishing(),
+                    config: config({
+                        publicUrls: 'provider',
+                        publicUrlTypes: 'images' as unknown as 'all'
+                    })
+                })
+            )
+        ).toThrow(/publicUrlTypes must be one of 'inline-safe', 'all'/);
+    });
+
+    it('binds the resolved public-URL settings, defaulting to off and inline-safe', () => {
+        const bound = (overrides: Partial<MediaPluginConfig>) => {
+            const module = MediaServerPlugin(
+                options({ provider: publishing(), config: config(overrides) })
+            ).module as DynamicModule;
+            return (module.providers ?? []).find(
+                (binding): binding is ValueProvider =>
+                    typeof binding === 'object' &&
+                    'provide' in binding &&
+                    binding.provide === PUBLIC_URLS
+            )?.useValue;
+        };
+
+        expect(bound({})).toEqual({ mode: 'off', types: 'inline-safe' });
+        expect(
+            bound({ publicUrls: 'provider', publicUrlTypes: 'all' })
+        ).toEqual({ mode: 'provider', types: 'all' });
     });
 
     it('rejects a signed-URL lifetime that is already expired', () => {

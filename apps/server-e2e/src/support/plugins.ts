@@ -27,6 +27,7 @@ import { readerTagsResolver } from './segments';
 import { testMailProvider } from './mail';
 import {
     createInMemoryStorageProvider,
+    createPublishingStorageProvider,
     createSigningStorageProvider
 } from './media-storage';
 
@@ -47,6 +48,13 @@ export interface BuildTestPluginsOptions {
      * needs both, and the filesystem cannot sign.
      */
     signingProvider?: boolean;
+    /**
+     * Boot on a provider that publishes public URLs, for the public-URL
+     * suites. Independent of `publicUrls` in config on purpose: the suites
+     * prove that the **switch** decides, so they boot this provider with the
+     * switch off too.
+     */
+    publishingProvider?: boolean;
     /**
      * Which identity providers to register. `'fake'` (the default) is the
      * scripted provider every SSO suite drives; `'none'` registers none, which
@@ -217,7 +225,9 @@ export function buildTestPlugins(
                 ? createLocalStorageProvider(config.plugins.media.storage)
                 : options.signingProvider
                   ? createSigningStorageProvider()
-                  : createInMemoryStorageProvider(),
+                  : options.publishingProvider
+                    ? createPublishingStorageProvider()
+                    : createInMemoryStorageProvider(),
             config: config.plugins.media
         }),
         I18nServerPlugin(config.plugins.i18n),
