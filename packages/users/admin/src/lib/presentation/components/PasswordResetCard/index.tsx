@@ -87,9 +87,11 @@ type MemberConflictBody = {
  * for an active member and hands it over.
  *
  * This is the whole "forgot my password" story today. There is no self-service
- * flow, because there is no mailer to send a link to (identity epic #11) — so
- * the recovery path runs through someone who can already be asked to vouch for
- * the person, which is a reasonable place for it to sit in the meantime.
+ * flow — that is phase 2 of ADR-0018, now that outgoing mail exists — so the
+ * recovery path runs through someone who can already be asked to vouch for the
+ * person, which is a reasonable place for it to sit in the meantime. With a
+ * mail provider configured the link is emailed to the member; without one it
+ * is revealed here, once.
  *
  * Only an `active` member qualifies: a `pending` one has no password yet (they
  * finish through the invite link) and a `disabled` one cannot sign in at all,

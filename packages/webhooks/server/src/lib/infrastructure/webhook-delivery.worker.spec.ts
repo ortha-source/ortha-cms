@@ -17,7 +17,8 @@ const claimed: ClaimedDelivery = {
     eventKind: 'entry.published',
     workspaceId: 'workspace-1',
     payload: { event: 'entry.published' },
-    attempts: 0
+    attempts: 0,
+    claimedAt: new Date('2026-01-01T00:00:00.000Z')
 };
 
 const endpoint: EndpointWithSecret = {
@@ -28,6 +29,15 @@ const endpoint: EndpointWithSecret = {
     headers: {},
     enabled: true
 };
+
+/** When the claim was re-stamped just before the send. */
+const RENEWED_AT = new Date('2026-01-01T00:00:05.000Z');
+
+/** The claim the worker's attempt-closing writes are fenced on. */
+const renewedClaim = expect.objectContaining({
+    id: 'delivery-1',
+    claimedAt: RENEWED_AT
+});
 
 function response(overrides: Partial<WebhookResponse> = {}): WebhookResponse {
     return {
@@ -45,12 +55,22 @@ function build(options: {
     endpoint?: EndpointWithSecret | null;
     response?: WebhookResponse;
     maxAttempts?: number;
+    claimHeld?: boolean;
+    renewHeld?: boolean;
 }) {
+    // Whether this worker still holds the row when it comes to write — `false`
+    // is the case where another worker reclaimed it mid-send.
+    const held = options.claimHeld ?? true;
     const deliveries = {
         claim: jest.fn().mockResolvedValue([options.delivery ?? claimed]),
-        markSucceeded: jest.fn().mockResolvedValue(undefined),
-        markRetrying: jest.fn().mockResolvedValue(undefined),
-        markDead: jest.fn().mockResolvedValue(undefined),
+        renewClaim: jest.fn(async (claim: { id: string }) =>
+            options.renewHeld === false
+                ? null
+                : { id: claim.id, claimedAt: RENEWED_AT }
+        ),
+        markSucceeded: jest.fn().mockResolvedValue(held),
+        markRetrying: jest.fn().mockResolvedValue(held),
+        markDead: jest.fn().mockResolvedValue(held),
         pruneCompletedBefore: jest.fn().mockResolvedValue(0)
     } as unknown as WebhookDeliveryRepository;
 
@@ -89,7 +109,7 @@ describe('WebhookDeliveryWorker', () => {
             await tick();
 
             expect(deliveries.markSucceeded).toHaveBeenCalledWith(
-                'delivery-1',
+                renewedClaim,
                 expect.objectContaining({ statusCode: 200 })
             );
             expect(endpoints.recordSuccess).toHaveBeenCalledWith('endpoint-1');
@@ -118,7 +138,7 @@ describe('WebhookDeliveryWorker', () => {
             await tick();
 
             expect(deliveries.markRetrying).toHaveBeenCalledWith(
-                'delivery-1',
+                renewedClaim,
                 expect.objectContaining({ statusCode: 503 }),
                 expect.any(Date)
             );
@@ -163,7 +183,7 @@ describe('WebhookDeliveryWorker', () => {
             await tick();
 
             expect(deliveries.markDead).toHaveBeenCalledWith(
-                'delivery-1',
+                renewedClaim,
                 expect.objectContaining({
                     statusCode: 404,
                     error: expect.stringContaining('404')
@@ -204,7 +224,7 @@ describe('WebhookDeliveryWorker', () => {
 
             expect(http.send).not.toHaveBeenCalled();
             expect(deliveries.markDead).toHaveBeenCalledWith(
-                'delivery-1',
+                expect.objectContaining({ id: 'delivery-1' }),
                 expect.objectContaining({
                     error: expect.stringContaining('deleted')
                 })
@@ -221,6 +241,50 @@ describe('WebhookDeliveryWorker', () => {
             // disabling a runaway endpoint would not stop the runaway.
             expect(http.send).not.toHaveBeenCalled();
             expect(deliveries.markDead).toHaveBeenCalled();
+        });
+    });
+
+    describe('a claim lost to another worker mid-send', () => {
+        it('fences every attempt-closing write on the renewed claim', async () => {
+            const { tick, deliveries, http } = build({});
+            await tick();
+
+            // Renewed from the batch's claim, then sent, then closed under the
+            // renewed one — so a reclaim in between turns the close into a
+            // no-op instead of an overwrite.
+            expect(deliveries.renewClaim).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: 'delivery-1',
+                    claimedAt: claimed.claimedAt
+                })
+            );
+            expect(http.send).toHaveBeenCalled();
+            expect(deliveries.markSucceeded).toHaveBeenCalledWith(
+                renewedClaim,
+                expect.anything()
+            );
+        });
+
+        it('does not send a row another worker already holds', async () => {
+            const { tick, deliveries, http } = build({ renewHeld: false });
+            await tick();
+
+            expect(http.send).not.toHaveBeenCalled();
+            expect(deliveries.markSucceeded).not.toHaveBeenCalled();
+            expect(deliveries.markDead).not.toHaveBeenCalled();
+        });
+
+        it("leaves the endpoint's counters to the worker that holds the row", async () => {
+            const success = build({ claimHeld: false });
+            await success.tick();
+            expect(success.endpoints.recordSuccess).not.toHaveBeenCalled();
+
+            const failure = build({
+                claimHeld: false,
+                response: response({ statusCode: 404 })
+            });
+            await failure.tick();
+            expect(failure.endpoints.recordFailure).not.toHaveBeenCalled();
         });
     });
 

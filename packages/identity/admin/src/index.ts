@@ -27,6 +27,10 @@ export {
 } from './lib/presentation/auth/authContext';
 export type { AuthState, AuthUser } from './lib/presentation/auth/authContext';
 export { useLogoutMutation } from './lib/application/useLogoutMutation';
+// Where a plugin that keeps session state outside the query cache registers
+// how to drop it — run on every change of the identity behind the tab.
+export { SESSION_RESET_SLOT } from './lib/application/sessionReset';
+export type { SessionResetItem } from './lib/application/sessionReset';
 export type {
     LoginCredentials,
     AuthTokens,

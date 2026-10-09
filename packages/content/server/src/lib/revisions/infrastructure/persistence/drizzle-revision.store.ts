@@ -16,6 +16,7 @@ import type {
     RevisionSummary
 } from '../../types/revision-view';
 import { contentEntryRevisions as revisions } from './revision-table';
+import { UUID_RE } from '../../../entries/infrastructure/persistence/entry-writer.service';
 
 /** A `content_entry_revisions` row seen as a value bag. */
 type RevisionRow = typeof revisions.$inferSelect;
@@ -259,6 +260,10 @@ export class DrizzleRevisionStore implements RevisionStore {
      * returns, and any registered type name serves any entry's history.
      */
     private scope(contentType: string, entryId: string, workspaceId: string) {
+        // A malformed id has no timeline — the same empty answer an unknown
+        // one gets, rather than a uuid cast error. The routes parse the id;
+        // the copilot's revision tools take it from the model.
+        if (!UUID_RE.test(entryId)) return sql`false`;
         return and(
             eq(revisions.contentType, contentType),
             eq(revisions.entryId, entryId),

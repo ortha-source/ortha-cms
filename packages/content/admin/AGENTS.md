@@ -179,8 +179,12 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   default (`domain/entryColumns`, excluding richtext/json) narrowed to the live
   schema, and re-seeded when the open type changes. Row selection is local
   component state (a `Set<string>` by id)
-  in `CollectionRecordsView`, surfaced through the table's leading checkbox column
-  and the `CollectionRecordsSelectionBar`.
+  in `LoadedRecordsView`, surfaced through the table's leading checkbox column
+  and the `CollectionRecordsSelectionBar`. **It belongs to one list**:
+  `CollectionRecordsView` keys `LoadedRecordsView` by type, trash-or-live and
+  shared source. Without the key, moving to a collection whose schema was
+  cached skipped the skeleton, React kept the view mounted, and a bulk action
+  on the second collection submitted the ids still selected in the first.
 - **Relation columns** render a **`RelationCell`** — a titled trigger (the first
   linked record + a `+N` overflow) opening a `Popover` of the linked records,
   each an `<a target="_blank">` to that record's own editor
@@ -642,11 +646,12 @@ with `replace: true` so Back doesn't bounce off the redirect.
 
 **The ladder runs on every arrival, not once per mount.** `:typeName` is **one
 route element for every collection**, so React Router keeps `LoadedRecordsView`
-mounted across the two navigations that matter most: the sidebar link back to
-the list you are already on, and the sidebar link to a _different_ collection.
-Resolving the default once per mount (a `defaultResolved` ref) meant a default
-only ever took effect on a full page load — set one, click the collection in the
-sidebar, and the plain list came back.
+mounted across the navigation that matters most: the sidebar link back to the
+list you are already on. Resolving the default once per mount (a
+`defaultResolved` ref) meant a default only ever took effect on a full page load
+— set one, click the collection in the sidebar, and the plain list came back.
+(A link to a _different_ collection now remounts it — see _Row selection_ below
+— which runs the ladder on mount just the same.)
 
 What tells an arrival apart from the reader's own moves is the **navigation
 type**: `updateParams` and `applyView` always `replace`, so `NavigationType.Replace`

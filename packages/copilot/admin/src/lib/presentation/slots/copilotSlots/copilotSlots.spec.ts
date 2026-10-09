@@ -77,11 +77,16 @@ describe('COPILOT_TOOL_RESULT_SLOT', () => {
         expect(toolResultRendererFor('media_assets_search')?.id).toBe('media');
     });
 
-    it('hands out a copy, so a consumer cannot rewrite the registry', () => {
+    it('hands out a frozen list, so a consumer cannot rewrite the registry', () => {
         COPILOT_TOOL_RESULT_SLOT._register([
             item('alarms', 'admin_alarms_findings')
         ]);
-        COPILOT_TOOL_RESULT_SLOT.getItems().length = 0;
+        const items =
+            COPILOT_TOOL_RESULT_SLOT.getItems() as CopilotToolResultItem[];
+        expect(() => items.push(item('media', 'media_assets_search'))).toThrow(
+            TypeError
+        );
         expect(toolResultRendererFor('admin_alarms_findings')).toBeDefined();
+        expect(toolResultRendererFor('media_assets_search')).toBeUndefined();
     });
 });

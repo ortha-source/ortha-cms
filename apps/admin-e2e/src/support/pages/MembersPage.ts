@@ -231,6 +231,18 @@ export class MembersPage extends BasePage {
         return this.page.getByRole('button', { name: 'Send invite' });
     }
 
+    /** The assignment step's "couldn't load workspaces" alert. */
+    workspacesError(): Locator {
+        return this.page.getByText('Couldn’t load workspaces.', {
+            exact: false
+        });
+    }
+
+    /** The retry inside {@link workspacesError}. */
+    retryWorkspaces(): Locator {
+        return this.page.getByRole('button', { name: 'Try again' });
+    }
+
     // --- the invite link hand-off (wizard success step + resend dialog) ---
 
     /**
@@ -284,6 +296,18 @@ export class MembersPage extends BasePage {
     /** The "{from}–{to} of {total}" readout in the pagination bar. */
     paginationRange(): Locator {
         return this.page.getByText(/^\d+.\d+ of \d+$/);
+    }
+
+    /**
+     * The pager's `<nav>` landmark, by its exact (case-sensitive) name — the
+     * translated one the page passes, not the design system's lower-case
+     * English fallback.
+     */
+    paginationNav(): Locator {
+        return this.page.getByRole('navigation', {
+            name: 'Pagination',
+            exact: true
+        });
     }
 
     /**

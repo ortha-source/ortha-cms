@@ -89,6 +89,11 @@ export interface SegmentsApiSpy {
     readonly deleted: string[];
     /** The `workspace` query param each list read carried, in order. */
     readonly listedWorkspaces: (string | null)[];
+    /**
+     * Delete an audience **out of band** — another administrator, in another
+     * tab — so the next list read is shorter than the page on screen assumed.
+     */
+    remove(id: string): void;
 }
 
 /**
@@ -130,13 +135,20 @@ export async function mockSegmentsApi(
         listDelayMs?: number;
     } = {}
 ): Promise<SegmentsApiSpy> {
-    const all = options.segments ?? SEGMENT_SEED;
+    // A copy, because a delete now takes the row out of it — and the seeds are
+    // shared constants that every other test in the worker reads too.
+    const all = [...(options.segments ?? SEGMENT_SEED)];
     const access = options.access ?? {};
+    const drop = (id: string) => {
+        const index = all.findIndex((segment) => segment.id === id);
+        if (index !== -1) all.splice(index, 1);
+    };
     const spy: SegmentsApiSpy = {
         created: [],
         updated: [],
         deleted: [],
-        listedWorkspaces: []
+        listedWorkspaces: [],
+        remove: drop
     };
 
     // One entry's access. Registered FIRST but matched by the more specific
@@ -247,6 +259,9 @@ export async function mockSegmentsApi(
 
         if (request.method() === 'DELETE') {
             spy.deleted.push(id);
+            // Gone from the next list read, like the real table — a pager is
+            // only testable against a total that actually shrinks.
+            drop(id);
             return route.fulfill({ status: 204, body: '' });
         }
         if (request.method() === 'PATCH') {

@@ -124,7 +124,19 @@ export class MailDeliveryWorker
     }
 
     /** Hands one message over and records what happened. */
-    private async deliver(mail: ClaimedMail): Promise<void> {
+    private async deliver(claimed: ClaimedMail): Promise<void> {
+        // Renewed immediately before the hand-off, so the lease covers this
+        // message's send alone rather than every earlier one in the batch too.
+        const renewed = await this.deliveries.renewLease(
+            claimed,
+            this.config.claimLeaseMs
+        );
+        if (!renewed) {
+            this.reportLostLease(claimed);
+            return;
+        }
+        const mail = { ...claimed, leaseUntil: renewed.leaseUntil };
+
         try {
             await this.provider.send({
                 to: mail.toAddress,
@@ -160,7 +172,16 @@ export class MailDeliveryWorker
         // attempts over twenty minutes and land in the dead letters beside a
         // real outage, where an operator cannot tell them apart.
         if (error instanceof MailPermanentError) {
-            await this.deliveries.markDead(mail.id, reason, this.provider.id);
+            if (
+                !(await this.deliveries.markDead(
+                    mail,
+                    reason,
+                    this.provider.id
+                ))
+            ) {
+                this.reportLostLease(mail);
+                return;
+            }
             this.logger.warn(
                 `A ${mail.kind} message to ${mail.toAddress} was rejected permanently: ${reason}`
             );
@@ -168,22 +189,39 @@ export class MailDeliveryWorker
         }
 
         if (isExhausted(attempt, this.config.maxAttempts)) {
-            await this.deliveries.markDead(
-                mail.id,
+            const closed = await this.deliveries.markDead(
+                mail,
                 `Gave up after ${attempt} attempts. Last error: ${reason}`,
                 this.provider.id
             );
+            if (!closed) {
+                this.reportLostLease(mail);
+                return;
+            }
             this.logger.warn(
                 `A ${mail.kind} message to ${mail.toAddress} was given up on after ${attempt} attempts: ${reason}`
             );
             return;
         }
 
-        await this.deliveries.markRetrying(
-            mail.id,
+        const scheduled = await this.deliveries.markRetrying(
+            mail,
             reason,
             new Date(Date.now() + nextAttemptDelayMs(attempt)),
             this.provider.id
+        );
+        if (!scheduled) this.reportLostLease(mail);
+    }
+
+    /**
+     * Says that this worker's result was discarded because another one now
+     * holds the message — which also means it may reach the recipient twice.
+     */
+    private reportLostLease(mail: ClaimedMail): void {
+        this.logger.warn(
+            `Mail delivery ${mail.id} was claimed by another worker before this one ` +
+                `recorded its attempt (claimLeaseMs ${this.config.claimLeaseMs}); ` +
+                'the late result was discarded.'
         );
     }
 

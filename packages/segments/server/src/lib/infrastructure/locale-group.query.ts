@@ -1,6 +1,6 @@
 import { and, eq } from 'drizzle-orm';
 import type { PgColumn } from 'drizzle-orm/pg-core';
-import type { AnyContentType } from '@orthacms/content-server';
+import { UUID_RE, type AnyContentType } from '@orthacms/content-server';
 import type { AccessExecutor } from '../application/entry-access.service';
 
 /** The locale columns content's table builder adds to an `i18n: true` type. */
@@ -101,6 +101,9 @@ export async function entryBelongsTo(
     // rather than passing is the safe reading if one is ever absent: the caller
     // is about to decide who may read published content.
     if (!id || !workspace) return false;
+    // A malformed id belongs to nobody: the same `404` as an unknown one, not
+    // a uuid cast error from the probe below.
+    if (!UUID_RE.test(entryId)) return false;
 
     const [row] = await executor
         .select({ id })

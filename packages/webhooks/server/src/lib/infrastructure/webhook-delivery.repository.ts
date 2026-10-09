@@ -40,9 +40,18 @@ export interface DeliveryToQueue {
     redeliveryOf?: string | null;
 }
 
-/** A claimed row, as the worker needs it. */
-export interface ClaimedDelivery {
+/**
+ * The claim a worker holds on one delivery: the row, and the `claimed_at` it
+ * stamped. Every write that closes an attempt is fenced on both, so it lands
+ * only while that claim is still the row's current one.
+ */
+export interface DeliveryClaim {
     id: string;
+    claimedAt: Date;
+}
+
+/** A claimed row, as the worker needs it. */
+export interface ClaimedDelivery extends DeliveryClaim {
     endpointId: string;
     eventId: string;
     eventKind: string;
@@ -199,13 +208,40 @@ export class WebhookDeliveryRepository {
                     )
                 );
 
-            return rows;
+            return rows.map((row) => ({ ...row, claimedAt: now }));
         });
     }
 
-    /** Records a successful attempt. */
-    async markSucceeded(id: string, outcome: AttemptOutcome): Promise<void> {
-        await this.db
+    /**
+     * Re-stamps a claim just before its request goes out, returning the new
+     * claim — or `null` when another worker already holds the row.
+     *
+     * A batch is claimed at one instant and sent one row at a time, so the
+     * last row of a slow batch could be older than `claimTimeoutMs` before its
+     * own request even started, and be reclaimed and sent twice however short
+     * that request was. Renewing per row is what makes the plugin's
+     * `claimTimeoutMs > timeoutMs` check a statement about one request rather
+     * than about a whole batch of them.
+     */
+    async renewClaim(claim: DeliveryClaim): Promise<DeliveryClaim | null> {
+        const claimedAt = new Date();
+        const rows = await this.db
+            .update(webhookDeliveries)
+            .set({ claimedAt })
+            .where(this.heldBy(claim))
+            .returning({ id: webhookDeliveries.id });
+        return rows.length > 0 ? { id: claim.id, claimedAt } : null;
+    }
+
+    /**
+     * Records a successful attempt. Returns `false`, writing nothing, when the
+     * claim no longer holds — see {@link heldBy}.
+     */
+    async markSucceeded(
+        claim: DeliveryClaim,
+        outcome: AttemptOutcome
+    ): Promise<boolean> {
+        const rows = await this.db
             .update(webhookDeliveries)
             .set({
                 status: 'succeeded',
@@ -218,16 +254,21 @@ export class WebhookDeliveryRepository {
                 durationMs: outcome.durationMs,
                 completedAt: new Date()
             })
-            .where(eq(webhookDeliveries.id, id));
+            .where(this.heldBy(claim))
+            .returning({ id: webhookDeliveries.id });
+        return rows.length > 0;
     }
 
-    /** Records a failed attempt that will be tried again at `nextAttemptAt`. */
+    /**
+     * Records a failed attempt that will be tried again at `nextAttemptAt`.
+     * Returns `false`, writing nothing, when the claim no longer holds.
+     */
     async markRetrying(
-        id: string,
+        claim: DeliveryClaim,
         outcome: AttemptOutcome,
         nextAttemptAt: Date
-    ): Promise<void> {
-        await this.db
+    ): Promise<boolean> {
+        const rows = await this.db
             .update(webhookDeliveries)
             .set({
                 status: 'failed',
@@ -239,12 +280,20 @@ export class WebhookDeliveryRepository {
                 responseSnippet: outcome.responseSnippet,
                 durationMs: outcome.durationMs
             })
-            .where(eq(webhookDeliveries.id, id));
+            .where(this.heldBy(claim))
+            .returning({ id: webhookDeliveries.id });
+        return rows.length > 0;
     }
 
-    /** Records a final failure — no further attempt will be made. */
-    async markDead(id: string, outcome: AttemptOutcome): Promise<void> {
-        await this.db
+    /**
+     * Records a final failure — no further attempt will be made. Returns
+     * `false`, writing nothing, when the claim no longer holds.
+     */
+    async markDead(
+        claim: DeliveryClaim,
+        outcome: AttemptOutcome
+    ): Promise<boolean> {
+        const rows = await this.db
             .update(webhookDeliveries)
             .set({
                 status: 'dead',
@@ -257,7 +306,28 @@ export class WebhookDeliveryRepository {
                 durationMs: outcome.durationMs,
                 completedAt: new Date()
             })
-            .where(eq(webhookDeliveries.id, id));
+            .where(this.heldBy(claim))
+            .returning({ id: webhookDeliveries.id });
+        return rows.length > 0;
+    }
+
+    /**
+     * The fence on every write that closes an attempt: the row is still
+     * `delivering` **under this claim**.
+     *
+     * A send that outlives `claimTimeoutMs` is not dead, only slow, and by the
+     * time it returns another worker may have reclaimed the row — re-stamping
+     * `claimed_at` — and be sending it again. Updating by id alone let the
+     * first worker's late result overwrite the second's state and count the
+     * attempt twice. With the fence the late write matches nothing, and the
+     * worker that holds the row now is the one whose outcome is recorded.
+     */
+    private heldBy(claim: DeliveryClaim) {
+        return and(
+            eq(webhookDeliveries.id, claim.id),
+            eq(webhookDeliveries.status, 'delivering'),
+            eq(webhookDeliveries.claimedAt, claim.claimedAt)
+        );
     }
 
     /** One page of an endpoint's delivery log, newest first. */

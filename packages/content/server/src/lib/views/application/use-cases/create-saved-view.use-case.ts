@@ -56,20 +56,29 @@ export class CreateSavedViewUseCase {
     ): Promise<SavedView> {
         await this.access.assertCanUseVisibility(input.visibility, user);
 
-        const held = await this.repository.countForOwner(
-            input.workspaceId,
-            input.scope,
-            user.id
-        );
-        if (held >= VIEW_MAX_PER_SCOPE) throw new SavedViewLimitError();
-
-        // The unique index is the arbiter, not the count above: two concurrent
-        // saves of the same name both pass a read-then-write check and one of
-        // them has to lose at the constraint. Translate that loss into the same
-        // 409 a sequential duplicate gets.
+        // The unique index is the arbiter of the *name*: two concurrent saves
+        // of the same name both pass a read-then-write check and one of them
+        // has to lose at the constraint. Translate that loss into the same 409
+        // a sequential duplicate gets.
         let created;
         try {
             created = await this.uow.run(async () => {
+                // The *cap* has no constraint to arbitrate it, so it is counted
+                // under a per-owner lock, in the transaction that inserts.
+                // Counting first and inserting later let concurrent saves each
+                // see room for one more and all commit.
+                await this.repository.lockOwner(
+                    input.workspaceId,
+                    input.scope,
+                    user.id
+                );
+                const held = await this.repository.countForOwner(
+                    input.workspaceId,
+                    input.scope,
+                    user.id
+                );
+                if (held >= VIEW_MAX_PER_SCOPE) throw new SavedViewLimitError();
+
                 const row = await this.repository.create({
                     workspaceId: input.workspaceId,
                     scope: input.scope,

@@ -54,8 +54,24 @@ const CMS = 'cms';
 const AGENTS = 'agents';
 
 /** Where the CMS half of the switcher goes back to, per workspace. */
-const returnKey = (workspaceId: string) =>
-    `orthacms:agents:return:${workspaceId}`;
+const RETURN_PREFIX = 'orthacms:agents:return:';
+const returnKey = (workspaceId: string) => `${RETURN_PREFIX}${workspaceId}`;
+
+/**
+ * Forgets every remembered CMS page. Run when the session ends: "where I was"
+ * belongs to the person, and the next account on this tab should not be sent
+ * back to the page the previous one left.
+ */
+export function forgetCmsPaths(): void {
+    try {
+        for (let index = sessionStorage.length - 1; index >= 0; index--) {
+            const key = sessionStorage.key(index);
+            if (key?.startsWith(RETURN_PREFIX)) sessionStorage.removeItem(key);
+        }
+    } catch {
+        // No storage, nothing remembered.
+    }
+}
 
 /**
  * Records the CMS page the user was last on.

@@ -137,8 +137,10 @@ describe('POST /api/widgets', () => {
 ## Per-suite config (rate limit, origins)
 
 The default app relaxes the login rate limit so suites don't self-throttle. To
-test a throttled path, boot a **dedicated** app with a low limit — it's per-app
-and in-memory, so it won't bleed into other suites:
+test a throttled path, boot a **dedicated** app with a low limit. The buckets
+live in Postgres (`throttle_buckets`) and are shared by every app on the test
+database, as by every instance in production — `resetDb()` truncates that
+table, so limits don't bleed between tests or suites:
 
 ```ts
 harness = await createTestApp({ rateLimit: { ttlSeconds: 60, limit: 3 } });

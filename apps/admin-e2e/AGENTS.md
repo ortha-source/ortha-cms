@@ -80,12 +80,16 @@ states.
   `muted-foreground` token was darkened to clear AA (`apps/admin/src/styles.css`)
   and the rule stays on to guard against regressions.
 
-## No CI runs this suite
+## CI runs this suite
 
-**Nothing in CI runs any of this** — `.github/workflows/` holds `release.yml`
-alone, with no `e2e`, `lint` or `typecheck`. Whatever you run locally is the
-entire gate for this suite. Run the full thing before merging and never merge
-red.
+`.github/workflows/ci.yml` runs it on every pull request and on `main` — the
+`admin-e2e` job (`npx nx e2e admin-e2e`, chromium, uploading `test-output/` on
+failure), beside `server-e2e` and a `check` job for `sync:check`, `typecheck`,
+`lint` and `test`. Like the local run, the job starts no API server: a live one
+behind the proxy is exactly what `globalSetup` refuses. Under `CI` the Nx preset
+retries a failed test twice, so a flake is reported as **flaky** rather than as
+a failure — run the suite locally before pushing, and treat a flaky report as a
+bug to fix, not a pass.
 
 ## Conventions
 
@@ -152,8 +156,9 @@ red.
   `contextOptions`, and let the compiler tell you when you have guessed wrong.
 - **Keep `typecheck` green.** It is the only static gate over 45 spec files, and
   the point above is what a broken one costs: a whole class of "this option does
-  nothing" mistake stops being reported. There is no CI here — `npx nx typecheck
-admin-e2e && npx nx lint admin-e2e` plus a full run is the entire gate.
+  nothing" mistake stops being reported. CI's `check` job runs both (see
+  _CI runs this suite_); run `npx nx typecheck admin-e2e && npx nx lint
+admin-e2e` before pushing rather than finding out there.
 - **The run refuses to start against the wrong server.** `globalSetup` checks
   that the port really holds _this_ app (`reuseExistingServer` is `true`
   unconditionally, so Playwright will happily adopt an impostor) and that no live

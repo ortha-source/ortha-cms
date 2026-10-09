@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { and, count, desc, eq, inArray, ne, sql } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@orthacms/database';
+import { UUID_RE } from '@orthacms/content-server';
 import { FINDING_STATE, type FindingState } from '../domain/finding-state';
 import {
     isAlarmSeverity,
@@ -227,7 +228,15 @@ export class AlarmFindingStore {
             filter.state
                 ? eq(alarmFindings.state, filter.state)
                 : ne(alarmFindings.state, FINDING_STATE.Resolved),
-            filter.ruleId ? eq(alarmFindings.ruleId, filter.ruleId) : undefined,
+            // A malformed rule id names no rule, so it matches no finding — the
+            // empty page an unknown id gets — rather than reaching the uuid
+            // column as a cast error. `admin_alarms_findings` passes the
+            // model's argument through untouched.
+            filter.ruleId
+                ? UUID_RE.test(filter.ruleId)
+                    ? eq(alarmFindings.ruleId, filter.ruleId)
+                    : sql`false`
+                : undefined,
             filter.severity
                 ? eq(alarmRules.severity, filter.severity)
                 : undefined

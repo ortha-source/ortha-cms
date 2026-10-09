@@ -11,6 +11,7 @@ import {
     markSessionEnded,
     takeExpectedSignOut
 } from '../../../application/sessionEnded';
+import { runSessionResets } from '../../../application/sessionReset';
 import {
     AuthProviderContext,
     AuthStatus,
@@ -140,6 +141,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Lowered before announcing, so `StrictMode`'s second pass over this
         // effect finds nothing left to say rather than raising a second toast.
         hadSession.current = false;
+
+        // Whatever plugins hold outside the query cache for this session goes
+        // now, on every fall — not only at the next sign-in. A session revoked
+        // underneath a copilot run would otherwise keep streaming it, on an
+        // account an administrator may just have suspended. The sign-out path
+        // has already done this from `resetSessionCache`; the resets are
+        // idempotent, so the second pass is a no-op.
+        runSessionResets();
 
         // A sign-out the visitor asked for lands here as the same fall from
         // authenticated to unauthenticated. Reporting it back to them as a

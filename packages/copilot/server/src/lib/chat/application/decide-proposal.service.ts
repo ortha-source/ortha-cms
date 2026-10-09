@@ -5,6 +5,7 @@ import {
     type ProposalView
 } from '../infrastructure/persistence/proposal.repository';
 import { ProposalApplierRegistry } from './proposal-applier.registry';
+import { userFacingMessage } from './user-facing-message';
 
 /** Who the change is made by, and where. */
 export interface Applicant {
@@ -145,12 +146,15 @@ export class DecideProposalService {
             );
             return { ok: true, proposal: finished ?? claimed };
         } catch (error) {
-            const message =
-                error instanceof Error && error.message
-                    ? error.message
-                    : 'The change could not be applied.';
+            // The message is stored on the row and read back to the model, so
+            // a driver error's SQL must not ride along — it goes to the log.
+            const message = userFacingMessage(
+                error,
+                'The change could not be applied.'
+            );
             this.logger.warn(
-                `Applying proposal ${proposal.id} (${proposal.kind}) failed: ${message}`
+                `Applying proposal ${proposal.id} (${proposal.kind}) failed: ${message}`,
+                error instanceof Error ? error.stack : String(error)
             );
             await this.proposals.reopen(proposal.id, by.workspaceId, message);
             return refuse('apply-failed', message);

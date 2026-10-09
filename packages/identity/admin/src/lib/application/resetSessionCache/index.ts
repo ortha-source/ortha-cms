@@ -1,4 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query';
+import { runSessionResets } from '../sessionReset';
 
 /**
  * The query-key namespace this plugin owns — the current-user probe
@@ -22,9 +23,14 @@ const IDENTITY_NAMESPACE = 'auth';
  * `removeQueries` rather than `queryClient.clear()`: `clear()` also wipes the
  * mutation cache, including the sign-in/sign-out mutation that is calling this
  * from its own `onSuccess`.
+ *
+ * The query cache is not all a session leaves behind, so it then runs every
+ * plugin's `SESSION_RESET_SLOT` contribution — state a plugin keeps outside
+ * TanStack Query (the copilot's chats and their in-flight runs) goes with it.
  */
 export function resetSessionCache(queryClient: QueryClient): void {
     queryClient.removeQueries({
         predicate: ({ queryKey }) => queryKey[0] !== IDENTITY_NAMESPACE
     });
+    runSessionResets();
 }

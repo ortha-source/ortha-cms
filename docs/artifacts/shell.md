@@ -163,7 +163,7 @@ A slot is a named extension point created by `createSlot<T>(name)` from `@orthac
 ### 4.1 The mechanics — what to know before reading the tables
 
 - **A slot is a module-level singleton.** One array for the application's whole lifetime. That is why the order in which plugins are registered does not affect a contribution's _visibility_: a plugin may write into a slot declared by a plugin that registers later.
-- **`getItems()` returns a copy.** A consumer that sorts or filters the list in place will not spoil it for the next consumer.
+- **`getItems()` returns a frozen snapshot.** A consumer that sorts or filters the list in place throws rather than spoiling it for the next consumer — sort through `byOrder`, which copies.
 - **Registration is idempotent.** `wireSlotContributions` first `_reset()`s every affected slot in _a separate pass_ (otherwise clearing inside the loop would erase the contribution of a plugin registered earlier in the same run), and only then registers. This cures a real symptom: Vite's hot update re-executes the entry module, and without the reset every sidebar row and every workspace was duplicated on each save.
 - **The order is `byOrder`, and the sort is stable.** `items.slice().sort((a,b) => a.order - b.order)`. On equal `order`, the plugin registration order from `apps/admin/src/plugins.ts` wins.
 - **A slot is not shell's only extension mechanism.** There are two more, built differently: overriding the contextual area (`useSidebarContent` — exactly one node) and the page portals (`PageActionsPortal`, `RightPanelPortal`). See 4.4 and 4.5.
@@ -192,7 +192,7 @@ Fifteen entries from eight packages — seven contributing plugins and shell its
 | SIDEBAR_NAV     | segments-admin   | Segments (`/segments`)        | 40         | Reader audiences; purple accent; the `segments:read` permission                                                                                                               |
 | SIDEBAR_SECTION | workspaces-admin | workspaces.quicklist          | 10         | A quick list of active workspaces; the heading works as a collapse trigger (Radix `Collapsible`), and “+” leads to creation given the `workspaces:create` permission          |
 | SIDEBAR_FOOTER  | users-admin      | users.themeSync               | 0          | Renders nothing: it pulls in the user's saved theme. It lives in the footer precisely because sidebar sections disappear when the area is overridden, and the footer does not |
-| SIDEBAR_FOOTER  | copilot-admin    | copilot                       | 10         | The Ortha CMS AI dock: the single entry point into the chat, ⌘J; silent outside a workspace and without `copilot:use`                                                             |
+| SIDEBAR_FOOTER  | copilot-admin    | copilot                       | 10         | The Ortha CMS AI dock: the single entry point into the chat, ⌘J; silent outside a workspace and without `copilot:use`                                                         |
 | SIDEBAR_FOOTER  | users-admin      | users.account                 | 10         | The account: avatar, name, email, and the “My profile” / “Sign out” menu                                                                                                      |
 | HOME_SECTION    | workspaces-admin | workspaces.home.stats         | 10 · stat  | Workspace metric tiles — the dashboard's top row                                                                                                                              |
 | HOME_SECTION    | workspaces-admin | workspaces.home.panel         | 10 · panel | The “Workspaces” panel — the left column                                                                                                                                      |
@@ -432,13 +432,13 @@ The control belongs to `copilot-admin` and is rendered into `WORKSPACE_SECTION_S
 
 ### 7.3 What survives a reload, and where
 
-| What                         | Where          | Key                       | Lifetime                                  | Owner                    |
-| ---------------------------- | -------------- | ------------------------- | ----------------------------------------- | ------------------------ |
-| Sidebar open/collapsed       | cookie         | sidebar_state             | 7 days, `path=/`, `SameSite=Lax`          | design-system            |
+| What                         | Where          | Key                          | Lifetime                                  | Owner                    |
+| ---------------------------- | -------------- | ---------------------------- | ----------------------------------------- | ------------------------ |
+| Sidebar open/collapsed       | cookie         | sidebar_state                | 7 days, `path=/`, `SameSite=Lax`          | design-system            |
 | Right panel open/collapsed   | localStorage   | orthacms:right-panel         | indefinite; not written below 768px       | shell (`pageChrome`)     |
 | Where to return from Agents  | sessionStorage | orthacms:agents:return:\<id> | the tab                                   | copilot-admin            |
-| The sidebar's mobile `Sheet` | —              | —                         | in memory only                            | design-system            |
-| The contextual-area override | —              | —                         | while the overriding component is mounted | shell (`sidebarContent`) |
+| The sidebar's mobile `Sheet` | —              | —                            | in memory only                            | design-system            |
+| The contextual-area override | —              | —                            | while the overriding component is mounted | shell (`sidebarContent`) |
 
 Every read and every write is wrapped in `try/catch`: private mode, disabled site data, an iframe sandbox and the quota all raise an exception rather than yielding a missing value. The degradation is “the setting lives in memory only”, not a blank screen.
 
@@ -499,7 +499,7 @@ Shell has **no** configurable parameters. `ShellPlugin()` takes no arguments, th
 | --------------- | -------------------------- | ------------- | -------------------------------------------------------------------------------------------------- |
 | MAIN_CONTENT_ID | 'main-content'             | AppShell      | The skip link's target, the `id` of the `<main>` landmark                                          |
 | RIGHT_PANEL_ID  | 'app-right-panel'          | pageChrome    | The `aria-controls` link between the bar's button and the panel; the exclusion in the Esc selector |
-| STORAGE_KEY     | 'orthacms:right-panel'        | pageChrome    | The values `'open'` / `'collapsed'`                                                                |
+| STORAGE_KEY     | 'orthacms:right-panel'     | pageChrome    | The values `'open'` / `'collapsed'`                                                                |
 | PANEL_SLIDE_MS  | 330                        | pageChrome    | Slightly more than `duration-300` — the window in which animation is allowed                       |
 | MOBILE_QUERY    | '(max-width: 767px)'       | pageChrome    | Matches `useIsMobile`'s breakpoint (768px already counts as desktop)                               |
 | GROUPS          | \['overview','directory'\] | GlobalSidebar | The fixed order of the navigation groups                                                           |
@@ -563,7 +563,7 @@ Statements that must always hold. This is at once a review checklist and a draft
 - **I-03** — No shell route carries `public: true`. The home page is private, as is the catch-all redirect, which is also mounted inside the layout.
 - **I-04** — Shell imports no feature plugin. Extension happens only through slots, the area override and the portals.
 - **I-05** — All contributions are registered **before the first render** and **from scratch** (`_reset` in a separate pass), so hot reloading does not double the sidebar's contents.
-- **I-06** — `getItems()` returns a copy: a consumer that sorts or filters in place does not spoil the list for the next one.
+- **I-06** — `getItems()` returns a frozen snapshot: a consumer that sorts or filters in place cannot spoil the list for the next one.
 - **I-07** — The order inside a slot is `byOrder`, stably; on equal `order`, the plugin registration order decides.
 - **I-08** — A navigation row without a `permission` is visible to everyone signed in; a row with a `permission` only to a holder of that key. The rule is the same in the sidebar and in the palette.
 - **I-09** — `useHasPermission` is called **unconditionally** (with `''` when the field is absent), so that the hook order does not depend on slot data.

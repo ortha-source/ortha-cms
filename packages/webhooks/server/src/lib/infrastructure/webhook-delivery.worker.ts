@@ -139,26 +139,37 @@ export class WebhookDeliveryWorker
             // The endpoint was deleted between the claim and now. The row is on
             // its way out by cascade; closing it keeps it from being re-claimed
             // in the meantime.
-            await this.deliveries.markDead(delivery.id, {
+            const closed = await this.deliveries.markDead(delivery, {
                 statusCode: null,
                 error: 'The endpoint was deleted before this delivery was sent.',
                 responseSnippet: null,
                 durationMs: 0
             });
+            if (!closed) this.reportLostClaim(delivery);
             return;
         }
 
         if (!endpoint.enabled) {
             // Switched off — by hand or automatically — after this row was
             // queued. Sending anyway would defeat the switch.
-            await this.deliveries.markDead(delivery.id, {
+            const closed = await this.deliveries.markDead(delivery, {
                 statusCode: null,
                 error: 'The endpoint was disabled before this delivery was sent.',
                 responseSnippet: null,
                 durationMs: 0
             });
+            if (!closed) this.reportLostClaim(delivery);
             return;
         }
+
+        // Renewed immediately before the request, so the claim's age is this
+        // request's alone rather than every earlier row's in the batch too.
+        const renewed = await this.deliveries.renewClaim(delivery);
+        if (!renewed) {
+            this.reportLostClaim(delivery);
+            return;
+        }
+        const claim = { ...delivery, claimedAt: renewed.claimedAt };
 
         const attempt = delivery.attempts + 1;
         const response = await this.http.send({
@@ -188,8 +199,15 @@ export class WebhookDeliveryWorker
                 ? { outcome: 'retry' }
                 : classifyStatus(response.statusCode, response.retryAfterMs);
 
+        // Every write below is fenced on the claim, and the endpoint's counters
+        // move only when it held: a worker that lost the row is not the one
+        // whose outcome counts, and penalising or clearing on its say-so would
+        // count one delivery against the endpoint twice.
         if (verdict.outcome === 'succeeded') {
-            await this.deliveries.markSucceeded(delivery.id, outcome);
+            if (!(await this.deliveries.markSucceeded(claim, outcome))) {
+                this.reportLostClaim(delivery);
+                return;
+            }
             await this.endpoints.recordSuccess(endpoint.id);
             return;
         }
@@ -198,7 +216,7 @@ export class WebhookDeliveryWorker
             verdict.outcome === 'dead' ||
             isExhausted(attempt, this.config.maxAttempts)
         ) {
-            await this.deliveries.markDead(delivery.id, {
+            const closed = await this.deliveries.markDead(claim, {
                 ...outcome,
                 error:
                     verdict.outcome === 'dead'
@@ -206,15 +224,34 @@ export class WebhookDeliveryWorker
                         : (outcome.error ??
                           `Gave up after ${attempt} attempts.`)
             });
+            if (!closed) {
+                this.reportLostClaim(delivery);
+                return;
+            }
             await this.penalise(endpoint.id, endpoint.name);
             return;
         }
 
         const delayMs = verdict.retryAfterMs ?? nextAttemptDelayMs(attempt);
-        await this.deliveries.markRetrying(
-            delivery.id,
+        const scheduled = await this.deliveries.markRetrying(
+            claim,
             outcome,
             new Date(Date.now() + delayMs)
+        );
+        if (!scheduled) this.reportLostClaim(delivery);
+    }
+
+    /**
+     * Says that this worker's result was discarded because another one now
+     * holds the row. Not an error — the delivery is in hand — but the receiver
+     * will have been sent it twice, which is what an operator tuning
+     * `claimTimeoutMs` needs to see.
+     */
+    private reportLostClaim(delivery: ClaimedDelivery): void {
+        this.logger.warn(
+            `Webhook delivery ${delivery.id} was reclaimed by another worker before this ` +
+                `one recorded its attempt (claimTimeoutMs ${this.config.claimTimeoutMs}); ` +
+                'the late result was discarded.'
         );
     }
 

@@ -79,6 +79,18 @@ export interface ResolvedMediaAsset {
     tracks: ResolvedMediaTrack[];
 }
 
+/** How {@link MediaAssetResolver.resolve} reads. */
+export interface MediaResolveOptions {
+    /**
+     * Read on the caller's open unit of work (`UnitOfWork.current()`) and hold
+     * the asset rows `FOR KEY SHARE` until it ends. Set by an entry write, so a
+     * concurrent asset delete waits for the write that references the asset
+     * instead of slipping between the check and the commit — asset ids have no
+     * foreign key to do that job. Display reads leave it off.
+     */
+    lock?: boolean;
+}
+
 /**
  * Resolves media asset ids to the facts content-server needs. Workspace-scoped:
  * an id that names no asset in `workspaceId` (missing, or belonging to another
@@ -90,6 +102,7 @@ export interface MediaAssetResolver {
     /** Batched, workspace-scoped lookup keyed by asset id. */
     resolve(
         ids: readonly string[],
-        workspaceId: string
+        workspaceId: string,
+        options?: MediaResolveOptions
     ): Promise<Map<string, ResolvedMediaAsset>>;
 }

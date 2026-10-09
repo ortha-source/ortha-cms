@@ -9,6 +9,7 @@ import {
     type Skill
 } from '@orthacms/copilot-domain';
 import type { ToolDefinition, ToolRegistry } from '@orthacms/tools-server';
+import { DrizzleQueryError } from 'drizzle-orm';
 import { buildModelRegistry } from '../../infrastructure/model-registry';
 import type { CopilotPluginConfig } from '../../types/copilot-config';
 import type {
@@ -978,6 +979,98 @@ describe('RunEngine refusing a repeated call', () => {
         expect(resultFor(frames, 'call-2')).toMatchObject({
             ok: false,
             error: 'You are not permitted to use "fixture_read".'
+        });
+    });
+});
+
+describe('RunEngine reporting a failure', () => {
+    /** What drizzle-orm 0.45 throws for any failed statement. */
+    const driverFailure = () =>
+        new DrizzleQueryError(
+            'select "id" from "content_article" where "id" = $1',
+            ['my-post'],
+            Object.assign(
+                new Error('invalid input syntax for type uuid: "my-post"'),
+                { code: '22P02' }
+            )
+        );
+
+    /**
+     * A failed tool is reported in three places — the `tool-result` frame, the
+     * `tool_result` the model reads next step, and the `copilot_tool_calls`
+     * row — and a driver error's message is the SQL and its parameters. None of
+     * the three may carry it.
+     */
+    it("keeps a driver error's SQL out of the client, the model and the audit row [copilot:I-18]", async () => {
+        let step = 0;
+        const { engine, conversations, seen } = harness(
+            async function* () {
+                step += 1;
+                if (step === 1) {
+                    yield* asksFor({
+                        id: 'call-1',
+                        name: 'fixture_read',
+                        input: {}
+                    })();
+                    return;
+                }
+                yield {
+                    type: 'done',
+                    stopReason: 'end',
+                    usage: { inputTokens: 1, outputTokens: 1 }
+                };
+            },
+            {
+                toolCall: async () => {
+                    throw driverFailure();
+                }
+            }
+        );
+        const controller = new AbortController();
+
+        const frames = await drain(engine.run(startInput(controller.signal)));
+
+        const leaks = (text: string) =>
+            /Failed query|content_article|my-post|22P02/.test(text);
+        expect(resultFor(frames, 'call-1')).toMatchObject({ ok: false });
+        expect(leaks(JSON.stringify(frames))).toBe(false);
+        expect(leaks(JSON.stringify(seen[1].messages))).toBe(false);
+        const audited = conversations.recordToolCall.mock.calls[0][0];
+        expect(audited).toMatchObject({ callId: 'call-1', ok: false });
+        expect(leaks(JSON.stringify(audited))).toBe(false);
+    });
+
+    it('still hands the model a message a tool wrote for it [copilot:I-18]', async () => {
+        const { engine } = harness(
+            asksFor({ id: 'call-1', name: 'fixture_read', input: {} }),
+            {
+                toolCall: async () => {
+                    throw new Error('No asset "a1".');
+                }
+            }
+        );
+        const controller = new AbortController();
+
+        const frames = await drain(engine.run(startInput(controller.signal)));
+
+        expect(resultFor(frames, 'call-1')).toMatchObject({
+            ok: false,
+            error: expect.stringContaining('No asset "a1".')
+        });
+    });
+
+    it("does not put a driver error into the run's error frame", async () => {
+        const { engine } = harness(async function* () {
+            yield { type: 'text-delta', text: 'Hm' };
+            throw new Error('wrapped', { cause: driverFailure() });
+        });
+        const controller = new AbortController();
+
+        const frames = await drain(engine.run(startInput(controller.signal)));
+
+        expect(frames).toContainEqual({
+            type: 'error',
+            message: 'Something went wrong.'
         });
     });
 });

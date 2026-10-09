@@ -9,6 +9,8 @@ import { SegmentCatalogService } from './segment-catalog.service';
 
 const HERE = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const ELSEWHERE = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+/** An entry id of the shape content mints — a malformed one names nothing. */
+const ENTRY = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 
 /** An audience offered only in `workspaceIds` — empty meaning everywhere. */
 function segment(id: string, workspaceIds: string[] = []): Segment {
@@ -39,7 +41,7 @@ function executor(stored?: { allow: string[]; deny: string[] }) {
                 where: () => ({
                     limit: async () =>
                         stored
-                            ? [{ ...stored, entryId: 'e1', workspaceId: HERE }]
+                            ? [{ ...stored, entryId: ENTRY, workspaceId: HERE }]
                             : []
                 })
             })
@@ -92,7 +94,7 @@ describe('EntryAccessService.set — the workspace-scope check', () => {
         const result = await service(catalogue(narrowed)).set({
             workspaceId: HERE,
             typeSlug: 'article',
-            entryId: 'e1',
+            entryId: ENTRY,
             allow: [narrowed.id],
             deny: [],
             executor: handle as never
@@ -119,7 +121,7 @@ describe('EntryAccessService.set — the workspace-scope check', () => {
         await service(catalogue(narrowed)).set({
             workspaceId: HERE,
             typeSlug: 'article',
-            entryId: 'e1',
+            entryId: ENTRY,
             allow: [narrowed.id],
             deny: [],
             executor: handle as never,
@@ -142,7 +144,7 @@ describe('EntryAccessService.set — the workspace-scope check', () => {
             service(catalogue(narrowed)).set({
                 workspaceId: HERE,
                 typeSlug: 'article',
-                entryId: 'e1',
+                entryId: ENTRY,
                 allow: [narrowed.id],
                 deny: [],
                 executor: handle as never
@@ -165,7 +167,7 @@ describe('EntryAccessService.set — the workspace-scope check', () => {
             service(catalogue(narrowed)).set({
                 workspaceId: HERE,
                 typeSlug: 'article',
-                entryId: 'e1',
+                entryId: ENTRY,
                 allow: [narrowed.id],
                 deny: [],
                 executor: handle as never
@@ -185,7 +187,7 @@ describe('EntryAccessService.set — the workspace-scope check', () => {
             service(catalogue()).set({
                 workspaceId: HERE,
                 typeSlug: 'article',
-                entryId: 'e1',
+                entryId: ENTRY,
                 allow: [gone],
                 deny: [],
                 executor: handle as never
@@ -327,5 +329,36 @@ describe('EntryAccessService.inheritFromGroup', () => {
         );
 
         expect(inserted).toEqual([]);
+    });
+});
+
+describe('EntryAccessService with a malformed entry id', () => {
+    /**
+     * `content_access_get` / `content_propose_access` hand the model's
+     * `entryId` straight to `get`, and `entry_access.entry_id` is a uuid
+     * column — so `'my-post'` used to come back as a Postgres cast error. It
+     * names no entry, and an id naming none reads as unrestricted.
+     */
+    it('reads as an unrestricted entry, without querying', async () => {
+        const db = {
+            select: jest.fn(() => {
+                throw new Error('a malformed id reached the database');
+            })
+        };
+        const access = new EntryAccessService(
+            db as never,
+            undefined as never,
+            undefined as never,
+            catalogue()
+        );
+
+        await expect(access.get(HERE, 'my-post')).resolves.toEqual({
+            allow: [],
+            deny: []
+        });
+        await expect(access.getMany(HERE, ['my-post'])).resolves.toEqual(
+            new Map()
+        );
+        expect(db.select).not.toHaveBeenCalled();
     });
 });

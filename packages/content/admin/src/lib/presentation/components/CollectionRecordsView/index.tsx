@@ -87,6 +87,16 @@ export function CollectionRecordsView({
 
     return (
         <LoadedRecordsView
+            // One instance per list. The route is `:typeName`, one element for
+            // every collection, so moving to a type whose schema is cached
+            // skips the skeleton above and React kept this mounted — row
+            // selection included, so a bulk action on "pages" submitted the ids
+            // still selected in "posts". Nothing in the view is meant to cross
+            // that line: columns already re-seed per type, and the saved-view
+            // ladder runs on every arrival anyway. The trash and a shared
+            // source are different sets of rows under the same type, so they
+            // are part of the key too.
+            key={`${type.name}|${trashed ? 'trash' : 'live'}|${sharedSource?.workspaceId ?? ''}`}
             type={type}
             schema={schema}
             trashed={trashed}

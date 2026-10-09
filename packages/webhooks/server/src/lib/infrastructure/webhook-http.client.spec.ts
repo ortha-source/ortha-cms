@@ -277,3 +277,53 @@ describe('WebhookHttpClient — the response snippet', () => {
         expect(result.responseSnippet).toBe('a'.repeat(128));
     });
 });
+
+describe('WebhookHttpClient — the request deadline [webhooks:I-16]', () => {
+    let server: Server;
+    let port: number;
+
+    beforeAll(async () => {
+        // Answers at once, then trickles the body a byte at a time — each gap
+        // well inside `timeoutMs`, so neither the headers timeout nor the body
+        // idle timeout ever fires, and the response takes far longer than
+        // `timeoutMs` in total.
+        server = createServer((request, response) => {
+            request.resume();
+            response.writeHead(200, { 'content-type': 'text/plain' });
+            let sent = 0;
+            const timer = setInterval(() => {
+                if (sent++ >= 60) {
+                    clearInterval(timer);
+                    response.end();
+                    return;
+                }
+                response.write('a');
+            }, 50);
+            response.on('close', () => clearInterval(timer));
+        });
+        await new Promise<void>((resolve) =>
+            server.listen(0, '127.0.0.1', resolve)
+        );
+        port = (server.address() as AddressInfo).port;
+    });
+
+    afterAll(async () => {
+        server.closeAllConnections();
+        await new Promise<void>((resolve) => server.close(() => resolve()));
+    });
+
+    it('bounds the whole exchange, not each phase of it', async () => {
+        // The claim timeout is compared against `timeoutMs` at boot. That is
+        // only sound if one send cannot outlast it — and a per-phase timeout
+        // let this receiver hold a send for three seconds against a 300ms one.
+        const result = await client({
+            allowInsecureUrls: true,
+            allowPrivateNetworks: true,
+            timeoutMs: 300,
+            responseSnippetBytes: 1024
+        }).send(delivery(`http://localhost:${port}/hooks`));
+
+        expect(result.statusCode).toBe(200);
+        expect(result.durationMs).toBeLessThan(1_500);
+    });
+});

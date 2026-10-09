@@ -47,6 +47,7 @@ import { DecideProposalService } from './decide-proposal.service';
 import { ToolPermissionBroker } from './tool-permission.broker';
 import { SkillCatalogService } from '../../skills/application/skill-catalog.service';
 import { summarizeToolOutput } from './summarize-tool-output';
+import { userFacingMessage } from './user-facing-message';
 import {
     buildSystemPrompt,
     SYSTEM_PROMPT_VERSION,
@@ -1419,15 +1420,4 @@ function stableStringify(value: unknown): string {
         .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
         .map(([key, val]) => `${JSON.stringify(key)}:${stableStringify(val)}`);
     return `{${entries.join(',')}}`;
-}
-
-/**
- * An error reduced to something safe to show a user or feed back to the model
- * — never a stack, a provider payload, or anything naming internal wiring.
- */
-function userFacingMessage(error: unknown): string {
-    if (error instanceof Error && error.message) {
-        return error.message;
-    }
-    return 'Something went wrong.';
 }

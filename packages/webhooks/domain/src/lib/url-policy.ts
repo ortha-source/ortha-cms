@@ -140,25 +140,107 @@ export function isIpLiteral(host: string): boolean {
 export function isPrivateAddress(address: string): boolean {
     const v4 = parseIpv4(address);
     if (v4) return isPrivateIpv4(v4);
+    if (!address.includes(':')) return false;
 
-    const normalized = address.toLowerCase().replace(/%.*$/, '');
+    const groups = parseIpv6(address.replace(/%.*$/, ''));
+    // Anything with a colon that is not a well-formed IPv6 address cannot be
+    // vouched for. Neither the URL parser nor the resolver produces one, so
+    // refusing it costs nothing.
+    if (!groups) return true;
 
-    // An IPv4-mapped or IPv4-compatible address is an IPv4 destination wearing
-    // a different notation; judging it as "some IPv6 address" would wave
-    // ::ffff:127.0.0.1 straight through.
-    const mapped = normalized.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-    if (mapped) {
-        const inner = parseIpv4(mapped[1]);
-        return inner ? isPrivateIpv4(inner) : true;
-    }
+    // An IPv4 destination wearing IPv6 notation is judged as that IPv4
+    // address; judging it as "some IPv6 address" would wave ::ffff:127.0.0.1
+    // straight through — and the URL parser hands it over as ::ffff:7f00:1.
+    const embedded = embeddedIpv4(groups);
+    if (embedded) return isPrivateIpv4(embedded);
 
-    if (normalized === '::' || normalized === '::1') return true;
+    const [first] = groups;
     // Unique-local fc00::/7, link-local fe80::/10, multicast ff00::/8.
-    if (/^f[cd][0-9a-f]{0,2}:/.test(normalized)) return true;
-    if (/^fe[89ab][0-9a-f]?:/.test(normalized)) return true;
-    if (/^ff[0-9a-f]{0,2}:/.test(normalized)) return true;
+    if ((first & 0xfe00) === 0xfc00) return true;
+    if ((first & 0xffc0) === 0xfe80) return true;
+    if ((first & 0xff00) === 0xff00) return true;
+    // Local-use NAT64 64:ff9b:1::/48 (RFC 8215) only ever translates into a
+    // network the operator chose, so there is nothing public behind it.
+    if (first === 0x64 && groups[1] === 0xff9b && groups[2] === 1) return true;
 
     return false;
+}
+
+/**
+ * The IPv4 address an IPv6 one carries, for the notations that route to it:
+ * IPv4-mapped `::ffff:0:0/96`, IPv4-translated `::ffff:0:0:0/96`,
+ * IPv4-compatible `::/96` (which also covers `::` and `::1` — both land in
+ * `0.0.0.0/8`), NAT64 `64:ff9b::/96`, and 6to4 `2002::/16`.
+ */
+function embeddedIpv4(
+    groups: readonly number[]
+): [number, number, number, number] | null {
+    const zero = (from: number, to: number): boolean =>
+        groups.slice(from, to).every((group) => group === 0);
+    const octets = (
+        hi: number,
+        lo: number
+    ): [number, number, number, number] => [
+        hi >> 8,
+        hi & 0xff,
+        lo >> 8,
+        lo & 0xff
+    ];
+
+    if (zero(0, 5) && groups[5] === 0xffff) return octets(groups[6], groups[7]);
+    if (zero(0, 4) && groups[4] === 0xffff && groups[5] === 0) {
+        return octets(groups[6], groups[7]);
+    }
+    if (zero(0, 6)) return octets(groups[6], groups[7]);
+    if (groups[0] === 0x64 && groups[1] === 0xff9b && zero(2, 6)) {
+        return octets(groups[6], groups[7]);
+    }
+    if (groups[0] === 0x2002) return octets(groups[1], groups[2]);
+    return null;
+}
+
+/**
+ * An IPv6 address as eight 16-bit groups, or `null` when it is not one.
+ * Accepts `::` compression in any position and a trailing dotted-quad
+ * (`::ffff:127.0.0.1`), in either case.
+ */
+function parseIpv6(value: string): number[] | null {
+    let text = value.toLowerCase();
+
+    // A trailing dotted-quad stands for the last two groups; rewrite it as
+    // them so the rest of the parse only ever sees hex.
+    const lastColon = text.lastIndexOf(':');
+    if (lastColon !== -1 && text.includes('.', lastColon)) {
+        const quad = parseIpv4(text.slice(lastColon + 1));
+        if (!quad) return null;
+        const hi = ((quad[0] << 8) | quad[1]).toString(16);
+        const lo = ((quad[2] << 8) | quad[3]).toString(16);
+        text = `${text.slice(0, lastColon + 1)}${hi}:${lo}`;
+    }
+
+    const halves = text.split('::');
+    if (halves.length > 2) return null;
+
+    const head = parseGroups(halves[0]);
+    const tail = halves.length === 2 ? parseGroups(halves[1]) : [];
+    if (!head || !tail) return null;
+
+    if (halves.length === 1) return head.length === 8 ? head : null;
+    // `::` stands for at least one zero group.
+    const missing = 8 - head.length - tail.length;
+    if (missing < 1) return null;
+    return [...head, ...new Array<number>(missing).fill(0), ...tail];
+}
+
+/** Colon-separated hex groups (`''` is none), or `null` on any bad group. */
+function parseGroups(text: string): number[] | null {
+    if (text === '') return [];
+    const groups: number[] = [];
+    for (const part of text.split(':')) {
+        if (!/^[0-9a-f]{1,4}$/.test(part)) return null;
+        groups.push(parseInt(part, 16));
+    }
+    return groups;
 }
 
 /** `a.b.c.d` as four octets, or `null` when it is not a dotted-quad. */

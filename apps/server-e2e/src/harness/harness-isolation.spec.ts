@@ -139,6 +139,24 @@ describe('harness isolation (resetDb)', () => {
         expect(rows[0].total).toBe(0);
     });
 
+    it("clears throttle_buckets, so one suite's logins do not count against the next", async () => {
+        // The login throttle's buckets live in Postgres so every instance of
+        // the API shares one limit — and every app booted against this database
+        // shares them too. Left in place, a login suite's attempts would push a
+        // later suite's dedicated low-limit app into 429 early.
+        await getPool().query(
+            `INSERT INTO throttle_buckets (key, hits, window_ends_at)
+             VALUES ('leftover', 999, now() + interval '1 hour')`
+        );
+
+        await resetDb();
+
+        const { rows } = await getPool().query<{ total: number }>(
+            'SELECT count(*)::int AS total FROM throttle_buckets'
+        );
+        expect(rows[0].total).toBe(0);
+    });
+
     it('leaves no workspace behind', async () => {
         await seedWorkspace({ name: 'Leftover', slug: 'leftover' });
         await resetDb();

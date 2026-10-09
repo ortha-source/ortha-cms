@@ -75,7 +75,11 @@ describe('isPrivateAddress', () => {
         'ff02::1',
         // IPv4 wearing IPv6 notation — the classic way past a naive check.
         '::ffff:127.0.0.1',
-        '::ffff:169.254.169.254'
+        '::ffff:169.254.169.254',
+        // ...and the same, as a resolver or the URL parser spells them.
+        '::ffff:7f00:1',
+        '::ffff:a9fe:a9fe',
+        'fe80::1%eth0'
     ])('blocks %s', (address) => {
         expect(isPrivateAddress(address)).toBe(true);
     });
@@ -98,6 +102,51 @@ describe('isPrivateAddress', () => {
         // recognised IPv4 literal at all.
         expect(isPrivateAddress('010.0.0.1')).toBe(false);
         expect(() => assertUrlShape('https://010.0.0.1/x')).not.toThrow();
+    });
+});
+
+describe('[webhooks:I-10] IPv6 literals as the URL parser hands them over', () => {
+    // WHATWG URL rewrites an embedded dotted-quad into hex groups, so
+    // `[::ffff:169.254.169.254]` reaches the policy as `::ffff:a9fe:a9fe` —
+    // and undici never runs a lookup for an IP literal, so this is the only
+    // check that sees it.
+    const host = (raw: string): string =>
+        new URL(raw).hostname.replace(/^\[|\]$/g, '');
+
+    it.each([
+        ['https://[::ffff:169.254.169.254]/', 'IPv4-mapped metadata'],
+        ['https://[::ffff:127.0.0.1]/', 'IPv4-mapped loopback'],
+        ['https://[::ffff:10.0.0.1]/', 'IPv4-mapped RFC 1918'],
+        ['https://[::ffff:0:127.0.0.1]/', 'IPv4-translated loopback'],
+        ['https://[::127.0.0.1]/', 'IPv4-compatible loopback'],
+        ['https://[64:ff9b::169.254.169.254]/', 'NAT64 of metadata'],
+        ['https://[64:ff9b:1::1]/', 'local-use NAT64'],
+        ['https://[2002:a9fe:a9fe::]/', '6to4 of metadata'],
+        ['https://[2002:7f00:1::1]/', '6to4 of loopback'],
+        ['https://[0:0:0:0:0:0:0:1]/', 'loopback, uncompressed'],
+        ['https://[0:0:0:0:0:0:0:0]/', 'unspecified, uncompressed'],
+        ['https://[FE80:0:0:0:0:0:0:1]/', 'link-local, upper case'],
+        ['https://[fd00:0:0:0:0:0:0:1]/', 'unique-local, uncompressed'],
+        ['https://[ff05::2]/', 'multicast']
+    ])('blocks %s (%s)', (raw) => {
+        expect(isPrivateAddress(host(raw))).toBe(true);
+        expect(() => assertUrlShape(raw)).toThrow(/private or reserved/);
+    });
+
+    it.each([
+        'https://[::ffff:93.184.216.34]/',
+        'https://[64:ff9b::93.184.216.34]/',
+        'https://[2002:5db8:d822::1]/',
+        'https://[2606:4700:4700::1111]/',
+        'https://[2001:db8:0:0:1:0:0:1]/'
+    ])('allows %s', (raw) => {
+        expect(isPrivateAddress(host(raw))).toBe(false);
+        expect(() => assertUrlShape(raw)).not.toThrow();
+    });
+
+    it('refuses an address it cannot parse rather than guessing', () => {
+        expect(isPrivateAddress('1:2:3')).toBe(true);
+        expect(isPrivateAddress('1::2::3')).toBe(true);
     });
 });
 
