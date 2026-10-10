@@ -32,11 +32,8 @@ import { I18N_WORKSPACE, mockI18n } from '../support/api/i18n';
  *     unsaved edits asks first, then completes"). A tab move leaves nothing, so
  *     a prompt would be a nag rather than a safeguard.
  *
- * **Both tests must prove the draft is dirty before they lean on it.** A fill
- * issued while the locale-switch cover is still up is dropped on the floor —
- * the cover marks the app root `inert`, so input never reaches the control and
- * nothing raises an error (see `ContentLibraryPage.localeSwitchSettled`). A test
- * that skips the read-back is then asserting about a *clean* form: the title
+ * **Both tests must prove the draft is dirty before they lean on it.** A test
+ * that skips the read-back would be asserting about a *clean* form: the title
  * would have been empty all along, no guard could have fired, and the second
  * test below would pass without touching the behaviour it names.
  *
@@ -64,7 +61,6 @@ test.describe('Content i18n — the translation draft', () => {
         await contentLibraryPage.startTranslation('Français');
         await expect(page).toHaveURL(/\/localized_post\/new\?/);
         await expect(page).toHaveURL(/locale=fr/);
-        await contentLibraryPage.localeSwitchSettled();
 
         await contentLibraryPage.fieldTextbox('Title').fill('Bottes d’hiver');
         // The fill landed — see the header note. Without this the assertion at
@@ -97,7 +93,6 @@ test.describe('Content i18n — the translation draft', () => {
         await expect(contentLibraryPage.editorSave).toBeVisible();
 
         await contentLibraryPage.startTranslation('Français');
-        await contentLibraryPage.localeSwitchSettled();
         await contentLibraryPage.fieldTextbox('Title').fill('Bottes d’hiver');
 
         // **The precondition, asserted rather than assumed.** Everything below

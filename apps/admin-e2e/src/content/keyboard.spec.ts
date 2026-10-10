@@ -140,7 +140,6 @@ test.describe('Entry editor keyboard operability', () => {
         await contentLibraryPage.switchLocale('Deutsch').focus();
         await page.keyboard.press('Enter');
 
-        await contentLibraryPage.localeSwitchSettled();
         await expect(page).toHaveURL(/\/localized_post\/lp-de-1$/);
     });
 });

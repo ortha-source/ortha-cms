@@ -123,6 +123,7 @@ export { EntrySidebarRow } from './lib/presentation/components/EntrySidebarRow';
 export { refreshEntryCaches } from './lib/application/refreshEntryCaches';
 export { contentEntriesPrefix } from './lib/application/useContentEntries';
 export { contentEntryKey } from './lib/application/useContentEntry';
+export { usePrefetchContentEntry } from './lib/application/usePrefetchContentEntry';
 
 // The type's filterable surface, exported so a plugin that stores a *saved*
 // records filter (the alarms plugin's rules) edits it with the same query
