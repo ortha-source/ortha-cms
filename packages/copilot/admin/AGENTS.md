@@ -53,6 +53,8 @@ application/
   useManageSkills.ts       # the admin list, one skill, and the three writes
   tabBadge.ts              # pure: what the tab's (n) counts (tested)
   chatsStatus.ts           # pure: count + attention, for the dock and the switcher (tested)
+  threadActivity.ts        # pure: which threads are working / awaiting, for the rail (tested)
+  useThreadActivity.ts     # the hook over it — re-renders on a change of state, not per token
   useTabBadge.ts           # the effect over it: title + favicon dot
   useConversations.ts      # thread list (query)
   useConversation.ts       # one thread: a query (the page) + a mutation (the panel)
@@ -263,6 +265,19 @@ twice as many conversations scannable at a glance, and scanning is the only thin
 this list is for. Hierarchy carries the selection rather than an accent bar: an
 inactive row is muted, the open one is solid on a filled ground, `aria-current`
 announces it, and the weight changes too.
+
+**The one exception is what the thread is doing.** A thread with an answer
+streaming carries a small spinner after its title; one whose run is parked on a
+permission prompt carries an amber dot — the dock's colour for "waiting for
+you". Both are said in words too, as visually hidden text in the row's name
+("…, Working…" / "…, Waiting for your answer") and in its tooltip, and both sit
+left of the `⋯` slot so hovering a row does not hide them. The state comes
+from the tab's chats (`threadActivity` over `copilotStore`), not from the list
+route, which knows titles and dates and nothing about a run; awaiting outranks
+working, since a parked run is still busy. `useThreadActivity` snapshots a
+**string**, so the rail re-renders when a thread starts, parks or finishes —
+not on every streamed token. A run lives in this tab, so another tab's run is
+not marked: the same ceiling as everything else in the store.
 
 The group headings use the full `text-muted-foreground`, **not** an opacity of
 it. `/80` at 10px is a serious contrast failure, and the admin-e2e axe scan is

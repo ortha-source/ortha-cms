@@ -16,6 +16,7 @@ import {
     type CopilotConversation
 } from '../../../application/useConversations';
 import { useUpdateConversation } from '../../../application/useUpdateConversation';
+import { useThreadActivity } from '../../../application/useThreadActivity';
 import {
     filterConversations,
     groupConversations,
@@ -152,6 +153,7 @@ export function AgentsRailList({
     const intl = useIntl();
     const { pathname } = useLocation();
     const { startNew, select } = useAgentNavigation(workspaceId);
+    const activity = useThreadActivity();
     const [query, setQuery] = useState('');
     // Which of the two disjoint lists is on screen. Local state rather than a
     // URL param: it is a way of looking at the rail, not a place — and putting
@@ -328,6 +330,7 @@ export function AgentsRailList({
                                     key={conversation.id}
                                     conversation={conversation}
                                     active={conversation.id === activeId}
+                                    activity={activity.get(conversation.id)}
                                     onSelect={() => {
                                         select(conversation.id);
                                         onNavigate?.();

@@ -1,6 +1,12 @@
 import { useRef } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { ArchiveRestore, Archive, MoreHorizontal, Pencil } from 'lucide-react';
+import {
+    ArchiveRestore,
+    Archive,
+    Loader2,
+    MoreHorizontal,
+    Pencil
+} from 'lucide-react';
 import {
     Button,
     DropdownMenu,
@@ -10,6 +16,7 @@ import {
     cn
 } from '@orthacms/design-system';
 import type { CopilotConversation } from '../../../../application/useConversations';
+import type { ThreadActivity } from '../../../../application/threadActivity';
 
 const messages = defineMessages({
     // The rail's own word for a thread with no server-derived title yet.
@@ -37,6 +44,14 @@ const messages = defineMessages({
     unarchive: {
         id: 'copilot.agents.rail.unarchive',
         defaultMessage: 'Unarchive'
+    },
+    working: {
+        id: 'copilot.agents.rail.working',
+        defaultMessage: 'Working…'
+    },
+    awaiting: {
+        id: 'copilot.agents.rail.awaiting',
+        defaultMessage: 'Waiting for your answer'
     }
 });
 
@@ -45,6 +60,8 @@ export interface AgentsRailRowProps {
     conversation: CopilotConversation;
     /** Whether it is the thread on screen. */
     active: boolean;
+    /** What the thread is doing right now, if anything — see `threadActivity`. */
+    activity?: ThreadActivity;
     /** Opens the thread. */
     onSelect(): void;
     /**
@@ -73,10 +90,17 @@ export interface AgentsRailRowProps {
  * Hierarchy carries the selection rather than an accent bar: an inactive row is
  * muted, the open one is solid on a filled ground. Colour is not doing it alone
  * — `aria-current` announces it, and the weight changes too.
+ *
+ * The one exception to "nothing else" is **what the thread is doing**: a
+ * spinner while an answer streams, an amber dot while a run waits on a
+ * question only the user can answer — the dock's colour for the same state.
+ * Both say so in words too (in the row's name and its tooltip), and both stay
+ * in place when the row is hovered, since the menu sits to their right.
  */
 export function AgentsRailRow({
     conversation,
     active,
+    activity,
     onSelect,
     onRename,
     onToggleArchived
@@ -84,6 +108,7 @@ export function AgentsRailRow({
     const intl = useIntl();
     const menuRef = useRef<HTMLButtonElement>(null);
     const title = conversation.title ?? intl.formatMessage(messages.untitled);
+    const status = activity && intl.formatMessage(messages[activity]);
 
     return (
         // `group` drives the menu button's reveal on hover. The row is a
@@ -96,7 +121,7 @@ export function AgentsRailRow({
                 type="button"
                 onClick={onSelect}
                 // The full name, for a title the 18rem column has to truncate.
-                title={title}
+                title={status ? `${title} — ${status}` : title}
                 // `aria-current="page"` rather than a styled-only selection:
                 // this is a list of destinations and the open one has to be
                 // announced, not merely tinted.
@@ -108,7 +133,24 @@ export function AgentsRailRow({
                         : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
                 )}
             >
-                <span className="w-full truncate">{title}</span>
+                <span className="min-w-0 flex-1 truncate">{title}</span>
+                {activity === 'working' && (
+                    <Loader2
+                        aria-hidden
+                        data-activity="working"
+                        className="text-muted-foreground ml-2 size-3.5 shrink-0 animate-spin motion-reduce:animate-none"
+                    />
+                )}
+                {activity === 'awaiting' && (
+                    <span
+                        aria-hidden
+                        data-activity="awaiting"
+                        className="bg-warning ml-2 size-2 shrink-0 rounded-full"
+                    />
+                )}
+                {/* The marker in words: part of the row's accessible name, so
+                    a screen reader's list says which chat needs you. */}
+                {status && <span className="sr-only">, {status}</span>}
             </button>
 
             {/* `modal={false}` so the open menu doesn't aria-hide the page root
