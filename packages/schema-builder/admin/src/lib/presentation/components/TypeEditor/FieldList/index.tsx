@@ -1,5 +1,9 @@
 import { defineMessages, useIntl } from 'react-intl';
 import { Layers, Plus } from 'lucide-react';
+import {
+    SortableContext,
+    verticalListSortingStrategy
+} from '@dnd-kit/sortable';
 import { Button } from '@orthacms/design-system';
 import type { TypeDoc } from '@orthacms/schema-builder-domain';
 import { fieldsOnTab } from '../../../../domain/builtInTab';
@@ -11,7 +15,8 @@ import { GeneralOrderHint } from './GeneralOrderHint';
 import { GroupAccordion } from './GroupAccordion';
 import { NoFields } from './NoFields';
 import { SortableFieldScope } from './SortableFieldScope';
-import type { SortableList } from './sortableList';
+import { SortableGroupAccordion } from './SortableGroupAccordion';
+import { groupSortId, type SortableList } from './sortableList';
 
 const messages = defineMessages({
     title: { id: 'schemaBuilder.fields.title', defaultMessage: 'Fields' },
@@ -41,8 +46,8 @@ type Props = { type: TypeDoc; editing?: FieldListEditing };
  * and no groups gets an empty state instead: what fields are, and the way in.
  *
  * While editing, General's loose fields and its groups are one sortable scope
- * — a field is dragged into a group and back out — and Relations and Media
- * are a scope each.
+ * — a field is dragged into a group and back out, and the groups are dragged
+ * into a new order — and Relations and Media are a scope each.
  */
 export function FieldList({ type, editing }: Props) {
     const intl = useIntl();
@@ -128,6 +133,7 @@ export function FieldList({ type, editing }: Props) {
                     >
                         <SortableFieldScope
                             lists={[loose, ...groups.map(({ list }) => list)]}
+                            groups={type.groups}
                             editing={editing}
                         >
                             <FieldRows
@@ -147,14 +153,34 @@ export function FieldList({ type, editing }: Props) {
                             {groups.length > 0 && (
                                 <>
                                     <GeneralOrderHint />
-                                    {groups.map(({ group, list }) => (
-                                        <GroupAccordion
-                                            key={group.key}
-                                            group={group}
-                                            list={list}
-                                            editing={editing}
-                                        />
-                                    ))}
+                                    {editing ? (
+                                        <SortableContext
+                                            id="groups"
+                                            items={groups.map(({ group }) =>
+                                                groupSortId(group.key)
+                                            )}
+                                            strategy={
+                                                verticalListSortingStrategy
+                                            }
+                                        >
+                                            {groups.map(({ group, list }) => (
+                                                <SortableGroupAccordion
+                                                    key={group.key}
+                                                    group={group}
+                                                    list={list}
+                                                    editing={editing}
+                                                />
+                                            ))}
+                                        </SortableContext>
+                                    ) : (
+                                        groups.map(({ group, list }) => (
+                                            <GroupAccordion
+                                                key={group.key}
+                                                group={group}
+                                                list={list}
+                                            />
+                                        ))
+                                    )}
                                 </>
                             )}
                         </SortableFieldScope>

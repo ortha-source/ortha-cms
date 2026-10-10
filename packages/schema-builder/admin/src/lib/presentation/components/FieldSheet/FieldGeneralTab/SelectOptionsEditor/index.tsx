@@ -2,13 +2,19 @@ import { useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Plus, X } from 'lucide-react';
 import { Button, Input, Label } from '@orthacms/design-system';
+import {
+    addOption,
+    removeOption,
+    renameOption,
+    type OptionsField
+} from '../../../../../domain/selectOptions';
 
 const messages = defineMessages({
     label: { id: 'schemaBuilder.rules.options', defaultMessage: 'Options' },
     hint: {
         id: 'schemaBuilder.rules.optionsHint',
         defaultMessage:
-            'The values stored. Removing one an entry uses makes that entry invalid.'
+            'The values stored, and what the default is picked from. Removing one an entry uses makes that entry invalid.'
     },
     add: { id: 'schemaBuilder.rules.optionAdd', defaultMessage: 'Add option' },
     newOption: {
@@ -26,19 +32,24 @@ const messages = defineMessages({
 });
 
 type Props = {
-    options: readonly string[];
+    field: OptionsField;
     onChange: (patch: Record<string, unknown>) => void;
 };
 
-/** A select's `options`, in order. The DSL has no option labels — the value is what is shown. */
-export function SelectOptionsEditor({ options, onChange }: Props) {
+/**
+ * A select's `options`, in order. The DSL has no option labels — the value is
+ * what is shown. Drawn above the default, which is picked from them: renaming
+ * the option the default names carries the default along, removing it clears
+ * it.
+ */
+export function SelectOptionsEditor({ field, onChange }: Props) {
     const intl = useIntl();
+    const { options } = field;
     const [next, setNext] = useState('');
-    const set = (values: string[]) => onChange({ options: values });
     const add = () => {
-        const value = next.trim();
-        if (!value || options.includes(value)) return;
-        set([...options, value]);
+        const patch = addOption(field, next);
+        if (!patch) return;
+        onChange(patch);
         setNext('');
     };
     return (
@@ -63,11 +74,11 @@ export function SelectOptionsEditor({ options, onChange }: Props) {
                             className="font-mono"
                             value={option}
                             onChange={(event) =>
-                                set(
-                                    options.map((value, at) =>
-                                        at === index
-                                            ? event.target.value
-                                            : value
+                                onChange(
+                                    renameOption(
+                                        field,
+                                        index,
+                                        event.target.value
                                     )
                                 )
                             }
@@ -79,9 +90,7 @@ export function SelectOptionsEditor({ options, onChange }: Props) {
                             aria-label={intl.formatMessage(messages.remove, {
                                 option
                             })}
-                            onClick={() =>
-                                set(options.filter((_, at) => at !== index))
-                            }
+                            onClick={() => onChange(removeOption(field, index))}
                         >
                             <X />
                         </Button>

@@ -86,11 +86,60 @@ export class ContentModelPage extends BasePage {
         return names;
     }
 
+    /** A General-tab group's block: its trigger, its handle and its fields. */
+    groupBlock(label: string): Locator {
+        return this.tab('General').getByRole('group', {
+            name: label,
+            exact: true
+        });
+    }
+
     /** A General-tab group's accordion trigger. */
     groupTrigger(label: string): Locator {
-        return this.tab('General').getByRole('button', {
-            name: new RegExp(label)
+        return this.groupBlock(label).getByRole('button', {
+            name: new RegExp(`^${label}`)
         });
+    }
+
+    /** The labels of the General tab's groups, top to bottom. */
+    async groupNames(): Promise<string[]> {
+        const blocks = await this.tab('General').getByRole('group').all();
+        const labels: string[] = [];
+        for (const block of blocks)
+            labels.push((await block.getAttribute('aria-label')) ?? '');
+        return labels;
+    }
+
+    /** A General-tab group's "Actions for the group …" menu button. */
+    groupMenu(label: string): Locator {
+        return this.page.getByRole('button', {
+            name: `Actions for the group ${label}`,
+            exact: true
+        });
+    }
+
+    /** One group's own sheet, opened from its menu. */
+    groupSheet(label: string): Locator {
+        return this.page.getByRole('dialog', { name: `Group ${label}` });
+    }
+
+    /** The drag handle that reorders a General-tab group. */
+    groupReorderHandle(label: string): Locator {
+        return this.page.getByRole('button', {
+            name: `Reorder the group ${label}`,
+            exact: true
+        });
+    }
+
+    /** The machine names of the fields drawn inside one group, top to bottom. */
+    async groupFieldNames(label: string): Promise<string[]> {
+        const rows = await this.groupBlock(label).getByRole('listitem').all();
+        const names: string[] = [];
+        for (const row of rows)
+            names.push(
+                (await row.locator('.font-mono').first().textContent()) ?? ''
+            );
+        return names;
     }
 
     /** The page-wide read-only notice, by a phrase in it. */
@@ -169,9 +218,9 @@ export class ContentModelPage extends BasePage {
 
     /** The drop zone a General-tab group with no fields draws. */
     emptyGroupDropZone(label: string): Locator {
-        return this.groupTrigger(label)
-            .locator('xpath=..')
-            .getByText(/the schema refuses an empty group/);
+        return this.groupBlock(label).getByText(
+            /the schema refuses an empty group/
+        );
     }
 
     /**
@@ -181,21 +230,47 @@ export class ContentModelPage extends BasePage {
      * target by the closest centre, and the upper half means "before".
      */
     async dragField(name: string, target: Locator): Promise<void> {
+        await this.startDrag(
+            this.reorderHandle(name),
+            this.fieldRow(name),
+            target
+        );
+        await this.page.mouse.up();
+    }
+
+    /**
+     * Picks up `handle` with the pointer and holds `row` over `target`
+     * without dropping it, so a spec can look at the page mid-drag; the
+     * caller lets go with `page.mouse.up()`.
+     */
+    async startDrag(
+        handle: Locator,
+        row: Locator,
+        target: Locator
+    ): Promise<void> {
         await target.scrollIntoViewIfNeeded();
-        const handle = await this.reorderHandle(name).boundingBox();
-        const row = await this.fieldRow(name).boundingBox();
+        const grip = await handle.boundingBox();
+        const box = await row.boundingBox();
         const to = await target.boundingBox();
-        if (!handle || !row || !to)
-            throw new Error(`Cannot drag ${name}: not on screen`);
-        const x = handle.x + handle.width / 2;
-        const y = handle.y + handle.height / 2;
-        const dy = to.y + to.height / 2 - (row.y + row.height / 2) - 4;
+        if (!grip || !box || !to) throw new Error('Cannot drag: not on screen');
+        const x = grip.x + grip.width / 2;
+        const y = grip.y + grip.height / 2;
+        const dy = to.y + to.height / 2 - (box.y + box.height / 2) - 4;
         await this.page.mouse.move(x, y);
         await this.page.mouse.down();
         // Past the 4px activation distance first, so the drag starts.
         await this.page.mouse.move(x, y + (dy < 0 ? -8 : 8), { steps: 4 });
         await this.page.mouse.move(x, y + dy, { steps: 16 });
         await this.page.mouse.move(x, y + dy + 1);
+    }
+
+    /** Drags a General-tab group by its handle onto the group `target`. */
+    async dragGroup(label: string, target: string): Promise<void> {
+        await this.startDrag(
+            this.groupReorderHandle(label),
+            this.groupBlock(label),
+            this.groupBlock(target)
+        );
         await this.page.mouse.up();
     }
 

@@ -248,7 +248,9 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   type would sit unrelated fields side by side. A type that
   declares **form sections** (`groups`, joined by `admin.group`) is laid out by
   them instead of Translated / Shared: ungrouped fields on top, then one
-  collapsible `FieldSection` per group in declaration order. A folded section
+  collapsible `FieldSection` per group in declaration order, each a framed
+  block (`rounded-xl border`, like a relation card) so where a group ends is
+  drawn rather than inferred. A folded section
   must not hide a problem — its header counts the fields still blocking publish
   (from `form.errors`, the rail gate's own set) and the changed ones, and it opens
   itself whenever a save/publish is refused while it shows an error

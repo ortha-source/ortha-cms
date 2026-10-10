@@ -5,6 +5,7 @@ import type { FieldEditor } from '../../../../application/useFieldEditor';
 import { SwitchField } from '../SwitchField';
 import { DefaultValueField } from './DefaultValueField';
 import { RelationSettings } from './RelationSettings';
+import { SelectOptionsEditor } from './SelectOptionsEditor';
 
 const messages = defineMessages({
     label: { id: 'schemaBuilder.sheet.label', defaultMessage: 'Label' },
@@ -46,7 +47,11 @@ type Props = {
     nameError?: string;
 };
 
-/** Label, name, required, locale, the default — and for a relation, what it links to. */
+/**
+ * Label, name, required, locale, a select's options, the default — and for a
+ * relation, what it links to. The options come before the default because the
+ * default is picked from them.
+ */
 export function FieldGeneralTab({ editor, type, document, nameError }: Props) {
     const intl = useIntl();
     const { entry } = editor;
@@ -109,6 +114,9 @@ export function FieldGeneralTab({ editor, type, document, nameError }: Props) {
                         editor.setSpec({ lang: event.target.value })
                     }
                 />
+            )}
+            {(spec.type === 'select' || spec.type === 'multiselect') && (
+                <SelectOptionsEditor field={spec} onChange={editor.setSpec} />
             )}
             <DefaultValueField spec={spec} onChange={editor.setSpec} />
             {spec.type === 'relation' && (

@@ -1,19 +1,10 @@
 import { defineMessages, useIntl } from 'react-intl';
 import { ArrowDown, ArrowUp, Trash2 } from 'lucide-react';
-import { Button, cn, InputField } from '@orthacms/design-system';
+import { Button, cn } from '@orthacms/design-system';
 import type { GroupDoc } from '@orthacms/schema-builder-domain';
-import { SwitchField } from '../../FieldSheet/SwitchField';
+import { GroupFields } from '../../GroupFields';
 
 const messages = defineMessages({
-    label: { id: 'schemaBuilder.groups.label', defaultMessage: 'Title' },
-    description: {
-        id: 'schemaBuilder.groups.description',
-        defaultMessage: 'Description'
-    },
-    collapsed: {
-        id: 'schemaBuilder.groups.collapsed',
-        defaultMessage: 'Starts folded'
-    },
     up: { id: 'schemaBuilder.groups.up', defaultMessage: 'Move {label} up' },
     down: {
         id: 'schemaBuilder.groups.down',
@@ -55,7 +46,6 @@ export function GroupCard({
     onRemove
 }: Props) {
     const intl = useIntl();
-    const id = `group-${group.key}`;
     return (
         <li
             className={cn(
@@ -111,33 +101,7 @@ export function GroupCard({
                     </Button>
                 </span>
             </div>
-            <InputField
-                id={`${id}-label`}
-                label={intl.formatMessage(messages.label)}
-                value={group.label}
-                onChange={(event) =>
-                    onChange({ ...group, label: event.target.value })
-                }
-            />
-            <InputField
-                id={`${id}-description`}
-                label={intl.formatMessage(messages.description)}
-                value={group.description ?? ''}
-                onChange={(event) =>
-                    onChange({
-                        ...group,
-                        description: event.target.value || undefined
-                    })
-                }
-            />
-            <SwitchField
-                id={`${id}-collapsed`}
-                label={intl.formatMessage(messages.collapsed)}
-                checked={Boolean(group.collapsed)}
-                onChange={(collapsed) =>
-                    onChange({ ...group, collapsed: collapsed || undefined })
-                }
-            />
+            <GroupFields group={group} onChange={onChange} />
             {fields === 0 && (
                 <p className="text-xs text-amber-700 dark:text-amber-400">
                     {intl.formatMessage(messages.empty)}

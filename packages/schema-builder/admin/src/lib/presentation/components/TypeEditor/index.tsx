@@ -2,16 +2,19 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type {
     BuilderCapabilities,
+    GroupDoc,
     TypeDoc
 } from '@orthacms/schema-builder-domain';
 import type { BuilderAccess } from '../../../application/useBuilderAccess';
 import { useFieldEditor } from '../../../application/useFieldEditor';
 import type { SchemaDraftState } from '../../../application/useSchemaDraft';
 import { fieldIssues, typeIssues } from '../../../domain/draftIssues';
+import { moveGroup } from '../../../domain/moveGroup';
 import type { TypePatch } from '../../../domain/schemaDraftAction';
 import { typeEditability } from '../../../domain/typeEditability';
 import { FieldSheet } from '../FieldSheet';
 import { GeneralGroupsSheet } from '../GeneralGroupsSheet';
+import { GroupSheet } from '../GroupSheet';
 import { FieldList } from './FieldList';
 import type { FieldListEditing } from './FieldList/fieldListEditing';
 import { HandWrittenNotice } from './HandWrittenNotice';
@@ -37,6 +40,10 @@ export function TypeEditor({ type, capabilities, access, draft }: Props) {
     const editable = typeEditability(type, capabilities, access.canManage).ok;
     const [fieldKey, setFieldKey] = useState<string | null>(null);
     const [groupsOpen, setGroupsOpen] = useState(false);
+    const [groupKey, setGroupKey] = useState<string | null>(null);
+    const setGroups = (groups: GroupDoc[]) =>
+        draft.dispatch({ type: 'groups.set', typeName: type.name, groups });
+    const group = type.groups.find((candidate) => candidate.key === groupKey);
     const issues = typeIssues(draft.issues, type.name);
     const editor = useFieldEditor(draft, type.name, fieldKey);
 
@@ -69,6 +76,11 @@ export function TypeEditor({ type, capabilities, access, draft }: Props) {
                       group,
                       before
                   }),
+              onMoveGroup: (key, over) =>
+                  setGroups(moveGroup(type.groups, key, over)),
+              onEditGroup: setGroupKey,
+              onRemoveGroup: (key) =>
+                  setGroups(type.groups.filter((entry) => entry.key !== key)),
               // Adding a field is a page with steps over the same draft (`?addField`).
               onAddField: () =>
                   navigate(
@@ -137,14 +149,27 @@ export function TypeEditor({ type, capabilities, access, draft }: Props) {
                     />
                     <GeneralGroupsSheet
                         type={groupsOpen ? type : null}
-                        onChange={(groups) =>
-                            draft.dispatch({
-                                type: 'groups.set',
-                                typeName: type.name,
-                                groups
-                            })
-                        }
+                        onChange={setGroups}
                         onClose={() => setGroupsOpen(false)}
+                    />
+                    <GroupSheet
+                        group={group ?? null}
+                        onChange={(next) =>
+                            setGroups(
+                                type.groups.map((entry) =>
+                                    entry.key === next.key ? next : entry
+                                )
+                            )
+                        }
+                        onRemove={() => {
+                            setGroups(
+                                type.groups.filter(
+                                    (entry) => entry.key !== groupKey
+                                )
+                            );
+                            setGroupKey(null);
+                        }}
+                        onClose={() => setGroupKey(null)}
                     />
                 </>
             )}

@@ -174,7 +174,6 @@ test.describe('Content model editor', () => {
         await contentModelPage.goto('article');
         await contentModelPage.editField('kind').click();
         const sheet = contentModelPage.fieldSheet('kind');
-        await sheet.getByRole('tab', { name: 'Validation' }).click();
 
         const first = contentModelPage.selectOption(sheet, 1);
         await first.click();
@@ -199,7 +198,6 @@ test.describe('Content model editor', () => {
         await contentModelPage.goto('article');
         await contentModelPage.editField('kind').click();
         const sheet = contentModelPage.fieldSheet('kind');
-        await sheet.getByRole('tab', { name: 'Validation' }).click();
 
         const fresh = contentModelPage.newSelectOption(sheet);
         await fresh.fill('review');
@@ -229,6 +227,61 @@ test.describe('Content model editor', () => {
             'opinion'
         );
         await expect(contentModelPage.changeCount()).toBeVisible();
+    });
+
+    test('a select’s options sit above its default, which follows a rename', async ({
+        contentModelPage
+    }) => {
+        await contentModelPage.goto('article');
+        await contentModelPage.editField('kind').click();
+        const sheet = contentModelPage.fieldSheet('kind');
+        // Options are a basic now: no Validation tab for a select.
+        await expect(
+            sheet.getByRole('tab', { name: 'Validation' })
+        ).toHaveCount(0);
+        await sheet.getByLabel('Default value').click();
+        await contentModelPage.option('news').click();
+        await expect(sheet.getByLabel('Default value')).toContainText('news');
+
+        const first = contentModelPage.selectOption(sheet, 1);
+        await first.click();
+        await first.press('End');
+        await first.pressSequentially('-flash');
+        await expect(sheet.getByLabel('Default value')).toContainText(
+            'news-flash'
+        );
+
+        await contentModelPage.removeSelectOption(sheet, 'news-flash').click();
+        await expect(sheet.getByLabel('Default value')).toContainText(
+            'No default'
+        );
+    });
+
+    test('adding a select asks for its options on Basics, then a default from them', async ({
+        page,
+        contentModelPage
+    }) => {
+        await contentModelPage.goto('article');
+        await contentModelPage.addFieldButton().click();
+        await contentModelPage.fieldKind('One of a list').click();
+        await contentModelPage.reviewAction('Continue').click();
+
+        await page.getByLabel('Label').fill('Stage');
+        const fresh = page.getByRole('textbox', { name: 'New option' });
+        await fresh.fill('draft');
+        await fresh.press('Enter');
+        await fresh.fill('final');
+        await fresh.press('Enter');
+        await page.getByLabel('Default value').click();
+        await contentModelPage.option('final').click();
+        await expect(page.getByLabel('Default value')).toContainText('final');
+
+        await contentModelPage.reviewAction('Continue').click();
+        await expect(
+            page.getByRole('heading', { level: 3, name: 'Validation' })
+        ).toHaveCount(0);
+        await contentModelPage.reviewAction('Add field').click();
+        await expect(contentModelPage.editField('stage')).toBeVisible();
     });
 
     test('reorders within one rank by keyboard, and refuses a move across ranks', async ({
@@ -356,6 +409,26 @@ test.describe('Content model editor', () => {
             ).toBeVisible();
         });
 
+        test('makes room in the group while the field is still held', async ({
+            page,
+            contentModelPage
+        }) => {
+            await contentModelPage.goto('place');
+            await contentModelPage.startDrag(
+                contentModelPage.reorderHandle('name'),
+                contentModelPage.fieldRow('name'),
+                contentModelPage.fieldRow('city')
+            );
+            // Not dropped yet — and already a row of the group.
+            await expect
+                .poll(() => contentModelPage.groupFieldNames('Location'))
+                .toContain('name');
+            await page.mouse.up();
+            await expect(
+                contentModelPage.groupTrigger('Location')
+            ).toContainText('2 fields');
+        });
+
         test('moves a field into a group by keyboard', async ({
             contentModelPage
         }) => {
@@ -377,6 +450,80 @@ test.describe('Content model editor', () => {
             await expect
                 .poll(() => contentModelPage.fieldNames('General'))
                 .toEqual(['name', 'open', 'city']);
+        });
+    });
+
+    test.describe('groups on their own blocks', () => {
+        test('drags a group into a new order', async ({ contentModelPage }) => {
+            await contentModelPage.goto('place');
+            await expect
+                .poll(() => contentModelPage.groupNames())
+                .toEqual(['Location', 'Extra']);
+
+            await contentModelPage.dragGroup('Extra', 'Location');
+
+            await expect
+                .poll(() => contentModelPage.groupNames())
+                .toEqual(['Extra', 'Location']);
+            await expect(contentModelPage.changeCount()).toBeVisible();
+        });
+
+        test('moves a group by keyboard', async ({
+            page,
+            contentModelPage
+        }) => {
+            await contentModelPage.goto('place');
+            await contentModelPage.groupReorderHandle('Location').focus();
+            await page.keyboard.press('Space');
+            await expect(
+                contentModelPage.announcement(
+                    /^Picked up the group Location\.$/
+                )
+            ).toBeAttached();
+            await page.keyboard.press('ArrowDown');
+            await expect(
+                contentModelPage.announcement(
+                    /^The group Location is over the group Extra\.$/
+                )
+            ).toBeAttached();
+            await page.keyboard.press('Space');
+            await expect
+                .poll(() => contentModelPage.groupNames())
+                .toEqual(['Extra', 'Location']);
+        });
+
+        test('edits a group from its menu', async ({ contentModelPage }) => {
+            await contentModelPage.goto('place');
+            await contentModelPage.groupMenu('Location').click();
+            await contentModelPage.menuItem('Edit group').click();
+            const sheet = contentModelPage.groupSheet('Location');
+            await sheet.getByLabel('Starts folded').click();
+            await sheet.getByLabel('Title').fill('Address');
+            // The sheet is named by the group, so it follows the new title.
+            await contentModelPage
+                .groupSheet('Address')
+                .getByRole('button', { name: 'Done' })
+                .click();
+
+            await expect(
+                contentModelPage.groupTrigger('Address')
+            ).toContainText('starts folded');
+            await expect(contentModelPage.changeCount()).toBeVisible();
+        });
+
+        test('removes a group from its menu, keeping its fields', async ({
+            contentModelPage
+        }) => {
+            await contentModelPage.goto('place');
+            await contentModelPage.groupMenu('Location').click();
+            await contentModelPage.menuItem('Remove group').click();
+
+            await expect(contentModelPage.groupBlock('Location')).toHaveCount(
+                0
+            );
+            await expect
+                .poll(() => contentModelPage.fieldNames('General'))
+                .toEqual(['name', 'city', 'open']);
         });
     });
 
