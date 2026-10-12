@@ -1,3 +1,17 @@
+## 0.10.1 (2026-10-12)
+
+### 🚀 Features
+
+- **copilot:** the Agents rail marks a thread that is working or waiting for you ([f51160cb](https://github.com/ortha-source/ortha-cms/commit/f51160cb))
+- **i18n:** switch locales at once — no cover, siblings prefetched ([#328](https://github.com/ortha-source/ortha-cms/pull/328))
+- **schema-builder:** drag that makes room, groups sorted and edited in place, options before the default ([#326](https://github.com/ortha-source/ortha-cms/pull/326))
+
+### ❤️ Thank You
+
+- Claude Opus 5.5
+- Pavel Makhanko @pmknk
+- pmknk
+
 ## 0.10.0 (2026-10-09)
 
 ### 🚀 Features
