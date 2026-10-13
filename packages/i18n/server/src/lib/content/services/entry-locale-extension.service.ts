@@ -34,7 +34,8 @@ import {
     type EntryScopeParams,
     type EntryTransaction,
     type EntryWriteContext,
-    type EntryWriteFanout
+    type EntryWriteFanout,
+    type ValidationIssue
 } from '@orthacms/content-server';
 import {
     FilterOperator,
@@ -42,7 +43,11 @@ import {
     type FieldSchema,
     type ParsedRule
 } from '@orthacms/utils-server';
-import { CONTENT_FIELD_TYPE, ENTRY_STATUS } from '@orthacms/content-server';
+import {
+    CONTENT_FIELD_TYPE,
+    ENTRY_STATUS,
+    SIBLING_INVALIDATED_CODE
+} from '@orthacms/content-server';
 import { LOCALE_FALLBACK_DEFAULT } from '../../i18n.constants';
 import { LocaleRegistryService } from '../../locales/services/locale-registry.service';
 import { lockLocaleGroup } from '../locale-group-lock';
@@ -292,7 +297,8 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
             await this.inheritRelationsFromGroup(tx, type, row, workspaceId);
         }
         return this.propagateToSiblings(tx, type, row, values, workspaceId, {
-            relations: !context.created
+            relations: !context.created,
+            allowInvalidSiblings: context.allowInvalidSiblings === true
         });
     }
 
@@ -401,7 +407,7 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
         row: Record<string, unknown>,
         values: Record<string, unknown>,
         workspaceId: string,
-        options: { relations: boolean }
+        options: { relations: boolean; allowInvalidSiblings?: boolean }
     ): Promise<Record<string, unknown>[]> {
         const table = type.table as unknown as ContentTable;
         // Only the columns this save actually carries. A field the caller
@@ -495,6 +501,10 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
             : new Map<string, Set<string>>();
 
         const rewritten: Record<string, unknown>[] = [];
+        const invalidated: {
+            locale: string;
+            issues: ValidationIssue[];
+        }[] = [];
         for (const sibling of siblings) {
             const siblingId = sibling['id'] as string;
             const locale = sibling['locale'] as string;
@@ -582,12 +592,13 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
             if (!updated) continue; // nothing differed after all
 
             // A sibling that **was** published must stay valid once the synced
-            // state lands — re-validate and abort the whole save otherwise.
-            // Drafts may be temporarily invalid (the same rule as saving a
-            // draft directly). This reads the pre-write status captured in the
-            // locked SELECT, not the row's current one: the UPDATE has just
-            // demoted it to `draft`, so testing the returned status would
-            // silently skip every sibling.
+            // state lands — re-validate it, and abort the whole save unless the
+            // caller has already been told and confirmed (below). Drafts may be
+            // temporarily invalid (the same rule as saving a draft directly).
+            // This reads the pre-write status captured in the locked SELECT,
+            // not the row's current one: the UPDATE has just demoted it to
+            // `draft`, so testing the returned status would silently skip every
+            // sibling.
             if (
                 type.publishable &&
                 sibling['status'] === ENTRY_STATUS.Published
@@ -602,15 +613,31 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
                     await this.validation.waivedRequired(type, workspaceId, tx)
                 );
                 if (!result.valid) {
-                    throw new UnprocessableEntityException({
-                        message:
-                            `Shared fields would invalidate the published ` +
-                            `"${locale}" translation`,
-                        issues: result.issues
-                    });
+                    invalidated.push({ locale, issues: result.issues });
                 }
             }
             rewritten.push(updated);
+        }
+
+        // Collected rather than thrown at the first one, so the refusal can name
+        // every language the save would leave unpublishable — that list is what
+        // the editor's confirmation shows. A confirmed save goes through: each
+        // such sibling is already demoted to Modified above, so its live
+        // version keeps being served and the gap is only in its working copy,
+        // which the person was shown before agreeing to it.
+        if (invalidated.length && !options.allowInvalidSiblings) {
+            throw new UnprocessableEntityException({
+                message:
+                    `Shared fields would invalidate the published ` +
+                    invalidated.map(({ locale }) => `"${locale}"`).join(', ') +
+                    ` translation${invalidated.length > 1 ? 's' : ''}`,
+                code: SIBLING_INVALIDATED_CODE,
+                siblings: invalidated,
+                // Kept for callers that read only `issues`. They describe the
+                // siblings, not the row the caller sent — which is why the
+                // `code` exists: an editor must not pin them on its own form.
+                issues: invalidated.flatMap(({ issues }) => issues)
+            });
         }
         return rewritten;
     }

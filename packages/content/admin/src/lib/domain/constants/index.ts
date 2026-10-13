@@ -256,3 +256,11 @@ export const ENVELOPE_COLUMN = {
     Status: 'status',
     UpdatedAt: 'updatedAt'
 } as const;
+
+/**
+ * The `code` on the 422 the server answers when a save would leave a
+ * **published** locale sibling failing validation (content-server's
+ * `SIBLING_INVALIDATED_CODE`). Its `issues` describe the siblings, not this
+ * form, so the editor asks for confirmation instead of marking its own fields.
+ */
+export const SIBLING_INVALIDATED_CODE = 'content.sibling_invalidated';

@@ -609,6 +609,71 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             expect(enAfter.body.values.select).toBe('article');
         });
 
+        it('names every invalidated sibling and saves once the caller confirms [i18n:I-34]', async () => {
+            const agent = await login();
+            const en = await createArticle(agent, {
+                values: { text: 'EN title', select: 'article' }
+            });
+            const de = (await createTranslation(agent, en, 'de')).body as {
+                id: string;
+            };
+            const fr = (await createTranslation(agent, en, 'fr')).body as {
+                id: string;
+            };
+            for (const id of [de.id, fr.id]) {
+                await agent
+                    .post(`/api/content/test_article/${id}/publish`)
+                    .expect(201);
+            }
+
+            const refused = await agent
+                .patch(`/api/content/test_article/${en.id}`)
+                .send({ values: { text: 'EN title', select: '' } })
+                .expect(422);
+            // The code is what tells an editor these issues are not its own.
+            expect(refused.body.code).toBe('content.sibling_invalidated');
+            expect(
+                (refused.body.siblings as { locale: string }[])
+                    .map((s) => s.locale)
+                    .sort()
+            ).toEqual(['de', 'fr']);
+            expect(refused.body.siblings[0].issues).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({ field: 'select' })
+                ])
+            );
+
+            // Confirmed: the save lands, the siblings go to Modified and keep
+            // their publishedAt, so their live version is still what readers get.
+            await agent
+                .patch(`/api/content/test_article/${en.id}`)
+                .send({
+                    values: { text: 'EN title', select: '' },
+                    allowInvalidSiblings: true
+                })
+                .expect(200);
+            const deAfter = await agent
+                .get(`/api/content/test_article/${de.id}`)
+                .expect(200);
+            expect(deAfter.body.values.select).toBeNull();
+            expect(deAfter.body.status).toBe('draft');
+            expect(deAfter.body.publishedAt).toEqual(expect.any(String));
+
+            // …and it cannot be published again until the gap is filled.
+            await agent
+                .post(`/api/content/test_article/${de.id}/publish`)
+                .expect(422);
+        });
+
+        it('rejects a non-boolean allowInvalidSiblings', async () => {
+            const agent = await login();
+            const en = await createArticle(agent);
+            await agent
+                .patch(`/api/content/test_article/${en.id}`)
+                .send({ values: VALID, allowInvalidSiblings: 'yes' })
+                .expect(400);
+        });
+
         // A shared edit is pending everywhere until it is published. Leaving a
         // rewritten sibling `published` made the same value live in the
         // untouched locales while still pending in the edited one.

@@ -250,7 +250,14 @@ export const httpContentGateway: ContentGateway = {
 
     async saveEntry(
         name: string,
-        { id, values, relations, extra, extensions }: SaveEntryInput
+        {
+            id,
+            values,
+            relations,
+            extra,
+            extensions,
+            allowInvalidSiblings
+        }: SaveEntryInput
     ): Promise<EntryRecord> {
         const body = {
             values,
@@ -265,10 +272,14 @@ export const httpContentGateway: ContentGateway = {
             // Extra (slot-contributed) keys apply to create only — an update
             // never re-homes envelope params like the locale.
             const { data } = id
-                ? await apiClient.patch<EntryRecord>(
-                      `/content/${name}/${id}`,
-                      body
-                  )
+                ? await apiClient.patch<EntryRecord>(`/content/${name}/${id}`, {
+                      ...body,
+                      // A confirmation, never a default: absent unless the
+                      // person agreed to the refusal it answers.
+                      ...(allowInvalidSiblings
+                          ? { allowInvalidSiblings: true }
+                          : {})
+                  })
                 : await apiClient.post<EntryRecord>(`/content/${name}`, {
                       ...body,
                       ...(extra ?? {})

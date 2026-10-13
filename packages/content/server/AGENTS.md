@@ -301,8 +301,9 @@ hook is handed the write's **stored** extension scope — on an update the row's
 own `localeGroupId`, not the request's — since that is the set the write
 actually contends on.
 
-`afterUpdate` receives an **`EntryWriteContext`** (`{ created }`) because the two
-writes are not symmetric. On an **update** the edited row is the authority and its
+`afterUpdate` receives an **`EntryWriteContext`**
+(`{ created, allowInvalidSiblings? }`) because the two writes are not
+symmetric. On an **update** the edited row is the authority and its
 state propagates outward. On a **create** it is the opposite: a translation
 arrives carrying the source's shared values but **none of its relations** (they
 are join-backed, or per-locale and deliberately dropped by the client), so
@@ -311,6 +312,16 @@ right — wiping the group's links. An implementation may also amend `row` **in
 place** for columns it derives for that row; the caller snapshots `row` _after_
 the call, so a database-only write would leave version 1 describing something the
 row never held.
+
+**`allowInvalidSiblings` is a confirmation, not a default.** An extension that
+rewrites other rows refuses a save that would leave a **published** one failing
+validation with a 422 carrying `code: SIBLING_INVALIDATED_CODE`
+(`content.sibling_invalidated`) and `siblings: [{ locale, issues }]` — the
+`code` is what tells a client those `issues` are not about the row it sent.
+`SaveEntryDto.allowInvalidSiblings` (update only) is how the admin resends the
+save once a person has read that and agreed; `update` forwards it to the
+context uninterpreted. Every other writer — the public API, the copilot, a
+restore — never sets it and keeps the refusal.
 
 The `?locale=` / `?localeFallback=`
 query params and the create body

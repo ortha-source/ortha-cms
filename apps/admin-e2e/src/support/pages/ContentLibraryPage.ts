@@ -1331,4 +1331,34 @@ export class ContentLibraryPage extends BasePage {
             name: `Publish ${validCount} valid`
         });
     }
+
+    /* --- Save confirmations ---------------------------------------------- */
+
+    /** Pick an option of a select field's open listbox. */
+    async pickFieldOption(fieldName: string, option: string): Promise<void> {
+        await this.fieldTrigger(fieldName).click();
+        await this.page.getByRole('option', { name: option }).click();
+    }
+
+    /** The "this also changes the other locales" confirmation. */
+    get sharedSaveDialog(): Locator {
+        return this.page.getByRole('dialog', {
+            name: 'This also changes the other locales'
+        });
+    }
+
+    /**
+     * The confirmation shown when the server refuses a save because it would
+     * leave a published translation failing validation.
+     */
+    get siblingInvalidationDialog(): Locator {
+        return this.page.getByRole('dialog', {
+            name: /leaves (a published locale|published locales) incomplete/
+        });
+    }
+
+    /** A button inside whichever dialog is open. */
+    dialogButton(name: string | RegExp): Locator {
+        return this.page.getByRole('dialog').getByRole('button', { name });
+    }
 }

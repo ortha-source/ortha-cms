@@ -57,7 +57,10 @@ export class UpdateEntryController {
             workspaceId,
             body.relations,
             toActor(user),
-            { extensions: body.extensions }
+            {
+                extensions: body.extensions,
+                allowInvalidSiblings: body.allowInvalidSiblings
+            }
         );
     }
 }

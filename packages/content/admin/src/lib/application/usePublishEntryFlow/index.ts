@@ -60,6 +60,12 @@ export type SubmitEntryInput = {
      */
     bypass?: boolean;
     /**
+     * The person confirmed a save the server refused because it would leave a
+     * published locale sibling failing validation — forwarded to the save
+     * request. See `SaveEntryInput.allowInvalidSiblings`.
+     */
+    allowInvalidSiblings?: boolean;
+    /**
      * Called the moment a write of this submit **lands**, before anything that
      * might still fail — the chained publish above all.
      *
@@ -214,6 +220,9 @@ export function usePublishEntryFlow(
                     : {}),
                 ...(input.extensions && Object.keys(input.extensions).length
                     ? { extensions: input.extensions }
+                    : {}),
+                ...(input.allowInvalidSiblings
+                    ? { allowInvalidSiblings: true }
                     : {})
             });
             // Record the new id before chaining publish: if publish then fails, the

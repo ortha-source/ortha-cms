@@ -92,8 +92,15 @@ The extension owns all locale _behavior_:
   as a never-published draft), then **re-validates any sibling that was
   published** via content-server's `EntryValidationService` — a failure throws
   422 and rolls the whole save back (a draft edit can't silently invalidate a
-  live translation). The demotion is what keeps a shared field's publish state
-  consistent across the group: leaving siblings `published` made the same edit
+  live translation). The 422 names **every** sibling it would invalidate
+  (`code: "content.sibling_invalidated"`, `siblings: [{ locale, issues }]`), so
+  the editor can ask instead of pinning another locale's issues on its own
+  form; a save resent with `allowInvalidSiblings` (forwarded as
+  `EntryWriteContext.allowInvalidSiblings`) goes through, each such sibling
+  left Modified — its live version still served, its working copy needing the
+  gap filled before it can be published again. Only the admin's update route
+  sets the flag, and only after a person confirmed. The demotion is what keeps
+  a shared field's publish state consistent across the group: leaving siblings `published` made the same edit
   live in the untouched locales while still pending in the edited one, and left
   each sibling's freshly-appended **draft** version describing a row that
   claimed to be live. Because the guard's `published` test would then always

@@ -485,6 +485,8 @@ export function ContentEntryView({
             dirty?: boolean;
             /** Whether to publish past a publish guard, forwarded as is. */
             bypass?: boolean;
+            /** A confirmed save past a sibling-invalidation refusal. */
+            allowInvalidSiblings?: boolean;
             /**
              * Called as soon as a write lands — forwarded to the flow, which is
              * the only layer that can tell a landed save from a refused one.
@@ -560,6 +562,7 @@ export function ContentEntryView({
                         !options.relations &&
                         Object.keys(extensions).length === 0,
                     bypass: options.bypass,
+                    allowInvalidSiblings: options.allowInvalidSiblings,
                     onWriteLanded: (write) => {
                         landed = write;
                         const { saved, created } = write;

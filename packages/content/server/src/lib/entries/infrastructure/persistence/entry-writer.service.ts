@@ -929,6 +929,13 @@ export class EntryWriterService {
              * back too rather than leaving today's readers on Tuesday's words.
              */
             extensions?: Record<string, unknown>;
+            /**
+             * The caller confirmed a save that leaves other **published** rows
+             * the bound extension rewrites (locale siblings) failing
+             * validation — forwarded to `afterUpdate` uninterpreted. See
+             * {@link EntryWriteContext.allowInvalidSiblings}.
+             */
+            allowInvalidSiblings?: boolean;
         }
     ): Promise<EntryRecord> {
         const actorId = revisionActorId(actor);
@@ -1061,7 +1068,10 @@ export class EntryWriterService {
                 updated as Row,
                 coerced,
                 workspaceId,
-                { created: false }
+                {
+                    created: false,
+                    allowInvalidSiblings: options?.allowInvalidSiblings === true
+                }
             );
             // Whatever a bound plugin was asked to store about this entry, on
             // this transaction and before the snapshot reads it back — so the

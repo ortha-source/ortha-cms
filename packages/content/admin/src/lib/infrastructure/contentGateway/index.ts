@@ -84,6 +84,12 @@ export type SaveEntryInput = {
      * port.
      */
     extensions?: Record<string, unknown>;
+    /**
+     * Go through with an update that leaves another **published** row the
+     * server rewrites (a locale sibling) failing validation — sent only after
+     * the 422 naming those rows was shown and confirmed. Update only.
+     */
+    allowInvalidSiblings?: boolean;
 };
 
 /**

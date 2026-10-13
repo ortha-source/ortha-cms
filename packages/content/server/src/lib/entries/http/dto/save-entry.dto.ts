@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+    IsBoolean,
     IsObject,
     IsOptional,
     IsString,
@@ -152,4 +153,19 @@ export class SaveEntryDto {
     @IsObject()
     @MaxExtensionKeys()
     extensions?: Record<string, unknown>;
+
+    /**
+     * Go through with a save that leaves another **published** row the save
+     * rewrites (a locale sibling, through a shared field or a synced relation)
+     * failing validation. Sent only after the 422 that names those rows has
+     * been shown to a person and confirmed. Read on update only.
+     */
+    @ApiPropertyOptional({
+        type: Boolean,
+        description:
+            'Confirm a save that leaves another published row it rewrites (a locale sibling, through a shared field or a synced relation) failing validation. Without it such a save is a 422 with `code: "content.sibling_invalidated"` naming each sibling; with it the save goes through, and each sibling keeps serving its published version while its working copy needs fixing before it can be published again. Read on update only.'
+    })
+    @IsOptional()
+    @IsBoolean()
+    allowInvalidSiblings?: boolean;
 }

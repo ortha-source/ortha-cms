@@ -796,6 +796,20 @@ a third state with no column value spelling it made unavoidable.
   sentence** (`Not published: …`). A publish guard's 409 carries its only
   explanation in the body; without the toast the busy cover lifted and nothing
   on screen said the write had not happened.
+- **A save that reaches other locales confirms first, and one that would
+  break a published locale asks again.** The "This also changes the other
+  locales" confirmation covers a dirty shared field **and** a dirty relation the
+  server syncs (`relation.localeSync` `shared` or `mirrored`) — unlinking such a
+  relation unlinks it in every language. If the server then refuses the save
+  because a **published** sibling would fail validation (the 422 with
+  `code: "content.sibling_invalidated"`), `entryIssuesFrom` returns nothing for
+  it — those issues describe the siblings, and pinning them on this form marked
+  fields the author had filled as failing — and `invalidatedSiblingsFrom` hands
+  the editor the locales and fields for **`SiblingInvalidationDialog`**: which
+  published translations would be left incomplete, that they keep serving their
+  live version, and that they can't be published again until fixed. **Save
+  anyway** resends the same save with `allowInvalidSiblings`
+  (`SubmitEntryInput` → `SaveEntryInput` → the PATCH body, update only).
 - **`EntryBusyOverlay`** covers the editor for the whole write — a blur +
   spinner + "Saving…"/"Publishing…", mirroring i18n's locale-switch flourish. Two
   differences from that one: **no delay** (nothing changes until the server
