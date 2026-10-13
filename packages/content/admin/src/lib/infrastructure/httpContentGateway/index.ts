@@ -10,6 +10,7 @@ import type {
     EntryMedia,
     EntryRecord,
     EntryRelations,
+    EntryReferences,
     EntryUsage,
     FilterFieldsResponse,
     MediaRef,
@@ -200,6 +201,24 @@ export const httpContentGateway: ContentGateway = {
         }
     },
 
+    async getEntryReferences(
+        name: string,
+        id: string
+    ): Promise<EntryReferences> {
+        try {
+            const { data } = await apiClient.get<EntryReferences>(
+                `/content/${name}/${id}/references`
+            );
+            return {
+                items: data.items ?? [],
+                total: data.total ?? 0,
+                live: data.live ?? 0
+            };
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
     async getEntryUsages(name: string, id: string): Promise<EntryUsage[]> {
         try {
             const { data } = await apiClient.get<{ items: EntryUsage[] }>(
@@ -250,7 +269,14 @@ export const httpContentGateway: ContentGateway = {
 
     async saveEntry(
         name: string,
-        { id, values, relations, extra, extensions }: SaveEntryInput
+        {
+            id,
+            values,
+            relations,
+            extra,
+            extensions,
+            allowInvalidSiblings
+        }: SaveEntryInput
     ): Promise<EntryRecord> {
         const body = {
             values,
@@ -265,10 +291,14 @@ export const httpContentGateway: ContentGateway = {
             // Extra (slot-contributed) keys apply to create only — an update
             // never re-homes envelope params like the locale.
             const { data } = id
-                ? await apiClient.patch<EntryRecord>(
-                      `/content/${name}/${id}`,
-                      body
-                  )
+                ? await apiClient.patch<EntryRecord>(`/content/${name}/${id}`, {
+                      ...body,
+                      // A confirmation, never a default: absent unless the
+                      // person agreed to the refusal it answers.
+                      ...(allowInvalidSiblings
+                          ? { allowInvalidSiblings: true }
+                          : {})
+                  })
                 : await apiClient.post<EntryRecord>(`/content/${name}`, {
                       ...body,
                       ...(extra ?? {})

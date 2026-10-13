@@ -53,6 +53,10 @@ const messages = defineMessages({
         id: 'content.relations.live.empty',
         defaultMessage: 'Nothing linked yet.'
     },
+    unavailable: {
+        id: 'content.relations.live.unavailable',
+        defaultMessage: 'Unavailable record'
+    },
     remove: {
         id: 'content.relations.live.remove',
         defaultMessage: 'Remove {title}'
@@ -174,8 +178,15 @@ export function RelationFieldLive({
     const hrefFor = (id: string) =>
         targetName ? contentEntryPath(workspace.id, targetName, id) : undefined;
 
+    // What a row is called in labels and announcements: its title, or — for
+    // a target that no longer resolves, whose `title` is only its id —
+    // "Unavailable record", so no control is named by a raw uuid.
+    const labelOf = (item: RelationRef) =>
+        item.missing ? intl.formatMessage(messages.unavailable) : item.title;
     // Title lookup for the drag announcements, keyed off the displayed set.
-    const titleById = new Map(displayed.map((item) => [item.id, item.title]));
+    const titleById = new Map(
+        displayed.map((item) => [item.id, labelOf(item)])
+    );
     const titleFor = (id: string) => titleById.get(id) ?? id;
 
     // Spoken feedback for keyboard reordering, by record title — mirrors
@@ -363,17 +374,23 @@ export function RelationFieldLive({
                                         )}
                                         status={item.status}
                                         source={item.source}
+                                        trashed={item.trashed}
+                                        missing={item.missing}
                                         leading={<RelationIndex position={i} />}
                                         onRemove={() => removeId(item.id)}
-                                        removeLabel={removeLabelFor(item.title)}
+                                        removeLabel={removeLabelFor(
+                                            labelOf(item)
+                                        )}
                                         href={hrefFor(item.id)}
-                                        openLabel={openLabelFor(item.title)}
+                                        openLabel={openLabelFor(labelOf(item))}
                                         onMoveUp={() => move(item.id, -1)}
-                                        moveUpLabel={moveUpLabelFor(item.title)}
+                                        moveUpLabel={moveUpLabelFor(
+                                            labelOf(item)
+                                        )}
                                         moveUpDisabled={i === 0}
                                         onMoveDown={() => move(item.id, 1)}
                                         moveDownLabel={moveDownLabelFor(
-                                            item.title
+                                            labelOf(item)
                                         )}
                                         moveDownDisabled={
                                             i === displayed.length - 1
@@ -390,11 +407,13 @@ export function RelationFieldLive({
                                 handle={handleFor(item.title, item.slug)}
                                 status={item.status}
                                 source={item.source}
+                                trashed={item.trashed}
+                                missing={item.missing}
                                 leading={<RelationIndex position={i} />}
                                 onRemove={() => removeId(item.id)}
-                                removeLabel={removeLabelFor(item.title)}
+                                removeLabel={removeLabelFor(labelOf(item))}
                                 href={hrefFor(item.id)}
-                                openLabel={openLabelFor(item.title)}
+                                openLabel={openLabelFor(labelOf(item))}
                                 readOnly={readOnly}
                             />
                         ))

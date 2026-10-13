@@ -703,3 +703,58 @@ export function spyLocaleSummaries(page: Page): { count: number } {
     });
     return spy;
 }
+
+/**
+ * Make the first `PATCH` of `entryId` answer the server's
+ * **sibling-invalidation** refusal: a 422 with
+ * `code: "content.sibling_invalidated"` naming the published locales the save
+ * would leave failing — the issues are about *those* rows, not the one sent. A
+ * later PATCH carrying `allowInvalidSiblings: true` is answered 200 (the person
+ * confirmed); one without it is refused again.
+ *
+ * Registered after {@link mockI18n}, so it wins for that entry's PATCH (routes
+ * match newest-first); every other method falls back to the healthy stub.
+ * Returns the PATCH bodies it saw, in order.
+ */
+export async function mockSiblingInvalidation(
+    page: Page,
+    entryId: string,
+    siblings: { locale: string; field: string }[]
+): Promise<Record<string, unknown>[]> {
+    const bodies: Record<string, unknown>[] = [];
+    await page.route(
+        new RegExp(`/api/content/localized_post/${entryId}$`),
+        async (route) => {
+            if (route.request().method() !== 'PATCH') {
+                await route.fallback();
+                return;
+            }
+            const body = route.request().postDataJSON() as Record<
+                string,
+                unknown
+            >;
+            bodies.push(body);
+            if (body.allowInvalidSiblings === true) {
+                await route.fallback();
+                return;
+            }
+            const invalidated = siblings.map(({ locale, field }) => ({
+                locale,
+                issues: [{ field, message: 'is required' }]
+            }));
+            await route.fulfill({
+                status: 422,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    message: `Shared fields would invalidate the published ${siblings
+                        .map(({ locale }) => `"${locale}"`)
+                        .join(', ')} translation`,
+                    code: 'content.sibling_invalidated',
+                    siblings: invalidated,
+                    issues: invalidated.flatMap(({ issues }) => issues)
+                })
+            });
+        }
+    );
+    return bodies;
+}

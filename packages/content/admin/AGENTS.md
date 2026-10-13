@@ -189,9 +189,25 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   linked record + a `+N` overflow) opening a `Popover` of the linked records,
   each an `<a target="_blank">` to that record's own editor
   (`domain/contentEntryPath`) with its muted `/handle`. Never the raw FK id — a
-  ref the server flags `missing` (its target soft-deleted or out of workspace)
-  renders as "Unavailable record" and carries no link, since its `title` is only
-  the id standing in.
+  ref the server flags `missing` (its target not resolvable) renders as
+  "Unavailable record" and carries no link, since its `title` is only the id
+  standing in. A ref flagged `trashed` (one of the workspace's own records, in
+  the trash) keeps its title and carries the shared **`TrashedBadge`** — "In
+  trash", with a tooltip (hover and focus) saying the link is kept, isn't
+  served, and comes back on restore — and no link, since the editor cannot open
+  a trashed record. The editor's `RelationItemRow` and the revision preview's
+  `RelationRefList` render both cases the same way; the editor used to print a
+  missing ref's raw id.
+- **Delete and purge say what links to the record.** The editor's ⋯ Delete and
+  the records table's row Delete / Delete permanently put an
+  **`EntryReferencesNotice`** under their sentence, read from
+  `GET …/:id/references` (`useEntryReferences`) only while the dialog is open:
+  how many records in the workspace link here and how many are live; for a
+  delete into the trash, that the links are kept but no longer served; for a
+  permanent one, what each foreign key does — records a cascading required
+  relation would delete with it, records a `restrict` one makes the purge wait
+  on, and links simply dropped. Nothing is said when nothing links, or when the
+  read fails — the dialog's own sentence still stands.
   Loading is **two-tier**: the list response carries a capped `relations`
   preview (requested via `relations: 'preview'` + `relationFields`, derived from
   the **visible** relation columns, so hiding one stops the server resolving
@@ -796,6 +812,20 @@ a third state with no column value spelling it made unavoidable.
   sentence** (`Not published: …`). A publish guard's 409 carries its only
   explanation in the body; without the toast the busy cover lifted and nothing
   on screen said the write had not happened.
+- **A save that reaches other locales confirms first, and one that would
+  break a published locale asks again.** The "This also changes the other
+  locales" confirmation covers a dirty shared field **and** a dirty relation the
+  server syncs (`relation.localeSync` `shared` or `mirrored`) — unlinking such a
+  relation unlinks it in every language. If the server then refuses the save
+  because a **published** sibling would fail validation (the 422 with
+  `code: "content.sibling_invalidated"`), `entryIssuesFrom` returns nothing for
+  it — those issues describe the siblings, and pinning them on this form marked
+  fields the author had filled as failing — and `invalidatedSiblingsFrom` hands
+  the editor the locales and fields for **`SiblingInvalidationDialog`**: which
+  published translations would be left incomplete, that they keep serving their
+  live version, and that they can't be published again until fixed. **Save
+  anyway** resends the same save with `allowInvalidSiblings`
+  (`SubmitEntryInput` → `SaveEntryInput` → the PATCH body, update only).
 - **`EntryBusyOverlay`** covers the editor for the whole write — a blur +
   spinner + "Saving…"/"Publishing…", mirroring i18n's locale-switch flourish. Two
   differences from that one: **no delay** (nothing changes until the server

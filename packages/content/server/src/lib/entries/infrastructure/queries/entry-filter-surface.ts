@@ -54,7 +54,7 @@ function humanize(name: string): string {
 }
 
 /** A field's display label — its admin label, else a humanized name. */
-function fieldLabel(name: string, spec: AnyFieldSpec): string {
+export function fieldLabel(name: string, spec: AnyFieldSpec): string {
     const label = spec.admin?.label;
     return typeof label === 'string' && label.length > 0
         ? label

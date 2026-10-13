@@ -8,6 +8,7 @@ import type {
 } from '../../../../../../domain/types/contentType';
 import { ENTRY_STATUS } from '../../../../../../domain/constants';
 import { SharedSourceBadge } from '../../../../SharedSourceBadge';
+import { TrashedBadge } from '../../../../TrashedBadge';
 
 /** Co-located labels for the row's status badge and the Replace control. */
 const messages = defineMessages({
@@ -22,6 +23,10 @@ const messages = defineMessages({
     replace: {
         id: 'content.relations.row.replace',
         defaultMessage: 'Replace'
+    },
+    unavailable: {
+        id: 'content.relations.row.unavailable',
+        defaultMessage: 'Unavailable record'
     }
 });
 
@@ -55,6 +60,17 @@ export type RelationItemRowProps = {
      * shows a shared record read-only.
      */
     source?: EntrySource | null;
+    /**
+     * The linked record is in the trash — the title stays (it is the real one)
+     * and an "In trash" mark replaces the status badge and the open link, since
+     * the editor cannot open a trashed record.
+     */
+    trashed?: boolean;
+    /**
+     * The target could not be resolved at all — the server sent the id as the
+     * title, so the row reads "Unavailable record" instead and offers no link.
+     */
+    missing?: boolean;
     /** Leading visual: an initials avatar (single) or an index chip (many). */
     leading?: ReactNode;
     onRemove: () => void;
@@ -98,6 +114,8 @@ export function RelationItemRow({
     handle,
     status,
     source,
+    trashed = false,
+    missing = false,
     leading,
     onRemove,
     removeLabel,
@@ -134,15 +152,29 @@ export function RelationItemRow({
             {readOnly ? null : (dragHandle ?? null)}
             {leading ?? null}
             <div className="flex min-w-0 flex-1 items-baseline gap-1.5">
-                <span className="truncate text-sm font-medium">{title}</span>
-                {handle ? (
+                {missing ? (
+                    <span className="truncate text-sm italic text-muted-foreground">
+                        {intl.formatMessage(messages.unavailable)}
+                    </span>
+                ) : (
+                    <span
+                        className={cn(
+                            'truncate text-sm font-medium',
+                            trashed ? 'text-muted-foreground' : ''
+                        )}
+                    >
+                        {title}
+                    </span>
+                )}
+                {handle && !missing ? (
                     <span className="shrink-0 truncate font-mono text-xs text-muted-foreground">
                         /{handle}
                     </span>
                 ) : null}
             </div>
             <SharedSourceBadge source={source} />
-            {status ? (
+            {trashed ? <TrashedBadge /> : null}
+            {status && !trashed && !missing ? (
                 <Badge
                     variant={
                         status === ENTRY_STATUS.Published
@@ -184,7 +216,7 @@ export function RelationItemRow({
                     <ChevronDown className="size-4" aria-hidden />
                 </Button>
             ) : null}
-            {href ? (
+            {href && !trashed && !missing ? (
                 <a
                     href={href}
                     target="_blank"

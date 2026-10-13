@@ -301,8 +301,9 @@ hook is handed the write's **stored** extension scope — on an update the row's
 own `localeGroupId`, not the request's — since that is the set the write
 actually contends on.
 
-`afterUpdate` receives an **`EntryWriteContext`** (`{ created }`) because the two
-writes are not symmetric. On an **update** the edited row is the authority and its
+`afterUpdate` receives an **`EntryWriteContext`**
+(`{ created, allowInvalidSiblings? }`) because the two writes are not
+symmetric. On an **update** the edited row is the authority and its
 state propagates outward. On a **create** it is the opposite: a translation
 arrives carrying the source's shared values but **none of its relations** (they
 are join-backed, or per-locale and deliberately dropped by the client), so
@@ -311,6 +312,16 @@ right — wiping the group's links. An implementation may also amend `row` **in
 place** for columns it derives for that row; the caller snapshots `row` _after_
 the call, so a database-only write would leave version 1 describing something the
 row never held.
+
+**`allowInvalidSiblings` is a confirmation, not a default.** An extension that
+rewrites other rows refuses a save that would leave a **published** one failing
+validation with a 422 carrying `code: SIBLING_INVALIDATED_CODE`
+(`content.sibling_invalidated`) and `siblings: [{ locale, issues }]` — the
+`code` is what tells a client those `issues` are not about the row it sent.
+`SaveEntryDto.allowInvalidSiblings` (update only) is how the admin resends the
+save once a person has read that and agreed; `update` forwards it to the
+context uninterpreted. Every other writer — the public API, the copilot, a
+restore — never sets it and keeps the refusal.
 
 The `?locale=` / `?localeFallback=`
 query params and the create body
@@ -873,6 +884,14 @@ missing a row means deleting a workspace that still holds data (see its JSDoc).
 - `GET /content-schema/:name` — the full field schema (types, validation, admin
   props). **Workspace-scoped + grant-checked**: an unknown _and_ an ungranted
   name are the same 404.
+- `GET /content/:typeName/:id/references` — which records in **this**
+  workspace link to the entry, per referring relation field (`count`, how many
+  are `live`), and what a permanent delete does to them (`onPurge`: `unlink`, a
+  cascading FK's `delete`, a restricting FK's `block`). The admin's delete and
+  purge confirmations read it, so a delete stops going through with no word
+  about what points at the record. The entry may be in the trash (a purge is
+  confirmed there); referrers in the trash are not counted. Counts only
+  (`EntryReferencesQuery`, the own-workspace sibling of `EntryUsagesQuery`).
 - `GET /content-schema/:name/filter-fields` — the type's **filterable surface**:
   every scalar path the records-table query builder may filter on, including
   **recursive relation paths** (`author.name`, `author.company.name`, to a
@@ -933,12 +952,16 @@ missing a row means deleting a workspace that still holds data (see its JSDoc).
   delete / content-revoke emptiness guards (which take it exclusively) so a
   new entry can't be orphaned by a concurrent delete/revoke. - `GET /content/:typeName/:id` — read one live entry (`content:read`). - `GET /content/:typeName/:id/relations` — every relation field's **first
   page** + total (`{ relations: { <field>: { items: RelationRef[], total } } }`,
-  `RelationRef = { id, title, slug?, status?, missing? }`), for owning single/many
-  **and** inverse back-references. A link whose target can't be resolved
-  (soft-deleted, or outside the workspace) still yields a ref — id-only and
+  `RelationRef = { id, title, slug?, status?, missing?, trashed? }`), for owning single/many
+  **and** inverse back-references. A link to one of the workspace's **own**
+  records that is in the trash keeps its real title and is flagged
+  **`trashed: true`** — the record is one the caller can already see in Trash,
+  and naming it is what tells an editor the link waits on a restore. A link
+  whose target can't be resolved at all still yields a ref — id-only and
   flagged **`missing: true`**, so `items` never runs shorter than `total` —
   and the admin renders it as an unavailable record rather than printing the
-  raw id. `slug` is the target's slug-field value —
+  raw id. `trashed` is admin-only: a read under `RelationTargetVisibility`
+  (every public read) never resolves a trashed target. `slug` is the target's slug-field value —
   the field flagged `admin.widget === 'slug'`, else one literally named
   `slug` (`entrySlug` in `entry-row.ts`) — present only when the target has
   one and the row's slug is non-empty; the admin renders it as a `/handle`.

@@ -1,5 +1,6 @@
 import { defineMessages, useIntl } from 'react-intl';
 import type { RelationRef } from '../../../../../../../domain/types/contentType';
+import { TrashedBadge } from '../../../../../TrashedBadge';
 
 const messages = defineMessages({
     none: {
@@ -19,8 +20,9 @@ const messages = defineMessages({
 /**
  * The **exact linked records** a relation field held in a snapshot — the titled
  * list the preview shows instead of a bare count. A record the server couldn't
- * resolve (soft-deleted or out of workspace) is flagged `missing` and renders as
- * "Unavailable record", never its raw id. The list is capped server-side, so a
+ * resolve at all is flagged `missing` and renders as "Unavailable record", never
+ * its raw id; one of the workspace's own records in the trash keeps its title
+ * and is marked "In trash". The list is capped server-side, so a
  * `total` beyond the resolved `refs` shows a "+N more" tail.
  */
 export function RelationRefList({
@@ -58,6 +60,7 @@ export function RelationRefList({
                                     /{ref.slug}
                                 </span>
                             )}
+                            {ref.trashed ? <TrashedBadge /> : null}
                         </>
                     )}
                 </li>

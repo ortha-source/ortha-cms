@@ -11,6 +11,7 @@ import {
     eq,
     getTableName,
     inArray,
+    isNotNull,
     isNull,
     max,
     ne,
@@ -1130,6 +1131,18 @@ export class RelationLinkService {
             )) as Row[];
         const refs = await this.toRefs(target, rows, workspaceId);
         const byId = new Map(refs.map((ref) => [ref.id, ref]));
+        // An admin read (no visibility restriction) names the caller's own
+        // records that are in the bin, so the editor can show which record a
+        // link waits on rather than an anonymous "unavailable" row.
+        if (!visibility) {
+            for (const ref of await this.trashedRefs(
+                target,
+                ids.filter((id) => !byId.has(id)),
+                workspaceId
+            )) {
+                byId.set(ref.id, ref);
+            }
+        }
         const hidden = await this.hiddenForeignIds(
             target,
             ids.filter((id) => !byId.has(id)),
@@ -1149,6 +1162,41 @@ export class RelationLinkService {
                 (id) =>
                     byId.get(id) ?? { id, title: id, missing: true as const }
             );
+    }
+
+    /**
+     * Refs for those of `ids` that are the caller's **own** soft-deleted
+     * records — titled like any other ref and flagged `trashed`.
+     *
+     * Only the own workspace, and only the bin: a trashed row of this workspace
+     * is one the caller can already open in its Trash view, so its title is no
+     * disclosure, and naming it is what tells an editor the link is waiting on
+     * a restore rather than broken. A row of another workspace that did not
+     * resolve stays what {@link hiddenForeignIds} makes it. Public reads never
+     * reach this — the caller gates it on there being no visibility
+     * restriction.
+     */
+    private async trashedRefs(
+        target: AnyContentType,
+        ids: string[],
+        workspaceId: string
+    ): Promise<RelationRef[]> {
+        const cols = target.table as unknown as Columns;
+        if (!ids.length || !cols['deletedAt']) return [];
+        const rows = (await this.db
+            .select()
+            .from(target.table)
+            .where(
+                and(
+                    inArray(cols['id'], [...new Set(ids)]),
+                    eq(cols['workspaceId'], workspaceId),
+                    isNotNull(cols['deletedAt'])
+                )
+            )) as Row[];
+        return rows.map((row) => ({
+            ...this.rowToRef(target, row, null),
+            trashed: true as const
+        }));
     }
 
     /**
@@ -1543,6 +1591,43 @@ export class RelationLinkService {
             }
         }
         return out;
+    }
+
+    /**
+     * The translation group of each of `ids` on a localized `target` — `id →
+     * locale_group_id`, an id with no linkable row simply absent.
+     *
+     * **Trashed rows are included**, which is the point. The sibling sync asks
+     * this when a mirrored link has no live equivalent in a sibling's locale,
+     * to tell "the sibling links a translation of the very record the source
+     * links — one that is in the bin" from "the sibling links some other
+     * record". The first is still the right link (restoring the translation
+     * brings it back to life), so it must not be nulled; only the second is.
+     */
+    async localeGroupsOf(
+        exec: QueryRunner,
+        target: AnyContentType,
+        ids: readonly string[],
+        workspaceId: string
+    ): Promise<Map<string, string>> {
+        const unique = [...new Set(ids)].filter(Boolean);
+        if (!target.i18n || !unique.length) return new Map();
+        const cols = target.table as unknown as Columns;
+        const rows = (await exec
+            .select()
+            .from(target.table)
+            .where(
+                and(
+                    inArray(cols['id'], unique),
+                    this.linkableWhere(target, workspaceId)
+                )
+            )) as Row[];
+        return new Map(
+            rows.map((row) => [
+                row['id'] as string,
+                row['localeGroupId'] as string
+            ])
+        );
     }
 
     /**

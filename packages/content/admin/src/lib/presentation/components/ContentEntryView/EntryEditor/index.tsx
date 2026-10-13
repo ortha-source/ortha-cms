@@ -48,7 +48,11 @@ import {
 } from '../../../slots/contentSlots';
 import { useEntryRelations } from '../../../../application/useEntryRelations';
 import { useEntryMedia } from '../../../../application/useEntryMedia';
-import { entryIssuesFrom } from '../../../../infrastructure/entryIssues';
+import {
+    entryIssuesFrom,
+    invalidatedSiblingsFrom,
+    type InvalidatedSibling
+} from '../../../../infrastructure/entryIssues';
 import { fieldLabel } from '../../../../domain/entryColumns';
 import { entryTabForField } from '../../../../domain/entryTab';
 import { outlineGeneralTab } from '../../../../domain/fieldOutline';
@@ -62,6 +66,7 @@ import { EntryTabIssues } from './EntryTabIssues';
 import { HistoryTimeline } from './HistoryTimeline';
 import { ReadOnlyNotice } from './ReadOnlyNotice';
 import { SharedEntryNotice } from './SharedEntryNotice';
+import { SiblingInvalidationDialog } from './SiblingInvalidationDialog';
 import { RelationFieldSection } from './RelationFieldSection';
 
 const messages = defineMessages({
@@ -97,7 +102,7 @@ const messages = defineMessages({
     sharedSaveBody: {
         id: 'content.editor.sharedSaveBody',
         defaultMessage:
-            'You changed {count, plural, one {the shared field “{first}”} other {# shared fields, starting with “{first}”}}. Shared fields aren’t translated — saving applies the new value to every locale of this record, not just this one.'
+            'You changed {count, plural, one {the shared field “{first}”} other {# shared fields, starting with “{first}”}}. Shared fields and synced relations aren’t translated — saving applies the change to every locale of this record, not just this one.'
     },
     sharedSaveConfirm: {
         id: 'content.editor.sharedSaveConfirm',
@@ -249,6 +254,11 @@ export function EntryEditor({
             dirty?: boolean;
             /** Whether to publish past a publish guard, forwarded as is. */
             bypass?: boolean;
+            /**
+             * The person confirmed a save the server refused for leaving a
+             * published locale sibling failing validation.
+             */
+            allowInvalidSiblings?: boolean;
             /**
              * Called the moment a write lands — before a chained publish that
              * may still be refused. The editor re-arms its form seeding here,
@@ -737,7 +747,11 @@ export function EntryEditor({
     // equally when a chained publish is then refused, since the save wrote those
     // links either way. A save that never landed keeps it, for the retry.
     const submitWith =
-        (publish: boolean, options: EntryPublishOptions = {}) =>
+        (
+            publish: boolean,
+            options: EntryPublishOptions = {},
+            allowInvalidSiblings = false
+        ) =>
         (values: Record<string, unknown>) => {
             const sent = relationDeltas;
             let landed = false;
@@ -747,6 +761,7 @@ export function EntryEditor({
                 ignoreFields: validationIgnored,
                 dirty: isDirty,
                 bypass: options.bypass,
+                allowInvalidSiblings,
                 // Re-arm seeding the moment a write lands. The response is what
                 // the editor then shows, and it reaches the form as a **new
                 // seed** — `useSaveEntry` primes the read-one cache with it
@@ -777,6 +792,15 @@ export function EntryEditor({
                     // so the tab swaps the staging for the refetched server set
                     // instead of flashing the pre-save links in between.
                     if (landed) clearSentRelations(sent);
+                    // The save would leave a published translation failing
+                    // validation. Nothing was written; its issues are about
+                    // the other locales, not this form, so ask instead of
+                    // marking fields here — Save anyway resends it confirmed.
+                    const siblings = invalidatedSiblingsFrom(error);
+                    if (siblings) {
+                        setPendingSiblings({ publish, options, siblings });
+                        return;
+                    }
                     const issues = entryIssuesFrom(error);
                     form.setServerErrors(issues);
                     // Not a field problem at all — a publish guard's refusal, a
@@ -887,7 +911,11 @@ export function EntryEditor({
         });
     };
 
-    const runSave = (publish: boolean, options?: EntryPublishOptions) => {
+    const runSave = (
+        publish: boolean,
+        options?: EntryPublishOptions,
+        allowInvalidSiblings = false
+    ) => {
         // A reader without write permission has no Save button, but the form's
         // own `onSubmit` (Enter in a text field) is a second way in — so the
         // guard lives here, at the one point every save path funnels through,
@@ -896,9 +924,10 @@ export function EntryEditor({
         // A **draft** of a publishable type can be saved incomplete (relaxed
         // gate); publishing — or any save of an always-live type — is strict.
         const strict = publish || !publishable;
+        const submit = submitWith(publish, options, allowInvalidSiblings);
         const submitted = strict
-            ? form.submit(submitWith(publish, options))
-            : form.submitDraft(submitWith(publish, options));
+            ? form.submit(submit)
+            : form.submitDraft(submit);
         if (!submitted) announceBlocked(strict, publish);
     };
 
@@ -908,13 +937,19 @@ export function EntryEditor({
     // save that carries such a change confirms first (#17). Only ever relevant
     // on a type that *has* both kinds of field; a plain type has no siblings to
     // affect and never sees this.
-    // Every non-relation field (General **and** Media) that's shared and dirty —
-    // a media field syncs to siblings the same as a scalar, so it belongs here.
-    const dirtySharedFields = visible.filter(
-        (field) =>
-            field.type !== CONTENT_FIELD_TYPE.Relation &&
-            !field.localized &&
-            isFieldDirty(field.name)
+    // Every field (General **and** Media) that's shared and dirty — a media
+    // field syncs to siblings the same as a scalar, so it belongs here. A
+    // relation counts when the server carries its links across the record's
+    // locales (`localeSync` shared or mirrored): unlinking it here unlinks it
+    // in every language, published ones included, which is exactly the save a
+    // person must not find out about afterwards.
+    const dirtySharedFields = visible.filter((field) =>
+        field.type === CONTENT_FIELD_TYPE.Relation
+            ? !ignoredFields.has(field.name) &&
+              (field.relation?.localeSync === 'shared' ||
+                  field.relation?.localeSync === 'mirrored') &&
+              (isFieldDirty(field.name) || isRelationDirty(field.name))
+            : !field.localized && isFieldDirty(field.name)
     );
     const hasLocalizedFields = visible.some((field) => field.localized);
     const needsSharedWarning =
@@ -925,6 +960,14 @@ export function EntryEditor({
     const [pendingPublish, setPendingPublish] = useState<{
         publish: boolean;
         options?: EntryPublishOptions;
+    } | null>(null);
+
+    // The save the server refused because it would leave published locale
+    // siblings failing validation — held for the person to confirm.
+    const [pendingSiblings, setPendingSiblings] = useState<{
+        publish: boolean;
+        options?: EntryPublishOptions;
+        siblings: InvalidatedSibling[];
     } | null>(null);
 
     // --- the expanded field ------------------------------------------------
@@ -1471,6 +1514,26 @@ export function EntryEditor({
                                 setPendingPublish(null);
                                 if (pending)
                                     runSave(pending.publish, pending.options);
+                            }}
+                        />
+                        <SiblingInvalidationDialog
+                            siblings={pendingSiblings?.siblings ?? null}
+                            labelFor={(name) => {
+                                const field = schema.fields.find(
+                                    (candidate) => candidate.name === name
+                                );
+                                return field ? fieldLabel(field) : name;
+                            }}
+                            onCancel={() => setPendingSiblings(null)}
+                            onConfirm={() => {
+                                const pending = pendingSiblings;
+                                setPendingSiblings(null);
+                                if (pending)
+                                    runSave(
+                                        pending.publish,
+                                        pending.options,
+                                        true
+                                    );
                             }}
                         />
                     </form>

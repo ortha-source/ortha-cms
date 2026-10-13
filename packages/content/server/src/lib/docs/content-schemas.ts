@@ -208,7 +208,7 @@ function sharedSchemas(): Record<string, OpenApiSchema> {
         RelationRef: {
             type: 'object',
             description:
-                "One linked record, resolved for display. A link to one of the workspace's own records that cannot be resolved (soft-deleted) is returned id-only and flagged `missing`, so `items` never runs shorter than `total`; a link into another workspace whose target is not visible (ADR-0019) is left out of both.",
+                "One linked record, resolved for display. A link to one of the workspace's own records that is in the trash keeps its title and is flagged `trashed`; one that cannot be resolved at all is returned id-only and flagged `missing`, so `items` never runs shorter than `total`; a link into another workspace whose target is not visible (ADR-0019) is left out of both.",
             properties: {
                 id: UUID,
                 title: {
@@ -229,6 +229,11 @@ function sharedSchemas(): Record<string, OpenApiSchema> {
                 missing: {
                     type: 'boolean',
                     description: 'The target could not be resolved.'
+                },
+                trashed: {
+                    type: 'boolean',
+                    description:
+                        "The target is one of the workspace's own records, in the trash. The ref keeps its real title; restoring the record brings the link back."
                 },
                 source: {
                     ...ref('EntrySource'),
@@ -268,6 +273,50 @@ function sharedSchemas(): Record<string, OpenApiSchema> {
                 }
             },
             required: ['items']
+        },
+        EntryReferences: {
+            type: 'object',
+            description:
+                'Which records in **this** workspace link to the entry, per referring relation field, and what a permanent delete would do to them. Referrers in the trash are not counted. Empty `items` when nothing links to it.',
+            properties: {
+                items: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            typeName: { type: 'string' },
+                            typeLabel: { type: 'string' },
+                            field: { type: 'string' },
+                            fieldLabel: { type: 'string' },
+                            count: { type: 'integer', minimum: 1 },
+                            live: {
+                                type: 'integer',
+                                minimum: 0,
+                                description:
+                                    'Of `count`, those with a live (published or Modified) version.'
+                            },
+                            onPurge: {
+                                type: 'string',
+                                enum: ['unlink', 'delete', 'block'],
+                                description:
+                                    'What deleting the entry permanently does to them: drop the link, delete them with it (`onDelete: cascade`), or refuse the purge (`onDelete: restrict`).'
+                            }
+                        },
+                        required: [
+                            'typeName',
+                            'typeLabel',
+                            'field',
+                            'fieldLabel',
+                            'count',
+                            'live',
+                            'onPurge'
+                        ]
+                    }
+                },
+                total: { type: 'integer', minimum: 0 },
+                live: { type: 'integer', minimum: 0 }
+            },
+            required: ['items', 'total', 'live']
         },
         MediaRef: {
             type: 'object',

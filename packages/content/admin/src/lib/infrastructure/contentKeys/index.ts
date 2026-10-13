@@ -184,3 +184,14 @@ export const relationCandidatesKey = (
  */
 export const entryUsagesKey = (workspaceId: string, name: string, id: string) =>
     ['content-entry-usages', workspaceId, name, id] as const;
+
+/**
+ * One entry's inbound links from **this** workspace (`GET …/:id/references`),
+ * read when a delete or purge confirmation opens. Its own root, and read
+ * fresh each time the dialog opens rather than kept in step with writes.
+ */
+export const entryReferencesKey = (
+    workspaceId: string,
+    name: string,
+    id: string
+) => ['content-entry-references', workspaceId, name, id] as const;

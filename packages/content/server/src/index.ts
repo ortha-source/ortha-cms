@@ -85,7 +85,10 @@ export {
     type ContentAccessSource
 } from './lib/content-types/queries/content-access';
 
-export { CONTENT_ENTRY_EXTENSION } from './lib/extension/entry-extension';
+export {
+    CONTENT_ENTRY_EXTENSION,
+    SIBLING_INVALIDATED_CODE
+} from './lib/extension/entry-extension';
 export type {
     ContentEntryExtension,
     EntryFilterContext,
@@ -180,6 +183,9 @@ export type {
     EntryMediaView,
     EntryRecord,
     EntrySource,
+    EntryReference,
+    EntryReferenceOnPurge,
+    EntryReferencesView,
     EntryUsage,
     EntryUsagesView,
     MediaRef

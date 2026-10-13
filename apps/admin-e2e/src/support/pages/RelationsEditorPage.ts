@@ -37,6 +37,32 @@ export class RelationsEditorPage extends BasePage {
         );
     }
 
+    /** Open a saved record's editor straight on its Relations tab. */
+    async gotoEntryRelations(
+        workspaceId: string,
+        typeName: string,
+        id: string
+    ) {
+        await this.page.goto(
+            `/workspaces/${workspaceId}/content/${typeName}/${id}/relations`
+        );
+    }
+
+    /** Every "In trash" mark on the open tab. */
+    get trashedBadges(): Locator {
+        return this.page.getByRole('button', { name: 'In trash' });
+    }
+
+    /** The stand-in a link whose target cannot be resolved reads as. */
+    get unavailableRecords(): Locator {
+        return this.page.getByText('Unavailable record', { exact: true });
+    }
+
+    /** Text anywhere on the tab — to assert a title (or an id) is or isn't shown. */
+    text(value: string): Locator {
+        return this.page.getByText(value, { exact: true });
+    }
+
     /** Switch to the Relations tab. */
     async openRelationsTab() {
         await this.relationsTab.click();

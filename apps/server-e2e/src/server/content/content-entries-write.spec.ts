@@ -636,6 +636,43 @@ describe('Content entry writes (/api/content/:type)', () => {
         });
     });
 
+    describe('relations into the trash', () => {
+        it('titles a link to a trashed record and flags it, on the admin read [content:I-57]', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const tag = (
+                await agent
+                    .post('/api/content/test_tag')
+                    .send({ values: { name: 'Gardening' } })
+                    .expect(201)
+            ).body.id as string;
+            const id = await createArticle(agent, { ...VALID, tags: [tag] });
+            await agent.delete(`/api/content/test_tag/${tag}`).expect(204);
+
+            const res = await agent
+                .get(`/api/content/test_article/${id}/relations`)
+                .expect(200);
+            // The real record, so the editor can say which one the link waits
+            // on — not an id standing in for a title.
+            expect(res.body.relations.tags.items).toEqual([
+                expect.objectContaining({
+                    id: tag,
+                    title: 'Gardening',
+                    trashed: true
+                })
+            ]);
+            expect(res.body.relations.tags.items[0].missing).toBeUndefined();
+
+            // Restored, it is an ordinary link again.
+            await agent
+                .post(`/api/content/test_tag/${tag}/restore`)
+                .expect(201);
+            const after = await agent
+                .get(`/api/content/test_article/${id}/relations`)
+                .expect(200);
+            expect(after.body.relations.tags.items[0].trashed).toBeUndefined();
+        });
+    });
+
     describe('publish / unpublish', () => {
         it('publishes then unpublishes a draft', async () => {
             const agent = await login(ADMIN_EMAIL);

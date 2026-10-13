@@ -66,7 +66,28 @@ export interface EntryScopeParams {
 export interface EntryWriteContext {
     /** True when the row was just INSERTed; false on an update. */
     created: boolean;
+    /**
+     * The caller has been told this save leaves other **published** rows the
+     * extension rewrites failing validation, and confirmed it. Without it an
+     * extension refuses such a save with a 422 carrying
+     * {@link SIBLING_INVALIDATED_CODE}; with it the save goes through. Only the
+     * admin's update route sets it, and only after showing the refusal to a
+     * person — every other writer keeps the refusal.
+     */
+    allowInvalidSiblings?: boolean;
 }
+
+/**
+ * The `code` on a 422 an extension raises when a save would leave another
+ * **published** row it rewrites (a locale sibling) failing validation.
+ *
+ * It is what tells that refusal apart from an ordinary validation 422: its
+ * `issues` describe the *other* rows, not the one the caller sent, so a client
+ * must not pin them on its own form. The body also carries
+ * `siblings: [{ locale, issues }]`, naming each row it would invalidate, and the
+ * client may retry with `allowInvalidSiblings` once a person has agreed.
+ */
+export const SIBLING_INVALIDATED_CODE = 'content.sibling_invalidated';
 
 /**
  * What a write of one entry would **also** rewrite, beyond the row addressed.
