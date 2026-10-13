@@ -912,6 +912,131 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             ]);
         });
 
+        // The record links Ada in every language; then Ada's German row goes to
+        // the bin. A later save of the English article — one that does not
+        // touch the author at all — must not unlink the German article: it
+        // still links the right person, and restoring the translation brings
+        // the link back. Nulling it made a *required* relation on a published
+        // sibling 422 every save of the record, in any language.
+        it('keeps a sibling’s link to a trashed translation of the same record [i18n:I-33]', async () => {
+            const agent = await login();
+            const adaEn = await createAuthor(agent, 'Ada');
+            const adaDe = await createAuthor(agent, 'Ada (DE)', 'de', adaEn);
+            const en = await createArticle(agent, {
+                values: { ...VALID, number: 1, author: adaEn.id }
+            });
+            const de = (
+                await agent
+                    .post('/api/content/test_article')
+                    .send({
+                        values: { ...VALID, number: 1 },
+                        locale: 'de',
+                        localeGroupId: en.localeGroupId
+                    })
+                    .expect(201)
+            ).body as { id: string; values: Record<string, unknown> };
+            expect(de.values.author).toBe(adaDe.id);
+            await agent
+                .post(`/api/content/test_article/${de.id}/publish`)
+                .expect(201);
+
+            await agent
+                .delete(`/api/content/test_author/${adaDe.id}`)
+                .expect(204);
+
+            // An unrelated shared edit on the English row.
+            await agent
+                .patch(`/api/content/test_article/${en.id}`)
+                .send({ values: { ...VALID, number: 2, author: adaEn.id } })
+                .expect(200);
+
+            const deAfter = (
+                await agent
+                    .get(`/api/content/test_article/${de.id}`)
+                    .expect(200)
+            ).body as { values: Record<string, unknown> };
+            expect(deAfter.values.number).toBe(2); // the shared field synced
+            expect(deAfter.values.author).toBe(adaDe.id); // the link was kept
+        });
+
+        it('keeps a sibling’s many-link to a trashed translation, in place [i18n:I-33]', async () => {
+            const agent = await login();
+            const en = await createArticle(agent);
+            const de = (await createTranslation(agent, en, 'de')).body as {
+                id: string;
+            };
+            const adaEn = await createAuthor(agent, 'Ada');
+            const adaDe = await createAuthor(agent, 'Ada (DE)', 'de', adaEn);
+            const grace = await createAuthor(agent, 'Grace');
+            const graceDe = await createAuthor(
+                agent,
+                'Grace (DE)',
+                'de',
+                grace
+            );
+            await link(agent, en.id, 'contributors', [adaEn.id, grace.id]);
+            expect(await linkIds(agent, de.id, 'contributors')).toEqual([
+                adaDe.id,
+                graceDe.id
+            ]);
+
+            await agent
+                .delete(`/api/content/test_author/${adaDe.id}`)
+                .expect(204);
+            // Linking a third contributor re-syncs the whole set.
+            const linus = await createAuthor(agent, 'Linus');
+            const linusDe = await createAuthor(
+                agent,
+                'Linus (DE)',
+                'de',
+                linus
+            );
+            await link(agent, en.id, 'contributors', [linus.id]);
+
+            // The trashed German Ada keeps her place; nothing else moved.
+            expect(await linkIds(agent, de.id, 'contributors')).toEqual([
+                adaDe.id,
+                graceDe.id,
+                linusDe.id
+            ]);
+        });
+
+        it('still nulls a sibling’s link when the source moved to another record [i18n:I-17]', async () => {
+            const agent = await login();
+            const adaEn = await createAuthor(agent, 'Ada');
+            const adaDe = await createAuthor(agent, 'Ada (DE)', 'de', adaEn);
+            const graceEn = await createAuthor(agent, 'Grace');
+            const en = await createArticle(agent, {
+                values: { ...VALID, author: adaEn.id }
+            });
+            const de = (
+                await agent
+                    .post('/api/content/test_article')
+                    .send({
+                        values: VALID,
+                        locale: 'de',
+                        localeGroupId: en.localeGroupId
+                    })
+                    .expect(201)
+            ).body as { id: string };
+            // Trashed AND moved off: the kept-link rule must not apply, since
+            // the German article would then still credit Ada.
+            await agent
+                .delete(`/api/content/test_author/${adaDe.id}`)
+                .expect(204);
+            await agent
+                .patch(`/api/content/test_article/${en.id}`)
+                .send({ values: { ...VALID, author: graceEn.id } })
+                .expect(200);
+
+            const deAfter = (
+                await agent
+                    .get(`/api/content/test_article/${de.id}`)
+                    .expect(200)
+            ).body as { values: Record<string, unknown> };
+            expect(deAfter.values.author).toBeNull();
+        });
+
         it('keeps an unsynced relation independent per locale', async () => {
             const agent = await login();
             const en = await createArticle(agent);

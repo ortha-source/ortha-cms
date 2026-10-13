@@ -1546,6 +1546,43 @@ export class RelationLinkService {
     }
 
     /**
+     * The translation group of each of `ids` on a localized `target` — `id →
+     * locale_group_id`, an id with no linkable row simply absent.
+     *
+     * **Trashed rows are included**, which is the point. The sibling sync asks
+     * this when a mirrored link has no live equivalent in a sibling's locale,
+     * to tell "the sibling links a translation of the very record the source
+     * links — one that is in the bin" from "the sibling links some other
+     * record". The first is still the right link (restoring the translation
+     * brings it back to life), so it must not be nulled; only the second is.
+     */
+    async localeGroupsOf(
+        exec: QueryRunner,
+        target: AnyContentType,
+        ids: readonly string[],
+        workspaceId: string
+    ): Promise<Map<string, string>> {
+        const unique = [...new Set(ids)].filter(Boolean);
+        if (!target.i18n || !unique.length) return new Map();
+        const cols = target.table as unknown as Columns;
+        const rows = (await exec
+            .select()
+            .from(target.table)
+            .where(
+                and(
+                    inArray(cols['id'], unique),
+                    this.linkableWhere(target, workspaceId)
+                )
+            )) as Row[];
+        return new Map(
+            rows.map((row) => [
+                row['id'] as string,
+                row['localeGroupId'] as string
+            ])
+        );
+    }
+
+    /**
      * Replace one join-backed relation field's links for `sourceId` with
      * exactly `targetIds`, in order — the primitive the locale sibling sync
      * writes through. Returns whether anything actually changed, so a caller

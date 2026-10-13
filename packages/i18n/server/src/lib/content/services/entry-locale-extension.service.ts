@@ -50,6 +50,17 @@ import { lockLocaleGroup } from '../locale-group-lock';
 /** A generated content table seen as a bag of columns by property name. */
 type ContentTable = Record<string, AnyColumn>;
 
+/**
+ * What the sibling sync knows about one join-backed relation field: the
+ * source's links, in order, and per locale the equivalent each one resolves to
+ * there — `null` where the target has no live translation in that locale.
+ */
+interface LinkPlan {
+    target: AnyContentType;
+    sourceIds: string[];
+    byLocale: Map<string, (string | null)[]>;
+}
+
 /** Virtual filter field: the group holds a row in this locale. */
 const HAS_LOCALE = 'hasLocale';
 /** Virtual filter field: the group is missing a row in this locale. */
@@ -470,7 +481,18 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
                   locales,
                   workspaceId
               )
-            : new Map<string, Map<string, string[]>>();
+            : new Map<string, LinkPlan>();
+
+        const keep = options.relations
+            ? await this.mirroredLinksToKeep(
+                  tx,
+                  type,
+                  values,
+                  siblings,
+                  mirrored,
+                  workspaceId
+              )
+            : new Map<string, Set<string>>();
 
         const rewritten: Record<string, unknown>[] = [];
         for (const sibling of siblings) {
@@ -481,20 +503,31 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
             // below — that is what stamps `updatedAt`, demotes a published
             // sibling, and earns the row its revision.
             let linksMoved = false;
-            for (const [field, byLocale] of links) {
+            for (const [field, plan] of links) {
                 const moved = await this.relations.replaceLinks(
                     tx,
                     type,
                     siblingId,
                     field,
-                    byLocale.get(locale) ?? []
+                    await this.siblingLinks(
+                        tx,
+                        type,
+                        siblingId,
+                        field,
+                        plan,
+                        locale,
+                        workspaceId
+                    )
                 );
                 linksMoved ||= moved;
             }
 
+            const kept = keep.get(siblingId);
             const columns = [
                 ...shared,
-                ...Object.entries(mirrored.get(locale) ?? {})
+                ...Object.entries(mirrored.get(locale) ?? {}).filter(
+                    ([column]) => !kept?.has(column)
+                )
             ];
             // Nothing to write and nothing moved — leave the row (and its
             // history) completely alone. Guarding here matters: an empty
@@ -649,13 +682,17 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
             workspaceId
         );
 
-        for (const [field, byLocale] of links) {
+        for (const [field, plan] of links) {
+            // A new row holds no links of its own, so an untranslated target
+            // has nothing to keep — it is simply not linked here.
             await this.relations.replaceLinks(
                 tx,
                 type,
                 row['id'] as string,
                 field,
-                byLocale.get(locale) ?? []
+                (plan.byLocale.get(locale) ?? []).filter(
+                    (id): id is string => !!id
+                )
             );
         }
 
@@ -724,15 +761,16 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
     }
 
     /**
-     * Per join-backed relation field, per locale, the ordered link ids a
-     * sibling in that locale should hold.
+     * Per join-backed relation field, the link set a sibling in each locale
+     * should hold — as a {@link LinkPlan}, aligned with the source's own links.
      *
      * A **shared** relation hands every sibling the source's ids verbatim — the
      * target has no locales, so there is one right row for the whole group. A
      * **mirrored** one maps each id through its translation group into the
-     * sibling's language, preserving the source's order and dropping links
-     * whose target has no translation there (a content gap on the target, not a
-     * reason to fail this save).
+     * sibling's language, preserving the source's order. A link whose target
+     * has no live translation there is `null` in the plan rather than dropped:
+     * what a sibling makes of that gap depends on what it already links (see
+     * {@link siblingLinks}), and it is never a reason to fail this save.
      */
     private async linkSetsByLocale(
         tx: EntryTransaction,
@@ -740,26 +778,27 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
         sourceId: string,
         locales: string[],
         workspaceId: string
-    ): Promise<Map<string, Map<string, string[]>>> {
-        const out = new Map<string, Map<string, string[]>>();
+    ): Promise<Map<string, LinkPlan>> {
+        const out = new Map<string, LinkPlan>();
         for (const [name, spec] of Object.entries(type.fields)) {
             const mode = relationLocaleSync(type, spec);
             if (mode === RELATION_LOCALE_SYNC.None) continue;
             if (!isJoinBackedRelation(spec)) continue;
 
+            const target = spec.relation?.to() as AnyContentType;
             const ids = await this.relations.linkIdsOf(
                 tx,
                 type,
                 sourceId,
                 name
             );
-            const byLocale = new Map<string, string[]>();
+            const byLocale = new Map<string, (string | null)[]>();
             if (mode === RELATION_LOCALE_SYNC.Shared) {
                 for (const locale of locales) byLocale.set(locale, ids);
             } else {
                 const equivalents = await this.relations.equivalentIdsByLocale(
                     tx,
-                    spec.relation?.to() as AnyContentType,
+                    target,
                     ids,
                     locales,
                     workspaceId
@@ -768,15 +807,143 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
                     const map = equivalents.get(locale);
                     byLocale.set(
                         locale,
-                        ids
-                            .map((id) => map?.get(id))
-                            .filter((id): id is string => !!id)
+                        ids.map((id) => map?.get(id) ?? null)
                     );
                 }
             }
-            out.set(name, byLocale);
+            out.set(name, { target, sourceIds: ids, byLocale });
         }
         return out;
+    }
+
+    /**
+     * The link ids one sibling should end up holding for a join-backed field.
+     *
+     * Where every source link resolved into the sibling's locale this is just
+     * the plan. Where one did not, the sibling's **own** link into the same
+     * translation group is kept in that position — a translation of the very
+     * record the source links, which is in the bin. Dropping it would unlink
+     * the record in that language because of a gap on the *target*, and the
+     * link would not come back when the translation is restored. A link into
+     * some other group is still dropped: the source moved off that record.
+     */
+    private async siblingLinks(
+        tx: EntryTransaction,
+        type: AnyContentType,
+        siblingId: string,
+        field: string,
+        plan: LinkPlan,
+        locale: string,
+        workspaceId: string
+    ): Promise<string[]> {
+        const aligned = plan.byLocale.get(locale) ?? [];
+        if (!aligned.includes(null)) return aligned as string[];
+
+        const current = await this.relations.linkIdsOf(
+            tx,
+            type,
+            siblingId,
+            field
+        );
+        const unresolved = plan.sourceIds.filter(
+            (_, index) => aligned[index] === null
+        );
+        const groups = current.length
+            ? await this.relations.localeGroupsOf(
+                  tx,
+                  plan.target,
+                  [...unresolved, ...current],
+                  workspaceId
+              )
+            : new Map<string, string>();
+
+        const used = new Set(aligned.filter((id): id is string => !!id));
+        const out: string[] = [];
+        aligned.forEach((id, index) => {
+            if (id) {
+                out.push(id);
+                return;
+            }
+            const group = groups.get(plan.sourceIds[index]);
+            const kept = group
+                ? current.find(
+                      (candidate) =>
+                          !used.has(candidate) &&
+                          groups.get(candidate) === group
+                  )
+                : undefined;
+            if (kept) {
+                used.add(kept);
+                out.push(kept);
+            }
+        });
+        return out;
+    }
+
+    /**
+     * Per sibling id, the **mirrored single-relation** columns the sync must
+     * leave alone: the source's target has no live translation in that
+     * sibling's locale, but the sibling already links a row of the same
+     * translation group — a translation of the very record the source links,
+     * sitting in the bin.
+     *
+     * {@link mirroredColumnsByLocale} reports such a column as `null`, which
+     * is right for a sibling pointing at some *other* record (leaving it would
+     * credit the previous author). For this one it is wrong twice over: the
+     * link is still the right one and comes back to life when the translation
+     * is restored, and nulling a **required** relation on a published sibling
+     * made every later save of the record, in any language and touching any
+     * field, a 422 until the translation was restored.
+     */
+    private async mirroredLinksToKeep(
+        tx: EntryTransaction,
+        type: AnyContentType,
+        values: Record<string, unknown>,
+        siblings: Record<string, unknown>[],
+        mirrored: Map<string, Record<string, unknown>>,
+        workspaceId: string
+    ): Promise<Map<string, Set<string>>> {
+        const keep = new Map<string, Set<string>>();
+        for (const [name, spec] of Object.entries(type.fields)) {
+            if (
+                relationLocaleSync(type, spec) !==
+                    RELATION_LOCALE_SYNC.Mirrored ||
+                isJoinBackedRelation(spec)
+            ) {
+                continue;
+            }
+            const sourceId = values[name];
+            // A cleared link is cleared everywhere — nothing to keep.
+            if (typeof sourceId !== 'string' || !sourceId) continue;
+
+            const candidates = siblings.filter((sibling) => {
+                const resolved = mirrored.get(sibling['locale'] as string);
+                const current = sibling[name];
+                return (
+                    resolved?.[name] === null &&
+                    typeof current === 'string' &&
+                    !!current
+                );
+            });
+            if (!candidates.length) continue;
+
+            const groups = await this.relations.localeGroupsOf(
+                tx,
+                spec.relation?.to() as AnyContentType,
+                [sourceId, ...candidates.map((s) => s[name] as string)],
+                workspaceId
+            );
+            const group = groups.get(sourceId);
+            if (!group) continue;
+            for (const sibling of candidates) {
+                if (groups.get(sibling[name] as string) !== group) continue;
+                const id = sibling['id'] as string;
+                const fields = keep.get(id) ?? new Set<string>();
+                fields.add(name);
+                keep.set(id, fields);
+            }
+        }
+        return keep;
     }
 
     /** @inheritdoc */

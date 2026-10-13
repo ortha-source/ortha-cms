@@ -128,6 +128,18 @@ The extension owns all locale _behavior_:
     nulled rather than left pointing at the _previous_ record's translation, which
     would be silently wrong data.
 
+    **Except when the sibling already links the same record.** A target with no
+    live translation in a sibling's locale may still have one **in the trash** —
+    the very row the sibling links. `mirroredLinksToKeep` (single FKs) and
+    `siblingLinks` (join-backed sets, kept in place) compare by translation
+    group through `RelationLinkService.localeGroupsOf`, which includes trashed
+    rows, and leave such a link alone: it is still the right one, and restoring
+    the translation brings it back to life. Nulling it instead made every later
+    save of the record — in any language, touching any field — rewrite the
+    sibling, and on a **required** relation of a published sibling that was a
+    422 on every save until the translation was restored. A link into a
+    different group is still nulled or dropped: the source moved off it.
+
 - **`beforeWrite`** — the **first** statement in the create and update
   transactions: a transaction-scoped advisory lock on the row's
   `locale_group_id` (`lockLocaleGroup`, class `LG`). This is the deadlock fix,
