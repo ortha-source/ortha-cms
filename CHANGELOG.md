@@ -1,3 +1,17 @@
+## 0.10.2 (2026-10-13)
+
+### 🩹 Fixes
+
+- **content:** ask before a save that leaves a published translation incomplete ([e26d43ee](https://github.com/ortha-source/ortha-cms/commit/e26d43ee))
+- **content:** name a linked record that is in the trash instead of its id ([da2bf58b](https://github.com/ortha-source/ortha-cms/commit/da2bf58b))
+- **content:** say what links to an entry before deleting it ([78890814](https://github.com/ortha-source/ortha-cms/commit/78890814))
+- **i18n:** keep a sibling's link to a trashed translation of the same record ([1ca78a08](https://github.com/ortha-source/ortha-cms/commit/1ca78a08))
+
+### ❤️ Thank You
+
+- Claude
+- Claude Opus 5.5
+
 ## 0.10.1 (2026-10-12)
 
 ### 🚀 Features
