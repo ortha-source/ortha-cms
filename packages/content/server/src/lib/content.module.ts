@@ -39,6 +39,8 @@ import { MediaRefsQuery } from './entries/infrastructure/queries/media-refs.quer
 import { SharedSourcesQuery } from './entries/infrastructure/queries/shared-sources.query';
 import { EntryUsagesQuery } from './entries/infrastructure/queries/entry-usages.query';
 import { EntryUsagesController } from './entries/http/controllers/entry-usages.controller';
+import { EntryReferencesQuery } from './entries/infrastructure/queries/entry-references.query';
+import { EntryReferencesController } from './entries/http/controllers/entry-references.controller';
 import { EntryWriterService } from './entries/infrastructure/persistence/entry-writer.service';
 import { EntryCounterService } from './entries/infrastructure/persistence/entry-counter.service';
 import { RelationLinkService } from './entries/infrastructure/persistence/relation-link.service';
@@ -113,6 +115,8 @@ export class ContentModule {
                 // `GET :typeName/:id/usages` — a literal last segment, so it
                 // cannot collide with the single-item routes around it.
                 EntryUsagesController,
+                // `GET :typeName/:id/references` — likewise a literal segment.
+                EntryReferencesController,
                 UpdateEntryController,
                 PublishEntryController,
                 DeleteEntryController,
@@ -213,6 +217,7 @@ export class ContentModule {
                 // cross-workspace usage count built on the same tables.
                 SharedSourcesQuery,
                 EntryUsagesQuery,
+                EntryReferencesQuery,
                 // Entries feature, layered per ADR-0003: the publish-lifecycle
                 // use-cases (over the global UnitOfWork/OutboxWriter) + the
                 // bulk-publish dry-run query. CRUD writes stay on the

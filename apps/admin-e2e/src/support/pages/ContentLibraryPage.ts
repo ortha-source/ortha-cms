@@ -1334,6 +1334,11 @@ export class ContentLibraryPage extends BasePage {
 
     /* --- Save confirmations ---------------------------------------------- */
 
+    /** One item of the open ⋯ menu, by name. */
+    editorMenuItem(name: string): Locator {
+        return this.page.getByRole('menuitem', { name });
+    }
+
     /** Pick an option of a select field's open listbox. */
     async pickFieldOption(fieldName: string, option: string): Promise<void> {
         await this.fieldTrigger(fieldName).click();
@@ -1360,5 +1365,12 @@ export class ContentLibraryPage extends BasePage {
     /** A button inside whichever dialog is open. */
     dialogButton(name: string | RegExp): Locator {
         return this.page.getByRole('dialog').getByRole('button', { name });
+    }
+
+    /** The open delete / purge confirmation. */
+    get deleteDialog(): Locator {
+        return this.page.getByRole('dialog', {
+            name: /^Delete (this entry|permanently)\?$/
+        });
     }
 }

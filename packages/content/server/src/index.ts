@@ -183,6 +183,9 @@ export type {
     EntryMediaView,
     EntryRecord,
     EntrySource,
+    EntryReference,
+    EntryReferenceOnPurge,
+    EntryReferencesView,
     EntryUsage,
     EntryUsagesView,
     MediaRef

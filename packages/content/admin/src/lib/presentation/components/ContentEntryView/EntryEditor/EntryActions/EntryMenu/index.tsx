@@ -20,6 +20,7 @@ import {
     type EntryMenuEntry,
     type EntrySlotContext
 } from '../../../../../slots/contentSlots';
+import { EntryReferencesNotice } from '../../../../EntryReferencesNotice';
 
 const messages = defineMessages({
     actions: {
@@ -230,9 +231,23 @@ export function EntryMenu({
                     open={confirmDelete}
                     onOpenChange={setConfirmDelete}
                     title={intl.formatMessage(messages.deleteTitle)}
-                    description={intl.formatMessage(
-                        paranoid ? messages.deleteBody : messages.deleteBodyHard
-                    )}
+                    description={
+                        <>
+                            {intl.formatMessage(
+                                paranoid
+                                    ? messages.deleteBody
+                                    : messages.deleteBodyHard
+                            )}
+                            {context.entry ? (
+                                <EntryReferencesNotice
+                                    typeName={context.schema.name}
+                                    id={context.entry.id}
+                                    open={confirmDelete}
+                                    permanent={!paranoid}
+                                />
+                            ) : null}
+                        </>
+                    }
                     confirmLabel={intl.formatMessage(messages.deleteConfirm)}
                     confirmVariant="destructive"
                     busy={busy}

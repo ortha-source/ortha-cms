@@ -6,6 +6,7 @@ import type {
     ContentTypeDetail,
     EntryRecord,
     EntrySourceScope,
+    EntryReferences,
     EntryUsage,
     MediaRef,
     RelationDelta,
@@ -144,6 +145,12 @@ export type ContentGateway = {
      * count. Only meaningful for a record of a shared workspace.
      */
     getEntryUsages(name: string, id: string): Promise<EntryUsage[]>;
+    /**
+     * Lists which records in the open workspace link to one entry, per field,
+     * and what a purge does to them, via `GET /content/:name/:id/references`.
+     * Asked before a delete or a purge — the entry may be in the trash.
+     */
+    getEntryReferences(name: string, id: string): Promise<EntryReferences>;
     /** Loads one candidate page of a relation's target type via `GET /content/:type`. */
     listRelationCandidates(
         targetName: string,

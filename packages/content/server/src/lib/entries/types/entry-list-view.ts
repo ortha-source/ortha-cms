@@ -74,6 +74,43 @@ export interface EntryRecord {
 }
 
 /**
+ * `GET /content/:type/:id/references` — which records in the caller's **own**
+ * workspace link to one entry, per referring field, and what a permanent
+ * delete would do to them. Asked by the admin before it deletes or purges.
+ */
+export interface EntryReferencesView {
+    items: EntryReference[];
+    /** Referring entries across every field (an entry linking twice counts twice). */
+    total: number;
+    /** Of {@link total}, those with a live (published or Modified) version. */
+    live: number;
+}
+
+/**
+ * What a permanent delete of the target does to a referrer through one field:
+ * `unlink` (the link is dropped — a join row, or a `set null` FK), `delete`
+ * (an `onDelete: 'cascade'` FK deletes the referrer with it) or `block` (an
+ * `onDelete: 'restrict'` FK refuses the purge while it exists).
+ */
+export type EntryReferenceOnPurge = 'unlink' | 'delete' | 'block';
+
+/** One referring field's count — see {@link EntryReferencesView}. */
+export interface EntryReference {
+    /** The referring content type's name and label. */
+    typeName: string;
+    typeLabel: string;
+    /** The relation field on that type, and its label. */
+    field: string;
+    fieldLabel: string;
+    /** Entries (not in the trash) linking through this field. */
+    count: number;
+    /** Of {@link count}, those with a live version. */
+    live: number;
+    /** What purging the target does to them. */
+    onPurge: EntryReferenceOnPurge;
+}
+
+/**
  * `GET /content/:type/:id/usages` — how often records in **other** workspaces
  * link to one of this workspace's entries (ADR-0019), grouped by workspace and
  * sorted by `count` descending.

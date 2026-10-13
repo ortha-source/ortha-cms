@@ -323,6 +323,36 @@ export type EntryUsage = {
     count: number;
 };
 
+/**
+ * What permanently deleting an entry does to a record that links to it through
+ * one field — decided by the foreign key: drop the link, delete the record
+ * with it (`onDelete: cascade`), or refuse the purge (`onDelete: restrict`).
+ */
+export type EntryReferenceOnPurge = 'unlink' | 'delete' | 'block';
+
+/** One referring field's count — mirrors the server's `EntryReference`. */
+export type EntryReference = {
+    typeName: string;
+    typeLabel: string;
+    field: string;
+    fieldLabel: string;
+    /** Entries (not in the trash) linking through this field. */
+    count: number;
+    /** Of `count`, those with a live (published or Modified) version. */
+    live: number;
+    onPurge: EntryReferenceOnPurge;
+};
+
+/**
+ * Which records in the open workspace link to one entry
+ * (`GET …/:id/references`), asked before a delete or a purge.
+ */
+export type EntryReferences = {
+    items: EntryReference[];
+    total: number;
+    live: number;
+};
+
 export type EntryRecord = {
     /** Entry id (the `:entryId` route segment). */
     id: string;

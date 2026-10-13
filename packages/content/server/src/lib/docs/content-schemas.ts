@@ -274,6 +274,50 @@ function sharedSchemas(): Record<string, OpenApiSchema> {
             },
             required: ['items']
         },
+        EntryReferences: {
+            type: 'object',
+            description:
+                'Which records in **this** workspace link to the entry, per referring relation field, and what a permanent delete would do to them. Referrers in the trash are not counted. Empty `items` when nothing links to it.',
+            properties: {
+                items: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            typeName: { type: 'string' },
+                            typeLabel: { type: 'string' },
+                            field: { type: 'string' },
+                            fieldLabel: { type: 'string' },
+                            count: { type: 'integer', minimum: 1 },
+                            live: {
+                                type: 'integer',
+                                minimum: 0,
+                                description:
+                                    'Of `count`, those with a live (published or Modified) version.'
+                            },
+                            onPurge: {
+                                type: 'string',
+                                enum: ['unlink', 'delete', 'block'],
+                                description:
+                                    'What deleting the entry permanently does to them: drop the link, delete them with it (`onDelete: cascade`), or refuse the purge (`onDelete: restrict`).'
+                            }
+                        },
+                        required: [
+                            'typeName',
+                            'typeLabel',
+                            'field',
+                            'fieldLabel',
+                            'count',
+                            'live',
+                            'onPurge'
+                        ]
+                    }
+                },
+                total: { type: 'integer', minimum: 0 },
+                live: { type: 'integer', minimum: 0 }
+            },
+            required: ['items', 'total', 'live']
+        },
         MediaRef: {
             type: 'object',
             description:

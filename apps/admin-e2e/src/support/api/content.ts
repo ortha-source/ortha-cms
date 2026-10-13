@@ -2396,3 +2396,40 @@ export async function mockEntryChangedByAnotherSession(
         }
     );
 }
+
+/** One referring field of {@link mockEntryReferences}' answer. */
+export type EntryReferenceSeed = {
+    typeName: string;
+    typeLabel: string;
+    field: string;
+    fieldLabel: string;
+    count: number;
+    live: number;
+    onPurge: 'unlink' | 'delete' | 'block';
+};
+
+/**
+ * Answer `GET /api/content/:type/:id/references` — which records in the
+ * workspace link to an entry, asked by the delete and purge confirmations.
+ * Every entry gets the same `items`; `total`/`live` are summed from them.
+ * Registered last, so it wins over the generic entry routes.
+ */
+export async function mockEntryReferences(
+    page: Page,
+    items: EntryReferenceSeed[]
+): Promise<void> {
+    await page.route(
+        /\/api\/content\/[^/?]+\/[^/?]+\/references(\?.*)?$/,
+        async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    items,
+                    total: items.reduce((sum, item) => sum + item.count, 0),
+                    live: items.reduce((sum, item) => sum + item.live, 0)
+                })
+            });
+        }
+    );
+}

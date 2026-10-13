@@ -10,6 +10,7 @@ import type {
     EntryMedia,
     EntryRecord,
     EntryRelations,
+    EntryReferences,
     EntryUsage,
     FilterFieldsResponse,
     MediaRef,
@@ -195,6 +196,24 @@ export const httpContentGateway: ContentGateway = {
                 { params: { page, pageSize: RELATION_LINKS_PAGE_SIZE } }
             );
             return toRelationFieldView(data);
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async getEntryReferences(
+        name: string,
+        id: string
+    ): Promise<EntryReferences> {
+        try {
+            const { data } = await apiClient.get<EntryReferences>(
+                `/content/${name}/${id}/references`
+            );
+            return {
+                items: data.items ?? [],
+                total: data.total ?? 0,
+                live: data.live ?? 0
+            };
         } catch (error) {
             throw toApiError(error);
         }

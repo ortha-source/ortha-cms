@@ -198,6 +198,16 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   a trashed record. The editor's `RelationItemRow` and the revision preview's
   `RelationRefList` render both cases the same way; the editor used to print a
   missing ref's raw id.
+- **Delete and purge say what links to the record.** The editor's ⋯ Delete and
+  the records table's row Delete / Delete permanently put an
+  **`EntryReferencesNotice`** under their sentence, read from
+  `GET …/:id/references` (`useEntryReferences`) only while the dialog is open:
+  how many records in the workspace link here and how many are live; for a
+  delete into the trash, that the links are kept but no longer served; for a
+  permanent one, what each foreign key does — records a cascading required
+  relation would delete with it, records a `restrict` one makes the purge wait
+  on, and links simply dropped. Nothing is said when nothing links, or when the
+  read fails — the dialog's own sentence still stands.
   Loading is **two-tier**: the list response carries a capped `relations`
   preview (requested via `relations: 'preview'` + `relationFields`, derived from
   the **visible** relation columns, so hiding one stops the server resolving

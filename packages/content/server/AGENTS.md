@@ -884,6 +884,14 @@ missing a row means deleting a workspace that still holds data (see its JSDoc).
 - `GET /content-schema/:name` — the full field schema (types, validation, admin
   props). **Workspace-scoped + grant-checked**: an unknown _and_ an ungranted
   name are the same 404.
+- `GET /content/:typeName/:id/references` — which records in **this**
+  workspace link to the entry, per referring relation field (`count`, how many
+  are `live`), and what a permanent delete does to them (`onPurge`: `unlink`, a
+  cascading FK's `delete`, a restricting FK's `block`). The admin's delete and
+  purge confirmations read it, so a delete stops going through with no word
+  about what points at the record. The entry may be in the trash (a purge is
+  confirmed there); referrers in the trash are not counted. Counts only
+  (`EntryReferencesQuery`, the own-workspace sibling of `EntryUsagesQuery`).
 - `GET /content-schema/:name/filter-fields` — the type's **filterable surface**:
   every scalar path the records-table query builder may filter on, including
   **recursive relation paths** (`author.name`, `author.company.name`, to a

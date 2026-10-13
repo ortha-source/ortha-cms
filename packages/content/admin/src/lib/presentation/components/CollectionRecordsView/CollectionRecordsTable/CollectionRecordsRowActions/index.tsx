@@ -29,6 +29,7 @@ import {
     ENTRY_STATUS
 } from '../../../../../domain/constants';
 import { useEntryStatusActions } from '../../../../../application/useEntryStatusActions';
+import { EntryReferencesNotice } from '../../../EntryReferencesNotice';
 
 /** Intl descriptors for {@link CollectionRecordsRowActions}, co-located. */
 const messages = defineMessages({
@@ -363,9 +364,21 @@ export function CollectionRecordsRowActions({
                 open={confirmDelete}
                 onOpenChange={setConfirmDelete}
                 title={intl.formatMessage(messages.deleteTitle)}
-                description={intl.formatMessage(
-                    paranoid ? messages.deleteBodySoft : messages.deleteBodyHard
-                )}
+                description={
+                    <>
+                        {intl.formatMessage(
+                            paranoid
+                                ? messages.deleteBodySoft
+                                : messages.deleteBodyHard
+                        )}
+                        <EntryReferencesNotice
+                            typeName={typeName}
+                            id={record.id}
+                            open={confirmDelete}
+                            permanent={!paranoid}
+                        />
+                    </>
+                }
                 confirmLabel={intl.formatMessage(messages.confirmDelete)}
                 confirmVariant="destructive"
                 busy={actions.remove.isPending}
@@ -384,7 +397,17 @@ export function CollectionRecordsRowActions({
                 open={confirmPurge}
                 onOpenChange={setConfirmPurge}
                 title={intl.formatMessage(messages.purgeTitle)}
-                description={intl.formatMessage(messages.purgeBody)}
+                description={
+                    <>
+                        {intl.formatMessage(messages.purgeBody)}
+                        <EntryReferencesNotice
+                            typeName={typeName}
+                            id={record.id}
+                            open={confirmPurge}
+                            permanent
+                        />
+                    </>
+                }
                 confirmLabel={intl.formatMessage(messages.deleteForever)}
                 confirmVariant="destructive"
                 busy={actions.purge.isPending}
