@@ -11,6 +11,7 @@ import {
     eq,
     getTableName,
     inArray,
+    isNotNull,
     isNull,
     max,
     ne,
@@ -1130,6 +1131,18 @@ export class RelationLinkService {
             )) as Row[];
         const refs = await this.toRefs(target, rows, workspaceId);
         const byId = new Map(refs.map((ref) => [ref.id, ref]));
+        // An admin read (no visibility restriction) names the caller's own
+        // records that are in the bin, so the editor can show which record a
+        // link waits on rather than an anonymous "unavailable" row.
+        if (!visibility) {
+            for (const ref of await this.trashedRefs(
+                target,
+                ids.filter((id) => !byId.has(id)),
+                workspaceId
+            )) {
+                byId.set(ref.id, ref);
+            }
+        }
         const hidden = await this.hiddenForeignIds(
             target,
             ids.filter((id) => !byId.has(id)),
@@ -1149,6 +1162,41 @@ export class RelationLinkService {
                 (id) =>
                     byId.get(id) ?? { id, title: id, missing: true as const }
             );
+    }
+
+    /**
+     * Refs for those of `ids` that are the caller's **own** soft-deleted
+     * records — titled like any other ref and flagged `trashed`.
+     *
+     * Only the own workspace, and only the bin: a trashed row of this workspace
+     * is one the caller can already open in its Trash view, so its title is no
+     * disclosure, and naming it is what tells an editor the link is waiting on
+     * a restore rather than broken. A row of another workspace that did not
+     * resolve stays what {@link hiddenForeignIds} makes it. Public reads never
+     * reach this — the caller gates it on there being no visibility
+     * restriction.
+     */
+    private async trashedRefs(
+        target: AnyContentType,
+        ids: string[],
+        workspaceId: string
+    ): Promise<RelationRef[]> {
+        const cols = target.table as unknown as Columns;
+        if (!ids.length || !cols['deletedAt']) return [];
+        const rows = (await this.db
+            .select()
+            .from(target.table)
+            .where(
+                and(
+                    inArray(cols['id'], [...new Set(ids)]),
+                    eq(cols['workspaceId'], workspaceId),
+                    isNotNull(cols['deletedAt'])
+                )
+            )) as Row[];
+        return rows.map((row) => ({
+            ...this.rowToRef(target, row, null),
+            trashed: true as const
+        }));
     }
 
     /**

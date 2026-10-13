@@ -189,9 +189,15 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   linked record + a `+N` overflow) opening a `Popover` of the linked records,
   each an `<a target="_blank">` to that record's own editor
   (`domain/contentEntryPath`) with its muted `/handle`. Never the raw FK id — a
-  ref the server flags `missing` (its target soft-deleted or out of workspace)
-  renders as "Unavailable record" and carries no link, since its `title` is only
-  the id standing in.
+  ref the server flags `missing` (its target not resolvable) renders as
+  "Unavailable record" and carries no link, since its `title` is only the id
+  standing in. A ref flagged `trashed` (one of the workspace's own records, in
+  the trash) keeps its title and carries the shared **`TrashedBadge`** — "In
+  trash", with a tooltip (hover and focus) saying the link is kept, isn't
+  served, and comes back on restore — and no link, since the editor cannot open
+  a trashed record. The editor's `RelationItemRow` and the revision preview's
+  `RelationRefList` render both cases the same way; the editor used to print a
+  missing ref's raw id.
   Loading is **two-tier**: the list response carries a capped `relations`
   preview (requested via `relations: 'preview'` + `relationFields`, derived from
   the **visible** relation columns, so hiding one stops the server resolving

@@ -944,12 +944,16 @@ missing a row means deleting a workspace that still holds data (see its JSDoc).
   delete / content-revoke emptiness guards (which take it exclusively) so a
   new entry can't be orphaned by a concurrent delete/revoke. - `GET /content/:typeName/:id` — read one live entry (`content:read`). - `GET /content/:typeName/:id/relations` — every relation field's **first
   page** + total (`{ relations: { <field>: { items: RelationRef[], total } } }`,
-  `RelationRef = { id, title, slug?, status?, missing? }`), for owning single/many
-  **and** inverse back-references. A link whose target can't be resolved
-  (soft-deleted, or outside the workspace) still yields a ref — id-only and
+  `RelationRef = { id, title, slug?, status?, missing?, trashed? }`), for owning single/many
+  **and** inverse back-references. A link to one of the workspace's **own**
+  records that is in the trash keeps its real title and is flagged
+  **`trashed: true`** — the record is one the caller can already see in Trash,
+  and naming it is what tells an editor the link waits on a restore. A link
+  whose target can't be resolved at all still yields a ref — id-only and
   flagged **`missing: true`**, so `items` never runs shorter than `total` —
   and the admin renders it as an unavailable record rather than printing the
-  raw id. `slug` is the target's slug-field value —
+  raw id. `trashed` is admin-only: a read under `RelationTargetVisibility`
+  (every public read) never resolves a trashed target. `slug` is the target's slug-field value —
   the field flagged `admin.widget === 'slug'`, else one literally named
   `slug` (`entrySlug` in `entry-row.ts`) — present only when the target has
   one and the row's slug is non-empty; the admin renders it as a `/handle`.

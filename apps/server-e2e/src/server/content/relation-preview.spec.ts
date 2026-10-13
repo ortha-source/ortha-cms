@@ -292,8 +292,8 @@ describe('Content relation preview (GET /api/content/:typeName?relations=preview
             // `items` and out of `total` — rather than reported as a `missing`
             // ref: a link into a shared workspace that stops being visible must
             // not tell the consumer what became of it, and a legacy
-            // cross-workspace row is the same case. A `missing` ref stays the
-            // answer for the workspace's OWN soft-deleted targets.
+            // cross-workspace row is the same case. The workspace's OWN
+            // soft-deleted targets are still reported — titled, as `trashed`.
             const foreign = await seedWorkspace({
                 name: 'WS Foreign',
                 slug: 'ws-foreign'

@@ -399,6 +399,12 @@ export type RelationRef = {
      */
     missing?: true;
     /**
+     * The target is one of the open workspace's own records, in the trash. The
+     * ref carries its real title, so the UI names it and marks it "In trash"
+     * instead of reading it as unavailable. Mirrors `RelationRef.trashed`.
+     */
+    trashed?: true;
+    /**
      * The shared workspace the linked record lives in, or `null` when it is
      * the open workspace's own. Normalized by the gateway.
      */

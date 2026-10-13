@@ -9,6 +9,7 @@ import type {
 import { ENTRY_STATUS } from '../../../../../../domain/constants';
 import { contentEntryPath } from '../../../../../../domain/contentEntryPath';
 import { handleFor } from '../../../../../../domain/relationHandle';
+import { TrashedBadge } from '../../../../TrashedBadge';
 import { useRelationFieldLinks } from '../../../../../../application/useRelationFieldLinks';
 
 /** Co-located labels for the popover's list. */
@@ -132,7 +133,20 @@ export function RelationCellList({
             >
                 {items.map((item) => (
                     <li key={item.id}>
-                        {item.missing ? (
+                        {item.trashed ? (
+                            // In the trash: named — it is the workspace's own
+                            // record — but not a link, since the editor cannot
+                            // open a trashed record. Restoring it is what
+                            // brings the link back.
+                            <span className="flex items-center gap-2 px-2 py-1.5 text-sm">
+                                <span className="truncate font-medium text-muted-foreground">
+                                    {item.title}
+                                </span>
+                                <span className="ml-auto">
+                                    <TrashedBadge />
+                                </span>
+                            </span>
+                        ) : item.missing ? (
                             // The target is soft-deleted or otherwise not
                             // resolvable: the link still exists, but there is
                             // nothing to open — and rendering its raw id would

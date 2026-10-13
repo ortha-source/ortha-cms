@@ -48,6 +48,10 @@ const messages = defineMessages({
     open: {
         id: 'content.relations.field.open',
         defaultMessage: 'Open {title} in a new tab'
+    },
+    unavailable: {
+        id: 'content.relations.field.unavailable',
+        defaultMessage: 'Unavailable record'
     }
 });
 
@@ -175,6 +179,11 @@ export function RelationField({
             : undefined;
 
     const detail = id ? detailFor(id) : null;
+    // A target that no longer resolves carries its id as its title; its
+    // controls are named "Unavailable record" rather than by a raw uuid.
+    const detailLabel = detail?.missing
+        ? intl.formatMessage(messages.unavailable)
+        : (detail?.title ?? '');
 
     return (
         <Field data-invalid={!!error}>
@@ -186,17 +195,19 @@ export function RelationField({
                     handle={handleFor(detail.title, detail.slug)}
                     status={detail.status}
                     source={detail.source}
+                    trashed={detail.trashed}
+                    missing={detail.missing}
                     leading={
                         <Avatar className="size-8 shrink-0">
                             <AvatarFallback className="text-xs">
-                                {initialsOf(detail.title)}
+                                {initialsOf(detailLabel)}
                             </AvatarFallback>
                         </Avatar>
                     }
                     onRemove={() => commit(undefined)}
-                    removeLabel={removeLabelFor(detail.title)}
+                    removeLabel={removeLabelFor(detailLabel)}
                     href={hrefFor(detail.id)}
-                    openLabel={openLabelFor(detail.title)}
+                    openLabel={openLabelFor(detailLabel)}
                     onReplace={() => setOpen(true)}
                     readOnly={readOnly}
                 />

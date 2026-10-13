@@ -1485,6 +1485,10 @@ export interface RelationRefSeed {
      */
     slug?: string;
     status?: 'draft' | 'published';
+    /** The target could not be resolved — `title` is only its id standing in. */
+    missing?: boolean;
+    /** The target is one of the workspace's own records, in the trash. */
+    trashed?: boolean;
 }
 
 interface EntryRelationsOptions {

@@ -121,14 +121,23 @@ export interface RelationRef {
     /** Publish status — present only for publishable target types. */
     status?: EntryStatus;
     /**
-     * The link exists but its target row — one of the workspace's **own**
-     * records — could not be resolved (soft-deleted). `title` then stands in as
+     * The link exists but its target row could not be resolved — gone, or
+     * outside what this read may show (an admin read reports the workspace's
+     * own trashed records as {@link trashed} instead). `title` then stands in as
      * the raw id, which is not displayable, so the ref is flagged and the admin
      * renders it as an unavailable record instead of printing an FK. A link
      * into another workspace whose target is not visible is omitted instead,
      * never flagged (ADR-0019).
      */
     missing?: true;
+    /**
+     * The target is one of the workspace's **own** records and it is in the
+     * bin. Set on admin reads only, in place of `missing`: the ref carries the
+     * record's real title, slug and status, so the editor can say which record
+     * the link waits on — restoring it brings the link back to life. Public
+     * reads never return it; a trashed target is not served there at all.
+     */
+    trashed?: true;
     /**
      * The workspace the linked record belongs to when it lives in a **shared
      * workspace** (ADR-0019); `null` for the caller's own records. Present on

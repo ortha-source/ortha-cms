@@ -208,7 +208,7 @@ function sharedSchemas(): Record<string, OpenApiSchema> {
         RelationRef: {
             type: 'object',
             description:
-                "One linked record, resolved for display. A link to one of the workspace's own records that cannot be resolved (soft-deleted) is returned id-only and flagged `missing`, so `items` never runs shorter than `total`; a link into another workspace whose target is not visible (ADR-0019) is left out of both.",
+                "One linked record, resolved for display. A link to one of the workspace's own records that is in the trash keeps its title and is flagged `trashed`; one that cannot be resolved at all is returned id-only and flagged `missing`, so `items` never runs shorter than `total`; a link into another workspace whose target is not visible (ADR-0019) is left out of both.",
             properties: {
                 id: UUID,
                 title: {
@@ -229,6 +229,11 @@ function sharedSchemas(): Record<string, OpenApiSchema> {
                 missing: {
                     type: 'boolean',
                     description: 'The target could not be resolved.'
+                },
+                trashed: {
+                    type: 'boolean',
+                    description:
+                        "The target is one of the workspace's own records, in the trash. The ref keeps its real title; restoring the record brings the link back."
                 },
                 source: {
                     ...ref('EntrySource'),
