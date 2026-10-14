@@ -625,10 +625,6 @@ return [
 ];
 ```
 
-### Parallel stacks
-
-Several working copies share **one** Postgres container — isolation comes from `CREATE DATABASE`, not from five containers that would not fit in memory. Slot _n_ fixes the API on `:300n`, the admin UI on `:420n` and the database `orthacms_an`; `npm run worktree -- provision <slot>` creates the database and writes a `.env` with the right `DATABASE_URL`. None of this changes anything for the package — it only ever sees a connection string.
-
 ### Commands
 
 | Command                                                | What it does                                                                                                                          |

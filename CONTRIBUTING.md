@@ -31,9 +31,7 @@ authors wrote, never a contribution that was offered under MIT.
 
 Authoring conventions are encoded as skills under `.agents/skills/`
 (`server-plugin`, `admin-plugin`, `accessibility`, `admin-e2e`, `server-e2e`,
-`shadcn`), mirrored into `.claude/skills/` by symlink. One more is a procedure
-rather than a convention: `open-pr` writes a pull request body from the diff.
-Before changing a plugin, read its package `AGENTS.md` and the relevant skill.
+`shadcn`), mirrored into `.claude/skills/` by symlink. Before changing a plugin, read its package `AGENTS.md` and the relevant skill.
 Recurring pitfalls to avoid are listed in [`.cursor/BUGBOT.md`](.cursor/BUGBOT.md),
 and the reasons things are the way they are in
 [`docs/adr/`](docs/adr/README.md).

@@ -107,8 +107,6 @@ Plain Node scripts, not Nx projects:
   `pack` target) and `reserve-names.mjs` (`npm run release:reserve`). See
   [`docs/releasing.md`](docs/releasing.md).
 - `tools/smoke/scaffold.mjs` — `npm run smoke:scaffold`, the first-run smoke.
-- `tools/worktree/slot.mjs` — `npm run worktree`, the parallel-stack slots. See
-  [`docs/parallel-stacks.md`](docs/parallel-stacks.md).
 - `tools/hooks/require-signoff.mjs` — the `commit-msg` hook that enforces the
   DCO sign-off.
 
@@ -218,8 +216,5 @@ Plain Node scripts, not Nx projects:
 
 The repository ships these skills, canonically under `.agents/skills/` and
 mirrored into `.claude/skills/` by symlink: `accessibility`, `admin-e2e`,
-`admin-plugin`, `open-pr`, `server-e2e`, `server-plugin` and `shadcn`.
-
-All but one encode an authoring convention — prefer the skill over
-reverse-engineering one from code. `open-pr` is a procedure instead: it writes a
-pull request body from the diff.
+`admin-plugin`, `server-e2e`, `server-plugin` and `shadcn`. Each encodes an
+authoring convention — prefer the skill over reverse-engineering one from code.

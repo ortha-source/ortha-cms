@@ -70,7 +70,7 @@ export interface OrthaCmsIdentityConfig extends IdentityPluginConfig {
 
 /**
  * The admin dev origin this checkout's stack serves from — `ADMIN_PORT` is the
- * per-worktree Vite port (`docs/parallel-stacks.md`), 4200 when unset.
+ * Vite port, 4200 when unset.
  */
 function defaultAdminOrigin(): string {
     return `http://localhost:${readPositiveInt('ADMIN_PORT', 4200)}`;
