@@ -13,8 +13,6 @@
 - [`docs/adr/`](docs/adr/README.md) — Architecture Decision Records (why things are the way they are)
 - [`docs/artifacts/`](docs/artifacts/) — one dossier per package group, each ending in its numbered invariants
 - [`docs/design/`](docs/design/) — engineering design docs for features with phases still unbuilt: [`copilot.md`](docs/design/copilot.md), [`mail.md`](docs/design/mail.md), [`protection.md`](docs/design/protection.md)
-- [`docs/agent-pipeline.md`](docs/agent-pipeline.md) — how a ticket becomes a merged PR when agents do the typing: the four tiers, the label vocabulary, the role subagents, and the steps
-- [`docs/definition-of-ready.md`](docs/definition-of-ready.md) — what a ticket must contain before the pipeline will act on it
 - [`README.md`](README.md) — human-facing project overview & getting started
 - `.cursor/BUGBOT.md` — recurring bug-patterns reviewers and agents must watch for
 

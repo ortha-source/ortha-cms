@@ -218,12 +218,8 @@ Plain Node scripts, not Nx projects:
 
 The repository ships these skills, canonically under `.agents/skills/` and
 mirrored into `.claude/skills/` by symlink: `accessibility`, `admin-e2e`,
-`admin-plugin`, `agent-browser`, `open-pr`, `server-e2e`, `server-plugin`,
-`shadcn`, and `ticket`.
+`admin-plugin`, `open-pr`, `server-e2e`, `server-plugin` and `shadcn`.
 
-Most encode an authoring convention — prefer the skill over reverse-engineering
-one from code. Two are procedures instead: `open-pr` writes a pull request body
-from the diff, and `ticket` drives a ticket through the agent pipeline in
-[`docs/agent-pipeline.md`](docs/agent-pipeline.md). The three role subagents that
-pipeline delegates to live under `.claude/agents/`, because the subagent format
-is Claude-specific where a skill is not.
+All but one encode an authoring convention — prefer the skill over
+reverse-engineering one from code. `open-pr` is a procedure instead: it writes a
+pull request body from the diff.

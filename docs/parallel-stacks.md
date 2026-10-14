@@ -85,7 +85,7 @@ random port, so it was already parallel-safe.
 
 Fewer than you would like. One `npm run dev` is four continuous tasks — webpack
 watch, `node --watch`, Vite, and `tsc --build --watch` — which is roughly
-1.5–2.5 GB and most of a core under load, before an agent-browser Chrome on top.
+1.5–2.5 GB and most of a core under load, before a browser on top.
 
 On a 4-core / 8 GB machine that is **two concurrent stacks**, three at a
 stretch. The workable shape for five tickets is therefore five worktrees, which
