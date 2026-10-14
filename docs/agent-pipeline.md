@@ -30,10 +30,9 @@ What actually drives cost here is three things:
    provisioned slot ([`parallel-stacks.md`](parallel-stacks.md)), Postgres, and
    seeded data.
 3. **Whether there are structural consequences.** Those are not vague here: a
-   new table, slot or package moves a number that `tools/docs-guard` pins
-   against `ARCHITECTURE.md` and `CONTEXT-MAP.md`, and a new published package
-   must be classified in `create-orthacms-app`'s `features.ts` or a test stays
-   red. That is a known, enumerable checklist — exactly what deterministic
+   new table, slot or package has to appear in `CONTEXT-MAP.md`, and a new
+   published package must be classified in `create-orthacms-app`'s
+   `features.ts` or a test stays red. That is a known, enumerable checklist — exactly what deterministic
    routing is for.
 
 ## The tiers
