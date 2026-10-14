@@ -665,6 +665,141 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
                 .expect(422);
         });
 
+        it('asks first: refuses a save that reaches a live sibling, naming it, and writes nothing [i18n:I-35]', async () => {
+            const agent = await login();
+            const en = await createArticle(agent, {
+                values: { text: 'EN title', select: 'article', number: 1 }
+            });
+            const de = (await createTranslation(agent, en, 'de')).body as {
+                id: string;
+            };
+
+            // `number` is shared: moving it reaches the German draft. Nothing
+            // there breaks, so `siblings` is empty — but the person is still
+            // told, because the change lands in a language they are not in.
+            const refused = await agent
+                .patch(`/api/content/test_article/${en.id}`)
+                .send({
+                    values: { text: 'EN title', select: 'article', number: 7 },
+                    askBeforeSiblingSync: true
+                })
+                .expect(422);
+            expect(refused.body.code).toBe('content.sibling_sync_unconfirmed');
+            expect(refused.body.locales).toEqual(['de']);
+            expect(refused.body.siblings).toEqual([]);
+
+            // The refusal is a dry run: neither row moved.
+            const enBefore = await agent
+                .get(`/api/content/test_article/${en.id}`)
+                .expect(200);
+            expect(enBefore.body.values.number).toBe(1);
+            const deBefore = await agent
+                .get(`/api/content/test_article/${de.id}`)
+                .expect(200);
+            expect(deBefore.body.values.number).toBe(1);
+
+            // Confirmed: the same save without the flag goes through and syncs.
+            await agent
+                .patch(`/api/content/test_article/${en.id}`)
+                .send({
+                    values: { text: 'EN title', select: 'article', number: 7 }
+                })
+                .expect(200);
+            const deAfter = await agent
+                .get(`/api/content/test_article/${de.id}`)
+                .expect(200);
+            expect(deAfter.body.values.number).toBe(7);
+        });
+
+        it('asks first with the published siblings it would invalidate in the same answer [i18n:I-35]', async () => {
+            const agent = await login();
+            const en = await createArticle(agent, {
+                values: { text: 'EN title', select: 'article' }
+            });
+            const de = (await createTranslation(agent, en, 'de')).body as {
+                id: string;
+            };
+            await createTranslation(agent, en, 'fr');
+            await agent
+                .post(`/api/content/test_article/${de.id}/publish`)
+                .expect(201);
+
+            // Clearing the shared `select` reaches both siblings and leaves the
+            // published German one failing validation; the French one is a
+            // draft and may be incomplete.
+            const refused = await agent
+                .patch(`/api/content/test_article/${en.id}`)
+                .send({
+                    values: { text: 'EN title', select: '' },
+                    askBeforeSiblingSync: true
+                })
+                .expect(422);
+            expect(refused.body.code).toBe('content.sibling_sync_unconfirmed');
+            expect([...refused.body.locales].sort()).toEqual(['de', 'fr']);
+            expect(
+                (refused.body.siblings as { locale: string }[]).map(
+                    (sibling) => sibling.locale
+                )
+            ).toEqual(['de']);
+            expect(refused.body.siblings[0].issues).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({ field: 'select' })
+                ])
+            );
+
+            // One confirmation covers both: resent without the flag and with
+            // `allowInvalidSiblings`, the save lands.
+            await agent
+                .patch(`/api/content/test_article/${en.id}`)
+                .send({
+                    values: { text: 'EN title', select: '' },
+                    allowInvalidSiblings: true
+                })
+                .expect(200);
+            const deAfter = await agent
+                .get(`/api/content/test_article/${de.id}`)
+                .expect(200);
+            expect(deAfter.body.values.select).toBeNull();
+            expect(deAfter.body.publishedAt).toEqual(expect.any(String));
+        });
+
+        it('does not ask when the save reaches no live sibling [i18n:I-35]', async () => {
+            const agent = await login();
+            // Alone in its group: nothing to reach.
+            const alone = await createArticle(agent, {
+                values: { text: 'EN title', select: 'article', number: 1 }
+            });
+            await agent
+                .patch(`/api/content/test_article/${alone.id}`)
+                .send({
+                    values: { text: 'EN title', select: 'article', number: 2 },
+                    askBeforeSiblingSync: true
+                })
+                .expect(200);
+
+            // A sibling exists, but only a localized field changed.
+            const en = await createArticle(agent, {
+                values: { text: 'EN title', select: 'article', number: 1 }
+            });
+            await createTranslation(agent, en, 'de');
+            await agent
+                .patch(`/api/content/test_article/${en.id}`)
+                .send({
+                    values: { text: 'New EN title', select: 'article', number: 1 },
+                    askBeforeSiblingSync: true
+                })
+                .expect(200);
+        });
+
+        it('rejects a non-boolean askBeforeSiblingSync', async () => {
+            const agent = await login();
+            const en = await createArticle(agent);
+            await agent
+                .patch(`/api/content/test_article/${en.id}`)
+                .send({ values: VALID, askBeforeSiblingSync: 'yes' })
+                .expect(400);
+        });
+
         it('rejects a non-boolean allowInvalidSiblings', async () => {
             const agent = await login();
             const en = await createArticle(agent);
