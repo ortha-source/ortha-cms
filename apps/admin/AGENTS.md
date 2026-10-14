@@ -22,9 +22,7 @@ plugins** to the `@orthacms/bootstrap-admin` host.
   not matter: slots are module-level singletons registered before the first
   render.
 - Vite config, HTML entry, app-level wiring. No domain logic. Both ports come
-  from this checkout's `.env` (`ADMIN_PORT`, `API_PORT`/`PORT`) so parallel
-  worktree stacks do not read each other's database — see
-  [`docs/parallel-stacks.md`](../../docs/parallel-stacks.md).
+  from this checkout's `.env` (`ADMIN_PORT`, `API_PORT`/`PORT`).
 - `index.html` carries an inline **pre-paint theme script**, which covers a
   **returning** browser and only that. The durable, cross-device theme lives on
   the server and the script can only read `localStorage`, so a browser that has

@@ -23,12 +23,15 @@ lifecycle) — so this package stays decoupled from any one domain's events.
 > dotted token for one it does not know. Both halves are now pinned by
 > `audit-event-mapping.spec.ts` — see **The catalogue** below.
 
-> **Layered (ADR-0003 — tactical DDD inside plugins).** `activity` is a
-> read-side / CRUD audit context: ADR-0003 says **don't force DDD on CRUD**, so
-> there is **no aggregate**. The layering is light — a thin `ActivityService`
-> query for the list read model, and the write side is one outbox
-> `DomainEventSubscriber` under `activity/infrastructure/`. Wave 3 flipped this
-> package from an in-band recorder to that subscriber.
+> **Layout: feature-then-kind** (not yet migrated to ADR-0003's layers). One
+> feature folder, `src/lib/activity/`, split by kind — `controllers/`,
+> `services/`, `dto/`, `types/` and `infrastructure/` — beside `schema/`,
+> `docs/`, `copilot/` and `utils/` (the plugin factory). `activity` is a
+> read-side / CRUD audit context, and ADR-0003 says **don't force DDD on CRUD**,
+> so there is **no aggregate**: a thin `ActivityService` query serves the list
+> read model, and the write side is one outbox `DomainEventSubscriber` under
+> `activity/infrastructure/`. Wave 3 flipped this package from an in-band
+> recorder to that subscriber.
 
 Under `/api/activity`:
 
@@ -251,7 +254,7 @@ The fence is what makes that safe; omission would only make the tool less useful
   with a `migrations` descriptor (`__drizzle_migrations_activity`). Register it
   **after** `DatabasePlugin` + `IdentityPlugin`.
 - DB via `@InjectDatabase()` (`Database` alias); guards from identity. Follows
-  the `server-plugin` skill: feature-then-kind layout, thin controller,
+  the `server-plugin` skill (its feature-then-kind mode), thin controller,
   permission-by-constant, JSDoc on exports, `interface` for contracts.
 
 ## Commands

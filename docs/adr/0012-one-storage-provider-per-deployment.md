@@ -4,6 +4,18 @@
 - **Date:** 2026-08-23
 - **Deciders:** Engineering
 
+> **Amended by [ADR-0021](0021-storage-providers-may-publish-public-urls.md)**
+> (2026-10-09). "`MediaPluginConfig` carries `maxUploadBytes` and nothing else"
+> no longer holds, but the rule it stood for does: the config still names no
+> backend. It now also carries operator **policy** over capabilities the
+> provider declares: `directServe` (`off` | `signed-url`, plus
+> `directServeTtlSeconds`), which redirects an already-authorized download to
+> the provider's `directUrl()`; and, from ADR-0021, `publicUrls` /
+> `publicUrlTypes`, which let the API report a provider's permanent public URLs
+> — a fourth capability, `publicUrls`, joins the three below. Each setting
+> refuses to boot against a provider that does not declare the capability it
+> needs.
+
 ## Context
 
 The Media Library keeps no bytes in the database: an asset row carries a
@@ -49,7 +61,8 @@ MediaServerPlugin({
   `capabilities` (`directUrl`, `contentTypeMetadata`, `streamingPut`), plus
   optional `directUrl()` and `verify()`. The name is a fact about the adapter,
   not a string an operator repeats in two places.
-- `MediaPluginConfig` carries `maxUploadBytes` and nothing else. Backend
+- `MediaPluginConfig` carries `maxUploadBytes` and nothing else _(amended —
+  see the banner above; it still names no backend)_. Backend
   settings live in the host's own config, typed by the factory the host imports
   — the same arrangement as the copilot's provider settings (ADR-0004 §2).
 - The registry, the resolver, `defaultProvider` and `MEDIA_PROVIDER` are

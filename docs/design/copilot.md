@@ -37,7 +37,9 @@ rather than from this plan. Phase 0 landed the
 permission keys, and an empty plugin in both hosts. Phase 1 landed the chat
 vertical slice: the SSE run route, the bounded run engine, the capability
 profile, conversation persistence, the read-only content tools, and the chat
-panel. Phase 2 (export) is the next buildable slice.
+panel. Phase 3 (create & edit) has shipped, simplified by ADR-0009. Phase 2's
+copilot export tool has not, though content export itself shipped as the
+separate `transfer` plugin ([ADR-0014](../adr/0014-transfer-as-a-separate-plugin.md)).
 
 ---
 
@@ -60,17 +62,23 @@ rather than a re-platform:
   a generated edit diffable and validated; the transactional outbox gives
   at-least-once event delivery for background work — with one caveat in §8.
 
-> `ARCHITECTURE.md` §8 still claims there is no content model. That is stale —
-> content types, entries, revisions, media and i18n all shipped. Worth fixing,
-> since the copilot's system prompt is assembled from exactly these docs.
-
 ## 2. The chat
 
-The primary surface is a persistent chat panel: a **docked window in the
-bottom-right corner**, opened from a floating button in that corner, from the
-sidebar footer, or with `⌘J` — with threads scoped to a user × workspace. Three
-lighter entry points feed the same engine and the same transcript, so work
-started inline can be continued in conversation.
+There are two surfaces onto one chat, sharing one transcript, composer and
+change card, with threads scoped to a user × workspace:
+
+- **The docked panel** — a window over whatever page you are on, for a question
+  _about that page_. The dock in the bottom-right corner is its only entry
+  point: with no chats open it is a labelled Ortha CMS AI button, and once there
+  are chats it becomes the bar listing them. `⌘J` / `Ctrl+J` starts one. (A
+  floating round button and a sidebar row both existed once and are gone.)
+- **The Agents view** — a full page at `/workspaces/:id/agents`: the thread
+  history as a column and one conversation with room to render a table or a
+  diff, for work where the conversation _is_ the task. A CMS ⇄ Agents switch at
+  the top of the workspace sidebar moves between it and the CMS.
+
+Further lighter entry points were planned to feed the same engine (below); none
+has shipped.
 
 **Docked and non-modal, not a drawer.** The useful thing to do with an answer
 about your content is act on it — open the entry it named, check a field, run
@@ -88,15 +96,15 @@ A turn shows:
   (`searched articles · 12 results`), expandable to the exact input and output.
   No invisible actions.
 - **Its answer**, streamed as markdown.
-- **Any change, as a card.** A proposed edit is a per-field diff with
-  Accept/Reject; an export is a download with its row count and the filter that
+- **Any change, as a card.** An applied edit is a per-field diff — a receipt,
+  not a decision (ADR-0009); an export is a download with its row count and the filter that
   produced it.
 
 **Entry points**
 
 | Surface         | Where                                          | What it does                                                                                                                                                           |
 | --------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Chat panel      | Floating corner button, sidebar footer, `⌘J`   | The full conversation. All enabled tools. A model picker over `GET /api/copilot/models` chooses the backend **per turn**, so a thread can start cheap and escalate.    |
+| Chat panel      | The corner dock, `⌘J`, the Agents view         | The full conversation. All enabled tools. A model picker over `GET /api/copilot/models` chooses the backend **per turn**, so a thread can start cheap and escalate.    |
 | ⌘K palette      | `COMMAND_SLOT`                                 | Natural language → the _existing_ list filters via `query-builder-admin`'s `FilterField`s. The model emits a filter object, not SQL; the user sees the chips it chose. |
 | Entry editor    | `ENTRY_MENU_SLOT`, `ENTRY_SIDEBAR_WIDGET_SLOT` | Tighten copy, write the SEO description, suggest relations, translate. Field-level diffs accepted individually.                                                        |
 | Records toolbar | `RECORDS_TOOLBAR_SLOT`                         | Export by description — the copilot builds the filter and column set, reports the row count, streams a file.                                                           |
@@ -186,8 +194,9 @@ back, stop on a final answer or a ceiling. Steps 5–8 repeat.
    against a live session, input valid against the generated schema. Any failure
    returns a tool error to the model: the run continues, the violation is logged.
 7. **Execute** against the same use-cases the HTTP controllers call, inside a
-   `UnitOfWork`. Writes produce a proposal unless workspace policy allows direct
-   apply. Every call is audited in the same transaction.
+   `UnitOfWork`. A write parks the run for one inline prompt before the call,
+   then applies and records a proposal row as its receipt (ADR-0009). Every
+   call is audited in the same transaction.
 8. **Feed results back** — bounded by max steps, wall clock and a per-run token
    ceiling; exceeding one ends the run with a reason the UI shows.
 9. **Finalize** — persist the assistant message, tool calls, tokens and cost;
@@ -195,8 +204,11 @@ back, stop on a final answer or a ceiling. Steps 5–8 repeat.
 
 ## 6. Tool catalogue (v1)
 
-`read` runs freely; `propose` produces a reviewable change; `apply` writes
-directly and is off unless workspace policy enables it (ADR-0005 §6).
+`read` runs freely; `propose` and `apply` both park for the inline prompt and
+then write — `propose` returns a content patch the engine applies and records,
+`apply` does its own write (ADR-0009, replacing ADR-0005 §6). The table below is the v1 plan; the registry has grown since (alarms,
+segments, protection, media files) and drops `content.exportEntries`, which was
+never built — the [tools dossier](../artifacts/tools.md) lists it as it is.
 
 | Tool                            | Bound by  | Requires                            | Effect          |
 | ------------------------------- | --------- | ----------------------------------- | --------------- |
@@ -268,36 +280,46 @@ runtime model registry of ADR-0004 §5 lands.
 (`nx run copilot-server:db:generate --name=…`; applied by the host's
 `db:migrate`).
 
-| Table                   | Holds                                                                       | Notes                                                                       |
-| ----------------------- | --------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| `copilot_conversations` | Thread per user × workspace, title, surface, archived flag                  | FKs to identity `users` and workspaces                                      |
-| `copilot_messages`      | Ordered turns: role, content blocks, model id, finish reason                | Append-only — the transcript for replay and audit                           |
-| `copilot_tool_calls`    | Tool name, input, redacted output, duration, error                          | What actually touched data; the security-review surface                     |
-| `copilot_proposals`     | Target (type, entry, locale), patch, status, applied by/at                  | The receipt for every change; applying runs the ordinary update use-case    |
-| `copilot_model_configs` | Adapter kind, base URL, model id, encrypted credential, probed capabilities | Runtime provider registration (ADR-0004 §5); secrets never leave the server |
-| `copilot_connectors`    | MCP endpoint, auth, enabled workspaces, per-tool permission mapping         | Admin-managed; disabled by default                                          |
-| `copilot_usage`         | Per run: input/output tokens, cost, provider, model                         | Backs quotas and the cost panel                                             |
-| `copilot_skills`        | Workspace-authored instruction packets: name, description, body, mode       | The CMS half of §11; code-defined skills have no row                        |
+| Table                   | Holds                                                                 | Notes                                                                    |
+| ----------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `copilot_conversations` | Thread per user × workspace, title, surface, archived flag            | FKs to identity `users` and workspaces                                   |
+| `copilot_messages`      | Ordered turns: role, content blocks, model id, finish reason          | Append-only — the transcript for replay and audit                        |
+| `copilot_tool_calls`    | Tool name, input, redacted output, duration, error                    | What actually touched data; the security-review surface                  |
+| `copilot_proposals`     | Target (type, entry, locale), patch, status, applied by/at            | The receipt for every change; applying runs the ordinary update use-case |
+| `copilot_skills`        | Workspace-authored instruction packets: name, description, body, mode | The CMS half of §11; code-defined skills have no row                     |
 
-Phase 5 adds `copilot_embeddings` (entry, locale, chunk, vector), which needs
-the `pgvector` extension — a deployment change, not just a migration, and the
-reason semantic retrieval is last.
+Those five are the tables that exist. Three more were planned and are **not
+built** — each belongs to an unshipped phase:
+
+- `copilot_model_configs` (phase 4) — adapter kind, base URL, model id,
+  encrypted credential, probed capabilities: runtime provider registration
+  (ADR-0004 §5). Today providers are configured in code and env only.
+- `copilot_connectors` (phase 4) — MCP endpoint, auth, enabled workspaces,
+  per-tool permission mapping.
+- `copilot_usage` (phase 5) — per-run tokens, cost, provider and model, to back
+  quotas and a cost panel.
+
+Phase 5 would also add `copilot_embeddings` (entry, locale, chunk, vector),
+which needs the `pgvector` extension — a deployment change, not just a
+migration, and the reason semantic retrieval is last.
 
 ## 8. What we still have to build
 
-The plugin seams are ready; the streaming and model plumbing is not.
+The model port, the adapters, the streaming plumbing and the change card have
+shipped; what is left is configuration, connectors, the copilot's own export
+tool, and background work.
 
 | Capability                | Today    | What's needed                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | ------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Model port & adapters     | none     | No LLM dependency in `package.json`. The port copies `StorageProvider` + `buildRegistry`, so the shape is settled; the adapters and streaming normalisation are the work.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Model port & adapters     | **done** | `ModelProvider` in `copilot/domain`, `ModelRegistry` in `copilot/server`, and the `provider-anthropic` / `provider-openai` adapters — the only packages that talk to a vendor (ADR-0004).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | Streaming transport       | **done** | `SseStream` (Nest) + `streamRun` (admin). The `fetch` transport replicates `apiClient`'s credentials and `X-Workspace-Id` rather than changing it, as planned.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| Runtime provider config   | none     | All config is env-only via `orthacms.config.ts`. First DB-persisted settings and first encrypted-secret-at-rest in the codebase; needs a key in config and a rotation story.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Runtime provider config   | none     | All config is env-only via `orthacms.config.ts`. First DB-persisted settings and first encrypted-secret-at-rest in the codebase; needs a key in config and a rotation story.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | MCP client                | none     | Connection lifecycle, tool discovery, namespacing, permission mapping, timeouts, untrusted-text handling.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| Tool-schema generation    | partial  | `SerializedContentType` has everything needed; a `registry → JsonSchema` mapper (and round-trip tests) does not exist.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| Export                    | partial  | No content export exists. Streaming CSV/JSON writer, label resolution, row caps, audited download route.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| Tool-schema generation    | partial  | The content tools' input schemas are written by hand in `content/server`'s tool providers; a general `registry → JsonSchema` mapper (and round-trip tests) does not exist.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Export                    | partial  | Content export exists — the `transfer` plugin serialises a filtered set to four formats behind a download route (ADR-0014). No copilot tool reaches it yet: `content.exportEntries` and the records-toolbar entry point are still phase 2.                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | Long-running work         | partial  | **`OutboxDispatcher.drain()` runs every subscriber inside one transaction.** A multi-second model call in a subscriber would hold that transaction and its row locks open for the whole batch. Background AI must enqueue a job row and let a separate worker do the model call — or the dispatcher must learn to hand off outside the tx.                                                                                                                                                                                                                                                                                                                                         |
 | Cost & quota              | none     | Token accounting, per-workspace caps, per-user rate limiting. `@nestjs/throttler` is already in the lockfile via identity.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| Chat UI primitives        | partial  | Phase 1 shipped streaming text, message bubbles, tool-step disclosure and a small local markdown renderer (React elements only, never `dangerouslySetInnerHTML`). Still missing: the field-level proposal diff (`revisionDiff` is the starting point), needed at phase 3.                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Chat UI primitives        | partial  | Phase 1 shipped streaming text, message bubbles, tool-step disclosure and a small local markdown renderer (React elements only, never `dangerouslySetInnerHTML`). Phase 3 added the field-level change card, built on `revisionDiff`.                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | Deterministic tests       | partial  | `server-e2e` now covers the whole loop over the fake provider — guards, the strict pipe, the stream, the tool loop, the capability profile, the content tools. `admin-e2e` now covers **both copilot surfaces** end to end (`src/copilot/`) — the Agents view and the docked panel's window chrome: `page.route` _can_ fulfil an event-stream body, so only progressive arrival is lost, not the transcript or its block order. Remaining gap: the panel's **history dropdown bypasses the one-window-per-thread guard** (it sits on the reducer's `open` action; the picker loads straight into the chat and reports the id as `meta`), so two windows can hold one conversation. |
 | Prompt versioning & evals | partial  | `SYSTEM_PROMPT_VERSION` exists and is bumped with the prompt text. The offline eval set that would give it teeth does not — a prompt edit is still reviewed by reading it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | Localized output          | **done** | The run DTO carries `uiLocale` (an app preference, not `Accept-Language`) and the system prompt instructs the model to answer in it regardless of the content's language. Translation targeting arrives with the phase-4 translation tool.                                                                                                                                                                                                                                                                                                                                                                                                                                         |
@@ -389,12 +411,14 @@ Three things landed differently from the sketch above:
   that owns the data), because `copilot/server` cannot know how to write a
   content entry any more than it can know how to read one. Its whole contract is
   "run the ordinary use-case".
-- **Auto-apply is not a separate `effect: 'apply'` tool.** One tool declares
-  `propose`, and the workspace policy decides whether a human must accept — so a
-  team opting alt text in gets the same code path, the same row, and the same
-  audit trail, with the click removed. `effect: 'apply'` stays in the vocabulary
-  for a hypothetical tool that is only meaningful as a direct write; nothing
-  declares it today.
+- **Applying is not a separate `effect: 'apply'` tool.** A content write
+  declares `propose`; when it shipped, a workspace policy decided whether a
+  human had to accept, and since ADR-0009 the run parks for one inline prompt
+  before the call and then applies at once — the same code path, the same row
+  and the same audit trail either way. `effect: 'apply'` is kept for a tool
+  whose write is not a content patch: today that is `protection_request_review`,
+  which records a review request; it parks for the same prompt, and the engine
+  records a receipt for it.
 
 **Phase 4 — Configure & connect.** Runtime model settings with encrypted secrets
 and connection testing; MCP connector registration with permission mapping; ⌘K
@@ -468,7 +492,7 @@ Settled enough to start phase 0; decide before the phase that needs them.
   offered only the tools that viewer's own permissions already allow. Cost is
   handled with per-role rate limits rather than a role exclusion. Granted in
   `SYSTEM_ROLES` as of phase 0. `content:publish` stays withheld at every role
-  (ADR-0005 §7), and direct-apply remains an admin opt-in (§6).
+  (ADR-0005 §7).
 - **SSE or websockets?** SSE is the smaller change and enough for token
   streaming. Websockets only earn their cost if presence or server-initiated
   notifications follow. Revisit at phase 5.

@@ -4,8 +4,8 @@ The **schema builder plugin**
 ([ADR-0020](../../../docs/adr/0020-schema-builder-writes-code.md)). It turns the
 running content registry into the editable document the admin page renders,
 and plans and applies a change by writing TypeScript under
-the host's `src/content/` and a drizzle-kit migration. The design is in
-[`docs/design/schema-builder.md`](../../../docs/design/schema-builder.md).
+the host's `src/content/` and a drizzle-kit migration. The dossier is
+[`docs/artifacts/schema-builder.md`](../../../docs/artifacts/schema-builder.md).
 
 Layout: **layered (ADR-0003)** — `domain / application / infrastructure / http`.
 A thin context: no aggregates and no tables. The document, the diff, the

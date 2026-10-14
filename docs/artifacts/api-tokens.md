@@ -104,7 +104,7 @@ The package's public API (`src/index.ts`) is deliberately narrow: the plugin fac
 
 > **Neighbours that are easy to confuse**
 >
-> **`@orthacms/identity-server`** — `ApiTokenService`, `DrizzleApiTokenRepository`, `ApiTokensController`, both tables, both migrations, the `scopePermissions` function. **`@orthacms/content-server`** — `ApiTokenGuard` and `ApiTokenWorkspaceGuard`, that is, _spending_ a token. **`@orthacms/workspaces-server`** — the `WORKSPACE_HEADER` constant (`x-workspace-id`) and the adapter for the `WORKSPACE_DIRECTORY` port. **`@orthacms/activity`** — the log rows.
+> **`@orthacms/identity-server`** — `ApiTokenService`, `DrizzleApiTokenRepository`, `ApiTokensController`, both tables, both migrations, the `scopePermissions` function. **`@orthacms/content-server`** — `ApiTokenGuard` and `ApiTokenWorkspaceGuard`, that is, _spending_ a token. **`@orthacms/workspaces-server`** — the `WORKSPACE_HEADER` constant (`x-workspace-id`) and the adapter for the `WORKSPACE_DIRECTORY` port. **`@orthacms/activity-server`** — the log rows.
 
 ## 03. Permissions and token scope
 

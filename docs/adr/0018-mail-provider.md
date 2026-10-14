@@ -101,6 +101,13 @@ the alternative costs — the copilot's fake provider became the production
 default and nothing prevented it. Here the failure is quieter and worse:
 invitations appear to be sent and nobody receives them.
 
+_Clarified 2026-10-14:_ "nobody" means no **generated app**. This
+repository's own development host (`apps/server`) does register the console
+adapter, and only when `MAIL_PROVIDER=console` is set explicitly — so a
+contributor can read an invitation link out of the dev log. That choice exists
+in `apps/server/config/mail.ts` and nowhere else: the scaffolder offers it in
+no picker and no template names it.
+
 **7. Self-service password recovery exists only with a provider, and gives no
 signal.** The route is **absent** when none is configured, rather than answering
 with an error. When present it answers identically whether or not the address
@@ -169,10 +176,10 @@ socket while holding a transaction.
   start. Rejected: there is no second channel and no user asking for one, so the
   abstraction would be designed blind. The port is named for what it does, and a
   second channel earns its own record.
-- **One HTTP adapter with vendor presets**, the way `sso-provider-oidc` covers
-  Okta, Auth0, Keycloak and the rest inside one package. Rejected because that
-  pattern works on the back of a specification: OIDC vendors are conformant to
-  one, and Resend, Postmark and SendGrid are three unrelated JSON APIs with
-  nothing to be presets of.
+- **One HTTP adapter with vendor presets**, the way `identity-provider-oidc`
+  covers Okta, Auth0, Keycloak and the rest inside one package. Rejected
+  because that pattern works on the back of a specification: OIDC vendors are
+  conformant to one, and Resend, Postmark and SendGrid are three unrelated JSON
+  APIs with nothing to be presets of.
 - **Templates edited in the admin.** Rejected on the same grounds as the content
   model: a template is code, it goes through review, and it lands in git.

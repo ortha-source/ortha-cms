@@ -3,6 +3,11 @@
 The export/import **plugin**. Governed by the `server-plugin` skill; what
 follows is what is specific to this one.
 
+Layout: **layered (ADR-0003), per feature** — `export/` and `import/` each split
+into `application / infrastructure / http`; `archive/` and `schema/` are shared
+helpers. There is no `domain/` here: the kernel is
+[`@orthacms/transfer-domain`](../domain/AGENTS.md).
+
 Owns **no tables and no migrations**. A transfer reads and writes content that
 already exists; the only thing it adds is two audit events, which ride the
 shared outbox.

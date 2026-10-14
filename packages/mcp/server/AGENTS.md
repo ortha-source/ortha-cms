@@ -1,5 +1,10 @@
 # @orthacms/mcp-server
 
+Layout: **flat, by role** — `http/` (the controller and bearer auth),
+`protocol/` (building the MCP server over the registry), `types/` and `utils/`
+(the plugin factory). A protocol adapter with no domain of its own, so
+ADR-0003's layers do not apply.
+
 > **The tool registry moved out.** `ToolDefinition` / `ToolContext` /
 > `ToolProvider` / `ToolRegistry` / `createToolContext` / `toToolError` now live
 > in [`@orthacms/tools-server`](../../tools/server/AGENTS.md)

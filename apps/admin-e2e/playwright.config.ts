@@ -3,8 +3,8 @@ import { nxE2EPreset } from '@nx/playwright/preset';
 import { workspaceRoot } from '@nx/devkit';
 
 // Which admin this run drives. `ADMIN_PORT` is the per-checkout dev port, so
-// parallel worktrees each test their own stack instead of racing on one
-// (`docs/parallel-stacks.md`); Nx exports it from the workspace `.env`.
+// two checkouts each test their own stack instead of racing on one; Nx exports
+// it from the workspace `.env`.
 const adminPort = Number(process.env['ADMIN_PORT']) || 4200;
 const adminUrl = `http://localhost:${adminPort}`;
 

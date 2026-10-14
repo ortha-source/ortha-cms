@@ -49,8 +49,10 @@ WCAG issues — they guard against regressions, they don't prove conformance.
 ## Use the design system — it gives you a11y for free
 
 - **`InputField`** — label + input + error, with `htmlFor`/`aria-invalid`/`FieldError`
-  wired. Feed it `label`, `invalid`, `errors`. This is how `LoginField` binds a
-  TanStack Form field.
+  wired. Feed it `id`, `label`, `invalid`, `errors`. This is how identity's
+  `AuthField` (`packages/identity/admin/src/lib/presentation/components/AuthField`)
+  binds a TanStack Form field: `invalid` is touched-and-has-errors, and the
+  errors go in only then.
 - **`SkeletonRegion`** — the announced wrapper a block of `Skeleton`s belongs
   in: one named `role="status"`, `aria-busy`, placeholders hidden inside it.
   A bare `Skeleton` now reads as "I am handling the announcement myself". A

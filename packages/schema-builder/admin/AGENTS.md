@@ -5,8 +5,8 @@ The schema builder's **admin page**
 model at `/content-model`, one type per URL (`/content-model/:typeName`), in
 the global sidebar's `directory` group. Global, because content types are code
 and the same in every workspace. Gated on `content:read` — the permission the
-document route needs. The design is in
-[`docs/design/schema-builder.md`](../../../docs/design/schema-builder.md).
+document route needs. The dossier is
+[`docs/artifacts/schema-builder.md`](../../../docs/artifacts/schema-builder.md).
 
 Layout: **layered (ADR-0003)**, mirroring `@orthacms/users-admin`.
 

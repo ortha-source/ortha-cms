@@ -13,8 +13,7 @@ import { tmpdir } from 'node:os';
  * present. One source of truth, two delivery paths.
  *
  * The filename is keyed by this checkout's path so two worktrees running the
- * suite at once (the parallel-stack workflow in `docs/parallel-stacks.md`)
- * cannot hand each other the wrong container's URI — and teardown removes only
+ * suite at once cannot hand each other the wrong container's URI — and teardown removes only
  * the file it wrote, never the shared directory, so finishing first cannot
  * delete another run's handoff out from under it.
  */

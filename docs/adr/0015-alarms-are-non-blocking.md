@@ -4,6 +4,14 @@
 - **Date:** 2026-08-24
 - **Deciders:** Engineering
 
+> **Amended (2026-08-25).** §3's muting is withdrawn. A finding opens and
+> resolves with its entry and nothing else; there is no per-record mute, and
+> `alarm_findings` no longer has `muted_at` / `muted_by` / `muted_reason`
+> (migration `0001_drop_finding_mute.sql`, which reopened any muted rows). An
+> alarm is either right about a record or wrong about it — silencing one record
+> at a time is a way of living with a bad condition instead of fixing it, so the
+> remedy for a wrong alarm is to change or disable its rule.
+
 ## Context
 
 The CMS enforces content rules in exactly one place: the content type's schema.
@@ -51,7 +59,8 @@ translator the list uses. There is no alarms query language.
 
 **3. A finding is state, not an event.** `alarm_findings` holds one row per
 `(rule, entry)` pair. It opens when the entry starts matching, resolves itself
-when it stops, and can be muted with a reason that survives both.
+when it stops, and can be muted with a reason that survives both _(muting
+withdrawn — see the amendment above)_.
 
 ## Consequences
 

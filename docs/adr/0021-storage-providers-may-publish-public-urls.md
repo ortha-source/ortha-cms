@@ -1,8 +1,13 @@
 # 0021 — A storage provider may publish public URLs, and the operator decides whether the API reports them
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-09
 - **Deciders:** Engineering
+
+> Amends [ADR-0012](0012-one-storage-provider-per-deployment.md): its
+> `MediaPluginConfig` gains `publicUrls` / `publicUrlTypes`, and the provider's
+> self-description gains a `publicUrls` capability. ADR-0012's rule that the
+> plugin config names no backend stands.
 
 ## Context
 

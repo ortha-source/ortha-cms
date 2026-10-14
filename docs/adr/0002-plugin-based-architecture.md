@@ -35,7 +35,8 @@ table)_. Plugins integrate through explicit contracts (`AdminPlugin`,
 ## Consequences
 
 - Adding capability never requires editing a host — register a plugin in
-  `apps/admin/src/main.tsx` / `apps/server/src/plugins.ts`.
+  `apps/admin/src/plugins.ts` (`buildPlugins()`) /
+  `apps/server/src/plugins.ts`.
 - Clear ownership boundaries; per-plugin schema/migrations keep domains isolated.
 - Authoring conventions must be encoded and enforced (hence the `server-plugin`
   and `admin-plugin` skills) so plugins stay consistent.

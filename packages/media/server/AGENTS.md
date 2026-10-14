@@ -23,7 +23,8 @@ application/     # orchestration — one use case per state change
   use-cases/                       # upload / update / delete assets; create / rename / delete folders
   dto/                             # class-validator DTOs (shape checks only)
 infrastructure/  # adapters — the only layer that knows Drizzle/pg
-  schema/  persistence/  queries/  storage-registry.ts
+  schema/  persistence/  queries/  image/  public-urls/  purge/
+  storage-provider.check.ts        # boot check: provider answers, no row names another
 http/            # thin controllers (one per use case) + to-http error mapper
 ```
 

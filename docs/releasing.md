@@ -1,7 +1,9 @@
 # Releasing to npm
 
-Every package under `packages/` is published to the `@orthacms` scope in one
-lockstep release: one version, one tag, one GitHub Release, 71 tarballs (as of 0.10.0 — one per non-private package under `packages/`).
+Every non-private package under `packages/` is published in one lockstep
+release: one version, one tag, one GitHub Release, one tarball per package. All
+of them are in the `@orthacms` scope except the scaffolder,
+`create-orthacms-app`, which is unscoped so `npx create-orthacms-app` works.
 
 ## Running a release from your machine
 
@@ -50,17 +52,20 @@ tick **dry-run** to rehearse. It needs one repository secret, `NPM_TOKEN`.
 
 |            |                                                                     |
 | ---------- | ------------------------------------------------------------------- |
-| Scope      | every project matching `@orthacms/*` except `@orthacms/nx`          |
+| Projects   | `@orthacms/*` and `create-orthacms-app`, minus the private ones     |
 | Versioning | **fixed** — all packages move together, always the same version     |
 | Specifier  | conventional commits (`feat:` → minor, `fix:` → patch, `!` → major) |
 | Tag        | `v{version}`                                                        |
 | Changelog  | one workspace-level `CHANGELOG.md`, no per-project files            |
 
-`@orthacms/nx` is `private` and stays out: it is workspace tooling, wired
-into this repo's `nx.json`, not something a consumer installs.
+Two packages are `private` and excluded in `nx.json`'s `release.projects`:
+`@orthacms/nx`, which is workspace tooling wired into this repo's `nx.json`
+rather than something a consumer installs, and
+`@orthacms/copilot-provider-fake`, a scripted test fixture that must never be
+something a deployment can register.
 
-The apps (`apps/admin`, `apps/server`) are private and never publish. They are
-the reference host, not a distributable.
+The apps (`apps/admin`, `apps/server` and their two e2e suites) are private
+and never publish. They are the reference app, not a distributable.
 
 ### The scaffolder's template needs no version edit
 
@@ -116,7 +121,7 @@ existing.
 
 3. **`nx-release-publish`** — publishes that staging directory rather than the
    project root, via `packageRoot`. It runs `@orthacms/nx:release-publish`
-   rather than the `@nx/js` one, because 71 publishes in a row is more than
+   rather than the `@nx/js` one, because one publish per package in a row is more than
    npm will take at full speed — see [Rate limits](#rate-limits) below.
 
 The staging directory lives at the workspace root, not beside the package, on
@@ -127,7 +132,7 @@ name, and npm then refuses to run at all.
 ## Rate limits
 
 npm rate-limits how fast one account may write, and a lockstep release asks it
-to accept 71 tarballs back to back. Published as fast as Nx can schedule them,
+to accept every tarball back to back. Published as fast as Nx can schedule them,
 the registry starts answering **429 Too Many Requests** partway down the list —
 and by then the version is already committed, tagged and pushed, so the repo
 says a release happened that the registry only half has.
@@ -159,7 +164,8 @@ Two consequences worth knowing:
   not meter the way it meters writes. A version that is already there is
   skipped without sending anything at all. That is what makes
   `npm run release:publish` a safe and cheap way to finish a release that died
-  halfway: a resume that only has 12 packages left spends 12 writes, not 71.
+  halfway: a resume that only has 12 packages left spends 12 writes, not one
+  per package.
   (A republish that slips through anyway is still caught: npm answers it with a
   403, which the executor also reads as "this one already went out".)
 - **A failed publish is reported per package.** Nx fails the run, the packages
@@ -249,8 +255,9 @@ than reaching the registry.
 
 ## Adding a package
 
-Nothing to wire up. Put it under `packages/` with a `package.json` and a
-`tsconfig.lib.json` and it joins the next release. Declare every dependency it
+Almost nothing to wire up. Put it under `packages/` with a `package.json` and a
+`tsconfig.lib.json` and it joins the next release — once it is classified in
+`create-orthacms-app`'s `features.ts` (see above), whose tests fail until it is. Declare every dependency it
 imports in its **own** manifest — `pack` will not let a phantom through — and
 give `react`/`react-dom` as `peerDependencies` for an admin package, matching
 its siblings.

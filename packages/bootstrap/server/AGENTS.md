@@ -4,6 +4,10 @@ The server-side **host** for the Ortha CMS. Turns a list of plugins into a
 running NestJS app. Owns the cross-cutting wiring that must exist exactly once;
 contains no features.
 
+Layout: **flat** — `create-server.ts` and `server.module.ts` under `src/lib/`,
+beside `types/` (the `ServerPlugin` contract) and `utils/` (API docs, serving
+the admin). A host, not a plugin: ADR-0003's layers do not apply.
+
 ## Package
 
 - Name: `@orthacms/bootstrap-server`

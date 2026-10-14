@@ -73,32 +73,20 @@ adapter matrix in `media`, the `canRead` truth table in `segments`, the tool reg
 ## Cross-cutting findings
 
 Problems that surfaced independently in several dossiers. Every conclusion here comes from
-reading the source, not from a live stack.
+reading the source, not from a live stack. A finding that is repaired gets struck from here in
+the same commit as the repair — this section is not an archive. Re-checked 2026-10-14; the
+stale root documents, the ADR statuses, the outbox's missing cleanup and the dangling
+ADR-0004/0005 references it used to list are all fixed and gone from it.
 
-**Re-checked 2026-09-05, against the code rather than against the previous pass.** This
-section had itself gone stale: it was quoted as a summary of what is wrong with the system
-while three of its findings had already been fixed, and one of those was fed to a triage agent
-as context and would have produced a false verdict. A finding that is repaired gets struck
-from here in the same commit as the repair — this section is not an archive.
-
-**The root documentation has fallen behind the code.** Still true, in every particular.
-`ARCHITECTURE.md`, `CONTEXT-MAP.md` and ADR-0002 claim that `database` owns no schema (it owns
-`outbox_events` and **three** migrations); the `ServerPlugin` contract is shown with four
-fields, without its fifth, `docs`; "the Content Library defines five slots" — there are 14;
-the session is called a "signed token" (it is opaque and unsigned, and the same file describes
-the cookie correctly forty lines earlier); §8 denies that a content model and an LLM
-integration exist, and also denies the queue/worker and the media library. Found by the
-`bootstrap`, `database` and `workspaces` dossiers.
-
-**Workspace deletion is swept, and what survives now survives on purpose.** Six packages
-implement `WorkspacePurger`: `media`, the local `ApiTokenGrantsPurger`, `alarms`
-(`alarm_rules` + `alarm_findings`), `segments` (`entry_access`), `content`
-(`content_entry_revisions`) and `webhooks` (`webhook_endpoint_workspaces`).
-`workspace-delete-residue.spec.ts` asserts all fourteen tables — six cascading, eight purged —
-count zero after a delete. The last defect closed 2026-09-05: webhooks kept its subscription
-rows, and fan-out re-read them on every content write. Its own dossier had called the stale id
-"harmless — no event will ever carry it again", which is true of correctness and false of
-everything else; that sentence is why it outlived two rounds of the same finding.
+**Workspace deletion is swept, and what survives now survives on purpose.** Every plugin that
+keeps a `workspace_id` without a cascade implements `WorkspacePurger` (media, the local
+`ApiTokenGrantsPurger`, alarms, segments, content's revisions, webhooks and protection), and
+`workspace-delete-residue.spec.ts` asserts that every workspace-scoped table — cascading or
+purged — counts zero after a delete. A new table that nobody classified fails that spec. The
+last defect closed 2026-09-05: webhooks kept its subscription rows, and fan-out re-read them on
+every content write. Its own dossier had called the stale id "harmless — no event will ever
+carry it again", which is true of correctness and false of everything else; that sentence is
+why it outlived two rounds of the same finding.
 
 One thing still survives a deletion, and it is **correct**: `segments.workspace_ids` keeps the
 dead id, because an empty `workspace_ids` means "every workspace" and pruning the last id would
@@ -107,80 +95,24 @@ is in the schema rather than in taste — `all_workspaces` is a separate boolean
 there means "none" and a prune can only narrow. Both readings are pinned by a test that names
 the other. Found by the `workspaces`, `alarms` and `webhooks` dossiers.
 
-**The filter grammar. Closed 2026-09-05, and the last piece was a real exposure.** The operator
-dictionary is still duplicated — a browser cannot drag in NestJS and Drizzle — but it is no
-longer unwatched: `operator-vocabulary-parity.spec.ts` imports `FilterOperator` and reads
-`wireOp.ts` as text, and pins a **third** copy nobody had counted, `OPERATORS_BY_TYPE`, where an
-operator in the vocabulary but on no type's list passes the unknown-operator check and is then
-refused on every field there is. The `like` gap that started this is fixed and now has a general
-rule behind it rather than one case.
+**The filter grammar is duplicated, and watched.** The operator dictionary exists in more than
+one copy — a browser cannot drag in NestJS and Drizzle — but `operator-vocabulary-parity.spec.ts`
+imports `FilterOperator`, reads `wireOp.ts` as text, and pins the third copy,
+`OPERATORS_BY_TYPE`, where an operator in the vocabulary but on no type's list would pass the
+unknown-operator check and then be refused on every field there is. The engine carries its own
+string-length budget, `maxValueLength`, applied per element of an `in` list as well as to a
+scalar, because four callers reach `parseFilterTree` without a DTO in front of them: an alarm
+rule at write time and replayed out of `jsonb` by the subscriber and the sweep, the copilot's
+`admin_content_search`, and GraphQL's entry loader. Found by the `query-builder` and `utils`
+dossiers.
 
-`FILTER_MAX_LENGTH`'s odd 8192 turned out to be an accident that guarded nothing: **nothing
-imported it**, and nothing could have — the field it would have capped is `@IsObject()`, and
-`@MaxLength` is a string decorator. It is deleted rather than aligned; the other three re-export
-one value from `utils-server`.
-
-The engine's missing string-length budget was **not** covered by the DTOs, which is what the
-earlier note assumed. Four callers reach `parseFilterTree` without one: an alarm rule at write
-time, the same rule replayed out of its `jsonb` column by the subscriber and the sweep (where
-there is no string left to measure), the copilot's `admin_content_search`, and GraphQL's entry
-loader. On those the parser was the whole boundary and the next bound down was the 1 MB body
-limit. `maxValueLength` is now the fifth budget, applied per element of an `in` list as well as
-to a scalar. Its default equals `FILTER_MAX_LENGTH`, and the equality is the argument: a filter
-that arrived as a string is already capped at that length in total, so the budget provably
-refuses nothing an HTTP caller could already send, and exists only for the callers that never
-meet a DTO. Found by the `query-builder` and `utils` dossiers.
-
-**ADR statuses. Fixed 2026-09-05.** Nine records — 0003, 0004, 0005, 0006, 0007, 0009, 0010,
-0011 and 0013 — sat in status `Proposed` while the code had been built on them for months, which
-tells a reader the opposite of the truth. Each was checked against the implementation before
-being moved to `Accepted`; none had to be left. The broken `0012-sso-provider-port.md` link in
-`provider-oidc/AGENTS.md` and `provider-saml/AGENTS.md` now points at ADR-0013, and a sweep of
-every ADR reference in the repo found no other dangling filename.
-
-Two smaller things surfaced and are **still open**, both in accepted records rather than in
-their statuses: ADR-0004 §5's second tier (`copilot_model_configs`, runtime model registration)
-was never built, and ADR-0005's `Update (2026-08-24)` argues from the composition root ordering
-"the offline `fake` adapter last", which stopped being true when the fake provider became a
-private test fixture. Each wants an amending record, not an edit to an accepted one.
-
-**The first-run experience is now tested the way a stranger meets it.** The three findings
-this paragraph used to carry are fixed and pinned — the README's `drizzle.config.ts` recipe
-and its layout paths by `generated-readme.spec.ts`, `orthacms --help` by `args.spec.ts` and
-`cli.spec.ts`, a green `npm test` by `composition.spec.ts`. None of those installs anything,
-though, and the first thing the new end-to-end check caught was one they could not see:
-**`npm install` in a freshly created app crashed on npm 10** — the npm Node 22 ships — with
-`Cannot read properties of null (reading 'edgesOut')`. Any `vitest` 4.1.x does it on its own
-once vitest 5 is `latest`; the monorepo never noticed because CI pins npm 11 and installs
-from a lock file. The template now declares `vitest ~5.0.0` (and `@types/node ^22.12.0`, the
-floor its peer range sets). `tools/smoke/scaffold.mjs` — the `scaffold-smoke` CI job — packs
-every package, serves the tarballs from a throwaway registry, runs `npx create-orthacms-app
---yes` outside the repository, follows the generated README (`docker compose up`, `migrate`
-twice, `npm test`, `typecheck`, `build`, `start`) and signs the root admin in over HTTP, on
-Node 22 with its bundled npm and on Node 24.
-
-**Operating the outbox.** There is still no cleanup of `outbox_events` — dispatched rows are
-stamped, never deleted, and the schema comment says so outright ("a table nothing prunes").
-After 15 attempts (≈33 minutes of doubling backoff, capped at five minutes) an event is parked
-until an operator clears its `attempts`. It is no longer only findable with SQL:
-`OutboxDispatcher.deadLetters()` backs `GET /api/activity/dead-letters` (gated on
-`activity:read`), surfaced in the admin as the activity log's `DeadLetterNotice`.
-
-**A package's manifest is not the package a consumer installs.** Six dossiers describe a
-package as dependency-free, and every one of them is reading the checked-in `package.json`.
+**A package's manifest is not the package a consumer installs.** A dossier that reads the
+checked-in `package.json` sees what the workspace resolves, not what npm ships.
 `tools/release/pack.mjs` writes `tslib` into every staged manifest — unconditionally, because
 `importHelpers` is on workspace-wide and the emitted JS reaches for the helper runtime whether
 or not the source ever mentions it. So `npm i @orthacms/media-provider-s3` fetches four
 packages, and `npx create-orthacms-app` — whose empty `dependencies` field is a deliberate choice
-about how long the very first command takes — fetches two. The gap is a few kilobytes and a
-whole sentence, and nothing pinned it: `tslib` appeared in `pack.spec.ts` only as a fixture
-value. Now pinned by "pack.mjs, resolving what a package depends on" (three cases,
-mutation-proved), and four invariants — `content:I-37`, `identity:I-27`, `media:I-34`,
-`segments:I-38` — say `declares` where they said `has`. `copilot`'s wording ("no
-`dependencies` block at all") was already exact. Found by the `media` dossier, then swept.
-
-## Updating
-
-The file here and the published page are independent copies. After editing the HTML, republish
-the page at its own link (for Claude Code: pass the URL from the table), otherwise you get a
-second artifact instead of an updated one.
+about how long the very first command takes — fetches two. Pinned by "pack.mjs, resolving what
+a package depends on" in `pack.spec.ts`; the invariants that state it (`content:I-37`,
+`identity:I-27`, `media:I-34`, `segments:I-38`) say `declares`, not `has`. Found by the `media`
+dossier, then swept.

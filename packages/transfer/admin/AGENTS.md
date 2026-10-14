@@ -3,6 +3,11 @@
 Export and import in the Content Library. Governed by the `admin-plugin`,
 `accessibility` and `admin-e2e` skills; what follows is specific to this one.
 
+Layout: **by kind** — `api/` (one query or mutation hook per folder),
+`components/`, `hooks/` (the three slot actions), `constants/` and `utils/`
+(the plugin factory). Not layered: the transfer rules live in
+[`@orthacms/transfer-domain`](../domain/AGENTS.md) and the server.
+
 Contributes **no routes**. Everything it does is an action on content someone is
 already looking at, so it lives in the content library's seams:
 

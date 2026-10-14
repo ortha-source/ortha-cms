@@ -4,10 +4,6 @@ How Ortha CMS is built. For the _why_ behind these choices, see
 [`docs/adr/`](docs/adr/README.md). For the project inventory and glossary, see
 [`CONTEXT-MAP.md`](CONTEXT-MAP.md).
 
-The countable claims below — how many slots, which contract fields, what tables
-a plugin owns — are derived from the code and checked by
-[`tools/docs-guard`](tools/docs-guard/AGENTS.md), not maintained by hand.
-
 ## 1. The big idea: a plugin host
 
 Ortha CMS is not a monolith with features bolted on. It is a small, dumb **host**
@@ -26,7 +22,7 @@ There are two hosts, one per runtime:
 Adding a capability = adding a plugin and registering it. You never edit the
 host. Registration happens in:
 
-- `apps/admin/src/main.tsx` — the admin plugin list
+- `apps/admin/src/plugins.ts` — the admin plugin list
 - `apps/server/src/plugins.ts` — the server plugin list
 
 ## 2. Plugins come in pairs
@@ -42,10 +38,11 @@ Some are single-runtime (`design-system`, `query-builder/admin`, `database`,
 `nx`), and a group is **not** limited to two: it holds however many packages the
 domain needs, named for what they are. Alongside `admin` and `server` you will
 find a framework-free `domain` kernel (`content`, `copilot`, `identity`, `mail`,
-`media`, `protection`, `schema-builder`, `segments`, `transfer`, `webhooks`), a second protocol
-(`content/graphql`), and `provider-*` adapters where the domain has a swappable
-backend — `media` has six plus a shared contract test kit, `identity` four,
-`copilot` three, `mail` three. The npm name is always hyphenated regardless of nesting:
+`media`, `protection`, `schema-builder`, `segments`, `transfer`, `webhooks`), a
+second protocol (`content/graphql`), and `provider-*` adapters where the domain
+has a swappable backend — storage for `media` (with a shared contract test kit),
+SSO for `identity`, models for `copilot`, transports for `mail`. The npm name is
+always hyphenated regardless of nesting:
 `packages/bootstrap/admin` → `@orthacms/bootstrap-admin`.
 
 ### Server plugin contract
@@ -66,9 +63,14 @@ so it works whether the plugin is consumed from source or installed from npm.
 merges every plugin's contribution before generating it.
 
 Authoring rules live in the **`server-plugin`** skill: the `ServerPlugin`
-factory + dynamic-module pattern, feature-then-kind folder layout
-(`feature/{controllers,services,dto,errors,types}`), `@InjectDatabase()` DI,
-config injection, and the schema/migrations descriptor.
+factory + dynamic-module pattern, `@InjectDatabase()` DI, config injection, and
+the schema/migrations descriptor. It documents both folder layouts in use: the
+older feature-then-kind one (`feature/{controllers,services,dto,errors,types}`)
+and the layered `domain / application / infrastructure / http` one that
+[ADR-0003](docs/adr/0003-tactical-ddd-inside-plugins.md) is migrating plugins
+to, incrementally — `domain/` imports no framework, and
+`packages/workspaces/server` is the reference. Each package's own `AGENTS.md`
+says which layout it is in.
 
 ### Admin plugin contract
 
@@ -110,14 +112,16 @@ after changing cross-project dependencies to update TS project references.
   migrations (`nx run server:db:migrate`).
 - **Except the content model, which the _host_ owns.** Content types are
   code-defined per app, so their generated tables are too: `apps/server`
-  re-exports them from `src/content.ts`, runs `db:generate` against its own
+  re-exports them from `src/content/index.ts` (a generated manifest,
+  rewritten by `nx run server:content:sync`), runs `db:generate` against its own
   `drizzle.config.ts`, and commits the SQL. `content/server` ships migrations
   only for its fixed platform tables (`saved_views`, `saved_view_defaults`) —
   and does so through a **second** `ServerPlugin` entry, `ContentViewsPlugin`,
   because `migrations` is one `{ dir, table }` descriptor and content's is
   already spent on the host's tables.
 - **Migration tooling** is provided by the `@orthacms/nx` workspace plugin,
-  which infers the `db:generate` / `db:migrate` targets.
+  which infers the `db:generate` / `db:migrate` / `db:studio` and
+  `content:sync` targets as adapters over `@orthacms/cli`.
 
 ## 5. Request flow (admin → API → DB)
 
@@ -162,23 +166,23 @@ plugins, as pure data. Example: `shell` defines `SIDEBAR_NAV_SLOT`; the
 workspaces, users, and activity plugins each register nav entries into it (and
 the workspace shell defines `WORKSPACE_NAV_SLOT` / `WORKSPACE_SECTION_SLOT` /
 `WORKSPACE_ROUTE_SLOT` for its interior). Slots are wired once at boot
-(`slot._register(items)`) and read sorted by consumers (`slot.getItems()`). The shell's sidebar also has a
-route-scoped **dynamic region** (`useSidebarContent`) the workspace shell takes
+(`slot._register(items)`) and read sorted by consumers (`slot.getItems()`). The
+shell's sidebar also has a route-scoped **dynamic region** (`useSidebarContent`) the workspace shell takes
 over — a runtime override alongside the boot-time slots. The Content Library
-defines **16** of its own — five around the records list (toolbar, menu,
-columns, filter fields, bulk actions), nine around the entry editor (header,
-menu, tabs, sidebar widgets, details rows, params, field controls, pre-save
-steps, the publish guard), one on the revision view and one route-level overlay — and it fills none of them itself:
-`activity`, `alarms`, `copilot`, `i18n`, `media`, `segments`, `transfer` and
-`wysiwyg` do. Because slots are **boot-frozen**, an item may even expose a hook
-the render site calls in a loop.
+defines its own — around the records list (toolbar, menu, columns, filter
+fields, bulk actions), around the entry editor (header, menu, tabs, sidebar
+widgets, details rows, params, field controls, pre-save steps, the publish
+guard), on the revision view, and one route-level overlay — and it fills none
+of them itself: `activity`, `alarms`, `i18n`, `media`, `protection`,
+`segments`, `transfer` and `wysiwyg` do. Because slots are **boot-frozen**, an
+item may even expose a hook the render site calls in a loop.
 
 **Server — DI ports (inversion).** The _depended-upon_ plugin declares a
 `Symbol` token + interface and injects it `@Optional()`; the _implementing_
-plugin binds it in its module. identity declares `CONTENT_CATALOG` /
-`ACTIVITY_RECORDER` (bound by content / activity — though `ACTIVITY_RECORDER` is
-now deprecated, kept only for a stable surface: auditing moved to the outbox
-subscriber described in §5); content declares
+plugin binds it in its module. workspaces declares `CONTENT_CATALOG` (bound by
+content to its registry); identity declares `ACTIVITY_RECORDER` (bound by
+activity — though it is now deprecated, kept only for a stable surface: auditing
+moved to the outbox subscriber described in §5); content declares
 `CONTENT_ENTRY_EXTENSION` (bound by `i18n/server` to add row-per-locale scoping,
 create stamping, shared-field sync, and locale filters to the entries pipeline
 without content knowing what a locale is). Keeps the package graph acyclic.
@@ -188,7 +192,9 @@ binding the same token silently replaces the first. Where a port must accept any
 number of independent contributions the seam is a **registry** instead — content
 declares `CONTENT_READ_SCOPE` that way (registered by `segments/server`, and
 every fragment is AND-ed onto the public read's predicate, so a scope can only
-subtract rows), as does the copilot's tool registrar.
+subtract rows), and the shared `ToolRegistry` in `packages/tools/server` is
+one too: each plugin implements `ToolProvider` and calls `register` from its
+`onModuleInit`.
 
 ## 7. Security posture (today)
 

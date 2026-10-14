@@ -3,6 +3,10 @@
 The shared, transport-neutral catalogue of everything an agent can do to this
 CMS — and the **single place a tool call is authorized**.
 
+Layout: **flat** — a handful of files directly under `src/lib/` (the contract,
+the registry, the context, the error mapping, input validation and the module).
+A shared contract with no domain of its own, so ADR-0003's layers do not apply.
+
 > [ADR-0007](../../../docs/adr/0007-one-tool-registry-two-surfaces.md) is why
 > this package exists; [ADR-0006](../../../docs/adr/0006-cms-as-an-mcp-server.md)
 > §2 is where the seam was first described (inside `mcp/server`, before it had

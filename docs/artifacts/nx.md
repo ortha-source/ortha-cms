@@ -456,7 +456,7 @@ ORTHACMS_PUBLISH_DELAY=10000 ORTHACMS_PUBLISH_RETRIES=8 npm run release
 DATABASE_URL=postgres://orthacms:orthacms@localhost:5432/orthacms
 ```
 
-`db:generate`, `db:migrate` and `db:studio` need nothing more. The first does not even need that. For parallel stacks, slot _n_ fixes its own port and database (`orthacms_an`), and `npm run worktree -- provision <slot>` writes an already adjusted `.env` — the database targets do not change at all, they simply read a different URL.
+`db:generate`, `db:migrate` and `db:studio` need nothing more. The first does not even need that.
 
 </details>
 

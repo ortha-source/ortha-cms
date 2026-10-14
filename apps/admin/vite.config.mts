@@ -7,9 +7,8 @@ import tailwindcss from '@tailwindcss/vite';
 const workspaceRoot = resolve(import.meta.dirname, '../..');
 
 export default defineConfig(({ mode }) => {
-    // Both ports come from this checkout's `.env` so several checkouts — one
-    // git worktree per agent or ticket — can run their own stack side by side
-    // (`docs/parallel-stacks.md`). `loadEnv` reads the workspace `.env`
+    // Both ports come from this checkout's `.env`, so a second checkout can
+    // run its own stack on other ports. `loadEnv` reads the workspace `.env`
     // directly rather than trusting the task runner to have exported it; the
     // empty prefix is what makes unprefixed keys visible, and nothing here is
     // inlined into the client bundle — only `import.meta.env`/`define` are.

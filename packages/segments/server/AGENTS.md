@@ -4,6 +4,11 @@ The **segmentation plugin** — reader entitlements enforced on the public conte
 API. Two tables, one predicate, and four ways in: the admin's screens, the entry
 save's `extensions` bag, a bearer token, and an agent's tool catalogue.
 
+Layout: **layered (ADR-0003)** — `application / infrastructure / http`, beside
+`schema/`, `tools/`, `copilot/`, `docs/` and `utils/`. There is no `domain/`
+here: `canRead` and the segment rules live in
+[`@orthacms/segments-domain`](../domain/AGENTS.md).
+
 ```
 src/lib/
   segments.module.ts          the one dynamic module

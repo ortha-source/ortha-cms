@@ -4,6 +4,10 @@ The admin-side **host** for the Ortha CMS. Turns a list of plugins into a
 running React SPA. Owns the mount + router shell that must exist exactly once;
 contains no features.
 
+Layout: **flat** — one folder per export under `src/lib/` (`createAdmin/`,
+`types/adminPlugin/`, the error boundary, the route announcer, the
+unsaved-changes guard, the design-system labels). A host, not a plugin: ADR-0003's layers do not apply.
+
 ## Package
 
 - Name: `@orthacms/bootstrap-admin`

@@ -38,7 +38,7 @@ const UPDATED = 'entry.updated';
  * - the head is not live. Outbox delivery is **unordered**, so a save-and-
  *   publish in one press can hand this subscriber its `entry.updated` after
  *   the publish landed; the head it reads then is the published one, and there
- *   is nothing to review (`protection:I-23`);
+ *   is nothing to review (`protection:I-25`);
  * - at least one of those reviewers can still approve here. Somebody who left
  *   the workspace or lost `content:approve` is dropped rather than left as a
  *   pending reviewer with no way to approve (`protection:I-22`).

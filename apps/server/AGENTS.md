@@ -92,9 +92,10 @@ generic version of this problem, for any plugin's schema barrel, is ORT-130.
 ## Working here
 
 - Authoring or changing a server plugin is governed by the **`server-plugin`**
-  skill (`ServerPlugin` factory + dynamic module, feature-then-kind layout,
-  `@InjectDatabase()` DI, schema/migrations descriptor, and the authorization /
-  data-integrity invariants).
+  skill (`ServerPlugin` factory + dynamic module, both folder layouts — the
+  layered ADR-0003 one and the older feature-then-kind one — `@InjectDatabase()`
+  DI, schema/migrations descriptor, and the authorization / data-integrity
+  invariants).
 - Migrations: `npx nx run <plugin>:db:generate --name=<name>` to generate,
   `npx nx run server:db:migrate` to apply. Commit emitted SQL.
 - E2E coverage lives in `apps/server-e2e` (testcontainer + supertest) — see the

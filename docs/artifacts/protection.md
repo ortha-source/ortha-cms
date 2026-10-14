@@ -95,7 +95,7 @@ never back.
 | Package                      | What it is                                                                                                                                                                                                                                                             |
 | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `packages/protection/domain` | The framework-free kernel: `ProtectionRule`, `Approval`, `ProtectionActor`, `ProtectionInput`, and the two functions `evaluateProtection` / `countApprovals`. Four source files, `kernel-boundary.spec.ts` among them, which is what keeps Nest, Drizzle and React out |
-| `packages/protection/server` | The plugin: three tables and their migrations, the publish guard, six controllers, the outbox subscriber, the records filter field, the Insights aggregate and the three agent tools                                                                                   |
+| `packages/protection/server` | The plugin: three tables and their migrations, the publish guard, six controllers, the outbox subscriber, the records filter field, the Insights aggregate and the four agent tools                                                                                    |
 | `packages/protection/admin`  | Eight slot contributions and one route of its own                                                                                                                                                                                                                      |
 
 ### The server package's layout
@@ -109,7 +109,7 @@ src/lib/
   http/controllers/ six controllers
   infrastructure/   repositories, the publish guard, the head-revision query,
                     the outbox subscriber, the reviewState filter provider, the purger
-  tools/            the three agent tools
+  tools/            the four agent tools
   types/            the response views
   docs/             the OpenAPI decoration
   utils/            the `ProtectionPlugin()` factory
@@ -382,8 +382,8 @@ the feature.
 
 ### 7.3 A reviewer approves
 
-1. They find the ask on the workspace's **Reviews** page — until the mail port lands
-   (ORT-207) that page is the only way anyone learns there is work.
+1. They find the ask on the workspace's **Reviews** page — no mail is sent on a request, so
+   that page is the only way anyone learns there is work.
 2. _Approve_ sends `POST …/approve`. The vote is recorded against the **current head**, not
    against the revision the request named.
 3. The four-eyes rule is enforced **here as well as at publish time**, with
@@ -749,7 +749,7 @@ written.
 
 ## 13. Invariants
 
-Numbered as `protection:I-01…I-22`, the same numbering the design document uses and that the
+Numbered as `protection:I-01…I-26`, the same numbering the design document uses and that the
 code cites — I-09 is **retired** (it pinned that `changes_requested` never lowered the count;
 the vote no longer exists) and the number is kept so the later ones do not shift.
 
@@ -791,8 +791,8 @@ claim about the uninstalled host, the unconfigured install, the empty slot and t
 - **I-22** A review request names only people who could approve it, and whom it names never
   changes whose approval counts.
 
-Two more this dossier adds, read out of the code and already covered by tests that do not
-name an invariant:
+The last four were read out of the code, and are covered by tests that do not all name an
+invariant:
 
 - **I-23** A rule row cannot exist with `required_approvals < 1` — the API refuses it
   (`protection-rules.spec.ts`, "rejects fewer than one approval") and a check constraint is the
@@ -917,8 +917,9 @@ Existing suites: `apps/server-e2e/src/server/protection/` (`publish-guard`, `ent
 
 ### What is missing, and why
 
-- **Mail on a review request (ORT-207).** Until the mail port lands, the Reviews page is the
-  only way a reviewer learns there is work. That is the single largest usability gap in the
+- **Mail on a review request.** The mail port has shipped (`packages/mail`, ADR-0018), but
+  protection queues nothing through it and there is no review-request template, so the
+  Reviews page is the only way a reviewer learns there is work. That is the single largest usability gap in the
   feature as shipped.
 - **The scheduled-publish re-check (ORT-210).** ADR-0017 requires the rule to be evaluated when
   a timer fires rather than when the schedule was set, and that a fired timer — having no human

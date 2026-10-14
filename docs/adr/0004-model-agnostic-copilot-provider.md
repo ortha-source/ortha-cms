@@ -9,6 +9,30 @@
 > the copilot talks to a model_; [ADR-0005](0005-copilot-authority-model.md)
 > settles what it is allowed to do once it can.
 
+> **Update (2026-10-14).** Corrections of fact, and two commitments that were
+> never built:
+>
+> - §2's registration is a **list**, not a map: `CopilotPlugin({ providers,
+resolve })` takes `readonly ProviderRegistration[]` — `{ name, provider }`
+>   entries, order preserved, a duplicate name a boot-time throw
+>   (`packages/copilot/server/src/lib/utils/copilot-plugin.ts`). Media no longer
+>   takes a map either ([ADR-0012](0012-one-storage-provider-per-deployment.md)
+>   reduced it to one provider object), so the "mirrors `MediaServerPlugin`"
+>   comparison is history.
+> - §3's second adapter is published as `@orthacms/copilot-provider-openai`.
+> - §4's **reduced mode is not built.** Every shipped adapter declares
+>   `toolCalling: true`, and nothing outside `copilot/domain` reads
+>   `ModelCapabilities` or the supported-baseline helpers: a model that cannot
+>   call tools is still sent tools, and the UI says nothing. The decision
+>   stands; the engine work is outstanding.
+> - §5's **runtime tier is deferred, and its permission is gone.** There is no
+>   `copilot_model_configs` table and no encrypted credential at rest; models
+>   are configured only at the composition root (the multi-model `models()`
+>   list per provider is what lets a user switch without a redeploy).
+>   [ADR-0009](0009-copilot-applies-directly.md) deleted `copilot:configure`,
+>   so building this tier means choosing its permission afresh, and the
+>   "first encrypted secret" consequences below do not yet apply.
+
 ## Context
 
 We are adding an AI copilot to the admin: a chat that can search, export, draft
@@ -49,15 +73,16 @@ identical to media storage.
    Drizzle and Nest out of any `domain/` layer.
 
 2. **Adapters are separate packages, registered at the composition root.**
-   `CopilotPlugin({ providers: { … }, resolve })` takes a name→provider map and
-   an optional router, mirroring `MediaServerPlugin`'s storage options. Adding a
+   `CopilotPlugin({ providers: [ … ], resolve })` takes a list of named
+   providers and an optional router _(originally a name→provider map mirroring
+   `MediaServerPlugin`'s storage options — see the update above)_. Adding a
    provider is a new package, never a change to the engine.
 
 3. **We ship two adapters**, which together cover the field:
     - `copilot-provider-anthropic` — native Claude; the default for tool-heavy
       work, and the path on which native features (tool-use fidelity, prompt
       caching) stay available.
-    - `copilot-provider-openai-compatible` — a configurable `baseUrl`, model id
+    - `@orthacms/copilot-provider-openai` — a configurable `baseUrl`, model id
       and headers. Ollama, vLLM, llama.cpp, LM Studio, LiteLLM, OpenRouter, Azure
       and OpenAI itself all speak this wire format, so one adapter makes a local,
       air-gapped install a configuration choice rather than a fork.
