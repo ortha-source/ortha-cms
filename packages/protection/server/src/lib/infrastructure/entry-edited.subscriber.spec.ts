@@ -173,7 +173,7 @@ describe('EntryEditedSubscriber', () => {
     /**
      * Delivery is unordered: a save-and-publish can arrive here after the
      * publish, when the head is the live version and there is nothing to
-     * review (`protection:I-23`).
+     * review (`protection:I-25`).
      */
     it('does nothing when the head it reads is already live', async () => {
         const { subscriber, opened } = make({ headPublished: true });

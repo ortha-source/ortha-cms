@@ -1,6 +1,6 @@
 ---
 name: server-plugin
-description: Authoring, modifying, or reviewing an Ortha CMS NestJS server plugin (packages/<group>/server, e.g. identity-server). Covers the ServerPlugin factory + dynamic-module pattern, feature-then-kind folder layout, @InjectDatabase DI, config injection, Drizzle schema + migrations descriptor, lifecycle hooks, and the review-critical authorization/data-integrity invariants (permission-by-constant guards, lock contended invariants instead of count-then-write, preserve filters/validation when consolidating endpoints, no enumeration signal). Use when creating a new server plugin, adding controllers/services/schema/DTOs, or reviewing a change to one.
+description: Authoring, modifying, or reviewing an Ortha CMS NestJS server plugin (packages/<group>/server, e.g. identity-server). Covers the ServerPlugin factory + dynamic-module pattern, both folder layouts (layered per ADR-0003, and legacy feature-then-kind), @InjectDatabase DI, config injection, Drizzle schema + migrations descriptor, lifecycle hooks, and the review-critical authorization/data-integrity invariants (permission-by-constant guards, lock contended invariants instead of count-then-write, preserve filters/validation when consolidating endpoints, no enumeration signal). Use when creating a new server plugin, adding controllers/services/schema/DTOs, or reviewing a change to one.
 user-invocable: false
 allowed-tools: Read, Edit, Write, Glob, Grep, Bash(npx nx *), Bash(npm exec nx *), Bash(npm install), Bash(git mv *)
 ---
@@ -174,7 +174,9 @@ is enforced by the `@orthacms/nx` boundary lint, not just convention.
 **What each layer holds:**
 
 - **domain** — the model. Aggregates enforce invariants **as methods** that
-  cannot be skipped (`workspace.removeMember()` throws `LastAdminError`); value
+  cannot be skipped (`workspace.removeMember()` throws `LastMemberError` rather
+  than leave a workspace nobody can reach, and returns `false` for a
+  non-member); value
   objects validate on construction (`Slug.create(raw)`) and kill primitive
   obsession; the repository **interface + Symbol** live here (implementation does
   not). Invariants move **out** of DTO decorators into VOs/aggregates.

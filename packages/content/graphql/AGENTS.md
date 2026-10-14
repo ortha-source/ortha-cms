@@ -9,8 +9,12 @@ serves over REST, not a second API.
 Owns no schema, ships no migrations, and adds no credential. A token minted
 before this package existed works against it unchanged.
 
+Layout: **by role, not layered** — `schema/`, `resolvers/`, `execution/` and
+`http/` (see **Layout** below). An adapter over content's services, so it has
+no domain of its own and ADR-0003's layers do not apply.
+
 > Decisions recorded in [ADR-0008](../../../docs/adr/0008-graphql-as-a-protocol-adapter.md);
-> the original design write-up is [`docs/design/graphql-api.md`](../../../docs/design/graphql-api.md).
+> the package dossier is [`docs/artifacts/content.md`](../../../docs/artifacts/content.md).
 
 ## The one rule
 

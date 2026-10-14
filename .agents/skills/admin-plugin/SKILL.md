@@ -63,9 +63,13 @@ mode** and author/review in that mode.
 
 ## The five non-negotiables
 
-1. **A plugin is an `AdminPlugin` factory** (`FooPlugin()` in
-   `utils/<name>Plugin/`), not a component you import directly. It returns
-   `{ name, routes?, layout?, slots? }`.
+1. **A plugin is an `AdminPlugin` factory** (`FooPlugin()`), not a component
+   you import directly. It returns `{ name, routes?, layout?, slots? }`. Where
+   it lives follows the package's layout: `presentation/<name>Plugin/` in the
+   layered packages (activity, api-tokens, content, copilot, identity,
+   protection, segments, users, workspaces, wysiwyg), `utils/<name>Plugin/` in
+   the per-hook ones and in the few layered packages that kept it there
+   (alarms, webhooks, schema-builder).
 2. **Every top-level module is a `<name>/index.ts(x)` folder** — never flat
    files. Components `PascalCase` (`MembersTable/index.tsx`); everything else
    `camelCase` named for its export (`useMembers/index.ts`,
@@ -143,15 +147,16 @@ component's folder** (`components/MembersTable/MemberRowActions/`), and this
 cascades. A component used by a **page** (or by two or more consumers, or
 exported) sits at the **top level of `components/`**, never inside the page.
 Route-level `Suspense` fallbacks (skeletons) sit at the top of `components/` too
-— they pair with the lazy route in `utils/<plugin>/`. When a nested component
+— they pair with the lazy route in the plugin factory. When a nested component
 gains a second consumer, move it up to the top of `components/` (the move is the
 signal it became shared). Structure mirrors the dependency graph: a component's
 depth tells you it's private to the component it sits under.
 
 **Per-module folders, not flat files.** Even a one-file helper gets a
 `<name>/index.ts` folder, for consistency. Tightly co-located sub-modules of a
-component may stay flat beside its `index` (e.g.
-`CreateWorkspaceWizard/useSlug.ts`, `LoginForm/LoginField/`).
+component may stay flat beside its `index` (e.g. identity's
+`LoginForm/useLoginSchema.ts` and `LoginForm/LoginActions/`, copilot's
+`Markdown/parseBlocks.ts`).
 
 **One concern per file — no page/container split.** The page _is_ the
 container: `MembersPage` runs its own queries/mutations and renders directly.
@@ -159,7 +164,7 @@ Don't add a separate thin "route" wrapper.
 
 **Request fn lives in its hook file.** Each `api/use*/` hook declares its own
 request function and that endpoint's wire types right above the hook (see
-identity's `useLoginMutation`, workspaces' `useWorkspaces`). Only pieces *several
+i18n's `api/useLocales`, transfer's `api/useExportPreview`). Only pieces *several
 hooks share* — the wire→model mapper and the query-key factory — are lifted out,
 to the owning read hook or a `lib/utils/` folder (never to a catch-all `*Api`
 module that re-centralizes the layer).
@@ -180,8 +185,6 @@ packages/<group>/admin/
   src/
     index.ts                          # public barrel
     lib/
-      utils/
-        <plugin>Plugin/index.tsx      # the AdminPlugin factory — entry point
       domain/                         # small — VOs + UX invariants only, pure TS, NO react
         <entity>/index.ts             #   e.g. Member.canBeRemoved() → { ok, reason }
         value-objects/                #   Email, Slug, … (client-side instant validation)
@@ -194,6 +197,7 @@ packages/<group>/admin/
         <entity>Mapper/index.ts       #   wire → view (formerly utils/to<Entity>) — the ACL
         <entity>Keys/index.ts         #   query-key factory
       presentation/
+        <plugin>Plugin/index.tsx      #   the AdminPlugin factory — entry point
         pages/                        #   routed pages (container AND view)
         components/                   #   all presentational components (nest by consumer)
         slots/                        #   slot contributions (pure data)
@@ -278,7 +282,7 @@ admin package's `tsconfig.json` / `tsconfig.lib.json`.
 ### 2. The plugin factory (the package's entry point)
 
 ```tsx
-// src/lib/utils/<plugin>Plugin/index.tsx
+// src/lib/utils/<plugin>Plugin/index.tsx (presentation/ when layered)
 import { Suspense, lazy } from 'react';
 import type { AdminPlugin } from '@orthacms/bootstrap-admin';
 import { NAVBAR_START_SLOT } from '@orthacms/shell-admin';
@@ -585,7 +589,8 @@ The recurring admin-side mistakes a careful review catches:
       nothing typechecks them and an editor opening one reports `Cannot find
       name 'describe'`. `tsconfig.json` must reference it, or `nx typecheck`
       skips it too.
-- [ ] `XPlugin()` factory in `utils/<plugin>Plugin/index.tsx` returning
+- [ ] `XPlugin()` factory in `utils/<plugin>Plugin/index.tsx` (per-hook) or
+      `presentation/<plugin>Plugin/index.tsx` (layered) returning
       `{ name, routes, slots? }`; pages lazy + `<Suspense>`.
 - [ ] Per-module `<name>/index.ts(x)` folders; no page/container split.
 - [ ] `pages/` flat (only the page `index`); all components in `components/`, a

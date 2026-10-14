@@ -5,6 +5,12 @@ vertical slice** — the SSE run route, the bounded run engine, the capability
 profile, and the transcript this plugin now owns and migrates
 ([`docs/design/copilot.md`](../../../docs/design/copilot.md) §9).
 
+Layout: **layered (ADR-0003), per feature** — `chat/` and `skills/` each split
+into `application / infrastructure / http`, beside a shared `infrastructure/`
+(the model registry), `types/` and `utils/` (the plugin factory). There is no
+`domain/` here: the framework-free kernel is
+[`@orthacms/copilot-domain`](../domain/AGENTS.md).
+
 ## What exists today
 
 - `CopilotPlugin({ providers, resolve?, config })` — the standard `ServerPlugin`

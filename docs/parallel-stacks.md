@@ -8,8 +8,8 @@ here, and where the ceiling is.
 The mechanism is a **slot**: an integer that fixes one checkout's ports and
 database.
 
-| slot | API    | admin  | database       |
-| ---- | ------ | ------ | -------------- |
+| slot | API    | admin  | database      |
+| ---- | ------ | ------ | ------------- |
 | 0    | `3000` | `4200` | `orthacms`    |
 | 1    | `3001` | `4201` | `orthacms_a1` |
 | _n_  | `300n` | `420n` | `orthacms_an` |
@@ -72,8 +72,8 @@ checkout:
   admin would serve its own UI while reading and writing the **first**
   worktree's database. `strictPort` is on, so a taken port fails instead of
   drifting to the next free one behind an agent's back.
-- [`apps/server/orthacms.config.ts`](../apps/server/orthacms.config.ts) — the
-  `ALLOWED_ORIGINS` default follows `ADMIN_PORT`.
+- [`apps/server/config/identity.ts`](../apps/server/config/identity.ts) — the
+  `ALLOWED_ORIGINS` default (`defaultAdminOrigin`) follows `ADMIN_PORT`.
 - [`apps/admin-e2e/playwright.config.ts`](../apps/admin-e2e/playwright.config.ts)
   — `baseURL` and the `webServer` URL follow `ADMIN_PORT`, so a suite tests its
   own stack. (`BASE_URL` still overrides both.)

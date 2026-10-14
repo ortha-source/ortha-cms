@@ -1,18 +1,20 @@
 # @orthacms/i18n-admin
 
-> **Layout: layered (ADR-0003).** A **light** application — the admin has no
-> independent source of truth (the server rejects invalid actions regardless),
-> so per the ADR it gets a `domain/` layer only for **value objects / UX
-> invariants**, not client aggregates. Here that is `domain/localePolicy` — the
-> pure locale-resolution rules the widgets share. Slot contributions stay pure
-> **data** and are unchanged. Follow the `users-admin` / `workspaces-admin`
-> pilots for the FE idioms.
+> **Layout: by kind, plus one `domain/` folder** — not the full ADR-0003
+> layering. `src/lib/` holds `api/` (one query hook per folder), `components/`,
+> `hooks/`, `utils/` (the plugin factory), `constants/` and `types/`, beside
+> `domain/localePolicy`. The admin has no independent source of truth (the
+> server rejects invalid actions regardless), so per the ADR the one layer
+> borrowed from it is `domain/` for **value objects / UX invariants**, not
+> client aggregates — the pure locale-resolution rules the components share.
+> Slot contributions stay pure **data**.
 
-## Layering (ADR-0003)
+## The domain folder (ADR-0003)
 
 - **`domain/localePolicy`** — framework-free locale rules (no React, no router)
-  mirroring the server's `LocalePolicy`, so the switcher, title chip, and editor
-  widget resolve **one** rule instead of each re-inlining the same `??` chain:
+  mirroring the server's `LocalePolicy`, so the switcher, the title chip and the
+  publish-all hooks resolve **one** rule instead of each re-inlining the same
+  `??` chain:
     - `resolveActiveLocale({ entryLocale, urlLocale, defaultSlug })` — the active
       locale by the server's precedence (entry → `?locale=` → default);
     - `isDefaultLocale` / `toLocaleListParam` — the "default locale = clean URL"
@@ -253,8 +255,8 @@ overlay next.
 
 ## Publish state — reuse content-admin's classifier, don't re-derive it
 
-Both surfaces that show a locale's publish state (the widget's `LocaleRow`, the
-records column's `LocaleBadge`) render **content-admin's** `entryStatusView` /
+Both surfaces that show a locale's publish state (the title chip's
+`LocaleMenuItem`, the records column's `LocaleBadge`) render **content-admin's** `entryStatusView` /
 `ENTRY_STATUS_VIEW_VARIANT` / `EntryStatusBadge`, not their own
 `published ? … : …`. The server stores two values but there are **four** states
 (see content-admin's _Publish state_ section) — a locale that has live content
@@ -286,11 +288,11 @@ TanStack Query key:
   the whole feature silently while `?locale=` kept scoping the list; the
   switcher renders a retry instead of vanishing, and the title chip falls back
   to the row's own `locale`.
-- `useEntryLocales` — `GET /api/i18n/content/:type/:id/locales` (the widget, on
-  a saved record).
+- `useEntryLocales` — `GET /api/i18n/content/:type/:id/locales` (the title
+  chip and the publish-all / unpublish-all hooks, on a saved record).
 - `useLocaleSummaries` — `POST …/locale-summary` batched over group ids; sorted
   ids key the cache. Feeds the **Locales column** (a page's unique group ids)
-  **and** the **widget in create mode** (the single `localeGroupId` a translation
+  **and** the **title chip in create mode** (the single `localeGroupId` a translation
   draft carries in its URL). Gated on the column actually being **visible** —
   extension columns are off by default, and the batch used to fire on every
   records page for a column nobody had switched on (`RecordsColumnItem.useRowsData`
@@ -300,9 +302,9 @@ TanStack Query key:
   an ambient header, never sent on a cache hit), `retry: 1`, gated on
   `content:read`.
   There is **no** create-translation hook — a sibling is created through the
-  Content Library's own editor Save/Publish (the widget navigates to a draft form;
-  `createBodyKeys` forwards `locale` + `localeGroupId` into the create body). The
-  duplicate-locale **409** / unknown-group **404** surface through the editor's
+  Content Library's own editor Save/Publish (the title chip navigates to a draft
+  form; `createBodyKeys` forwards `locale` + `localeGroupId` into the create
+  body). The duplicate-locale **409** / unknown-group **404** surface through the editor's
   normal save-error path.
 
 ## Error is not empty, and unknown is not default

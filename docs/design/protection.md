@@ -3,16 +3,17 @@
 > **Status:** built. Phases 1 and 2 are shipped — the kernel, the three tables,
 > the port and its guard, the routes, both permissions, the two slots, the whole
 > entry-editor surface, the settings tab, the reviews page, the records column
-> and its filter, the Insights card, and the three agent tools. The decision
+> and its filter, the Insights card, and the four agent tools. The decision
 > behind it is [ADR-0017](../adr/0017-publication-protection.md), now **Accepted**;
 > this document is the technical description that record deliberately does not
 > carry. The packages' own `AGENTS.md` files are the reference for their
 > internals and this file keeps the cross-cutting picture.
 >
-> **What remains is phase 3, and none of it is this feature's to finish alone:**
-> mail on a review request waits on the mail port (ORT-207); the scheduling
-> re-check waits on a scheduler existing at all (ORT-210); and the `transfer`
-> question stays open because it is **not reachable** — an import calls only
+> **What remains is unbuilt, not blocked on this feature:** mail on a review
+> request is not sent — the mail port exists (`packages/mail`) but nothing in
+> protection queues a message through it; the scheduling re-check waits on a
+> scheduler existing at all (ORT-210); and the `transfer`
+> question is moot because it is **not reachable** — an import calls only
 > `writer.create`/`.update`, and a create on a publishable type is stamped
 > `draft`, so import cannot publish and therefore never meets the guard. It
 > becomes a real question the day import gains a publish step.
@@ -128,7 +129,7 @@ Index on `workspace_id`.
 | `reviewer_ids` | `uuid[]`        | The people asked, in the order picked. Never changes whose approval counts.                      |
 | `created_at`   | `timestamptz`   |                                                                                                  |
 | `resolved_at`  | `timestamptz`   | Set when the entry publishes, or when the requester withdraws.                                   |
-| `resolution`   | `text`          | `published` or `withdrawn`. A request a publish closed reopens on the next save (I-24).          |
+| `resolution`   | `text`          | `published` or `withdrawn`. A request a publish closed reopens on the next save (I-26).          |
 
 Partial unique index on `entry_id` where `resolved_at is null` — one open request
 per entry, so asking twice replaces the reviewers rather than piling up.
@@ -206,25 +207,29 @@ the caller must still ask for it.
 
 ## HTTP API
 
-Everything mounts under `/api/protection`. Routes do **not** hang off
-`/api/content/...` — a plugin mounting into another plugin's path makes the
-prefix ambiguous to read and to guard.
+Everything but the Insights figure mounts under `/api/protection`. Routes do
+**not** hang off `/api/content/...` — a plugin mounting into another plugin's
+path makes the prefix ambiguous to read and to guard. The one exception is
+`GET /api/insights/protection/reviews`, which sits beside the dashboard's other
+aggregates; the plugin still owns it.
 
 All entry routes take `WorkspaceGuard` and `X-Workspace-Id`.
 
-| Method & path                       | Guard               | In             | Out / failures                                                                                                                                                                                                        |
-| ----------------------------------- | ------------------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /rules`                        | `protection:manage` | —              | Every rule in the workspace.                                                                                                                                                                                          |
-| `PUT /rules/:kind/:slug`            | `protection:manage` | The six fields | Upsert. `404` if the type is not granted to the workspace — a rule on an ungranted type is meaningless.                                                                                                               |
-| `DELETE /rules/:kind/:slug`         | `protection:manage` | —              | `204`. Same as `enabled: false` but leaves no row.                                                                                                                                                                    |
-| `GET /entries/:type/:id`            | `content:read`      | —              | The effective requirement, the approvals (with staleness), the open request, and `afterSave` — the verdict a save by the caller would meet. Readable without `protection:manage` — the editor has to render "0 of 2". |
-| `GET /types/:type`                  | `content:read`      | —              | What publishing a new entry of the type would meet, for the create form. `404` for an ungranted or unknown type.                                                                                                      |
-| `GET /entries/:type/:id/reviewers`  | `content:update`    | —              | Who can be asked: the other members holding `content:approve`. The request route accepts exactly these people.                                                                                                        |
-| `POST /entries/:type/:id/request`   | `content:update`    | `reviewerIds`  | Opens the request naming at least one reviewer, or replaces who the open one names. `422 protection.reviewer_not_eligible` for anybody outside the list above.                                                        |
-| `DELETE /entries/:type/:id/request` | `content:update`    | —              | Withdraws it. Only the requester or an administrator.                                                                                                                                                                 |
-| `POST /entries/:type/:id/approve`   | `content:approve`   | —              | Upserts this user's approval of the head. `409` when `require_other_person` and the caller wrote the head. A body (a `note`) is `400`.                                                                                |
-| `DELETE /entries/:type/:id/approve` | `content:approve`   | —              | Withdraws own vote.                                                                                                                                                                                                   |
-| `GET /queue`                        | `content:read`      | `?mine=1`      | Open requests across every type in the workspace, for the reviewer page.                                                                                                                                              |
+| Method & path                          | Guard               | In             | Out / failures                                                                                                                                                                                                        |
+| -------------------------------------- | ------------------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /rules`                           | `protection:manage` | —              | Every rule in the workspace.                                                                                                                                                                                          |
+| `PUT /rules/:kind/:slug`               | `protection:manage` | The six fields | Upsert. `404` if the type is not granted to the workspace — a rule on an ungranted type is meaningless.                                                                                                               |
+| `DELETE /rules/:kind/:slug`            | `protection:manage` | —              | `204`. Same as `enabled: false` but leaves no row.                                                                                                                                                                    |
+| `GET /entries/:type/:id`               | `content:read`      | —              | The effective requirement, the approvals (with staleness), the open request, and `afterSave` — the verdict a save by the caller would meet. Readable without `protection:manage` — the editor has to render "0 of 2". |
+| `GET /types/:type`                     | `content:read`      | —              | What publishing a new entry of the type would meet, for the create form. `404` for an ungranted or unknown type.                                                                                                      |
+| `GET /entries/:type/:id/reviewers`     | `content:update`    | —              | Who can be asked: the other members holding `content:approve`. The request route accepts exactly these people.                                                                                                        |
+| `POST /entries/:type/:id/request`      | `content:update`    | `reviewerIds`  | Opens the request naming at least one reviewer, or replaces who the open one names. `422 protection.reviewer_not_eligible` for anybody outside the list above.                                                        |
+| `DELETE /entries/:type/:id/request`    | `content:update`    | —              | Withdraws it. Only the requester or an administrator.                                                                                                                                                                 |
+| `POST /entries/:type/:id/approve`      | `content:approve`   | —              | Upserts this user's approval of the head. `409` when `require_other_person` and the caller wrote the head. A body (a `note`) is `400`.                                                                                |
+| `DELETE /entries/:type/:id/approve`    | `content:approve`   | —              | Withdraws own vote.                                                                                                                                                                                                   |
+| `GET /queue`                           | `content:read`      | `?mine=1`      | Open requests across every type in the workspace, for the reviewer page.                                                                                                                                              |
+| `GET /entries/:type/status`            | `content:read`      | `?ids=`        | The records column's batched read: where each named entry stands, keyed by id. One request per page. An id not in this workspace under this type is absent, not reported unprotected.                                 |
+| `GET /api/insights/protection/reviews` | `content:read`      | —              | The Insights card: open requests, and how many have waited longer than the threshold. No time window.                                                                                                                 |
 
 ### The refusal is 409, not 403
 
@@ -332,8 +337,8 @@ warns at that moment — not a week later on the first failed publish.
   makes saved views and "Save as rule" work with no extra code.
 - **Reviews page** (`WORKSPACE_NAV_SLOT` + `WORKSPACE_ROUTE_SLOT`) — _Waiting on
   me_ and _My requests_, across every type, with the age of each request. This is
-  how a reviewer learns there is work; until the mail port lands it is the only
-  way.
+  how a reviewer learns there is work; no mail is sent on a request, so it is
+  the only way.
 - **Insights card** — open requests, and how many are older than three days.
 
 ## Agent surfaces
@@ -372,15 +377,15 @@ kind exists there.
 
 ## How it meets the rest of the system
 
-|                          |                                                                                                                                                                                                                                                         |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **i18n**                 | Free, and correct: revisions are already per-locale, so approving the German entry says nothing about the French one. One place needs care — _publish every locale_ from the entry menu must report **which** locales are blocked, not refuse opaquely. |
-| **API tokens**           | Refused by default, per rule. A token holds `content:publish` in the `full` scope and names no person, so allowing it by default would let the rule be escaped by minting a key.                                                                        |
-| **Scheduled publishing** | The rule is evaluated **when the timer fires**, not when the schedule is set. A fired timer has no human, so bypass cannot apply: short of approvals the publication does not happen, and the failure is logged.                                        |
-| **transfer**             | Open question, deliberately. Import writes through `EntryWriterService`, so it meets the port like everything else — but whether an import may publish into a protected type is a policy call, not a consequence.                                       |
-| **copilot**              | Publishing was already withheld from every role (ADR-0005 §7); nothing changes. It gains the three read/request tools.                                                                                                                                  |
-| **alarms**               | Adjacent and must stay separate: alarms flag and never block, protection blocks and never judges content. Merging them is the two-authorities failure ADR-0015 exists to prevent.                                                                       |
-| **segments**             | No interaction. Segments decide who may read what is published; protection decides whether it gets published.                                                                                                                                           |
+|                          |                                                                                                                                                                                                                                                                        |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **i18n**                 | Free, and correct: revisions are already per-locale, so approving the German entry says nothing about the French one. One place needs care — _publish every locale_ from the entry menu must report **which** locales are blocked, not refuse opaquely.                |
+| **API tokens**           | Refused by default, per rule. A token holds `content:publish` in the `full` scope and names no person, so allowing it by default would let the rule be escaped by minting a key.                                                                                       |
+| **Scheduled publishing** | The rule is evaluated **when the timer fires**, not when the schedule is set. A fired timer has no human, so bypass cannot apply: short of approvals the publication does not happen, and the failure is logged.                                                       |
+| **transfer**             | Not reachable. Import writes through `EntryWriterService` but calls only `create`/`update`, and a create on a publishable type is stamped `draft` — import never publishes, so it never meets the guard. It becomes a policy call the day import gains a publish step. |
+| **copilot**              | Publishing was already withheld from every role (ADR-0005 §7); nothing changes. It gains the four read/request tools.                                                                                                                                                  |
+| **alarms**               | Adjacent and must stay separate: alarms flag and never block, protection blocks and never judges content. Merging them is the two-authorities failure ADR-0015 exists to prevent.                                                                                      |
+| **segments**             | No interaction. Segments decide who may read what is published; protection decides whether it gets published.                                                                                                                                                          |
 
 ## Configuration
 
@@ -452,11 +457,15 @@ what that pair will actually do.
 - **I-22** A review request names only people who could approve it — other
   members of the workspace holding `content:approve` — and whom it names never
   changes whose approval counts.
-- **I-23** An entry whose head is its live version — published, with no save
+- **I-23** A rule row cannot exist with `required_approvals < 1` — the API
+  refuses it, and a check constraint is the floor under a direct SQL write.
+- **I-24** A rule addressed at a type the workspace no longer holds stays
+  listed and stays deletable; neither `GET` nor `DELETE` consults the grant.
+- **I-25** An entry whose head is its live version — published, with no save
   since — has nothing to review: the request route answers `409
 protection.nothing_to_review`, and the editor offers neither Approve nor
   Request review, nor a review chip. The next save makes it reviewable again.
-- **I-24** A request a publish closed reopens on the next save of a protected
+- **I-26** A request a publish closed reopens on the next save of a protected
   entry — same requester, the same reviewers who can still approve, bound to the
   new head. A withdrawn request never reopens.
 
@@ -490,7 +499,7 @@ protection.nothing_to_review`, and the editor offers neither Approve nor
 | Same, on a create form                                             | The create goes out, then the publish carrying `bypass: true` (I-20)                                  |
 | Open ⋯ on a held entry                                             | _Save & publish_ is disabled; with a bypass offered it opens the confirmation (I-21)                  |
 | List reviewers, then request from somebody off the list            | The list excludes you and viewers; the request is 422 (I-22)                                          |
-| Request review on a published entry with no edits since            | 409 `protection.nothing_to_review`; the rail shows no Approve / Request review (I-23)                 |
+| Request review on a published entry with no edits since            | 409 `protection.nothing_to_review`; the rail shows no Approve / Request review (I-25)                 |
 
 ## What this does not do
 
@@ -513,7 +522,8 @@ protection.nothing_to_review`, and the editor offers neither Approve nor
    button states, the bypass dialog, the settings tab, the five event kinds.
 2. ~~**People use it**~~ — **done**, except mail. The reviews page, the records
    column and the `reviewState` filter, the Insights card, the header chip, the
-   three tools. Mail on review requests lands after the mail port (ORT-207).
+   four tools. Mail on a review request is unbuilt: the mail port has shipped
+   (`packages/mail`), but no review-request template or enqueue exists.
 3. **Seams** — the scheduling re-check (after ORT-210), the feature page on the
    website and the docs section. The transfer question is **unreachable** rather
    than open: import cannot publish, so it never meets the guard.

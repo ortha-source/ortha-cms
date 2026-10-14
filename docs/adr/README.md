@@ -18,9 +18,27 @@ routine, easily-reversed changes.
 1. Copy [`_template.md`](_template.md) to `NNNN-short-title.md`, where `NNNN` is
    the next zero-padded number.
 2. Fill it in. Keep it short — one decision per record.
-3. Set **Status** to `Proposed`, then `Accepted` once agreed. Never rewrite an
-   accepted ADR's history: to change a decision, add a _new_ ADR and mark the
-   old one `Superseded by NNNN`.
+3. Set **Status** to `Proposed`, then `Accepted` once agreed (and once what it
+   decides has shipped, if it was written ahead of the code).
+
+## Changing a decision
+
+Never rewrite an accepted ADR's history. What happens instead depends on how
+much of it changes:
+
+- **Part of a decision changes** — the usual case. Write the new decision as its
+  own ADR, then add a dated banner near the top of the old one, under the
+  header: `> **Amended by [ADR-NNNN](…)** (YYYY-MM-DD). …` naming which
+  sections are replaced and which still stand. Leave the original text in
+  place; where a sentence is now wrong, a short italic pointer back to the
+  banner is enough. The old ADR keeps `Accepted`.
+- **A fact in it was wrong, or a commitment was never built** — no new decision
+  is involved. Add a dated `> **Update (YYYY-MM-DD).**` banner saying what the
+  code does instead. Small factual slips (a renamed package, a broken link) may
+  be corrected in place.
+- **The whole decision is replaced** — set the old ADR's **Status** to
+  `Superseded by NNNN` and link the replacement. This is rare; if anything in
+  the old record still holds, it is an amendment.
 
 ## Index
 

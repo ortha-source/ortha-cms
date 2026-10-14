@@ -7,8 +7,7 @@ TypeScript DSL under `src/content/`, has drizzle-kit generate the migration, app
 and waits for the dev watcher to restart the server. In production the same page is a
 read-only map of the content model.
 
-Decision record: [ADR-0020](../adr/0020-schema-builder-writes-code.md). Design:
-[`docs/design/schema-builder.md`](../design/schema-builder.md). Package notes:
+Decision record: [ADR-0020](../adr/0020-schema-builder-writes-code.md). Package notes:
 [`domain`](../../packages/schema-builder/domain/AGENTS.md),
 [`server`](../../packages/schema-builder/server/AGENTS.md),
 [`admin`](../../packages/schema-builder/admin/AGENTS.md).
@@ -405,8 +404,8 @@ processes, their bins resolved from the host app.
 
 ## 12. Invariants
 
-The numbering is the design document's; specs that pin one say so in their title
-(`[schema-builder:I-05]`).
+The numbering is the one the retired design document used, kept so the specs that pin one
+keep their titles (`[schema-builder:I-05]`).
 
 - **I-01** — With `NODE_ENV=production`, editing off, no source tree or a hand-written
   manifest, plan and apply answer `403` and touch neither files nor the database.
@@ -483,15 +482,16 @@ routes, the scratch folder, the lock and the operation log, and the `/content-mo
 
 - Renames, retypes and flag changes beyond the trash: each needs a data migration the builder
   would have to guess.
-- Option labels, uniqueness of a scalar, conditional fields: not in the DSL yet (I-13 — the
-  DSL first). Default values are, as a create-form prefill only — never a stored default,
+- Option labels, uniqueness of a scalar field, item counts, date ranges, currency on
+  money, cross-field checks, conditional visibility, repeatable blocks: not in the DSL yet
+  (I-13 — each is a change to the DSL first). Default values are, as a create-form prefill only — never a stored default,
   and never on a relation or media field.
 - A form preview: the entry editor is the preview.
 
 ## 15. Where the code and the documentation diverge
 
-- **`data` verdicts carry no counts.** The design says the review "shows how many" existing
-  entries a tightened rule may affect; the plan has row counts for classification but does not
+- **`data` verdicts carry no counts.** The original design said the review "shows how
+  many" existing entries a tightened rule may affect; the plan has row counts for classification but does not
   return them, and the review shows the verdict and reason only.
 - **An interrupted publish reads as a failure.** If the watcher restarts the process between
   writing `src/content/` and saving `succeeded` — unlikely, since the rebuild takes seconds —

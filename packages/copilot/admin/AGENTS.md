@@ -2,6 +2,10 @@
 
 The admin-side copilot plugin — **two surfaces onto one chat**.
 
+Layout: **layered (ADR-0003)** — `domain / application / presentation`, with no
+`infrastructure/`: the hooks in `application/`, and its SSE transport
+`runStream`, call `apiClient` directly. The tree is under **Layout** below.
+
 > **The product is called Ortha CMS AI; this package is called `copilot`.** Every
 > `defaultMessage` a user reads says "Ortha CMS AI"; the message **ids**, component
 > names, routes and permission keys all keep `copilot`. Deliberate — see the

@@ -2,6 +2,9 @@
 
 The **segments UI** — two surfaces and no more.
 
+Layout: **layered (ADR-0003)** — `domain / application / infrastructure /
+presentation`, as the tree shows.
+
 ```
 src/lib/
   domain/types.ts               Segment, EntryAccess, and the three-state algebra

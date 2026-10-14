@@ -9,14 +9,21 @@ companion to it.
 
 ## Server (NestJS plugins)
 
-- **Permission strings as literals.** Guard with shared permission *constants*,
+- **Permission strings as literals.** Guard with shared permission _constants_,
   not inline `'users:read'` strings — a typo silently disables enforcement.
 - **Count-then-write races.** Don't read a count and then mutate on a contended
   invariant (e.g. "is this the last admin?"). Lock the contended rows or rely on
   a DB constraint; otherwise two concurrent requests both pass the check.
-- **Audit outside the transaction.** `ActivityService.record(...)` must run with
-  the *same* transaction/executor as the mutation, so the audit row commits iff
-  the mutation does. A separate connection can leave orphaned or missing audit.
+- **An audited mutation that emits no event, or emits it outside the
+  transaction.** Auditing is downstream of domain events: the use case runs its
+  write inside `UnitOfWork.run(...)` and appends the event with
+  `OutboxWriter.append(...)` in that same unit of work, so the event commits iff
+  the mutation does; `activity`'s `AuditEventSubscriber` turns the audited kinds
+  (`AUDITED_EVENT_KINDS` in `audit-event-mapping.ts`) into rows after commit.
+  Don't write audit rows directly — `ActivityService.record(...)` /
+  `ACTIVITY_RECORDER` are deprecated — and don't append from a separate
+  connection: `append` throws outside a unit of work for exactly that reason. A
+  new audited event kind needs its mapping, or it is silently not audited.
 - **Enumeration signal.** Auth/lookup endpoints must not reveal whether an email
   or resource exists (timing or distinct messages). Keep responses uniform.
 - **Dropping filters/validation when consolidating endpoints.** When merging or
@@ -35,15 +42,15 @@ companion to it.
   barrel (ORT-130).
 - **Plugin order in `plugins.ts` decides migrations, not DI.** Every plugin module
   is global and every `onPluginInit` runs before `NestFactory.create`, so array
-  position cannot break injection. It *can* break `db:migrate`, which walks the
+  position cannot break injection. It _can_ break `db:migrate`, which walks the
   array with no transaction spanning plugins: a plugin whose tables reference
   another's must come after it. The failure is invisible on an already-migrated
   database and only appears on a fresh one, so it ships (ORT-131).
 - **`Number(process.env[x]) || default`.** Wrong in three directions at once and
   silent in all of them: `0` is falsy so it becomes the default, a negative is
   truthy so it is accepted, and `1e9` parses. Read env numbers through a
-  validating helper that names the variable — `apps/server/orthacms.config.ts`'s
-  `readPositiveInt` is the pattern.
+  validating helper that names the variable — `readPositiveInt` and its siblings
+  in `@orthacms/utils-server` (`packages/utils/server/src/lib/env.ts`).
 - **A provider name a plugin never checks.** A plugin that selects a backend by
   name must validate that name against what it was handed, at construction.
   Otherwise a typo boots clean and fails per request, with a bare `500` naming
@@ -107,8 +114,11 @@ One registry serves two consumers, so **every** review of a new or changed
   neighbour is. `i18n_locales_list` and `i18n_translations_get` sit in one file
   and land on opposite surfaces. Ask what the tool would show a **token**
   holding `content:read`, not which consumer asked for it.
-- **A permission no token scope mints.** `scopePermissions` yields only
-  `content:*` plus `media:read`/`media:create`. A tool requiring `activity:read`
+- **A permission no token scope mints.** `scopePermissions`
+  (`packages/identity/server/src/lib/api-tokens/domain/api-token-scope.ts`)
+  yields only `content:read`/`create`/`update`/`publish`/`delete` (not
+  `content:approve`), `media:read`/`media:create`, and
+  `segments:read`/`segments:manage`. A tool requiring `activity:read`
   or `users:read` can never list for a token, so it must say `['copilot']`
   rather than rely on that coincidence — a future scope would silently expose
   it.

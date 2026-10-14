@@ -5,9 +5,20 @@
 - **Deciders:** Engineering
 
 > The feature this decision serves is described in
-> [`docs/design/sso.md`](../design/sso.md). This ADR settles only *how Ortha CMS
-> reaches an external identity provider, and what it may do with the person it
-> gets back*.
+> [`docs/artifacts/identity.md`](../artifacts/identity.md). This ADR settles
+> only *how Ortha CMS reaches an external identity provider, and what it may do
+> with the person it gets back*.
+
+> **Update (2026-10-14).** Two corrections, neither of which changes a decision.
+> §5's opt-in is not spelled `provisioning: 'jit'`: it is an optional object,
+> `provisioning?: { domains; defaultRole }`, whose presence is the opt-in — so
+> the domain allow-list cannot be forgotten, and a provisioned account lands on
+> `defaultRole` unless `resolveRole` picks another. And back-channel logout
+> now exists: `POST /api/auth/sso/:provider/backchannel-logout` revokes the
+> sessions an identity provider reports as ended (`404` for a provider that
+> does not implement it; the OIDC adapter does). Offboarding is prompt for a
+> provider that sends those notifications; for one that does not, the
+> consequence below still holds and the answer is still `SESSION_TTL_SECONDS`.
 
 ## Context
 
@@ -73,8 +84,9 @@ will keep every security-critical step of the handshake in the core.
    sign in an `active` account it is already linked to, and may link to an
    `active` account when the IdP asserts a verified matching email. It creates
    no accounts and touches no roles unless the host explicitly opts in —
-   `provisioning: 'jit'` with a required email-domain allow-list, and a
-   `resolveRole` handler for group mapping. Both are off in a default install.
+   `provisioning` with a required email-domain allow-list _(an object, not
+   `'jit'` — see the update above)_, and a `resolveRole` handler for group
+   mapping. Both are off in a default install.
 
 6. **The composition root registers the providers**, by name and
    already-constructed, exactly as `CopilotPlugin` and `MediaServerPlugin` do.
@@ -104,7 +116,8 @@ will keep every security-critical step of the handshake in the core.
   `create-orthacms-app`'s coverage guard will require a decision about.
 - **Offboarding is not instant, and we must say so.** A session is a row with a
   TTL; an IdP disabling someone does not reach it. Until back-channel logout
-  exists, the honest answer is `SESSION_TTL_SECONDS`.
+  exists, the honest answer is `SESSION_TTL_SECONDS`. _(It now exists for
+  providers that send it — see the update above.)_
 - **`cookieSameSite: 'strict'` becomes incompatible** with SSO, and the plugin
   must refuse to boot in that combination rather than serve a login that cannot
   succeed.

@@ -20,6 +20,11 @@ duplicate of three toggles that already exist. It
 non-`public` routes but stays auth-agnostic — so the shell is what makes private
 routes render only for signed-in users.
 
+Layout: **by kind** — `components/`, `pages/`, `slots/` (the slot ids it
+declares) and `utils/` (the plugin factory, the page-chrome portals, the sidebar
+content). Chrome with no data layer of its own, so ADR-0003's layers do not
+apply.
+
 ## Page-fillable chrome regions (`utils/pageChrome`)
 
 Besides the sidebar, the shell owns two regions it does **not** fill — a page

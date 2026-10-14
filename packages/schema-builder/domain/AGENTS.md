@@ -4,8 +4,9 @@ The schema builder's **framework-free kernel**
 ([ADR-0020](../../../docs/adr/0020-schema-builder-writes-code.md)). Pure
 TypeScript whose only dependency is the content kernel
 (`@orthacms/content-domain`, itself dependency-free) — the CLI, the server
-plugin and the admin import it alike. No framework, no Node-only API. The design is in
-[`docs/design/schema-builder.md`](../../../docs/design/schema-builder.md).
+plugin and the admin import it alike. No framework, no Node-only API. The
+dossier is
+[`docs/artifacts/schema-builder.md`](../../../docs/artifacts/schema-builder.md).
 
 ## What lives here
 

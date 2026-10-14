@@ -54,9 +54,8 @@ full set.
   indistinguishable to a caller who should not know the resource exists.
 - **A migration is generated, never hand-written**:
   `npx nx run <plugin>:db:generate --name=<name>`, then commit the emitted SQL.
-  Owning a new table moves a number that `tools/docs-guard` pins — expect to
-  update `ARCHITECTURE.md` or `CONTEXT-MAP.md` in the same commit, and run
-  `npx nx test docs-guard` to find out which sentence.
+  Owning a new table changes what `ARCHITECTURE.md` / `CONTEXT-MAP.md` say a
+  plugin owns — update them in the same commit.
 
 ## Before you hand back
 

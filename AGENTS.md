@@ -10,9 +10,9 @@
 
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — how the system is built (plugin hosts, resolve-from-source, request flow, migrations)
 - [`CONTEXT-MAP.md`](CONTEXT-MAP.md) — glossary + the full project map (every app & package, one line each)
-- [`DESIGN.md`](DESIGN.md) — product & design intent (owned by Design; partly `TODO:`)
 - [`docs/adr/`](docs/adr/README.md) — Architecture Decision Records (why things are the way they are)
-- [`docs/design/`](docs/design/) — engineering design docs for work that is proposed but not yet built (currently: [`copilot.md`](docs/design/copilot.md), [`graphql-api.md`](docs/design/graphql-api.md), [`mail.md`](docs/design/mail.md), [`sso.md`](docs/design/sso.md)) — plus [`alarms.md`](docs/design/alarms.md), [`protection.md`](docs/design/protection.md), [`schema-builder.md`](docs/design/schema-builder.md) and [`webhooks.md`](docs/design/webhooks.md), which document shipped behaviour rather than proposals
+- [`docs/artifacts/`](docs/artifacts/) — one dossier per package group, each ending in its numbered invariants
+- [`docs/design/`](docs/design/) — engineering design docs for features with phases still unbuilt: [`copilot.md`](docs/design/copilot.md), [`mail.md`](docs/design/mail.md), [`protection.md`](docs/design/protection.md)
 - [`docs/agent-pipeline.md`](docs/agent-pipeline.md) — how a ticket becomes a merged PR when agents do the typing: the four tiers, the label vocabulary, the role subagents, and the steps
 - [`docs/definition-of-ready.md`](docs/definition-of-ready.md) — what a ticket must contain before the pipeline will act on it
 - [`README.md`](README.md) — human-facing project overview & getting started
@@ -20,192 +20,54 @@
 
 ## Project overview
 
-- `apps/admin` — React 19 + Vite SPA (admin UI)
-- `apps/server` — NestJS API
-- `packages/design-system` — `@orthacms/design-system`, shadcn/ui library
-- `packages/bootstrap/{admin,server}` — the application **hosts** that turn a
-  list of plugins into a running app
-    - `@orthacms/bootstrap-admin` — `createAdmin({ plugins })`: mounts the React
-      root, router, and plugin-contributed routes
-    - `@orthacms/bootstrap-server` — `createServer({ plugins })`: runs each
-      plugin's `onPluginInit`, imports its module, applies global prefix +
-      `ValidationPipe`
-- `packages/database` — `@orthacms/database`, the database **plugin**:
-  owns one Drizzle/`pg` connection, opens it in `onPluginInit`, and exposes
-  it via DI (`@InjectDatabase()`, global `DatabaseModule`) and plain
-  `getDatabase()`/`getPool()`. Also provides the shared tactical-DDD
-  infrastructure ([ADR-0003](docs/adr/0003-tactical-ddd-inside-plugins.md)):
-  `UnitOfWork`, the transactional outbox (`OutboxWriter` / `OutboxDispatcher`),
-  and the `DomainEvent` contract. It owns exactly **one** table — `outbox_events`
-  — the sanctioned exception to "no schema", shipped with its own migrations.
-- `packages/identity/server` — `@orthacms/identity-server`, the identity
-  **plugin**: owns the auth/RBAC schema (Drizzle tables in `src/lib/schema`)
-  and **ships its own migrations** (`drizzle.config.ts` + committed
-  `migrations/`). Opens no connection; the host applies its migrations.
-- `packages/copilot/*` — the AI copilot. `domain` holds the framework-free
-  `ModelProvider` port, the offer-time capability profile and the proposal
-  contracts; `server` is the plugin (`CopilotPlugin`) with the SSE run route,
-  the bounded run engine, and the write path — a `propose` tool's change is
-  recorded as a `copilot_proposals` row and applied immediately, gated only by
-  the caller's own permissions ([ADR-0009](docs/adr/0009-copilot-applies-directly.md));
-  `admin` is the two chat surfaces — the docked panel over any page, and the
-  full-page **Agents view** at `/workspaces/:id/agents` (thread rail + one
-  conversation, with a CMS ⇄ Agents switch in the workspace sidebar) — sharing
-  one transcript, composer and change card;
-  `provider-anthropic` / `provider-openai` are the two shipped adapters,
-  constructed at the composition root; `provider-fake` is a **private test
-  fixture** — scripted and deterministic, published nowhere, registered by
-  `server-e2e` and never by a host, so a deployment that configured no backend
-  has no copilot rather than one answering from a canned script. Only
-  `provider-anthropic` may import a vendor SDK
-  ([ADR-0004](docs/adr/0004-model-agnostic-copilot-provider.md)). Its tools live
-  in the shared registry, marked `surfaces: ['copilot']`
+The full map — every app and package, one line each — is
+[`CONTEXT-MAP.md`](CONTEXT-MAP.md). In brief:
+
+- `apps/admin` / `apps/server` — the reference app: a React 19 + Vite SPA and a
+  NestJS API, each little more than a plugin list (`apps/admin/src/plugins.ts`,
+  `apps/server/src/plugins.ts`). `apps/{admin,server}-e2e` test them.
+- `packages/bootstrap/*` — the **hosts**: `createAdmin({ plugins })` and
+  `createServer({ plugins })`. They own no domain logic.
+- `packages/database` — the one Drizzle/`pg` connection (`@InjectDatabase()`)
+  plus `UnitOfWork`, the transactional outbox and the `DomainEvent` contract. Its
+  only table is `outbox_events`; no other table may be added here.
+- `packages/identity/*` — auth, sessions, RBAC, API tokens and SSO (the
+  `SsoProvider` port and its `provider-*` adapters).
+- `packages/{users,workspaces,activity,api-tokens,shell}/*` — members, the
+  tenancy boundary (the [ADR-0003](docs/adr/0003-tactical-ddd-inside-plugins.md)
+  reference implementation), the audit log, the token page and the admin chrome.
+- `packages/content/*` — the code-defined content model, entries, the public
+  REST API, and its GraphQL adapter (`content/graphql`).
+- `packages/{i18n,media,wysiwyg,insights,query-builder}/*` — localization, the
+  media library and its storage adapters, rich text, dashboards, filter UI.
+- `packages/{segments,alarms,protection,transfer}/*` — reader entitlements,
+  non-blocking content checks, publish approvals, export/import.
+- `packages/{webhooks,mail}/*` — outgoing webhooks and mail, both delivered by a
+  worker from a queue, never from inside a transaction
+  ([ADR-0016](docs/adr/0016-webhooks-deliver-from-a-queue.md)).
+- `packages/copilot/*` — the AI copilot. **Only `provider-anthropic` may import
+  a vendor SDK** ([ADR-0004](docs/adr/0004-model-agnostic-copilot-provider.md)).
+  `provider-fake` is a **private test fixture**: published nowhere, registered
+  by `server-e2e` and never by a host.
+- `packages/tools/server` + `packages/mcp/server` — the shared agent tool
+  registry (copilot and MCP both consume it) and the MCP endpoint. A tool's
+  `surfaces` field **defaults to both** when omitted, so adding a tool means
+  deciding who it is for — see
+  [`packages/tools/server/AGENTS.md`](packages/tools/server/AGENTS.md#adding-a-tool-decide-surfaces-deliberately)
   ([ADR-0007](docs/adr/0007-one-tool-registry-two-surfaces.md)).
-- `packages/tools/server` — `@orthacms/tools-server`, the shared agent **tool
-  registry**: the transport-neutral `ToolDefinition` contract and the one place
-  a tool call is authorized. Two consumers import its global `ToolsModule` — the
-  MCP endpoint and the copilot's run loop — so both see one instance, and a tool
-  declares which `surfaces` it is offered to
-  ([ADR-0007](docs/adr/0007-one-tool-registry-two-surfaces.md)). **Omitting the
-  field means both**, so adding a tool anywhere means deciding who it is for —
-  the checklist is in
-  [`packages/tools/server/AGENTS.md`](packages/tools/server/AGENTS.md#adding-a-tool-decide-surfaces-deliberately).
-- `packages/content/graphql` — `@orthacms/content-graphql`, the public content
-  API over **GraphQL** (`POST /api/v1/graphql`). A protocol **adapter** over
-  `content/server`'s `public-api/`, not a second API: same bearer tokens, same
-  guards, same scopes, same visibility rules, and resolvers that assemble the
-  existing DTOs rather than reaching for the database
-  ([ADR-0008](docs/adr/0008-graphql-as-a-protocol-adapter.md)). Its schema is
-  built **per workspace content-grant set**, so introspection cannot enumerate
-  types the workspace was not granted.
-- `packages/transfer/*` — content **export and import**. `domain` is the
-  framework-free kernel: the transfer document both ends agree on, the four
-  formats behind one `ExportSerializer` / `ImportParser` port, and the
-  natural-key rules; `server` is the plugin — the export/import routes, the
-  graph walk, and a hand-rolled ZIP container; `admin` is the two dialogs and
-  the three slot contributions that reach them. The depth is **one hop**
-  ([ADR-0014](docs/adr/0014-transfer-as-a-separate-plugin.md)): relations, files
-  and locales travel, relations-of-relations stay as references. Every write
-  goes through content's `EntryWriterService`, so an import cannot outrun
-  validation, the workspace scope, or the caller's own permissions. Owns no
-  tables.
-- `packages/segments/*` — reader **entitlements**: who may _read_ published
-  content. `domain` is the kernel — a segment is a named set of reader tags, an
-  entry names the segments it admits and the segments it refuses, and `canRead`
-  is the whole decision (a deny wins; an empty allow list means everyone).
-  `server` owns the two tables and compiles that decision into one SQL predicate
-  through content's `CONTENT_READ_SCOPE` port, so it covers REST, GraphQL and
-  MCP at once; `admin` is the audience directory plus the entry editor's Access
-  tab, where each audience gets one three-state control. Deliberately separate
-  from RBAC and from `workspace_content`, which answer who may _touch_ content.
-  There is no rule object and no inheritance: what an editor sets on the entry
-  is what a reader gets. Inert until an audience exists.
-- `packages/alarms/*` — content **alarms**: workspace-defined rules that flag
-  content problems without ever blocking a write
-  ([ADR-0015](docs/adr/0015-alarms-are-non-blocking.md)). `server` owns the two
-  tables (`alarm_rules`, `alarm_findings`), the outbox subscriber, the evaluator
-  and the periodic sweep; `admin` is the alarms page, the rule editor, and three
-  contributions into the Content Library's slots — the entry rail's checks
-  block, an optional records column, and **"Save as rule"** in the records
-  toolbar, which is how rules are actually made. A rule is not a new query
-  language: it stores the **records-list filter tree verbatim** and is evaluated
-  through content's own `EntryMatchQuery`, so it can only ever mean what the
-  list means by the same filter. Severity orders and colours; it never gates.
-- `packages/protection/*` — publication **protection**: a per-content-type rule
-  requiring N approvals before an entry may be published
-  ([ADR-0017](docs/adr/0017-publication-protection.md)). `domain` is the
-  framework-free kernel — the third gate on publish, one pure function over a
-  rule, the head revision and the votes recorded against it. It answers _may
-  this person ship it now_, never whether the entry is complete. `server` owns
-  three tables — the rule, the review request and the vote — plus the publish
-  guard, the two permissions (`content:approve` approves, `protection:manage`
-  writes rules and bypasses) and the agent tools; `admin` is the entry editor's
-  review chip, the rail's **Review** block and the publish verdict with its
-  bypass dialog, the workspace **Reviews** page, the settings tab where a rule
-  is written, a records column and its filter, and an Insights card. An approval
-  belongs to a **revision**, so the next save stops it counting — there is no
-  dismissal logic anywhere. Addressed `(workspace, kind, slug)`, the same
-  coordinate as `workspace_content`. It takes **no configuration**: the rule
-  table is the whole configuration surface and its empty state is the off state,
-  so registering it changes nothing until a workspace writes a rule.
-- `packages/schema-builder/*` — the **schema builder**: a visual editor for
-  content types that **writes code**
-  ([ADR-0020](docs/adr/0020-schema-builder-writes-code.md)). `domain` is the
-  framework-free kernel — the content model as an editable document, its diff
-  (fields matched by a stable key), the change classification, the code
-  generator and the content manifest renderer `orthacms content sync` shares;
-  `server` is the plugin — the document, plan, apply and operations routes; it
-  renders type modules, has **drizzle-kit** generate the migration (removals
-  first, so it never prompts), runs it in one transaction and only then writes
-  `src/content/`, then the dev watcher restarts the server; `admin` is the
-  global `/content-model` page — rail, field list under the entry editor's
-  built-in tabs, field and group sheets, the review page with its steps and
-  the grant offer.
-  **Development only**: plan and apply need `SCHEMA_BUILDER=true`, a
-  non-production `NODE_ENV` and the source tree, else `403`; production gets
-  the same page read-only. It edits only files whose first line is
-  `// @orthacms-generated`, owns no tables, and grants a new type to no
-  workspace.
-- `packages/webhooks/*` — outgoing **webhooks** on content changes. `domain` is
-  the framework-free kernel — the subscribable event catalogue, the subscription
-  filter (workspaces × event kinds × content types, where an **empty set means
-  everything, including what does not exist yet**), the HMAC-signed envelope,
-  the retry policy, and the URL policy that decides where this server may be
-  talked into connecting; `server` is the plugin — three tables, an outbox
-  subscriber and a delivery worker; `admin` is the global `/webhooks` pages in
-  the directory group. The structural rule is that the **subscriber never
-  touches the network** ([ADR-0016](docs/adr/0016-webhooks-deliver-from-a-queue.md)):
-  `OutboxDispatcher` calls subscribers inside its claim transaction, so fan-out
-  only queues delivery rows and a worker claims them, commits, and then POSTs
-  with nothing open. Delivery is at-least-once and unordered; receivers
-  deduplicate on `X-Orthacms-Event-Id`. Administrator-only, because an endpoint
-  spans every workspace it names and holds a signing secret.
-- `packages/mail/*` — outgoing **mail**: the invitation, the resend and the
-  password-reset link, sent instead of relayed by hand. `domain` is the
-  framework-free kernel — the `MailProvider` port, the rendered message, the
-  retryable/permanent split, the three templates, and the `MailDispatcher` port
-  a use case queues through; `server` is the plugin, owning `mail_deliveries`
-  and the worker; `provider-smtp` is the backend a deployment actually runs, and
-  `provider-console` / `provider-testkit` ship with every app but are offered by
-  no picker and registered by no template. The structural point is the
-  **enqueue** ([ADR-0018](docs/adr/0018-mail-provider.md)): the raw token exists
-  exactly once, inside the transaction that issued it, so the message is
-  rendered and written there rather than rebuilt later by an outbox subscriber —
-  while the send still obeys ADR-0016's rule, claiming and committing before it
-  opens a socket. A delivered row is **deleted**, not stamped. Inert until
-  `MAIL_PROVIDER` names a backend; configuring one makes the invite and reset
-  routes stop returning the raw link, with `reveal-link` (`users:manage`,
-  audited) as the one exception.
-- `packages/mcp/server` — `@orthacms/mcp-server`, the **MCP plugin**: the
-  Model Context Protocol endpoint (`POST /api/v1/mcp`) that lets an external
-  agent do content CRUD with an API token
-  ([ADR-0006](docs/adr/0006-cms-as-an-mcp-server.md)). Owns the protocol and
-  nothing else — the registry lives in `tools/server` and the tools in
-  `content/server`, which is what lets a handler call `PublicEntriesQuery`
-  directly instead of re-implementing the rules it enforces. Off unless
-  `MCP_ENABLED=true`.
-- `packages/nx` — `@orthacms/nx`, the workspace **Nx plugin**: infers and
-  implements the `db:generate` / `db:migrate` targets (Drizzle migration
-  tooling) plus the release targets. Registered in `nx.json`. The database
-  executors are adapters over `@orthacms/cli`, so this repo and a generated app
-  migrate through one implementation.
-- `packages/cli` — `@orthacms/cli`, the **`orthacms` command**: how an app
-  installed from npm is built, run and migrated (`dev` / `build` / `start` /
-  `migrate` / `generate` / `studio`). Compiles first and reads the compiled
-  config, so it needs none of the jiti/swc machinery the Nx executors use to
-  read TypeScript from source.
-- `packages/create-orthacms-app` — the **scaffolder** behind
-  `npx create-orthacms-app my-cms`. One template, no sample content types, plus a
-  keyboard wizard for the five genuine choices (storage adapter, hosted copilot
-  backends, single sign-on providers, which protocols the content API speaks —
-  REST always, GraphQL and MCP optional — and the mail backend, whose default
-  answer is "do not configure"); everything else, the copilot included, is
-  installed unconditionally. Stamps
-  its own version into every `@orthacms/*` dependency it writes, which is what
-  makes a generated app a consistent lockstep set — so a release needs no
-  template edit, while **adding a package does**: every published package must
-  be classified in its `features.ts`, and a test fails until it is. The only
-  published package outside the `@orthacms` scope.
+- `packages/schema-builder/*` — a visual content-type editor that **writes
+  code** ([ADR-0020](docs/adr/0020-schema-builder-writes-code.md)). **Development
+  only**: plan/apply need `SCHEMA_BUILDER=true`, a non-production `NODE_ENV` and
+  the source tree; it edits only files whose first line is
+  `// @orthacms-generated`.
+- `packages/design-system`, `packages/utils/*` — the shadcn/ui library and
+  shared plumbing (`apiClient`, slots, env readers).
+- `packages/{nx,cli,create-orthacms-app}` — the workspace Nx plugin, the
+  `orthacms` command (`dev` / `build` / `start` / `migrate` / `generate` /
+  `content sync` / `studio`), and the scaffolder. The Nx database targets are
+  adapters over the CLI, so this repo and a generated app migrate through one
+  implementation. Every published package must be classified in
+  `create-orthacms-app`'s `features.ts`, or its tests fail.
 
 ## Package layout
 
@@ -217,9 +79,9 @@ as `@orthacms/bootstrap-admin`. The root `workspaces` globs (`packages/*` and
 `packages/*/*`) cover both shapes.
 
 A group is not limited to `admin`/`server`: it holds however many packages the
-domain needs, named for what they are. `content` has four — `domain` (the
-framework-free kernel), `server`, `admin`, and `graphql` (the public API's
-second protocol); `copilot` has six.
+domain needs, named for what they are — a framework-free `domain` kernel, a
+second protocol (`content/graphql`), or `provider-*` adapters for a swappable
+backend.
 
 ## How packages resolve
 
@@ -237,7 +99,8 @@ package; the admin app's Vite transpiles the design-system source directly.
     - `server:dev:build` — webpack in watch mode; compile + type errors land here
       instead of scrolling past the API logs
     - `server:dev:run` — `node --watch` on `apps/server/dist/main.js`; Nest logs only
-    - `admin:dev` — the Vite dev server (proxies `/api` → `:3000`)
+    - `admin:dev` — the Vite dev server (proxies `/api` to `API_PORT`, falling
+      back to `PORT`, else `:3000`)
     - `admin:dev:typecheck` — `tsc --build --watch`, because **Vite never
       typechecks**; this is the pane that catches admin type errors
 
@@ -271,7 +134,8 @@ package; the admin app's Vite transpiles the design-system source directly.
   `/reference/json`). On outside production; `API_DOCS=true|false` overrides.
   See [`packages/bootstrap/server/AGENTS.md`](packages/bootstrap/server/AGENTS.md)
 - `npx nx sync` — run after changing cross-project dependencies (updates TS project references)
-- **Releasing to npm** — every `packages/` package publishes together, in
+- **Releasing to npm** — every `packages/` package except the two private ones
+  (`@orthacms/nx`, `@orthacms/copilot-provider-fake`) publishes together, in
   lockstep. `npm run release` from a clean checkout of `main` versions, tags,
   publishes and opens the GitHub Release, reading `NPM_TOKEN` / `GITHUB_TOKEN`
   from `.env`; `npm run release:dry-run` rehearses it. The **Release** Actions
@@ -279,7 +143,7 @@ package; the admin app's Vite transpiles the design-system source directly.
   manifest: `build` compiles it and `pack` stages a rewritten manifest under
   `dist/pack/`, because the workspace resolves from source and a consumer
   cannot. The publishes are **throttled and retried** — npm rate-limits an
-  account's writes and 71 tarballs go out in one run, so they are serialised
+  account's writes and every tarball goes out in one run, so they are serialised
   with a gap and a 429 is backed off rather than failing the release. See
   [`docs/releasing.md`](docs/releasing.md)
 - **First-run smoke** — `npm run smoke:scaffold` is what the tarballs have to
@@ -292,7 +156,8 @@ package; the admin app's Vite transpiles the design-system source directly.
   Docker and a free `:5432`; `--keep` leaves the app behind. The
   `scaffold-smoke` CI job runs it on Node 22 (its bundled npm 10, which is what
   users have) and Node 24
-- **Database / migrations** (provided by `@orthacms/nx`; needs a `.env` with
+- **Database / migrations** (targets inferred by `@orthacms/nx`, which also
+  infers every package's `build` / `pack` / release targets; needs a `.env` with
   `DATABASE_URL`, and Postgres via `docker compose up -d`):
     - `npx nx run <plugin>:db:generate --name=<name>` — generate that plugin's
       Drizzle migration from its schema (per-plugin; commit the emitted SQL).
@@ -321,14 +186,6 @@ package; the admin app's Vite transpiles the design-system source directly.
   ends with a numbered list of invariants: at once a review checklist and a
   draft set of test assertions. Many specs name the one they pin in their title
   (`[segments:I-01]`); keep the habit when a test exists for a documented rule.
-- **Countable claims in the root documents are pinned by a test.** Slot counts,
-  contract fields, provider adapters, the tables a plugin owns and the project
-  map itself are derived from the code by
-  [`tools/docs-guard`](tools/docs-guard/AGENTS.md) and compared against
-  `ARCHITECTURE.md` / `CONTEXT-MAP.md`. Add a package, a slot or a table and
-  `npx nx test docs-guard` tells you which sentence now lies. Reword those
-  sentences freely — a claim that stops matching its pattern fails too, so
-  re-point the pattern in the same commit.
 - **Tactical DDD inside plugins** ([ADR-0003](docs/adr/0003-tactical-ddd-inside-plugins.md)):
   we are migrating each plugin from feature-then-kind to a layered
   `domain / application / infrastructure / http(presentation)` layout

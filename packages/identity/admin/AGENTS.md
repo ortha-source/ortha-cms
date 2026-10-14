@@ -50,9 +50,12 @@ owns auth). `src/lib` is organized into:
 - All exported symbols have JSDoc comments
 - No `.js` extensions in TypeScript imports
 - JSX enabled (`react-jsx`), DOM types available
-- Components in `src/lib/components/<Name>/`; pages in `src/lib/pages/<Name>/`;
-  the data layer (hooks + request fns) in `src/lib/api/`; the nested router in
-  `src/lib/router/`; the plugin factory in `src/lib/utils/`; types in `src/types/`
+- Components in `src/lib/presentation/components/<Name>/`; pages in
+  `src/lib/presentation/pages/<Name>/`; the data hooks in
+  `src/lib/application/`, the request functions behind the `authGateway` port in
+  `src/lib/infrastructure/`; the nested router in `src/lib/presentation/router/`;
+  the plugin factory in `src/lib/presentation/identityPlugin/`; types in
+  `src/types/`
 - **File naming.** Every top-level module lives in its own folder as
   `<name>/index.ts(x)` — components in `PascalCase` (`LoginForm/index.tsx`),
   everything else in `camelCase` named for its export
@@ -140,12 +143,12 @@ owns auth). `src/lib` is organized into:
   (`pages/LoginPage/index.tsx`) is the route container the router mounts: it runs
   `useLoginMutation`, maps its `isPending`/`error` onto the form, and navigates
   to `/` on success.
-- **API layer.** `src/lib/api/useLoginMutation/index.ts` issues the request via the
-  shared `apiClient` from
-  [`@orthacms/utils-admin`](../../utils/admin/AGENTS.md)
-  (`apiClient.post('/auth/login', …)`) and wraps it in a TanStack Query
-  `useMutation`. Failures are normalized to that library's `ApiError`
-  (`toApiError`); `LoginPage` maps `error.status === HTTP_STATUS.UNAUTHORIZED` to
+- **API layer.** `src/lib/application/useLoginMutation/index.ts` wraps the
+  gateway's `login` in a TanStack Query `useMutation`; the request itself lives
+  in `src/lib/infrastructure/httpAuthGateway/`, which issues it via the shared
+  `apiClient` from [`@orthacms/utils-admin`](../../utils/admin/AGENTS.md)
+  (`apiClient.post('/auth/login', …)`). Failures are normalized to that
+  library's `ApiError` (`toApiError`); `LoginPage` maps `error.status === HTTP_STATUS.UNAUTHORIZED` to
   the invalid-credentials message. `apiClient`/`queryClient` live in the shared
   library (the host mounts the query provider). The cookie is reached same-origin
   via the admin dev proxy (`/api` → the API).

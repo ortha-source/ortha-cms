@@ -21,8 +21,8 @@
 > **Amended by [ADR-0007](0007-one-tool-registry-two-surfaces.md)**: the tool
 > catalogue and the authorization check in §3 are now the _shared_
 > `ToolRegistry` this CMS also serves over MCP, not a copilot-private one. The
-> authority model here is unchanged — §3's three enforcement points, §5's
-> propose-then-apply and §7's no-publish rule all still hold — but a tool now
+> authority model here is unchanged — §3's three enforcement points and §7's
+> no-publish rule both still hold — but a tool now
 > declares which surface it is offered to, and the "unknown tool" wording in §3
 > follows ADR-0006 §5 instead of hiding a withheld name.
 >
@@ -33,8 +33,10 @@
 > provider sends workspace content to a third party" — is no longer what the
 > flag protects: since ADR-0004's provider registrations, `orthacms.config.ts`
 > builds a provider entry only when its credentials exist and `plugins.ts`
-> registers only what was built, with the offline `fake` adapter last, so a
-> deployment holding no key reaches no third party whatever this flag says.
+> registers only what was built, so a deployment holding no key reaches no
+> third party whatever this flag says. (No host registers an offline adapter:
+> `provider-fake` is a private test fixture that only `server-e2e` registers,
+> so a deployment with no configured backend has no copilot at all.)
 > **The absent key is the egress guard; this flag is the operator's off
 > switch** — and it is now implemented as one: `CopilotModule.forRoot`
 > registers no controller when it is off, the way `McpModule` has always

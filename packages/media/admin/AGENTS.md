@@ -7,6 +7,12 @@ browser (grid **and** list views), an asset detail drawer, and the
 create-folder / upload / rename / move / duplicate / delete flows — now **wired
 to `@orthacms/media-server`** over `apiClient`.
 
+Layout: **by kind** — `components/`, `pages/`, `hooks/`, `types/`, `utils/`
+(the plugin factory included) and `constants/` — with one borrowing from
+ADR-0003: `infrastructure/` holds the gateway ports, their HTTP
+implementations, the mapper and the query keys. There is no `domain/` or
+`application/`; the hooks live in `hooks/`.
+
 ## Data layer (wired to the API)
 
 The page consumes one hook, **`hooks/useMediaLibrary`**, which is the store the
@@ -344,7 +350,8 @@ only renders under `/workspaces/:id/media` and inside the content entry editor.
 
 Follows the workspaces-admin / content-admin conventions: `type` over `interface`;
 JSDoc on exports; **one component per file** with `<name>/index.ts(x)` folders
-(pages in `src/lib/pages/`, components in `src/lib/components/`, the data layer in
+(pages in `src/lib/pages/`, components in `src/lib/components/`, the data hooks
+in `src/lib/hooks/`, the gateways, mapper and query keys behind them in
 `src/lib/infrastructure/`); no magic string literals (route segment, enums,
 permissions, root-folder id in `src/lib/constants/`); co-located `react-intl`
 messages namespaced `media.<area>.<key>`; UI from `@orthacms/design-system` only.

@@ -1,8 +1,8 @@
 # 0019 — Shared workspaces are a read-only exception to workspace isolation
 
-- **Status:** Proposed — amended 2026-09-29 by
+- **Status:** Accepted (amended 2026-09-29 by
   [Explicit per-source grants](#amendment-explicit-per-source-grants), which
-  supersedes the implicit grant rule below
+  supersedes the implicit grant rule below)
 - **Date:** 2026-09-28
 - **Deciders:** Engineering
 

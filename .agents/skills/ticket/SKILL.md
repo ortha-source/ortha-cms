@@ -117,9 +117,9 @@ It must contain, in this order:
 5. **What QA will verify**, derived from the acceptance criteria, plus anything
    `qa` reported as unverifiable as written.
 6. **Structural consequences**, when there are any: a new table, slot or package
-   moves a number `tools/docs-guard` pins, and a new published package needs
-   classifying in `create-orthacms-app`'s `features.ts`. Name the files that must
-   change in the same commit.
+   changes what `ARCHITECTURE.md` / `CONTEXT-MAP.md` say, and a new published
+   package needs classifying in `create-orthacms-app`'s `features.ts`. Name the
+   files that must change in the same commit.
 7. **Open questions**, each with your recommendation. A question with no
    recommendation moves work to the human that you could have done.
 

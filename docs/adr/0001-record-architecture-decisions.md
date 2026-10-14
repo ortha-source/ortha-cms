@@ -4,6 +4,11 @@
 - **Date:** 2026-06-18
 - **Deciders:** Engineering
 
+> **Update (2026-10-14).** In practice a decision that changes in part is
+> amended in place — a dated banner on the old ADR linking the newer one, the
+> original text left standing — and `Superseded by NNNN` is kept for a record
+> that is replaced outright. The procedure is in [`README.md`](README.md).
+
 ## Context
 
 The codebase encodes many non-obvious decisions (the plugin-host model,

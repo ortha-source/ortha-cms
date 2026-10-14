@@ -3,10 +3,11 @@
 An in-memory `StorageProvider` — blobs in a `Map`, plus the three inspection
 methods that make that useful (`keys()`, `totalBytes()`, `clear()`).
 
-**Shipped, not test scaffolding.** The copilot ships `provider-fake` for the
+**Shipped, not test scaffolding.** The copilot keeps `provider-fake` for the
 same reason ([ADR-0004](../../../docs/adr/0004-model-agnostic-copilot-provider.md) §3):
 a loop nobody can drive without a key and a network is a loop nobody exercises.
-Storage needed it more — before this package `apps/server-e2e` stood up its own
+That one is a private test fixture, published nowhere and registered by no
+host; this one is published. Storage needed it more — before this package `apps/server-e2e` stood up its own
 `Map`-backed provider inline, a second implementation of the port that no rule
 held to the contract. It had already drifted: a missing key rejected with a bare
 `Error` rather than `ObjectNotFoundError`, so the route that maps that error to

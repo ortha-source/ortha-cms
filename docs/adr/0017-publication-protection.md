@@ -109,13 +109,13 @@ touch. There is no condition, no filter and no per-entry exception: "why is this
 entry blocked and the one next to it not" must have a one-word answer, and the
 word is the type.
 
-**2. An approval belongs to a revision, not to an entry.** An `approvals` row
-carries `revision_id` and is unique on `(revision_id, user_id)`. A save writes a
-new revision, so approvals recorded against the previous one no longer count
-toward the head — **without any dismissal logic at all**. The stale approval is
-not deleted; the UI shows it struck through, naming the version it was given on,
-because a counter that silently rolls back is unexplainable to the person who
-just pressed Save.
+**2. An approval belongs to a revision, not to an entry.** A
+`review_approvals` row carries `revision_id` and is unique on
+`(revision_id, user_id)`. A save writes a new revision, so approvals recorded
+against the previous one no longer count toward the head — **without any
+dismissal logic at all**. The stale approval is not deleted; the UI shows it
+struck through, naming the version it was given on, because a counter that
+silently rolls back is unexplainable to the person who just pressed Save.
 
 **3. Protection authorizes; it never validates.** It answers _who_, not _what_.
 It is the third gate on publication, after the `content:publish` permission and
@@ -131,7 +131,7 @@ travels to a reader is unchanged.
 
 **5. A bypass is loud, and refusable.** With `admin_bypass` on, an administrator
 may publish past the rule — the button changes its label and its tone, a reason
-is mandatory, and `entry.publish.bypassed` reaches the activity log with the
+is mandatory, and `entry.publish_bypassed` reaches the activity log with the
 actor, the rule and that reason. Turning `admin_bypass` off makes the rule
 absolute, administrators included. Disabling a rule and lowering its approval
 count are themselves audited, or the bypass is simply the settings tab.
@@ -145,10 +145,12 @@ mean the rule is escaped by minting a key.
 [ADR-0005](0005-copilot-authority-model.md) §7, which withholds a publish tool
 from every role: with a rule in force the approval _is_ the step that unlocks
 publication, so handing a model `approve` while withholding `publish` hands over
-the key and keeps the doorknob. Three tools are offered instead — `review_status`
-and `review_diff` (reads) and `request_review` (a write, which parks for the
-in-the-moment prompt like any other) — and each declares `surfaces` explicitly,
-because omitting the field in `tools/server` means both.
+the key and keeps the doorknob. Four tools are offered instead —
+`protection_review_status` and `protection_review_diff` (reads, on both
+surfaces), `protection_reviewer_candidates` (a read, copilot only), and
+`protection_request_review` (a write, which parks for the in-the-moment prompt
+like any other) — and each declares `surfaces` explicitly, because omitting the
+field in `tools/server` means both.
 
 The reasons are the ones the repository already holds. ADR-0009's twelve-cards
 argument is worse without the clicks: "approve my articles" is one sentence and

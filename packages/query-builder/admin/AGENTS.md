@@ -7,6 +7,9 @@ in `@orthacms/utils-server`:
 The state shape, wire format, and UI all round-trip OR + nested groups
 end-to-end. Each group owns an AND/OR toggle and an Add group action.
 
+Layout: **by kind** — `components/`, `hooks/`, `types/`, `utils/`. A UI library
+with no data layer, so ADR-0003's layers do not apply.
+
 ## Package
 
 - Name: `@orthacms/query-builder-admin`

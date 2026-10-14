@@ -16,8 +16,9 @@ package depends on this one and so cannot be depended on back) — and **ships i
 system roles** (`admin`/`contributor`/`viewer`) idempotently on boot and
 protects them from deletion (RBAC, FR-6). It also handles **email/password
 login & logout**: the `auth/` feature (`LoginController`, `MeController`,
-`LogoutController`, plus `AuthService` / `SessionService` / `CookieService`)
-verifies credentials with bcrypt and opens a DB-backed, revocable session
+`LogoutController`, plus `AuthService` / `CookieService`, over the
+`LoginUseCase` / `LogoutUseCase` and `DrizzleSessionRepository` of the layered
+core) verifies credentials with bcrypt and opens a DB-backed, revocable session
 delivered as an `httpOnly` cookie (#8); logout revokes the presented session
 (per-device, idempotent) and clears the cookie. It also handles **invite acceptance** — the pair that turns a `pending` row into
 an account that can sign in: `GET /auth/invite/:token` describes who a link is
@@ -67,8 +68,8 @@ tokens and full user management land in later tickets (epic #3).
 > **byte-identical** and every public symbol keeps its name, type, and
 > signature. The invariant-bearing core is extracted into
 > `domain / application / infrastructure`; the stable public/composition surface
-> (`auth/`, `rbac/`, `root-admin/`, `activity/`, `schema/`) keeps its
-> feature-then-kind layout so the barrel paths never move.
+> (`auth/`, `rbac/`, `root-admin/`, `preferences/`, `activity/`, `schema/`)
+> keeps its feature-then-kind layout so the barrel paths never move.
 
 ## Layered layout (the invariant core)
 
@@ -83,6 +84,8 @@ domain/          # framework-free core — the one hard rule below
   session.ts                       # Session entity (validity, framework-free)
   session-policy.ts                # SessionPolicy (expiry + lastUsedAt throttle rules)
   session.repository.ts            # SessionRepository PORT + SESSION_REPOSITORY
+  sso-*.repository.ts              # SSO identity / auth-request / provisioning PORTS
+  sso-provisioning-policy.ts       # which email domains SSO may provision
   access-policy.ts                 # AccessPolicy domain service — the pure RBAC decision
   value-objects/                   # UserId, Email, PasswordHash, UserAccountStatus, Permission
   events/identity-events.ts        # domain-event factory + kinds (user.* / auth.*)
@@ -91,10 +94,15 @@ application/     # orchestration — one use case per state change
   use-cases/                       # login / logout / refresh-session / change-password
                                    # + describe-invite / accept-invite
                                    # + describe-password-reset / reset-password
+                                   # + start-sso / complete-sso / sso-backchannel-logout
+                                   # + revoke-user-session
 infrastructure/  # adapters — the only layer that knows Drizzle/pg
   persistence/  # DrizzleUserAccountRepository, UserAccountMapper, DrizzleSessionRepository,
-                # DrizzleInviteRepository, DrizzlePasswordResetRepository
+                # DrizzleInviteRepository, DrizzlePasswordResetRepository,
+                # DrizzleSso{Identity,AuthRequest,Provisioning}Repository
   queries/      # UserLookupQuery (thin auth/credentials read side)
+  throttling/   # PostgresThrottlerStorage (rate limits in throttle_buckets)
+  sso-registry.ts # the host's SSO provider list → SSO_REGISTRY
 ```
 
 ### The one hard rule
@@ -210,8 +218,11 @@ error, and type the barrel exports keeps its path, so no consumer import moved.
   folder under `src/lib/`; inside it, files are bucketed by kind into
   `controllers/`, `services/`, `guards/`, `seeders/`, plus `dto/` and `errors/`
   — one class per file. Today:
-    - `auth/` — `controllers/` (`login`/`logout`/`me`), `services/` (`AuthService`
-      / `SessionService` / `HashingService` / `CookieService`), `guards/`
+    - `auth/` — `controllers/` (`login`/`logout`/`me`, `invite`,
+      `password-reset`, `sso`, `user-sessions`), `services/` (`AuthService` /
+      `HashingService` / `CookieService` — sessions themselves live in the
+      layered core, `DrizzleSessionRepository` plus the session use cases),
+      `guards/`
       (`OriginGuard`, `AuthGuard`), `decorators/` (`@Public()`, `@CurrentUser()`),
       `dto/`, `errors/`.
     - `rbac/` — `services/` (`RolesService`), `seeders/` (`SystemRolesSeeder` +
@@ -219,6 +230,12 @@ error, and type the barrel exports keeps its path, so no consumer import moved.
       role/permission matrix at the feature root (non-class data).
     - `root-admin/` — `services/` (`RootAdminService`), `seeders/`
       (`RootAdminSeeder`), `errors/`.
+    - `preferences/` — `controllers/`, `services/` (`PreferencesService`),
+      `dto/`: the signed-in user's own `user_preferences` row.
+    - `sso/` — `sso-settings.ts`, the attempt-lifetime default the SSO use
+      cases read.
+    - `docs/` — the OpenAPI contribution (`describe-identity-api.ts`,
+      `describe-preferences-api.ts`, the shared schemas).
     - `workspaces/` — **moved out.** Workspaces, memberships and content
       grants now live in `@orthacms/workspaces-server`, in the tactical-DDD
       layout, with their own tables and migrations. `WorkspaceGuard`,
@@ -269,19 +286,15 @@ error, and type the barrel exports keeps its path, so no consumer import moved.
       `ApiTokenService` plus the RBAC primitives this barrel exports
       (`PERMISSIONS_KEY`, `Permission`, `AccessPolicy`, `Actor`) so its scope
       check *is* the same decision the session `PermissionsGuard` makes.
-    - `users/` — `controllers/` (`search` → `GET /api/users?q=`), `services/`
-      (`UserService`), `dto/`. The directory the wizard's member typeahead reads.
-    - `content/` — a `ListContentTypesController` (`GET /api/content-types`) and
-      two **ports**: `CONTENT_CATALOG` (`content-catalog.ts`, what types exist)
-      and `CONTENT_ENTRY_COUNTER` (`content-entry-counter.ts`, how many entries
-      of a type a workspace holds). The controller and the workspace create flow
-      (an "all content" grant) resolve the catalogue against whatever binds it —
-      `@orthacms/content-server`'s code-defined registry in the assembled app —
-      falling back to the `CONTENT_TYPES` mock at the feature root when no
-      content plugin is present. The counter backs the "revoke a content grant
-      only when empty" rule (a missing binding means zero entries, so the type
-      reads as empty). Same inversion as `ACTIVITY_RECORDER`: identity owns the
-      ports, the plugin binds them, so the package graph stays acyclic.
+    - `users/` and `content/` — **moved out.** The member routes under
+      `/api/users` live in `@orthacms/users-server`
+      (`src/lib/member/http/controllers/`). `GET /api/content-types` and the
+      `CONTENT_CATALOG` / `CONTENT_ENTRY_COUNTER` ports (with the mock
+      catalogue used when no content plugin is present) live in
+      `@orthacms/workspaces-server` under `src/lib/workspace/`
+      (`application/ports/`, `http/controllers/list-content-types.controller.ts`,
+      `infrastructure/content/content-catalog.mock.ts`). See
+      [`packages/workspaces/server/AGENTS.md`](../../workspaces/server/AGENTS.md).
       Non-class feature **data** (e.g. the role matrix) stays at the feature root,
       not in a kind-folder. `src/lib/utils/` is for **package-level** cross-cutting
       only (the plugin factory); the NestJS module + tokens sit at `src/lib/`;
@@ -407,7 +420,8 @@ error, and type the barrel exports keeps its path, so no consumer import moved.
   the DB (`revokedAt`/`expiresAt`), so there is nothing to forge and no signing
   is needed. The `sessions` PK stores the **SHA-256 of** the token, not the
   token, so a read-only DB/backup leak yields no usable sessions
-  (`SessionService` hashes on write and on lookup; no migration — the column is
+  (`DrizzleSessionRepository` hashes on write and on lookup, through
+  `HashingService.hashToken`; no migration — the column is
   still `text`).
 - **Account status is checked on every request, not just at login.** A suspended
   member is locked out at three points: `LoginUseCase` refuses to open a session

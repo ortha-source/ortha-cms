@@ -10,6 +10,21 @@
 > each context. It does not supersede 0002 — the plugin/host model, per-plugin
 > schema ownership, DI ports, and UI slots all stand unchanged.
 
+> **Update (2026-10-14).** The dependency rule stands; the enforcement this
+> record committed to was never built. There are no ESLint module-boundary
+> rules for layers: the root `eslint.config.mjs` keeps
+> `@nx/enforce-module-boundaries` at `onlyDependOnLibsWithTags: ['*']`, and
+> `@orthacms/nx` infers database and release targets, not lint rules. What
+> holds the line instead is a **per-package jest spec** that reads the files
+> under `domain/` and fails on a forbidden import — e.g.
+> `packages/workspaces/server/src/lib/workspace/domain/imports.spec.ts`,
+> `packages/alarms/server/src/lib/domain/imports.spec.ts`, and the kernel
+> packages' boundary specs
+> (`packages/copilot/domain/src/lib/vendor-sdk-boundary.spec.ts`,
+> `packages/segments/domain/src/lib/kernel-boundary.spec.ts`). It is still a CI
+> failure rather than a review catch, but only for a package that carries the
+> spec: a newly layered package has to add its own.
+
 ## Context
 
 Strategically the codebase is already DDD-shaped: plugins are bounded contexts,
@@ -55,13 +70,15 @@ keeping ADR-0002's strategic model intact. Concretely:
    from NestJS, Drizzle, React, `class-validator`, transport DTOs, or
    `infrastructure/`. Dependencies point **inward only**
    (`http → application → domain`; `infrastructure` implements `domain` ports).
-   This is enforced by lint (see Consequences), not by convention alone.
+   This is enforced mechanically (see Consequences and the update above), not
+   by convention alone.
 
 3. **Model the domain, not the table.** Rich **aggregates** own their child
    entities and enforce invariants as methods (`Workspace.removeMember` throws
-   `LastAdminError`); **value objects** replace primitive obsession (`Slug`,
-   `Email`, branded `WorkspaceId`); invariants move out of DTO decorators into
-   the model. DTOs keep only shape/`@IsString` checks for early 400s.
+   `LastMemberError` rather than leave a workspace with no members); **value
+   objects** replace primitive obsession (`Slug`, `Email`, branded
+   `WorkspaceId`); invariants move out of DTO decorators into the model. DTOs
+   keep only shape/`@IsString` checks for early 400s.
 
 4. **Introduce repositories** as ports declared in `domain/` (interface + DI
    `Symbol`, the same mechanism as `CONTENT_CATALOG`) and implemented as Drizzle
@@ -127,9 +144,11 @@ reference implementation.
   `@orthacms/database`; the `workspaces/server` extraction + pilot.
 - **Enforcement:** ESLint module-boundary rules (inferred by `@orthacms/nx`
   onto layered packages) so `domain/` → Drizzle/Nest/React is a CI failure, not a
-  review catch. Until a package is migrated it keeps its legacy layout; **each
-  package's `AGENTS.md` declares which layout it is in**, and the `server-plugin`
-  / `admin-plugin` skills document both modes.
+  review catch. _(Not built — see the update at the top: per-package
+  `imports.spec.ts` / boundary specs do this job instead.)_ Until a package is
+  migrated it keeps its legacy layout; **each package's `AGENTS.md` declares
+  which layout it is in**, and the `server-plugin` / `admin-plugin` skills
+  document both modes.
 - **Docs stay in lockstep:** the two authoring skills and this ADR are the source
   of truth; per-package `AGENTS.md` files flip as each context migrates so they
   always describe reality.

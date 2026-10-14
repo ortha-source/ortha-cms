@@ -1,10 +1,8 @@
-# 14. Export and import as a separate plugin, one hop deep
+# 0014 — Export and import as a separate plugin, one hop deep
 
-Date: 2026-08-24
-
-## Status
-
-Accepted
+- **Status:** Accepted
+- **Date:** 2026-08-24
+- **Deciders:** Engineering
 
 ## Context
 

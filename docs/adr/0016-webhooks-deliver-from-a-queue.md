@@ -49,7 +49,7 @@ Three consequences follow, and each one is worse than the last:
 There is a second, quieter question underneath: how much a delivery should
 carry. A webhook that inlines the record's field values is more convenient for
 the receiver, and it routes around `publishedOnly` visibility, the reader
-entitlements a segment defines ([`segments`](../../packages/segments/AGENTS.md)),
+entitlements a segment defines ([`segments`](../../packages/segments/server/AGENTS.md)),
 and the API token scoping — all of which are enforced on the **read** path the
 webhook would be bypassing.
 

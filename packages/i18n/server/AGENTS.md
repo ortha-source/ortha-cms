@@ -1,14 +1,16 @@
 # @orthacms/i18n-server
 
-> **Layout: layered (ADR-0003).** A **light** application of tactical DDD — this
-> is a small, low-invariant context, so it gets a `domain/` layer for value
-> objects and the pure locale policy, but **not** a full aggregate /
-> unit-of-work / outbox split (there is no write aggregate here — the plugin
-> owns no tables). The defining feature stays a **synchronous open-host port**
-> (see below). Follow the `workspaces-server` pilot for the layered idioms and
-> the `server-plugin` skill for the plugin mechanics.
+> **Layout: hybrid.** The two original features, `locales/` and `content/`,
+> are still **feature-then-kind** (`services/`, `controllers/`, `dto/`); the
+> newer `insights/` feature is **layered** (`http/`, `infrastructure/`); and a
+> shared, framework-free `domain/` holds the value objects and the pure locale
+> policy. That is a **light** application of ADR-0003 — a small, low-invariant
+> context with no write aggregate (the plugin owns no tables), so there is no
+> unit-of-work / outbox split. The defining feature stays a **synchronous
+> open-host port** (see below). Follow the `workspaces-server` pilot for the
+> layered idioms and the `server-plugin` skill for the plugin mechanics.
 
-## Layering (ADR-0003)
+## Layout
 
 ```
 domain/                       # framework-free core — imports NOTHING from
@@ -23,7 +25,11 @@ domain/                       # framework-free core — imports NOTHING from
 locales/services/             # LocaleRegistryService — wraps LocaleSet/LocalePolicy,
                               #   exposes the plain LocaleDef shape, maps
                               #   UnknownLocaleError → HTTP 400
-content/ + locales/controllers# thin HTTP surface (unchanged)
+content/ + locales/controllers# thin HTTP surface (feature-then-kind)
+insights/                     # the Insights coverage card's read side (layered)
+  http/controllers/           #   GET /api/insights/i18n/coverage
+  infrastructure/queries/     #   LocalizationCoverageQuery
+copilot/ docs/ types/ utils/  # agent tools, OpenAPI, wire types, the factory
 ```
 
 The raw slug regex and the config invariants that used to live inline on the
@@ -495,9 +501,10 @@ Two rules the tools apply that the HTTP path does not:
 
 ## Architecture / conventions
 
-- Feature-then-kind layout (`locales/`, `content/{services,controllers,dto}`),
-  thin controllers, permission-by-constant, `interface` for contracts, JSDoc on
-  exports — the `server-plugin` skill.
+- The hybrid layout described at the top (`locales/` and
+  `content/{services,controllers,dto}` feature-then-kind, `insights/` layered,
+  a shared `domain/`), thin controllers, permission-by-constant, `interface` for
+  contracts, JSDoc on exports — the `server-plugin` skill.
 - Depends on `@orthacms/content-server` (the port + `toColumns`/`toRecord` +
   `EntryValidationService` + `RelationLinkService` + the `relationLocaleSync`
   helpers + `CONTENT_REGISTRY`), `@orthacms/identity-server`

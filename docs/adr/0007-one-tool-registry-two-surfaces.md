@@ -106,8 +106,8 @@ who it is for rather than a filter elsewhere guessing. `forSurface` narrows the
 catalogue and `call` applies the same narrowing, because a caller may name a
 tool it was never shown.
 
-Today the split is total: MCP's twelve content tools are `['mcp']`, the
-copilot's fourteen are `['copilot']`. That is honest rather than disappointing —
+Today the split is total: MCP's content tools are `['mcp']`, the copilot's
+are `['copilot']`. That is honest rather than disappointing —
 they wrap genuinely different services for genuinely different callers. What is
 now shared is the machinery, which is the part that would have rotted. A tool
 with no such tension (a future `i18n_locales_list` for both) simply omits the
