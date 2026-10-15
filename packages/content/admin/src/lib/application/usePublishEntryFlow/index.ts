@@ -66,6 +66,11 @@ export type SubmitEntryInput = {
      */
     allowInvalidSiblings?: boolean;
     /**
+     * Ask before the save reaches other locale siblings — forwarded to the save
+     * request. See `SaveEntryInput.askBeforeSiblingSync`.
+     */
+    askBeforeSiblingSync?: boolean;
+    /**
      * Called the moment a write of this submit **lands**, before anything that
      * might still fail — the chained publish above all.
      *
@@ -223,6 +228,9 @@ export function usePublishEntryFlow(
                     : {}),
                 ...(input.allowInvalidSiblings
                     ? { allowInvalidSiblings: true }
+                    : {}),
+                ...(input.askBeforeSiblingSync
+                    ? { askBeforeSiblingSync: true }
                     : {})
             });
             // Record the new id before chaining publish: if publish then fails, the

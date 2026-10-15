@@ -705,23 +705,44 @@ export function spyLocaleSummaries(page: Page): { count: number } {
 }
 
 /**
- * Make the first `PATCH` of `entryId` answer the server's
- * **sibling-invalidation** refusal: a 422 with
- * `code: "content.sibling_invalidated"` naming the published locales the save
- * would leave failing — the issues are about *those* rows, not the one sent. A
- * later PATCH carrying `allowInvalidSiblings: true` is answered 200 (the person
- * confirmed); one without it is refused again.
+ * Answer `entryId`'s `PATCH`es the way the server does when a save reaches
+ * other locale siblings.
+ *
+ * - A PATCH carrying `askBeforeSiblingSync: true` is refused with the 422
+ *   `code: "content.sibling_sync_unconfirmed"`, naming the live locales the
+ *   save would change (`reached`) and the published ones it would leave
+ *   invalid (`invalidated`, as `siblings`). Nothing is written.
+ * - A PATCH without it is refused with `code: "content.sibling_invalidated"`
+ *   while `afterAsk` lists invalidations and `allowInvalidSiblings` is not
+ *   set — the case where a sibling broke between asking and confirming.
+ *   Otherwise it falls back to the healthy stub (the save lands).
+ *
+ * `afterAsk` defaults to `invalidated`: the same answer both times. An empty
+ * `reached` makes the ask a plain 200, as for a record alone in its group.
  *
  * Registered after {@link mockI18n}, so it wins for that entry's PATCH (routes
  * match newest-first); every other method falls back to the healthy stub.
  * Returns the PATCH bodies it saw, in order.
  */
-export async function mockSiblingInvalidation(
+export async function mockSiblingSync(
     page: Page,
     entryId: string,
-    siblings: { locale: string; field: string }[]
+    {
+        reached,
+        invalidated = [],
+        afterAsk = invalidated
+    }: {
+        reached: string[];
+        invalidated?: { locale: string; field: string }[];
+        afterAsk?: { locale: string; field: string }[];
+    }
 ): Promise<Record<string, unknown>[]> {
     const bodies: Record<string, unknown>[] = [];
+    const toSiblings = (list: { locale: string; field: string }[]) =>
+        list.map(({ locale, field }) => ({
+            locale,
+            issues: [{ field, message: 'is required' }]
+        }));
     await page.route(
         new RegExp(`/api/content/localized_post/${entryId}$`),
         async (route) => {
@@ -734,26 +755,42 @@ export async function mockSiblingInvalidation(
                 unknown
             >;
             bodies.push(body);
-            if (body.allowInvalidSiblings === true) {
-                await route.fallback();
+            if (body.askBeforeSiblingSync === true && reached.length) {
+                await route.fulfill({
+                    status: 422,
+                    contentType: 'application/json',
+                    body: JSON.stringify({
+                        message: `Shared fields would also change the ${reached
+                            .map((locale) => `"${locale}"`)
+                            .join(', ')} translation`,
+                        code: 'content.sibling_sync_unconfirmed',
+                        locales: reached,
+                        siblings: toSiblings(invalidated)
+                    })
+                });
                 return;
             }
-            const invalidated = siblings.map(({ locale, field }) => ({
-                locale,
-                issues: [{ field, message: 'is required' }]
-            }));
-            await route.fulfill({
-                status: 422,
-                contentType: 'application/json',
-                body: JSON.stringify({
-                    message: `Shared fields would invalidate the published ${siblings
-                        .map(({ locale }) => `"${locale}"`)
-                        .join(', ')} translation`,
-                    code: 'content.sibling_invalidated',
-                    siblings: invalidated,
-                    issues: invalidated.flatMap(({ issues }) => issues)
-                })
-            });
+            if (
+                body.askBeforeSiblingSync !== true &&
+                afterAsk.length &&
+                body.allowInvalidSiblings !== true
+            ) {
+                const siblings = toSiblings(afterAsk);
+                await route.fulfill({
+                    status: 422,
+                    contentType: 'application/json',
+                    body: JSON.stringify({
+                        message: `Shared fields would invalidate the published ${afterAsk
+                            .map(({ locale }) => `"${locale}"`)
+                            .join(', ')} translation`,
+                        code: 'content.sibling_invalidated',
+                        siblings,
+                        issues: siblings.flatMap(({ issues }) => issues)
+                    })
+                });
+                return;
+            }
+            await route.fallback();
         }
     );
     return bodies;

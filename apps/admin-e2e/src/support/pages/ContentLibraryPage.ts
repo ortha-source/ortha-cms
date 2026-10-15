@@ -1345,20 +1345,14 @@ export class ContentLibraryPage extends BasePage {
         await this.page.getByRole('option', { name: option }).click();
     }
 
-    /** The "this also changes the other locales" confirmation. */
-    get sharedSaveDialog(): Locator {
-        return this.page.getByRole('dialog', {
-            name: 'This also changes the other locales'
-        });
-    }
-
     /**
-     * The confirmation shown when the server refuses a save because it would
-     * leave a published translation failing validation.
+     * The one confirmation before a save that reaches other locales — titled
+     * either "This also changes …" (a plain sync) or "This leaves … incomplete"
+     * (a sync that breaks a published translation).
      */
-    get siblingInvalidationDialog(): Locator {
+    get siblingSyncDialog(): Locator {
         return this.page.getByRole('dialog', {
-            name: /leaves (a published locale|published locales) incomplete/
+            name: /^This also changes (another locale|\d+ other locales)$|leaves (a published locale|published locales) incomplete/
         });
     }
 

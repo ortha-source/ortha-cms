@@ -91,6 +91,12 @@ export type SaveEntryInput = {
      * the 422 naming those rows was shown and confirmed. Update only.
      */
     allowInvalidSiblings?: boolean;
+    /**
+     * Ask before the update reaches other locale siblings: the server refuses
+     * such a save with a 422 naming them, and writes nothing, so the editor can
+     * confirm once with the whole picture. Update only.
+     */
+    askBeforeSiblingSync?: boolean;
 };
 
 /**

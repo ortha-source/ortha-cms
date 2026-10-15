@@ -812,20 +812,27 @@ a third state with no column value spelling it made unavoidable.
   sentence** (`Not published: …`). A publish guard's 409 carries its only
   explanation in the body; without the toast the busy cover lifted and nothing
   on screen said the write had not happened.
-- **A save that reaches other locales confirms first, and one that would
-  break a published locale asks again.** The "This also changes the other
-  locales" confirmation covers a dirty shared field **and** a dirty relation the
-  server syncs (`relation.localeSync` `shared` or `mirrored`) — unlinking such a
-  relation unlinks it in every language. If the server then refuses the save
-  because a **published** sibling would fail validation (the 422 with
-  `code: "content.sibling_invalidated"`), `entryIssuesFrom` returns nothing for
-  it — those issues describe the siblings, and pinning them on this form marked
-  fields the author had filled as failing — and `invalidatedSiblingsFrom` hands
-  the editor the locales and fields for **`SiblingInvalidationDialog`**: which
-  published translations would be left incomplete, that they keep serving their
-  live version, and that they can't be published again until fixed. **Save
-  anyway** resends the same save with `allowInvalidSiblings`
-  (`SubmitEntryInput` → `SaveEntryInput` → the PATCH body, update only).
+- **A save that reaches other locales asks once, and the server decides
+  whether to.** A dirty shared field **or** a dirty relation the server syncs
+  (`relation.localeSync` `shared` or `mirrored` — unlinking such a relation
+  unlinks it in every language) sends the save with `askBeforeSiblingSync`
+  (`SubmitEntryInput` → `SaveEntryInput` → the PATCH body, update only). Only
+  the server knows the siblings, so it answers: a 422
+  `code: "content.sibling_sync_unconfirmed"` naming every live locale the save
+  would change and the published ones it would leave invalid, with nothing
+  written — or a plain save, when the record is alone in its group.
+  `siblingSyncRefusalFrom` turns that answer (and the older
+  `code: "content.sibling_invalidated"`, which a resend meets if a sibling broke
+  in between) into **`SiblingSyncDialog`**, one dialog with two variants: a
+  plain sync names the fields and the locales and offers **Save**; one that
+  leaves a published translation incomplete also says what each lacks, that it
+  keeps serving its live version and can't be published again until fixed, and
+  offers a destructive **Save anyway**. Confirming resends without asking, with
+  `allowInvalidSiblings` only when an invalidation was shown. `entryIssuesFrom`
+  returns nothing for either code — those issues describe the siblings, and
+  pinning them on this form marked fields the author had filled as failing.
+  It used to be two dialogs in a row: a client-side "This also changes the
+  other locales", then, after the server refused, the invalidation one.
 - **`EntryBusyOverlay`** covers the editor for the whole write — a blur +
   spinner + "Saving…"/"Publishing…", mirroring i18n's locale-switch flourish. Two
   differences from that one: **no delay** (nothing changes until the server
@@ -911,7 +918,7 @@ it. The two are the same object until a re-seed is refused, and then the prop is
 the record as the server now holds it while the seed is what this author started
 from. Against the prop, every field the _colleague_ touched reads as this
 author's edit: the "Changed" badges lit up across untouched fields, and the
-shared-field save confirmation ("this also changes the other locales") named
+shared-field save confirmation (now `SiblingSyncDialog`) named
 fields nobody here had typed in. `isDirty` still reads true after a refusal —
 the edit that caused the refusal is an edit against the seed too — which is what
 keeps the unsaved-changes guard armed, the half of `ORT-230` that matters most.

@@ -7,7 +7,6 @@ import {
     TabsContent,
     TabsList,
     TabsTrigger,
-    ConfirmDialog,
     cn,
     toast,
     TopBarTabs,
@@ -50,8 +49,8 @@ import { useEntryRelations } from '../../../../application/useEntryRelations';
 import { useEntryMedia } from '../../../../application/useEntryMedia';
 import {
     entryIssuesFrom,
-    invalidatedSiblingsFrom,
-    type InvalidatedSibling
+    siblingSyncRefusalFrom,
+    type SiblingSyncRefusal
 } from '../../../../infrastructure/entryIssues';
 import { fieldLabel } from '../../../../domain/entryColumns';
 import { entryTabForField } from '../../../../domain/entryTab';
@@ -66,8 +65,20 @@ import { EntryTabIssues } from './EntryTabIssues';
 import { HistoryTimeline } from './HistoryTimeline';
 import { ReadOnlyNotice } from './ReadOnlyNotice';
 import { SharedEntryNotice } from './SharedEntryNotice';
-import { SiblingInvalidationDialog } from './SiblingInvalidationDialog';
+import { SiblingSyncDialog } from './SiblingSyncDialog';
 import { RelationFieldSection } from './RelationFieldSection';
+
+/**
+ * How a save treats the locale siblings it may reach. `askFirst` sends it with
+ * `askBeforeSiblingSync`, so the server refuses — writing nothing — when
+ * another live locale would change; `allowInvalid` confirms a save that leaves
+ * a published sibling failing validation. Neither is a default: each answers a
+ * question this editor is the one to ask.
+ */
+type SiblingSyncMode = {
+    askFirst?: boolean;
+    allowInvalid?: boolean;
+};
 
 const messages = defineMessages({
     tabGeneral: {
@@ -95,20 +106,6 @@ const messages = defineMessages({
         id: 'content.editor.relationRequired',
         defaultMessage: 'Needs at least one link'
     },
-    sharedSaveTitle: {
-        id: 'content.editor.sharedSaveTitle',
-        defaultMessage: 'This also changes the other locales'
-    },
-    sharedSaveBody: {
-        id: 'content.editor.sharedSaveBody',
-        defaultMessage:
-            'You changed {count, plural, one {the shared field “{first}”} other {# shared fields, starting with “{first}”}}. Shared fields and synced relations aren’t translated — saving applies the change to every locale of this record, not just this one.'
-    },
-    sharedSaveConfirm: {
-        id: 'content.editor.sharedSaveConfirm',
-        defaultMessage: 'Save anyway'
-    },
-    cancel: { id: 'content.editor.cancel', defaultMessage: 'Cancel' },
     propertiesPanel: {
         id: 'content.sidebar.panelTitle',
         defaultMessage: 'Properties'
@@ -259,6 +256,8 @@ export function EntryEditor({
              * published locale sibling failing validation.
              */
             allowInvalidSiblings?: boolean;
+            /** Ask before the save reaches other locale siblings. */
+            askBeforeSiblingSync?: boolean;
             /**
              * Called the moment a write lands — before a chained publish that
              * may still be refused. The editor re-arms its form seeding here,
@@ -750,7 +749,7 @@ export function EntryEditor({
         (
             publish: boolean,
             options: EntryPublishOptions = {},
-            allowInvalidSiblings = false
+            sync: SiblingSyncMode = {}
         ) =>
         (values: Record<string, unknown>) => {
             const sent = relationDeltas;
@@ -761,7 +760,8 @@ export function EntryEditor({
                 ignoreFields: validationIgnored,
                 dirty: isDirty,
                 bypass: options.bypass,
-                allowInvalidSiblings,
+                allowInvalidSiblings: sync.allowInvalid === true,
+                askBeforeSiblingSync: sync.askFirst === true,
                 // Re-arm seeding the moment a write lands. The response is what
                 // the editor then shows, and it reaches the form as a **new
                 // seed** — `useSaveEntry` primes the read-one cache with it
@@ -792,13 +792,14 @@ export function EntryEditor({
                     // so the tab swaps the staging for the refetched server set
                     // instead of flashing the pre-save links in between.
                     if (landed) clearSentRelations(sent);
-                    // The save would leave a published translation failing
-                    // validation. Nothing was written; its issues are about
-                    // the other locales, not this form, so ask instead of
-                    // marking fields here — Save anyway resends it confirmed.
-                    const siblings = invalidatedSiblingsFrom(error);
-                    if (siblings) {
-                        setPendingSiblings({ publish, options, siblings });
+                    // The save would reach other locales — asked first — or
+                    // leave a published translation failing validation.
+                    // Nothing was written, and any issues are about the other
+                    // locales, not this form, so ask instead of marking fields
+                    // here; confirming resends the same save.
+                    const refusal = siblingSyncRefusalFrom(error);
+                    if (refusal) {
+                        setPendingSync({ publish, options, refusal });
                         return;
                     }
                     const issues = entryIssuesFrom(error);
@@ -914,7 +915,7 @@ export function EntryEditor({
     const runSave = (
         publish: boolean,
         options?: EntryPublishOptions,
-        allowInvalidSiblings = false
+        sync: SiblingSyncMode = {}
     ) => {
         // A reader without write permission has no Save button, but the form's
         // own `onSubmit` (Enter in a text field) is a second way in — so the
@@ -924,7 +925,7 @@ export function EntryEditor({
         // A **draft** of a publishable type can be saved incomplete (relaxed
         // gate); publishing — or any save of an always-live type — is strict.
         const strict = publish || !publishable;
-        const submit = submitWith(publish, options, allowInvalidSiblings);
+        const submit = submitWith(publish, options, sync);
         const submitted = strict
             ? form.submit(submit)
             : form.submitDraft(submit);
@@ -934,8 +935,10 @@ export function EntryEditor({
     // Shared (non-localized) fields are **synced across the translation group**
     // on save — the server copies them to every sibling row in the same
     // transaction. That is invisible from an editor scoped to one locale, so a
-    // save that carries such a change confirms first (#17). Only ever relevant
-    // on a type that *has* both kinds of field; a plain type has no siblings to
+    // save that carries such a change asks the server first (#17), and the
+    // person confirms only if it reports another live locale reached — a
+    // record alone in its group saves without a word. Only ever relevant on a
+    // type that *has* both kinds of field; a plain type has no siblings to
     // affect and never sees this.
     // Every field (General **and** Media) that's shared and dirty — a media
     // field syncs to siblings the same as a scalar, so it belongs here. A
@@ -955,19 +958,13 @@ export function EntryEditor({
     const needsSharedWarning =
         hasLocalizedFields && !isCreate && dirtySharedFields.length > 0;
 
-    // The save the shared-fields warning is holding, with whatever the publish
-    // carried — a bypass confirmed before the warning must survive it.
-    const [pendingPublish, setPendingPublish] = useState<{
+    // The save the server refused because it reaches other locales of the
+    // record, held for the person to confirm — with whatever the publish
+    // carried, so a bypass confirmed before it survives the resend.
+    const [pendingSync, setPendingSync] = useState<{
         publish: boolean;
         options?: EntryPublishOptions;
-    } | null>(null);
-
-    // The save the server refused because it would leave published locale
-    // siblings failing validation — held for the person to confirm.
-    const [pendingSiblings, setPendingSiblings] = useState<{
-        publish: boolean;
-        options?: EntryPublishOptions;
-        siblings: InvalidatedSibling[];
+        refusal: SiblingSyncRefusal;
     } | null>(null);
 
     // --- the expanded field ------------------------------------------------
@@ -1023,11 +1020,11 @@ export function EntryEditor({
 
     const save = (publish: boolean, options?: EntryPublishOptions) => {
         if (readOnly) return;
-        if (needsSharedWarning) {
-            setPendingPublish({ publish, options });
-            return;
-        }
-        runSave(publish, options);
+        // A save that carries a shared change asks the server first: only it
+        // knows whether another live locale is reached and what that does to a
+        // published one, and it answers with one refusal holding both, which
+        // is what the single confirmation below is built from.
+        runSave(publish, options, { askFirst: needsSharedWarning });
     };
 
     // Register with the app-wide guard, so *any* navigation away from a dirty
@@ -1490,50 +1487,29 @@ export function EntryEditor({
                             ) : null}
                         </div>
 
-                        <ConfirmDialog
-                            open={pendingPublish !== null}
-                            onOpenChange={(open) => {
-                                if (!open) setPendingPublish(null);
-                            }}
-                            title={intl.formatMessage(messages.sharedSaveTitle)}
-                            description={intl.formatMessage(
-                                messages.sharedSaveBody,
-                                {
-                                    count: dirtySharedFields.length,
-                                    first: dirtySharedFields[0]
-                                        ? fieldLabel(dirtySharedFields[0])
-                                        : ''
-                                }
-                            )}
-                            confirmLabel={intl.formatMessage(
-                                messages.sharedSaveConfirm
-                            )}
-                            cancelLabel={intl.formatMessage(messages.cancel)}
-                            onConfirm={() => {
-                                const pending = pendingPublish;
-                                setPendingPublish(null);
-                                if (pending)
-                                    runSave(pending.publish, pending.options);
-                            }}
-                        />
-                        <SiblingInvalidationDialog
-                            siblings={pendingSiblings?.siblings ?? null}
+                        <SiblingSyncDialog
+                            refusal={pendingSync?.refusal ?? null}
+                            sharedFields={dirtySharedFields.map(fieldLabel)}
                             labelFor={(name) => {
                                 const field = schema.fields.find(
                                     (candidate) => candidate.name === name
                                 );
                                 return field ? fieldLabel(field) : name;
                             }}
-                            onCancel={() => setPendingSiblings(null)}
+                            onCancel={() => setPendingSync(null)}
                             onConfirm={() => {
-                                const pending = pendingSiblings;
-                                setPendingSiblings(null);
+                                const pending = pendingSync;
+                                setPendingSync(null);
+                                // Resent without asking. The invalidation is
+                                // confirmed only if the person was shown one —
+                                // a sibling broken since then is refused again,
+                                // and lands back in this dialog naming it.
                                 if (pending)
-                                    runSave(
-                                        pending.publish,
-                                        pending.options,
-                                        true
-                                    );
+                                    runSave(pending.publish, pending.options, {
+                                        allowInvalid:
+                                            pending.refusal.invalidated.length >
+                                            0
+                                    });
                             }}
                         />
                     </form>
