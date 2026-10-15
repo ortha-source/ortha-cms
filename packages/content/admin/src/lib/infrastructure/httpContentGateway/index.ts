@@ -275,7 +275,8 @@ export const httpContentGateway: ContentGateway = {
             relations,
             extra,
             extensions,
-            allowInvalidSiblings
+            allowInvalidSiblings,
+            askBeforeSiblingSync
         }: SaveEntryInput
     ): Promise<EntryRecord> {
         const body = {
@@ -297,6 +298,9 @@ export const httpContentGateway: ContentGateway = {
                       // person agreed to the refusal it answers.
                       ...(allowInvalidSiblings
                           ? { allowInvalidSiblings: true }
+                          : {}),
+                      ...(askBeforeSiblingSync
+                          ? { askBeforeSiblingSync: true }
                           : {})
                   })
                 : await apiClient.post<EntryRecord>(`/content/${name}`, {

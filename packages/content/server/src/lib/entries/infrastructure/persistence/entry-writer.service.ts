@@ -936,6 +936,12 @@ export class EntryWriterService {
              * {@link EntryWriteContext.allowInvalidSiblings}.
              */
             allowInvalidSiblings?: boolean;
+            /**
+             * Refuse, rather than write, a save the bound extension would carry
+             * onto other live rows — forwarded to `afterUpdate` uninterpreted.
+             * See {@link EntryWriteContext.askBeforeSiblingSync}.
+             */
+            askBeforeSiblingSync?: boolean;
         }
     ): Promise<EntryRecord> {
         const actorId = revisionActorId(actor);
@@ -1070,7 +1076,8 @@ export class EntryWriterService {
                 workspaceId,
                 {
                     created: false,
-                    allowInvalidSiblings: options?.allowInvalidSiblings === true
+                    allowInvalidSiblings: options?.allowInvalidSiblings === true,
+                    askBeforeSiblingSync: options?.askBeforeSiblingSync === true
                 }
             );
             // Whatever a bound plugin was asked to store about this entry, on

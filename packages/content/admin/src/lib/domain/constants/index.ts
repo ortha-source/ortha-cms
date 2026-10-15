@@ -264,3 +264,12 @@ export const ENVELOPE_COLUMN = {
  * form, so the editor asks for confirmation instead of marking its own fields.
  */
 export const SIBLING_INVALIDATED_CODE = 'content.sibling_invalidated';
+
+/**
+ * The `code` on the 422 the server answers to an update sent with
+ * `askBeforeSiblingSync`, when the save would also change other live locale
+ * siblings (content-server's `SIBLING_SYNC_UNCONFIRMED_CODE`). Nothing was
+ * written: it names those siblings, and the published ones it would leave
+ * invalid, so the editor can ask once before resending.
+ */
+export const SIBLING_SYNC_UNCONFIRMED_CODE = 'content.sibling_sync_unconfirmed';

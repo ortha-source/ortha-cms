@@ -1,6 +1,9 @@
 import { ApiError } from '@orthacms/utils-admin';
 import type { EntryValidationIssue } from '../../domain/types/contentType';
-import { SIBLING_INVALIDATED_CODE } from '../../domain/constants';
+import {
+    SIBLING_INVALIDATED_CODE,
+    SIBLING_SYNC_UNCONFIRMED_CODE
+} from '../../domain/constants';
 
 /** One published locale sibling a save would leave failing validation. */
 export type InvalidatedSibling = {
@@ -39,23 +42,31 @@ function codeOf(error: ApiError): unknown {
  */
 export function entryIssuesFrom(error: unknown): EntryValidationIssue[] {
     if (!(error instanceof ApiError) || error.status !== 422) return [];
-    if (codeOf(error) === SIBLING_INVALIDATED_CODE) return [];
+    const code = codeOf(error);
+    if (code === SIBLING_INVALIDATED_CODE) return [];
+    if (code === SIBLING_SYNC_UNCONFIRMED_CODE) return [];
     return toIssues((error.details as { issues?: unknown })?.issues);
 }
 
 /**
- * The published locale siblings a refused save would have left failing
- * validation — `undefined` unless the error is exactly that refusal, which the
- * editor answers with a confirmation rather than with field errors.
+ * What a save refused for reaching other locale siblings would have done —
+ * the answer to {@link siblingSyncRefusalFrom}.
  */
-export function invalidatedSiblingsFrom(
-    error: unknown
-): InvalidatedSibling[] | undefined {
-    if (!(error instanceof ApiError) || error.status !== 422) return undefined;
-    if (codeOf(error) !== SIBLING_INVALIDATED_CODE) return undefined;
-    const siblings = (error.details as { siblings?: unknown })?.siblings;
-    if (!Array.isArray(siblings)) return [];
-    return siblings
+export type SiblingSyncRefusal = {
+    /**
+     * Every **live** sibling the save would change, by locale slug. Empty when
+     * the server only reported invalidations (the refusal to a save sent
+     * without asking first), where the invalidated ones are all it named.
+     */
+    reached: string[];
+    /** The **published** siblings it would leave failing validation. */
+    invalidated: InvalidatedSibling[];
+};
+
+/** Keep only well-formed `{ locale, issues }` entries. */
+function toSiblings(value: unknown): InvalidatedSibling[] {
+    if (!Array.isArray(value)) return [];
+    return value
         .filter(
             (sibling): sibling is { locale: string; issues?: unknown } =>
                 typeof sibling === 'object' &&
@@ -66,4 +77,42 @@ export function invalidatedSiblingsFrom(
             locale: sibling.locale,
             issues: toIssues(sibling.issues)
         }));
+}
+
+/**
+ * The siblings a refused save would have reached — `undefined` unless the
+ * error is one of the two refusals the editor answers with a confirmation
+ * rather than with field errors:
+ *
+ * - **asked first** (`askBeforeSiblingSync`): the save would change other
+ *   live locales — named in `reached` — and possibly leave published ones
+ *   invalid. Nothing was written.
+ * - **invalidation**: a save sent without asking would leave published
+ *   siblings failing validation. Only those are named, so `reached` is empty.
+ *   The editor sees this one when a sibling changed between asking and
+ *   confirming, which is why the same dialog has to answer both.
+ */
+export function siblingSyncRefusalFrom(
+    error: unknown
+): SiblingSyncRefusal | undefined {
+    if (!(error instanceof ApiError) || error.status !== 422) return undefined;
+    const code = codeOf(error);
+    const details = error.details as
+        | { siblings?: unknown; locales?: unknown }
+        | undefined;
+    if (code === SIBLING_SYNC_UNCONFIRMED_CODE) {
+        const locales = details?.locales;
+        return {
+            reached: Array.isArray(locales)
+                ? locales.filter(
+                      (locale): locale is string => typeof locale === 'string'
+                  )
+                : [],
+            invalidated: toSiblings(details?.siblings)
+        };
+    }
+    if (code === SIBLING_INVALIDATED_CODE) {
+        return { reached: [], invalidated: toSiblings(details?.siblings) };
+    }
+    return undefined;
 }

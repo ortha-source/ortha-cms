@@ -75,6 +75,17 @@ export interface EntryWriteContext {
      * person — every other writer keeps the refusal.
      */
     allowInvalidSiblings?: boolean;
+    /**
+     * Ask before rewriting any other **live** row. With it, an extension that
+     * would carry this save onto another row (a locale sibling, through a
+     * shared field or a synced relation) refuses it with a 422 carrying
+     * {@link SIBLING_SYNC_UNCONFIRMED_CODE} instead — and since the refusal
+     * rolls the write back, the save doubles as a dry run of its own fan-out.
+     * Only the admin's update route sets it, so the editor can ask once, with
+     * everything the save would do in front of the person, rather than
+     * confirming the sync and then, after the server refuses, the damage.
+     */
+    askBeforeSiblingSync?: boolean;
 }
 
 /**
@@ -88,6 +99,19 @@ export interface EntryWriteContext {
  * client may retry with `allowInvalidSiblings` once a person has agreed.
  */
 export const SIBLING_INVALIDATED_CODE = 'content.sibling_invalidated';
+
+/**
+ * The `code` on a 422 an extension raises, when the caller asked first
+ * ({@link EntryWriteContext.askBeforeSiblingSync}), because a save would also
+ * rewrite other live rows.
+ *
+ * The body carries `locales` — every live sibling the save would change — and
+ * `siblings: [{ locale, issues }]`, the subset of **published** ones it would
+ * leave failing validation (empty when none would). Nothing was written. The
+ * client retries without the flag once a person has agreed, adding
+ * `allowInvalidSiblings` when `siblings` was not empty.
+ */
+export const SIBLING_SYNC_UNCONFIRMED_CODE = 'content.sibling_sync_unconfirmed';
 
 /**
  * What a write of one entry would **also** rewrite, beyond the row addressed.

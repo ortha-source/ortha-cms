@@ -105,7 +105,12 @@ The extension owns all locale _behavior_:
   `EntryWriteContext.allowInvalidSiblings`) goes through, each such sibling
   left Modified — its live version still served, its working copy needing the
   gap filled before it can be published again. Only the admin's update route
-  sets the flag, and only after a person confirmed. The demotion is what keeps
+  sets the flag, and only after a person confirmed. Sent with
+  `askBeforeSiblingSync` instead, the save is refused whenever it rewrites any
+  **live** sibling — `code: "content.sibling_sync_unconfirmed"`, `locales`
+  (each live sibling it changes; a trashed one is rewritten but not named) and
+  `siblings` (the invalidations, possibly empty) — checked before the
+  invalidation refusal, so the editor asks one question holding both. The demotion is what keeps
   a shared field's publish state consistent across the group: leaving siblings `published` made the same edit
   live in the untouched locales while still pending in the edited one, and left
   each sibling's freshly-appended **draft** version describing a row that

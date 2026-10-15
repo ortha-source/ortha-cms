@@ -168,4 +168,19 @@ export class SaveEntryDto {
     @IsOptional()
     @IsBoolean()
     allowInvalidSiblings?: boolean;
+
+    /**
+     * Refuse the save, instead of writing it, if it would also rewrite another
+     * live row (a locale sibling). The 422 names every such sibling and the
+     * published ones it would leave invalid, so the editor asks once with the
+     * whole picture, then resends without this flag. Read on update only.
+     */
+    @ApiPropertyOptional({
+        type: Boolean,
+        description:
+            'Ask first: if the save would also rewrite another live row (a locale sibling, through a shared field or a synced relation), refuse it with a 422 `code: "content.sibling_sync_unconfirmed"` carrying `locales` (every live sibling it would change) and `siblings` (the published ones it would leave failing validation), and write nothing. Resend without it — plus `allowInvalidSiblings` when `siblings` is not empty — once a person has agreed. Read on update only.'
+    })
+    @IsOptional()
+    @IsBoolean()
+    askBeforeSiblingSync?: boolean;
 }

@@ -15,7 +15,12 @@ import {
     mockRelationFieldLinks,
     spyEntrySave
 } from '../support/api/content';
-import { I18N_WORKSPACE, mockI18n, spyEntryWrites } from '../support/api/i18n';
+import {
+    I18N_WORKSPACE,
+    mockI18n,
+    mockSiblingSync,
+    spyEntryWrites
+} from '../support/api/i18n';
 import { UNPROTECTED, mockEntryReview } from '../support/api/protection';
 
 /**
@@ -110,15 +115,17 @@ test.describe('A bypass on a localized record with shared-field edits', () => {
 
     /**
      * Two dialogs stand between the click and the publish here: the bypass
-     * confirmation, then the warning that a shared field changes every locale.
-     * The bypass is confirmed in the first and has to reach the publish after
-     * the second — dropping it there would send a publish the guard refuses.
+     * confirmation, then the question the server asks back because a shared
+     * field reaches another locale. The bypass is confirmed in the first and
+     * has to reach the publish after the second — dropping it there would send
+     * a publish the guard refuses.
      */
     test('carries the bypass through the shared-fields warning [protection:I-20]', async ({
         page,
         contentLibraryPage
     }) => {
         const writes = spyEntryWrites(page);
+        await mockSiblingSync(page, 'lp-en-1', { reached: ['de'] });
         await contentLibraryPage.goto(I18N_WORKSPACE.id);
         await contentLibraryPage.typeLink('Localized posts').click();
         await contentLibraryPage.recordLink('Winter boots').click();
@@ -132,15 +139,15 @@ test.describe('A bypass on a localized record with shared-field edits', () => {
         const bypass = page.getByRole('dialog');
         await bypass.getByRole('button', { name: /publish anyway/i }).click();
 
-        await expect(
-            page.getByText('This also changes the other locales')
-        ).toBeVisible();
-        await page.getByRole('button', { name: 'Save anyway' }).click();
+        await expect(contentLibraryPage.siblingSyncDialog).toBeVisible();
+        await contentLibraryPage.dialogButton('Save').click();
 
+        // The asking PATCH (refused, nothing written), the confirmed one, then
+        // the publish — still carrying the bypass.
         await expect
             .poll(() => writes.map((write) => write.method))
-            .toEqual(['PATCH', 'POST']);
-        expect(writes[1].path).toMatch(/\/publish$/);
-        expect(writes[1].body).toEqual({ bypass: true });
+            .toEqual(['PATCH', 'PATCH', 'POST']);
+        expect(writes[2].path).toMatch(/\/publish$/);
+        expect(writes[2].body).toEqual({ bypass: true });
     });
 });

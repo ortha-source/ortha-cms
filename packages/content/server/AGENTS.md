@@ -302,7 +302,7 @@ own `localeGroupId`, not the request's — since that is the set the write
 actually contends on.
 
 `afterUpdate` receives an **`EntryWriteContext`**
-(`{ created, allowInvalidSiblings? }`) because the two writes are not
+(`{ created, allowInvalidSiblings?, askBeforeSiblingSync? }`) because the two writes are not
 symmetric. On an **update** the edited row is the authority and its
 state propagates outward. On a **create** it is the opposite: a translation
 arrives carrying the source's shared values but **none of its relations** (they
@@ -322,6 +322,17 @@ validation with a 422 carrying `code: SIBLING_INVALIDATED_CODE`
 save once a person has read that and agreed; `update` forwards it to the
 context uninterpreted. Every other writer — the public API, the copilot, a
 restore — never sets it and keeps the refusal.
+
+**`askBeforeSiblingSync` turns the save into its own dry run.** With it, an
+extension that would carry the save onto any other **live** row refuses it with
+a 422 carrying `code: SIBLING_SYNC_UNCONFIRMED_CODE`
+(`content.sibling_sync_unconfirmed`), `locales` (every live sibling reached) and
+`siblings` (the published ones it would invalidate, possibly empty). The
+refusal rolls the transaction back, so it is computed by the very code that
+would have written the change. It exists so the admin can ask **once**, with
+the whole consequence on screen; the editor then resends without the flag, plus
+`allowInvalidSiblings` when `siblings` was not empty. Like that flag it is read
+on update only and set only by the admin's update route.
 
 The `?locale=` / `?localeFallback=`
 query params and the create body

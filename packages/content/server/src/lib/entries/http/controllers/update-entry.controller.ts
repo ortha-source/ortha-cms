@@ -59,7 +59,8 @@ export class UpdateEntryController {
             toActor(user),
             {
                 extensions: body.extensions,
-                allowInvalidSiblings: body.allowInvalidSiblings
+                allowInvalidSiblings: body.allowInvalidSiblings,
+                askBeforeSiblingSync: body.askBeforeSiblingSync
             }
         );
     }

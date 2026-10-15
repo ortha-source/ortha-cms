@@ -46,7 +46,8 @@ import {
 import {
     CONTENT_FIELD_TYPE,
     ENTRY_STATUS,
-    SIBLING_INVALIDATED_CODE
+    SIBLING_INVALIDATED_CODE,
+    SIBLING_SYNC_UNCONFIRMED_CODE
 } from '@orthacms/content-server';
 import { LOCALE_FALLBACK_DEFAULT } from '../../i18n.constants';
 import { LocaleRegistryService } from '../../locales/services/locale-registry.service';
@@ -298,7 +299,9 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
         }
         return this.propagateToSiblings(tx, type, row, values, workspaceId, {
             relations: !context.created,
-            allowInvalidSiblings: context.allowInvalidSiblings === true
+            allowInvalidSiblings: context.allowInvalidSiblings === true,
+            askBeforeSync:
+                !context.created && context.askBeforeSiblingSync === true
         });
     }
 
@@ -407,7 +410,11 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
         row: Record<string, unknown>,
         values: Record<string, unknown>,
         workspaceId: string,
-        options: { relations: boolean; allowInvalidSiblings?: boolean }
+        options: {
+            relations: boolean;
+            allowInvalidSiblings?: boolean;
+            askBeforeSync?: boolean;
+        }
     ): Promise<Record<string, unknown>[]> {
         const table = type.table as unknown as ContentTable;
         // Only the columns this save actually carries. A field the caller
@@ -501,6 +508,11 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
             : new Map<string, Set<string>>();
 
         const rewritten: Record<string, unknown>[] = [];
+        // The live siblings this save reaches, for the ask-first refusal
+        // below. A trashed one is rewritten too (so a restore comes back
+        // consistent) but is not named: the person cannot see it, and a
+        // confirmation about rows nobody can find teaches people to skip it.
+        const reachedLocales: string[] = [];
         const invalidated: {
             locale: string;
             issues: ValidationIssue[];
@@ -590,6 +602,7 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
                 .where(where)
                 .returning()) as Record<string, unknown>[];
             if (!updated) continue; // nothing differed after all
+            if (sibling['deletedAt'] == null) reachedLocales.push(locale);
 
             // A sibling that **was** published must stay valid once the synced
             // state lands — re-validate it, and abort the whole save unless the
@@ -625,6 +638,24 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
         // such sibling is already demoted to Modified above, so its live
         // version keeps being served and the gap is only in its working copy,
         // which the person was shown before agreeing to it.
+        // Asked first: name everything the save would do — every live sibling
+        // it changes, and the published ones it would leave invalid — and
+        // write none of it. Throwing rolls the transaction back, so the
+        // refusal is the dry run, computed by the very code that would have
+        // written it. Checked before the invalidation refusal, which is the
+        // narrower half of the same answer.
+        if (options.askBeforeSync && reachedLocales.length) {
+            throw new UnprocessableEntityException({
+                message:
+                    `Shared fields would also change the ` +
+                    reachedLocales.map((locale) => `"${locale}"`).join(', ') +
+                    ` translation${reachedLocales.length > 1 ? 's' : ''}`,
+                code: SIBLING_SYNC_UNCONFIRMED_CODE,
+                locales: reachedLocales,
+                siblings: invalidated
+            });
+        }
+
         if (invalidated.length && !options.allowInvalidSiblings) {
             throw new UnprocessableEntityException({
                 message:

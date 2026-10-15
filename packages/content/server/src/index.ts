@@ -87,7 +87,8 @@ export {
 
 export {
     CONTENT_ENTRY_EXTENSION,
-    SIBLING_INVALIDATED_CODE
+    SIBLING_INVALIDATED_CODE,
+    SIBLING_SYNC_UNCONFIRMED_CODE
 } from './lib/extension/entry-extension';
 export type {
     ContentEntryExtension,
