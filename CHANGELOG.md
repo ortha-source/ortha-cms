@@ -1,3 +1,14 @@
+## 0.10.3 (2026-10-15)
+
+### 🚀 Features
+
+- **i18n:** one confirmation when a save reaches other locales ([#331](https://github.com/ortha-source/ortha-cms/pull/331))
+
+### ❤️ Thank You
+
+- Claude Opus 5.5
+- Pavel Makhanko @pmknk
+
 ## 0.10.2 (2026-10-13)
 
 ### 🩹 Fixes

@@ -1,6 +1,6 @@
 {
     "name": "create-orthacms-app",
-    "version": "0.10.2",
+    "version": "0.10.3",
     "license": "MIT",
     "description": "Create an Ortha CMS app: npx create-orthacms-app my-cms",
     "bin": {
