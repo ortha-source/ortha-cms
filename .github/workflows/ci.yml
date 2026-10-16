@@ -74,6 +74,40 @@ jobs:
             # itself and publishes the connection string, so no .env is needed.
             - run: npx nx e2e server-e2e
 
+    dev-seed:
+        name: dev seed
+        runs-on: ubuntu-latest
+        # The dev seed writes through the services, so a renamed field, a new
+        # required option or a changed use case breaks it — and nobody notices
+        # until the next person runs `dev:reset` and is stuck. This runs it from
+        # an empty database on every PR, which is the only way a seed stays alive.
+        timeout-minutes: 20
+        services:
+            postgres:
+                image: postgres:16-alpine
+                env:
+                    POSTGRES_USER: orthacms
+                    POSTGRES_PASSWORD: orthacms
+                    POSTGRES_DB: orthacms
+                ports: ['5432:5432']
+                options: >-
+                    --health-cmd "pg_isready -U orthacms"
+                    --health-interval 5s
+                    --health-timeout 5s
+                    --health-retries 10
+        env:
+            DATABASE_URL: postgresql://orthacms:orthacms@localhost:5432/orthacms
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  cache: npm
+            # The lock file is written by npm 11 — see `check`.
+            - run: npm i -g npm@11
+            - run: npm ci
+            - run: npx nx run server:dev:reset
+
     admin-e2e:
         name: admin-e2e
         runs-on: ubuntu-latest

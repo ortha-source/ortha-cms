@@ -42,12 +42,20 @@ cp .env.example .env
 # 3. Start Postgres
 docker compose up -d
 
-# 4. Apply database migrations (every plugin's pending migrations)
-npx nx run server:db:migrate
+# 4. Create the database: migrate it and fill it with the dev seed
+npx nx run server:dev:reset
 
 # 5. Run the whole stack — API, admin and both watchers — in one terminal
 npm run dev
 ```
+
+`dev:reset` drops and recreates the database `DATABASE_URL` names, applies every
+plugin's migrations and seeds it: accounts for every role and state (password
+`ortha-dev-password`), five workspaces, content for every type, and data for
+every plugin. It writes the invite links and API tokens it created to
+`apps/server/dev/seed/.output.md`. Run it again whenever you want a clean slate;
+`npx nx run server:db:migrate` alone still migrates without touching the data.
+See [`apps/server/AGENTS.md`](apps/server/AGENTS.md#the-dev-seed).
 
 `npx nx serve server` / `npx nx serve admin` still run either half on its own.
 The admin is on <http://localhost:4200>.

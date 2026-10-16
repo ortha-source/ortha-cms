@@ -5,57 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1784483673949,
-      "tag": "0000_content-types",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1784544932238,
-      "tag": "0001_relation_fk_indexes",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1784620622277,
-      "tag": "0002_content_entry_revisions",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1784928836231,
-      "tag": "0003_media_fields",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1786366943865,
-      "tag": "0004_one_to_one_unique_per_locale",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1787127115266,
-      "tag": "0005_richtext_structured_documents",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1791120434844,
-      "tag": "0006_add_microsteps",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1791120750417,
-      "tag": "0007_add_microsteps_body",
+      "when": 1792153438664,
+      "tag": "0000_baseline",
       "breakpoints": true
     }
   ]

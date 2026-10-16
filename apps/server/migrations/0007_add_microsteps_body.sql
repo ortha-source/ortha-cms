@@ -1,1 +1,0 @@
-ALTER TABLE "content_microsteps" ADD COLUMN "body" jsonb;
