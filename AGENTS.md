@@ -155,6 +155,12 @@ package; the admin app's Vite transpiles the design-system source directly.
     - `npx nx run server:db:studio` — open Drizzle Studio on the host database
       (introspects the live DB; needs `DATABASE_URL`). Also inferred on the
       host. Optional `--host` / `--port` to change where Studio binds.
+    - **`npx nx run server:dev:reset`** — drop and recreate the dev database,
+      migrate it and run the dev seed (`server:dev:seed`). `--restore-model`
+      also puts `apps/server/src/content` and `migrations` back to what git has,
+      after a schema-builder experiment. Refuses `NODE_ENV=production` and a
+      non-local `DATABASE_URL`. The `dev-seed` CI job runs it from empty on every
+      PR. See [`apps/server/AGENTS.md`](apps/server/AGENTS.md#the-dev-seed)
     - `npx nx run server:content:sync` — rewrite the host's generated content
       manifest (`src/content/index.ts`) after adding, renaming or removing a
       type file; `orthacms content sync` is the same command in a generated

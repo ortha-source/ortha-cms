@@ -61,3 +61,7 @@ packages/create-orthacms-app/.rendered-*
 # The schema builder's scratch space (plans and applies stage their files here,
 # never under src/). Removed after every operation; ignored in case one dies.
 .orthacms/
+
+# The dev seed: its build, and the secrets it prints (apps/server/dev/seed).
+dist-seed
+apps/server/dev/seed/.output.md

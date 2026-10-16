@@ -1,0 +1,6 @@
+# Changes here need a deliberate review. The dev content model is a
+# vocabulary every developer works in (apps/server/AGENTS.md), and the
+# schema builder writes into it, so an experiment lands in a diff by default.
+/apps/server/src/content/ @pmknk
+/apps/server/migrations/ @pmknk
+/apps/server/dev/ @pmknk

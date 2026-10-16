@@ -114,6 +114,32 @@
                     "command": "node --watch --enable-source-maps apps/server/dist/main.js"
                 }
             },
+            "dev:seed:build": {
+                "executor": "nx:run-commands",
+                "options": {
+                    "command": "webpack-cli build --config webpack.seed.config.js",
+                    "args": [
+                        "--node-env=development"
+                    ],
+                    "cwd": "apps/server"
+                }
+            },
+            "dev:seed": {
+                "executor": "nx:run-commands",
+                "dependsOn": [
+                    "dev:seed:build"
+                ],
+                "options": {
+                    "command": "node --enable-source-maps apps/server/dist-seed/main.js"
+                }
+            },
+            "dev:reset": {
+                "executor": "nx:run-commands",
+                "options": {
+                    "command": "node apps/server/dev/reset.mjs",
+                    "forwardAllArgs": true
+                }
+            },
             "test": {
                 "options": {
                     "passWithNoTests": true
@@ -158,6 +184,7 @@
         "tslib": "^2.3.0"
     },
     "devDependencies": {
-        "@nestjs/testing": "^11.0.0"
+        "@nestjs/testing": "^11.0.0",
+        "sharp": "^0.33.5"
     }
 }
