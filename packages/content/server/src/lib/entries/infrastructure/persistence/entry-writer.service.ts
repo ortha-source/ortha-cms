@@ -654,6 +654,15 @@ export class EntryWriterService {
                         workspaceId,
                         { created: true }
                     );
+                    // …and the rows of other types that refer to this one —
+                    // e.g. a record whose mirrored link into this row's group
+                    // had nothing to point at in this locale until now.
+                    const referrers = await this.extension?.syncReferrers?.(
+                        tx,
+                        type,
+                        inserted as Row,
+                        workspaceId
+                    );
                     // Anything a bound plugin was asked to store about this
                     // entry — the row exists now, so it finally has something to
                     // hang off, and it lands before the snapshot below reads it
@@ -700,6 +709,15 @@ export class EntryWriterService {
                         actorId ?? null,
                         alsoChanged
                     );
+                    for (const rewrite of referrers ?? []) {
+                        await this.appendRevisionsFor(
+                            tx,
+                            rewrite.type,
+                            rewrite.rows,
+                            workspaceId,
+                            actorId ?? null
+                        );
+                    }
                     // Inside the transaction, so the fact and the row it
                     // describes commit together or not at all — the whole point
                     // of the outbox.
@@ -1076,7 +1094,8 @@ export class EntryWriterService {
                 workspaceId,
                 {
                     created: false,
-                    allowInvalidSiblings: options?.allowInvalidSiblings === true,
+                    allowInvalidSiblings:
+                        options?.allowInvalidSiblings === true,
                     askBeforeSiblingSync: options?.askBeforeSiblingSync === true
                 }
             );

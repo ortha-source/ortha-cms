@@ -94,6 +94,7 @@ export type {
     ContentEntryExtension,
     EntryFilterContext,
     EntryFilterExtension,
+    EntryReferrerRewrite,
     EntryScopeParams,
     EntryTransaction,
     EntryWriteContext,

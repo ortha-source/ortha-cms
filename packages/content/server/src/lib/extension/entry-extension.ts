@@ -146,6 +146,16 @@ export interface EntryWriteFanout {
     locales: readonly string[];
 }
 
+/**
+ * Rows of **another** content type an extension rewrote as a side-effect of a
+ * create — what {@link ContentEntryExtension.syncReferrers} hands back, grouped
+ * by type so the pipeline can version each row against its own schema.
+ */
+export interface EntryReferrerRewrite {
+    type: AnyContentType;
+    rows: Record<string, unknown>[];
+}
+
 /** Context handed to {@link EntryFilterExtension.resolve} with each rule. */
 export interface EntryFilterContext {
     /** The content type the list request targets. */
@@ -276,6 +286,29 @@ export interface ContentEntryExtension {
         workspaceId: string,
         context: EntryWriteContext
     ): Promise<Record<string, unknown>[] | void>;
+
+    /**
+     * Runs inside the **create** transaction, after {@link afterUpdate} — the
+     * seam for bringing rows of **other** content types up to date with the new
+     * row's arrival. {@link afterUpdate} only ever reaches rows of the type
+     * being saved; this is its counterpart for the rows that *refer to* it.
+     *
+     * The i18n extension uses it for the half of the relation sync that runs
+     * from the target's side: a mirrored link into a record with no
+     * translation in some locale is left unset there, and the translation
+     * appearing later is a create of the **target** type — so without this
+     * the gap stayed until someone happened to re-save the record linking it.
+     *
+     * Returns the rewritten rows grouped by their type; the pipeline appends a
+     * revision for each, exactly as for {@link afterUpdate}'s rows. Optional:
+     * an extension with nothing to say about other types omits it.
+     */
+    syncReferrers?(
+        tx: EntryTransaction,
+        type: AnyContentType,
+        row: Record<string, unknown>,
+        workspaceId: string
+    ): Promise<EntryReferrerRewrite[]>;
 
     /**
      * What a write of `values` onto `entryId` would rewrite **besides that

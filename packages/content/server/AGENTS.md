@@ -273,8 +273,11 @@ validate a group id against the DB), `beforeWrite` (**optional**; the first
 statement in the write transaction), `afterUpdate` (in-tx side-effects after a
 save — runs on **both create and update**, e.g. syncing shared fields and
 relation links to locale siblings; must no-op when nothing applies),
-`describeFanout` (**optional**; the read-only counterpart of `afterUpdate` —
-see below).
+`syncReferrers` (**optional**; create only, after `afterUpdate` — rows of
+**other** types the new row's arrival changes, returned grouped by type so the
+writer appends each a revision against its own schema; i18n fills mirrored
+links that were waiting for this translation), `describeFanout` (**optional**;
+the read-only counterpart of `afterUpdate` — see below).
 
 **`describeFanout` answers "what else would this write touch", before it is
 written.** The pipeline never calls it: a save just saves. It exists for callers

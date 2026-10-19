@@ -21,6 +21,7 @@ import {
 import { InjectDatabase, UnitOfWork, type Database } from '@orthacms/database';
 import {
     EntryValidationService,
+    InjectContentRegistry,
     RelationLinkService,
     RELATION_LOCALE_SYNC,
     isJoinBackedRelation,
@@ -29,8 +30,10 @@ import {
     toRecord,
     type AnyContentType,
     type ContentEntryExtension,
+    type ContentTypeRegistry,
     type EntryFilterContext,
     type EntryFilterExtension,
+    type EntryReferrerRewrite,
     type EntryScopeParams,
     type EntryTransaction,
     type EntryWriteContext,
@@ -134,7 +137,10 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
         // and a second implementation here is how the join table's ordering
         // and de-duplication rules would drift.
         private readonly relations: RelationLinkService,
-        private readonly uow: UnitOfWork
+        private readonly uow: UnitOfWork,
+        // Read by `syncReferrers` only: which other types hold a mirrored
+        // relation into the one being created.
+        @InjectContentRegistry() private readonly registry: ContentTypeRegistry
     ) {}
 
     /** @inheritdoc */
@@ -303,6 +309,66 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
             askBeforeSync:
                 !context.created && context.askBeforeSiblingSync === true
         });
+    }
+
+    /**
+     * @inheritdoc
+     *
+     * The half of the mirrored-relation sync that runs from the **target's**
+     * side. A mirrored link into a record with no translation in some locale
+     * is left unset there (I-18), and when that translation is created later
+     * it is a create of *this* type — so {@link afterUpdate}, which only
+     * reaches rows of the type being saved, never looks at the records
+     * pointing in. Here every record whose mirrored link reaches this row's
+     * translation group is given the new row in its sibling of the same
+     * locale, as that record's next save would have done.
+     *
+     * Only gaps are filled. A single FK that already holds a value is left as
+     * it is; a link set is rebuilt from the record's donor sibling through
+     * {@link siblingLinks}, which keeps whatever the sibling already rightly
+     * links.
+     */
+    async syncReferrers(
+        tx: EntryTransaction,
+        type: AnyContentType,
+        row: Record<string, unknown>,
+        workspaceId: string
+    ): Promise<EntryReferrerRewrite[]> {
+        if (!type.i18n) return [];
+        // Schema first, which is free: a localized type nothing mirrors into
+        // — most of them — reads nothing at all.
+        const referrers = this.mirroredReferrersOf(type);
+        if (!referrers.length) return [];
+
+        const table = type.table as unknown as ContentTable;
+        // The new row's translations: the rows a record could already be
+        // linking. Trashed ones included — a link to a translation in the bin
+        // still names the record (I-33).
+        const translations = (await tx
+            .select({ id: sql<string>`${table['id']}` })
+            .from(type.table)
+            .where(
+                and(
+                    eq(table['localeGroupId'], row['localeGroupId'] as string),
+                    ne(table['id'], row['id'] as string),
+                    eq(table['workspaceId'], workspaceId)
+                )
+            )) as { id: string }[];
+        if (!translations.length) return []; // a fresh group: nothing links it
+
+        const rewrites: EntryReferrerRewrite[] = [];
+        for (const { owner, fields } of referrers) {
+            const rows = await this.backfillReferrer(
+                tx,
+                owner,
+                fields,
+                translations.map((translation) => translation.id),
+                row,
+                workspaceId
+            );
+            if (rows.length) rewrites.push({ type: owner, rows });
+        }
+        return rewrites;
     }
 
     /** @inheritdoc */
@@ -714,14 +780,8 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
                     ...(type.paranoid ? [isNull(table['deletedAt'])] : [])
                 )
             )) as Record<string, unknown>[];
-        if (!donors.length) return; // a fresh group: nothing to inherit
-
-        const fallback = this.locales.default().slug;
-        const donor =
-            donors.find((candidate) => candidate['locale'] === fallback) ??
-            [...donors].sort((a, b) =>
-                (a['locale'] as string).localeCompare(b['locale'] as string)
-            )[0];
+        const donor = this.pickDonor(donors);
+        if (!donor) return; // a fresh group: nothing to inherit
 
         // Reuse the outward machinery with the roles swapped: the donor is the
         // source, and this new row is the only "sibling" being written to.
@@ -764,6 +824,208 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
         // Keep the caller's row object in step with what was just stored (see
         // the note above about the first revision).
         if (updated) Object.assign(row, updated);
+    }
+
+    /**
+     * Every localized type holding a **mirrored** relation into `target`, with
+     * the names of those fields — the records whose links resolve through
+     * `target`'s translation groups.
+     */
+    private mirroredReferrersOf(
+        target: AnyContentType
+    ): { owner: AnyContentType; fields: string[] }[] {
+        return this.registry.all().flatMap((owner) => {
+            const fields = Object.entries(owner.fields)
+                .filter(
+                    ([, spec]) =>
+                        relationLocaleSync(owner, spec) ===
+                            RELATION_LOCALE_SYNC.Mirrored &&
+                        spec.relation?.to().name === target.name
+                )
+                .map(([name]) => name);
+            return fields.length ? [{ owner, fields }] : [];
+        });
+    }
+
+    /**
+     * {@link syncReferrers} for one referring type: fill the new row into the
+     * `owner` records whose mirrored `fields` link one of `translationIds`,
+     * in their sibling of the new row's locale. Returns the rows rewritten.
+     *
+     * Each such record's translation group is locked the way a save of it
+     * would lock it ({@link lockLocaleGroup}, in sorted order), so this cannot
+     * interleave with a concurrent save of the record — the rows are read
+     * again under that lock, and only then compared and written.
+     */
+    private async backfillReferrer(
+        tx: EntryTransaction,
+        owner: AnyContentType,
+        fields: string[],
+        translationIds: string[],
+        row: Record<string, unknown>,
+        workspaceId: string
+    ): Promise<Record<string, unknown>[]> {
+        const table = owner.table as unknown as ContentTable;
+        const locale = row['locale'] as string;
+
+        // Per join-backed field, the records linking a translation. A single
+        // FK needs no such set: the rows read below carry their own value.
+        const linkers = new Map<string, Set<string>>();
+        const linking = new Set<string>();
+        for (const name of fields) {
+            const ids = isJoinBackedRelation(owner.fields[name])
+                ? await this.relations.sourceIdsLinking(
+                      tx,
+                      owner,
+                      name,
+                      translationIds
+                  )
+                : (
+                      (await tx
+                          .select({ id: sql<string>`${table['id']}` })
+                          .from(owner.table)
+                          .where(
+                              and(
+                                  inArray(table[name], translationIds),
+                                  eq(table['workspaceId'], workspaceId)
+                              )
+                          )) as { id: string }[]
+                  ).map((linker) => linker.id);
+            linkers.set(name, new Set(ids));
+            for (const id of ids) linking.add(id);
+        }
+        if (!linking.size) return [];
+
+        const groups = (
+            (await tx
+                .selectDistinct({
+                    group: sql<string>`${table['localeGroupId']}`
+                })
+                .from(owner.table)
+                .where(
+                    and(
+                        inArray(table['id'], [...linking]),
+                        eq(table['workspaceId'], workspaceId)
+                    )
+                )) as { group: string }[]
+        )
+            .map(({ group }) => group)
+            .sort();
+        for (const group of groups) await lockLocaleGroup(tx, group);
+
+        const members = (await tx
+            .select()
+            .from(owner.table)
+            .where(
+                and(
+                    inArray(table['localeGroupId'], groups),
+                    eq(table['workspaceId'], workspaceId)
+                )
+            )
+            .orderBy(sql`${table['id']}`)
+            .for('update')) as Record<string, unknown>[];
+
+        const rewritten: Record<string, unknown>[] = [];
+        for (const group of groups) {
+            const inGroup = members.filter(
+                (member) => member['localeGroupId'] === group
+            );
+            // A trashed row is still filled in (so a restore comes back
+            // consistent, as `propagateToSiblings` does) but never read from.
+            const donors = inGroup.filter(
+                (member) =>
+                    member['locale'] !== locale &&
+                    (!owner.paranoid || member['deletedAt'] == null)
+            );
+            for (const sibling of inGroup) {
+                if (sibling['locale'] !== locale) continue;
+                const siblingId = sibling['id'] as string;
+                const columns: Record<string, unknown> = {};
+                let linksMoved = false;
+                for (const name of fields) {
+                    if (!isJoinBackedRelation(owner.fields[name])) {
+                        // The record links this target, so in this locale it
+                        // links the new row — unless the sibling already
+                        // holds a link of its own.
+                        if (sibling[name] != null) continue;
+                        if (
+                            donors.some((donor) =>
+                                translationIds.includes(donor[name] as string)
+                            )
+                        ) {
+                            columns[name] = row['id'];
+                        }
+                        continue;
+                    }
+                    const donor = this.pickDonor(
+                        donors.filter((candidate) =>
+                            linkers.get(name)?.has(candidate['id'] as string)
+                        )
+                    );
+                    if (!donor) continue;
+                    const plan = await this.linkPlanOf(
+                        tx,
+                        owner,
+                        name,
+                        donor['id'] as string,
+                        [locale],
+                        workspaceId
+                    );
+                    const moved = await this.relations.replaceLinks(
+                        tx,
+                        owner,
+                        siblingId,
+                        name,
+                        await this.siblingLinks(
+                            tx,
+                            owner,
+                            siblingId,
+                            name,
+                            plan,
+                            locale,
+                            workspaceId
+                        )
+                    );
+                    linksMoved ||= moved;
+                }
+                if (!Object.keys(columns).length && !linksMoved) continue;
+
+                // Written like any synced sibling: a published one moves to
+                // draft (Modified), since its live version does not hold the
+                // link it now has.
+                const [updated] = (await tx
+                    .update(owner.table)
+                    .set({
+                        ...columns,
+                        ...(owner.publishable
+                            ? { status: ENTRY_STATUS.Draft }
+                            : {}),
+                        updatedAt: new Date()
+                    } as never)
+                    .where(eq(table['id'], siblingId))
+                    .returning()) as Record<string, unknown>[];
+                if (updated) rewritten.push(updated);
+            }
+        }
+        return rewritten;
+    }
+
+    /**
+     * The sibling a group's synced state is read from when a row is filled in
+     * rather than propagated to — the default locale's row where there is
+     * one, else the lexicographically first, so two writes never pick
+     * different rows. `undefined` when there is none.
+     */
+    private pickDonor(
+        rows: Record<string, unknown>[]
+    ): Record<string, unknown> | undefined {
+        const fallback = this.locales.default().slug;
+        return (
+            rows.find((candidate) => candidate['locale'] === fallback) ??
+            [...rows].sort((a, b) =>
+                (a['locale'] as string).localeCompare(b['locale'] as string)
+            )[0]
+        );
     }
 
     /**
@@ -843,35 +1105,57 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
             if (mode === RELATION_LOCALE_SYNC.None) continue;
             if (!isJoinBackedRelation(spec)) continue;
 
-            const target = spec.relation?.to() as AnyContentType;
-            const ids = await this.relations.linkIdsOf(
-                tx,
-                type,
-                sourceId,
-                name
-            );
-            const byLocale = new Map<string, (string | null)[]>();
-            if (mode === RELATION_LOCALE_SYNC.Shared) {
-                for (const locale of locales) byLocale.set(locale, ids);
-            } else {
-                const equivalents = await this.relations.equivalentIdsByLocale(
+            out.set(
+                name,
+                await this.linkPlanOf(
                     tx,
-                    target,
-                    ids,
+                    type,
+                    name,
+                    sourceId,
                     locales,
                     workspaceId
-                );
-                for (const locale of locales) {
-                    const map = equivalents.get(locale);
-                    byLocale.set(
-                        locale,
-                        ids.map((id) => map?.get(id) ?? null)
-                    );
-                }
-            }
-            out.set(name, { target, sourceIds: ids, byLocale });
+                )
+            );
         }
         return out;
+    }
+
+    /**
+     * The {@link LinkPlan} of one join-backed, syncing relation field — the
+     * per-field step of {@link linkSetsByLocale}, also used on its own by
+     * {@link syncReferrers}, which has exactly one field to plan.
+     */
+    private async linkPlanOf(
+        tx: EntryTransaction,
+        type: AnyContentType,
+        name: string,
+        sourceId: string,
+        locales: string[],
+        workspaceId: string
+    ): Promise<LinkPlan> {
+        const spec = type.fields[name];
+        const target = spec.relation?.to() as AnyContentType;
+        const ids = await this.relations.linkIdsOf(tx, type, sourceId, name);
+        const byLocale = new Map<string, (string | null)[]>();
+        if (relationLocaleSync(type, spec) === RELATION_LOCALE_SYNC.Shared) {
+            for (const locale of locales) byLocale.set(locale, ids);
+        } else {
+            const equivalents = await this.relations.equivalentIdsByLocale(
+                tx,
+                target,
+                ids,
+                locales,
+                workspaceId
+            );
+            for (const locale of locales) {
+                const map = equivalents.get(locale);
+                byLocale.set(
+                    locale,
+                    ids.map((id) => map?.get(id) ?? null)
+                );
+            }
+        }
+        return { target, sourceIds: ids, byLocale };
     }
 
     /**

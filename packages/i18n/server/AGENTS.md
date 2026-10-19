@@ -146,6 +146,17 @@ The extension owns all locale _behavior_:
     nulled rather than left pointing at the _previous_ record's translation, which
     would be silently wrong data.
 
+    **The gap closes from the target's side** (`syncReferrers`, `i18n:I-36`).
+    The translation that would resolve such a link is a create of the
+    **target** type, which `afterUpdate` never sees from the record's side. On
+    a create, `syncReferrers` asks the registry which localized types mirror
+    into the created one, finds the records linking any other translation of
+    its group, takes their groups' advisory locks in sorted order, and fills
+    the new row into their sibling of that locale — an empty single FK only,
+    a link set rebuilt from the donor through `siblingLinks`. Those siblings
+    are demoted and versioned like any synced row; the hook returns them
+    grouped by type because they are not of the type being saved.
+
     **Except when the sibling already links the same record.** A target with no
     live translation in a sibling's locale may still have one **in the trash** —
     the very row the sibling links. `mirroredLinksToKeep` (single FKs) and
