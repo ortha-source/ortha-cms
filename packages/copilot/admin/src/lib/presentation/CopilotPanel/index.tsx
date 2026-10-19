@@ -18,6 +18,8 @@ import {
     type PanelFrameControls
 } from '../../application/usePanelFrame';
 import { Composer } from '../Composer';
+import { useCopilotUsage } from '../../application/useCopilotUsage';
+import { usageMeterState } from '../../application/usageMeter';
 import { useHasPermission } from '@orthacms/identity-admin';
 import { MEDIA_CREATE } from '../../domain/agentsRoute';
 import { useComposerAttachments } from '../../application/useComposerAttachments';
@@ -596,6 +598,9 @@ function PanelBody({
     // surface with no library "renders no attach control at all … rather than
     // offering a button that fails".
     const canAttach = useHasPermission(MEDIA_CREATE);
+    // Today's spend against the daily quota — nothing is drawn when none
+    // applies, which is every deployment that has not configured one.
+    const usage = usageMeterState(useCopilotUsage(workspaceId).data);
 
     // What the picker shows and what the turn is sent with, and they are the
     // same value on purpose: an unpicked chat runs on the catalogue's first
@@ -696,6 +701,7 @@ function PanelBody({
                 }
                 {...(canAttach ? { attachments: files } : {})}
                 skills={skills}
+                usage={usage}
             />
         </>
     );

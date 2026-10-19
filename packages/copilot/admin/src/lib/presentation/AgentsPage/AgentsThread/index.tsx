@@ -17,6 +17,8 @@ import { useComposerSkills } from '../../../application/useComposerSkills';
 import { useEffectiveModelChoice } from '../../../application/useCopilotModels';
 import type { RouteContext } from '../../../application/readRouteContext';
 import { Composer } from '../../Composer';
+import { useCopilotUsage } from '../../../application/useCopilotUsage';
+import { usageMeterState } from '../../../application/usageMeter';
 import { ContextChip } from '../../ContextChip';
 import { MessageList } from '../../MessageList';
 import { ModelPicker } from '../../ModelPicker';
@@ -101,6 +103,9 @@ export function AgentsThread({
     // Skills, likewise — except the selection lives on the chat rather than in
     // this component, so it survives leaving the page.
     const skills = useComposerSkills(workspaceId, stagedSkills, setSkills);
+    // Today's spend against the daily quota — nothing is drawn when none
+    // applies.
+    const usage = usageMeterState(useCopilotUsage(workspaceId).data);
 
     // Opt-in, and a snapshot rather than a live mirror of the URL: an attached
     // context should not silently change under the user as they navigate. On
@@ -232,6 +237,7 @@ export function AgentsThread({
                         onStop={chat.stop}
                         {...(canAttach ? { attachments: files } : {})}
                         skills={skills}
+                        usage={usage}
                     />
                 </div>
             </div>

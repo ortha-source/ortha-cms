@@ -13,6 +13,8 @@ import { defineMessages, useIntl } from 'react-intl';
 import { ArrowUp, Paperclip, Square } from 'lucide-react';
 import { MAX_MESSAGE_LENGTH } from '@orthacms/copilot-domain';
 import { Button, Textarea, cn } from '@orthacms/design-system';
+import type { UsageMeterState } from '../../application/usageMeter';
+import { UsageMeter } from '../UsageMeter';
 import { AttachmentChip } from '../AttachmentChip';
 import { SkillChip } from '../SkillChip';
 import { SkillPicker } from '../SkillPicker';
@@ -75,6 +77,16 @@ const messages = defineMessages({
         defaultMessage:
             'Still answering — wait for it to finish, or press Stop to send this now.'
     },
+    quotaHint: {
+        id: 'copilot.composer.quotaHint',
+        defaultMessage:
+            'You have used today’s Ortha CMS AI allowance in this workspace. You can send again at {time}.'
+    },
+    workspaceQuotaHint: {
+        id: 'copilot.composer.workspaceQuotaHint',
+        defaultMessage:
+            'This workspace has used today’s Ortha CMS AI allowance. You can send again at {time}.'
+    },
     // The server refuses past the same number, and used to be the only thing
     // that did: the box sent anything, and the refusal came back as a
     // validation sentence under "Something went wrong" — a crash, as far as
@@ -130,6 +142,14 @@ export interface ComposerProps {
     /** Cancels the run in flight. */
     onStop(): void;
     /**
+     * Today's spend against the user's daily quota, from `usageMeterState`.
+     * `null` or omitted draws no meter — no quota applies — and once it is
+     * `exhausted` the box refuses to send, keeping the text, and its hint says
+     * when sending is possible again. The server refuses regardless; this is
+     * the warning that arrives before the refusal.
+     */
+    usage?: UsageMeterState | null;
+    /**
      * The textarea, so a surface can focus it on open. A ref rather than
      * `autoFocus`: the panel is **non-modal**, and `autoFocus` would also steal
      * focus on any remount (a resize, a workspace switch) while someone is
@@ -175,7 +195,8 @@ export function Composer({
     controls,
     className,
     attachments,
-    skills
+    skills,
+    usage = null
 }: ComposerProps) {
     const intl = useIntl();
     const [value, setValue] = useState('');
@@ -238,6 +259,24 @@ export function Composer({
     // little early, but never lets through one the server would reject.
     const length = value.trim().length;
     const tooLong = length > MAX_MESSAGE_LENGTH;
+    // The quota is spent: sending would be refused with a 429, so the box
+    // refuses first and says until when. The field stays enabled — a person
+    // can still write the question they mean to ask tomorrow.
+    const spent = usage?.level === 'exhausted';
+    const spentHint =
+        usage?.level === 'exhausted'
+            ? intl.formatMessage(
+                  usage.scope === 'workspace'
+                      ? messages.workspaceQuotaHint
+                      : messages.quotaHint,
+                  {
+                      time: intl.formatTime(usage.resetsAt, {
+                          hour: 'numeric',
+                          minute: '2-digit'
+                      })
+                  }
+              )
+            : null;
     const showCounter = length >= MAX_MESSAGE_LENGTH * COUNTER_FROM;
 
     const submit = () => {
@@ -248,7 +287,7 @@ export function Composer({
         // Kept in the box, and the hint below already says why — no
         // `maxLength` on the field either, since a hard cap silently drops the
         // tail of a paste and leaves the person to find out which part went.
-        if (tooLong) {
+        if (tooLong || spent) {
             return;
         }
         if (blocked) {
@@ -461,6 +500,7 @@ export function Composer({
                             !busy &&
                             (length === 0 ||
                                 tooLong ||
+                                spent ||
                                 attachments?.uploading === true)
                         }
                         aria-label={intl.formatMessage(
@@ -479,7 +519,7 @@ export function Composer({
                 <p
                     className={cn(
                         'min-w-0',
-                        attachments?.error || tooLong || refused
+                        attachments?.error || tooLong || refused || spent
                             ? 'text-destructive'
                             : 'text-muted-foreground'
                     )}
@@ -504,9 +544,11 @@ export function Composer({
                                     over: length - MAX_MESSAGE_LENGTH,
                                     max: MAX_MESSAGE_LENGTH
                                 })
-                              : refused
-                                ? intl.formatMessage(messages.busyHint)
-                                : intl.formatMessage(messages.hint))}
+                              : spentHint
+                                ? spentHint
+                                : refused
+                                  ? intl.formatMessage(messages.busyHint)
+                                  : intl.formatMessage(messages.hint))}
                 </p>
                 {/* Outside the live region on purpose: inside it, every
                     keystroke past the threshold would be read aloud. The
@@ -527,6 +569,7 @@ export function Composer({
                     </span>
                 ) : null}
             </div>
+            {usage ? <UsageMeter state={usage} /> : null}
         </div>
     );
 }

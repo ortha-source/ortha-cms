@@ -76,6 +76,10 @@ const messages = defineMessages({
         id: 'copilot.chat.stop.timeout',
         defaultMessage: 'took too long'
     },
+    stopQuota: {
+        id: 'copilot.chat.stop.quota',
+        defaultMessage: 'used up today’s allowance'
+    },
     stopMaxOutputTokens: {
         id: 'copilot.chat.stop.maxOutputTokens',
         defaultMessage: 'hit the response length limit'
@@ -193,6 +197,7 @@ const TRUNCATING_STOP_REASONS: Record<string, MessageDescriptor> = {
     'max-steps': messages.stopMaxSteps,
     'max-tokens': messages.stopMaxTokens,
     timeout: messages.stopTimeout,
+    quota: messages.stopQuota,
     'max-output-tokens': messages.stopMaxOutputTokens,
     refusal: messages.stopRefusal
 };

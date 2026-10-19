@@ -66,6 +66,8 @@ application/
   useAgentThread.ts        # binds the URL to one chat; the page's whole state
   useDecideToolPermission.ts # answer a parked run (mutation)
   useCopilotModels.ts      # the model catalogue, choice-key helpers, is-it-on
+  useCopilotUsage.ts       # today's spend and quota (query), invalidated when a run ends
+  usageMeter.ts            # pure: what the meter under the composer draws (tested)
   readRouteContext.ts      # pure URL → surface context
   useRouteContext.ts       # the hook over it
   sessions.ts              # pure reducer over the set of open chats (tested)
@@ -90,6 +92,7 @@ presentation/
   ToolStep/                # one call, as a sentence; `labels.ts` holds both tenses
   slots/copilotSlots/      # COPILOT_TOOL_RESULT_SLOT — a plugin renders its own result
   Composer/  ModelPicker/  ConversationPicker/
+  UsageMeter/              # today's spend under the composer, when a quota applies
   AttachmentChip/          # one attached file — staged in the composer, sent in the transcript
   SkillPicker/             # the composer's skills popover
   SkillChip/               # one skill — staged, and on the turn it was sent with
@@ -1126,6 +1129,36 @@ doc's §11; what follows is only what is true of _this_ package.
 - **The rail's link is permission-gated and fail-closed.** Skills are visible to
   everyone in the picker; authoring is admin-only, so a contributor gets no link
   rather than a page that greets them with "no access".
+
+## Usage limits
+
+When the operator sets a daily quota, both composers draw a thin meter under the
+box (`UsageMeter`, fed by `useCopilotUsage` through `usageMeterState`).
+
+- **No quota, no meter.** `usageMeterState` returns `null` unless a quota
+  applies to this user here — a meter for a limit that does not exist is a
+  number about nothing, and most deployments set none.
+- **A `meter` with `aria-valuetext` in words**, not a live region: it changes
+  after every run and announcing it would talk over the answer. The one change
+  that must be heard — "you cannot send" — goes through the composer's own hint
+  line, which _is_ the live region.
+- **Spent means the box refuses, and keeps the text.** Send is disabled and
+  Enter does nothing, exactly like the length limit; the field stays enabled so
+  a person can still write tomorrow's question. The server refuses regardless —
+  this is the warning before the refusal.
+- **A `429` is worded from its `code`**, not from the server's English
+  `message`. `runStream` reads `code`, `scope`, `resetsAt` and `Retry-After`
+  into `CopilotRunError.limit`, and `describe()` turns it into a sentence with
+  the reset in the reader's own clock — the server says midnight UTC, which for
+  most readers is not midnight.
+- **The meter refreshes when a run ends**, in the same `finally` that refreshes
+  the thread list, rather than by polling: the figure changes when this person
+  runs something, which the chat already knows. A colleague exhausting the
+  workspace's quota is the one change it misses until the next refetch, and the
+  run route's `429` says the same thing when it matters.
+- `agents-usage.spec.ts` (admin-e2e) covers the four meter states, the refusal
+  keeping the text, both refusal wordings and an axe scan of the warning and
+  spent states.
 
 ## When the deployment has the copilot off
 
