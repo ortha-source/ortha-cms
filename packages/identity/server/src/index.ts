@@ -81,6 +81,13 @@ export type {
 export { IDENTITY_ACTIVITY_KINDS } from './lib/activity/activity-kinds';
 export type { IdentityActivityKind } from './lib/activity/activity-kinds';
 export * from './lib/schema';
+// A rate limit keyed by the caller's own string — for a route behind a session,
+// where `ThrottlerGuard`'s `req.ip` bucket is the wrong one.
+export { RateLimiter } from './lib/infrastructure/throttling/rate-limiter';
+export type {
+    RateLimitDecision,
+    RateLimitRule
+} from './lib/infrastructure/throttling/rate-limiter';
 // External-API bearer tokens. The service mints, lists, and revokes them; the
 // scope helper is the contract for turning a token's scope into a permission
 // set. The guard that authenticates `Authorization: Bearer` on the public
