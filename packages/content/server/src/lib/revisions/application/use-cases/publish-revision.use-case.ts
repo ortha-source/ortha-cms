@@ -48,7 +48,13 @@ export class PublishRevisionUseCase {
         id: string,
         number: number,
         workspaceId: string,
-        actor: EventActor | null
+        actor: EventActor | null,
+        options?: {
+            /** Forwarded to the re-applying save — see `RestoreRevisionUseCase`. */
+            allowInvalidSiblings?: boolean;
+            /** Forwarded to the re-applying save — see `RestoreRevisionUseCase`. */
+            askBeforeSiblingSync?: boolean;
+        }
     ): Promise<EntryRecord> {
         const detail = await this.store.get(type.name, id, workspaceId, number);
         if (!detail) {
@@ -66,7 +72,7 @@ export class PublishRevisionUseCase {
                 number,
                 workspaceId,
                 actor,
-                { appendRevision: false }
+                { ...options, appendRevision: false }
             );
         }
         // Mark *this* version live (not merely "the latest"), now that the live

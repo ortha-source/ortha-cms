@@ -276,8 +276,11 @@ relation links to locale siblings; must no-op when nothing applies),
 `syncReferrers` (**optional**; create only, after `afterUpdate` — rows of
 **other** types the new row's arrival changes, returned grouped by type so the
 writer appends each a revision against its own schema; i18n fills mirrored
-links that were waiting for this translation), `describeFanout` (**optional**;
-the read-only counterpart of `afterUpdate` — see below).
+links that were waiting for this translation), `lockInverseOwners` /
+`syncInverseOwners` (**optional**; the owner rows a delta on an **inverse**
+relation relinks — locked before the deltas, kept consistent after them;
+i18n carries the owner's link set to its other languages), `describeFanout`
+(**optional**; the read-only counterpart of `afterUpdate` — see below).
 
 **`describeFanout` answers "what else would this write touch", before it is
 written.** The pipeline never calls it: a save just saves. It exists for callers
@@ -326,16 +329,23 @@ save once a person has read that and agreed; `update` forwards it to the
 context uninterpreted. Every other writer — the public API, the copilot, a
 restore — never sets it and keeps the refusal.
 
-**`askBeforeSiblingSync` turns the save into its own dry run.** With it, an
-extension that would carry the save onto any other **live** row refuses it with
-a 422 carrying `code: SIBLING_SYNC_UNCONFIRMED_CODE`
-(`content.sibling_sync_unconfirmed`), `locales` (every live sibling reached) and
-`siblings` (the published ones it would invalidate, possibly empty). The
-refusal rolls the transaction back, so it is computed by the very code that
-would have written the change. It exists so the admin can ask **once**, with
-the whole consequence on screen; the editor then resends without the flag, plus
-`allowInvalidSiblings` when `siblings` was not empty. Like that flag it is read
-on update only and set only by the admin's update route.
+**`askBeforeSiblingSync` turns the write into its own dry run.** With it the
+writer puts an `EntryFanoutRecorder` on the context (`context.fanout`); every
+hook — `afterUpdate`, `syncInverseOwners`, `syncReferrers` — records each other
+**live** row it rewrites (`EntryFanoutChange`: the row, whether it is a
+translation of this record, whether it was published, whether the caller may
+decline it, value columns before/after, links added/removed/`unresolved`) and
+the published rows it would invalidate, instead of refusing. After the last
+hook, `refuseUnconfirmedFanout` throws **one** 422 with
+`code: SIBLING_SYNC_UNCONFIRMED_CODE` (`content.sibling_sync_unconfirmed`) —
+`changes` (ids titled through `resolveRefs` **on the write's own
+transaction**, so a row the write created is named), `locales` and `siblings` —
+and the transaction rolls back, so the description is computed by the very
+code that would have written it. The admin then resends without the flag, plus
+`allowInvalidSiblings` when `siblings` was not empty and `skipReferrers` for
+the `optional` rows a person unticked. It is read on **create, update, restore
+and publish-a-version** (`RevisionWriteDto`) — a create or a restore reaches
+other rows as surely as an update does.
 
 The `?locale=` / `?localeFallback=`
 query params and the create body

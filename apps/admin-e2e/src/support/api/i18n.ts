@@ -730,11 +730,14 @@ export async function mockSiblingSync(
     {
         reached,
         invalidated = [],
-        afterAsk = invalidated
+        afterAsk = invalidated,
+        changes = []
     }: {
         reached: string[];
         invalidated?: { locale: string; field: string }[];
         afterAsk?: { locale: string; field: string }[];
+        /** The refusal's `changes` — what the save would do to each row. */
+        changes?: unknown[];
     }
 ): Promise<Record<string, unknown>[]> {
     const bodies: Record<string, unknown>[] = [];
@@ -765,7 +768,8 @@ export async function mockSiblingSync(
                             .join(', ')} translation`,
                         code: 'content.sibling_sync_unconfirmed',
                         locales: reached,
-                        siblings: toSiblings(invalidated)
+                        siblings: toSiblings(invalidated),
+                        changes
                     })
                 });
                 return;
@@ -786,6 +790,53 @@ export async function mockSiblingSync(
                         code: 'content.sibling_invalidated',
                         siblings,
                         issues: siblings.flatMap(({ issues }) => issues)
+                    })
+                });
+                return;
+            }
+            await route.fallback();
+        }
+    );
+    return bodies;
+}
+
+/**
+ * Answer the localized collection's **creates** the way the server does when a
+ * new translation would be filled into other records' links.
+ *
+ * A POST carrying `askBeforeSiblingSync: true` is refused with the 422
+ * `code: "content.sibling_sync_unconfirmed"` and `changes` (each an
+ * **optional** row of another record); nothing is written. Any other POST
+ * falls back to the healthy stub, which creates the row. Registered after
+ * {@link mockI18n}. Returns the POST bodies it saw, in order.
+ */
+export async function mockReferrerSync(
+    page: Page,
+    changes: unknown[]
+): Promise<Record<string, unknown>[]> {
+    const bodies: Record<string, unknown>[] = [];
+    await page.route(
+        /\/api\/content\/localized_post(\?.*)?$/,
+        async (route) => {
+            if (route.request().method() !== 'POST') {
+                await route.fallback();
+                return;
+            }
+            const body = route.request().postDataJSON() as Record<
+                string,
+                unknown
+            >;
+            bodies.push(body);
+            if (body.askBeforeSiblingSync === true) {
+                await route.fulfill({
+                    status: 422,
+                    contentType: 'application/json',
+                    body: JSON.stringify({
+                        message: `This save would also change ${changes.length} other rows`,
+                        code: 'content.sibling_sync_unconfirmed',
+                        locales: [],
+                        siblings: [],
+                        changes
                     })
                 });
                 return;

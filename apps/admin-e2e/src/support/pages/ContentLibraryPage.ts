@@ -1361,7 +1361,7 @@ export class ContentLibraryPage extends BasePage {
      */
     get siblingSyncDialog(): Locator {
         return this.page.getByRole('dialog', {
-            name: /^This also changes (another locale|\d+ other locales)$|leaves (a published locale|published locales) incomplete/
+            name: /^This also changes (another locale|\d+ other locales|another record|\d+ other records)$|leaves (a published locale|published locales) incomplete/
         });
     }
 

@@ -45,6 +45,10 @@ export class RestoreRevisionUseCase {
              * content is live, then marks *that* version published in place.
              */
             appendRevision?: boolean;
+            /** Forwarded to the save — see `EntryWriterService.update`. */
+            allowInvalidSiblings?: boolean;
+            /** Forwarded to the save — see `EntryWriterService.update`. */
+            askBeforeSiblingSync?: boolean;
         }
     ): Promise<EntryRecord> {
         const detail = await this.store.get(type.name, id, workspaceId, number);

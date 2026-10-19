@@ -1,10 +1,15 @@
-import { collection, field } from '@orthacms/content-server/define';
+import {
+    collection,
+    field,
+    type AnyContentType
+} from '@orthacms/content-server/define';
+import { testArticle } from './test-article';
 
 /**
  * `test_author` — the e2e-owned equivalent of the app's `author`. The "one"
  * side of a one-to-many with {@link testArticle} (one author writes many
- * articles); the FK lives on `test_article.author`, so this collection needs no
- * relation field of its own.
+ * articles); the FK lives on `test_article.author`. `articles` is the inverse
+ * of `test_article.contributors`, the many-to-many.
  *
  * **Localized** (`i18n: true`): each author has a row per locale sharing a
  * `locale_group_id`. Because the target is localizable, `test_article.author`
@@ -37,6 +42,15 @@ export const testAuthor = collection('test_author', {
                 widget: 'textarea',
                 description: 'A short biography.'
             }
+        }),
+        // The far side of `test_article.contributors` — a **mirrored**
+        // many-to-many, so linking an article from here is an edit to that
+        // article's links in this author's locale, and the article's other
+        // translations have to follow it. Virtual: no column, no migration.
+        articles: field.relationInverse({
+            of: (): AnyContentType => testArticle,
+            field: 'contributors',
+            admin: { label: 'Articles' }
         })
     }
 });

@@ -812,23 +812,37 @@ a third state with no column value spelling it made unavoidable.
   sentence** (`Not published: …`). A publish guard's 409 carries its only
   explanation in the body; without the toast the busy cover lifted and nothing
   on screen said the write had not happened.
-- **A save that reaches other locales asks once, and the server decides
-  whether to.** A dirty shared field **or** a dirty relation the server syncs
-  (`relation.localeSync` `shared` or `mirrored` — unlinking such a relation
-  unlinks it in every language) sends the save with `askBeforeSiblingSync`
-  (`SubmitEntryInput` → `SaveEntryInput` → the PATCH body, update only). Only
-  the server knows the siblings, so it answers: a 422
-  `code: "content.sibling_sync_unconfirmed"` naming every live locale the save
-  would change and the published ones it would leave invalid, with nothing
-  written — or a plain save, when the record is alone in its group.
+- **A save that reaches other rows asks once, and the server decides
+  whether to.** **Every** save — create and update — goes out with
+  `askBeforeSiblingSync` (`SubmitEntryInput` → `SaveEntryInput` → the body).
+  Only the server knows what else a write reaches: the record's other locales
+  (a shared field, a synced relation), another record's locales (a link edited
+  from its far side), records a new translation fills in. It answers with a 422
+  `code: "content.sibling_sync_unconfirmed"` describing each such row, with
+  nothing written — or a plain save, when nothing else is reached. The editor
+  used to ask only for a dirty shared field on an update, which let a create
+  and an inverse edit rewrite other rows silently. A version **restore** and
+  **publish-a-version** (`RevisionList`, through `useRevisionActions`) ask the
+  same way and answer with the same dialog.
   `siblingSyncRefusalFrom` turns that answer (and the older
   `code: "content.sibling_invalidated"`, which a resend meets if a sibling broke
   in between) into **`SiblingSyncDialog`**, one dialog with two variants: a
   plain sync names the fields and the locales and offers **Save**; one that
   leaves a published translation incomplete also says what each lacks, that it
   keeps serving its live version and can't be published again until fixed, and
-  offers a destructive **Save anyway**. Confirming resends without asking, with
-  `allowInvalidSiblings` only when an invalidation was shown. `entryIssuesFrom`
+  offers a destructive **Save anyway**. Under the sentence sits a **preview**
+  (`SyncChangeList` → `SyncChangeItem`): per row, its language (or the other
+  record and its language), a "becomes Modified" badge when it was published,
+  value changes as before → after (`domain/syncChangeValue` prints only what
+  reads as a value; a document or a long text says "changed"), links gained
+  and lost, and the linked records left out for want of a translation. Only an
+  `optional` row — a gap a new translation fills — carries a checkbox; the
+  rest are kept consistent by the sync itself, so declining one would not
+  stick. Confirming resends without asking, with `allowInvalidSiblings` only
+  when an invalidation was shown and `skipReferrers` for the unticked rows.
+  A **translation's create form** says on its Relations tab that synced links
+  are filled in on save from the record's other languages
+  (`relations-inherited-note`), since the form itself shows them empty. `entryIssuesFrom`
   returns nothing for either code — those issues describe the siblings, and
   pinning them on this form marked fields the author had filled as failing.
   It used to be two dialogs in a row: a client-side "This also changes the

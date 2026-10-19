@@ -32,8 +32,19 @@ import type {
     ContentGateway,
     RelationCandidatesPage,
     RelationCandidatesPageParams,
+    RevisionWriteOptions,
     SaveEntryInput
 } from '../contentGateway';
+
+/** The body of a version restore / publish: only the flags that are set. */
+function revisionWriteBody(
+    options: RevisionWriteOptions
+): RevisionWriteOptions {
+    return {
+        ...(options.askBeforeSiblingSync ? { askBeforeSiblingSync: true } : {}),
+        ...(options.allowInvalidSiblings ? { allowInvalidSiblings: true } : {})
+    };
+}
 
 /** Links fetched per relation-field infinite-scroll page. */
 export const RELATION_LINKS_PAGE_SIZE = 20;
@@ -276,7 +287,8 @@ export const httpContentGateway: ContentGateway = {
             extra,
             extensions,
             allowInvalidSiblings,
-            askBeforeSiblingSync
+            askBeforeSiblingSync,
+            skipReferrers
         }: SaveEntryInput
     ): Promise<EntryRecord> {
         const body = {
@@ -286,26 +298,24 @@ export const httpContentGateway: ContentGateway = {
             // record as readily as a create sets it.
             ...(extensions && Object.keys(extensions).length
                 ? { extensions }
-                : {})
+                : {}),
+            // A confirmation, never a default: absent unless the person
+            // agreed to the refusal it answers.
+            ...(allowInvalidSiblings ? { allowInvalidSiblings: true } : {}),
+            ...(askBeforeSiblingSync ? { askBeforeSiblingSync: true } : {})
         };
         try {
             // Extra (slot-contributed) keys apply to create only — an update
             // never re-homes envelope params like the locale.
             const { data } = id
-                ? await apiClient.patch<EntryRecord>(`/content/${name}/${id}`, {
-                      ...body,
-                      // A confirmation, never a default: absent unless the
-                      // person agreed to the refusal it answers.
-                      ...(allowInvalidSiblings
-                          ? { allowInvalidSiblings: true }
-                          : {}),
-                      ...(askBeforeSiblingSync
-                          ? { askBeforeSiblingSync: true }
-                          : {})
-                  })
+                ? await apiClient.patch<EntryRecord>(
+                      `/content/${name}/${id}`,
+                      body
+                  )
                 : await apiClient.post<EntryRecord>(`/content/${name}`, {
                       ...body,
-                      ...(extra ?? {})
+                      ...(extra ?? {}),
+                      ...(skipReferrers?.length ? { skipReferrers } : {})
                   });
             return data;
         } catch (error) {
@@ -342,11 +352,13 @@ export const httpContentGateway: ContentGateway = {
     async restoreRevision(
         name: string,
         id: string,
-        number: number
+        number: number,
+        options: RevisionWriteOptions = {}
     ): Promise<EntryRecord> {
         try {
             const { data } = await apiClient.post<EntryRecord>(
-                `/content/${name}/${id}/revisions/${number}/restore`
+                `/content/${name}/${id}/revisions/${number}/restore`,
+                revisionWriteBody(options)
             );
             return data;
         } catch (error) {
@@ -357,11 +369,13 @@ export const httpContentGateway: ContentGateway = {
     async publishRevision(
         name: string,
         id: string,
-        number: number
+        number: number,
+        options: RevisionWriteOptions = {}
     ): Promise<EntryRecord> {
         try {
             const { data } = await apiClient.post<EntryRecord>(
-                `/content/${name}/${id}/revisions/${number}/publish`
+                `/content/${name}/${id}/revisions/${number}/publish`,
+                revisionWriteBody(options)
             );
             return data;
         } catch (error) {

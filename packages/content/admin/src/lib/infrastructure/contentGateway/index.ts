@@ -86,18 +86,31 @@ export type SaveEntryInput = {
      */
     extensions?: Record<string, unknown>;
     /**
-     * Go through with an update that leaves another **published** row the
-     * server rewrites (a locale sibling) failing validation — sent only after
-     * the 422 naming those rows was shown and confirmed. Update only.
+     * Go through with a save that leaves another **published** row the server
+     * rewrites (a locale sibling) failing validation — sent only after the 422
+     * naming those rows was shown and confirmed.
      */
     allowInvalidSiblings?: boolean;
     /**
-     * Ask before the update reaches other locale siblings: the server refuses
-     * such a save with a 422 naming them, and writes nothing, so the editor can
-     * confirm once with the whole picture. Update only.
+     * Ask before the save reaches any other row — a locale sibling, another
+     * record's translations, a record waiting for this translation: the server
+     * refuses such a save with a 422 describing each, and writes nothing, so
+     * the editor can confirm once with the whole picture.
      */
     askBeforeSiblingSync?: boolean;
+    /**
+     * On a create, the rows of other records a person declined to have this
+     * new translation filled into (the refusal's `optional` changes they
+     * unticked). Create only.
+     */
+    skipReferrers?: string[];
 };
+
+/** Flags for re-applying a version — see {@link SaveEntryInput}. */
+export type RevisionWriteOptions = Pick<
+    SaveEntryInput,
+    'allowInvalidSiblings' | 'askBeforeSiblingSync'
+>;
 
 /**
  * The port over the remote content API — the single seam the admin's application
@@ -176,13 +189,15 @@ export type ContentGateway = {
     restoreRevision(
         name: string,
         id: string,
-        number: number
+        number: number,
+        options?: RevisionWriteOptions
     ): Promise<EntryRecord>;
     /** Publishes a specific version live via `POST …/:id/revisions/:number/publish`. */
     publishRevision(
         name: string,
         id: string,
-        number: number
+        number: number,
+        options?: RevisionWriteOptions
     ): Promise<EntryRecord>;
     /**
      * Publishes one entry via `POST /content/:name/:id/publish`. `bypass` is

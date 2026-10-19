@@ -86,6 +86,92 @@ test.describe('Entry revision history', () => {
         expect(flow.unpublishCalls).toBe(0);
     });
 
+    test('publishing a version that reaches other locales asks first, then publishes [i18n:I-37]', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        await mockEntryRevisionFlow(page, {
+            name: 'blog_post',
+            id: DRAFT_ID,
+            values: { title: 'Draft only' },
+            startPublished: false
+        });
+        // Re-applying a version is a save, and the server asks before it
+        // reaches the record's other locales — registered after the flow, so
+        // it wins for the asked-first request and falls back to it otherwise.
+        const bodies: Record<string, unknown>[] = [];
+        await page.route(
+            new RegExp(
+                `/api/content/blog_post/${DRAFT_ID}/revisions/1/publish$`
+            ),
+            async (route) => {
+                const body = (route.request().postDataJSON() ?? {}) as Record<
+                    string,
+                    unknown
+                >;
+                bodies.push(body);
+                if (body.askBeforeSiblingSync === true) {
+                    await route.fulfill({
+                        status: 422,
+                        contentType: 'application/json',
+                        body: JSON.stringify({
+                            message: 'This save would also change 1 other row',
+                            code: 'content.sibling_sync_unconfirmed',
+                            locales: ['de'],
+                            siblings: [],
+                            changes: [
+                                {
+                                    type: 'blog_post',
+                                    typeLabel: 'Blog posts',
+                                    entryId: 'blog_post-draft-de',
+                                    locale: 'de',
+                                    title: 'Nur Entwurf',
+                                    sibling: true,
+                                    published: false,
+                                    optional: false,
+                                    fields: [
+                                        {
+                                            field: 'title',
+                                            label: 'Title',
+                                            before: 'Neu',
+                                            after: 'Alt'
+                                        }
+                                    ],
+                                    links: []
+                                }
+                            ]
+                        })
+                    });
+                    return;
+                }
+                await route.fallback();
+            }
+        );
+
+        await contentLibraryPage.gotoEntry(
+            LIBRARY_WORKSPACE.id,
+            'blog_post',
+            DRAFT_ID
+        );
+        await contentLibraryPage.openEditorTab('History');
+        await contentLibraryPage.publishRevision(1);
+
+        const dialog = contentLibraryPage.siblingSyncDialog;
+        await expect(dialog).toContainText('Title: Neu → Alt');
+        await dialog
+            .getByRole('button', { name: 'Publish', exact: true })
+            .click();
+
+        await expect.poll(() => bodies.length).toBe(2);
+        expect(bodies[0].askBeforeSiblingSync).toBe(true);
+        expect(bodies[1].askBeforeSiblingSync).toBeUndefined();
+        await expect(
+            contentLibraryPage
+                .revisionItem(1)
+                .getByText('Live', { exact: true })
+        ).toBeVisible();
+    });
+
     test('publishing a version from history makes it live', async ({
         page,
         contentLibraryPage

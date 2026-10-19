@@ -1095,14 +1095,25 @@ export class RelationLinkService {
      * carries the true count separately and shows a "+N more" past the cap, so a
      * relation with thousands of links is never resolved whole. A soft-deleted /
      * foreign id yields a `missing` ref, never a title leak.
+     *
+     * `exec` reads the live rows on a given transaction instead of the pool —
+     * for a caller describing rows its own uncommitted write created (an
+     * asked-first write's refusal names the translation it was about to add).
      */
     async resolveRefs(
         target: AnyContentType,
         ids: readonly string[],
         workspaceId: string,
-        cap: number
+        cap: number,
+        exec?: QueryRunner
     ): Promise<RelationRef[]> {
-        return this.refsFor(target, ids.slice(0, cap), workspaceId);
+        return this.refsFor(
+            target,
+            ids.slice(0, cap),
+            workspaceId,
+            undefined,
+            exec
+        );
     }
 
     /**
@@ -1116,11 +1127,12 @@ export class RelationLinkService {
         target: AnyContentType,
         ids: string[],
         workspaceId: string,
-        visibility?: RelationTargetVisibility
+        visibility?: RelationTargetVisibility,
+        exec?: QueryRunner
     ): Promise<RelationRef[]> {
         if (!ids.length) return [];
         const cols = target.table as unknown as Columns;
-        const rows = (await this.targetReader(target, visibility)
+        const rows = (await (exec ?? this.targetReader(target, visibility))
             .select()
             .from(target.table)
             .where(

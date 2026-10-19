@@ -1,12 +1,27 @@
+import { useEffect, useMemo, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { ConfirmDialog } from '@orthacms/design-system';
+import {
+    Button,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle
+} from '@orthacms/design-system';
 import type { SiblingSyncRefusal } from '../../../../../infrastructure/entryIssues';
+import { SyncChangeList } from './SyncChangeList';
 
 const messages = defineMessages({
     syncTitle: {
         id: 'content.editor.siblingSync.title',
         defaultMessage:
             'This also changes {count, plural, one {another locale} other {# other locales}}'
+    },
+    recordsTitle: {
+        id: 'content.editor.siblingSync.recordsTitle',
+        defaultMessage:
+            'This also changes {count, plural, one {another record} other {# other records}}'
     },
     syncBody: {
         id: 'content.editor.siblingSync.body',
@@ -17,6 +32,16 @@ const messages = defineMessages({
         id: 'content.editor.siblingSync.sharedBody',
         defaultMessage:
             'Saving changes values every locale of this record shares.'
+    },
+    recordsBody: {
+        id: 'content.editor.siblingSync.recordsBody',
+        defaultMessage:
+            'Synced links follow a record into each of its languages, so saving also changes the records below. Untick a record to leave it as it is.'
+    },
+    linkedRecordsBody: {
+        id: 'content.editor.siblingSync.linkedRecordsBody',
+        defaultMessage:
+            'Synced links follow a record into each of its languages, so saving also changes the records below.'
     },
     sharedValues: {
         id: 'content.editor.siblingSync.sharedValues',
@@ -60,38 +85,72 @@ export type SiblingSyncDialogProps = {
     labelFor: (name: string) => string;
     /** Dismissed — nothing is saved. */
     onCancel: () => void;
-    /** Confirmed — the caller resends the save without asking. */
-    onConfirm: () => void;
+    /**
+     * Confirmed — the caller resends the write without asking, leaving out
+     * the `optional` rows the person unticked (`skipped`, by entry id).
+     */
+    onConfirm: (skipped: string[]) => void;
+    /** The confirm button's label, when the write is not a plain save. */
+    confirmLabel?: string;
 };
 
 /**
- * The one confirmation before a save that reaches other locales of the
- * record — a shared field changed, or a synced relation relinked.
+ * The one confirmation before a write that reaches other rows — a shared
+ * field changed or a synced relation relinked (the record's other locales), a
+ * link edited from its far side (another record's locales), or a translation
+ * created that records were waiting for.
  *
- * The server decides whether to ask: the editor sends the save with
- * `askBeforeSiblingSync`, and the server, which alone knows the siblings,
- * refuses it with everything it would have done — the live locales it changes
- * and the published ones it would leave invalid. So the dialog asks **once**,
- * and only when another locale is really reached; it used to ask about the
- * sync from the client and then, after the server refused, ask again about
- * the damage.
+ * The server decides whether to ask: the editor sends the write with
+ * `askBeforeSiblingSync`, and the server, which alone knows those rows, runs
+ * it, records what every row would become, refuses, and rolls back. So the
+ * dialog asks **once**, only when another row is really reached — and shows
+ * what changes in each, values before and after, links gained and lost, and
+ * the linked records a language is left without for want of a translation.
  *
- * Two variants, because the stakes differ. A plain sync names the fields and
- * the locales and offers **Save**. A sync that leaves a published translation
- * incomplete says what each one will lack and what happens to it — its live
- * version stays live, its next publish is blocked — and offers a destructive
- * **Save anyway**.
+ * Only a **filled-in gap** can be declined row by row (`optional`): leaving it
+ * open is a state the sync allows. Every other row is kept consistent with
+ * the record by the sync itself, so declining it would not stick — the next
+ * save of any language would redo it — and the only honest choices are Save
+ * and Cancel.
+ *
+ * A write that leaves a published row incomplete says what it will lack and
+ * what happens to it — its live version stays live, its next publish is
+ * blocked — and offers a destructive **Save anyway**.
  */
 export function SiblingSyncDialog({
     refusal,
     sharedFields,
     labelFor,
     onCancel,
-    onConfirm
+    onConfirm,
+    confirmLabel
 }: SiblingSyncDialogProps) {
     const intl = useIntl();
     const reached = refusal?.reached ?? [];
     const invalidated = refusal?.invalidated ?? [];
+    const changes = useMemo(() => refusal?.changes ?? [], [refusal]);
+    const others = changes.filter((change) => !change.sibling);
+    const optional = others.some((change) => change.optional);
+
+    // Unticked optional rows. Reset whenever a new refusal arrives, so a
+    // second question never inherits the first one's answers.
+    const [skipped, setSkipped] = useState<ReadonlySet<string>>(new Set());
+    useEffect(() => setSkipped(new Set()), [refusal]);
+    const toggle = (entryId: string, included: boolean) =>
+        setSkipped((current) => {
+            const next = new Set(current);
+            if (included) next.delete(entryId);
+            else next.add(entryId);
+            return next;
+        });
+
+    const localeName = (slug: string) => {
+        try {
+            return intl.formatDisplayName(slug, { type: 'language' }) ?? slug;
+        } catch {
+            return slug;
+        }
+    };
     const quoted = (labels: string[]) =>
         intl.formatList(
             labels.map((label) => `“${label}”`),
@@ -108,10 +167,17 @@ export function SiblingSyncDialog({
                   : intl.formatMessage(messages.sharedValues),
               locales: intl.formatList(reached, { type: 'conjunction' })
           })
-        : intl.formatMessage(messages.sharedBody);
+        : others.length
+          ? ''
+          : intl.formatMessage(messages.sharedBody);
+    const recordsSentence = others.length
+        ? intl.formatMessage(
+              optional ? messages.recordsBody : messages.linkedRecordsBody
+          )
+        : '';
 
     let title: string;
-    let description: string;
+    let description = [syncSentence, recordsSentence].filter(Boolean).join(' ');
     if (invalidated.length) {
         const fieldNames = [
             ...new Set(
@@ -123,7 +189,7 @@ export function SiblingSyncDialog({
         title = intl.formatMessage(messages.invalidTitle, {
             count: invalidated.length
         });
-        description = `${syncSentence} ${intl.formatMessage(
+        description = `${description} ${intl.formatMessage(
             messages.invalidBody,
             {
                 count: invalidated.length,
@@ -135,28 +201,58 @@ export function SiblingSyncDialog({
                     ? quoted(fieldNames.map(labelFor))
                     : intl.formatMessage(messages.unknownFields)
             }
-        )}`;
+        )}`.trim();
+    } else if (others.length && !reached.length) {
+        title = intl.formatMessage(messages.recordsTitle, {
+            count: others.length
+        });
     } else {
         title = intl.formatMessage(messages.syncTitle, {
             count: reached.length
         });
-        description = syncSentence;
     }
 
     return (
-        <ConfirmDialog
+        <Dialog
             open={refusal !== null}
             onOpenChange={(open) => {
                 if (!open) onCancel();
             }}
-            title={title}
-            description={description}
-            confirmLabel={intl.formatMessage(
-                invalidated.length ? messages.confirmAnyway : messages.confirm
-            )}
-            confirmVariant={invalidated.length ? 'destructive' : 'default'}
-            cancelLabel={intl.formatMessage(messages.cancel)}
-            onConfirm={onConfirm}
-        />
+        >
+            <DialogContent
+                className="sm:max-w-xl"
+                data-testid="sibling-sync-dialog"
+            >
+                <DialogHeader>
+                    <DialogTitle>{title}</DialogTitle>
+                    <DialogDescription>{description}</DialogDescription>
+                </DialogHeader>
+                {changes.length > 0 && (
+                    <SyncChangeList
+                        changes={changes}
+                        invalidated={invalidated}
+                        skipped={skipped}
+                        onToggle={toggle}
+                        localeName={localeName}
+                    />
+                )}
+                <DialogFooter>
+                    <Button variant="outline" onClick={onCancel}>
+                        {intl.formatMessage(messages.cancel)}
+                    </Button>
+                    <Button
+                        variant={invalidated.length ? 'destructive' : 'default'}
+                        onClick={() => onConfirm([...skipped])}
+                    >
+                        {confirmLabel ??
+                            intl.formatMessage(
+                                invalidated.length
+                                    ? messages.confirmAnyway
+                                    : messages.confirm
+                            )}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 }

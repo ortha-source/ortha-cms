@@ -37,7 +37,12 @@ import {
 import { mediaValueIds } from '@orthacms/content-domain';
 import {
     CONTENT_ENTRY_EXTENSION,
-    type ContentEntryExtension
+    SIBLING_SYNC_UNCONFIRMED_CODE,
+    type ContentEntryExtension,
+    type EntryFanoutRecorder,
+    type EntryReferrerRewrite,
+    type EntryWriteContext,
+    type InverseLinkEdit
 } from '../../../extension/entry-extension';
 import {
     InjectMediaAssetResolver,
@@ -100,6 +105,13 @@ type Row = Record<string, unknown>;
  */
 export const UUID_RE =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/**
+ * How many linked records an asked-first refusal titles per change list. A
+ * person reads the dialog, so a long list past this is noise; the counts the
+ * client shows are taken from what it gets.
+ */
+const FANOUT_REF_CAP = 20;
 
 /**
  * The infrastructure persistence engine for entry writes — create / read-one /
@@ -453,6 +465,159 @@ export class EntryWriterService {
     }
 
     /**
+     * {@link appendRevisionsFor} for the rows of **other** types an extension
+     * rewrote (`syncReferrers`, `syncInverseOwners`), each against its own
+     * type. A row reached through both is versioned once.
+     */
+    private async appendRewriteRevisions(
+        tx: DbTransaction,
+        rewrites: EntryReferrerRewrite[],
+        workspaceId: string,
+        actorId: string | null
+    ): Promise<void> {
+        const byType = new Map<
+            AnyContentType,
+            Map<string, Record<string, unknown>>
+        >();
+        for (const { type, rows } of rewrites) {
+            const bucket = byType.get(type) ?? new Map();
+            for (const row of rows) bucket.set(String(row['id']), row);
+            byType.set(type, bucket);
+        }
+        for (const [type, rows] of byType) {
+            await this.appendRevisionsFor(
+                tx,
+                type,
+                [...rows.values()],
+                workspaceId,
+                actorId
+            );
+        }
+    }
+
+    /**
+     * The relation deltas of a write that land on the **inverse** side, as the
+     * owner rows they relink — what the extension locks before the deltas
+     * ({@link ContentEntryExtension.lockInverseOwners}) and keeps consistent
+     * after them ({@link ContentEntryExtension.syncInverseOwners}). `order` is
+     * not included: the inverse side cannot reorder an owner's links.
+     */
+    private inverseEdits(
+        type: AnyContentType,
+        relations: Record<string, RelationDelta> | undefined,
+        locale: string | undefined
+    ): InverseLinkEdit[] {
+        if (!relations) return [];
+        const edits: InverseLinkEdit[] = [];
+        for (const [field, delta] of Object.entries(relations)) {
+            const relation = type.fields[field]?.relation;
+            if (!relation?.inverse) continue;
+            // Well-formed ids only: these reach a uuid column before the
+            // delta's own checks run, and a malformed one there is a cast
+            // error (a 500) rather than the 422 the delta answers it with.
+            const ids = [
+                ...new Set([...(delta.link ?? []), ...(delta.unlink ?? [])])
+            ].filter((id) => UUID_RE.test(id));
+            if (!ids.length) continue;
+            edits.push({
+                owner: relation.to(),
+                field: relation.inverse.field,
+                ids,
+                byGroup: delta.by === 'localeGroup',
+                ...(locale ? { locale } : {})
+            });
+        }
+        return edits;
+    }
+
+    /**
+     * Refuse an asked-first write that would change other live rows — the
+     * one 422 ({@link SIBLING_SYNC_UNCONFIRMED_CODE}) carrying everything the
+     * extension hooks recorded, with every id titled, so the person sees which
+     * records change and how before anything is written. Thrown inside the
+     * write's transaction, which rolls it back. A no-op when the caller did
+     * not ask, or nothing else would change.
+     *
+     * Titles are read on `tx`: the write is still open, and a row it created
+     * (the translation a filled-in gap would link) exists only there.
+     */
+    private async refuseUnconfirmedFanout(
+        tx: DbTransaction,
+        fanout: EntryFanoutRecorder | undefined,
+        workspaceId: string
+    ): Promise<void> {
+        if (!fanout) return;
+        if (!fanout.changes.length && !fanout.invalidated.length) return;
+        const refs = (target: AnyContentType | undefined, ids: string[]) =>
+            target && ids.length
+                ? this.relations.resolveRefs(
+                      target,
+                      ids,
+                      workspaceId,
+                      FANOUT_REF_CAP,
+                      tx
+                  )
+                : Promise.resolve([]);
+        const labelOf = (type: AnyContentType, field: string) =>
+            type.fields[field]?.admin?.label ?? field;
+        const changes = [];
+        for (const change of fanout.changes) {
+            const [entry] = await refs(change.type, [change.entryId]);
+            const links = [];
+            for (const link of change.links) {
+                const target = change.type.fields[link.field]?.relation?.to();
+                links.push({
+                    field: link.field,
+                    label: labelOf(change.type, link.field),
+                    added: await refs(target, link.added),
+                    removed: await refs(target, link.removed),
+                    unresolved: await refs(target, link.unresolved)
+                });
+            }
+            changes.push({
+                type: change.type.name,
+                typeLabel: change.type.label,
+                entryId: change.entryId,
+                locale: change.locale,
+                title: entry && !entry.missing ? entry.title : null,
+                sibling: change.sibling,
+                published: change.published,
+                optional: change.optional,
+                fields: change.fields.map((field) => ({
+                    ...field,
+                    label: labelOf(change.type, field.field)
+                })),
+                links
+            });
+        }
+        const locales = [
+            ...new Set(
+                fanout.changes
+                    .filter((change) => change.sibling && change.locale)
+                    .map((change) => change.locale as string)
+            )
+        ];
+        throw new UnprocessableEntityException({
+            message:
+                `This save would also change ${changes.length} other ` +
+                `row${changes.length === 1 ? '' : 's'}` +
+                (locales.length
+                    ? ` (${locales.map((locale) => `"${locale}"`).join(', ')})`
+                    : ''),
+            code: SIBLING_SYNC_UNCONFIRMED_CODE,
+            locales,
+            siblings: fanout.invalidated.map((invalid) => ({
+                locale: invalid.locale,
+                type: invalid.type.name,
+                entryId: invalid.entryId,
+                sibling: invalid.sibling,
+                issues: invalid.issues
+            })),
+            changes
+        });
+    }
+
+    /**
      * The rows behind a set of ids, on this transaction.
      *
      * Soft-deleted rows are **included**: a locale in the trash is still a row
@@ -512,7 +677,18 @@ export class EntryWriterService {
         locale?: string,
         localeGroupId?: string,
         actor?: EventActor | null,
-        extensions?: Record<string, unknown>
+        extensions?: Record<string, unknown>,
+        options?: {
+            /** See the same option on {@link update}. */
+            allowInvalidSiblings?: boolean;
+            /** See the same option on {@link update}. */
+            askBeforeSiblingSync?: boolean;
+            /**
+             * Rows of other records the caller declined to have this new row
+             * filled into — see {@link EntryWriteContext.skipReferrers}.
+             */
+            skipReferrers?: readonly string[];
+        }
     ): Promise<EntryRecord> {
         const actorId = revisionActorId(actor);
         // `coerceValues` stamps every declared field onto the bag, so the
@@ -567,6 +743,17 @@ export class EntryWriterService {
             ? undefined
             : await this.validation.waivedRequired(type, workspaceId);
         if (!type.publishable) this.assertValid(type, coerced, waived);
+        const inverseEdits = this.inverseEdits(type, relations, rowLocale);
+        const context: EntryWriteContext = {
+            created: true,
+            allowInvalidSiblings: options?.allowInvalidSiblings === true,
+            ...(options?.askBeforeSiblingSync === true
+                ? { fanout: { changes: [], invalidated: [] } }
+                : {}),
+            ...(options?.skipReferrers?.length
+                ? { skipReferrers: new Set(options.skipReferrers) }
+                : {})
+        };
         // One transaction: take the workspace's shared content lock (coordinates
         // with the delete / content-revoke guards so a new entry can't be
         // orphaned), then write the row, its whole-set join-table links (a
@@ -591,6 +778,11 @@ export class EntryWriterService {
                                 | string
                                 | undefined
                         },
+                        workspaceId
+                    );
+                    await this.extension?.lockInverseOwners?.(
+                        tx,
+                        inverseEdits,
                         workspaceId
                     );
                     // The targets are checked here, inside the write and
@@ -652,8 +844,18 @@ export class EntryWriterService {
                         inserted as Row,
                         coerced,
                         workspaceId,
-                        { created: true }
+                        context
                     );
+                    // …the owners an inverse delta relinked, whose own
+                    // translations follow their link sets…
+                    const owners = inverseEdits.length
+                        ? await this.extension?.syncInverseOwners?.(
+                              tx,
+                              inverseEdits,
+                              workspaceId,
+                              context
+                          )
+                        : undefined;
                     // …and the rows of other types that refer to this one —
                     // e.g. a record whose mirrored link into this row's group
                     // had nothing to point at in this locale until now.
@@ -661,6 +863,14 @@ export class EntryWriterService {
                         tx,
                         type,
                         inserted as Row,
+                        workspaceId,
+                        context
+                    );
+                    // Asked first, and something else would change: refuse
+                    // with all of it, which rolls every write above back.
+                    await this.refuseUnconfirmedFanout(
+                        tx,
+                        context.fanout,
                         workspaceId
                     );
                     // Anything a bound plugin was asked to store about this
@@ -709,15 +919,12 @@ export class EntryWriterService {
                         actorId ?? null,
                         alsoChanged
                     );
-                    for (const rewrite of referrers ?? []) {
-                        await this.appendRevisionsFor(
-                            tx,
-                            rewrite.type,
-                            rewrite.rows,
-                            workspaceId,
-                            actorId ?? null
-                        );
-                    }
+                    await this.appendRewriteRevisions(
+                        tx,
+                        [...(owners ?? []), ...(referrers ?? [])],
+                        workspaceId,
+                        actorId ?? null
+                    );
                     // Inside the transaction, so the fact and the row it
                     // describes commit together or not at all — the whole point
                     // of the outbox.
@@ -1003,6 +1210,14 @@ export class EntryWriterService {
         if (!type.publishable) {
             this.assertValid(type, coerced, waived);
         }
+        const inverseEdits = this.inverseEdits(type, relations, rowLocale);
+        const context: EntryWriteContext = {
+            created: false,
+            allowInvalidSiblings: options?.allowInvalidSiblings === true,
+            ...(options?.askBeforeSiblingSync === true
+                ? { fanout: { changes: [], invalidated: [] } }
+                : {})
+        };
         // One transaction: replace the row's columns, re-sync a whole-set
         // many-relation submitted in `values`, and apply the staged relation
         // deltas — so a save is all-or-nothing.
@@ -1022,6 +1237,11 @@ export class EntryWriterService {
                 tx,
                 type,
                 { localeGroupId: rowGroup ?? undefined },
+                workspaceId
+            );
+            await this.extension?.lockInverseOwners?.(
+                tx,
+                inverseEdits,
                 workspaceId
             );
             // In the transaction and holding what they read, as on create —
@@ -1092,13 +1312,21 @@ export class EntryWriterService {
                 updated as Row,
                 coerced,
                 workspaceId,
-                {
-                    created: false,
-                    allowInvalidSiblings:
-                        options?.allowInvalidSiblings === true,
-                    askBeforeSiblingSync: options?.askBeforeSiblingSync === true
-                }
+                context
             );
+            // The owners an inverse delta relinked keep their own
+            // translations in step (see `syncInverseOwners`).
+            const owners = inverseEdits.length
+                ? await this.extension?.syncInverseOwners?.(
+                      tx,
+                      inverseEdits,
+                      workspaceId,
+                      context
+                  )
+                : undefined;
+            // Asked first, and something else would change: refuse with all
+            // of it, which rolls every write above back.
+            await this.refuseUnconfirmedFanout(tx, context.fanout, workspaceId);
             // Whatever a bound plugin was asked to store about this entry, on
             // this transaction and before the snapshot reads it back — so the
             // version records the audiences the save actually applied rather
@@ -1133,6 +1361,12 @@ export class EntryWriterService {
                 workspaceId,
                 actorId ?? null,
                 alsoChanged
+            );
+            await this.appendRewriteRevisions(
+                tx,
+                owners ?? [],
+                workspaceId,
+                actorId ?? null
             );
             // A save that changed no field value raises nothing: it is a round
             // trip, not an editorial change, and the log is read by people.

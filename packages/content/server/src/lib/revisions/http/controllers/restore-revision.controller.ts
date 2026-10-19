@@ -1,4 +1,5 @@
 import {
+    Body,
     Controller,
     Param,
     ParseIntPipe,
@@ -21,6 +22,7 @@ import type { ContentTypeRegistry } from '../../../registry/content-type-registr
 import { resolveType } from '../../../entries/http/controllers/resolve-type';
 import { toActor } from '../../../entries/http/controllers/to-actor';
 import type { EntryRecord } from '../../../entries/types/entry-list-view';
+import { RevisionWriteDto } from '../dto/revision-write.dto';
 import { RestoreRevisionUseCase } from '../../application/use-cases/restore-revision.use-case';
 
 /**
@@ -45,6 +47,7 @@ export class RestoreRevisionController {
         @Param('id', ParseUUIDPipe) id: string,
         @Param('number', ParseIntPipe) number: number,
         @CurrentWorkspace() workspaceId: string,
+        @Body() body: RevisionWriteDto = {},
         @CurrentUser() user?: PublicUser
     ): Promise<EntryRecord> {
         const type = resolveType(this.registry, typeName);
@@ -53,7 +56,11 @@ export class RestoreRevisionController {
             id,
             number,
             workspaceId,
-            toActor(user) ?? null
+            toActor(user) ?? null,
+            {
+                allowInvalidSiblings: body.allowInvalidSiblings,
+                askBeforeSiblingSync: body.askBeforeSiblingSync
+            }
         );
     }
 }
