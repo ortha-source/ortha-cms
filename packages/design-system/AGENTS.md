@@ -64,6 +64,12 @@ hand-written):
   collapse, double-click to reset) that previews a drag by writing the CSS
   variable directly and commits once on release, so the owner re-renders once
   per drag. Released below half the minimum, a collapsible panel collapses.
+  **A drag must always end** — it is followed on `window`, not on the handle,
+  and closes on the release wherever it lands, on a move that reports no button
+  down, on a lost capture, on `blur`, on `Escape` and on unmount. The resize
+  cursor is a `data-panel-resizing` flag on `<html>` (styled in `styles.css`),
+  never a saved-and-restored inline style: restoring a saved value that was
+  itself the resize cursor is how the cursor used to stay stuck.
   Outside a provider a panel still works, in memory, with a store of its own.
 - **A controlled `SidebarProvider` writes no cookie.** `sidebar_state` is the
   persistence of an _uncontrolled_ provider; a caller passing `open` /

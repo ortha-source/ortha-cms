@@ -56,6 +56,57 @@ test.describe('the resizable sidebar', () => {
             .toEqual([{ 'shell.sidebar': { width: DEFAULT_WIDTH + 40 } }]);
     });
 
+    test('a drag released far from the edge is over — nothing keeps following the pointer [design-system:I-50]', async ({
+        page,
+        activityLogPage,
+        resizablePanels
+    }) => {
+        await mockPreferences(page);
+        await activityLogPage.goto();
+
+        // Drag 30px, then sweep straight down — a vertical move does not
+        // change the width — and let go well below, over the page's content.
+        const box = await resizablePanels.sidebarHandle.boundingBox();
+        if (!box) throw new Error('the handle has no box');
+        const releaseX = box.x + box.width / 2 + 30;
+        await resizablePanels.dragAndReleaseElsewhere(
+            resizablePanels.sidebarHandle,
+            30,
+            { x: releaseX, y: 650 }
+        );
+
+        // The pointer then moved on 120px with the button up: the width
+        // stayed, the resize cursor and the drag flag are gone, the line is
+        // unlit.
+        expect(
+            await resizablePanels.widthOf(resizablePanels.sidebarPanel)
+        ).toBe(DEFAULT_WIDTH + 30);
+        expect(await resizablePanels.dragFlagged()).toBe(false);
+        expect(await resizablePanels.cursorAt(releaseX + 150, 650)).not.toBe(
+            'col-resize'
+        );
+        await expect(resizablePanels.sidebarHandle).not.toHaveAttribute(
+            'data-dragging',
+            /.*/
+        );
+    });
+
+    test('Escape mid-drag puts the width back', async ({
+        page,
+        activityLogPage,
+        resizablePanels
+    }) => {
+        await mockPreferences(page);
+        await activityLogPage.goto();
+        await resizablePanels.escapeMidDrag(resizablePanels.sidebarHandle, 60);
+
+        // With the drag over the panel's slide is back on, so it eases home.
+        await expect
+            .poll(() => resizablePanels.widthOf(resizablePanels.sidebarPanel))
+            .toBe(DEFAULT_WIDTH);
+        expect(await resizablePanels.dragFlagged()).toBe(false);
+    });
+
     test('stops at the viewport cap, however far it is dragged', async ({
         page,
         activityLogPage,

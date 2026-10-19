@@ -582,6 +582,7 @@ Statements that must always hold. This is at once a review list and a draft set 
 - **I-47** — The panel layout announces only a user's change (`update`), never a `hydrate`; a hydrate never overwrites a panel the user changed since the store was created; a corrupt or unreadable cache yields `{}`, never a throw.
 - **I-48** — `ResizeHandle` commits at most once per drag — on release, clamped to `[min, max]`; a cancelled drag commits nothing and restores the preview; a collapsible panel released below half its minimum collapses instead of committing, and is restored to its committed width first.
 - **I-49** — A resizable panel's maximum is `min(maxWidth, viewport × maxViewportRatio)`, never below `minWidth`, and is applied at render: a stored width above it is narrowed on screen, not in storage.
+- **I-50** — A `ResizeHandle` drag always ends: on the release wherever it lands, on a move whose `buttons` is `0`, on a lost pointer capture, on the window's `blur`, on `Escape` (which restores the width) and on unmount; a press while a drag is open closes that drag first. The drag cursor is the `data-panel-resizing` flag on `<html>`, removed on end — never an inline style saved and restored.
 
 ## 11. Testing checklist
 

@@ -332,3 +332,19 @@
         color: GrayText;
     }
 }
+
+/* ---------------------------------------------------------------------------
+   Panel resizing — set by `ResizeHandle` on `<html>` for the length of a drag.
+
+   The cursor leaves the handle the moment a drag moves, so the handle's own
+   `cursor-col-resize` stops applying; this keeps every element on the resize
+   cursor (a link or a button under the pointer would otherwise flicker to its
+   own) and suspends text selection so the drag does not paint half the page.
+   It is a flag rather than an inline style the handle saves and restores: a
+   saved value can itself be the resize cursor, and restoring it is exactly
+   how the cursor used to stay stuck after the drag had ended. */
+html[data-panel-resizing],
+html[data-panel-resizing] * {
+    cursor: col-resize !important;
+    user-select: none !important;
+}
