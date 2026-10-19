@@ -78,6 +78,24 @@ export {
     wasCutShort
 } from './lib/run/run-limits';
 export type { RunLimits, RunStopReason } from './lib/run/run-limits';
+export { billableTokens } from './lib/run/billable-tokens';
+
+// --- usage limits ---
+export {
+    admitRun,
+    COPILOT_LIMIT_CODES,
+    needsUsageSnapshot,
+    remainingBudget,
+    usageDay
+} from './lib/usage/quota';
+export type {
+    CopilotLimitCode,
+    CopilotLimitRefusal,
+    CopilotLimitScope,
+    CopilotQuotas,
+    UsageDay,
+    UsageSnapshot
+} from './lib/usage/quota';
 export { MAX_MESSAGE_LENGTH } from './lib/run/message';
 export type {
     CopilotRunEvent,

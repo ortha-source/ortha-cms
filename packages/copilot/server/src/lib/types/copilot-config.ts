@@ -1,4 +1,4 @@
-import type { RunLimits } from '@orthacms/copilot-domain';
+import type { CopilotQuotas, RunLimits } from '@orthacms/copilot-domain';
 
 /**
  * The copilot plugin's host-supplied config.
@@ -52,4 +52,18 @@ export interface CopilotPluginConfig {
      * who can afford more should be able to say so.
      */
     permissionDecisionBudgetMs?: number;
+    /**
+     * How much the copilot may be used, as opposed to how big one run may get
+     * (`limits`): daily token quotas per user and per workspace, runs per
+     * minute, and runs in flight. Every field is optional and an absent one is
+     * no limit, so a deployment that sets none behaves exactly as before —
+     * except that spend is now recorded either way, so a quota switched on
+     * later sees today's figures at once.
+     *
+     * Checked **before** a run opens its stream, so a refusal is a real
+     * `429` and nothing is persisted; the daily quotas are checked again
+     * between steps, and a run that spends what was left stops with
+     * `stopReason: 'quota'`.
+     */
+    quotas?: CopilotQuotas;
 }

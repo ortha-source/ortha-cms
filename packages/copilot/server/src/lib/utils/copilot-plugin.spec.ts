@@ -128,6 +128,37 @@ describe('CopilotPlugin config validation', () => {
         ).not.toThrow();
     });
 
+    it.each([
+        ['userDailyTokens', 0],
+        ['workspaceDailyTokens', -5],
+        ['runsPerMinute', 1.5],
+        ['maxConcurrentRuns', Number.NaN]
+        // covers: copilot:I-35
+    ])('rejects a non-positive or fractional quotas.%s (%p)', (key, value) => {
+        expect(() =>
+            CopilotPlugin(
+                options({ config: config({ quotas: { [key]: value } }) })
+            )
+        ).toThrow(new RegExp(`quotas\\.${key} must be a positive integer`));
+    });
+
+    it('accepts every usage limit set at once', () => {
+        expect(() =>
+            CopilotPlugin(
+                options({
+                    config: config({
+                        quotas: {
+                            userDailyTokens: 2_000_000,
+                            workspaceDailyTokens: 20_000_000,
+                            runsPerMinute: 10,
+                            maxConcurrentRuns: 2
+                        }
+                    })
+                })
+            )
+        ).not.toThrow();
+    });
+
     it('stays constructible while disabled — the kill switch is not a wiring error', () => {
         expect(() =>
             CopilotPlugin(options({ config: config({ enabled: false }) }))

@@ -1,4 +1,4 @@
-/** The copilot — its kill switch, its run ceilings, and its model backends. */
+/** The copilot — its kill switch, its run ceilings, its usage limits, and its model backends. */
 import type { CopilotPluginConfig } from '@orthacms/copilot-server';
 import type { AnthropicProviderConfig } from '@orthacms/copilot-provider-anthropic';
 import type { OpenAiProviderConfig } from '@orthacms/copilot-provider-openai';
@@ -65,6 +65,7 @@ export function copilotConfig(): OrthaCmsCopilotConfig {
         enabled: readFlag('COPILOT_ENABLED', false),
         maxOutputTokens: readPositiveInt('COPILOT_MAX_OUTPUT_TOKENS', 8_192),
         limits: copilotLimits(),
+        quotas: copilotQuotas(),
         providers: copilotProviders()
     });
 }
@@ -97,6 +98,29 @@ function copilotLimits(): CopilotPluginConfig['limits'] | undefined {
         maxTotalTokens: readOptionalPositiveInt('COPILOT_MAX_TOTAL_TOKENS')
     });
     return when(Object.keys(limits).length > 0, () => limits);
+}
+
+/**
+ * The copilot's usage limits — daily token quotas, runs per minute, runs in
+ * flight — or nothing at all when the deployment set none.
+ *
+ * The same rules as {@link copilotLimits}, for the same reasons: each key is
+ * dropped rather than passed as `undefined`, and zero is rejected rather than
+ * read as "off" — an empty value is what off looks like. Unlike the ceilings
+ * there are no defaults behind these: an absent quota is no quota.
+ */
+function copilotQuotas(): CopilotPluginConfig['quotas'] | undefined {
+    const quotas = defined({
+        userDailyTokens: readOptionalPositiveInt('COPILOT_USER_DAILY_TOKENS'),
+        workspaceDailyTokens: readOptionalPositiveInt(
+            'COPILOT_WORKSPACE_DAILY_TOKENS'
+        ),
+        runsPerMinute: readOptionalPositiveInt('COPILOT_RUNS_PER_MINUTE'),
+        maxConcurrentRuns: readOptionalPositiveInt(
+            'COPILOT_MAX_CONCURRENT_RUNS'
+        )
+    });
+    return when(Object.keys(quotas).length > 0, () => quotas);
 }
 
 /**

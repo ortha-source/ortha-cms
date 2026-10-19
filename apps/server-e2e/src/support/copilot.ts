@@ -3,7 +3,10 @@ import {
     createFakeProvider,
     type FakeTurn
 } from '@orthacms/copilot-provider-fake';
-import { ConversationRepository } from '@orthacms/copilot-server';
+import {
+    ConversationRepository,
+    UsageRepository
+} from '@orthacms/copilot-server';
 import {
     ToolRegistry,
     type ToolProvider,
@@ -197,4 +200,13 @@ export const testCodeSkills = [
 /** One run's audit rows — the surface a security review reads. */
 export function copilotToolCallRows(app: INestApplication, runId: string) {
     return app.get(ConversationRepository).toolCalls(runId);
+}
+
+/**
+ * One run's spend-ledger rows (`copilot_usage`) — what the quotas count. Read
+ * through the plugin's own repository, so a suite asserts on what admission
+ * and the meter actually wrote.
+ */
+export function copilotUsageRows(app: INestApplication, runId: string) {
+    return app.get(UsageRepository).forRun(runId);
 }

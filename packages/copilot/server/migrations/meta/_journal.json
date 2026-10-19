@@ -50,6 +50,13 @@
       "when": 1787000890048,
       "tag": "0006_conversation_model_choice",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792433475268,
+      "tag": "0007_copilot_usage",
+      "breakpoints": true
     }
   ]
 }

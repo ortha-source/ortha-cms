@@ -9,6 +9,7 @@ import {
     type Skill
 } from '@orthacms/copilot-domain';
 import type { ToolDefinition, ToolRegistry } from '@orthacms/tools-server';
+import { Logger } from '@nestjs/common';
 import { DrizzleQueryError } from 'drizzle-orm';
 import { buildModelRegistry } from '../../infrastructure/model-registry';
 import type { CopilotPluginConfig } from '../../types/copilot-config';
@@ -22,6 +23,8 @@ import type { CapabilityProfileService } from './capability-profile.service';
 import type { DecideProposalService } from './decide-proposal.service';
 import { RunEngine, type StartRunInput } from './run-engine.service';
 import type { ToolPermissionBroker } from './tool-permission.broker';
+import { RunMeter } from '../../usage/application/run-meter';
+import type { UsageRepository } from '../../usage/infrastructure/persistence/usage.repository';
 
 /**
  * The engine is an async generator, which is what makes these tests possible
@@ -1201,4 +1204,181 @@ describe('RunEngine resolving attachments', () => {
             expect(conversations.create).not.toHaveBeenCalled();
         }
     );
+});
+
+describe('RunEngine charging a metered run', () => {
+    function ledger() {
+        return {
+            record: jest.fn(async () => undefined),
+            finish: jest.fn(async () => undefined)
+        };
+    }
+
+    function meter(budget = Infinity) {
+        const usage = ledger();
+        return {
+            usage,
+            meter: new RunMeter(
+                'run-from-the-meter',
+                budget,
+                usage as unknown as UsageRepository
+            )
+        };
+    }
+
+    /** A turn that reads once, then a turn that answers. */
+    function readThenAnswer(usage: {
+        inputTokens: number;
+        outputTokens: number;
+    }) {
+        let call = 0;
+        return async function* (): AsyncIterable<ModelStreamEvent> {
+            call += 1;
+            if (call === 1) {
+                yield {
+                    type: 'tool-call',
+                    id: 'call-1',
+                    name: 'fixture_read',
+                    input: {}
+                };
+                yield { type: 'done', stopReason: 'tool_use', usage };
+                return;
+            }
+            yield { type: 'text-delta', text: 'Done.' };
+            yield { type: 'done', stopReason: 'end', usage };
+        };
+    }
+
+    // The ledger row was written under the meter's id before the stream
+    // opened; a run under any other id would charge nobody.
+    it('runs under the meter’s id [copilot:I-45]', async () => {
+        const { engine } = harness(
+            readThenAnswer({ inputTokens: 1, outputTokens: 1 })
+        );
+        const { meter: m } = meter();
+
+        const frames = await drain(
+            engine.run(startInput(new AbortController().signal, { meter: m }))
+        );
+
+        expect(frames[0]).toEqual(
+            expect.objectContaining({
+                type: 'run-started',
+                runId: 'run-from-the-meter'
+            })
+        );
+    });
+
+    it('charges every model call, and names the thread and backend once [copilot:I-45]', async () => {
+        const { engine } = harness(
+            readThenAnswer({ inputTokens: 10, outputTokens: 5 })
+        );
+        const { meter: m, usage } = meter();
+
+        await drain(
+            engine.run(startInput(new AbortController().signal, { meter: m }))
+        );
+
+        expect(usage.record).toHaveBeenCalledTimes(2);
+        expect(usage.record).toHaveBeenNthCalledWith(
+            1,
+            'run-from-the-meter',
+            { inputTokens: 10, outputTokens: 5 },
+            expect.any(Date),
+            {
+                conversationId: 'conversation-1',
+                provider: 'fixture',
+                model: 'fixture-model'
+            }
+        );
+        expect(usage.record).toHaveBeenNthCalledWith(
+            2,
+            'run-from-the-meter',
+            { inputTokens: 10, outputTokens: 5 },
+            expect.any(Date),
+            {}
+        );
+        expect(m.spentTokens).toBe(30);
+        expect(usage.finish).toHaveBeenCalledWith(
+            'run-from-the-meter',
+            'end',
+            expect.any(Date)
+        );
+    });
+
+    // Between steps, like the run's own token ceiling — so the call that
+    // spent the last of it completes, and the next one never happens.
+    it('stops with `quota` once the daily budget is spent, keeping what it said [copilot:I-47]', async () => {
+        const { engine, seen, conversations } = harness(
+            readThenAnswer({ inputTokens: 600, outputTokens: 600 })
+        );
+        const { meter: m, usage } = meter(1000);
+
+        const frames = await drain(
+            engine.run(startInput(new AbortController().signal, { meter: m }))
+        );
+
+        expect(frames.at(-1)).toEqual(
+            expect.objectContaining({ type: 'done', stopReason: 'quota' })
+        );
+        expect(seen).toHaveLength(1);
+        expect(assistantRows(conversations.rows)[0]).toEqual(
+            expect.objectContaining({ stopReason: 'quota' })
+        );
+        expect(usage.finish).toHaveBeenCalledWith(
+            'run-from-the-meter',
+            'quota',
+            expect.any(Date)
+        );
+    });
+
+    // A run can end by throwing before its loop starts; its row must not be
+    // left `running`, holding one of the owner's concurrency slots.
+    it('finishes the row when the run fails before its first step [copilot:I-45]', async () => {
+        const { engine } = harness(
+            readThenAnswer({ inputTokens: 1, outputTokens: 1 }),
+            {
+                skillsFail: new Error('skills unavailable')
+            }
+        );
+        const { meter: m, usage } = meter();
+
+        await expect(
+            drain(
+                engine.run(
+                    startInput(new AbortController().signal, { meter: m })
+                )
+            )
+        ).rejects.toThrow('skills unavailable');
+
+        expect(usage.record).not.toHaveBeenCalled();
+        expect(usage.finish).toHaveBeenCalledWith(
+            'run-from-the-meter',
+            'error',
+            expect.any(Date)
+        );
+    });
+
+    // The person is watching the answer arrive and the tokens are already
+    // spent: a bookkeeping failure must not cost them the rest of it.
+    it('answers in full when the ledger cannot be written', async () => {
+        const { engine } = harness(
+            readThenAnswer({ inputTokens: 1, outputTokens: 1 })
+        );
+        const { meter: m, usage } = meter();
+        usage.record.mockRejectedValue(new Error('connection lost'));
+        usage.finish.mockRejectedValue(new Error('connection lost'));
+        jest.spyOn(Logger.prototype, 'error').mockImplementation(
+            () => undefined
+        );
+
+        const frames = await drain(
+            engine.run(startInput(new AbortController().signal, { meter: m }))
+        );
+
+        expect(frames.at(-1)).toEqual(
+            expect.objectContaining({ type: 'done', stopReason: 'end' })
+        );
+        jest.restoreAllMocks();
+    });
 });

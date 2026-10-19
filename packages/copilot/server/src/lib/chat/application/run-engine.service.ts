@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import {
+    billableTokens,
     COPILOT_ATTACHMENT_RESOLVER,
     DEFAULT_RUN_LIMITS,
     MODEL_REGISTRY,
@@ -47,6 +48,7 @@ import { DecideProposalService } from './decide-proposal.service';
 import { ToolPermissionBroker } from './tool-permission.broker';
 import { SkillCatalogService } from '../../skills/application/skill-catalog.service';
 import { summarizeToolOutput } from './summarize-tool-output';
+import type { RunMeter } from '../../usage/application/run-meter';
 import { userFacingMessage } from './user-facing-message';
 import {
     buildSystemPrompt,
@@ -103,6 +105,17 @@ export interface StartRunInput {
     choice?: { provider?: string; model?: string };
     /** Aborted when the client disconnects. */
     signal: AbortSignal;
+    /**
+     * The run's handle on the spend ledger, from `CopilotQuotaService.begin`
+     * — which admitted the run and already wrote its row. The run takes its
+     * id from it, charges each model call to it, stops with `quota` when the
+     * daily budget it was admitted with is spent, and finishes it however the
+     * run ends.
+     *
+     * Optional so a caller with no HTTP request (a test, a future job) can
+     * drain the engine unmetered; the run controller always passes one.
+     */
+    meter?: RunMeter;
 }
 
 /**
@@ -194,8 +207,29 @@ export class RunEngine {
         this.limits = limits ?? { ...DEFAULT_RUN_LIMITS, ...config.limits };
     }
 
-    /** Runs one turn, yielding events as they happen. */
+    /**
+     * Runs one turn, yielding events as they happen.
+     *
+     * The ledger row is finished here, in a `finally`, rather than at the end
+     * of {@link turn}: a run can end by throwing before its loop starts (a bad
+     * attachment, an unknown model) or by its consumer abandoning the
+     * generator mid-stream, and a row left `running` holds one of its owner's
+     * concurrency slots until it is old enough to count as an orphan.
+     */
     async *run(input: StartRunInput): AsyncGenerator<CopilotRunEvent> {
+        const outcome: { stopReason: RunStopReason } = { stopReason: 'error' };
+        try {
+            yield* this.turn(input, outcome);
+        } finally {
+            await input.meter?.finish(outcome.stopReason);
+        }
+    }
+
+    /** The turn itself; reports how it ended through `outcome`. */
+    private async *turn(
+        input: StartRunInput,
+        outcome: { stopReason: RunStopReason }
+    ): AsyncGenerator<CopilotRunEvent> {
         if (!this.config.enabled) {
             // The operator's kill switch (ADR-0005 §10), belt-and-braces —
             // `CopilotModule.forRoot` registers no controller when it is off,
@@ -206,7 +240,9 @@ export class RunEngine {
             throw new CopilotDisabledError();
         }
 
-        const runId = randomUUID();
+        // The meter's id when there is one: its ledger row was written under
+        // it before the stream opened, and the two have to join.
+        const runId = input.meter?.runId ?? randomUUID();
         const startedAt = Date.now();
 
         // Resolved BEFORE the conversation is touched. An unresolvable
@@ -372,6 +408,7 @@ export class RunEngine {
             assistantMessageId = written.id;
         }
 
+        outcome.stopReason = stopReason;
         yield {
             type: 'done',
             stopReason,
@@ -411,8 +448,15 @@ export class RunEngine {
             if (Date.now() - ctx.startedAt > this.limits.wallClockMs) {
                 return 'timeout';
             }
-            if (totalTokens(ctx.usage) > this.limits.maxTotalTokens) {
+            if (billableTokens(ctx.usage) > this.limits.maxTotalTokens) {
                 return 'max-tokens';
+            }
+            // The daily quota, on the same between-steps terms as the run's
+            // own ceiling — and so with the same overshoot of at most one
+            // model call. Not a refusal: what the run already said is kept,
+            // and the turn replays with a note so "continue" resumes it.
+            if (ctx.input.meter?.exhausted) {
+                return 'quota';
             }
 
             // `yield*` forwards each delta to the client as it arrives and
@@ -428,6 +472,11 @@ export class RunEngine {
             // both keys absent rather than zero, so a run on an adapter with no
             // cache is indistinguishable from one that never hit it.
             addCacheTokens(ctx.usage, turn.usage);
+            await ctx.input.meter?.record(turn.usage, {
+                conversationId: ctx.conversationId,
+                provider: ctx.provider.name,
+                model: ctx.model
+            });
             if (turn.text) {
                 ctx.assistantBlocks.push({ type: 'text', text: turn.text });
             }
@@ -1388,19 +1437,6 @@ function addCacheTokens(into: ModelUsage, from: ModelUsage): void {
         into.cacheWriteInputTokens =
             (into.cacheWriteInputTokens ?? 0) + from.cacheWriteInputTokens;
     }
-}
-
-function totalTokens(usage: ModelUsage): number {
-    // Cache **writes** count; cache **reads** do not. A write is billed at a
-    // premium over plain input, so leaving it out would let caching make a run
-    // look cheaper than it is. A read is ~a tenth of the price and is the whole
-    // point of caching — charging the ceiling for it would spend the run's
-    // budget on re-reading the prompt, which is exactly what caching stopped.
-    return (
-        usage.inputTokens +
-        usage.outputTokens +
-        (usage.cacheWriteInputTokens ?? 0)
-    );
 }
 
 /**

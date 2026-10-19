@@ -302,6 +302,57 @@ describe('copilot run ceilings', () => {
     });
 });
 
+describe('copilot usage limits', () => {
+    const unset = {
+        COPILOT_USER_DAILY_TOKENS: undefined,
+        COPILOT_WORKSPACE_DAILY_TOKENS: undefined,
+        COPILOT_RUNS_PER_MINUTE: undefined,
+        COPILOT_MAX_CONCURRENT_RUNS: undefined
+    };
+
+    // No quota is the default, and an empty `.env` line is how it is written.
+    it('omits `quotas` entirely when none are set', () => {
+        expect(loadConfig(unset).plugins.copilot.quotas).toBeUndefined();
+        expect(
+            loadConfig({
+                ...unset,
+                COPILOT_USER_DAILY_TOKENS: '',
+                COPILOT_WORKSPACE_DAILY_TOKENS: '',
+                COPILOT_RUNS_PER_MINUTE: '',
+                COPILOT_MAX_CONCURRENT_RUNS: ''
+            }).plugins.copilot.quotas
+        ).toBeUndefined();
+    });
+
+    it('passes each configured limit through, and only those', () => {
+        expect(
+            loadConfig({
+                ...unset,
+                COPILOT_USER_DAILY_TOKENS: '2000000',
+                COPILOT_MAX_CONCURRENT_RUNS: '2'
+            }).plugins.copilot.quotas
+        ).toEqual({ userDailyTokens: 2_000_000, maxConcurrentRuns: 2 });
+        expect(
+            loadConfig({
+                ...unset,
+                COPILOT_WORKSPACE_DAILY_TOKENS: '20000000',
+                COPILOT_RUNS_PER_MINUTE: '10'
+            }).plugins.copilot.quotas
+        ).toEqual({ workspaceDailyTokens: 20_000_000, runsPerMinute: 10 });
+    });
+
+    // Zero is not "off" — it would refuse every run — so it is refused here,
+    // at boot, by name.
+    it.each([
+        'COPILOT_USER_DAILY_TOKENS',
+        'COPILOT_WORKSPACE_DAILY_TOKENS',
+        'COPILOT_RUNS_PER_MINUTE',
+        'COPILOT_MAX_CONCURRENT_RUNS'
+    ])('rejects zero for %s', (name) => {
+        expect(loadError({ ...unset, [name]: '0' })).toContain(name);
+    });
+});
+
 describe('ALLOWED_ORIGINS', () => {
     it('trims and drops empties', () => {
         expect(

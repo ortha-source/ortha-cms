@@ -30,6 +30,10 @@ import { UnknownModelError } from '@orthacms/copilot-domain';
 import { ContentTypeSummaryService } from '../../application/content-type-summary.service';
 import { SkillResolutionError } from '../../../skills/application/skill-catalog.service';
 import { SseStream } from '../sse-stream';
+import { CopilotQuotaService } from '../../../usage/application/copilot-quota.service';
+import { CopilotLimitError } from '../../../usage/application/copilot-limit.error';
+import type { RunMeter } from '../../../usage/application/run-meter';
+import { limitException } from '../../../usage/http/limit-exception';
 
 /**
  * `POST /api/copilot/runs` — starts a turn and streams it back as Server-Sent
@@ -56,7 +60,8 @@ export class CreateRunController {
 
     constructor(
         private readonly engine: RunEngine,
-        private readonly types: ContentTypeSummaryService
+        private readonly types: ContentTypeSummaryService,
+        private readonly quotas: CopilotQuotaService
     ) {}
 
     @Post('runs')
@@ -74,6 +79,14 @@ export class CreateRunController {
         status: 200,
         description: 'An event stream (`text/event-stream`).'
     })
+    @ApiResponse({
+        status: 429,
+        description:
+            'A usage limit refused the run before it started; nothing was stored. ' +
+            '`code` is `copilot.quota_exceeded` (with `scope` `user` or `workspace` ' +
+            'and `resetsAt`), `copilot.rate_limited` or `copilot.too_many_runs`. ' +
+            '`Retry-After` is set when the wait is knowable.'
+    })
     async create(
         @Body() body: CreateRunDto,
         @CurrentUser() user: PublicUser,
@@ -87,6 +100,22 @@ export class CreateRunController {
         stream.onClientDisconnect(abort);
 
         const typeSummaries = await this.types.summaries(workspaceId);
+
+        // Admission, last thing before the stream opens: once the headers are
+        // out a refusal can only be a frame inside a `200`, and a client — the
+        // panel, or anything driving the API — should be able to branch on a
+        // `429` instead. It also writes the run's ledger row, which is why it
+        // waits until nothing else here can throw: from this line on, the
+        // engine's `finally` is what closes that row.
+        let meter: RunMeter;
+        try {
+            meter = await this.quotas.begin({ userId: user.id, workspaceId });
+        } catch (error) {
+            if (error instanceof CopilotLimitError) {
+                throw limitException(error.refusal, res);
+            }
+            throw error;
+        }
 
         stream.open();
         try {
@@ -120,7 +149,8 @@ export class CreateRunController {
                       }
                     : {}),
                 typeSummaries,
-                signal: abort.signal
+                signal: abort.signal,
+                meter
             });
 
             for await (const event of events) {

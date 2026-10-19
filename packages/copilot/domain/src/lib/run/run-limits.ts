@@ -61,6 +61,12 @@ export type RunStopReason =
     | 'max-tokens'
     /** Hit {@link RunLimits.wallClockMs}. */
     | 'timeout'
+    /**
+     * Ran out of the daily token quota — the user's or the workspace's —
+     * between two steps. Unlike `max-tokens` this is not the run's own
+     * ceiling: the same question asked tomorrow gets a fresh budget.
+     */
+    | 'quota'
     /** One model response was truncated by its own output ceiling. */
     | 'max-output-tokens'
     /** The provider's safety classifiers declined. */
@@ -92,6 +98,7 @@ const RUN_STOP_NOTES: Record<RunStopReason, string> = {
     'max-steps': 'Stopped after reaching the maximum number of steps.',
     'max-tokens': 'Stopped after reaching this run’s token budget.',
     timeout: 'Stopped after running longer than allowed.',
+    quota: 'Stopped because the daily usage allowance ran out.',
     'max-output-tokens': 'The answer was cut short by the response limit.',
     refusal: 'The model declined to answer.',
     aborted: 'Cancelled.',
@@ -110,6 +117,7 @@ const CUT_SHORT_REASONS: ReadonlySet<string> = new Set<RunStopReason>([
     'max-steps',
     'max-tokens',
     'timeout',
+    'quota',
     'max-output-tokens',
     'aborted',
     'error'

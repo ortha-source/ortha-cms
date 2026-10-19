@@ -58,7 +58,18 @@ export type { SkillSummary } from './lib/skills/application/skill-catalog.servic
 export { SkillRepository } from './lib/skills/infrastructure/persistence/skill.repository';
 export type { SkillRecord } from './lib/skills/infrastructure/persistence/skill.repository';
 
+// --- usage limits ---
+export { CopilotQuotaService } from './lib/usage/application/copilot-quota.service';
+export type {
+    RunRequester,
+    UsageSummary
+} from './lib/usage/application/copilot-quota.service';
+export { CopilotLimitError } from './lib/usage/application/copilot-limit.error';
+export { RunMeter } from './lib/usage/application/run-meter';
+export { UsageRepository } from './lib/usage/infrastructure/persistence/usage.repository';
+
 // The Drizzle tables this plugin owns and migrates.
 export * from './lib/chat/infrastructure/schema';
 export * from './lib/skills/infrastructure/schema';
+export * from './lib/usage/infrastructure/schema';
 export { proposalEventActor } from './lib/chat/application/proposal-event-actor';
