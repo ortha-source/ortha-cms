@@ -68,8 +68,13 @@ export type ResizeHandleProps = {
  * resize as well as a pointer can.
  *
  * - **Pointer:** drag to resize between `min` and `max`. The pointer is
- *   captured, so the drag survives the cursor crossing an iframe or the rich
- *   text editor, and text selection is suspended for its duration.
+ *   captured and the drag is followed on `window`, so it survives the cursor
+ *   crossing an iframe or the rich-text editor, and it **always ends**: on the
+ *   release wherever it lands, on a move that arrives with the button already
+ *   up, on a lost capture, on the window losing focus, or on `Escape` (which
+ *   puts the width back). For its duration `<html>` carries
+ *   `data-panel-resizing`, which the design system's stylesheet turns into a
+ *   resize cursor everywhere and no text selection.
  * - **Keys:** `←`/`→` step by 16px (64px with `Shift`), `Home`/`End` jump to
  *   `min`/`max`, `Enter` collapses a collapsible panel.
  * - **Double-click** restores `defaultValue`.
@@ -93,101 +98,158 @@ export function ResizeHandle({
     onResizeEnd,
     className
 }: ResizeHandleProps) {
-    const drag = React.useRef<{
-        pointerId: number;
-        startX: number;
-        startWidth: number;
-        width: number;
-        collapse: boolean;
-        restore: () => void;
-    } | null>(null);
     const [dragging, setDragging] = React.useState(false);
     const [collapsePending, setCollapsePending] = React.useState(false);
 
     const direction = edge === 'right' ? 1 : -1;
 
-    const end = (outcome: 'commit' | 'cancel') => {
-        const current = drag.current;
-        if (!current) return;
-        drag.current = null;
-        current.restore();
-        setDragging(false);
-        setCollapsePending(false);
-        if (outcome === 'commit' && current.collapse && onCollapse) {
-            // The preview is at `min`; put the committed width back first, so
-            // the panel collapses from — and reopens at — the width it had.
-            onPreview?.(current.startWidth);
-            onCollapse();
-        } else if (outcome === 'commit' && current.width !== value) {
-            onCommit(current.width);
-        } else {
-            onPreview?.(value);
-        }
-        onResizeEnd?.();
+    // The listeners of a drag live on `window` for the drag's whole life, so
+    // they read the props through a ref: the closure made at `pointerdown`
+    // would otherwise keep the width and callbacks of that render.
+    const latest = React.useRef({
+        value,
+        min,
+        max,
+        direction,
+        onPreview,
+        onCommit,
+        onCollapse,
+        onResizeEnd
+    });
+    latest.current = {
+        value,
+        min,
+        max,
+        direction,
+        onPreview,
+        onCommit,
+        onCollapse,
+        onResizeEnd
     };
+
+    /** Ends the drag in progress, if any. Set by `pointerdown`. */
+    const finish = React.useRef<
+        ((outcome: 'commit' | 'cancel') => void) | null
+    >(null);
 
     const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
         if (event.button !== 0) return;
+        // A press that arrives while a drag is still open means its release
+        // was never heard (it happened outside the window, or the capture was
+        // taken away). Close that one first instead of stacking a second on
+        // top of it — stacking is what used to leave the resize cursor stuck.
+        finish.current?.('commit');
         event.preventDefault();
-        event.currentTarget.setPointerCapture(event.pointerId);
 
-        // The cursor leaves the handle as soon as the drag moves; pinning it on
-        // the root keeps it a resize cursor, and suspending selection keeps the
-        // drag from highlighting half the page.
-        const root = document.documentElement;
-        const previousCursor = root.style.cursor;
-        const previousSelect = root.style.userSelect;
-        root.style.cursor = 'col-resize';
-        root.style.userSelect = 'none';
+        const handle = event.currentTarget;
+        const pointerId = event.pointerId;
+        const startX = event.clientX;
+        const startWidth = latest.current.value;
+        let width = startWidth;
+        let collapse = false;
 
-        drag.current = {
-            pointerId: event.pointerId,
-            startX: event.clientX,
-            startWidth: value,
-            width: value,
-            collapse: false,
-            restore: () => {
-                root.style.cursor = previousCursor;
-                root.style.userSelect = previousSelect;
+        try {
+            // Keeps the drag ours over an iframe or the rich-text editor.
+            handle.setPointerCapture(pointerId);
+        } catch {
+            // A pointer the browser no longer tracks; the window listeners
+            // below carry the drag regardless.
+        }
+
+        const move = (e: PointerEvent) => {
+            if (e.pointerId !== pointerId) return;
+            // The button is already up: the release happened somewhere this
+            // drag was not told about. Never keep following a pointer the
+            // user has let go of.
+            if (e.buttons === 0) {
+                done('commit');
+                return;
+            }
+            const props = latest.current;
+            const raw = startWidth + (e.clientX - startX) * props.direction;
+            const nextCollapse =
+                !!props.onCollapse && raw < props.min * COLLAPSE_RATIO;
+            const next = clampWidth(raw, props.min, props.max);
+            if (nextCollapse !== collapse) {
+                collapse = nextCollapse;
+                setCollapsePending(collapse);
+            }
+            if (next !== width) {
+                width = next;
+                props.onPreview?.(width);
             }
         };
+        const up = (e: PointerEvent) => {
+            if (e.pointerId === pointerId) done('commit');
+        };
+        const cancel = (e: PointerEvent) => {
+            if (e.pointerId === pointerId) done('cancel');
+        };
+        // Losing the capture without a release (the handle went inert, the
+        // browser took the pointer for a gesture) ends the drag where it is.
+        const lost = () => done('commit');
+        // Switching windows mid-drag: the release will land elsewhere.
+        const blur = () => done('cancel');
+        const escape = (e: KeyboardEvent) => {
+            if (e.key !== 'Escape') return;
+            e.preventDefault();
+            e.stopPropagation();
+            done('cancel');
+        };
+
+        const done = (outcome: 'commit' | 'cancel') => {
+            if (finish.current !== done) return;
+            finish.current = null;
+            window.removeEventListener('pointermove', move, true);
+            window.removeEventListener('pointerup', up, true);
+            window.removeEventListener('pointercancel', cancel, true);
+            window.removeEventListener('blur', blur);
+            window.removeEventListener('keydown', escape, true);
+            handle.removeEventListener('lostpointercapture', lost);
+            if (handle.hasPointerCapture?.(pointerId)) {
+                handle.releasePointerCapture(pointerId);
+            }
+            // Removed outright, never "restored": a saved value can itself be
+            // the resize cursor, and restoring it is how it used to stick.
+            delete document.documentElement.dataset['panelResizing'];
+            setDragging(false);
+            setCollapsePending(false);
+
+            const props = latest.current;
+            if (outcome === 'commit' && collapse && props.onCollapse) {
+                // The preview is at `min`; put the committed width back
+                // first, so the panel collapses from — and reopens at — the
+                // width it had.
+                props.onPreview?.(startWidth);
+                props.onCollapse();
+            } else if (outcome === 'commit' && width !== props.value) {
+                props.onCommit(width);
+            } else {
+                props.onPreview?.(props.value);
+            }
+            props.onResizeEnd?.();
+        };
+
+        finish.current = done;
+        window.addEventListener('pointermove', move, true);
+        window.addEventListener('pointerup', up, true);
+        window.addEventListener('pointercancel', cancel, true);
+        window.addEventListener('blur', blur);
+        window.addEventListener('keydown', escape, true);
+        handle.addEventListener('lostpointercapture', lost);
+
+        // The cursor leaves the handle as soon as the drag moves. A flag on
+        // the root, styled by the design system's stylesheet, keeps every
+        // element showing the resize cursor and suspends text selection —
+        // and clearing a flag cannot leave anything behind.
+        document.documentElement.dataset['panelResizing'] = 'true';
         setDragging(true);
         onResizeStart?.();
     };
 
-    const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
-        const current = drag.current;
-        if (!current || current.pointerId !== event.pointerId) return;
-        const raw =
-            current.startWidth + (event.clientX - current.startX) * direction;
-        const collapse = !!onCollapse && raw < min * COLLAPSE_RATIO;
-        const width = clampWidth(raw, min, max);
-        if (collapse !== current.collapse) {
-            current.collapse = collapse;
-            setCollapsePending(collapse);
-        }
-        if (width !== current.width) {
-            current.width = width;
-            onPreview?.(width);
-        }
-    };
-
-    const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
-        if (drag.current?.pointerId !== event.pointerId) return;
-        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-            event.currentTarget.releasePointerCapture(event.pointerId);
-        }
-        end('commit');
-    };
-
-    const handlePointerCancel = (event: React.PointerEvent<HTMLDivElement>) => {
-        if (drag.current?.pointerId !== event.pointerId) return;
-        end('cancel');
-    };
-
-    // A drag the component did not live to finish must not leave the whole
-    // document stuck on a resize cursor with selection off.
-    React.useEffect(() => () => drag.current?.restore(), []);
+    // A drag the component did not live to finish ends with it, rather than
+    // leaving the document on a resize cursor with selection off.
+    React.useEffect(() => () => finish.current?.('cancel'), []);
 
     const commitKey = (width: number) => {
         const next = clampWidth(width, min, max);
@@ -234,9 +296,6 @@ export function ResizeHandle({
             data-dragging={dragging || undefined}
             data-collapse-pending={collapsePending || undefined}
             onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerCancel}
             onKeyDown={handleKeyDown}
             onDoubleClick={() => commitKey(defaultValue)}
             className={cn(
@@ -245,7 +304,10 @@ export function ResizeHandle({
                 'group/resize absolute inset-y-0 z-20 w-2 cursor-col-resize touch-none outline-none select-none',
                 edge === 'right' ? '-right-1' : '-left-1',
                 'after:absolute after:inset-y-0 after:left-1/2 after:w-0.5 after:-translate-x-1/2 after:transition-colors after:duration-150',
-                'hover:after:bg-border focus-visible:after:w-1 focus-visible:after:bg-ring data-[dragging]:after:bg-ring',
+                // Hover lights the line only after a beat, the way native
+                // splitters do: a pointer crossing the edge on its way
+                // somewhere else should not flash it. Leaving is immediate.
+                'hover:after:bg-border hover:after:delay-300 focus-visible:after:w-1 focus-visible:after:bg-ring data-[dragging]:after:bg-ring data-[dragging]:after:delay-0',
                 // Past the collapse point the line dims: let go and it goes.
                 'data-[collapse-pending]:after:bg-muted-foreground/40',
                 // Forced colours drop background colours, and with them the

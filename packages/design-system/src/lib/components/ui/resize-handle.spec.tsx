@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ResizeHandle, type ResizeHandleProps } from './resize-handle';
@@ -58,7 +58,7 @@ function drag(
 ) {
     fireEvent.pointerDown(handle, { pointerId: 1, button: 0, clientX: 500 });
     for (const clientX of moves) {
-        fireEvent.pointerMove(handle, { pointerId: 1, clientX });
+        fireEvent.pointerMove(handle, { pointerId: 1, buttons: 1, clientX });
     }
     const last = moves[moves.length - 1] ?? 500;
     if (end === 'up') {
@@ -162,18 +162,156 @@ describe('ResizeHandle', () => {
         expect(props.onCommit).toHaveBeenCalledWith(256);
     });
 
-    it('gives the document its cursor and selection back when the drag ends', () => {
+    it('flags the document for the drag, and clears the flag however the drag ends [design-system:I-50]', () => {
+        const { handle } = setup();
+        const flag = () => document.documentElement.dataset['panelResizing'];
+
+        fireEvent.pointerDown(handle, {
+            pointerId: 1,
+            button: 0,
+            clientX: 500
+        });
+        expect(flag()).toBe('true');
+        fireEvent.pointerUp(handle, { pointerId: 1, clientX: 500 });
+        expect(flag()).toBeUndefined();
+
+        fireEvent.pointerDown(handle, {
+            pointerId: 2,
+            button: 0,
+            clientX: 500
+        });
+        fireEvent.keyDown(window, { key: 'Escape' });
+        expect(flag()).toBeUndefined();
+    });
+
+    it('a release that lands outside the handle still ends the drag [design-system:I-50]', () => {
+        const { props, handle } = setup();
+
+        fireEvent.pointerDown(handle, {
+            pointerId: 1,
+            button: 0,
+            clientX: 500
+        });
+        fireEvent.pointerMove(document.body, {
+            pointerId: 1,
+            buttons: 1,
+            clientX: 540
+        });
+        fireEvent.pointerUp(document.body, { pointerId: 1, clientX: 540 });
+
+        expect(props.onCommit).toHaveBeenCalledWith(296);
+        expect(handle.hasAttribute('data-dragging')).toBe(false);
+    });
+
+    it('a move with the button already up ends the drag instead of following it [design-system:I-50]', () => {
+        const { props, handle } = setup();
+
+        fireEvent.pointerDown(handle, {
+            pointerId: 1,
+            button: 0,
+            clientX: 500
+        });
+        fireEvent.pointerMove(handle, {
+            pointerId: 1,
+            buttons: 1,
+            clientX: 520
+        });
+        // The release was never delivered; the next move says the button is up.
+        fireEvent.pointerMove(handle, {
+            pointerId: 1,
+            buttons: 0,
+            clientX: 600
+        });
+
+        expect(props.onCommit).toHaveBeenCalledWith(276);
+        fireEvent.pointerMove(handle, {
+            pointerId: 1,
+            buttons: 0,
+            clientX: 650
+        });
+        expect(props.onCommit).toHaveBeenCalledTimes(1);
+        expect(props.onPreview).not.toHaveBeenCalledWith(320);
+    });
+
+    it('Escape mid-drag puts the width back and commits nothing', () => {
+        const { props, handle } = setup();
+
+        fireEvent.pointerDown(handle, {
+            pointerId: 1,
+            button: 0,
+            clientX: 500
+        });
+        fireEvent.pointerMove(handle, {
+            pointerId: 1,
+            buttons: 1,
+            clientX: 540
+        });
+        fireEvent.keyDown(window, { key: 'Escape' });
+
+        expect(props.onCommit).not.toHaveBeenCalled();
+        expect(props.onPreview).toHaveBeenLastCalledWith(256);
+    });
+
+    it('the window losing focus mid-drag cancels it', () => {
+        const { props, handle } = setup();
+
+        fireEvent.pointerDown(handle, {
+            pointerId: 1,
+            button: 0,
+            clientX: 500
+        });
+        fireEvent.pointerMove(handle, {
+            pointerId: 1,
+            buttons: 1,
+            clientX: 540
+        });
+        fireEvent.blur(window);
+
+        expect(props.onCommit).not.toHaveBeenCalled();
+        expect(handle.hasAttribute('data-dragging')).toBe(false);
+    });
+
+    it('a second press while a drag is still open closes the first, never stacks on it [design-system:I-50]', () => {
+        const { props, handle } = setup();
+
+        fireEvent.pointerDown(handle, {
+            pointerId: 1,
+            button: 0,
+            clientX: 500
+        });
+        fireEvent.pointerMove(handle, {
+            pointerId: 1,
+            buttons: 1,
+            clientX: 530
+        });
+        // Its release never arrived. A new press:
+        fireEvent.pointerDown(handle, {
+            pointerId: 2,
+            button: 0,
+            clientX: 500
+        });
+
+        expect(props.onCommit).toHaveBeenCalledWith(286);
+        fireEvent.pointerUp(handle, { pointerId: 2, clientX: 500 });
+        expect(
+            document.documentElement.dataset['panelResizing']
+        ).toBeUndefined();
+        expect(props.onResizeEnd).toHaveBeenCalledTimes(2);
+    });
+
+    it('unmounting mid-drag releases the document', () => {
         const { handle } = setup();
         fireEvent.pointerDown(handle, {
             pointerId: 1,
             button: 0,
             clientX: 500
         });
-        expect(document.documentElement.style.cursor).toBe('col-resize');
+        expect(document.documentElement.dataset['panelResizing']).toBe('true');
 
-        fireEvent.pointerUp(handle, { pointerId: 1, clientX: 500 });
+        cleanup();
 
-        expect(document.documentElement.style.cursor).toBe('');
-        expect(document.documentElement.style.userSelect).toBe('');
+        expect(
+            document.documentElement.dataset['panelResizing']
+        ).toBeUndefined();
     });
 });
