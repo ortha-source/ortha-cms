@@ -1713,6 +1713,30 @@ export class RelationLinkService {
         return rows.map((row) => row[join.refCol] as string);
     }
 
+    /**
+     * The ids of the rows whose **owning join-backed** `field` links any of
+     * `targetIds` — {@link linkIdsOf} read from the other end. The i18n sync
+     * asks it when a target's translation arrives, to find the records whose
+     * mirrored link set has been waiting for one. Empty for a field that is not
+     * an owning many-relation.
+     */
+    async sourceIdsLinking(
+        exec: Database | DbTransaction,
+        type: AnyContentType,
+        field: string,
+        targetIds: readonly string[]
+    ): Promise<string[]> {
+        const spec = type.fields[field];
+        const join = spec ? this.joinPlanFor(type, field, spec) : null;
+        if (!join || join.ownCol !== 'sourceId' || !targetIds.length) return [];
+        const cols = join.table as unknown as SelectableColumns;
+        const rows = await exec
+            .selectDistinct({ id: cols['sourceId'] })
+            .from(join.table)
+            .where(inArray(cols['targetId'], [...targetIds]));
+        return rows.map((row) => String(row.id));
+    }
+
     /** {@link resolveLocaleGroups} applied to a delta's three id arrays. */
     private async resolveByLocaleGroup(
         tx: DbTransaction,

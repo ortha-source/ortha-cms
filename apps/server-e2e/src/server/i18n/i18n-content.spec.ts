@@ -785,7 +785,11 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             await agent
                 .patch(`/api/content/test_article/${en.id}`)
                 .send({
-                    values: { text: 'New EN title', select: 'article', number: 1 },
+                    values: {
+                        text: 'New EN title',
+                        select: 'article',
+                        number: 1
+                    },
                     askBeforeSiblingSync: true
                 })
                 .expect(200);
@@ -1110,6 +1114,131 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             expect(await linkIds(agent, de.id, 'contributors')).toEqual([
                 graceDe.id
             ]);
+        });
+
+        // The other half of I-18: the gap it leaves has to close by itself
+        // once the translation exists. That is a create of the *author*, so
+        // nothing about the article is saved — the sync has to reach it from
+        // the target's side.
+        it('fills a mirrored many-link in once the target is translated, in place [i18n:I-36]', async () => {
+            const agent = await login();
+            const en = await createArticle(agent);
+            const de = (await createTranslation(agent, en, 'de')).body as {
+                id: string;
+            };
+            const adaEn = await createAuthor(agent, 'Ada');
+            const grace = await createAuthor(agent, 'Grace');
+            const graceDe = await createAuthor(
+                agent,
+                'Grace (DE)',
+                'de',
+                grace
+            );
+            await link(agent, en.id, 'contributors', [adaEn.id, grace.id]);
+            expect(await linkIds(agent, de.id, 'contributors')).toEqual([
+                graceDe.id
+            ]);
+
+            const adaDe = await createAuthor(agent, 'Ada (DE)', 'de', adaEn);
+
+            // In the English article's order, not appended at the end.
+            expect(await linkIds(agent, de.id, 'contributors')).toEqual([
+                adaDe.id,
+                graceDe.id
+            ]);
+            expect(await linkIds(agent, en.id, 'contributors')).toEqual([
+                adaEn.id,
+                grace.id
+            ]);
+        });
+
+        it('fills a mirrored single link in once the target is translated, versioning the sibling [i18n:I-36]', async () => {
+            const agent = await login();
+            const adaEn = await createAuthor(agent, 'Ada');
+            const en = await createArticle(agent, {
+                values: { ...VALID, author: adaEn.id }
+            });
+            const de = (
+                await agent
+                    .post('/api/content/test_article')
+                    .send({
+                        values: VALID,
+                        locale: 'de',
+                        localeGroupId: en.localeGroupId
+                    })
+                    .expect(201)
+            ).body as { id: string; values: Record<string, unknown> };
+            expect(de.values.author).toBeNull(); // no German Ada yet
+            await agent
+                .post(`/api/content/test_article/${de.id}/publish`)
+                .send({})
+                .expect(201);
+            const revisionCount = async () =>
+                (
+                    (
+                        await agent
+                            .get(`/api/content/test_article/${de.id}/revisions`)
+                            .expect(200)
+                    ).body as { total: number }
+                ).total;
+            const before = await revisionCount();
+
+            const adaDe = await createAuthor(agent, 'Ada (DE)', 'de', adaEn);
+
+            const deAfter = (
+                await agent
+                    .get(`/api/content/test_article/${de.id}`)
+                    .expect(200)
+            ).body as {
+                status: string;
+                publishedAt: string | null;
+                values: Record<string, unknown>;
+            };
+            expect(deAfter.values.author).toBe(adaDe.id);
+            // A change like any synced one: a version of its own, and the
+            // published sibling moves to Modified — its live version does
+            // not hold the link.
+            expect(await revisionCount()).toBe(before + 1);
+            expect(deAfter.status).toBe('draft');
+            expect(deAfter.publishedAt).not.toBeNull();
+        });
+
+        it('leaves records that do not link the translated target alone [i18n:I-36]', async () => {
+            const agent = await login();
+            const adaEn = await createAuthor(agent, 'Ada');
+            const graceEn = await createAuthor(agent, 'Grace');
+            const en = await createArticle(agent, {
+                values: { ...VALID, author: graceEn.id }
+            });
+            const de = (
+                await agent
+                    .post('/api/content/test_article')
+                    .send({
+                        values: VALID,
+                        locale: 'de',
+                        localeGroupId: en.localeGroupId
+                    })
+                    .expect(201)
+            ).body as { id: string };
+            const revisions = async () =>
+                (
+                    (
+                        await agent
+                            .get(`/api/content/test_article/${de.id}/revisions`)
+                            .expect(200)
+                    ).body as { total: number }
+                ).total;
+            const before = await revisions();
+
+            await createAuthor(agent, 'Ada (DE)', 'de', adaEn);
+
+            const deAfter = (
+                await agent
+                    .get(`/api/content/test_article/${de.id}`)
+                    .expect(200)
+            ).body as { values: Record<string, unknown> };
+            expect(deAfter.values.author).toBeNull();
+            expect(await revisions()).toBe(before);
         });
 
         // The record links Ada in every language; then Ada's German row goes to

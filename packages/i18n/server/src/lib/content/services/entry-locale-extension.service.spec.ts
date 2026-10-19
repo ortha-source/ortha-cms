@@ -57,7 +57,8 @@ describe('EntryLocaleExtensionService sibling locking', () => {
             {} as never, // the locale registry is not consulted on this path
             {} as never, // nor is validation, which runs after the sync
             relations as never,
-            {} as never // nor the unit of work, read only by the group check
+            {} as never, // nor the unit of work, read only by the group check
+            {} as never // nor the registry, read only when a row is created
         );
     }
 
