@@ -284,6 +284,31 @@ export {
 // out differently on a phone reads the *same* boundary the sidebar does instead
 // of picking its own.
 export { useIsMobile } from './lib/hooks/use-mobile';
+// Resizable panels: one layout store for every panel's width and collapsed
+// state, the hook a panel sizes itself with, and the splitter on its edge.
+export {
+    PanelLayoutProvider,
+    usePanelLayoutEntry,
+    usePanelLayoutSync,
+    createPanelLayoutStore,
+    sanitizePanelLayout
+} from './lib/panelLayout';
+export type {
+    PanelLayout,
+    PanelLayoutEntry,
+    PanelLayoutStore
+} from './lib/panelLayout';
+export { useResizablePanel } from './lib/hooks/use-resizable-panel';
+export type {
+    ResizablePanel,
+    ResizablePanelOptions
+} from './lib/hooks/use-resizable-panel';
+export {
+    ResizeHandle,
+    COLLAPSE_RATIO,
+    clampWidth
+} from './lib/components/ui/resize-handle';
+export type { ResizeHandleProps } from './lib/components/ui/resize-handle';
 export {
     Stepper,
     WizardStepCard,

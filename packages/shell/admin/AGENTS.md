@@ -13,7 +13,10 @@ renders a top bar (today that means it shows on Home only). shadcn's
 hanging off the panel edge that (under `offcanvas`) sits outside the panel and
 paints a hairline plus a `bg-sidebar` block on hover — a stray bar in the page
 with nothing explaining it — and being `tabIndex={-1}` it's a mouse-only
-duplicate of three toggles that already exist. It
+duplicate of three toggles that already exist. What sits on the edge instead
+is a **resize handle** (the design system's `ResizeHandle`, a focusable
+splitter): the sidebar is resizable on a desktop, and dragged well past its
+minimum it collapses (see *Resizable panels* below). It
 **owns the gating wiring**: its `layout` composes identity's
 `AuthProvider` (auth-state source) around `RequireAuth` (the gate) around
 `AppShell`. The host mounts that `layout` as the single parent of all
@@ -49,8 +52,11 @@ does, from inside its own tree:
   `complementary` nested in `main` fails axe's best-practice set. Collapsed,
   the column disappears and the reopen button appears in the top bar's actions region, because the panel has
   no width left to draw a control in. The open/collapsed state lives in
-  `PageChromeProvider` (persisted, `orthacms:right-panel`) rather than with the
-  filler, since the control that flips it is chrome.
+  `PageChromeProvider` (the `shell.rightPanel` entry of the panel layout)
+  rather than with the filler, since the control that flips it is chrome. The
+  column is **resizable** from its left edge on a desktop, and a drag past half
+  its minimum collapses it **through `toggle`**, so it slides and hands focus
+  exactly as the Hide button does.
 
   **The toggle pair hands focus between its halves**, and this is not optional.
   "Hide {title}" lives inside the panel, "Show {title}" in the top bar, and only
@@ -61,11 +67,12 @@ does, from inside its own tree:
   via `usePanelFocusHandoff` in the same commit that reveals it. Both directions
   were broken; a handoff that covers only collapsing looks complete and is not.
 
-  **Persistence records a decision, not a layout.** A viewport under
-  `MOBILE_QUERY` starts the panel collapsed whatever was stored (an overlay
-  covering the page on arrival is nobody's request), and the persist effect
-  **must not write that back** — it used to, so a single load on a phone
-  overwrote the desktop preference for good.
+  **Persistence records a decision, not a layout.** Below the design system's
+  breakpoint (`useIsMobile`) the panel starts collapsed whatever was stored (an
+  overlay covering the page on arrival is nobody's request), and that state is
+  a **separate, local** `mobileOpen` that is never persisted — a single write-
+  back used to overwrite the desktop preference for good, and two states make
+  that structurally impossible rather than guarded against.
 
   **On a narrow viewport it is an overlay with a hand-wired `Esc`**, and it is
   deliberately **not** a Radix `Sheet`: a Sheet unmounts its content, and the
@@ -86,6 +93,35 @@ workspace by hand because it renders above `CurrentWorkspaceProvider`.) The
 portal hosts stay mounted whether or not anything fills them — a portal needs its
 target to exist, and keeping the panel host mounted means collapsing never
 unmounts the filler and throws away its state.
+
+## Resizable panels
+
+`AppShell` mounts the design system's **`PanelLayoutProvider`**, keyed by the
+signed-in user (`orthacms:panel-layout:<userId>` is its `localStorage` cache),
+so every resizable panel in the app — the sidebar and the right panel here,
+and any a page draws (copilot's Agents rail, media's folders column) — reads
+and writes one layout. Shell owns two entries and their bounds:
+
+| Entry              | Declared in                     | Default / min / max                     | Collapses |
+| ------------------ | ------------------------------- | --------------------------------------- | --------- |
+| `shell.sidebar`    | `SIDEBAR_PANEL` (`AppShell`)    | 256 / 208 / 384px, ≤ 25% of the viewport | yes       |
+| `shell.rightPanel` | `RIGHT_PANEL` (`AppRightPanel`) | 352 / 288 / 640px, ≤ 35% of the viewport | yes       |
+
+- **The sidebar is a controlled `SidebarProvider`** — `open` and
+  `--sidebar-width` come from the layout, and the design system's
+  `sidebar_state` cookie is no longer read or written (it persists only an
+  uncontrolled provider). ⌘B and the triggers still collapse it; they now write
+  `shell.sidebar.collapsed`.
+- **A drag previews through the CSS variable and commits on release** — no
+  render per pointer move. `data-resizing` on the provider's wrapper turns the
+  sidebar's slide transitions off while it lasts.
+- **The viewport caps a width at render, never in storage**, so a width chosen
+  on a wide monitor comes back there after a visit from a laptop.
+- **The durable copy is the user's preferences**, synced by `users-admin`'s
+  `PanelLayoutSync` from the sidebar footer (the theme's `ThemeSync` pattern):
+  shell knows nothing about the server.
+- **No handle renders below the breakpoint** — the sidebar is a `Sheet` and the
+  right panel an overlay there, with no edge to drag.
 
 It **owns the sidebar's slots** — all `createSlot` extension points (primitive
 from `@orthacms/utils-admin`):
@@ -140,7 +176,8 @@ other overlay in the app.
   it in `createAdmin({ plugins })`, after `IdentityPlugin()`.
 - `ShellAdminPlugin` — the plugin shape (thin alias of `AdminPlugin`).
 - `AppShell` — the authenticated layout; renders `AppSidebar` + `<main>`
-  `<Outlet/>` inside `SidebarProvider` + `SidebarContentProvider`.
+  `<Outlet/>` inside `PanelLayoutProvider` + `SidebarProvider` +
+  `SidebarContentProvider`.
 - `PageTopBar` / `PageTopBarCrumb` — the shared incident.io-style page-context
   bar (colored icon tile + breadcrumb, sticky; hosts the inline sidebar-reveal
   trigger when the sidebar is hidden). Every page except Home renders one; pass

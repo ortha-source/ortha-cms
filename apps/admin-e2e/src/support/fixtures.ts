@@ -4,6 +4,7 @@ import { LoginPage } from './pages/LoginPage';
 import { AcceptInvitePage } from './pages/AcceptInvitePage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { HomePage } from './pages/HomePage';
+import { ResizablePanelsPage } from './pages/ResizablePanelsPage';
 import { WorkspacesPage } from './pages/WorkspacesPage';
 import { WorkspaceSettingsPage } from './pages/WorkspaceSettingsPage';
 import { CreateWorkspacePage } from './pages/CreateWorkspacePage';
@@ -120,6 +121,7 @@ interface Fixtures {
     webhooksPage: WebhooksPage;
     contentModelPage: ContentModelPage;
     hostPage: HostPage;
+    resizablePanels: ResizablePanelsPage;
     transferPage: TransferPage;
     /**
      * Factory for a fresh axe scanner scoped to the current page, tagged
@@ -211,6 +213,9 @@ export const test = base.extend<Fixtures>({
     },
     hostPage: async ({ page }, use) => {
         await use(new HostPage(page));
+    },
+    resizablePanels: async ({ page }, use) => {
+        await use(new ResizablePanelsPage(page));
     },
     transferPage: async ({ page }, use) => {
         await use(new TransferPage(page));

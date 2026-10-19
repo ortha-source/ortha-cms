@@ -302,6 +302,13 @@ sheet, opened from the top bar's **Chats** button. Both render it, which is why
 that component navigates and holds no chat state: which thread is open is a fact
 about the URL.
 
+As a column the rail is **resizable**: a design-system `ResizeHandle` on its
+right edge drags its width (`AGENTS_RAIL_PANEL` in `AgentsRail` — 288px by
+default, 224–448px, at most 25% of the viewport), remembered per user in the
+shell's panel layout alongside the sidebar's. It does not collapse — dragged
+past the minimum it stops there, since the conversation beside it is what the
+page is for.
+
 ### Renaming and archiving
 
 Each row carries a `⋯` menu — **Rename…** and **Archive** (or **Unarchive**) —

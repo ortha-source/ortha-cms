@@ -32,7 +32,7 @@ import { type ContentLibraryPage } from '../support/pages/ContentLibraryPage';
  * being persisted — one visit on a phone overwrote a desktop preference for good.
  */
 
-/** Under `pageChrome`'s `MOBILE_QUERY` (`max-width: 767px`) — the overlay layout. */
+/** Under the design system's 768px breakpoint (`useIsMobile`) — the overlay layout. */
 const NARROW = { width: 390, height: 780 };
 /** A blog post to open the editor on; its content is beside the point here. */
 const ENTRY_ID = 'blog_post-panel';
@@ -134,6 +134,43 @@ test.describe('the right panel', () => {
         // is there again, because nothing overwrote the stored `open`.
         await expect(contentLibraryPage.propertiesPanel).toBeVisible();
     });
+
+    test('its left edge resizes it — dragging left widens it', async ({
+        contentLibraryPage,
+        resizablePanels
+    }) => {
+        await openEditorWithPanel(contentLibraryPage);
+        const handle = resizablePanels.rightPanelHandle('Properties');
+        // 352px by default; the cap at 1280px is 0.35 × 1280 = 448px.
+        expect(await resizablePanels.widthOf(resizablePanels.rightPanel)).toBe(
+            352
+        );
+
+        await resizablePanels.drag(handle, -60);
+
+        expect(await resizablePanels.widthOf(resizablePanels.rightPanel)).toBe(
+            412
+        );
+        await expect(handle).toHaveAttribute('aria-valuenow', '412');
+    });
+
+    test('dragged well past its minimum it collapses, exactly as Hide does [shell:I-34]', async ({
+        contentLibraryPage,
+        resizablePanels
+    }) => {
+        await openEditorWithPanel(contentLibraryPage);
+
+        // 352 − 250 = 102px, under half the 288px minimum.
+        await resizablePanels.drag(
+            resizablePanels.rightPanelHandle('Properties'),
+            250
+        );
+
+        await expect(contentLibraryPage.showPropertiesButton).toBeVisible();
+        expect(await contentLibraryPage.storedRightPanelState()).toBe(
+            'collapsed'
+        );
+    });
 });
 
 test.describe('the right panel as a narrow-viewport overlay', () => {
@@ -162,6 +199,17 @@ test.describe('the right panel as a narrow-viewport overlay', () => {
         await contentLibraryPage.showPropertiesButton.click();
         await contentLibraryPage.propertiesPanel.waitFor();
     }
+
+    test('has no resize handle — an overlay has no edge to drag [shell:I-35]', async ({
+        contentLibraryPage,
+        resizablePanels
+    }) => {
+        await raiseOverlay(contentLibraryPage);
+
+        await expect(
+            resizablePanels.rightPanelHandle('Properties')
+        ).toHaveCount(0);
+    });
 
     test('Escape dismisses it [shell:I-22]', async ({
         page,

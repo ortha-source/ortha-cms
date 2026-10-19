@@ -1078,19 +1078,28 @@ export class ContentLibraryPage extends BasePage {
     }
 
     /**
-     * The shell's persisted right-panel preference (`orthacms:right-panel`).
+     * The shell's persisted right-panel preference — the `shell.rightPanel`
+     * entry of the per-user panel-layout cache (`orthacms:panel-layout:<id>`).
+     * `'open'` unless an entry says collapsed, since an untouched panel stores
+     * nothing and renders open.
      *
      * Read from storage rather than inferred from the column, because the defect
      * this exists for is invisible on screen at the moment it happens: a narrow
      * viewport is *right* to start collapsed, and the bug was writing that forced
      * value back over the desktop preference.
      */
-    async storedRightPanelState(): Promise<string | null> {
-        return this.page.evaluate(() =>
-            (globalThis as unknown as BrowserGlobals).localStorage.getItem(
-                'orthacms:right-panel'
-            )
-        );
+    async storedRightPanelState(): Promise<'open' | 'collapsed'> {
+        return this.page.evaluate(() => {
+            const storage = (globalThis as unknown as BrowserGlobals)
+                .localStorage;
+            for (let i = 0; i < storage.length; i++) {
+                const key = storage.key(i);
+                if (!key?.startsWith('orthacms:panel-layout:')) continue;
+                const layout = JSON.parse(storage.getItem(key) ?? '{}');
+                if (layout['shell.rightPanel']?.collapsed) return 'collapsed';
+            }
+            return 'open';
+        });
     }
 
     /**

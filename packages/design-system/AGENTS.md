@@ -51,6 +51,25 @@ hand-written):
 
 ## Notes on specific components
 
+- **Resizable panels are three pieces.** `PanelLayoutProvider` holds every
+  panel's `{ width?, collapsed? }` by panel id (`<plugin>.<panel>`), cached in
+  `localStorage` under the `storageKey` the host gives it; durable storage is
+  the host's, through `usePanelLayoutSync` (`hydrate` what you read, save what
+  `onChange` announces — a hydrate is never announced, and never overwrites a
+  panel the user changed since). `useResizablePanel` turns one entry into a
+  width clamped to the panel's bounds (and to `maxViewportRatio` of the
+  viewport, **at render** — storage keeps what the user chose), a CSS variable
+  to size the panel from, and the props for **`ResizeHandle`**: a WAI-ARIA
+  window splitter (`separator` + value/min/max, arrows, Home/End, Enter to
+  collapse, double-click to reset) that previews a drag by writing the CSS
+  variable directly and commits once on release, so the owner re-renders once
+  per drag. Released below half the minimum, a collapsible panel collapses.
+  Outside a provider a panel still works, in memory, with a store of its own.
+- **A controlled `SidebarProvider` writes no cookie.** `sidebar_state` is the
+  persistence of an _uncontrolled_ provider; a caller passing `open` /
+  `onOpenChange` owns persistence (the shell keeps it in the panel layout). And
+  while its wrapper carries `data-resizing`, the sidebar's slide transitions
+  are off, so a resize handle's drag is followed rather than eased after.
 - **`SegmentedControl` has two variants, and the default is the toolbar one.**
   `variant="field"` is for a segmented control used as a **form control** — the
   entry editor's boolean field — and matches `Input` / `Textarea` /

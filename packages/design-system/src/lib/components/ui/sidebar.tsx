@@ -142,9 +142,15 @@ function useOptionalSidebar() {
 }
 
 /**
- * Provides sidebar open/collapsed state (persisted to a cookie) and the
- * mobile-sheet toggle. Wrap the app chrome in this once; `Sidebar` and
+ * Provides sidebar open/collapsed state (persisted to a cookie when
+ * uncontrolled — a caller passing `open`/`onOpenChange` persists it itself) and
+ * the mobile-sheet toggle. Wrap the app chrome in this once; `Sidebar` and
  * `SidebarInset` read it via {@link useSidebar}.
+ *
+ * The panel's width is the `--sidebar-width` custom property it declares; pass
+ * another through `style` to resize it. While anything below sets
+ * `data-resizing` on this element, the panel's slide transitions are off, so a
+ * resize handle's drag is followed rather than eased after.
  */
 function SidebarProvider({
     defaultOpen: defaultOpenProp,
@@ -176,12 +182,15 @@ function SidebarProvider({
         (value: boolean | ((value: boolean) => boolean)) => {
             const openState = typeof value === 'function' ? value(open) : value;
             if (setOpenProp) {
+                // A controlled caller owns persistence too — writing the
+                // cookie as well would leave a second, stale copy of the
+                // preference that this component then reads back for anyone
+                // who renders it uncontrolled.
                 setOpenProp(openState);
             } else {
                 _setOpen(openState);
+                writeStoredOpen(openState);
             }
-
-            writeStoredOpen(openState);
         },
         [setOpenProp, open]
     );
@@ -458,6 +467,9 @@ function Sidebar({
                 data-slot="sidebar-gap"
                 className={cn(
                     'relative w-(--sidebar-width) bg-transparent transition-[width] duration-300 ease-in-out',
+                    // While a resize handle is dragging the width, the panel
+                    // has to follow the pointer, not ease after it.
+                    'group-data-[resizing]/sidebar-wrapper:transition-none',
                     'group-data-[collapsible=offcanvas]:w-0',
                     'group-data-[side=right]:rotate-180',
                     variant === 'floating'
@@ -468,7 +480,7 @@ function Sidebar({
             <div
                 data-slot="sidebar-container"
                 className={cn(
-                    'fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-300 ease-in-out md:flex',
+                    'fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-300 ease-in-out group-data-[resizing]/sidebar-wrapper:transition-none md:flex',
                     side === 'left'
                         ? 'left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]'
                         : 'right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]',

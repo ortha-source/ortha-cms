@@ -97,3 +97,17 @@ export const MEDIA_SORT = {
 
 /** One asset-ordering option. */
 export type MediaSort = (typeof MEDIA_SORT)[keyof typeof MEDIA_SORT];
+
+/**
+ * The folders column's entry in the shell's panel layout, and its bounds in
+ * pixels. Resizable on a desktop only — below `lg` the folders open in a
+ * drawer, which has no edge to drag.
+ */
+export const MEDIA_FOLDERS_PANEL = {
+    id: 'media.folders',
+    defaultWidth: 240,
+    minWidth: 192,
+    maxWidth: 384,
+    maxViewportRatio: 0.2,
+    cssVar: '--media-folders-width'
+} as const;

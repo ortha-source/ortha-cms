@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { createContext, useContext, useEffect, type ReactNode } from 'react';
 import { IntlProvider } from 'react-intl';
+import { PanelLayoutProvider } from '@orthacms/design-system';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppRightPanel } from '../../components/AppRightPanel';
 import { PageActions } from '../../components/PageActions';
@@ -25,8 +26,11 @@ import {
  * production ones rather than a `div` this file made up.
  */
 
-/** localStorage key the panel's open/collapsed preference is kept under. */
-const STORAGE_KEY = 'orthacms:right-panel';
+/**
+ * The panel-layout cache key, as `AppShell` would build it — the right panel's
+ * open/collapsed preference is one entry in it (`shell.rightPanel`).
+ */
+const STORAGE_KEY = 'orthacms:panel-layout:test-user';
 
 /**
  * A context provided *by the page*, below the shell. Every real one behaves this
@@ -44,11 +48,13 @@ function ScopeReader({ testId }: { testId: string }) {
 function Chrome({ children }: { children?: ReactNode }) {
     return (
         <IntlProvider locale="en">
-            <PageChromeProvider>
-                <PageActions />
-                <AppRightPanel />
-                {children}
-            </PageChromeProvider>
+            <PanelLayoutProvider storageKey={STORAGE_KEY}>
+                <PageChromeProvider>
+                    <PageActions />
+                    <AppRightPanel />
+                    {children}
+                </PageChromeProvider>
+            </PanelLayoutProvider>
         </IntlProvider>
     );
 }
@@ -112,7 +118,10 @@ describe('the page-fillable chrome regions', () => {
         // Collapsed from the very first frame, which is the case a click-driven
         // test cannot reach: if the host were conditional on `shown`, there would
         // never have been a target for this portal at all.
-        window.localStorage.setItem(STORAGE_KEY, 'collapsed');
+        window.localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify({ 'shell.rightPanel': { collapsed: true } })
+        );
 
         render(
             <Chrome>
@@ -237,9 +246,10 @@ describe('the panel’s persisted preference', () => {
      * without same-origin. The panel is a convenience, so it degrades to
      * in-memory rather than taking the page down with it.
      *
-     * This is shell's whole share of the rule — the sidebar's `sidebar_state`
-     * cookie is the design system's, guarded and pinned in its own suite, and
-     * shell touches `sessionStorage` nowhere.
+     * The cache is the design system's `PanelLayoutProvider`'s, and this pins
+     * that it holds as the shell composes it — the panel's preference is the
+     * one thing in the shell that lives there, and shell touches
+     * `sessionStorage` nowhere.
      */
     function withStorage(storage: Partial<Storage>) {
         const original = Object.getOwnPropertyDescriptor(

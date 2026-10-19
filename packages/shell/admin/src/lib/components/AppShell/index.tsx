@@ -2,10 +2,13 @@ import { Outlet } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import {
     InsetFooter,
+    PanelLayoutProvider,
     SidebarInset,
     SidebarProvider,
-    useIsMobile
+    useIsMobile,
+    useResizablePanel
 } from '@orthacms/design-system';
+import { AuthStatus, useAuth } from '@orthacms/identity-admin';
 import { PageChromeProvider, useRightPanel } from '../../utils/pageChrome';
 import { SidebarContentProvider } from '../../utils/sidebarContent';
 import { AppRightPanel } from '../AppRightPanel';
@@ -27,6 +30,24 @@ const messages = defineMessages({
 const MAIN_CONTENT_ID = 'main-content';
 
 /**
+ * `localStorage` key prefix of the panel-layout cache. Suffixed with the user's
+ * id: the cache only paints the first frame before the server's copy arrives,
+ * and on a shared machine that frame should still be the right person's.
+ */
+export const PANEL_LAYOUT_STORAGE_PREFIX = 'orthacms:panel-layout';
+
+/** The app sidebar's id in the panel layout, and its bounds in pixels. */
+export const SIDEBAR_PANEL = {
+    id: 'shell.sidebar',
+    defaultWidth: 256,
+    minWidth: 208,
+    maxWidth: 384,
+    maxViewportRatio: 0.25,
+    collapsible: true,
+    cssVar: '--sidebar-width'
+} as const;
+
+/**
  * The authenticated app shell: a collapsible left {@link AppSidebar} beside a
  * `<main>` inset where the matched private route renders. The host mounts this
  * as the single guarded layout for every non-public route, so it appears only
@@ -44,17 +65,33 @@ const MAIN_CONTENT_ID = 'main-content';
  * filled by portal from the page that owns them, so their content keeps that
  * page's context.
  *
+ * `PanelLayoutProvider` holds every resizable panel's width and collapsed state
+ * — the sidebar's, the right panel's, and any a page draws (the Agents chat
+ * list, the media folders). It caches them per user in `localStorage` so the
+ * first frame is already right; the durable, cross-device copy lives in the
+ * user's preferences, which `users-admin` syncs into it from the sidebar
+ * footer, the same way it syncs the theme.
+ *
  * A "Skip to main content" link is the first focusable element (WCAG 2.4.1
  * Bypass Blocks) — visually hidden until focused, it jumps keyboard users past
  * the sidebar to the `<main id="main-content">` landmark.
  */
 export function AppShell() {
+    const auth = useAuth();
+    const userId =
+        auth.status === AuthStatus.Authenticated ? auth.user.id : 'anonymous';
+    const storageKey = `${PANEL_LAYOUT_STORAGE_PREFIX}:${userId}`;
+
     return (
-        <SidebarContentProvider>
-            <PageChromeProvider>
-                <AppShellChrome />
-            </PageChromeProvider>
-        </SidebarContentProvider>
+        // Keyed, so signing in as someone else starts from their layout rather
+        // than inheriting the last user's in memory.
+        <PanelLayoutProvider key={storageKey} storageKey={storageKey}>
+            <SidebarContentProvider>
+                <PageChromeProvider>
+                    <AppShellChrome />
+                </PageChromeProvider>
+            </SidebarContentProvider>
+        </PanelLayoutProvider>
     );
 }
 
@@ -90,8 +127,19 @@ function AppShellChrome() {
     // nothing, so inerting the page beside it would be a bug, not containment.
     const overlayUp = isMobile && !!panel?.present && panel.open;
 
+    // The sidebar's open state is the layout store's, not the cookie the
+    // design system falls back to: it travels with the user's preferences.
+    // `onOpenChange` only ever fires for the desktop panel — the phone's sheet
+    // has its own state, and opening it is not a preference.
+    const sidebar = useResizablePanel(SIDEBAR_PANEL);
+
     return (
-        <SidebarProvider>
+        <SidebarProvider
+            ref={sidebar.ref}
+            style={sidebar.style}
+            open={!sidebar.collapsed}
+            onOpenChange={(open) => sidebar.setCollapsed(!open)}
+        >
             <a
                 href={`#${MAIN_CONTENT_ID}`}
                 // Out of the tab order while the overlay is up: it is the first
@@ -103,7 +151,7 @@ function AppShellChrome() {
             >
                 {intl.formatMessage(messages.skipToContent)}
             </a>
-            <AppSidebar />
+            <AppSidebar resize={sidebar.handleProps} />
             {/* `scrollLabel` names the scrollport tab stop — it is focusable so
                 a keyboard user can scroll a page that has nothing else to focus,
                 and it was an unnamed, roleless stop until now (`ORT-150`). The

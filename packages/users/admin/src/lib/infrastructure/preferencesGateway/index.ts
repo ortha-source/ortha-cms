@@ -1,14 +1,19 @@
 import { apiClient, toApiError } from '@orthacms/utils-admin';
-import type { ThemePreference } from '@orthacms/design-system';
+import type { PanelLayout, ThemePreference } from '@orthacms/design-system';
 
 /**
- * The current user's own preferences, as carried over `/api/preferences`.
- * Today that is just the colour theme; the object shape leaves room for more
- * self-service preferences without changing the endpoint contract.
+ * The current user's own preferences, as carried over `/api/preferences`: the
+ * colour theme and the layout of the admin's resizable panels. A save is a
+ * partial patch, so each travels without the other.
  */
 export type UserPreferences = {
     /** The user's chosen colour theme. */
     theme: ThemePreference;
+    /**
+     * Widths and collapsed states of the resizable panels, by panel id. Absent
+     * from a server that predates it, so readers default it to `{}`.
+     */
+    layout?: PanelLayout;
 };
 
 /**
@@ -38,6 +43,23 @@ export const httpPreferencesGateway = {
         try {
             const response =
                 await apiClient.get<UserPreferences>('/preferences');
+            return response.data;
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    /**
+     * Persists changed panels, returning the stored row. The server merges per
+     * panel, so only the panels that changed are sent — another tab's resize
+     * of a different panel survives this save.
+     */
+    async updateLayout(layout: PanelLayout): Promise<UserPreferences> {
+        try {
+            const response = await apiClient.put<UserPreferences>(
+                '/preferences',
+                { layout }
+            );
             return response.data;
         } catch (error) {
             throw toApiError(error);

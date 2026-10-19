@@ -62,7 +62,7 @@ Does not touch shell at all. Puts an entry into a slot, a route into `routes`, o
 
 - **It is not authentication.** `AuthProvider`, `RequireAuth`, `useHasPermission`, the sign-in screen — all of that is `identity-admin`. Shell only _places_ two of them in the right order.
 - **It is not the router.** Splitting routes into public and private, the ordering, path collisions, the catch-all — that is `bootstrap-admin`.
-- **It is not the design system.** `Sidebar`, `SidebarProvider`, `TopBar`, `CommandDialog`, the sidebar-state cookie, ⌘B, the mobile breakpoint — those are `@orthacms/design-system` primitives. Shell composes them and translates their labels.
+- **It is not the design system.** `Sidebar`, `SidebarProvider`, `TopBar`, `CommandDialog`, `ResizeHandle`, the panel-layout store, ⌘B, the mobile breakpoint — those are `@orthacms/design-system` primitives. Shell composes them, decides each panel's bounds, and translates their labels.
 - **It is not the workspace shell.** The sidebar's contextual area inside `/workspaces/:id/*` is taken over entirely by `workspaces-admin` through `useSidebarContent`. At that moment shell draws only the footer.
 - **It is not search.** The palette is a shell: the “Go to” list is built from the navigation slot, and everything else is supplied by plugins.
 
@@ -306,8 +306,9 @@ A `CommandDialog`: an input field, the static “Go to” group from the navigat
 3. **`AuthProvider` starts the “who am I” probe.** While it is in flight, `useAuth()` returns `Loading`.
 4. **`RequireAuth` branches on four states.** `Loading` → a full-screen `AppLoader`. `Unavailable` (the probe failed for a reason other than 401) → an “unavailable” screen with a retry, **not** a redirect. `Unauthenticated` → `<Navigate to="/identity/login" replace state={{ from: location }}/>`. `Authenticated` → the children.
    _the distinction between Unauthenticated and Unavailable is why an API outage does not look like being signed out_
-5. **`AppShell` mounts the frame's providers.** `SidebarContentProvider` (an empty override) → `PageChromeProvider` (reads `localStorage` for the right panel) → `AppShellChrome`.
-6. **`SidebarProvider` reads the `sidebar_state` cookie.** No cookie, or a junk value → open. It attaches the ⌘B listener to `window`.
+5. **`AppShell` mounts the frame's providers.** `PanelLayoutProvider` (keyed by the user, reads the `orthacms:panel-layout:<userId>` cache) → `SidebarContentProvider` (an empty override) → `PageChromeProvider` (the right panel's state, from the layout) → `AppShellChrome`.
+6. **`SidebarProvider` is controlled by the layout.** `open` is `!layout['shell.sidebar'].collapsed` (no entry → open) and `--sidebar-width` is the entry's width clamped to the sidebar's bounds; the `sidebar_state` cookie is neither read nor written. It attaches the ⌘B listener to `window`.
+   _then `PanelLayoutSync` (users-admin, in the footer) hydrates the layout from `GET /api/preferences` — the cache painted the first frame, the server's copy reconciles it_
 7. **The frame is rendered.** The skip link (the document's first focusable element) → `AppSidebar` → `SidebarInset` with `id="main-content"` and the `<Outlet/>` → `AppRightPanel` (zero width, `inert`) → `SidebarToggle`.
 8. **The sidebar is filled from the slots.** `GlobalSidebar` filters navigation by permissions, collapses empty groups and renders sections; `AppSidebar` adds the footer.
 9. **The page sets the tab title.** `HomePage` calls `useDocumentTitle('Home')` → `document.title = 'Home · Admin'`.
@@ -326,11 +327,27 @@ A `CommandDialog`: an input field, the static “Go to” group from the navigat
 
 1. **There are three ways to collapse it:** the trigger in the sidebar's header (“Hide navigation”), ⌘B / Ctrl+B, or — on mobile — closing the `Sheet`.
 2. **⌘B yields to the editor.** The `window` listener checks `ownsBoldShortcut(event.target)`: in a text field, a `textarea`, a `select` and inside `contenteditable`, the chord means **bold**, and there it is not intercepted. Otherwise the author would get both a collapsed sidebar and formatting that did not happen.
-3. **The state is written to a cookie.** `sidebar_state=true|false; path=/; max-age=604800; SameSite=Lax`. The write is wrapped in `try/catch` — in a sandboxed iframe without `allow-same-origin`, touching `document.cookie` throws, and losing the setting is survivable while losing the toggle is not.
+3. **The state is written to the panel layout.** `shell.sidebar.collapsed` — cached in `localStorage` per user and saved to the user's preferences by `PanelLayoutSync` (debounced 600ms). The cache write is wrapped in `try/catch`; losing the setting is survivable while losing the toggle is not. (The design system's `sidebar_state` cookie is written only by an _uncontrolled_ `SidebarProvider`, which shell no longer is.)
 4. **The panel slides away rather than unmounting.** The `offcanvas` mode: the container shifts to `left: -var(--sidebar-width)` over 300 ms, and the neighbouring “gap” element animates its width to zero. A collapsed panel gets `inert` + `aria-hidden`, so its links and search leave the tab order and the accessibility tree.
 5. **Focus is handed to the survivor.** The button used to collapse it has just travelled into an `inert` subtree. `SidebarProvider` catches the expanded → collapsed transition, verifies that focus really is lost (`null`, `<body>`, or an element inside `[inert]`) and moves it to the first `[data-sidebar="trigger"]` that is outside `inert` and does not have `tabindex="-1"` — that is, to the built-in trigger in the `TopBar` or to the floating toggle.
    _without this, a keyboard user ended up on the body and had to tab from the top of the document_
 6. **To expand: the same ⌘B, the bar's built-in trigger, or the floating button.** The first two are always available; the third is visible only where there is no bar.
+
+### 6.3a Resizing a panel
+
+The app sidebar and the right panel are resizable on a desktop; on a phone neither renders a handle (the sidebar is a `Sheet`, the panel an overlay). Each is a `useResizablePanel` entry in the panel layout — `shell.sidebar` and `shell.rightPanel` — with its bounds declared in shell (`SIDEBAR_PANEL`, `RIGHT_PANEL`).
+
+| Panel       | Default | Min   | Max                                | Collapses past half the min                                    |
+| ----------- | ------- | ----- | ---------------------------------- | -------------------------------------------------------------- |
+| Sidebar     | 256px   | 208px | 384px, at most 25% of the viewport | yes — the same collapse as ⌘B                                  |
+| Right panel | 352px   | 288px | 640px, at most 35% of the viewport | yes — through `toggle`, so the slide and the focus handoff run |
+
+1. **The handle is a window splitter.** `role="separator"`, `aria-orientation="vertical"`, `aria-valuenow/min/max`, `aria-controls` → the panel, a translated name (“Resize sidebar”, “Resize {title}”), `tabIndex={0}`. Invisible until hover, focus or drag.
+2. **A drag previews, the release commits.** Each pointer move writes the CSS variable (`--sidebar-width`, `--right-panel-width`) on the element that declares it — no React render — and marks it `data-resizing`, which turns the sidebar's slide transitions off so the panel follows the pointer. The release commits once to the layout.
+3. **Past half the minimum, the release collapses instead.** While the pointer is there the handle's line dims; let go and the panel collapses, reopening later at the width it had. Dragged back out in the same gesture, it does not.
+4. **Keys:** ←/→ step 16px (Shift: 64px), Home/End jump to the bounds, Enter collapses. Double-click restores the default.
+5. **The viewport caps the maximum at render, not in storage.** A width chosen on a wide monitor is narrowed on a laptop and comes back on the monitor.
+6. **Saving is `PanelLayoutSync`'s.** Every change is collected for 600ms and sent as one `PUT /api/preferences { layout }` naming only the panels that changed; the server merges per panel.
 
 ### 6.4 The ⌘K command palette
 
@@ -396,33 +413,33 @@ The control belongs to `copilot-admin` and is rendered into `WORKSPACE_SECTION_S
 
 **expanded** ⇄ ⌘B / the header trigger **collapsed (offcanvas)** · **mobile: Sheet closed** ⇄ **mobile: Sheet open**
 
-| Aspect                    | Desktop (≥768px)                                                                       | Mobile (\<768px)                                                                                        |
-| ------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| What kind of element      | A fixed `16rem` panel + an animated “gap” in the flow                                  | A Radix `Sheet` — an `18rem`-wide overlay drawer with a focus trap                                      |
-| State                     | `open` from `SidebarProvider`, the `sidebar_state` cookie                              | a separate `openMobile`, **not** persisted, starts closed                                               |
-| What `toggleSidebar` does | `setOpen(!open)`                                                                       | `setOpenMobile(!openMobile)`                                                                            |
-| When collapsed            | the panel stays in the DOM, shifted past the left edge, marked `inert` + `aria-hidden` | the `Sheet`'s content is unmounted                                                                      |
-| The floating toggle       | visible only when `collapsed` and only on a page without a `TopBar`                    | always visible (except on pages with a `TopBar`) — `isMobile` bypasses the `state === 'expanded'` check |
-| The screen-reader name    | `complementary` “Sidebar”                                                              | the “Navigation” dialog + the description “The main navigation for Ortha CMS.”                          |
+| Aspect                    | Desktop (≥768px)                                                                              | Mobile (\<768px)                                                                                        |
+| ------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| What kind of element      | A fixed `--sidebar-width` panel (resizable, 256px by default) + an animated “gap” in the flow | A Radix `Sheet` — an `18rem`-wide overlay drawer with a focus trap                                      |
+| State                     | `open` from the panel layout (`shell.sidebar.collapsed`)                                      | a separate `openMobile`, **not** persisted, starts closed                                               |
+| What `toggleSidebar` does | `setOpen(!open)`                                                                              | `setOpenMobile(!openMobile)`                                                                            |
+| When collapsed            | the panel stays in the DOM, shifted past the left edge, marked `inert` + `aria-hidden`        | the `Sheet`'s content is unmounted                                                                      |
+| The floating toggle       | visible only when `collapsed` and only on a page without a `TopBar`                           | always visible (except on pages with a `TopBar`) — `isMobile` bypasses the `state === 'expanded'` check |
+| The screen-reader name    | `complementary` “Sidebar”                                                                     | the “Navigation” dialog + the description “The main navigation for Ortha CMS.”                          |
 
 **`SidebarRail` is deliberately not rendered.** It is an invisible 16px strip hanging off the edge of the panel. In `offcanvas` mode it ends up _outside_ the panel and, on hover, paints a hairline and a `bg-sidebar` block — that is, it reads as a stray strip in the page that nothing explains. On top of that it is `tabIndex={-1}`, that is, a purely mouse-only duplicate of the three toggles that already exist.
 
 ### 7.2 The right panel
 
-**not registered (w-0, inert)** → RightPanelPortal **open (22rem)** ⇄ toggle **collapsed (w-0, inert)**
+**not registered (w-0, inert)** → RightPanelPortal **open (`--right-panel-width`, 352px by default)** ⇄ toggle / drag past the minimum **collapsed (w-0, inert)**
 
-| Aspect             | Desktop (≥768px)                                   | Mobile (\<768px)                                                            |
-| ------------------ | -------------------------------------------------- | --------------------------------------------------------------------------- |
-| Geometry           | a column after `SidebarInset`, width `22rem` ⇄ `0` | `fixed inset-y-0 right-0`, width `min(22rem, 88vw)`, `translate-x` 0 ⇄ 100% |
-| Role               | `complementary`, named after the panel's title     | `role="dialog"` + `aria-modal` — but only while it is shown                 |
-| What is underneath | nothing is covered                                 | an `aria-hidden` scrim; `SidebarInset` and the floating toggle get `inert`  |
-| Esc                | not handled                                        | closes it, if nothing is stacked above                                      |
-| Initial state      | from `localStorage`                                | **always collapsed**, regardless of what was saved                          |
-| Writing to storage | written                                            | **not written**                                                             |
+| Aspect             | Desktop (≥768px)                                                                               | Mobile (\<768px)                                                            |
+| ------------------ | ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Geometry           | a column after `SidebarInset`, width `--right-panel-width` ⇄ `0`, resizable from its left edge | `fixed inset-y-0 right-0`, width `min(22rem, 88vw)`, `translate-x` 0 ⇄ 100% |
+| Role               | `complementary`, named after the panel's title                                                 | `role="dialog"` + `aria-modal` — but only while it is shown                 |
+| What is underneath | nothing is covered                                                                             | an `aria-hidden` scrim; `SidebarInset` and the floating toggle get `inert`  |
+| Esc                | not handled                                                                                    | closes it, if nothing is stacked above                                      |
+| Initial state      | from the panel layout (`shell.rightPanel`)                                                     | **always collapsed**, regardless of what was saved                          |
+| Writing to storage | written                                                                                        | **not written** — the state is local to the mount                           |
 
 > **What persists is the decision, not the layout**
 >
-> On a narrow screen the panel is an overlay on top of the page, and nobody asked for an overlay covering the page on arrival. So `readOpen()` returns `false` when `(max-width: 767px)` matches, bypassing storage. And — this is the second half, without which the first breaks the product — the persistence effect on the same match **bails out without writing anything**. It used to write: one page load on a phone permanently overwrote the desktop setting, and on the next visit from a wide screen the panel was collapsed with no explanation whatsoever.
+> On a narrow screen the panel is an overlay on top of the page, and nobody asked for an overlay covering the page on arrival. So below the breakpoint `open` is a **separate, local** `mobileOpen` that starts `false` and is never persisted; only the desktop branch reads and writes the layout. It used to be one state with a guarded write-back, and the guard once failed: one page load on a phone permanently overwrote the desktop setting, and on the next visit from a wide screen the panel was collapsed with no explanation whatsoever. Two states make that structurally impossible rather than guarded against.
 
 **Why not a Radix `Sheet`.** A `Sheet` unmounts its content when it closes, and the panel's body is a **portal host** that must stay mounted, otherwise collapsing throws away the filler's state and re-fetches its data. So the one thing a `Sheet` would have given for free — Esc — is written by hand, and focus inside the overlay is held by putting `inert` on everything beneath it.
 
@@ -432,13 +449,12 @@ The control belongs to `copilot-admin` and is rendered into `WORKSPACE_SECTION_S
 
 ### 7.3 What survives a reload, and where
 
-| What                         | Where          | Key                          | Lifetime                                  | Owner                    |
-| ---------------------------- | -------------- | ---------------------------- | ----------------------------------------- | ------------------------ |
-| Sidebar open/collapsed       | cookie         | sidebar_state                | 7 days, `path=/`, `SameSite=Lax`          | design-system            |
-| Right panel open/collapsed   | localStorage   | orthacms:right-panel         | indefinite; not written below 768px       | shell (`pageChrome`)     |
-| Where to return from Agents  | sessionStorage | orthacms:agents:return:\<id> | the tab                                   | copilot-admin            |
-| The sidebar's mobile `Sheet` | —              | —                            | in memory only                            | design-system            |
-| The contextual-area override | —              | —                            | while the overriding component is mounted | shell (`sidebarContent`) |
+| What                                                                                 | Where                                                                     | Key                                      | Lifetime                                                | Owner                                                 |
+| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------- | ---------------------------------------- | ------------------------------------------------------- | ----------------------------------------------------- |
+| Panel widths and collapsed states (sidebar, right panel, Agents rail, media folders) | the user's preferences (`user_preferences.layout`) + a localStorage cache | `orthacms:panel-layout:<userId>` (cache) | durable, cross-device; the cache paints the first frame | design-system store, shell provider, users-admin sync |
+| Where to return from Agents                                                          | sessionStorage                                                            | orthacms:agents:return:\<id>             | the tab                                                 | copilot-admin                                         |
+| The sidebar's mobile `Sheet`                                                         | —                                                                         | —                                        | in memory only                                          | design-system                                         |
+| The contextual-area override                                                         | —                                                                         | —                                        | while the overriding component is mounted               | shell (`sidebarContent`)                              |
 
 Every read and every write is wrapped in `try/catch`: private mode, disabled site data, an iframe sandbox and the quota all raise an exception rather than yielding a missing value. The degradation is “the setting lives in memory only”, not a blank screen.
 
@@ -484,25 +500,26 @@ Shell has **no** configurable parameters. `ShellPlugin()` takes no arguments, th
 
 ### 9.1 What is configured outside the package but affects it
 
-| What                                                     | Where                                                 | Effect on shell                                                                                                                      |
-| -------------------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| The order and set of plugins                             | apps/admin/src/plugins.ts                             | Determines the contents of all five slots and resolves `order` ties. `ShellPlugin()` must come before any other `layout` contributor |
-| The interface locale                                     | `createAdmin({ locale })`                             | All 27 `shell.*` keys; the host also sets `<html lang>` and `dir`                                                                    |
-| The application name in the title                        | apps/admin/index.html                                 | The right-hand half of the `“{page} · {application}”` composition                                                                    |
-| The mount point                                          | `createAdmin({ rootElement })`                        | Defaults to `root`; a missing element is an explicit error naming the id                                                             |
-| Sidebar widths, the breakpoint, the ⌘B chord, the cookie | design-system/…/ui/sidebar.tsx                        | The primitive's constants: `16rem` / `18rem` mobile / `3rem` icon mode, `768px`, `'b'`, `sidebar_state`                              |
-| The visual theme                                         | `AppearanceProvider` + `ThemeSync` from `users-admin` | Shell provides the footer `ThemeSync` lives in; it never touches the theme itself                                                    |
+| What                                                     | Where                                                     | Effect on shell                                                                                                                      |
+| -------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| The order and set of plugins                             | apps/admin/src/plugins.ts                                 | Determines the contents of all five slots and resolves `order` ties. `ShellPlugin()` must come before any other `layout` contributor |
+| The interface locale                                     | `createAdmin({ locale })`                                 | All 27 `shell.*` keys; the host also sets `<html lang>` and `dir`                                                                    |
+| The application name in the title                        | apps/admin/index.html                                     | The right-hand half of the `“{page} · {application}”` composition                                                                    |
+| The mount point                                          | `createAdmin({ rootElement })`                            | Defaults to `root`; a missing element is an explicit error naming the id                                                             |
+| Sidebar widths, the breakpoint, the ⌘B chord, the cookie | design-system/…/ui/sidebar.tsx                            | The primitive's constants: `16rem` / `18rem` mobile / `3rem` icon mode, `768px`, `'b'`, `sidebar_state` (uncontrolled use only)      |
+| The resizable panels' bounds                             | `SIDEBAR_PANEL` (AppShell), `RIGHT_PANEL` (AppRightPanel) | Default / min / max widths, the viewport ratio, whether the panel collapses                                                          |
+| The visual theme                                         | `AppearanceProvider` + `ThemeSync` from `users-admin`     | Shell provides the footer `ThemeSync` lives in; it never touches the theme itself                                                    |
 
 ### 9.2 Constants inside shell
 
-| Constant        | Value                      | Where         | Meaning                                                                                            |
-| --------------- | -------------------------- | ------------- | -------------------------------------------------------------------------------------------------- |
-| MAIN_CONTENT_ID | 'main-content'             | AppShell      | The skip link's target, the `id` of the `<main>` landmark                                          |
-| RIGHT_PANEL_ID  | 'app-right-panel'          | pageChrome    | The `aria-controls` link between the bar's button and the panel; the exclusion in the Esc selector |
-| STORAGE_KEY     | 'orthacms:right-panel'     | pageChrome    | The values `'open'` / `'collapsed'`                                                                |
-| PANEL_SLIDE_MS  | 330                        | pageChrome    | Slightly more than `duration-300` — the window in which animation is allowed                       |
-| MOBILE_QUERY    | '(max-width: 767px)'       | pageChrome    | Matches `useIsMobile`'s breakpoint (768px already counts as desktop)                               |
-| GROUPS          | \['overview','directory'\] | GlobalSidebar | The fixed order of the navigation groups                                                           |
+| Constant                    | Value                      | Where         | Meaning                                                                                            |
+| --------------------------- | -------------------------- | ------------- | -------------------------------------------------------------------------------------------------- |
+| MAIN_CONTENT_ID             | 'main-content'             | AppShell      | The skip link's target, the `id` of the `<main>` landmark                                          |
+| RIGHT_PANEL_ID              | 'app-right-panel'          | pageChrome    | The `aria-controls` link between the bar's button and the panel; the exclusion in the Esc selector |
+| RIGHT_PANEL_LAYOUT_ID       | 'shell.rightPanel'         | pageChrome    | The right panel's entry in the panel layout (width + collapsed)                                    |
+| PANEL_LAYOUT_STORAGE_PREFIX | 'orthacms:panel-layout'    | AppShell      | The layout cache's key prefix; suffixed with the user's id                                         |
+| PANEL_SLIDE_MS              | 330                        | pageChrome    | Slightly more than `duration-300` — the window in which animation is allowed                       |
+| GROUPS                      | \['overview','directory'\] | GlobalSidebar | The fixed order of the navigation groups                                                           |
 
 ## 10. Accessibility and the keyboard
 
@@ -578,7 +595,7 @@ Statements that must always hold. This is at once a review checklist and a draft
 - **I-18** — Any toggle of the panel hands focus to the surviving half of the toggle — **in both directions**. A handoff on collapse only does not count.
 - **I-19** — An unclaimed focus handoff expires on the next tick and cannot be picked up by the next control to mount.
 - **I-20** — The panel's animation is gated on `animate`, which only `toggle` arms: neither the first frame nor a page registering the panel causes movement.
-- **I-21** — On a narrow viewport (a `MOBILE_QUERY` match) the panel starts collapsed regardless of storage, and that state is **not written back**.
+- **I-21** — On a narrow viewport (`useIsMobile`) the panel starts collapsed regardless of storage, and that state is **not written back**: it is a separate, local state, and only the desktop one is persisted.
 - **I-22** — The mobile overlay's Esc handler excludes the panel itself from the “is anything stacked above” check — otherwise it yields to itself.
 - **I-23** — The overlay's scrim is an `aria-hidden` decoration, not a `<button>`: a control unreachable from the keyboard is worse than no control at all.
 - **I-24** — `SidebarToggle` is a **direct** sibling of the work area's column (`data-slot="app-column"` — the card holding `<main>` and the right panel, and the footer strip under it); a wrapper breaks the `[[data-slot=app-column]:has([data-slot=top-bar])~&]:hidden` selector and brings the floating button back to pages with a bar.
@@ -590,10 +607,14 @@ Statements that must always hold. This is at once a review checklist and a draft
 - **I-30** — Every read from and write to cookies / localStorage / sessionStorage is wrapped in `try/catch`; a storage failure degrades to in-memory state, not to an error.
 - **I-31** — A route sets the tab title through `useDocumentTitle` and clears it on unmount; the unread badge is applied by a **decorator**, not by writing to `document.title`.
 - **I-32** — There is exactly one `<main>` in the document — both the skip link and `RouteAnnouncer`'s scope depend on it.
+- **I-33** — The sidebar's and the right panel's widths and collapsed states live in the panel layout (`shell.sidebar`, `shell.rightPanel`), cached per user and synced to the user's preferences; shell never writes the `sidebar_state` cookie.
+- **I-34** — A drag past half a collapsible panel's minimum collapses it on release; a drag that stops short of that rests at the minimum. The right panel collapses through `toggle`, so a drag-collapse runs the same slide and focus handoff as the Hide button.
+- **I-35** — No resize handle renders below the breakpoint: the sidebar is a `Sheet` there and the right panel an overlay, neither of which has an edge to drag.
+- **I-36** — The viewport ratio caps a panel's width at render; a stored width above the cap is narrowed on screen, never rewritten in storage.
 
 ## 12. Testing checklist
 
-The wording is “action → expected result”, so items can go into a test case without rewriting. Verified in a browser: the package has **not a single** unit test of its own. The existing suites are `apps/admin-e2e/src/shell/command-palette.spec.ts` (9 tests), `apps/admin-e2e/src/shell/right-panel.spec.ts` (7), `apps/admin-e2e/src/home/dashboard.spec.ts` (2), plus `apps/admin-e2e/src/host/host.spec.ts` (15) and `host/reflow.spec.ts` (3), which test the frame as such.
+The wording is “action → expected result”, so items can go into a test case without rewriting. Verified in a browser: the package has **not a single** unit test of its own. The existing suites are `apps/admin-e2e/src/shell/command-palette.spec.ts` (9 tests), `apps/admin-e2e/src/shell/right-panel.spec.ts` (10), `apps/admin-e2e/src/shell/resizable-panels.spec.ts` (9), `apps/admin-e2e/src/home/dashboard.spec.ts` (2), plus `apps/admin-e2e/src/host/host.spec.ts` (15) and `host/reflow.spec.ts` (3), which test the frame as such.
 
 ### The gate and mounting
 
@@ -620,7 +641,11 @@ The wording is “action → expected result”, so items can go into a test cas
 - **Press ⌘B on the home page** → the panel slides away over 300 ms, the content takes the full width, and a floating “Show navigation” button appears at the top left.
 - **Press ⌘B on any page with a bar** → there is **no** floating button; the expand trigger appears as the first element inside the `TopBar`.
 - **Collapse it from the keyboard using the header trigger** → focus ends up on the bar's built-in trigger (or on the floating button on Home), not on `<body>`.
-- **Collapse it, then reload the page** → the sidebar stays collapsed (the `sidebar_state=false` cookie).
+- **Collapse it, then reload the page** → the sidebar stays collapsed (`shell.sidebar.collapsed` in the panel layout).
+- **Drag the sidebar's edge right by 40px** → it is 296px wide, and one `PUT /api/preferences { layout: { 'shell.sidebar': { width: 296 } } }` follows.
+- **Drag it far past the minimum and let go** → it collapses; expand it → it is back at its previous width.
+- **Focus the handle and press →, Shift+←, Home, End** → 272, 208, 208, the cap (`min(384, 25% of the viewport)`).
+- **Sign in on another device** → the sidebar opens at the width saved on the first.
 - **Tab through a collapsed sidebar** → neither search nor the links nor the footer receive focus — the panel is `inert`.
 - **Press ⌘B with the caret in the entry search field and in a rich-text body** → the sidebar does not move; in rich text, “bold” fires.
 - **Narrow the window below 768px** → the sidebar becomes an overlay drawer, is announced as the “Navigation” dialog, and closes on Esc and on an outside click.
@@ -650,12 +675,14 @@ The wording is “action → expected result”, so items can go into a test cas
 
 ### The right panel
 
-- **Open an entry in the editor** → a 22rem column with a heading appears, **without** a slide-in animation.
+- **Open an entry in the editor** → a 352px column with a heading appears, **without** a slide-in animation.
+- **Drag the panel's left edge left by 60px** → it is 412px wide.
+- **Drag it far right past its minimum** → it collapses exactly as “Hide {title}” does, focus on “Show {title}”.
 - **Collapse the panel from the keyboard** → focus on the “Show {title}” button in the bar.
 - **Expand it from the keyboard** → focus on the “Hide {title}” button inside the panel.
 - **Collapse the panel, work in the form, expand it** → the panel's content is in the same state and no requests were repeated.
-- **Collapse it and reload the page** → the panel stays collapsed (`orthacms:right-panel=collapsed`).
-- **Open the same entry on a phone** → the panel is collapsed regardless of what was saved; `localStorage` is **unchanged**.
+- **Collapse it and reload the page** → the panel stays collapsed (`shell.rightPanel.collapsed` in the panel layout).
+- **Open the same entry on a phone** → the panel is collapsed regardless of what was saved, with no resize handle; the stored layout is **unchanged**.
 - **After that phone visit, open it on the desktop** → the panel is open, just as it was.
 - **Expand the panel on a narrow screen** → an overlay on top of the page, `role="dialog"` + `aria-modal`, everything beneath it `inert`; Tab does not escape onto the page and does not wrap to the skip link.
 - **Press Esc in the overlay** → the panel closes and focus lands somewhere useful.

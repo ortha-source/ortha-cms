@@ -581,6 +581,7 @@ Statements that must always hold. At once a review checklist and a draft set of 
 - **I-44** — A reported public URL is always an absolute `http(s)` URL; a provider that throws, rejects or answers with anything else falls back to the application's route for that object.
 - **I-45** — The public content API reports a provider URL only for an asset the resolver marked `public`; every other URL is rewritten to the token route, never left as the session one.
 - **I-46** — A page's public URLs are requested in one concurrent batch — originals and derivatives together — never one row after another.
+- **I-47** — The folders column's width is the `media.folders` entry of the shell's panel layout (192–384px, at most 20% of the viewport); it never collapses, and below `lg` — where it is a drawer — it has no resize handle.
 
 ## 12. Testing checklist
 

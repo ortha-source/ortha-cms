@@ -8,6 +8,7 @@ import {
 } from '../components/MembersSkeleton';
 import { AccountMenu } from '../components/AccountMenu';
 import { ThemeSync } from '../components/ThemeSync';
+import { PanelLayoutSync } from '../components/PanelLayoutSync';
 
 // Lazy-loaded so the Members page is code-split into its own chunk, fetched
 // only when a signed-in user first navigates to `/users`.
@@ -136,6 +137,13 @@ export function UsersPlugin(): UsersAdminPlugin {
                         id: 'users.themeSync',
                         order: 0,
                         Component: ThemeSync
+                    },
+                    {
+                        // The panel layout's counterpart of `ThemeSync`, in the
+                        // footer for the same reason.
+                        id: 'users.panelLayoutSync',
+                        order: 1,
+                        Component: PanelLayoutSync
                     },
                     {
                         id: 'users.account',

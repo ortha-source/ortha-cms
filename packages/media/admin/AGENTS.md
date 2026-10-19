@@ -60,8 +60,12 @@ of the server's RBAC, which is the real enforcer).
   without changing location is a button. It **replaced** the old in-page
   `MediaBreadcrumbs` (deleted), which would otherwise duplicate the path.
 - **Browse** — a left **`MediaFoldersNav`** (folder tree headed by "All media",
-  a New-folder action, a storage meter). The main pane shows a title/count, the
-  **`MediaToolbar`**, and the content.
+  a New-folder action, a storage meter). On `lg` and up it is a **resizable**
+  column: a design-system `ResizeHandle` on its right edge drags its width
+  (`MEDIA_FOLDERS_PANEL` in `constants/` — 240px by default, 192–384px, at most
+  20% of the viewport), remembered per user in the shell's panel layout. It does
+  not collapse; below `lg` the folders open in a drawer and have no handle.
+  The main pane shows a title/count, the **`MediaToolbar`**, and the content.
 - **Flush layout, no island.** Both panes render directly on the page background
   (no muted board, no bordered/rounded/shadowed card), mirroring the Content
   Library's `ContentPane`; a hairline `lg:border-r` divides the sidebar from the

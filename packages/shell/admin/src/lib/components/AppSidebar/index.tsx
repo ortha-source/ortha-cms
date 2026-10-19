@@ -1,5 +1,11 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { Sidebar, SidebarFooter } from '@orthacms/design-system';
+import {
+    ResizeHandle,
+    Sidebar,
+    SidebarFooter,
+    useSidebar,
+    type ResizablePanel
+} from '@orthacms/design-system';
 import { byOrder } from '@orthacms/utils-admin';
 import { SIDEBAR_FOOTER_SLOT } from '../../slots/sidebarSlots';
 import { useSidebarContentOverride } from '../../utils/sidebarContent';
@@ -18,8 +24,15 @@ const messages = defineMessages({
     label: {
         id: 'shell.sidebar.label',
         defaultMessage: 'Sidebar'
+    },
+    resize: {
+        id: 'shell.sidebar.resize',
+        defaultMessage: 'Resize sidebar'
     }
 });
+
+/** DOM id of the desktop sidebar panel, for the resize handle's `aria-controls`. */
+const SIDEBAR_ID = 'app-sidebar';
 
 /**
  * The single left sidebar that is the admin's app chrome (replacing the old top
@@ -47,9 +60,21 @@ const messages = defineMessages({
  * nothing explaining it. It is also `tabIndex={-1}`, so it's a mouse-only
  * affordance for something already covered three ways: the in-header trigger,
  * the `TopBar`'s inline reveal trigger, and ⌘B.
+ *
+ * What sits on the edge instead is a **resize handle** (`resize`, from the
+ * shell's layout store): a focusable splitter, visible only on hover, focus
+ * and drag, that widens the panel within its bounds and collapses it when
+ * dragged well past its minimum. Desktop only — on a phone the panel is a
+ * drawer and has no edge to drag.
  */
-export function AppSidebar() {
+export function AppSidebar({
+    resize
+}: {
+    /** The width the handle drives; omitted, the panel is not resizable. */
+    resize?: ResizablePanel['handleProps'];
+} = {}) {
     const intl = useIntl();
+    const { isMobile } = useSidebar();
     const override = useSidebarContentOverride();
     const footerItems = byOrder(SIDEBAR_FOOTER_SLOT.getItems());
 
@@ -67,6 +92,7 @@ export function AppSidebar() {
             // in the header, and every group a plugin contributes below the
             // primary `<nav>`, were otherwise outside every landmark (`ORT-170`).
             label={intl.formatMessage(messages.label)}
+            id={SIDEBAR_ID}
         >
             {override ?? <GlobalSidebar />}
             {footerItems.length > 0 ? (
@@ -75,6 +101,14 @@ export function AppSidebar() {
                         <Component key={id} />
                     ))}
                 </SidebarFooter>
+            ) : null}
+            {resize && !isMobile ? (
+                <ResizeHandle
+                    {...resize}
+                    edge="right"
+                    controls={SIDEBAR_ID}
+                    label={intl.formatMessage(messages.resize)}
+                />
             ) : null}
         </Sidebar>
     );

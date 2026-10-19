@@ -13,6 +13,10 @@
 
 import type { OpenApiDocument } from '@orthacms/bootstrap-server';
 import { THEME_VALUES } from '../preferences/dto/update-preferences.dto';
+import {
+    MAX_PANEL_WIDTH,
+    MIN_PANEL_WIDTH
+} from '../preferences/dto/panel-layout.validator';
 
 /** A JSON Schema fragment, as it appears in the OpenAPI document. */
 type OpenApiSchema = Record<string, unknown>;
@@ -37,9 +41,9 @@ const PREFERENCES_SCHEMA = 'UserPreferences';
  * row, so naming whose row it is would be information the request already
  * carried.
  *
- * `theme` is required in both directions: a user who has never saved gets the
- * synthesised default rather than an empty object, so the key is always
- * present.
+ * Both keys are always present in a response: a user who has never saved gets
+ * the synthesised defaults (`system`, `{}`) rather than an absent key. The
+ * request is a partial patch and is described by its DTO, not by this schema.
  */
 const PREFERENCES: OpenApiSchema = {
     type: 'object',
@@ -51,9 +55,26 @@ const PREFERENCES: OpenApiSchema = {
             enum: [...THEME_VALUES],
             description:
                 'Colour theme. `system` follows the OS setting. A user who has never saved reads back the default (`system`) rather than an absent key.'
+        },
+        layout: {
+            type: 'object',
+            description:
+                'The admin’s resizable panels, by panel id (`shell.sidebar`, `copilot.agentsRail`, …) — width in CSS pixels and, for a collapsible panel, whether it is collapsed. `{}` until the user resizes or collapses one.',
+            additionalProperties: {
+                type: 'object',
+                properties: {
+                    width: {
+                        type: 'integer',
+                        minimum: MIN_PANEL_WIDTH,
+                        maximum: MAX_PANEL_WIDTH
+                    },
+                    collapsed: { type: 'boolean' }
+                },
+                additionalProperties: false
+            }
         }
     },
-    required: ['theme']
+    required: ['theme', 'layout']
 };
 
 /** Matches `<prefix>/preferences`, the plugin's whole preferences surface. */
@@ -62,7 +83,7 @@ const PREFERENCES_ROUTE_RE = /\/preferences$/;
 /** The methods this pass describes, with what each 2xx means. */
 const OPERATIONS: Record<string, string> = {
     get: 'The caller’s stored preferences, or the defaults if they have never saved any.',
-    put: 'The stored preferences after the upsert — the same shape a following read returns.'
+    put: 'The stored preferences after the patch is applied (`layout` merged per panel) — the same shape a following read returns.'
 };
 
 /**

@@ -9,7 +9,12 @@ import {
     type ReactNode
 } from 'react';
 import { createPortal } from 'react-dom';
-import { DensityProvider, PageHeaderHost } from '@orthacms/design-system';
+import {
+    DensityProvider,
+    PageHeaderHost,
+    useIsMobile,
+    usePanelLayoutEntry
+} from '@orthacms/design-system';
 
 /**
  * Which of the two collapse/reopen controls should take focus after a
@@ -70,31 +75,14 @@ const Context = createContext<PageChromeValue | null>(null);
  */
 export const RIGHT_PANEL_ID = 'app-right-panel';
 
-/** localStorage key for the right panel's open/collapsed state. */
-const STORAGE_KEY = 'orthacms:right-panel';
+/**
+ * The right panel's id in the shell's panel layout — where its width and its
+ * collapsed state are kept, alongside the sidebar's.
+ */
+export const RIGHT_PANEL_LAYOUT_ID = 'shell.rightPanel';
 
 /** How long the panel's slide runs — keep in step with its `duration-300`. */
 const PANEL_SLIDE_MS = 330;
-
-/** Below this the panel overlays the content instead of taking a column. */
-const MOBILE_QUERY = '(max-width: 767px)';
-
-/**
- * Reads the persisted state, tolerating missing/blocked/corrupt storage.
- * **Starts collapsed on a small screen** whatever was persisted: there the panel
- * is an overlay, and one covering the page on arrival is not what anyone asked
- * for. The desktop preference is left untouched, so it comes back on a wide
- * screen.
- */
-function readOpen(): boolean {
-    if (typeof window === 'undefined') return true;
-    try {
-        if (window.matchMedia(MOBILE_QUERY).matches) return false;
-        return window.localStorage.getItem(STORAGE_KEY) !== 'collapsed';
-    } catch {
-        return true;
-    }
-}
 
 /**
  * Holds the two **page-chrome regions** the shell owns but doesn't fill: the top
@@ -111,16 +99,27 @@ function readOpen(): boolean {
  *
  * The panel's open/collapsed state lives here rather than with the filler,
  * because the control that flips it is chrome — it has to work from the top bar
- * when the panel is collapsed and the filler has nowhere to draw. It is
- * persisted (guarded, so private mode degrades to in-memory) since pages remount
- * constantly and a collapse the user asked for shouldn't spring back.
+ * when the panel is collapsed and the filler has nowhere to draw. On a desktop
+ * it is the user's preference, kept in the panel layout (cached locally,
+ * synced to their preferences) since pages remount constantly and a collapse
+ * the user asked for shouldn't spring back.
+ *
+ * **On a phone it is not a preference at all.** There the panel is an overlay,
+ * and it starts collapsed whatever is stored — one covering the page on arrival
+ * is nobody's request. Its state there is local to this mount and never written
+ * back: persisting it used to overwrite the desktop preference, so one visit on
+ * a phone left the panel collapsed on every later wide-screen load. Keeping the
+ * two apart makes that structurally impossible rather than guarded against.
  */
 export function PageChromeProvider({ children }: { children: ReactNode }) {
     const [actionsHost, setActionsHost] = useState<HTMLElement | null>(null);
     const [panelHost, setPanelHost] = useState<HTMLElement | null>(null);
     // Ref-counted, so the overlap while a page remounts can't read as "gone".
     const [panels, setPanels] = useState<string[]>([]);
-    const [open, setOpen] = useState<boolean>(readOpen);
+    const isMobile = useIsMobile();
+    const [layout, updateLayout] = usePanelLayoutEntry(RIGHT_PANEL_LAYOUT_ID);
+    const [mobileOpen, setMobileOpen] = useState(false);
+    const open = isMobile ? mobileOpen : !layout?.collapsed;
     // Armed by `toggle`, disarmed once the slide is over. Gating the transition
     // on this is what keeps the panel from sliding in on first paint, or every
     // time a page registers one — motion should mean "you just did that".
@@ -147,25 +146,6 @@ export function PageChromeProvider({ children }: { children: ReactNode }) {
         return () => clearTimeout(timer);
     }, [focusTarget]);
 
-    useEffect(() => {
-        if (typeof window === 'undefined') return;
-        try {
-            // A narrow viewport forces the panel collapsed whatever was stored
-            // (see `readOpen`) — and that is a layout decision, not something the
-            // user asked for. Writing it back overwrote the desktop preference,
-            // so a single page load on a phone left the panel collapsed on the
-            // next wide-screen visit, with nothing to explain why. Persist only
-            // where the preference actually applies.
-            if (window.matchMedia(MOBILE_QUERY).matches) return;
-            window.localStorage.setItem(
-                STORAGE_KEY,
-                open ? 'open' : 'collapsed'
-            );
-        } catch {
-            // Storage unavailable (private mode, quota) — keep it in memory.
-        }
-    }, [open]);
-
     const registerPanel = useCallback((title: string) => {
         setPanels((current) => [...current, title]);
         return () =>
@@ -187,8 +167,12 @@ export function PageChromeProvider({ children }: { children: ReactNode }) {
         // top bar's reopen button, reopening leaves the panel's own collapse
         // button.
         setFocusTarget(open ? 'bar' : 'panel');
-        setOpen(!open);
-    }, [open]);
+        if (isMobile) {
+            setMobileOpen(!open);
+        } else {
+            updateLayout({ collapsed: open });
+        }
+    }, [open, isMobile, updateLayout]);
 
     const value = useMemo<PageChromeValue>(
         () => ({
