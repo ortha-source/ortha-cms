@@ -6,14 +6,17 @@ import {
     Drawer,
     DrawerContent,
     DrawerTitle,
+    ResizeHandle,
     cn,
-    toast
+    toast,
+    useResizablePanel
 } from '@orthacms/design-system';
 import { PanelLeft } from 'lucide-react';
 import { useHasPermission } from '@orthacms/identity-admin';
 import {
     MEDIA_CREATE,
     MEDIA_DELETE,
+    MEDIA_FOLDERS_PANEL,
     MEDIA_READ,
     MEDIA_UPDATE,
     ROOT_FOLDER_ID
@@ -57,6 +60,7 @@ const messages = defineMessages({
     },
     retry: { id: 'media.page.retry', defaultMessage: 'Try again' },
     openNav: { id: 'media.page.openNav', defaultMessage: 'Folders' },
+    resizeNav: { id: 'media.page.resizeNav', defaultMessage: 'Resize folders' },
     navTitle: {
         id: 'media.page.navTitle',
         defaultMessage: 'Folder navigation'
@@ -209,6 +213,7 @@ export function MediaLibraryPage() {
     const focusGridOnCloseRef = useRef(false);
 
     const [navOpen, setNavOpen] = useState(false);
+    const foldersPanel = useResizablePanel(MEDIA_FOLDERS_PANEL);
     const [newFolderOpen, setNewFolderOpen] = useState(false);
     const [uploadOpen, setUploadOpen] = useState(false);
     const [renameTarget, setRenameTarget] = useState<RenameTarget | null>(null);
@@ -457,16 +462,31 @@ export function MediaLibraryPage() {
                     </Button>
                 </div>
 
-                <MediaFoldersNav
-                    className="hidden lg:flex lg:border-r"
-                    folders={store.folders}
-                    currentFolderId={store.currentFolderId}
-                    counts={store.folderCounts}
-                    rootCount={store.folderCounts.get(ROOT_FOLDER_ID) ?? 0}
-                    onNavigate={store.navigateTo}
-                    onNewFolder={() => setNewFolderOpen(true)}
-                    canCreate={canCreate}
-                />
+                {/* The desktop column, resizable from its right edge. The
+                    wrapper declares the width and holds the handle: the nav
+                    clips its own overflow, which would cut a handle hanging
+                    over its edge in half. */}
+                <div
+                    ref={foldersPanel.ref}
+                    style={foldersPanel.style}
+                    className="relative hidden shrink-0 lg:flex"
+                >
+                    <MediaFoldersNav
+                        className="w-(--media-folders-width) border-r"
+                        folders={store.folders}
+                        currentFolderId={store.currentFolderId}
+                        counts={store.folderCounts}
+                        rootCount={store.folderCounts.get(ROOT_FOLDER_ID) ?? 0}
+                        onNavigate={store.navigateTo}
+                        onNewFolder={() => setNewFolderOpen(true)}
+                        canCreate={canCreate}
+                    />
+                    <ResizeHandle
+                        {...foldersPanel.handleProps}
+                        edge="right"
+                        label={intl.formatMessage(messages.resizeNav)}
+                    />
+                </div>
 
                 {/* A `div`, not a `main`: the host shell already renders the
                     page's one `<main id="main-content">` and this sits inside

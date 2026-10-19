@@ -332,6 +332,8 @@ The “Workspaces” tab also reaches outwards: adding is `POST /api/workspaces/
 
 The card's “Settings” tab is the plugin's **only self-service** surface, and it is open only on one's own profile. It reads and writes `GET`/`PUT /api/preferences` (identity's routes, bound to the `@CurrentUser()` rather than to an identifier in the path). The same request feeds the invisible `ThemeSync` component nested in the sidebar's footer: it pulls the saved theme into the shared `AppearanceProvider`, so that the choice applies across the whole application even if the person never opened the settings tab.
 
+A second invisible component sits beside it, **`PanelLayoutSync`**: it hydrates the shell's panel layout (the widths and collapsed states of the resizable panels) from the same `GET /api/preferences`, and saves every change the person makes — collected for 600ms, sent as one `PUT { layout }` naming only the panels that changed. A failed save is silent (the layout still holds in the browser's cache) and its panels ride along with the next one. It lives in the footer for the same reason `ThemeSync` does: the footer is the region mounted in every authenticated route.
+
 ### 6.12 The copilot tool
 
 1. **Registration is optional.** `WorkspaceCopilotToolProvider` injects the `ToolRegistry` through `@Optional()` and registers in `onModuleInit`. A deployment without the copilot and without MCP simply does not get this tool — there is no error.
@@ -374,16 +376,16 @@ The maintenance rule: **a `code` is part of the contract — codes are added to,
 
 ### The routes this plugin's admin UI merely uses
 
-| Method and path                        | Owner             | Access              | Where it is shown                                     |
-| -------------------------------------- | ----------------- | ------------------- | ----------------------------------------------------- |
-| GET /users/:id/sessions                | identity-server   | `users:update`      | The “Sessions” tab on a member's card                 |
-| DELETE /users/:id/sessions/:sessionId  | identity-server   | `users:update`      | The “Revoke” button on a session's card               |
-| GET /preferences                       | identity-server   | `session`           | The “Settings” tab and the invisible `ThemeSync`      |
-| PUT /preferences                       | identity-server   | `session`           | The theme switcher                                    |
-| POST /workspaces/:id/members           | workspaces-server | `workspaces:update` | The “Add to workspaces” dialog                        |
-| DELETE /workspaces/:id/members/:userId | workspaces-server | `workspaces:update` | A membership card on the “Workspaces” tab             |
-| GET /workspaces                        | workspaces-server | `workspaces:read`   | The invitation wizard's third step and the add dialog |
-| POST /auth/logout                      | identity-server   | `public`            | The “Sign out” item in the account menu               |
+| Method and path                        | Owner             | Access              | Where it is shown                                                    |
+| -------------------------------------- | ----------------- | ------------------- | -------------------------------------------------------------------- |
+| GET /users/:id/sessions                | identity-server   | `users:update`      | The “Sessions” tab on a member's card                                |
+| DELETE /users/:id/sessions/:sessionId  | identity-server   | `users:update`      | The “Revoke” button on a session's card                              |
+| GET /preferences                       | identity-server   | `session`           | The “Settings” tab and the invisible `ThemeSync` / `PanelLayoutSync` |
+| PUT /preferences                       | identity-server   | `session`           | The theme switcher and `PanelLayoutSync` (a partial patch each)      |
+| POST /workspaces/:id/members           | workspaces-server | `workspaces:update` | The “Add to workspaces” dialog                                       |
+| DELETE /workspaces/:id/members/:userId | workspaces-server | `workspaces:update` | A membership card on the “Workspaces” tab                            |
+| GET /workspaces                        | workspaces-server | `workspaces:read`   | The invitation wizard's third step and the add dialog                |
+| POST /auth/logout                      | identity-server   | `public`            | The “Sign out” item in the account menu                              |
 
 All nine of its own routes are documented in the generated OpenAPI (via `@ApiProperty`/`@ApiPropertyOptional` decorators on the DTOs), which a running server serves as a Scalar reference at `/reference`.
 

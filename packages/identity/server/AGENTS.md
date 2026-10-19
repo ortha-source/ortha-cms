@@ -231,7 +231,15 @@ error, and type the barrel exports keeps its path, so no consumer import moved.
     - `root-admin/` — `services/` (`RootAdminService`), `seeders/`
       (`RootAdminSeeder`), `errors/`.
     - `preferences/` — `controllers/`, `services/` (`PreferencesService`),
-      `dto/`: the signed-in user's own `user_preferences` row.
+      `dto/`: the signed-in user's own `user_preferences` row — the theme and
+      the admin's panel `layout` (a `jsonb` map, panel id → `{ width?,
+      collapsed? }`). `PUT` is a **partial patch** (an absent field keeps its
+      value; naming nothing is a `400`) and `layout` is **merged per panel by
+      the upsert itself** (`layout || patch`), so two tabs resizing different
+      panels never undo each other. `PanelLayoutConstraint` bounds the shape
+      (panel ids, integer widths 120–2000, ≤ 16 panels a save) without knowing
+      which panels exist, and the upsert's `WHERE` caps the stored map at 64
+      panels (`422` past it) so it cannot be grown one save at a time.
     - `sso/` — `sso-settings.ts`, the attempt-lifetime default the SSO use
       cases read.
     - `docs/` — the OpenAPI contribution (`describe-identity-api.ts`,

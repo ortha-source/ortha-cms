@@ -70,7 +70,12 @@ React Query's structural sharing keeps working) rather than replacing it.
   route can replace wholesale via `useSidebarContent` (the workspace shell
   does), so a hydrator mounted there would never run for a user who deep-links
   into a workspace. The footer is the region the shell keeps mounted in both
-  contexts.
+  contexts. **`PanelLayoutSync`** sits beside it for the same reason: it
+  hydrates the shell's panel layout (the resizable panels' widths and collapsed
+  states) from the same `GET /api/preferences`, and saves the user's changes —
+  collected for 600ms, sent as one `PUT { layout }` naming only the panels that
+  changed (the server merges per panel). A failed save is silent and its panels
+  ride along with the next one; what is still pending on unmount is sent then.
 
 ## The pages
 

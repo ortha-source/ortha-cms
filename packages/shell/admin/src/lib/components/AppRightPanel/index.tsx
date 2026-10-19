@@ -1,9 +1,16 @@
 import { useEffect } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { PanelRightClose } from 'lucide-react';
-import { Button, cn, useIsMobile } from '@orthacms/design-system';
+import {
+    Button,
+    cn,
+    ResizeHandle,
+    useIsMobile,
+    useResizablePanel
+} from '@orthacms/design-system';
 import {
     RIGHT_PANEL_ID,
+    RIGHT_PANEL_LAYOUT_ID,
     usePageChromeHosts,
     usePanelFocusHandoff,
     useRightPanel
@@ -13,8 +20,27 @@ const messages = defineMessages({
     hide: {
         id: 'shell.rightPanel.hide',
         defaultMessage: 'Hide {title}'
+    },
+    resize: {
+        id: 'shell.rightPanel.resize',
+        defaultMessage: 'Resize {title}'
     }
 });
+
+/**
+ * The right panel's bounds in the panel layout, in pixels. Its collapsed state
+ * shares the entry, but is flipped through the page-chrome `toggle` — which
+ * also runs the slide and the focus handoff — never written here directly.
+ */
+export const RIGHT_PANEL = {
+    id: RIGHT_PANEL_LAYOUT_ID,
+    defaultWidth: 352,
+    minWidth: 288,
+    maxWidth: 640,
+    maxViewportRatio: 0.35,
+    collapsible: true,
+    cssVar: '--right-panel-width'
+} as const;
 
 /**
  * The shell's **right panel** — the column beside the main inset that a page
@@ -45,7 +71,13 @@ const messages = defineMessages({
  * **On a phone it overlays instead of taking a column**: a 22rem column would
  * leave the content nothing. It slides in from the right edge over a scrim that
  * dismisses it, and it starts collapsed there regardless of the desktop
- * preference (see `readOpen`).
+ * preference (see `PageChromeProvider`).
+ *
+ * **As a column it is resizable**: a handle on its left edge drags its width
+ * between {@link RIGHT_PANEL}'s bounds and collapses it when dragged well past
+ * the minimum — through `toggle`, so the drag collapses it exactly the way the
+ * Hide button does. The width is the `--right-panel-width` variable, declared
+ * here and read by both the column and the panel inside it.
  */
 export function AppRightPanel() {
     const intl = useIntl();
@@ -56,6 +88,7 @@ export function AppRightPanel() {
     const animate = !!panel?.animate;
     const collapseRef = usePanelFocusHandoff('panel');
     const toggle = panel?.toggle;
+    const resizable = useResizablePanel(RIGHT_PANEL);
 
     // `Esc` dismisses the mobile overlay. The overlay is not a Radix `Sheet` on
     // purpose — a Sheet unmounts its content when closed, and the panel's body is
@@ -105,6 +138,8 @@ export function AppRightPanel() {
                 />
             ) : null}
             <aside
+                ref={resizable.ref}
+                style={isMobile ? undefined : resizable.style}
                 id={RIGHT_PANEL_ID}
                 aria-label={shown ? panel?.title : undefined}
                 // On a phone this is an overlay covering the page, so it says so
@@ -118,7 +153,7 @@ export function AppRightPanel() {
                 aria-modal={isMobile && shown ? true : undefined}
                 inert={!shown}
                 className={cn(
-                    'flex shrink-0 overflow-hidden motion-reduce:transition-none',
+                    'relative flex shrink-0 overflow-hidden motion-reduce:transition-none',
                     isMobile
                         ? // Overlay: off the right edge and back, so the
                           // content underneath keeps its full width.
@@ -135,7 +170,7 @@ export function AppRightPanel() {
                               'h-full',
                               animate &&
                                   'transition-[width] duration-300 ease-in-out',
-                              shown ? 'w-[22rem]' : 'w-0'
+                              shown ? 'w-(--right-panel-width)' : 'w-0'
                           )
                 )}
             >
@@ -147,10 +182,25 @@ export function AppRightPanel() {
                     translates), so the panel simply fills it. */}
                 <div
                     className={cn(
-                        'flex h-full shrink-0 flex-col border-l bg-background',
-                        isMobile ? 'w-full' : 'w-[22rem]'
+                        'relative flex h-full shrink-0 flex-col border-l bg-background',
+                        isMobile ? 'w-full' : 'w-(--right-panel-width)'
                     )}
                 >
+                    {shown && !isMobile && toggle ? (
+                        // Inside the panel rather than on the column: the
+                        // column clips, so a handle hanging over its edge
+                        // would be cut in half.
+                        <ResizeHandle
+                            {...resizable.handleProps}
+                            onCollapse={toggle}
+                            edge="left"
+                            className="left-0"
+                            controls={RIGHT_PANEL_ID}
+                            label={intl.formatMessage(messages.resize, {
+                                title: panel?.title ?? ''
+                            })}
+                        />
+                    ) : null}
                     {/* On a page with tabs under its bar the band is 48 + 36px
                         (`TopBarTabs` is a fixed `h-9`), so the header grows to
                         rule itself on the same line, keeping its title level

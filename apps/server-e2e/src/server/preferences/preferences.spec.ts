@@ -25,9 +25,10 @@ function sessionCookie(res: Response): string {
 
 /**
  * `GET`/`PUT /api/preferences` — the current user's own appearance preferences
- * (the theme behind the account Preferences tab). Self-service: every request
- * reads/writes the caller's own row, keyed off the session, so there is no RBAC
- * to exercise here — only auth, validation, the origin guard, and the upsert.
+ * (the theme behind the account Preferences tab, and the admin's resizable
+ * panel layout). Self-service: every request reads/writes the caller's own row,
+ * keyed off the session, so there is no RBAC to exercise here — only auth,
+ * validation, the origin guard, and the upsert's partial-patch semantics.
  */
 describe('/api/preferences', () => {
     let harness: TestApp;
@@ -66,15 +67,15 @@ describe('/api/preferences', () => {
                 .get('/api/preferences')
                 .set('Cookie', await login())
                 .expect(200);
-            expect(res.body).toEqual({ theme: 'system' });
+            expect(res.body).toEqual({ theme: 'system', layout: {} });
         });
 
-        it('returns only the theme (no userId/timestamps leak)', async () => {
+        it('returns only the theme and layout (no userId/timestamps leak)', async () => {
             const res = await request(harness.server)
                 .get('/api/preferences')
                 .set('Cookie', await login())
                 .expect(200);
-            expect(Object.keys(res.body)).toEqual(['theme']);
+            expect(Object.keys(res.body).sort()).toEqual(['layout', 'theme']);
         });
 
         it('rejects an unauthenticated read with 401', async () => {
@@ -95,11 +96,11 @@ describe('/api/preferences', () => {
                 .set('Origin', TEST_ALLOWED_ORIGIN)
                 .send({ theme: 'dark' })
                 .expect(200);
-            expect(put.body).toEqual({ theme: 'dark' });
+            expect(put.body).toEqual({ theme: 'dark', layout: {} });
 
             // The change is durable — a fresh read reflects it.
             const get = await agent.get('/api/preferences').expect(200);
-            expect(get.body).toEqual({ theme: 'dark' });
+            expect(get.body).toEqual({ theme: 'dark', layout: {} });
         });
 
         it('updates the existing row on a second save (no duplicate)', async () => {
@@ -117,10 +118,10 @@ describe('/api/preferences', () => {
 
             await save('dark');
             const second = await save('light');
-            expect(second.body).toEqual({ theme: 'light' });
+            expect(second.body).toEqual({ theme: 'light', layout: {} });
 
             const get = await agent.get('/api/preferences').expect(200);
-            expect(get.body).toEqual({ theme: 'light' });
+            expect(get.body).toEqual({ theme: 'light', layout: {} });
         });
 
         it('accepts each valid theme', async () => {
@@ -132,7 +133,7 @@ describe('/api/preferences', () => {
                     .set('Origin', TEST_ALLOWED_ORIGIN)
                     .send({ theme })
                     .expect(200);
-                expect(res.body).toEqual({ theme });
+                expect(res.body.theme).toBe(theme);
             }
         });
 
@@ -154,7 +155,7 @@ describe('/api/preferences', () => {
                     .expect(400);
             });
 
-            it('rejects a missing theme', async () => {
+            it('rejects a patch that names nothing', async () => {
                 await request(harness.server)
                     .put('/api/preferences')
                     .set('Cookie', await login())
@@ -179,6 +180,143 @@ describe('/api/preferences', () => {
                     .set('Origin', TEST_ALLOWED_ORIGIN)
                     .send({ theme: 'dark', density: 'compact' })
                     .expect(400);
+            });
+        });
+
+        describe('layout (the resizable panels)', () => {
+            /** A logged-in agent, so the session rides along on every call. */
+            async function signedIn() {
+                const agent = request.agent(harness.server);
+                await agent
+                    .post('/api/auth/login')
+                    .send({ email: EMAIL, password: PASSWORD })
+                    .expect(201);
+                return agent;
+            }
+
+            /** `PUT` a patch through `agent`, expecting `status`. */
+            function put(
+                agent: ReturnType<typeof request.agent>,
+                body: object,
+                status = 200
+            ) {
+                return agent
+                    .put('/api/preferences')
+                    .set('Origin', TEST_ALLOWED_ORIGIN)
+                    .send(body)
+                    .expect(status);
+            }
+
+            it('stores a panel layout and reads it back', async () => {
+                const agent = await signedIn();
+                const layout = {
+                    'shell.sidebar': { width: 288, collapsed: false }
+                };
+
+                const saved = await put(agent, { layout });
+                expect(saved.body).toEqual({ theme: 'system', layout });
+
+                const get = await agent.get('/api/preferences').expect(200);
+                expect(get.body.layout).toEqual(layout);
+            });
+
+            it('merges per panel: a save leaves every panel it does not name alone', async () => {
+                const agent = await signedIn();
+                await put(agent, {
+                    layout: {
+                        'shell.sidebar': { width: 300 },
+                        'shell.rightPanel': { width: 400, collapsed: true }
+                    }
+                });
+
+                // Another tab resizes one panel. The other must survive it —
+                // and the named panel is replaced whole, not deep-merged.
+                const second = await put(agent, {
+                    layout: { 'shell.rightPanel': { width: 500 } }
+                });
+                expect(second.body.layout).toEqual({
+                    'shell.sidebar': { width: 300 },
+                    'shell.rightPanel': { width: 500 }
+                });
+            });
+
+            it('a theme save keeps the layout, and a layout save keeps the theme', async () => {
+                const agent = await signedIn();
+                await put(agent, { theme: 'dark' });
+                await put(agent, {
+                    layout: { 'copilot.agentsRail': { width: 320 } }
+                });
+                const afterTheme = await put(agent, { theme: 'light' });
+
+                expect(afterTheme.body).toEqual({
+                    theme: 'light',
+                    layout: { 'copilot.agentsRail': { width: 320 } }
+                });
+            });
+
+            it.each([
+                ['a malformed panel id', { 'Shell sidebar': { width: 300 } }],
+                ['a single-segment panel id', { sidebar: { width: 300 } }],
+                ['a width below the floor', { 'shell.sidebar': { width: 10 } }],
+                [
+                    'a width above the ceiling',
+                    { 'shell.sidebar': { width: 99999 } }
+                ],
+                ['a fractional width', { 'shell.sidebar': { width: 300.5 } }],
+                ['a string width', { 'shell.sidebar': { width: '300' } }],
+                [
+                    'a non-boolean collapsed',
+                    { 'shell.sidebar': { collapsed: 'yes' } }
+                ],
+                [
+                    'an unknown inner key',
+                    { 'shell.sidebar': { width: 300, height: 9 } }
+                ],
+                ['an empty entry', { 'shell.sidebar': {} }],
+                ['an empty map', {}],
+                ['an array', [{ width: 300 }]]
+            ])('rejects %s with 400', async (_name, layout) => {
+                const agent = await signedIn();
+                await put(agent, { layout }, 400);
+            });
+
+            it('rejects more panels in one save than the bound', async () => {
+                const agent = await signedIn();
+                const layout = Object.fromEntries(
+                    Array.from({ length: 17 }, (_, i) => [
+                        `test.panel${i}`,
+                        { width: 300 }
+                    ])
+                );
+                await put(agent, { layout }, 400);
+            });
+
+            it('refuses to grow the stored map past its bound, one save at a time (422)', async () => {
+                const agent = await signedIn();
+                // 64 panels in four saves of 16 — each within the per-save bound.
+                for (let batch = 0; batch < 4; batch++) {
+                    const layout = Object.fromEntries(
+                        Array.from({ length: 16 }, (_, i) => [
+                            `test.panel${batch * 16 + i}`,
+                            { width: 300 }
+                        ])
+                    );
+                    await put(agent, { layout });
+                }
+
+                // A 65th is refused, and the stored map is left as it was…
+                await put(
+                    agent,
+                    { layout: { 'test.oneTooMany': { width: 300 } } },
+                    422
+                );
+                const get = await agent.get('/api/preferences').expect(200);
+                expect(Object.keys(get.body.layout)).toHaveLength(64);
+
+                // …while re-saving a panel already stored is still fine.
+                await put(agent, {
+                    layout: { 'test.panel0': { width: 320 } }
+                });
             });
         });
 

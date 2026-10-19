@@ -59,9 +59,11 @@ export interface EvalInput extends EvalElement {
     selectionEnd: number | null;
 }
 
-/** A `Storage` (local/session), keyed access only. */
+/** A `Storage` (local/session), read access only. */
 export interface EvalStorage {
     getItem(key: string): string | null;
+    key(index: number): string | null;
+    readonly length: number;
 }
 
 /**

@@ -797,6 +797,7 @@ Statements that must always hold. This is at once a review list and a draft set 
 - **I-40** — The admin UI treats the copilot as switched off **only** on an explicit 404 from the model catalogue; a load, a 5xx, a 403 and a network failure all leave the surfaces in place.
 - **I-41** — The permission prompt shows the reader no time limit: no countdown, no warning and no extend button. While it is open on a visible tab it extends the run's budget itself, so the limit it removes from the screen is one it also removes from the reader's experience — not one it merely stopped displaying. A prompt whose run did expire still says so.
 - **I-42** — The create form is its own run surface (`create`), never `records`. The context carries the content type and no entry id, and the prompt tells the model the record does not exist yet — so “this entry” cannot resolve to one the person is not on.
+- **I-43** — The Agents rail's width is the `copilot.agentsRail` entry of the shell's panel layout (224–448px, at most 25% of the viewport); it never collapses, and below `md` — where it is a sheet — it has no resize handle.
 
 ## 14. Testing checklist
 

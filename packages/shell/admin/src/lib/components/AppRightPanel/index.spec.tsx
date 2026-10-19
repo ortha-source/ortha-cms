@@ -59,7 +59,7 @@ describe('AppRightPanel', () => {
 
         expect(column().hasAttribute('inert')).toBe(true);
         expect(column().className).toContain('w-0');
-        expect(column().className).not.toContain('w-[22rem]');
+        expect(column().className).not.toContain('w-(--right-panel-width)');
         // And it offers no control either: a reopen button for a panel no page
         // registered is a button that leads nowhere.
         expect(reopenButton()).toBeNull();
@@ -76,7 +76,7 @@ describe('AppRightPanel', () => {
         );
 
         expect(column().hasAttribute('inert')).toBe(false);
-        expect(column().className).toContain('w-[22rem]');
+        expect(column().className).toContain('w-(--right-panel-width)');
         expect(screen.getByRole('complementary', { name: 'Properties' })).toBe(
             column()
         );

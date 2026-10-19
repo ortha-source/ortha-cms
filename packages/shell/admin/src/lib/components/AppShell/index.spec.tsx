@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { wireSlotContributions } from '@orthacms/utils-admin';
 import { SIDEBAR_NAV_SLOT, type SidebarItem } from '../../slots/sidebarSlots';
-import { AppShell } from './index';
+import { AppShell, PANEL_LAYOUT_STORAGE_PREFIX } from './index';
 
 /**
  * The floating sidebar toggle's position in the tree — a rule that exists
@@ -63,15 +63,18 @@ const NAV: SidebarItem[] = [
 ];
 
 beforeEach(() => {
-    // Collapsed, because the floating toggle is the collapsed sidebar's reveal
-    // control and does not render while the panel is open.
-    document.cookie = 'sidebar_state=false; path=/';
     window.localStorage.clear();
+    // Collapsed, because the floating toggle is the collapsed sidebar's reveal
+    // control and does not render while the panel is open. The state is the
+    // panel layout's, cached per user — the mocked `useAuth` above is `usr_1`.
+    window.localStorage.setItem(
+        `${PANEL_LAYOUT_STORAGE_PREFIX}:usr_1`,
+        JSON.stringify({ 'shell.sidebar': { collapsed: true } })
+    );
     wireSlotContributions([{ slot: SIDEBAR_NAV_SLOT, items: NAV }]);
 });
 
 afterEach(() => {
-    document.cookie = 'sidebar_state=; path=/; max-age=0';
     window.localStorage.clear();
     wireSlotContributions([{ slot: SIDEBAR_NAV_SLOT, items: [] }]);
 });
