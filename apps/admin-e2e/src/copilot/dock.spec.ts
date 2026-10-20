@@ -6,7 +6,7 @@ import {
     mockContentSchema,
     mockContentSchemaDetail
 } from '../support/api/content';
-import { mockCopilotApi } from '../support/api/copilot';
+import { frame, mockCopilotApi } from '../support/api/copilot';
 import { expectNoA11yViolations } from '../support/a11y';
 import type { BrowserGlobals, EvalScrollable } from '../support/browserGlobals';
 
@@ -629,6 +629,115 @@ test.describe('Ortha CMS AI dock — regressions', () => {
         await expect(
             page.locator('[data-slot="sidebar-inset-scroll"]')
         ).toHaveCSS('padding-bottom', '0px');
+    });
+});
+
+/**
+ * A change the copilot makes reaches the page under the chat **without a
+ * reload**. It used to stay invisible until one: the run refreshed the thread
+ * list and the usage meter and nothing else, so the records table kept the
+ * values it had fetched before the change was written.
+ */
+test.describe('Ortha CMS AI dock — the page catches up', () => {
+    test('a record the chat changed is redrawn under it', async ({
+        page,
+        copilotDockPage,
+        contentLibraryPage
+    }) => {
+        const AT = '2026-01-01T00:00:00.000Z';
+        const rows = [
+            {
+                id: 'post-1',
+                status: 'published' as const,
+                createdAt: AT,
+                updatedAt: AT,
+                values: { title: 'Hello world' }
+            }
+        ];
+        await mockSignedIn(page);
+        await mockWorkspaces(page);
+        await mockContentSchema(page);
+        await mockContentSchemaDetail(page);
+        // Read per request, so a write to `rows` is what the next list read
+        // returns — the server's half of the change.
+        await mockContentEntries(page, { entries: { blog_post: rows } });
+        await mockCopilotApi(page);
+        // Registered last, so it wins over the default scripted run.
+        await page.route('**/api/copilot/runs', (route) => {
+            rows[0].values.title = 'Hello, edited';
+            return route.fulfill({
+                status: 200,
+                contentType: 'text/event-stream',
+                body: [
+                    frame({
+                        type: 'run-started',
+                        runId: 'r_edit',
+                        conversationId: 'c_new'
+                    }),
+                    frame({
+                        type: 'tool-call',
+                        id: 'call_edit',
+                        name: 'content_propose_update',
+                        input: { contentType: 'blog_post', id: 'post-1' }
+                    }),
+                    frame({
+                        type: 'tool-result',
+                        id: 'call_edit',
+                        ok: true,
+                        summary: 'Applied',
+                        durationMs: 12
+                    }),
+                    frame({
+                        type: 'proposal',
+                        id: 'p_edit',
+                        toolCallId: 'call_edit',
+                        toolName: 'content_propose_update',
+                        kind: 'content.entry.update',
+                        summary: 'Retitled “Hello world”',
+                        target: { contentType: 'blog_post', id: 'post-1' },
+                        changes: [
+                            {
+                                field: 'title',
+                                label: 'Title',
+                                before: 'Hello world',
+                                after: 'Hello, edited'
+                            }
+                        ],
+                        status: 'accepted',
+                        entityId: 'post-1'
+                    }),
+                    frame({ type: 'text-delta', text: 'Retitled it.' }),
+                    frame({
+                        type: 'done',
+                        messageId: 'm_edit',
+                        stopReason: 'end'
+                    })
+                ].join('')
+            });
+        });
+
+        await contentLibraryPage.gotoRecords(WORKSPACE_ID, 'blog_post');
+        const table = contentLibraryPage.recordsTable('Blog posts');
+        await expect(table).toContainText('Hello world');
+        // A reload would also redraw the table; this is what tells the two
+        // apart.
+        await page.evaluate(() => {
+            (globalThis as unknown as { noReload?: boolean }).noReload = true;
+        });
+
+        await copilotDockPage.startChat();
+        await copilotDockPage.ask('Retitle the first post');
+        await expect(copilotDockPage.transcript()).toContainText(
+            'Retitled it.'
+        );
+
+        await expect(table).toContainText('Hello, edited');
+        await expect(table).not.toContainText('Hello world');
+        expect(
+            await page.evaluate(
+                () => (globalThis as unknown as { noReload?: boolean }).noReload
+            )
+        ).toBe(true);
     });
 });
 

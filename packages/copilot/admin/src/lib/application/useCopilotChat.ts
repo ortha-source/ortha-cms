@@ -21,6 +21,7 @@ import {
     type StartRunRequest
 } from './runStream';
 import { usageKey } from './useCopilotUsage';
+import { refreshAfterCopilotChange } from './refreshAfterChange';
 import { useDecideToolPermission } from './useDecideToolPermission';
 import { useExtendToolPermission } from './useExtendToolPermission';
 import type { ToolPermissionDecision } from '@orthacms/copilot-domain';
@@ -317,6 +318,16 @@ export function useCopilotChat(
                             threadId = event.conversationId;
                         }
                         dispatch({ type: 'event', event });
+                        // A change has just been written, so the page under
+                        // the chat is now showing the content as it was. Not
+                        // deferred to the end of the run: the model often
+                        // keeps writing after it saves, and the person is
+                        // looking at the page meanwhile. Every receipt counts,
+                        // a failed one included — a bulk save that stopped
+                        // part-way has still written the items before it.
+                        if (event.type === 'proposal') {
+                            refreshAfterCopilotChange(queryClient);
+                        }
                     }
                 } catch (error) {
                     // Same reason as above: a run nobody is listening to any
