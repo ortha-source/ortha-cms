@@ -8,7 +8,7 @@ import type {
     IdentitySessionConfig,
     IdentitySsoConfig
 } from '@orthacms/identity-server';
-import type { RunLimits } from '@orthacms/copilot-domain';
+import type { CopilotQuotas, RunLimits } from '@orthacms/copilot-domain';
 import type { LocaleDef, OrphanedLocalePolicy } from '@orthacms/i18n-server';
 import type { TransferLimits } from '@orthacms/transfer-domain';
 import type { WebhooksPluginConfig } from '@orthacms/webhooks-server';
@@ -229,6 +229,8 @@ export interface TestConfigOverrides {
         enabled?: boolean;
         maxOutputTokens?: number;
         limits?: Partial<RunLimits>;
+        /** Usage limits — none by default, exactly as in a fresh `.env`. */
+        quotas?: CopilotQuotas;
     };
     /**
      * How the plugin reacts at boot to rows in an unconfigured locale.
@@ -392,6 +394,9 @@ export function buildTestConfig(
                 maxOutputTokens: overrides.copilot?.maxOutputTokens ?? 1024,
                 ...(overrides.copilot?.limits
                     ? { limits: overrides.copilot.limits }
+                    : {}),
+                ...(overrides.copilot?.quotas
+                    ? { quotas: overrides.copilot.quotas }
                     : {}),
                 // Neither hosted backend is configured, exactly as in a clone
                 // with no keys — and `buildTestPlugins` registers only the

@@ -14,7 +14,13 @@ import {
 import type { ChatAction } from './chatReducer';
 import { conversationsScopeKey } from './useConversations';
 import { conversationKey } from './useConversation';
-import { CopilotRunError, streamRun, type StartRunRequest } from './runStream';
+import {
+    CopilotRunError,
+    streamRun,
+    type CopilotRunLimit,
+    type StartRunRequest
+} from './runStream';
+import { usageKey } from './useCopilotUsage';
 import { useDecideToolPermission } from './useDecideToolPermission';
 import { useExtendToolPermission } from './useExtendToolPermission';
 import type { ToolPermissionDecision } from '@orthacms/copilot-domain';
@@ -51,6 +57,32 @@ const messages = defineMessages({
     aborted: {
         id: 'copilot.chat.error.aborted',
         defaultMessage: 'Stopped.'
+    },
+    // The four usage-limit refusals, worded from the 429's `code` rather than
+    // from its English `message`, which is written for API clients.
+    quotaUser: {
+        id: 'copilot.chat.error.quotaUser',
+        defaultMessage:
+            'You have used today’s Ortha CMS AI allowance in this workspace. It resets at {time}.'
+    },
+    quotaWorkspace: {
+        id: 'copilot.chat.error.quotaWorkspace',
+        defaultMessage:
+            'This workspace has used today’s Ortha CMS AI allowance. It resets at {time}.'
+    },
+    rateLimited: {
+        id: 'copilot.chat.error.rateLimited',
+        defaultMessage:
+            'Too many requests. Try again in {seconds, plural, one {# second} other {# seconds}}.'
+    },
+    rateLimitedSoon: {
+        id: 'copilot.chat.error.rateLimitedSoon',
+        defaultMessage: 'Too many requests. Try again in a moment.'
+    },
+    tooManyRuns: {
+        id: 'copilot.chat.error.tooManyRuns',
+        defaultMessage:
+            'You already have as many answers in progress as allowed. Wait for one to finish.'
     }
 });
 
@@ -315,6 +347,11 @@ export function useCopilotChat(
                     }
                 } finally {
                     endRun(sessionId, controller);
+                    // Whatever the run spent — or the limit that refused it —
+                    // is now what the meter under the composer should show.
+                    void queryClient.invalidateQueries({
+                        queryKey: usageKey(workspaceId)
+                    });
                     // The thread list's titles and ordering both change with a
                     // turn, and a brand-new thread doesn't exist in it at all
                     // until now.
@@ -475,6 +512,9 @@ function describe(error: unknown, intl: IntlShape): Failure {
             systemic: false
         };
     }
+    if (error instanceof CopilotRunError && error.limit) {
+        return { message: describeLimit(error.limit, intl), systemic: true };
+    }
     if (error instanceof CopilotRunError) {
         // 401 is the one worth rewording: the server's "Unauthorized" is
         // accurate and useless, and being signed out is not a chat problem.
@@ -495,4 +535,36 @@ function describe(error: unknown, intl: IntlShape): Failure {
         };
     }
     return { message: intl.formatMessage(messages.generic), systemic: false };
+}
+
+/**
+ * A usage-limit refusal in the reader's own words — and with the reset in
+ * their own clock: the server says midnight UTC, which for most readers is not
+ * midnight at all.
+ */
+function describeLimit(limit: CopilotRunLimit, intl: IntlShape): string {
+    switch (limit.code) {
+        case 'copilot.quota_exceeded': {
+            const time = limit.resetsAt
+                ? intl.formatTime(limit.resetsAt, {
+                      hour: 'numeric',
+                      minute: '2-digit'
+                  })
+                : '';
+            return intl.formatMessage(
+                limit.scope === 'workspace'
+                    ? messages.quotaWorkspace
+                    : messages.quotaUser,
+                { time }
+            );
+        }
+        case 'copilot.rate_limited':
+            return limit.retryAfterSeconds
+                ? intl.formatMessage(messages.rateLimited, {
+                      seconds: limit.retryAfterSeconds
+                  })
+                : intl.formatMessage(messages.rateLimitedSoon);
+        case 'copilot.too_many_runs':
+            return intl.formatMessage(messages.tooManyRuns);
+    }
 }

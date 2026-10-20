@@ -244,6 +244,24 @@ genuinely belongs to a framework-free core:
   leave half an escape sequence or a lone surrogate in the prompt, and the
   closing delimiter stays unforgeable across the truncation.
 
+### Usage limits
+
+- `CopilotQuotas` — the four optional usage limits (`userDailyTokens`,
+  `workspaceDailyTokens`, `runsPerMinute`, `maxConcurrentRuns`); an absent one
+  is no limit.
+- `billableTokens(usage)` — uncached input + output + cache writes. The **one**
+  sum both `maxTotalTokens` and the quotas count, so "this run spent 40k" means
+  the same thing to the ceiling that stops it and to the quota that refuses the
+  next one.
+- `admitRun(snapshot, quotas, day)` / `remainingBudget(snapshot, quotas)` /
+  `usageDay(now)` / `needsUsageSnapshot(quotas)` — the admission decision, pure.
+  The order refusals are reported in is the order a person can act on: runs in
+  flight (seconds) before a spent quota (midnight), the user's own quota before
+  the workspace's.
+- `COPILOT_LIMIT_CODES` — the `429`'s `code` values, here so the server that
+  sends them and the admin that words them read one list.
+- `RunStopReason` gained `'quota'`, which counts as cut short.
+
 ### The baseline
 
 - `SUPPORTED_BASELINE`, `baselineShortfalls(caps)`, `meetsSupportedBaseline(caps)`.

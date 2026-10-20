@@ -471,6 +471,9 @@ function failedRun(conversationId: string, reason: string): string {
 }
 
 /** How the mock should behave, for the error and empty paths. */
+/** When the mocked daily quota starts over — midnight UTC, as the server says. */
+export const USAGE_RESETS_AT = '2026-10-20T00:00:00.000Z';
+
 export interface CopilotMockOptions {
     /** Start with no threads, for the rail's empty state. */
     empty?: boolean;
@@ -493,6 +496,27 @@ export interface CopilotMockOptions {
     skillWriteMessage?: string;
     /** Hold the run open this long before answering. */
     runDelayMs?: number;
+    /**
+     * What `GET /api/copilot/usage` reports. Defaults to no quota at all
+     * (`limit: null`), which draws no meter — the state of every deployment
+     * that has not configured one.
+     */
+    usage?: {
+        used: number;
+        limit: number | null;
+        workspaceExhausted?: boolean;
+    };
+    /**
+     * Refuse every run with this usage-limit `429`, before any stream — the
+     * shape the run route answers with when a quota, the rate limit or the
+     * concurrency cap says no.
+     */
+    runRefusal?: {
+        code: string;
+        scope: 'user' | 'workspace';
+        resetsAt?: string;
+        retryAfterSeconds?: number;
+    };
     /**
      * Replaces the scripted run body. Compose one with {@link frame}; the
      * default is prose → tool call → change card → prose, ending `end`.
@@ -546,6 +570,22 @@ export async function mockCopilotApi(
 
     await page.route('**/api/copilot/models', (route) =>
         route.fulfill(json({ items: models }))
+    );
+
+    await page.route('**/api/copilot/usage', (route) =>
+        route.fulfill(
+            json({
+                day: '2026-10-19',
+                resetsAt: USAGE_RESETS_AT,
+                user: {
+                    used: options.usage?.used ?? 0,
+                    limit: options.usage?.limit ?? null
+                },
+                workspace: {
+                    exhausted: options.usage?.workspaceExhausted ?? false
+                }
+            })
+        )
     );
 
     // The two skill patterns are deliberately disjoint, for the same reason the
@@ -648,6 +688,23 @@ export async function mockCopilotApi(
             route.request().postData() ?? '{}'
         ) as Record<string, unknown>;
         spy.runs.push(request);
+        if (options.runRefusal) {
+            const refusal = options.runRefusal;
+            return route.fulfill({
+                status: 429,
+                contentType: 'application/json',
+                headers: refusal.retryAfterSeconds
+                    ? { 'Retry-After': String(refusal.retryAfterSeconds) }
+                    : {},
+                body: JSON.stringify({
+                    statusCode: 429,
+                    code: refusal.code,
+                    scope: refusal.scope,
+                    message: 'A usage limit refused the run.',
+                    ...(refusal.resetsAt ? { resetsAt: refusal.resetsAt } : {})
+                })
+            });
+        }
         const conversationId =
             options.persistRuns && typeof request['conversationId'] === 'string'
                 ? request['conversationId']

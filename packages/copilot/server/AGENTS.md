@@ -5,7 +5,7 @@ vertical slice** — the SSE run route, the bounded run engine, the capability
 profile, and the transcript this plugin now owns and migrates
 ([`docs/design/copilot.md`](../../../docs/design/copilot.md) §9).
 
-Layout: **layered (ADR-0003), per feature** — `chat/` and `skills/` each split
+Layout: **layered (ADR-0003), per feature** — `chat/`, `skills/` and `usage/` each split
 into `application / infrastructure / http`, beside a shared `infrastructure/`
 (the model registry), `types/` and `utils/` (the plugin factory). There is no
 `domain/` here: the framework-free kernel is
@@ -35,6 +35,7 @@ into `application / infrastructure / http`, beside a shared `infrastructure/`
 | `GET /api/copilot/proposals`           | `PermissionsGuard`, `WorkspaceGuard`                | The record of what changed.                                 |
 | `GET /api/copilot/proposals/:id`       | `PermissionsGuard`, `WorkspaceGuard`                | One change.                                                 |
 | `GET /api/copilot/skills`              | `PermissionsGuard`, `WorkspaceGuard`                | The picker's catalogue. **No instruction bodies.**          |
+| `GET /api/copilot/usage`               | `PermissionsGuard`, `WorkspaceGuard`                | Today's spend and quota. The workspace's only as a flag.    |
 
 All of the above require `copilot:use`. The skills **write** routes require
 `copilot:skills:manage` instead — admin-only, see [Skills](#skills):
@@ -378,6 +379,65 @@ and live in `copilot-domain`.
   never change _what it may do_. The day a skill can grant a tool, that argument
   is undone — which is why there is no `allowedTools` field.
 
+## Usage limits
+
+How much the copilot may be used, as opposed to how big one run may get
+(`RunLimits`). The whole feature is `src/lib/usage/`; the decision rules are
+pure and live in `copilot-domain` (`admitRun`, `remainingBudget`, `usageDay`).
+`config.quotas` (`CopilotQuotas`) carries four optional limits — daily tokens
+per user × workspace, daily tokens per workspace, runs per minute per user,
+runs in flight per user — and **an absent one is no limit**. Things that are
+decisions rather than details:
+
+- **Admission happens in the run controller, before `stream.open()`.**
+  `CopilotQuotaService.begin` either returns a `RunMeter` or throws
+  `CopilotLimitError`, which `limitException` turns into a `429` with
+  `Retry-After` (a quota waits until midnight UTC; a concurrency refusal names
+  no wait, because nobody knows when the run in flight ends). After the headers
+  are out a refusal could only be a frame inside a `200`, and nothing — no
+  thread, no message, no ledger row — is written for a refused run.
+- **`copilot_usage` is the ledger, not `copilot_messages`.** An assistant row is
+  written only when a run ends (so concurrent runs could not see each other), a
+  run that fails before producing anything writes none (so its spend would
+  vanish), cache writes are not stored, and neither user nor workspace is on the
+  row. The ledger row is written at admission and **charged after every model
+  call** with an additive `UPDATE`; it stores `billable_tokens` rather than
+  deriving it, so a later change to `billableTokens` does not rewrite yesterday.
+  Spend is recorded **with no quota configured too** — a quota switched on later
+  sees today at once.
+- **The engine owns the meter's end.** `RunEngine.run` wraps the turn in a
+  `finally` that calls `meter.finish(stopReason)`: a run can end by throwing
+  before its loop (a bad attachment, an unknown model) or by its consumer
+  abandoning the generator, and a row left `running` holds a concurrency slot.
+  The run takes its id from the meter, because the row was written under it
+  before the engine started. **A ledger write never fails a run** — the tokens
+  are spent at the provider already, and losing the answer over bookkeeping
+  saves nothing; failures are logged.
+- **The quota is checked between steps, beside `maxTotalTokens`, on the same
+  terms**: a run can overshoot by one model call and then stops with
+  `stopReason: 'quota'`, keeping its partial answer, and `interruptionNote` tells
+  the model so "continue" resumes. `remaining` is computed at admission, so a
+  colleague's run in the same workspace is not seen until the next admission —
+  traded deliberately for not querying the ledger on every step.
+- **Admission is locked, not counted-then-written.** `UsageRepository.open`
+  takes two transaction-scoped advisory locks — the workspace (its quota is
+  shared) then the user (their concurrency cap spans workspaces) — before it
+  reads and inserts. Everyone takes them in that order and holds one user lock,
+  so admissions cannot deadlock. With no daily quota and no concurrency cap
+  there is nothing to read, and the row is inserted without a lock.
+- **Runs per minute is identity's `RateLimiter`**, keyed `copilot:runs:<userId>`
+  in `throttle_buckets` — by user, never by address, so colleagues behind one
+  NAT do not share a bucket. It runs first because it is one upsert and touches
+  nothing else.
+- **Orphans need no sweeper.** A `running` row whose `updated_at` is older than
+  the wall clock + the permission budget + a minute is a crashed process's: it
+  stops holding a slot, and what it recorded stays charged. A run its owner
+  keeps extending past that also stops holding a slot — it is waiting on them,
+  not spending.
+- **`GET /usage` reports the workspace only as `exhausted`.** A member needs to
+  know the workspace is out of allowance to understand a refusal, not what their
+  colleagues spent.
+
 ## The system prompt
 
 `system-prompt.ts` assembles it, `SYSTEM_PROMPT_VERSION` is stamped on the run,
@@ -520,7 +580,7 @@ stays in the controller, and the loop is testable by draining the generator.
 
 ## Schema
 
-Five tables, migrated under `__drizzle_migrations_copilot`. `drizzle.config.ts`
+Six tables, migrated under `__drizzle_migrations_copilot`. `drizzle.config.ts`
 points at a **glob** (`src/lib/*/infrastructure/schema/index.ts`) rather than one
 file, because this plugin has more than one slice and each owns its own tables —
 a slice added without a line in that config would typecheck, boot, and fail on
@@ -532,6 +592,7 @@ the first query against a table nobody generated a migration for.
 | `copilot_messages`      | Append-only transcript, as the **port's** content blocks — so it survives a provider switch. `position` is explicit because two turns can land in the same millisecond. `attachments` holds a user turn's files (see above).                                             |
 | `copilot_tool_calls`    | The security-review surface (ADR-0005). Redacted output.                                                                                                                                                                                                                 |
 | `copilot_proposals`     | Every change the copilot made, written before the write. `target`/`patch` are opaque jsonb — their shape belongs to the applier that declared the `kind`, and teaching this table about content entries would make the copilot the thing that changes when content does. |
+| `copilot_usage`         | The spend ledger — one row per run, written at admission and charged after every model call. What the daily quotas count (see [Usage limits](#usage-limits)). The conversation FK is `set null`, so removing a thread can never reset a quota.                           |
 
 `external-refs.ts` carries id-only stubs of `users` and `workspaces` so
 drizzle-kit can emit the cross-context FKs without pulling another plugin's Nest

@@ -7,6 +7,7 @@ import type { IdentityPluginConfig, IdentityRateLimitConfig } from './types';
 import type { IdentityPluginOptions } from './utils/identity-plugin';
 import { IDENTITY_CONFIG } from './identity.tokens';
 import { PostgresThrottlerStorage } from './infrastructure/throttling/postgres-throttler.storage';
+import { RateLimiter } from './infrastructure/throttling/rate-limiter';
 import { RolesService } from './rbac/services/roles.service';
 import { PermissionsService } from './rbac/services/permissions.service';
 import { PermissionsGuard } from './rbac/guards/permissions.guard';
@@ -226,6 +227,10 @@ export class IdentityModule {
                 // mint/verify/list/revoke service behind `/api/api-tokens`.
                 DrizzleApiTokenRepository,
                 ApiTokenService,
+                // A rate limit keyed by the caller's own string, over the same
+                // `throttle_buckets` the login throttle counts in — for routes
+                // behind a session, where `req.ip` is the wrong bucket.
+                RateLimiter,
                 // App-wide guard: every route requires a valid session unless
                 // marked `@Public()`. Resolves the user and attaches it for
                 // `@CurrentUser()`. APP_GUARD providers are collected globally,
@@ -244,6 +249,9 @@ export class IdentityModule {
                 // Exported so a consuming plugin can resolve the token store —
                 // the public content API's bearer guard depends on it.
                 ApiTokenService,
+                // Exported so a plugin can rate-limit by user rather than by
+                // IP (the copilot's run route) without a second store.
+                RateLimiter,
                 // Exported so a plugin that renders or audits the SSO surface
                 // can read what is registered without reaching for the host's
                 // composition root.

@@ -101,7 +101,8 @@ infrastructure/  # adapters — the only layer that knows Drizzle/pg
                 # DrizzleInviteRepository, DrizzlePasswordResetRepository,
                 # DrizzleSso{Identity,AuthRequest,Provisioning}Repository
   queries/      # UserLookupQuery (thin auth/credentials read side)
-  throttling/   # PostgresThrottlerStorage (rate limits in throttle_buckets)
+  throttling/   # PostgresThrottlerStorage (rate limits in throttle_buckets),
+                # RateLimiter (the same store, keyed by the caller's own string)
   sso-registry.ts # the host's SSO provider list → SSO_REGISTRY
 ```
 
@@ -457,6 +458,16 @@ error, and type the barrel exports keeps its path, so no consumer import moved.
   `apps/server-e2e/src/server/auth/login-throttle.spec.ts`, which boots the app
   both ways. Still **deferred**: a CSRF token for higher-value mutations,
   `helmet` security headers (host concern), and expired-session pruning.
+- **`RateLimiter` is the same store for a route behind a session.**
+  `ThrottlerGuard` keys by `req.ip`, which is right for an anonymous login and
+  wrong once the caller is known: colleagues behind one NAT share a bucket, and
+  one person on two networks gets two. `RateLimiter.consume(key, rule)` counts
+  in `throttle_buckets` under a key the caller chooses (namespaced, e.g.
+  `copilot:runs:<userId>`) and returns `{ allowed, retryAfterMs }`, so the
+  caller decides what a refusal looks like. The counting is
+  `PostgresThrottlerStorage`'s one-upsert decision, not a second copy of it.
+  Exported from the module and the barrel; the copilot's run route is the first
+  consumer.
 - **There is no signing secret, and none is missing (ORT-149).** Sessions
   (`drizzle-session.repository.ts`, `login.use-case.ts`) and API tokens
   (`api-token.service.ts`) are `randomBytes(32)` checked against a row. 256 bits

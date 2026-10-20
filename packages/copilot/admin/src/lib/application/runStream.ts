@@ -1,4 +1,8 @@
-import type { CopilotRunEvent } from '@orthacms/copilot-domain';
+import {
+    COPILOT_LIMIT_CODES,
+    type CopilotLimitCode,
+    type CopilotRunEvent
+} from '@orthacms/copilot-domain';
 
 /** What starting a run needs. Mirrors the server's `CreateRunDto` exactly. */
 export interface StartRunRequest {
@@ -49,12 +53,28 @@ export interface StartRunOptions {
 export class CopilotRunError extends Error {
     constructor(
         readonly status: number,
-        message: string
+        message: string,
+        /**
+         * Set when a usage limit refused the run (`429`): which one, and when
+         * it lifts. The panel words the refusal from `code`, not from the
+         * server's English `message`.
+         */
+        readonly limit: CopilotRunLimit | null = null
     ) {
         super(message);
         this.name = 'CopilotRunError';
     }
 }
+
+/** A usage-limit refusal, as the `429` body and `Retry-After` describe it. */
+export type CopilotRunLimit = {
+    code: CopilotLimitCode;
+    scope: 'user' | 'workspace';
+    /** When a daily quota starts over. */
+    resetsAt: Date | null;
+    /** Seconds until a retry can succeed, when the server could say. */
+    retryAfterSeconds: number | null;
+};
 
 /**
  * Starts a run and yields its events as they arrive.
@@ -90,9 +110,11 @@ export async function* streamRun(
     });
 
     if (!response.ok || !response.body) {
+        const failure = await readFailure(response);
         throw new CopilotRunError(
             response.status,
-            await errorMessage(response)
+            failure.message,
+            failure.limit
         );
     }
 
@@ -148,19 +170,45 @@ function parseFrame(frame: string): CopilotRunEvent | null {
     }
 }
 
-/** The server's error message, when it sent a readable one. */
-async function errorMessage(response: Response): Promise<string> {
+/** The server's error message, and the limit that refused the run, if any. */
+async function readFailure(
+    response: Response
+): Promise<{ message: string; limit: CopilotRunLimit | null }> {
+    let body: unknown;
     try {
-        const body = await response.json();
-        const message = (body as { message?: string | string[] }).message;
-        if (Array.isArray(message)) {
-            return message.join('; ');
-        }
-        if (typeof message === 'string') {
-            return message;
-        }
+        body = await response.json();
     } catch {
         // Not JSON — fall through to the generic message.
     }
-    return `The copilot request failed (${response.status}).`;
+    const { message, code, scope, resetsAt } = (body ?? {}) as {
+        message?: string | string[];
+        code?: unknown;
+        scope?: unknown;
+        resetsAt?: unknown;
+    };
+    const text = Array.isArray(message)
+        ? message.join('; ')
+        : typeof message === 'string'
+          ? message
+          : `The copilot request failed (${response.status}).`;
+    if (response.status !== 429 || !isLimitCode(code)) {
+        return { message: text, limit: null };
+    }
+    const retryAfter = Number(response.headers.get('Retry-After'));
+    return {
+        message: text,
+        limit: {
+            code,
+            scope: scope === 'workspace' ? 'workspace' : 'user',
+            resetsAt: typeof resetsAt === 'string' ? new Date(resetsAt) : null,
+            retryAfterSeconds:
+                Number.isFinite(retryAfter) && retryAfter > 0
+                    ? retryAfter
+                    : null
+        }
+    };
+}
+
+function isLimitCode(value: unknown): value is CopilotLimitCode {
+    return (Object.values(COPILOT_LIMIT_CODES) as unknown[]).includes(value);
 }

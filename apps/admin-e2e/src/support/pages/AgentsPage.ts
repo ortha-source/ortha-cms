@@ -267,6 +267,11 @@ export class AgentsPage extends BasePage {
         });
     }
 
+    /** The failed turn's alert in the transcript, by the words it carries. */
+    turnAlert(text: string | RegExp): Locator {
+        return this.transcript().getByRole('alert').filter({ hasText: text });
+    }
+
     /** Its retry control. */
     threadRetry(): Locator {
         return this.threadError().getByRole('button', { name: 'Try again' });
@@ -434,6 +439,16 @@ export class AgentsPage extends BasePage {
      */
     composerCounter(): Locator {
         return this.main.getByText(/^[\d,]+ \/ 32,000$/);
+    }
+
+    /**
+     * The usage meter under the composer — present only when a daily quota
+     * applies to the signed-in user.
+     */
+    usageMeter(): Locator {
+        return this.main.getByRole('meter', {
+            name: 'Today’s Ortha CMS AI usage'
+        });
     }
 
     // --- attachments ------------------------------------------------------

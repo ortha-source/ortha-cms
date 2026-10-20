@@ -16,6 +16,7 @@ const ALL_STOP_REASONS: RunStopReason[] = [
     'max-steps',
     'max-tokens',
     'timeout',
+    'quota',
     'max-output-tokens',
     'refusal',
     'aborted',
@@ -29,6 +30,7 @@ describe('wasCutShort', () => {
         'max-steps',
         'max-tokens',
         'timeout',
+        'quota',
         'max-output-tokens',
         'aborted',
         'error'

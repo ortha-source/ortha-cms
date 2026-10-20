@@ -33,6 +33,9 @@ import { SkillCatalogService } from './skills/application/skill-catalog.service'
 import { SkillRepository } from './skills/infrastructure/persistence/skill.repository';
 import { ListSkillsController } from './skills/http/controllers/list-skills.controller';
 import { ManageSkillsController } from './skills/http/controllers/manage-skills.controller';
+import { CopilotQuotaService } from './usage/application/copilot-quota.service';
+import { UsageRepository } from './usage/infrastructure/persistence/usage.repository';
+import { GetUsageController } from './usage/http/controllers/get-usage.controller';
 
 /** Options `CopilotModule.forRoot` binds into DI. */
 export interface CopilotModuleOptions {
@@ -134,7 +137,8 @@ export class CopilotModule {
                       // declared above `skills/:id` inside the manage controller.
                       ListSkillsController,
                       ManageSkillsController,
-                      GetConversationController
+                      GetConversationController,
+                      GetUsageController
                   ]
                 : [],
             providers: [
@@ -174,6 +178,8 @@ export class CopilotModule {
                 },
                 SkillRepository,
                 SkillCatalogService,
+                UsageRepository,
+                CopilotQuotaService,
                 RunEngine
             ],
             exports: [

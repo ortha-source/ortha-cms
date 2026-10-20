@@ -1,7 +1,9 @@
 import { join } from 'node:path';
+import { Logger } from '@nestjs/common';
 import type { ServerPlugin } from '@orthacms/bootstrap-server';
 import {
     buildSkillRegistry,
+    DEFAULT_RUN_LIMITS,
     type ModelResolver,
     type SkillDefinition
 } from '@orthacms/copilot-domain';
@@ -102,6 +104,31 @@ function assertOptions(options: CopilotPluginOptions): void {
         if (value !== undefined && (!Number.isFinite(value) || value <= 0)) {
             throw new Error(
                 `CopilotPlugin's limits.${key} must be a positive number (got ${value}).`
+            );
+        }
+    }
+    // Same terms for the usage limits, for the same reason: they are all
+    // env-exposed, and `maxConcurrentRuns: 0` would refuse every run with a
+    // message about runs already in flight that nobody could act on.
+    for (const [key, value] of Object.entries(options.config.quotas ?? {})) {
+        if (value !== undefined && (!Number.isInteger(value) || value <= 0)) {
+            throw new Error(
+                `CopilotPlugin's quotas.${key} must be a positive integer (got ${value}).`
+            );
+        }
+    }
+    // Legal, but worth saying: a daily quota smaller than one run's own
+    // ceiling means a long run is cut off by the quota rather than by its
+    // ceiling, which reads to the person as the same truncated answer.
+    const ceiling =
+        options.config.limits?.maxTotalTokens ??
+        DEFAULT_RUN_LIMITS.maxTotalTokens;
+    for (const key of ['userDailyTokens', 'workspaceDailyTokens'] as const) {
+        const quota = options.config.quotas?.[key];
+        if (quota !== undefined && quota < ceiling) {
+            new Logger('CopilotPlugin').warn(
+                `quotas.${key} (${quota}) is below one run's token ceiling (${ceiling}); ` +
+                    'a long run will be stopped by the quota before its own limit.'
             );
         }
     }
