@@ -22,6 +22,8 @@ export type SyncChangeListProps = {
     onToggle: (entryId: string, included: boolean) => void;
     /** A locale slug's display name. */
     localeName: (slug: string) => string;
+    /** A record's own editor, by type and id — absent outside an editor. */
+    hrefFor?: (typeName: string, id: string) => string;
 };
 
 /**
@@ -36,7 +38,8 @@ export function SyncChangeList({
     invalidated,
     skipped,
     onToggle,
-    localeName
+    localeName,
+    hrefFor
 }: SyncChangeListProps) {
     const intl = useIntl();
     const ordered = [
@@ -67,6 +70,7 @@ export function SyncChangeList({
                             onToggle(change.entryId, included)
                         }
                         localeName={localeName}
+                        hrefFor={hrefFor}
                     />
                 ))}
             </ul>

@@ -10,6 +10,8 @@ import {
     DialogTitle
 } from '@orthacms/design-system';
 import type { SiblingSyncRefusal } from '../../../../../infrastructure/entryIssues';
+import { contentEntryPath } from '../../../../../domain/contentEntryPath';
+import { useEntrySlotContext } from '../../../../hooks/useEntrySlotContext';
 import { SyncChangeList } from './SyncChangeList';
 
 const messages = defineMessages({
@@ -26,26 +28,26 @@ const messages = defineMessages({
     syncBody: {
         id: 'content.editor.siblingSync.body',
         defaultMessage:
-            'Shared fields and synced relations aren’t translated. Saving changes {fields} in {locales} too.'
+            '{fields} {count, plural, one {is} other {are}} shared by every language of this record, so saving also changes {count, plural, one {it} other {them}} in {locales}.'
     },
     sharedBody: {
         id: 'content.editor.siblingSync.sharedBody',
         defaultMessage:
-            'Saving changes values every locale of this record shares.'
+            'Some values are the same in every language of this record, so saving updates them everywhere.'
     },
     recordsBody: {
         id: 'content.editor.siblingSync.recordsBody',
         defaultMessage:
-            'Synced links follow a record into each of its languages, so saving also changes the records below. Untick a record to leave it as it is.'
+            'Some links are kept in sync across languages, so saving also updates the records below. Check what changes in each — and untick any record you’d rather leave as it is.'
     },
     linkedRecordsBody: {
         id: 'content.editor.siblingSync.linkedRecordsBody',
         defaultMessage:
-            'Synced links follow a record into each of its languages, so saving also changes the records below.'
+            'Some links are kept in sync across languages, so saving also updates the records below. Check what changes in each before you continue.'
     },
     sharedValues: {
         id: 'content.editor.siblingSync.sharedValues',
-        defaultMessage: 'these shared values'
+        defaultMessage: 'Shared values'
     },
     invalidTitle: {
         id: 'content.editor.siblingSync.invalidTitle',
@@ -126,6 +128,15 @@ export function SiblingSyncDialog({
     confirmLabel
 }: SiblingSyncDialogProps) {
     const intl = useIntl();
+    // Every row in the preview opens in its own editor, in a new tab — read
+    // off the editor's slot context, so the dialog also renders (without
+    // links) where there is none.
+    const slotContext = useEntrySlotContext();
+    const workspaceId = slotContext?.workspaceId;
+    const hrefFor = workspaceId
+        ? (typeName: string, id: string) =>
+              contentEntryPath(workspaceId, typeName, id)
+        : undefined;
     const reached = refusal?.reached ?? [];
     const invalidated = refusal?.invalidated ?? [];
     const changes = useMemo(() => refusal?.changes ?? [], [refusal]);
@@ -165,7 +176,10 @@ export function SiblingSyncDialog({
               fields: sharedFields.length
                   ? quoted(sharedFields)
                   : intl.formatMessage(messages.sharedValues),
-              locales: intl.formatList(reached, { type: 'conjunction' })
+              count: sharedFields.length,
+              locales: intl.formatList(reached.map(localeName), {
+                  type: 'conjunction'
+              })
           })
         : others.length
           ? ''
@@ -194,7 +208,7 @@ export function SiblingSyncDialog({
             {
                 count: invalidated.length,
                 locales: intl.formatList(
-                    invalidated.map((sibling) => sibling.locale),
+                    invalidated.map((sibling) => localeName(sibling.locale)),
                     { type: 'conjunction' }
                 ),
                 fields: fieldNames.length
@@ -234,6 +248,7 @@ export function SiblingSyncDialog({
                         skipped={skipped}
                         onToggle={toggle}
                         localeName={localeName}
+                        hrefFor={hrefFor}
                     />
                 )}
                 <DialogFooter>

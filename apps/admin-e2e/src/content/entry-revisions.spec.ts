@@ -157,7 +157,7 @@ test.describe('Entry revision history', () => {
         await contentLibraryPage.publishRevision(1);
 
         const dialog = contentLibraryPage.siblingSyncDialog;
-        await expect(dialog).toContainText('Title: Neu → Alt');
+        await expect(dialog).toContainText('TitleNow: Neu After saving: Alt');
         await dialog
             .getByRole('button', { name: 'Publish', exact: true })
             .click();

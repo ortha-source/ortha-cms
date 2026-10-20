@@ -36,6 +36,8 @@ export type SyncFieldChange = {
 export type SyncLinkChange = {
     field: string;
     label: string;
+    /** The linked records' content type name, when the server named it. */
+    target?: string;
     added: RelationRef[];
     removed: RelationRef[];
     /**
@@ -188,6 +190,9 @@ function toChanges(value: unknown): SyncChange[] {
                             typeof link['label'] === 'string'
                                 ? link['label']
                                 : link['field'],
+                        ...(typeof link['target'] === 'string'
+                            ? { target: link['target'] }
+                            : {}),
                         added: toRefs(link['added']),
                         removed: toRefs(link['removed']),
                         unresolved: toRefs(link['unresolved'])
