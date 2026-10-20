@@ -105,14 +105,49 @@ const sameKind = (a: DndNode, b: DndNode) =>
         ? groupOf(b) !== undefined
         : listOf(b) !== undefined;
 
-/** Collisions only with drop targets of the dragged thing's kind. */
-const closestOfKind: CollisionDetection = (args) =>
-    closestCenter({
-        ...args,
-        droppableContainers: args.droppableContainers.filter((container) =>
-            sameKind(args.active, container)
-        )
+const middle = (rect: { top: number; height: number }) =>
+    rect.top + rect.height / 2;
+
+/**
+ * A group is over the farthest group whose middle its leading edge has
+ * passed — its top edge going up, its bottom edge going down — not the one
+ * whose center is nearest. Groups differ in height, and one held by the
+ * handle at its top trails its center far below the pointer: by centers, a
+ * group taller than the first could never be put first, by pointer or by
+ * keyboard. Rects are where each group rests, the dragged one included.
+ */
+const closestGroup: CollisionDetection = ({
+    active,
+    collisionRect,
+    droppableRects,
+    droppableContainers
+}) => {
+    const origin = droppableRects.get(active.id);
+    if (!origin) return [];
+    const others = droppableContainers.flatMap(({ id }) => {
+        const rect = droppableRects.get(id);
+        return rect && id !== active.id ? [{ id, rect }] : [];
     });
+    const above = others
+        .filter(({ rect }) => rect.top < origin.top)
+        .filter(({ rect }) => collisionRect.top < middle(rect))
+        .sort((a, b) => a.rect.top - b.rect.top);
+    const below = others
+        .filter(({ rect }) => rect.top > origin.top)
+        .filter(({ rect }) => collisionRect.bottom > middle(rect))
+        .sort((a, b) => b.rect.top - a.rect.top);
+    return [{ id: (above[0] ?? below[0])?.id ?? active.id }];
+};
+
+/** Collisions only with drop targets of the dragged thing's kind. */
+const closestOfKind: CollisionDetection = (args) => {
+    const droppableContainers = args.droppableContainers.filter((container) =>
+        sameKind(args.active, container)
+    );
+    return groupOf(args.active) !== undefined
+        ? closestGroup({ ...args, droppableContainers })
+        : closestCenter({ ...args, droppableContainers });
+};
 
 /**
  * One drag-and-drop scope over the lists drawn inside it. General's loose
