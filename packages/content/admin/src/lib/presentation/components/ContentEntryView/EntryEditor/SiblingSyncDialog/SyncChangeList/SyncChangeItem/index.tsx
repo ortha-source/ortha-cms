@@ -1,14 +1,27 @@
-import { useId } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { Badge, Checkbox } from '@orthacms/design-system';
+import { ArrowRight, ExternalLink, Info } from 'lucide-react';
+import { Badge, buttonVariants, Checkbox, cn } from '@orthacms/design-system';
 import type { RelationRef } from '../../../../../../../domain/types/contentType';
 import { formatSyncValue } from '../../../../../../../domain/syncChangeValue';
 import type { SyncChange } from '../../../../../../../infrastructure/entryIssues';
+import { SYNC_REF_CHANGE, SyncRecordRef } from './SyncRecordRef';
 
 const messages = defineMessages({
-    otherRecord: {
-        id: 'content.editor.siblingSync.otherRecord',
-        defaultMessage: '{type}: {title}'
+    siblingHeading: {
+        id: 'content.editor.siblingSync.siblingHeading',
+        defaultMessage: '{locale} version'
+    },
+    siblingMeta: {
+        id: 'content.editor.siblingSync.siblingMeta',
+        defaultMessage: 'Translation of this record'
+    },
+    siblingMetaTitled: {
+        id: 'content.editor.siblingSync.siblingMetaTitled',
+        defaultMessage: '{title} · translation of this record'
+    },
+    otherMeta: {
+        id: 'content.editor.siblingSync.otherMeta',
+        defaultMessage: '{type} · {locale}'
     },
     untitled: {
         id: 'content.editor.siblingSync.untitled',
@@ -16,7 +29,7 @@ const messages = defineMessages({
     },
     published: {
         id: 'content.editor.siblingSync.published',
-        defaultMessage: 'Published · becomes Modified'
+        defaultMessage: 'Published · will show as Modified'
     },
     incomplete: {
         id: 'content.editor.siblingSync.incomplete',
@@ -24,28 +37,24 @@ const messages = defineMessages({
     },
     changed: {
         id: 'content.editor.siblingSync.changed',
-        defaultMessage: '{label}: changed'
-    },
-    value: {
-        id: 'content.editor.siblingSync.value',
-        defaultMessage: '{label}: {before} → {after}'
+        defaultMessage: 'Updated — too long to preview here'
     },
     empty: {
         id: 'content.editor.siblingSync.empty',
-        defaultMessage: '—'
+        defaultMessage: 'Empty'
     },
-    added: {
-        id: 'content.editor.siblingSync.added',
-        defaultMessage: '{label}: + {records}'
+    before: {
+        id: 'content.editor.siblingSync.before',
+        defaultMessage: 'Now:'
     },
-    removed: {
-        id: 'content.editor.siblingSync.removed',
-        defaultMessage: '{label}: − {records}'
+    after: {
+        id: 'content.editor.siblingSync.after',
+        defaultMessage: 'After saving:'
     },
     unresolved: {
         id: 'content.editor.siblingSync.unresolved',
         defaultMessage:
-            '{records} {count, plural, one {has} other {have}} no {locale} translation, so {count, plural, one {it isn’t} other {they aren’t}} linked here'
+            '{records} {count, plural, one {has} other {have}} no {locale} version yet, so {count, plural, one {it won’t be} other {they won’t be}} linked here.'
     },
     unavailable: {
         id: 'content.editor.siblingSync.unavailable',
@@ -53,7 +62,11 @@ const messages = defineMessages({
     },
     include: {
         id: 'content.editor.siblingSync.include',
-        defaultMessage: 'Change {name}'
+        defaultMessage: 'Update {name}'
+    },
+    open: {
+        id: 'content.editor.siblingSync.open',
+        defaultMessage: 'Open {name} in a new tab'
     }
 });
 
@@ -66,13 +79,18 @@ export type SyncChangeItemProps = {
     included: boolean;
     onToggle: (included: boolean) => void;
     localeName: (slug: string) => string;
+    /** A record's own editor, by type and id — absent outside an editor. */
+    hrefFor?: (typeName: string, id: string) => string;
 };
 
 /**
- * One other row in the sync preview: which row it is (a language of this
- * record, or another record in a language), whether it is published, and
- * what changes in it — values before and after, links gained and lost, and
- * the linked records it is left without for want of a translation.
+ * One other row in the sync preview, laid out like a small card: which row
+ * it is — a language version of this record, or another record (its title,
+ * then its type and language) — with a link opening it in a new tab, whether
+ * it is published, and what changes in it, field by field: a value as
+ * "now → after saving", links as the records gained and lost (each with its
+ * status and its own open link), and a plain note for the linked records it
+ * is left without because they have no version in its language.
  *
  * An **optional** row (a gap a new translation fills) carries a checkbox,
  * labelled by the row's heading, so a person can leave it as it is.
@@ -82,18 +100,31 @@ export function SyncChangeItem({
     incomplete,
     included,
     onToggle,
-    localeName
+    localeName,
+    hrefFor
 }: SyncChangeItemProps) {
     const intl = useIntl();
-    const headingId = useId();
     const locale = change.locale ? localeName(change.locale) : '';
-    const title = change.sibling
-        ? locale
-        : `${intl.formatMessage(messages.otherRecord, {
-              type: change.typeLabel,
-              title: change.title ?? intl.formatMessage(messages.untitled)
-          })}${locale ? ` · ${locale}` : ''}`;
-    const records = (refs: RelationRef[]) =>
+    const heading = change.sibling
+        ? intl.formatMessage(messages.siblingHeading, {
+              locale: locale || change.typeLabel
+          })
+        : (change.title ?? intl.formatMessage(messages.untitled));
+    const meta = change.sibling
+        ? change.title
+            ? intl.formatMessage(messages.siblingMetaTitled, {
+                  title: change.title
+              })
+            : intl.formatMessage(messages.siblingMeta)
+        : locale
+          ? intl.formatMessage(messages.otherMeta, {
+                type: change.typeLabel,
+                locale
+            })
+          : change.typeLabel;
+    const name = `${heading} · ${meta}`;
+    const href = hrefFor?.(change.type, change.entryId);
+    const quoted = (refs: RelationRef[]) =>
         intl.formatList(
             refs.map((ref) =>
                 ref.missing
@@ -107,45 +138,18 @@ export function SyncChangeItem({
         return text === '' ? intl.formatMessage(messages.empty) : text;
     };
 
-    const lines: string[] = [];
-    for (const field of change.fields) {
-        const before = shown(field.before);
-        const after = shown(field.after);
-        lines.push(
-            before === null || after === null
-                ? intl.formatMessage(messages.changed, { label: field.label })
-                : intl.formatMessage(messages.value, {
-                      label: field.label,
-                      before,
-                      after
-                  })
+    const notes = change.links
+        .filter((link) => link.unresolved.length > 0)
+        .map((link) =>
+            intl.formatMessage(messages.unresolved, {
+                records: quoted(link.unresolved),
+                count: link.unresolved.length,
+                locale: locale || change.locale || ''
+            })
         );
-    }
-    const notes: string[] = [];
-    for (const link of change.links) {
-        if (link.added.length)
-            lines.push(
-                intl.formatMessage(messages.added, {
-                    label: link.label,
-                    records: records(link.added)
-                })
-            );
-        if (link.removed.length)
-            lines.push(
-                intl.formatMessage(messages.removed, {
-                    label: link.label,
-                    records: records(link.removed)
-                })
-            );
-        if (link.unresolved.length)
-            notes.push(
-                intl.formatMessage(messages.unresolved, {
-                    records: records(link.unresolved),
-                    count: link.unresolved.length,
-                    locale: locale || change.locale || ''
-                })
-            );
-    }
+    const linkRows = change.links.filter(
+        (link) => link.added.length > 0 || link.removed.length > 0
+    );
 
     return (
         <li className="flex items-start gap-3 py-3">
@@ -154,42 +158,140 @@ export function SyncChangeItem({
                     className="mt-0.5"
                     checked={included}
                     onCheckedChange={(next) => onToggle(next === true)}
-                    aria-label={intl.formatMessage(messages.include, {
-                        name: title
-                    })}
+                    aria-label={intl.formatMessage(messages.include, { name })}
                 />
             ) : null}
-            <div className="min-w-0 flex-1 space-y-1">
-                <div className="flex flex-wrap items-center gap-2">
-                    <p id={headingId} className="text-sm font-medium">
-                        {title}
-                    </p>
+            <div className="min-w-0 flex-1 space-y-2">
+                <div className="flex items-start gap-2">
+                    <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">
+                            {heading}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">
+                            {meta}
+                        </p>
+                    </div>
                     {change.published ? (
-                        <Badge variant="warning">
+                        <Badge variant="warning" className="shrink-0">
                             {intl.formatMessage(messages.published)}
                         </Badge>
                     ) : null}
                     {incomplete ? (
-                        <Badge variant="destructive-soft">
+                        <Badge variant="destructive-soft" className="shrink-0">
                             {intl.formatMessage(messages.incomplete)}
                         </Badge>
                     ) : null}
+                    {href ? (
+                        <a
+                            href={href}
+                            target="_blank"
+                            rel="noreferrer"
+                            className={cn(
+                                buttonVariants({
+                                    variant: 'ghost',
+                                    size: 'icon'
+                                }),
+                                'size-7 shrink-0 text-muted-foreground hover:text-foreground'
+                            )}
+                            aria-label={intl.formatMessage(messages.open, {
+                                name: heading
+                            })}
+                        >
+                            <ExternalLink className="size-4" aria-hidden />
+                        </a>
+                    ) : null}
                 </div>
-                <ul
-                    aria-labelledby={headingId}
-                    className="space-y-0.5 text-sm text-muted-foreground"
-                >
-                    {lines.map((line, index) => (
-                        <li key={`line-${index}`} className="break-words">
-                            {line}
-                        </li>
-                    ))}
-                    {notes.map((note, index) => (
-                        <li key={`note-${index}`} className="text-xs italic">
-                            {note}
-                        </li>
-                    ))}
-                </ul>
+                {change.fields.length > 0 || linkRows.length > 0 ? (
+                    <dl className="space-y-2 rounded-md bg-muted/40 px-3 py-2 text-sm">
+                        {change.fields.map((field) => {
+                            const before = shown(field.before);
+                            const after = shown(field.after);
+                            return (
+                                <div key={`field-${field.field}`}>
+                                    <dt className="text-xs font-medium text-muted-foreground">
+                                        {field.label}
+                                    </dt>
+                                    <dd className="flex min-w-0 flex-wrap items-center gap-x-1.5 break-words">
+                                        {before === null || after === null ? (
+                                            intl.formatMessage(messages.changed)
+                                        ) : (
+                                            <>
+                                                <span className="sr-only">
+                                                    {intl.formatMessage(
+                                                        messages.before
+                                                    )}{' '}
+                                                </span>
+                                                <span className="text-muted-foreground line-through decoration-muted-foreground/60">
+                                                    {before}
+                                                </span>{' '}
+                                                <ArrowRight
+                                                    aria-hidden
+                                                    className="size-3.5 shrink-0 text-muted-foreground"
+                                                />
+                                                <span className="sr-only">
+                                                    {intl.formatMessage(
+                                                        messages.after
+                                                    )}{' '}
+                                                </span>
+                                                <span>{after}</span>
+                                            </>
+                                        )}
+                                    </dd>
+                                </div>
+                            );
+                        })}
+                        {linkRows.map((link) => (
+                            <div key={`link-${link.field}`}>
+                                <dt className="text-xs font-medium text-muted-foreground">
+                                    {link.label}
+                                </dt>
+                                <dd>
+                                    <ul className="space-y-1 pt-0.5">
+                                        {link.added.map((record) => (
+                                            <SyncRecordRef
+                                                key={`added-${record.id}`}
+                                                record={record}
+                                                change={SYNC_REF_CHANGE.Added}
+                                                href={
+                                                    link.target
+                                                        ? hrefFor?.(
+                                                              link.target,
+                                                              record.id
+                                                          )
+                                                        : undefined
+                                                }
+                                            />
+                                        ))}
+                                        {link.removed.map((record) => (
+                                            <SyncRecordRef
+                                                key={`removed-${record.id}`}
+                                                record={record}
+                                                change={SYNC_REF_CHANGE.Removed}
+                                                href={
+                                                    link.target
+                                                        ? hrefFor?.(
+                                                              link.target,
+                                                              record.id
+                                                          )
+                                                        : undefined
+                                                }
+                                            />
+                                        ))}
+                                    </ul>
+                                </dd>
+                            </div>
+                        ))}
+                    </dl>
+                ) : null}
+                {notes.map((note, index) => (
+                    <p
+                        key={`note-${index}`}
+                        className="flex items-start gap-1.5 text-xs text-muted-foreground"
+                    >
+                        <Info aria-hidden className="mt-px size-3.5 shrink-0" />
+                        <span>{note}</span>
+                    </p>
+                ))}
             </div>
         </li>
     );

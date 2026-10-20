@@ -85,6 +85,7 @@ import {
 import { Revision } from '../../../revisions/domain/revision';
 import { buildSnapshot } from '../../../revisions/infrastructure/persistence/revision-snapshot';
 import { SharedSourcesQuery } from '../queries/shared-sources.query';
+import { fieldLabel } from '../queries/entry-filter-surface';
 
 /** A generated content table seen as a bag of values / columns by property name. */
 type Row = Record<string, unknown>;
@@ -558,8 +559,13 @@ export class EntryWriterService {
                       tx
                   )
                 : Promise.resolve([]);
-        const labelOf = (type: AnyContentType, field: string) =>
-            type.fields[field]?.admin?.label ?? field;
+        // The same label the admin prints for the field — its admin label,
+        // else a humanized name — so the preview never shows a raw
+        // `snake_case` identifier.
+        const labelOf = (type: AnyContentType, field: string) => {
+            const spec = type.fields[field];
+            return spec ? fieldLabel(field, spec) : field;
+        };
         const changes = [];
         for (const change of fanout.changes) {
             const [entry] = await refs(change.type, [change.entryId]);
@@ -569,6 +575,9 @@ export class EntryWriterService {
                 links.push({
                     field: link.field,
                     label: labelOf(change.type, link.field),
+                    // The linked records' type, so the preview can open each
+                    // one in its own editor.
+                    ...(target ? { target: target.name } : {}),
                     added: await refs(target, link.added),
                     removed: await refs(target, link.removed),
                     unresolved: await refs(target, link.unresolved)

@@ -210,6 +210,7 @@ export function EntryEditor({
     saving,
     mutating,
     onSave,
+    onSyncDismissed,
     onUnpublish,
     onDelete,
     availableTypeNames,
@@ -274,6 +275,13 @@ export function EntryEditor({
             onWriteLanded?: () => void;
         }
     ) => Promise<void>;
+    /**
+     * The question a save refused for reaching other rows closed without a
+     * resend — cancelled, or the resend was stopped before it went out. The
+     * caller keeps its busy cover up under that question (so asking,
+     * answering and saving read as one write) and releases it here.
+     */
+    onSyncDismissed?: () => void;
     /** Revert a published entry to draft — only on a saved publishable entry. */
     onUnpublish?: () => void;
     /** Delete the entry — only on a saved entry. */
@@ -926,12 +934,12 @@ export function EntryEditor({
         publish: boolean,
         options?: EntryPublishOptions,
         sync: SiblingSyncMode = {}
-    ) => {
+    ): boolean => {
         // A reader without write permission has no Save button, but the form's
         // own `onSubmit` (Enter in a text field) is a second way in — so the
         // guard lives here, at the one point every save path funnels through,
         // rather than only on the controls that call it.
-        if (readOnly) return;
+        if (readOnly) return false;
         // A **draft** of a publishable type can be saved incomplete (relaxed
         // gate); publishing — or any save of an always-live type — is strict.
         const strict = publish || !publishable;
@@ -940,6 +948,7 @@ export function EntryEditor({
             ? form.submit(submit)
             : form.submitDraft(submit);
         if (!submitted) announceBlocked(strict, publish);
+        return submitted;
     };
 
     // Shared (non-localized) fields are **synced across the translation group**
@@ -1532,21 +1541,28 @@ export function EntryEditor({
                                 );
                                 return field ? fieldLabel(field) : name;
                             }}
-                            onCancel={() => setPendingSync(null)}
+                            onCancel={() => {
+                                setPendingSync(null);
+                                onSyncDismissed?.();
+                            }}
                             onConfirm={(skipped) => {
                                 const pending = pendingSync;
                                 setPendingSync(null);
                                 // Resent without asking. The invalidation is
                                 // confirmed only if the person was shown one —
                                 // a sibling broken since then is refused again,
-                                // and lands back in this dialog naming it.
-                                if (pending)
+                                // and lands back in this dialog naming it. A
+                                // resend the form stops before it goes out
+                                // releases the cover held under this dialog.
+                                const sent =
+                                    pending !== null &&
                                     runSave(pending.publish, pending.options, {
                                         allowInvalid:
                                             pending.refusal.invalidated.length >
                                             0,
                                         skipReferrers: skipped
                                     });
+                                if (!sent) onSyncDismissed?.();
                             }}
                         />
                     </form>

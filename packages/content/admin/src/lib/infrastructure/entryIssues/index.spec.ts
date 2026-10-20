@@ -33,6 +33,7 @@ describe('siblingSyncRefusalFrom', () => {
                             {
                                 field: 'contributors',
                                 label: 'Contributors',
+                                target: 'person',
                                 added: [{ id: 'ada-de', title: 'Ada (DE)' }],
                                 removed: [],
                                 unresolved: [{ id: 'linus', title: 'Linus' }]
@@ -65,6 +66,7 @@ describe('siblingSyncRefusalFrom', () => {
                     {
                         field: 'contributors',
                         label: 'Contributors',
+                        target: 'person',
                         added: [{ id: 'ada-de', title: 'Ada (DE)' }],
                         removed: [],
                         unresolved: [{ id: 'linus', title: 'Linus' }]

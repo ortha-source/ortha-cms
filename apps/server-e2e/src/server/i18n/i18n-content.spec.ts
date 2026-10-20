@@ -1259,6 +1259,7 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             links: {
                 field: string;
                 label: string;
+                target?: string;
                 added: { id: string; title: string }[];
                 removed: { id: string; title: string }[];
                 unresolved: { id: string; title: string }[];
@@ -1327,6 +1328,8 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             // The German row gains the German Ada — and the person is told
             // Linus has no German translation, so the row is left without him.
             expect(contributors?.label).toBe('Contributors');
+            // Named so the preview can open each linked record in its editor.
+            expect(contributors?.target).toBe('test_author');
             expect(titles(contributors?.added ?? [])).toEqual(['Ada (DE)']);
             expect(contributors?.added[0].id).toBe(adaDe.id);
             expect(titles(contributors?.removed ?? [])).toEqual([]);

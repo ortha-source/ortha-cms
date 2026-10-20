@@ -50,7 +50,8 @@ test.describe('Saving a change other locales share [i18n:I-34] [i18n:I-35]', () 
         await expect(dialog).toBeVisible();
         await expect(dialog).toContainText('This also changes another locale');
         await expect(dialog).toContainText('“Category”');
-        await expect(dialog).toContainText('de');
+        // The language by name, not by its slug.
+        await expect(dialog).toContainText('in German');
 
         await contentLibraryPage.dialogButton('Save').click();
         await expect.poll(() => patches.length).toBe(2);
@@ -75,7 +76,7 @@ test.describe('Saving a change other locales share [i18n:I-34] [i18n:I-35]', () 
         await expect(dialog).toContainText(
             'This leaves a published locale incomplete'
         );
-        await expect(dialog).toContainText('de and fr');
+        await expect(dialog).toContainText('German and French');
         await expect(dialog).toContainText('“Category”');
         // The sibling's issue is not pinned on this form's own field.
         await expect(contentLibraryPage.fieldError('is required')).toHaveCount(
@@ -128,6 +129,65 @@ test.describe('Saving a change other locales share [i18n:I-34] [i18n:I-35]', () 
         await expect(contentLibraryPage.siblingSyncDialog).toBeHidden();
     });
 
+    test('the save cover stays up from the asking request to the confirmed save, instead of blinking around the question', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        const patches = await mockSiblingSync(page, 'lp-en-1', {
+            reached: ['de']
+        });
+        await contentLibraryPage.goto(I18N_WORKSPACE.id);
+        await contentLibraryPage.typeLink('Localized posts').click();
+        await contentLibraryPage.recordLink('Winter boots').click();
+        await expect(contentLibraryPage.editorSave).toBeVisible();
+        // Every time the page goes from covered to uncovered or back.
+        await page.evaluate(() => {
+            const covered = () =>
+                document.querySelector(
+                    '[data-testid="entry-busy"], [data-testid="entry-busy-held"]'
+                ) !== null;
+            const log: boolean[] = [covered()];
+            (window as unknown as { coverLog: boolean[] }).coverLog = log;
+            new MutationObserver(() => {
+                const now = covered();
+                if (now !== log[log.length - 1]) log.push(now);
+            }).observe(document.body, { childList: true, subtree: true });
+        });
+        await contentLibraryPage.pickFieldOption('category', 'news');
+        await contentLibraryPage.saveDraft();
+
+        const dialog = contentLibraryPage.siblingSyncDialog;
+        await expect(dialog).toBeVisible();
+        // Only the blur under the question — nothing says "Saving…" while
+        // the app is waiting on the person.
+        await expect(page.getByTestId('entry-busy-held')).toBeAttached();
+        await expect(page.getByTestId('entry-busy')).toHaveCount(0);
+
+        await contentLibraryPage.dialogButton('Save').click();
+        await expect.poll(() => patches.length).toBe(2);
+        await expect(page.getByTestId('entry-busy-held')).toHaveCount(0);
+        await expect(page.getByTestId('entry-busy')).toHaveCount(0);
+        // Covered once, uncovered once: no gap around the dialog.
+        expect(
+            await page.evaluate(
+                () => (window as unknown as { coverLog: boolean[] }).coverLog
+            )
+        ).toEqual([false, true, false]);
+    });
+
+    test('Cancel lifts the cover held under the question', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        await mockSiblingSync(page, 'lp-en-1', { reached: ['de'] });
+        await changeSharedCategory(contentLibraryPage);
+
+        await expect(page.getByTestId('entry-busy-held')).toBeAttached();
+        await contentLibraryPage.dialogButton('Cancel').click();
+        await expect(page.getByTestId('entry-busy-held')).toHaveCount(0);
+        await expect(contentLibraryPage.editorSave).toBeEnabled();
+    });
+
     test('Cancel saves nothing more', async ({ page, contentLibraryPage }) => {
         const patches = await mockSiblingSync(page, 'lp-en-1', {
             reached: ['de'],
@@ -170,6 +230,7 @@ test.describe('Saving a change other locales share [i18n:I-34] [i18n:I-35]', () 
                             field: 'related',
                             label: 'Related post',
                             added: [],
+                            target: 'localized_post',
                             removed: [{ id: 'lp-de-2', title: 'Sommerhut' }],
                             unresolved: [{ id: 'lp-en-3', title: 'Rain coat' }]
                         }
@@ -184,11 +245,33 @@ test.describe('Saving a change other locales share [i18n:I-34] [i18n:I-35]', () 
             { name: 'What else changes' }
         );
         await expect(preview).toContainText('German');
-        await expect(preview).toContainText('Published · becomes Modified');
-        await expect(preview).toContainText('Category: guide → news');
-        await expect(preview).toContainText('Related post: − “Sommerhut”');
+        await expect(preview).toContainText('German version');
         await expect(preview).toContainText(
-            '“Rain coat” has no German translation'
+            'Published · will show as Modified'
+        );
+        await expect(preview).toContainText(
+            'CategoryNow: guide After saving: news'
+        );
+        await expect(preview).toContainText(
+            'Related postWill be unlinked: Sommerhut'
+        );
+        await expect(preview).toContainText(
+            '“Rain coat” has no German version yet'
+        );
+        // Each row and each linked record opens in its own editor.
+        await expect(
+            preview.getByRole('link', {
+                name: 'Open German version in a new tab'
+            })
+        ).toHaveAttribute(
+            'href',
+            `/workspaces/${I18N_WORKSPACE.id}/content/localized_post/lp-de-1`
+        );
+        await expect(
+            preview.getByRole('link', { name: 'Open Sommerhut in a new tab' })
+        ).toHaveAttribute(
+            'href',
+            `/workspaces/${I18N_WORKSPACE.id}/content/localized_post/lp-de-2`
         );
         // Kept consistent by the sync itself: nothing here can be declined.
         await expect(preview.getByRole('checkbox')).toHaveCount(0);
@@ -233,9 +316,9 @@ test.describe('Saving a change other locales share [i18n:I-34] [i18n:I-35]', () 
 
         const dialog = contentLibraryPage.siblingSyncDialog;
         await expect(dialog).toContainText('This also changes 2 other records');
-        await expect(dialog).toContainText('Untick a record');
+        await expect(dialog).toContainText('untick any record');
         const second = dialog.getByRole('checkbox', {
-            name: 'Change Localized posts: Nouveautés · French'
+            name: 'Update Nouveautés · Localized posts · French'
         });
         await expect(second).toBeChecked();
         await second.click();

@@ -57,6 +57,7 @@ import {
     initialEntryValues,
     mergeEntryValues
 } from '../../../domain/emptyEntryValues';
+import { siblingSyncRefusalFrom } from '../../../infrastructure/entryIssues';
 import { EntryEditor } from './EntryEditor';
 import {
     EntryBusyOverlay,
@@ -546,6 +547,7 @@ export function ContentEntryView({
         // steps settle on (below).
         let landed: WriteLanded | undefined;
         let result: SubmitEntryResult | undefined;
+        let held = false;
         try {
             try {
                 result = await flow.submit({
@@ -626,8 +628,16 @@ export function ContentEntryView({
                     });
                 }
             }
+        } catch (error) {
+            // The server asked before a save that reaches other rows; the
+            // editor puts the question on screen. Nothing was written, and the
+            // cover stays up under the dialog until the person answers — a
+            // confirm resends through here and takes it straight back to
+            // Saving, a cancel releases it (`onSyncDismissed`).
+            held = siblingSyncRefusalFrom(error) !== undefined;
+            throw error;
         } finally {
-            setBusy(null);
+            setBusy(held ? ENTRY_BUSY.Confirming : null);
         }
         toast.success(
             intl.formatMessage(
@@ -734,6 +744,11 @@ export function ContentEntryView({
                     saving={flow.isSaving}
                     mutating={flow.isMutating}
                     onSave={onSave}
+                    onSyncDismissed={() =>
+                        setBusy((current) =>
+                            current === ENTRY_BUSY.Confirming ? null : current
+                        )
+                    }
                     onUnpublish={onUnpublish}
                     onDelete={onDelete}
                     // Relations are offered to every type the workspace

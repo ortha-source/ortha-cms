@@ -6,7 +6,15 @@ import { Spinner } from '@orthacms/design-system';
 /** Which write the editor is running — picks the glyph and the copy. */
 export const ENTRY_BUSY = {
     Saving: 'saving',
-    Publishing: 'publishing'
+    Publishing: 'publishing',
+    /**
+     * The server asked before a save that reaches other rows, and the
+     * question is on screen. The cover stays up — blur only, nothing
+     * announced — so the asking request, the dialog and the confirmed resend
+     * read as one write instead of a cover that lifts, a dialog, and a cover
+     * again.
+     */
+    Confirming: 'confirming'
 } as const;
 
 /** @see ENTRY_BUSY */
@@ -37,10 +45,27 @@ const messages = defineMessages({
  * already disables its own controls while saving. `role="status"` +
  * `aria-live="polite"` announces the state to screen readers, which is the part
  * a blur alone conveys only to sighted users.
+ *
+ * While {@link ENTRY_BUSY.Confirming} it is only the blur: the sync dialog sits
+ * on top and is what the person reads, and a spinner under it would claim a
+ * write is running while the app waits on them. It enters without the fade —
+ * it replaces a cover that was already up — and one layer lower (`z-40`), so
+ * the dialog's own `z-50` layer is above it whichever of the two portals the
+ * commit appends to `<body>` last.
  */
 export function EntryBusyOverlay({ busy }: { busy: EntryBusy | null }) {
     const intl = useIntl();
     if (!busy) return null;
+    if (busy === ENTRY_BUSY.Confirming) {
+        return createPortal(
+            <div
+                aria-hidden
+                data-testid="entry-busy-held"
+                className="pointer-events-none fixed inset-0 z-40 bg-background/95 backdrop-blur-sm"
+            />,
+            document.body
+        );
+    }
     const publishing = busy === ENTRY_BUSY.Publishing;
     const Glyph = publishing ? Rocket : Save;
 
@@ -48,6 +73,7 @@ export function EntryBusyOverlay({ busy }: { busy: EntryBusy | null }) {
         <div
             role="status"
             aria-live="polite"
+            data-testid="entry-busy"
             className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-background/95 backdrop-blur-sm animate-in fade-in-0 duration-150 motion-reduce:animate-none"
         >
             <div className="flex flex-col items-center gap-3">

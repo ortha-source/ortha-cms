@@ -830,12 +830,21 @@ a third state with no column value spelling it made unavoidable.
   plain sync names the fields and the locales and offers **Save**; one that
   leaves a published translation incomplete also says what each lacks, that it
   keeps serving its live version and can't be published again until fixed, and
-  offers a destructive **Save anyway**. Under the sentence sits a **preview**
-  (`SyncChangeList` → `SyncChangeItem`): per row, its language (or the other
-  record and its language), a "becomes Modified" badge when it was published,
-  value changes as before → after (`domain/syncChangeValue` prints only what
-  reads as a value; a document or a long text says "changed"), links gained
-  and lost, and the linked records left out for want of a translation. Only an
+  offers a destructive **Save anyway**. The sentences name languages by their
+  display name ("German"), never by slug. Under them sits a **preview**
+  (`SyncChangeList` → `SyncChangeItem` → `SyncRecordRef`), one small card per
+  row: a heading ("German version", or the other record's title) over its
+  type and language, a "will show as Modified" badge when it was published,
+  and an **open-in-new-tab** link to that row's editor; then, field by field
+  under the field's label, a value as now → after saving
+  (`domain/syncChangeValue` prints only what reads as a value; a document or
+  a long text says it was updated), and links as the records gained (`+`)
+  and lost (`−`), each with its status badge and its own open link — the
+  server names each link field's `target` type for that, and labels fields
+  the way the admin does (`admin.label`, else the humanized name — never a
+  raw `snake_case` key); then a plain note for the linked records left out
+  for want of a translation. The links are built from the editor's slot
+  context, so the dialog renders without them outside one. Only an
   `optional` row — a gap a new translation fills — carries a checkbox; the
   rest are kept consistent by the sync itself, so declining one would not
   stick. Confirming resends without asking, with `allowInvalidSiblings` only
@@ -855,6 +864,13 @@ a third state with no column value spelling it made unavoidable.
   refetches included, so it never lifts onto pre-save values). It's held in view
   state rather than derived from `isPending` because the chain's two mutations
   are briefly both idle between steps, which would blink the cover mid-flow.
+  **It stays up under the sync question.** An asked-first save the server
+  refuses leaves the cover in a held state (`ENTRY_BUSY.Confirming`: blur
+  only, no spinner, nothing announced) while `SiblingSyncDialog` is open; a
+  confirm resends and takes it straight back to Saving, and a cancel — or a
+  resend the form stops — releases it through `EntryEditor`'s
+  `onSyncDismissed`. Lifting it for the dialog read as blur → dialog → blur
+  again, one write drawn as two. Pinned in `i18n-sibling-sync.spec.ts`.
 
 ## A background refetch never overwrites what the author typed
 
