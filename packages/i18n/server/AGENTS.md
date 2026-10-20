@@ -104,13 +104,16 @@ The extension owns all locale _behavior_:
   form; a save resent with `allowInvalidSiblings` (forwarded as
   `EntryWriteContext.allowInvalidSiblings`) goes through, each such sibling
   left Modified — its live version still served, its working copy needing the
-  gap filled before it can be published again. Only the admin's update route
-  sets the flag, and only after a person confirmed. Sent with
-  `askBeforeSiblingSync` instead, the save is refused whenever it rewrites any
-  **live** sibling — `code: "content.sibling_sync_unconfirmed"`, `locales`
-  (each live sibling it changes; a trashed one is rewritten but not named) and
-  `siblings` (the invalidations, possibly empty) — checked before the
-  invalidation refusal, so the editor asks one question holding both. The demotion is what keeps
+  gap filled before it can be published again. Only the admin's write routes
+  set the flag, and only after a person confirmed. Sent with
+  `askBeforeSiblingSync` instead, the context carries a **recorder**
+  (`EntryWriteContext.fanout`): `propagateToSiblings` records every **live**
+  sibling it rewrites — value columns before/after, links added/removed, and
+  the source's linked records a locale is left without (`unresolved`) — and
+  the invalidations, instead of refusing. content-server refuses once every
+  hook has run (`code: "content.sibling_sync_unconfirmed"`, with `changes`,
+  `locales` and `siblings`), so the editor asks one question holding the whole
+  write. A trashed sibling is rewritten but never recorded. The demotion is what keeps
   a shared field's publish state consistent across the group: leaving siblings `published` made the same edit
   live in the untouched locales while still pending in the edited one, and left
   each sibling's freshly-appended **draft** version describing a row that
@@ -156,6 +159,21 @@ The extension owns all locale _behavior_:
     a link set rebuilt from the donor through `siblingLinks`. Those siblings
     are demoted and versioned like any synced row; the hook returns them
     grouped by type because they are not of the type being saved.
+
+    **An inverse edit reaches the owner's other languages** (`lockInverseOwners`
+    / `syncInverseOwners`, `i18n:I-39`). A delta on the far side of a synced
+    many-relation — linking an article from its author — writes the owner's
+    join row in one locale; `syncInverseOwners` then runs `propagateToSiblings`
+    from each relinked owner row, restricted to that one field (`fields`), so
+    the owner's translations follow as if the owner had been saved. The
+    owners' group locks are taken **before** the deltas: the delta takes the
+    owner list's append lock, and a save of the owner takes its group lock
+    first and that append lock second.
+
+    **Asked first, a filled-in gap is optional** (`i18n:I-38`). `syncReferrers`
+    records each row it fills as an `optional` change, and skips the rows the
+    caller declined (`EntryWriteContext.skipReferrers`) — a gap left open is a
+    state the sync allows, and it closes on the record's own next save.
 
     **Except when the sibling already links the same record.** A target with no
     live translation in a sibling's locale may still have one **in the trash** —

@@ -69,15 +69,17 @@ import { SiblingSyncDialog } from './SiblingSyncDialog';
 import { RelationFieldSection } from './RelationFieldSection';
 
 /**
- * How a save treats the locale siblings it may reach. `askFirst` sends it with
+ * How a save treats the other rows it may reach. `askFirst` sends it with
  * `askBeforeSiblingSync`, so the server refuses — writing nothing — when
- * another live locale would change; `allowInvalid` confirms a save that leaves
- * a published sibling failing validation. Neither is a default: each answers a
- * question this editor is the one to ask.
+ * another live row would change; `allowInvalid` confirms a save that leaves
+ * a published sibling failing validation; `skipReferrers` leaves out the
+ * optional rows (gaps a new translation fills) the person unticked. None is
+ * a default: each answers a question this editor is the one to ask.
  */
 type SiblingSyncMode = {
     askFirst?: boolean;
     allowInvalid?: boolean;
+    skipReferrers?: string[];
 };
 
 const messages = defineMessages({
@@ -101,6 +103,11 @@ const messages = defineMessages({
         id: 'content.editor.relationsSubtitle',
         defaultMessage:
             'Assign related records and set the order they appear in the delivery API.'
+    },
+    relationsInherited: {
+        id: 'content.editor.relationsInherited',
+        defaultMessage:
+            'Links shared across languages aren’t copied into this form. When you save, this translation gets them from the record’s other languages, each linked in this language where it has a translation.'
     },
     relationRequired: {
         id: 'content.editor.relationRequired',
@@ -762,6 +769,9 @@ export function EntryEditor({
                 bypass: options.bypass,
                 allowInvalidSiblings: sync.allowInvalid === true,
                 askBeforeSiblingSync: sync.askFirst === true,
+                ...(sync.skipReferrers?.length
+                    ? { skipReferrers: sync.skipReferrers }
+                    : {}),
                 // Re-arm seeding the moment a write lands. The response is what
                 // the editor then shows, and it reaches the form as a **new
                 // seed** — `useSaveEntry` primes the read-one cache with it
@@ -954,9 +964,20 @@ export function EntryEditor({
               (isFieldDirty(field.name) || isRelationDirty(field.name))
             : !field.localized && isFieldDirty(field.name)
     );
-    const hasLocalizedFields = visible.some((field) => field.localized);
-    const needsSharedWarning =
-        hasLocalizedFields && !isCreate && dirtySharedFields.length > 0;
+
+    // A translation being created gets its synced links from the record's
+    // other languages on save — the server fills them in; a create body
+    // carries none. The Relations tab would otherwise show those fields
+    // empty and say nothing, which reads as "this translation has no links".
+    const inheritsRelations =
+        isCreate &&
+        !!prefilledFromLocale &&
+        visible.some(
+            (field) =>
+                field.type === CONTENT_FIELD_TYPE.Relation &&
+                (field.relation?.localeSync === 'shared' ||
+                    field.relation?.localeSync === 'mirrored')
+        );
 
     // The save the server refused because it reaches other locales of the
     // record, held for the person to confirm — with whatever the publish
@@ -1020,11 +1041,16 @@ export function EntryEditor({
 
     const save = (publish: boolean, options?: EntryPublishOptions) => {
         if (readOnly) return;
-        // A save that carries a shared change asks the server first: only it
-        // knows whether another live locale is reached and what that does to a
-        // published one, and it answers with one refusal holding both, which
-        // is what the single confirmation below is built from.
-        runSave(publish, options, { askFirst: needsSharedWarning });
+        // Every save asks the server first. Only it knows whether another live
+        // row is reached — a sibling locale through a shared field, another
+        // record's translations through a link edited from its far side, a
+        // record a new translation fills in — and what that does to a
+        // published one, and it answers with one refusal holding all of it,
+        // which is what the single confirmation below is built from. Asking
+        // costs nothing when nothing else is reached: the save just lands.
+        // It used to ask only when a shared field was dirty on an update,
+        // which let a create and an inverse edit rewrite other rows silently.
+        runSave(publish, options, { askFirst: true });
     };
 
     // Register with the app-wide guard, so *any* navigation away from a dirty
@@ -1302,6 +1328,16 @@ export function EntryEditor({
                                                                 messages.relationsSubtitle
                                                             )}
                                                         </p>
+                                                        {inheritsRelations && (
+                                                            <p
+                                                                className="rounded-md border border-dashed p-3 text-sm text-muted-foreground"
+                                                                data-testid="relations-inherited-note"
+                                                            >
+                                                                {intl.formatMessage(
+                                                                    messages.relationsInherited
+                                                                )}
+                                                            </p>
+                                                        )}
                                                         {relationFields.map(
                                                             (field) => {
                                                                 // A many/inverse relation is staged +
@@ -1497,7 +1533,7 @@ export function EntryEditor({
                                 return field ? fieldLabel(field) : name;
                             }}
                             onCancel={() => setPendingSync(null)}
-                            onConfirm={() => {
+                            onConfirm={(skipped) => {
                                 const pending = pendingSync;
                                 setPendingSync(null);
                                 // Resent without asking. The invalidation is
@@ -1508,7 +1544,8 @@ export function EntryEditor({
                                     runSave(pending.publish, pending.options, {
                                         allowInvalid:
                                             pending.refusal.invalidated.length >
-                                            0
+                                            0,
+                                        skipReferrers: skipped
                                     });
                             }}
                         />

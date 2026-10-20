@@ -6,6 +6,7 @@ import { type ContentLibraryPage } from '../support/pages/ContentLibraryPage';
 import {
     I18N_WORKSPACE,
     mockI18n,
+    mockReferrerSync,
     mockSiblingSync
 } from '../support/api/i18n';
 
@@ -138,6 +139,132 @@ test.describe('Saving a change other locales share [i18n:I-34] [i18n:I-35]', () 
         await contentLibraryPage.dialogButton('Cancel').click();
         await expect(contentLibraryPage.siblingSyncDialog).toBeHidden();
         expect(patches).toHaveLength(1);
+    });
+
+    test('previews what the save does to each locale: values, links, and who is left out [i18n:I-37]', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        await mockSiblingSync(page, 'lp-en-1', {
+            reached: ['de'],
+            changes: [
+                {
+                    type: 'localized_post',
+                    typeLabel: 'Localized posts',
+                    entryId: 'lp-de-1',
+                    locale: 'de',
+                    title: 'Winterstiefel',
+                    sibling: true,
+                    published: true,
+                    optional: false,
+                    fields: [
+                        {
+                            field: 'category',
+                            label: 'Category',
+                            before: 'guide',
+                            after: 'news'
+                        }
+                    ],
+                    links: [
+                        {
+                            field: 'related',
+                            label: 'Related post',
+                            added: [],
+                            removed: [{ id: 'lp-de-2', title: 'Sommerhut' }],
+                            unresolved: [{ id: 'lp-en-3', title: 'Rain coat' }]
+                        }
+                    ]
+                }
+            ]
+        });
+        await changeSharedCategory(contentLibraryPage);
+
+        const preview = contentLibraryPage.siblingSyncDialog.getByRole(
+            'region',
+            { name: 'What else changes' }
+        );
+        await expect(preview).toContainText('German');
+        await expect(preview).toContainText('Published · becomes Modified');
+        await expect(preview).toContainText('Category: guide → news');
+        await expect(preview).toContainText('Related post: − “Sommerhut”');
+        await expect(preview).toContainText(
+            '“Rain coat” has no German translation'
+        );
+        // Kept consistent by the sync itself: nothing here can be declined.
+        await expect(preview.getByRole('checkbox')).toHaveCount(0);
+    });
+
+    test('a new translation asks before filling other records in, and leaves out the unticked one [i18n:I-38]', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        const filled = (id: string, title: string) => ({
+            type: 'localized_post',
+            typeLabel: 'Localized posts',
+            entryId: id,
+            locale: 'fr',
+            title,
+            sibling: false,
+            published: false,
+            optional: true,
+            fields: [],
+            links: [
+                {
+                    field: 'related',
+                    label: 'Related post',
+                    added: [{ id: 'lp-fr-new', title: 'Bottes d’hiver' }],
+                    removed: [],
+                    unresolved: []
+                }
+            ]
+        });
+        const posts = await mockReferrerSync(page, [
+            filled('lp-fr-7', 'Guide des pistes'),
+            filled('lp-fr-8', 'Nouveautés')
+        ]);
+
+        await contentLibraryPage.goto(I18N_WORKSPACE.id);
+        await contentLibraryPage.typeLink('Localized posts').click();
+        await contentLibraryPage.recordLink('Winter boots').click();
+        await expect(contentLibraryPage.editorSave).toBeVisible();
+        await contentLibraryPage.startTranslation('Français');
+        await page.getByLabel(/Title/).fill('Bottes d’hiver');
+        await contentLibraryPage.saveDraft();
+
+        const dialog = contentLibraryPage.siblingSyncDialog;
+        await expect(dialog).toContainText('This also changes 2 other records');
+        await expect(dialog).toContainText('Untick a record');
+        const second = dialog.getByRole('checkbox', {
+            name: 'Change Localized posts: Nouveautés · French'
+        });
+        await expect(second).toBeChecked();
+        await second.click();
+        await expect(second).not.toBeChecked();
+
+        await contentLibraryPage.dialogButton('Save').click();
+        await expect.poll(() => posts.length).toBe(2);
+        expect(posts[0].askBeforeSiblingSync).toBe(true);
+        expect(posts[1].askBeforeSiblingSync).toBeUndefined();
+        expect(posts[1].skipReferrers).toEqual(['lp-fr-8']);
+        await expect(dialog).toBeHidden();
+    });
+
+    test('a translation form says where its synced links will come from', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        await contentLibraryPage.goto(I18N_WORKSPACE.id);
+        await contentLibraryPage.typeLink('Localized posts').click();
+        await contentLibraryPage.recordLink('Winter boots').click();
+        await expect(contentLibraryPage.editorSave).toBeVisible();
+        await contentLibraryPage.startTranslation('Français');
+        await contentLibraryPage.openEditorTab('Relations');
+
+        await expect(
+            page.getByTestId('relations-inherited-note')
+        ).toContainText(
+            'this translation gets them from the record’s other languages'
+        );
     });
 
     test('has no a11y violations while asking', async ({

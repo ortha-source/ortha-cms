@@ -66,10 +66,15 @@ export type SubmitEntryInput = {
      */
     allowInvalidSiblings?: boolean;
     /**
-     * Ask before the save reaches other locale siblings — forwarded to the save
-     * request. See `SaveEntryInput.askBeforeSiblingSync`.
+     * Ask before the save reaches other rows — forwarded to the save request.
+     * See `SaveEntryInput.askBeforeSiblingSync`.
      */
     askBeforeSiblingSync?: boolean;
+    /**
+     * Rows of other records not to fill a new translation into — forwarded to
+     * the create. See `SaveEntryInput.skipReferrers`.
+     */
+    skipReferrers?: string[];
     /**
      * Called the moment a write of this submit **lands**, before anything that
      * might still fail — the chained publish above all.
@@ -231,6 +236,9 @@ export function usePublishEntryFlow(
                     : {}),
                 ...(input.askBeforeSiblingSync
                     ? { askBeforeSiblingSync: true }
+                    : {}),
+                ...(input.skipReferrers?.length
+                    ? { skipReferrers: input.skipReferrers }
                     : {})
             });
             // Record the new id before chaining publish: if publish then fails, the

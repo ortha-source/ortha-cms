@@ -52,7 +52,12 @@ export class CreateEntryController {
             body.locale,
             body.localeGroupId,
             toActor(user),
-            body.extensions
+            body.extensions,
+            {
+                allowInvalidSiblings: body.allowInvalidSiblings,
+                askBeforeSiblingSync: body.askBeforeSiblingSync,
+                skipReferrers: body.skipReferrers
+            }
         );
     }
 }

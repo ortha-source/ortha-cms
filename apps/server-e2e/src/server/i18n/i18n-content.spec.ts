@@ -1241,6 +1241,380 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             expect(await revisions()).toBe(before);
         });
 
+        /** One row of an asked-first refusal's `changes`. */
+        type FanoutChange = {
+            type: string;
+            entryId: string;
+            locale: string | null;
+            title: string | null;
+            sibling: boolean;
+            published: boolean;
+            optional: boolean;
+            fields: {
+                field: string;
+                label: string;
+                before: unknown;
+                after: unknown;
+            }[];
+            links: {
+                field: string;
+                label: string;
+                added: { id: string; title: string }[];
+                removed: { id: string; title: string }[];
+                unresolved: { id: string; title: string }[];
+            }[];
+        };
+
+        /** The change an asked-first refusal reports for one entry. */
+        function changeFor(body: { changes: FanoutChange[] }, entryId: string) {
+            const change = body.changes.find(
+                (candidate) => candidate.entryId === entryId
+            );
+            expect(change).toBeDefined();
+            return change as FanoutChange;
+        }
+
+        /** Titles of one link list, in order. */
+        const titles = (refs: { title: string }[]) =>
+            refs.map((ref) => ref.title);
+
+        it('asked first, describes each sibling: values before/after, links added and removed, and who was left out [i18n:I-37]', async () => {
+            const agent = await login();
+            const en = await createArticle(agent, {
+                values: { ...VALID, number: 1 }
+            });
+            const de = (await createTranslation(agent, en, 'de')).body as {
+                id: string;
+            };
+            await agent
+                .post(`/api/content/test_article/${de.id}/publish`)
+                .expect(201);
+            const adaEn = await createAuthor(agent, 'Ada');
+            const adaDe = await createAuthor(agent, 'Ada (DE)', 'de', adaEn);
+            const linus = await createAuthor(agent, 'Linus');
+
+            const refused = await agent
+                .patch(`/api/content/test_article/${en.id}`)
+                .send({
+                    values: { ...VALID, number: 7 },
+                    relations: {
+                        contributors: { link: [adaEn.id, linus.id] }
+                    },
+                    askBeforeSiblingSync: true
+                })
+                .expect(422);
+            expect(refused.body.code).toBe('content.sibling_sync_unconfirmed');
+            expect(refused.body.locales).toEqual(['de']);
+
+            const change = changeFor(refused.body, de.id);
+            expect(change).toMatchObject({
+                type: 'test_article',
+                locale: 'de',
+                sibling: true,
+                published: true,
+                optional: false
+            });
+            expect(change.fields).toEqual([
+                expect.objectContaining({
+                    field: 'number',
+                    before: 1,
+                    after: 7
+                })
+            ]);
+            const contributors = change.links.find(
+                (link) => link.field === 'contributors'
+            );
+            // The German row gains the German Ada — and the person is told
+            // Linus has no German translation, so the row is left without him.
+            expect(contributors?.label).toBe('Contributors');
+            expect(titles(contributors?.added ?? [])).toEqual(['Ada (DE)']);
+            expect(contributors?.added[0].id).toBe(adaDe.id);
+            expect(titles(contributors?.removed ?? [])).toEqual([]);
+            expect(titles(contributors?.unresolved ?? [])).toEqual(['Linus']);
+
+            // A dry run: nothing moved.
+            expect(await linkIds(agent, de.id, 'contributors')).toEqual([]);
+            const deRow = await agent
+                .get(`/api/content/test_article/${de.id}`)
+                .expect(200);
+            expect(deRow.body.values.number).toBe(1);
+            expect(deRow.body.status).toBe('published');
+        });
+
+        it('asked first, names a single relation’s swap and the gap it leaves [i18n:I-37]', async () => {
+            const agent = await login();
+            const adaEn = await createAuthor(agent, 'Ada');
+            const adaDe = await createAuthor(agent, 'Ada', 'de', adaEn);
+            const adaFr = await createAuthor(agent, 'Ada', 'fr', adaEn);
+            const grace = await createAuthor(agent, 'Grace');
+            const graceDe = await createAuthor(agent, 'Grace', 'de', grace);
+            const en = await createArticle(agent, {
+                values: { ...VALID, author: adaEn.id }
+            });
+            const create = (locale: string) =>
+                agent
+                    .post('/api/content/test_article')
+                    .send({
+                        values: VALID,
+                        locale,
+                        localeGroupId: en.localeGroupId
+                    })
+                    .expect(201);
+            const de = (await create('de')).body as { id: string };
+            const fr = (await create('fr')).body as { id: string };
+
+            const refused = await agent
+                .patch(`/api/content/test_article/${en.id}`)
+                .send({
+                    values: { ...VALID, author: grace.id },
+                    askBeforeSiblingSync: true
+                })
+                .expect(422);
+            const deAuthor = changeFor(refused.body, de.id).links.find(
+                (link) => link.field === 'author'
+            );
+            expect(deAuthor?.removed.map((ref) => ref.id)).toEqual([adaDe.id]);
+            expect(deAuthor?.added.map((ref) => ref.id)).toEqual([graceDe.id]);
+            // Grace has no French translation: the French row loses Ada and
+            // is told who it could not get instead.
+            const frAuthor = changeFor(refused.body, fr.id).links.find(
+                (link) => link.field === 'author'
+            );
+            expect(frAuthor?.removed.map((ref) => ref.id)).toEqual([adaFr.id]);
+            expect(frAuthor?.added).toEqual([]);
+            expect(titles(frAuthor?.unresolved ?? [])).toEqual(['Grace']);
+        });
+
+        it('asked first, a translation of the target lists the records it would be filled into, and leaves out the ones declined [i18n:I-38]', async () => {
+            const agent = await login();
+            const adaEn = await createAuthor(agent, 'Ada');
+            const first = await createArticle(agent);
+            const second = await createArticle(agent);
+            const firstDe = (await createTranslation(agent, first, 'de'))
+                .body as { id: string };
+            const secondDe = (await createTranslation(agent, second, 'de'))
+                .body as { id: string };
+            await link(agent, first.id, 'contributors', [adaEn.id]);
+            await link(agent, second.id, 'contributors', [adaEn.id]);
+
+            // The same shared `name` as the source: a different one would
+            // rewrite the English author too, and that would be asked about
+            // as well (a translation of the author itself).
+            const createAdaDe = (body: Record<string, unknown> = {}) =>
+                agent.post('/api/content/test_author').send({
+                    values: { name: 'Ada' },
+                    locale: 'de',
+                    localeGroupId: adaEn.localeGroupId,
+                    ...body
+                });
+
+            const refused = await createAdaDe({
+                askBeforeSiblingSync: true
+            }).expect(422);
+            expect(refused.body.code).toBe('content.sibling_sync_unconfirmed');
+            // Not translations of the author: other records, each optional.
+            expect(refused.body.locales).toEqual([]);
+            for (const id of [firstDe.id, secondDe.id]) {
+                const change = changeFor(refused.body, id);
+                expect(change).toMatchObject({
+                    type: 'test_article',
+                    locale: 'de',
+                    sibling: false,
+                    optional: true
+                });
+                // Titled from inside the refused write: the German Ada exists
+                // nowhere else.
+                expect(
+                    titles(
+                        change.links.find(
+                            (link) => link.field === 'contributors'
+                        )?.added ?? []
+                    )
+                ).toEqual(['Ada']);
+            }
+            // Nothing was created.
+            const authors = await agent
+                .get('/api/content/test_author?locale=de')
+                .expect(200);
+            expect(authors.body.total).toBe(0);
+
+            // Confirmed with the second article unticked.
+            const adaDe = (
+                await createAdaDe({ skipReferrers: [secondDe.id] }).expect(201)
+            ).body as { id: string };
+            expect(await linkIds(agent, firstDe.id, 'contributors')).toEqual([
+                adaDe.id
+            ]);
+            // Its gap stays open — and closes on that article's own next save.
+            expect(await linkIds(agent, secondDe.id, 'contributors')).toEqual(
+                []
+            );
+            await link(agent, second.id, 'contributors', []);
+            expect(await linkIds(agent, secondDe.id, 'contributors')).toEqual([
+                adaDe.id
+            ]);
+        });
+
+        // A create propagates its shared columns outward — the long-standing
+        // rule that a deliberately different shared value on a new translation
+        // wins. It used to do so silently; asked first, it is named.
+        it('asked first, a translation carrying a different shared value names the translations it rewrites [i18n:I-37]', async () => {
+            const agent = await login();
+            const adaEn = await createAuthor(agent, 'Ada');
+            const refused = await agent
+                .post('/api/content/test_author')
+                .send({
+                    values: { name: 'Ada Lovelace' },
+                    locale: 'de',
+                    localeGroupId: adaEn.localeGroupId,
+                    askBeforeSiblingSync: true
+                })
+                .expect(422);
+            expect(refused.body.locales).toEqual(['en']);
+            expect(changeFor(refused.body, adaEn.id)).toMatchObject({
+                sibling: true,
+                fields: [
+                    expect.objectContaining({
+                        field: 'name',
+                        label: 'Name',
+                        before: 'Ada',
+                        after: 'Ada Lovelace'
+                    })
+                ]
+            });
+        });
+
+        it('a create that reaches nothing else is not refused for asking [i18n:I-38]', async () => {
+            const agent = await login();
+            await agent
+                .post('/api/content/test_author')
+                .send({ values: { name: 'Ada' }, askBeforeSiblingSync: true })
+                .expect(201);
+        });
+
+        it('rejects a malformed skipReferrers', async () => {
+            const agent = await login();
+            await agent
+                .post('/api/content/test_author')
+                .send({ values: { name: 'Ada' }, skipReferrers: ['nope'] })
+                .expect(400);
+        });
+
+        it('asks first before a restore reaches other locales, and restores once confirmed [i18n:I-37]', async () => {
+            const agent = await login();
+            const en = await createArticle(agent, {
+                values: { ...VALID, number: 1 }
+            });
+            const de = (await createTranslation(agent, en, 'de')).body as {
+                id: string;
+            };
+            await agent
+                .patch(`/api/content/test_article/${en.id}`)
+                .send({ values: { ...VALID, number: 2 } })
+                .expect(200);
+            const deNumber = async () =>
+                (
+                    await agent
+                        .get(`/api/content/test_article/${de.id}`)
+                        .expect(200)
+                ).body.values.number;
+            expect(await deNumber()).toBe(2);
+
+            const refused = await agent
+                .post(`/api/content/test_article/${en.id}/revisions/1/restore`)
+                .send({ askBeforeSiblingSync: true })
+                .expect(422);
+            expect(refused.body.code).toBe('content.sibling_sync_unconfirmed');
+            expect(changeFor(refused.body, de.id).fields).toEqual([
+                expect.objectContaining({
+                    field: 'number',
+                    before: 2,
+                    after: 1
+                })
+            ]);
+            expect(await deNumber()).toBe(2);
+
+            await agent
+                .post(`/api/content/test_article/${en.id}/revisions/1/restore`)
+                .send({})
+                .expect(201);
+            expect(await deNumber()).toBe(1);
+        });
+
+        it('an article linked from its author’s side follows in its other languages [i18n:I-39]', async () => {
+            const agent = await login();
+            const en = await createArticle(agent);
+            const de = (await createTranslation(agent, en, 'de')).body as {
+                id: string;
+            };
+            const adaEn = await createAuthor(agent, 'Ada');
+            const adaDe = await createAuthor(agent, 'Ada (DE)', 'de', adaEn);
+            const linkFromAuthor = (body: Record<string, unknown> = {}) =>
+                agent.patch(`/api/content/test_author/${adaDe.id}`).send({
+                    values: { name: 'Ada (DE)' },
+                    relations: { articles: { link: [de.id] } },
+                    ...body
+                });
+
+            // Asked first: the English article is another record's row, and
+            // it is named with what it gains.
+            const refused = await linkFromAuthor({
+                askBeforeSiblingSync: true
+            }).expect(422);
+            const change = changeFor(refused.body, en.id);
+            expect(change).toMatchObject({
+                type: 'test_article',
+                locale: 'en',
+                sibling: false,
+                optional: false
+            });
+            expect(
+                change.links.find((link) => link.field === 'contributors')
+                    ?.added[0].id
+            ).toBe(adaEn.id);
+            expect(await linkIds(agent, de.id, 'contributors')).toEqual([]);
+
+            await linkFromAuthor().expect(200);
+            expect(await linkIds(agent, de.id, 'contributors')).toEqual([
+                adaDe.id
+            ]);
+            // Mirrored: the English article links the English Ada.
+            expect(await linkIds(agent, en.id, 'contributors')).toEqual([
+                adaEn.id
+            ]);
+
+            // Unlinking from the author's side travels the same way.
+            await agent
+                .patch(`/api/content/test_author/${adaDe.id}`)
+                .send({
+                    values: { name: 'Ada (DE)' },
+                    relations: { articles: { unlink: [de.id] } }
+                })
+                .expect(200);
+            expect(await linkIds(agent, en.id, 'contributors')).toEqual([]);
+        });
+
+        it('an article tagged from the tag’s side carries the tag in every language [i18n:I-39]', async () => {
+            const agent = await login();
+            const en = await createArticle(agent);
+            const de = (await createTranslation(agent, en, 'de')).body as {
+                id: string;
+            };
+            const design = await createTag(agent, 'Design');
+
+            await agent
+                .patch(`/api/content/test_tag/${design.id}`)
+                .send({
+                    values: { name: 'Design', slug: 'design' },
+                    relations: { articles: { link: [de.id] } }
+                })
+                .expect(200);
+
+            // `tags` is shared: one tag for every language of the record.
+            expect(await linkIds(agent, en.id, 'tags')).toEqual([design.id]);
+            expect(await linkIds(agent, de.id, 'tags')).toEqual([design.id]);
+        });
+
         // The record links Ada in every language; then Ada's German row goes to
         // the bin. A later save of the English article — one that does not
         // touch the author at all — must not unlink the German article: it

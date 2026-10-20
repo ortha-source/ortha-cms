@@ -10,7 +10,16 @@ import {
     CONTENT_PUBLISH,
     CONTENT_UPDATE
 } from '../../../../../domain/constants';
-import { useRevisionActions } from '../../../../../application/useRevisionActions';
+import {
+    useRevisionActions,
+    type RevisionAction
+} from '../../../../../application/useRevisionActions';
+import {
+    siblingSyncRefusalFrom,
+    type SiblingSyncRefusal
+} from '../../../../../infrastructure/entryIssues';
+import { SiblingSyncDialog } from '../SiblingSyncDialog';
+import { fieldLabel } from '../../../../../domain/entryColumns';
 import { RevisionRow } from './RevisionRow';
 import { RevisionPreviewDialog } from './RevisionPreviewDialog';
 
@@ -90,6 +99,21 @@ export function RevisionList({
     const [pending, setPending] = useState<number | null>(null);
     const [pendingPublish, setPendingPublish] = useState<number | null>(null);
     const [previewing, setPreviewing] = useState<RevisionSummary | null>(null);
+    // A restore or publish-a-version the server refused because re-applying
+    // the version reaches other rows (the record's other locales above all) —
+    // held for the person to confirm, exactly as an editor save is.
+    const [pendingSync, setPendingSync] = useState<{
+        kind: 'restore' | 'publish';
+        number: number;
+        refusal: SiblingSyncRefusal;
+    } | null>(null);
+
+    const labelFor = (name: string) => {
+        const field = schema.fields.find(
+            (candidate) => candidate.name === name
+        );
+        return field ? fieldLabel(field) : name;
+    };
 
     // The diff baseline: the newest version equals the live record (every save
     // appends one). It's always present here — the timeline is passed
@@ -98,32 +122,82 @@ export function RevisionList({
         revisions.find((revision) => revision.isLatest)?.number ??
         revisions.reduce((max, r) => Math.max(max, r.number), 0);
 
-    const confirmRestore = () => {
-        if (pending == null) return;
-        const number = pending;
-        restore(number, {
+    // Both actions ask the server first, like a save: re-applying a version
+    // rewrites the record's shared fields, so it can reach other locales,
+    // and only the server knows what that does to them. A refusal opens the
+    // sync dialog; its confirmation resends without asking.
+    const runRestore = (action: RevisionAction) =>
+        restore(action, {
             onSuccess: () =>
                 toast.success(
-                    intl.formatMessage(messages.restored, { n: number })
+                    intl.formatMessage(messages.restored, { n: action.number })
                 ),
-            onError: () =>
-                toast.error(intl.formatMessage(messages.restoreFailed))
+            onError: (error) => {
+                const refusal = siblingSyncRefusalFrom(error);
+                if (refusal) {
+                    setPendingSync({
+                        kind: 'restore',
+                        number: action.number,
+                        refusal
+                    });
+                    return;
+                }
+                toast.error(intl.formatMessage(messages.restoreFailed));
+            }
+        });
+
+    const runPublish = (action: RevisionAction) =>
+        publish(action, {
+            onSuccess: () =>
+                toast.success(
+                    intl.formatMessage(messages.published, { n: action.number })
+                ),
+            onError: (error) => {
+                const refusal = siblingSyncRefusalFrom(error);
+                if (refusal) {
+                    setPendingSync({
+                        kind: 'publish',
+                        number: action.number,
+                        refusal
+                    });
+                    return;
+                }
+                toast.error(intl.formatMessage(messages.publishFailed));
+            }
+        });
+
+    const confirmRestore = () => {
+        if (pending == null) return;
+        runRestore({
+            number: pending,
+            options: { askBeforeSiblingSync: true }
         });
         setPending(null);
     };
 
     const confirmPublish = () => {
         if (pendingPublish == null) return;
-        const number = pendingPublish;
-        publish(number, {
-            onSuccess: () =>
-                toast.success(
-                    intl.formatMessage(messages.published, { n: number })
-                ),
-            onError: () =>
-                toast.error(intl.formatMessage(messages.publishFailed))
+        runPublish({
+            number: pendingPublish,
+            options: { askBeforeSiblingSync: true }
         });
         setPendingPublish(null);
+    };
+
+    const confirmSync = () => {
+        const held = pendingSync;
+        setPendingSync(null);
+        if (!held) return;
+        // Resent without asking; an invalidation is confirmed only if the
+        // person was shown one.
+        const action: RevisionAction = {
+            number: held.number,
+            options: {
+                allowInvalidSiblings: held.refusal.invalidated.length > 0
+            }
+        };
+        if (held.kind === 'restore') runRestore(action);
+        else runPublish(action);
     };
 
     return (
@@ -165,6 +239,22 @@ export function RevisionList({
                 confirmLabel={intl.formatMessage(messages.publishConfirm)}
                 busy={publishing}
                 onConfirm={confirmPublish}
+            />
+            <SiblingSyncDialog
+                refusal={pendingSync?.refusal ?? null}
+                sharedFields={[]}
+                labelFor={labelFor}
+                onCancel={() => setPendingSync(null)}
+                onConfirm={confirmSync}
+                confirmLabel={
+                    pendingSync?.refusal.invalidated.length
+                        ? undefined
+                        : intl.formatMessage(
+                              pendingSync?.kind === 'publish'
+                                  ? messages.publishConfirm
+                                  : messages.confirm
+                          )
+                }
             />
             {previewing && (
                 <RevisionPreviewDialog

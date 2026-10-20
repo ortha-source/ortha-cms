@@ -487,8 +487,10 @@ export function ContentEntryView({
             bypass?: boolean;
             /** A confirmed save past a sibling-invalidation refusal. */
             allowInvalidSiblings?: boolean;
-            /** Ask before the save reaches other locale siblings. */
+            /** Ask before the save reaches other rows. */
             askBeforeSiblingSync?: boolean;
+            /** Rows of other records a new translation is not filled into. */
+            skipReferrers?: string[];
             /**
              * Called as soon as a write lands — forwarded to the flow, which is
              * the only layer that can tell a landed save from a refused one.
@@ -566,6 +568,7 @@ export function ContentEntryView({
                     bypass: options.bypass,
                     allowInvalidSiblings: options.allowInvalidSiblings,
                     askBeforeSiblingSync: options.askBeforeSiblingSync,
+                    skipReferrers: options.skipReferrers,
                     onWriteLanded: (write) => {
                         landed = write;
                         const { saved, created } = write;

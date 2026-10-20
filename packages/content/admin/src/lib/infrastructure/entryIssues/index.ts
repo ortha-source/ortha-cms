@@ -1,5 +1,8 @@
 import { ApiError } from '@orthacms/utils-admin';
-import type { EntryValidationIssue } from '../../domain/types/contentType';
+import type {
+    EntryValidationIssue,
+    RelationRef
+} from '../../domain/types/contentType';
 import {
     SIBLING_INVALIDATED_CODE,
     SIBLING_SYNC_UNCONFIRMED_CODE
@@ -11,6 +14,54 @@ export type InvalidatedSibling = {
     locale: string;
     /** The fields that would fail there. */
     issues: EntryValidationIssue[];
+    /** The row's entry id, when the server named it. */
+    entryId?: string;
+    /**
+     * `false` when the row belongs to **another record** (one an inverse
+     * link reaches) rather than to the record being saved.
+     */
+    sibling?: boolean;
+};
+
+/** One value another row would take on. */
+export type SyncFieldChange = {
+    field: string;
+    /** The field's label in its own type. */
+    label: string;
+    before: unknown;
+    after: unknown;
+};
+
+/** One relation field's links on another row. */
+export type SyncLinkChange = {
+    field: string;
+    label: string;
+    added: RelationRef[];
+    removed: RelationRef[];
+    /**
+     * Records the source links that have no translation in this row's
+     * language, so the row is left without them.
+     */
+    unresolved: RelationRef[];
+};
+
+/** One other row a save would change, and what changes in it. */
+export type SyncChange = {
+    /** The row's content type name, and its label. */
+    type: string;
+    typeLabel: string;
+    entryId: string;
+    locale: string | null;
+    /** The row's display title, when it has one. */
+    title: string | null;
+    /** A translation of the record being saved, rather than another record. */
+    sibling: boolean;
+    /** Published before the save — it becomes Modified. */
+    published: boolean;
+    /** The person may leave this one out (a gap filled in on a create). */
+    optional: boolean;
+    fields: SyncFieldChange[];
+    links: SyncLinkChange[];
 };
 
 /** Keep only well-formed `{ field, message }` entries. */
@@ -61,7 +112,92 @@ export type SiblingSyncRefusal = {
     reached: string[];
     /** The **published** siblings it would leave failing validation. */
     invalidated: InvalidatedSibling[];
+    /**
+     * Every other live row the save would change, with what changes in each.
+     * Empty on the invalidation-only refusal, which names no changes.
+     */
+    changes: SyncChange[];
 };
+
+/** A plain object, or `undefined`. */
+function objectOf(value: unknown): Record<string, unknown> | undefined {
+    return typeof value === 'object' && value !== null && !Array.isArray(value)
+        ? (value as Record<string, unknown>)
+        : undefined;
+}
+
+/** Keep only well-formed `{ id, title }` refs. */
+function toRefs(value: unknown): RelationRef[] {
+    if (!Array.isArray(value)) return [];
+    return value.filter(
+        (ref): ref is RelationRef =>
+            typeof objectOf(ref)?.['id'] === 'string' &&
+            typeof objectOf(ref)?.['title'] === 'string'
+    );
+}
+
+/** Keep only well-formed changes, defaulting what a server may omit. */
+function toChanges(value: unknown): SyncChange[] {
+    if (!Array.isArray(value)) return [];
+    const out: SyncChange[] = [];
+    for (const raw of value) {
+        const change = objectOf(raw);
+        if (
+            !change ||
+            typeof change['entryId'] !== 'string' ||
+            typeof change['type'] !== 'string'
+        )
+            continue;
+        const fields = Array.isArray(change['fields']) ? change['fields'] : [];
+        const links = Array.isArray(change['links']) ? change['links'] : [];
+        out.push({
+            type: change['type'],
+            typeLabel:
+                typeof change['typeLabel'] === 'string'
+                    ? change['typeLabel']
+                    : change['type'],
+            entryId: change['entryId'],
+            locale:
+                typeof change['locale'] === 'string' ? change['locale'] : null,
+            title: typeof change['title'] === 'string' ? change['title'] : null,
+            sibling: change['sibling'] !== false,
+            published: change['published'] === true,
+            optional: change['optional'] === true,
+            fields: fields.flatMap((rawField) => {
+                const field = objectOf(rawField);
+                if (typeof field?.['field'] !== 'string') return [];
+                return [
+                    {
+                        field: field['field'],
+                        label:
+                            typeof field['label'] === 'string'
+                                ? field['label']
+                                : field['field'],
+                        before: field['before'] ?? null,
+                        after: field['after'] ?? null
+                    }
+                ];
+            }),
+            links: links.flatMap((rawLink) => {
+                const link = objectOf(rawLink);
+                if (typeof link?.['field'] !== 'string') return [];
+                return [
+                    {
+                        field: link['field'],
+                        label:
+                            typeof link['label'] === 'string'
+                                ? link['label']
+                                : link['field'],
+                        added: toRefs(link['added']),
+                        removed: toRefs(link['removed']),
+                        unresolved: toRefs(link['unresolved'])
+                    }
+                ];
+            })
+        });
+    }
+    return out;
+}
 
 /** Keep only well-formed `{ locale, issues }` entries. */
 function toSiblings(value: unknown): InvalidatedSibling[] {
@@ -73,10 +209,17 @@ function toSiblings(value: unknown): InvalidatedSibling[] {
                 sibling !== null &&
                 typeof (sibling as { locale?: unknown }).locale === 'string'
         )
-        .map((sibling) => ({
-            locale: sibling.locale,
-            issues: toIssues(sibling.issues)
-        }));
+        .map((sibling) => {
+            const raw = sibling as Record<string, unknown>;
+            return {
+                locale: sibling.locale,
+                issues: toIssues(sibling.issues),
+                ...(typeof raw['entryId'] === 'string'
+                    ? { entryId: raw['entryId'] }
+                    : {}),
+                ...(raw['sibling'] === false ? { sibling: false } : {})
+            };
+        });
 }
 
 /**
@@ -98,7 +241,7 @@ export function siblingSyncRefusalFrom(
     if (!(error instanceof ApiError) || error.status !== 422) return undefined;
     const code = codeOf(error);
     const details = error.details as
-        | { siblings?: unknown; locales?: unknown }
+        | { siblings?: unknown; locales?: unknown; changes?: unknown }
         | undefined;
     if (code === SIBLING_SYNC_UNCONFIRMED_CODE) {
         const locales = details?.locales;
@@ -108,11 +251,16 @@ export function siblingSyncRefusalFrom(
                       (locale): locale is string => typeof locale === 'string'
                   )
                 : [],
-            invalidated: toSiblings(details?.siblings)
+            invalidated: toSiblings(details?.siblings),
+            changes: toChanges(details?.changes)
         };
     }
     if (code === SIBLING_INVALIDATED_CODE) {
-        return { reached: [], invalidated: toSiblings(details?.siblings) };
+        return {
+            reached: [],
+            invalidated: toSiblings(details?.siblings),
+            changes: []
+        };
     }
     return undefined;
 }

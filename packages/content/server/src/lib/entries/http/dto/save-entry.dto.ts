@@ -1,5 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+    ArrayMaxSize,
+    IsArray,
     IsBoolean,
     IsObject,
     IsOptional,
@@ -158,12 +160,12 @@ export class SaveEntryDto {
      * Go through with a save that leaves another **published** row the save
      * rewrites (a locale sibling, through a shared field or a synced relation)
      * failing validation. Sent only after the 422 that names those rows has
-     * been shown to a person and confirmed. Read on update only.
+     * been shown to a person and confirmed.
      */
     @ApiPropertyOptional({
         type: Boolean,
         description:
-            'Confirm a save that leaves another published row it rewrites (a locale sibling, through a shared field or a synced relation) failing validation. Without it such a save is a 422 with `code: "content.sibling_invalidated"` naming each sibling; with it the save goes through, and each sibling keeps serving its published version while its working copy needs fixing before it can be published again. Read on update only.'
+            'Confirm a save that leaves another published row it rewrites (a locale sibling, through a shared field or a synced relation) failing validation. Without it such a save is a 422 with `code: "content.sibling_invalidated"` naming each sibling; with it the save goes through, and each sibling keeps serving its published version while its working copy needs fixing before it can be published again.'
     })
     @IsOptional()
     @IsBoolean()
@@ -171,16 +173,35 @@ export class SaveEntryDto {
 
     /**
      * Refuse the save, instead of writing it, if it would also rewrite another
-     * live row (a locale sibling). The 422 names every such sibling and the
-     * published ones it would leave invalid, so the editor asks once with the
-     * whole picture, then resends without this flag. Read on update only.
+     * live row — a locale sibling, the other translations of a record an
+     * inverse link reaches, or a record whose link waited for the translation
+     * being created. The 422 says what changes in each, so the editor asks
+     * once with the whole picture, then resends without this flag.
      */
     @ApiPropertyOptional({
         type: Boolean,
         description:
-            'Ask first: if the save would also rewrite another live row (a locale sibling, through a shared field or a synced relation), refuse it with a 422 `code: "content.sibling_sync_unconfirmed"` carrying `locales` (every live sibling it would change) and `siblings` (the published ones it would leave failing validation), and write nothing. Resend without it — plus `allowInvalidSiblings` when `siblings` is not empty — once a person has agreed. Read on update only.'
+            'Ask first: if the save would also rewrite another live row (a locale sibling through a shared field or a synced relation, another record’s translations through an inverse link, or a record whose synced link was waiting for the translation being created), refuse it with a 422 `code: "content.sibling_sync_unconfirmed"` and write nothing. The body carries `changes` (each other row and what changes in it — values before/after, links added/removed, linked records left out for want of a translation — and whether it is `optional`), `locales` (the record’s own translations among them) and `siblings` (the published rows it would leave failing validation). Resend without it — plus `allowInvalidSiblings` when `siblings` is not empty, and `skipReferrers` for optional rows to leave out — once a person has agreed.'
     })
     @IsOptional()
     @IsBoolean()
     askBeforeSiblingSync?: boolean;
+
+    /**
+     * On a **create**, the rows of other records not to fill this new row
+     * into — the `optional` changes of an asked-first refusal a person
+     * unticked. Read on create only.
+     */
+    @ApiPropertyOptional({
+        type: 'array',
+        maxItems: MAX_DELTA_IDS,
+        items: { type: 'string', format: 'uuid' },
+        description:
+            'On a create, entry ids from the `optional` changes of an asked-first refusal to leave out: those records keep their gap (filled on their next save) instead of linking the translation being created. Read on create only.'
+    })
+    @IsOptional()
+    @IsArray()
+    @ArrayMaxSize(MAX_DELTA_IDS)
+    @IsUUID('all', { each: true })
+    skipReferrers?: string[];
 }

@@ -32,8 +32,12 @@ import {
     type ContentEntryExtension,
     type ContentTypeRegistry,
     type EntryFilterContext,
+    type EntryFanoutFieldChange,
+    type EntryFanoutLinkChange,
+    type EntryFanoutRecorder,
     type EntryFilterExtension,
     type EntryReferrerRewrite,
+    type InverseLinkEdit,
     type EntryScopeParams,
     type EntryTransaction,
     type EntryWriteContext,
@@ -49,8 +53,7 @@ import {
 import {
     CONTENT_FIELD_TYPE,
     ENTRY_STATUS,
-    SIBLING_INVALIDATED_CODE,
-    SIBLING_SYNC_UNCONFIRMED_CODE
+    SIBLING_INVALIDATED_CODE
 } from '@orthacms/content-server';
 import { LOCALE_FALLBACK_DEFAULT } from '../../i18n.constants';
 import { LocaleRegistryService } from '../../locales/services/locale-registry.service';
@@ -306,8 +309,8 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
         return this.propagateToSiblings(tx, type, row, values, workspaceId, {
             relations: !context.created,
             allowInvalidSiblings: context.allowInvalidSiblings === true,
-            askBeforeSync:
-                !context.created && context.askBeforeSiblingSync === true
+            fanout: context.fanout,
+            sibling: true
         });
     }
 
@@ -327,12 +330,16 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
      * it is; a link set is rebuilt from the record's donor sibling through
      * {@link siblingLinks}, which keeps whatever the sibling already rightly
      * links.
+     *
+     * Asked first, each filled-in row is recorded as an **optional** change,
+     * and a row the person then declined (`skipReferrers`) is left alone.
      */
     async syncReferrers(
         tx: EntryTransaction,
         type: AnyContentType,
         row: Record<string, unknown>,
-        workspaceId: string
+        workspaceId: string,
+        context: EntryWriteContext
     ): Promise<EntryReferrerRewrite[]> {
         if (!type.i18n) return [];
         // Schema first, which is free: a localized type nothing mirrors into
@@ -364,11 +371,161 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
                 fields,
                 translations.map((translation) => translation.id),
                 row,
-                workspaceId
+                workspaceId,
+                context
             );
             if (rows.length) rewrites.push({ type: owner, rows });
         }
         return rewrites;
+    }
+
+    /**
+     * @inheritdoc
+     *
+     * Locks the translation groups of the owner rows an inverse delta reaches,
+     * in sorted order — the same lock a save of those owners takes first.
+     */
+    async lockInverseOwners(
+        tx: EntryTransaction,
+        edits: InverseLinkEdit[],
+        workspaceId: string
+    ): Promise<void> {
+        const groups = new Set<string>();
+        for (const edit of edits) {
+            if (!this.inverseSyncs(edit)) continue;
+            if (edit.byGroup) {
+                for (const id of edit.ids) groups.add(id);
+                continue;
+            }
+            const table = edit.owner.table as unknown as ContentTable;
+            const rows = (await tx
+                .select({ group: sql<string>`${table['localeGroupId']}` })
+                .from(edit.owner.table)
+                .where(
+                    and(
+                        inArray(table['id'], edit.ids),
+                        eq(table['workspaceId'], workspaceId)
+                    )
+                )) as { group: string }[];
+            for (const { group } of rows) groups.add(group);
+        }
+        for (const group of [...groups].sort())
+            await lockLocaleGroup(tx, group);
+    }
+
+    /**
+     * @inheritdoc
+     *
+     * An edit from the far side of a synced many-relation — linking an
+     * article from its author — changes the link set of one locale row of the
+     * owner. The owner's other translations follow it exactly as they would
+     * had the owner itself been saved: that one field's link set propagates
+     * from the relinked row, mirrored or shared, and the rewritten rows are
+     * demoted and versioned. Without this the edit reached one language and
+     * the group disagreed until the owner's next save.
+     */
+    async syncInverseOwners(
+        tx: EntryTransaction,
+        edits: InverseLinkEdit[],
+        workspaceId: string,
+        context: EntryWriteContext
+    ): Promise<EntryReferrerRewrite[]> {
+        const rewrites: EntryReferrerRewrite[] = [];
+        for (const edit of edits) {
+            if (!this.inverseSyncs(edit)) continue;
+            const table = edit.owner.table as unknown as ContentTable;
+            const owners = (await tx
+                .select()
+                .from(edit.owner.table)
+                .where(
+                    and(
+                        edit.byGroup
+                            ? and(
+                                  inArray(table['localeGroupId'], edit.ids),
+                                  edit.locale
+                                      ? eq(table['locale'], edit.locale)
+                                      : undefined
+                              )
+                            : inArray(table['id'], edit.ids),
+                        eq(table['workspaceId'], workspaceId)
+                    )
+                )) as Record<string, unknown>[];
+            const rows: Record<string, unknown>[] = [];
+            for (const owner of owners) {
+                rows.push(
+                    ...(await this.propagateToSiblings(
+                        tx,
+                        edit.owner,
+                        owner,
+                        {},
+                        workspaceId,
+                        {
+                            relations: true,
+                            fields: new Set([edit.field]),
+                            allowInvalidSiblings:
+                                context.allowInvalidSiblings === true,
+                            fanout: context.fanout,
+                            sibling: false
+                        }
+                    ))
+                );
+            }
+            if (rows.length) rewrites.push({ type: edit.owner, rows });
+        }
+        return rewrites;
+    }
+
+    /**
+     * Whether an inverse edit reaches a relation this plugin syncs: a
+     * join-backed field of a localized owner that propagates across locales.
+     */
+    private inverseSyncs(edit: InverseLinkEdit): boolean {
+        const spec = edit.owner.fields[edit.field];
+        return (
+            !!spec &&
+            isJoinBackedRelation(spec) &&
+            relationLocaleSync(edit.owner, spec) !== RELATION_LOCALE_SYNC.None
+        );
+    }
+
+    /**
+     * What a sibling write did, for an asked-first description — its link
+     * sets as given, and its **columns**: a value column as before/after, a
+     * single relation as the
+     * link it swapped — with the source's linked record named as `unresolved`
+     * when the sibling's locale has no translation of it, so the person sees
+     * why the field went empty.
+     */
+    private describeChange(
+        type: AnyContentType,
+        before: Record<string, unknown>,
+        after: Record<string, unknown>,
+        values: Record<string, unknown>,
+        columns: string[],
+        linkChanges: EntryFanoutLinkChange[]
+    ): { fields: EntryFanoutFieldChange[]; links: EntryFanoutLinkChange[] } {
+        const fields: EntryFanoutFieldChange[] = [];
+        const links: EntryFanoutLinkChange[] = [...linkChanges];
+        for (const column of columns) {
+            const was = before[column] ?? null;
+            const now = after[column] ?? null;
+            if (JSON.stringify(was) === JSON.stringify(now)) continue;
+            if (type.fields[column]?.type !== CONTENT_FIELD_TYPE.Relation) {
+                fields.push({ field: column, before: was, after: now });
+                continue;
+            }
+            const source = values[column];
+            links.push({
+                field: column,
+                added: typeof now === 'string' ? [now] : [],
+                removed: typeof was === 'string' ? [was] : [],
+                unresolved:
+                    now === null && typeof source === 'string' && source
+                        ? [source]
+                        : []
+            });
+        }
+        return { fields, links };
     }
 
     /** @inheritdoc */
@@ -469,6 +626,12 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
      * join-backed relations. A sibling whose every one of those already matches
      * is left completely untouched — that guard is what stops one save
      * re-versioning the whole group.
+     *
+     * With a `fanout` recorder (the caller asked first) every live sibling it
+     * rewrites is recorded — values before and after, links added and removed,
+     * linked records left out for want of a translation — and so is every
+     * published one it would invalidate, instead of refusing here: the
+     * pipeline refuses once, with everything every hook recorded.
      */
     private async propagateToSiblings(
         tx: EntryTransaction,
@@ -478,8 +641,16 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
         workspaceId: string,
         options: {
             relations: boolean;
+            /**
+             * Sync only these join-backed relations' link sets — an inverse
+             * edit changed one field of the owner, and its other relations are
+             * not this write's business.
+             */
+            fields?: ReadonlySet<string>;
             allowInvalidSiblings?: boolean;
-            askBeforeSync?: boolean;
+            fanout?: EntryFanoutRecorder;
+            /** The rows are the saved record's translations, not another's. */
+            sibling: boolean;
         }
     ): Promise<Record<string, unknown>[]> {
         const table = type.table as unknown as ContentTable;
@@ -505,8 +676,9 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
         // proportional to what the save actually propagates.
         const canSyncRelations =
             options.relations &&
-            Object.values(type.fields).some(
-                (spec) =>
+            Object.entries(type.fields).some(
+                ([name, spec]) =>
+                    (!options.fields || options.fields.has(name)) &&
                     relationLocaleSync(type, spec) !== RELATION_LOCALE_SYNC.None
             );
         if (!shared.length && !canSyncRelations) return [];
@@ -558,7 +730,8 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
                   type,
                   row['id'] as string,
                   locales,
-                  workspaceId
+                  workspaceId,
+                  options.fields
               )
             : new Map<string, LinkPlan>();
 
@@ -574,40 +747,57 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
             : new Map<string, Set<string>>();
 
         const rewritten: Record<string, unknown>[] = [];
-        // The live siblings this save reaches, for the ask-first refusal
-        // below. A trashed one is rewritten too (so a restore comes back
-        // consistent) but is not named: the person cannot see it, and a
-        // confirmation about rows nobody can find teaches people to skip it.
-        const reachedLocales: string[] = [];
         const invalidated: {
             locale: string;
+            entryId: string;
             issues: ValidationIssue[];
         }[] = [];
         for (const sibling of siblings) {
             const siblingId = sibling['id'] as string;
             const locale = sibling['locale'] as string;
+            // Only a live row is described to the person asked. A trashed one
+            // is rewritten too (so a restore comes back consistent) but is not
+            // named: nobody can see it, and a confirmation about rows nobody
+            // can find teaches people to skip it.
+            const recording =
+                options.fanout && sibling['deletedAt'] == null
+                    ? options.fanout
+                    : undefined;
 
             // Links first, so a links-only change still reaches the row write
             // below — that is what stamps `updatedAt`, demotes a published
             // sibling, and earns the row its revision.
             let linksMoved = false;
+            const linkChanges: EntryFanoutLinkChange[] = [];
             for (const [field, plan] of links) {
+                const before = recording
+                    ? await this.relations.linkIdsOf(tx, type, siblingId, field)
+                    : [];
+                const next = await this.siblingLinks(
+                    tx,
+                    type,
+                    siblingId,
+                    field,
+                    plan,
+                    locale,
+                    workspaceId
+                );
                 const moved = await this.relations.replaceLinks(
                     tx,
                     type,
                     siblingId,
                     field,
-                    await this.siblingLinks(
-                        tx,
-                        type,
-                        siblingId,
-                        field,
-                        plan,
-                        locale,
-                        workspaceId
-                    )
+                    next.ids
                 );
                 linksMoved ||= moved;
+                if (recording && moved) {
+                    linkChanges.push({
+                        field,
+                        added: next.ids.filter((id) => !before.includes(id)),
+                        removed: before.filter((id) => !next.ids.includes(id)),
+                        unresolved: next.unresolved
+                    });
+                }
             }
 
             const kept = keep.get(siblingId);
@@ -668,7 +858,24 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
                 .where(where)
                 .returning()) as Record<string, unknown>[];
             if (!updated) continue; // nothing differed after all
-            if (sibling['deletedAt'] == null) reachedLocales.push(locale);
+            if (recording) {
+                recording.changes.push({
+                    type,
+                    entryId: siblingId,
+                    locale,
+                    sibling: options.sibling,
+                    published: sibling['status'] === ENTRY_STATUS.Published,
+                    optional: false,
+                    ...this.describeChange(
+                        type,
+                        sibling,
+                        updated,
+                        values,
+                        columns.map(([column]) => column),
+                        linkChanges
+                    )
+                });
+            }
 
             // A sibling that **was** published must stay valid once the synced
             // state lands — re-validate it, and abort the whole save unless the
@@ -692,10 +899,31 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
                     await this.validation.waivedRequired(type, workspaceId, tx)
                 );
                 if (!result.valid) {
-                    invalidated.push({ locale, issues: result.issues });
+                    invalidated.push({
+                        locale,
+                        entryId: siblingId,
+                        issues: result.issues
+                    });
                 }
             }
             rewritten.push(updated);
+        }
+
+        // Asked first: the invalidations join everything else this write would
+        // do, and the pipeline refuses once with all of it — rolling the
+        // transaction back, so the refusal is the dry run, computed by the very
+        // code that would have written it.
+        if (options.fanout) {
+            options.fanout.invalidated.push(
+                ...invalidated.map(({ locale, entryId, issues }) => ({
+                    type,
+                    entryId,
+                    locale,
+                    sibling: options.sibling,
+                    issues
+                }))
+            );
+            return rewritten;
         }
 
         // Collected rather than thrown at the first one, so the refusal can name
@@ -704,24 +932,6 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
         // such sibling is already demoted to Modified above, so its live
         // version keeps being served and the gap is only in its working copy,
         // which the person was shown before agreeing to it.
-        // Asked first: name everything the save would do — every live sibling
-        // it changes, and the published ones it would leave invalid — and
-        // write none of it. Throwing rolls the transaction back, so the
-        // refusal is the dry run, computed by the very code that would have
-        // written it. Checked before the invalidation refusal, which is the
-        // narrower half of the same answer.
-        if (options.askBeforeSync && reachedLocales.length) {
-            throw new UnprocessableEntityException({
-                message:
-                    `Shared fields would also change the ` +
-                    reachedLocales.map((locale) => `"${locale}"`).join(', ') +
-                    ` translation${reachedLocales.length > 1 ? 's' : ''}`,
-                code: SIBLING_SYNC_UNCONFIRMED_CODE,
-                locales: reachedLocales,
-                siblings: invalidated
-            });
-        }
-
         if (invalidated.length && !options.allowInvalidSiblings) {
             throw new UnprocessableEntityException({
                 message:
@@ -729,7 +939,10 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
                     invalidated.map(({ locale }) => `"${locale}"`).join(', ') +
                     ` translation${invalidated.length > 1 ? 's' : ''}`,
                 code: SIBLING_INVALIDATED_CODE,
-                siblings: invalidated,
+                siblings: invalidated.map(({ locale, issues }) => ({
+                    locale,
+                    issues
+                })),
                 // Kept for callers that read only `issues`. They describe the
                 // siblings, not the row the caller sent — which is why the
                 // `code` exists: an editor must not pin them on its own form.
@@ -863,7 +1076,8 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
         fields: string[],
         translationIds: string[],
         row: Record<string, unknown>,
-        workspaceId: string
+        workspaceId: string,
+        context: EntryWriteContext
     ): Promise<Record<string, unknown>[]> {
         const table = owner.table as unknown as ContentTable;
         const locale = row['locale'] as string;
@@ -940,7 +1154,15 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
             for (const sibling of inGroup) {
                 if (sibling['locale'] !== locale) continue;
                 const siblingId = sibling['id'] as string;
+                // A gap the person chose to leave open — it closes on the
+                // record's own next save, as it did before this sync existed.
+                if (context.skipReferrers?.has(siblingId)) continue;
+                const recording =
+                    context.fanout && sibling['deletedAt'] == null
+                        ? context.fanout
+                        : undefined;
                 const columns: Record<string, unknown> = {};
+                const links: EntryFanoutLinkChange[] = [];
                 let linksMoved = false;
                 for (const name of fields) {
                     if (!isJoinBackedRelation(owner.fields[name])) {
@@ -971,22 +1193,43 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
                         [locale],
                         workspaceId
                     );
+                    const before = recording
+                        ? await this.relations.linkIdsOf(
+                              tx,
+                              owner,
+                              siblingId,
+                              name
+                          )
+                        : [];
+                    const next = await this.siblingLinks(
+                        tx,
+                        owner,
+                        siblingId,
+                        name,
+                        plan,
+                        locale,
+                        workspaceId
+                    );
                     const moved = await this.relations.replaceLinks(
                         tx,
                         owner,
                         siblingId,
                         name,
-                        await this.siblingLinks(
-                            tx,
-                            owner,
-                            siblingId,
-                            name,
-                            plan,
-                            locale,
-                            workspaceId
-                        )
+                        next.ids
                     );
                     linksMoved ||= moved;
+                    if (recording && moved) {
+                        links.push({
+                            field: name,
+                            added: next.ids.filter(
+                                (id) => !before.includes(id)
+                            ),
+                            removed: before.filter(
+                                (id) => !next.ids.includes(id)
+                            ),
+                            unresolved: []
+                        });
+                    }
                 }
                 if (!Object.keys(columns).length && !linksMoved) continue;
 
@@ -1004,7 +1247,28 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
                     } as never)
                     .where(eq(table['id'], siblingId))
                     .returning()) as Record<string, unknown>[];
-                if (updated) rewritten.push(updated);
+                if (!updated) continue;
+                rewritten.push(updated);
+                // Filling a gap is the one change a person may decline row by
+                // row: leaving it open is a state the sync allows (I-18).
+                recording?.changes.push({
+                    type: owner,
+                    entryId: siblingId,
+                    locale,
+                    sibling: false,
+                    published: sibling['status'] === ENTRY_STATUS.Published,
+                    optional: true,
+                    fields: [],
+                    links: [
+                        ...Object.keys(columns).map((name) => ({
+                            field: name,
+                            added: [row['id'] as string],
+                            removed: [],
+                            unresolved: []
+                        })),
+                        ...links
+                    ]
+                });
             }
         }
         return rewritten;
@@ -1097,10 +1361,12 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
         type: AnyContentType,
         sourceId: string,
         locales: string[],
-        workspaceId: string
+        workspaceId: string,
+        only?: ReadonlySet<string>
     ): Promise<Map<string, LinkPlan>> {
         const out = new Map<string, LinkPlan>();
         for (const [name, spec] of Object.entries(type.fields)) {
+            if (only && !only.has(name)) continue;
             const mode = relationLocaleSync(type, spec);
             if (mode === RELATION_LOCALE_SYNC.None) continue;
             if (!isJoinBackedRelation(spec)) continue;
@@ -1159,7 +1425,8 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
     }
 
     /**
-     * The link ids one sibling should end up holding for a join-backed field.
+     * The link ids one sibling should end up holding for a join-backed field,
+     * plus the source's linked records it is left without (`unresolved`).
      *
      * Where every source link resolved into the sibling's locale this is just
      * the plan. Where one did not, the sibling's **own** link into the same
@@ -1177,9 +1444,10 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
         plan: LinkPlan,
         locale: string,
         workspaceId: string
-    ): Promise<string[]> {
+    ): Promise<{ ids: string[]; unresolved: string[] }> {
         const aligned = plan.byLocale.get(locale) ?? [];
-        if (!aligned.includes(null)) return aligned as string[];
+        if (!aligned.includes(null))
+            return { ids: aligned as string[], unresolved: [] };
 
         const current = await this.relations.linkIdsOf(
             tx,
@@ -1201,6 +1469,9 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
 
         const used = new Set(aligned.filter((id): id is string => !!id));
         const out: string[] = [];
+        // The source's records that end up with no link here at all — no
+        // translation, and none kept — for a description of the sync.
+        const missing: string[] = [];
         aligned.forEach((id, index) => {
             if (id) {
                 out.push(id);
@@ -1217,9 +1488,11 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
             if (kept) {
                 used.add(kept);
                 out.push(kept);
+            } else {
+                missing.push(plan.sourceIds[index]);
             }
         });
-        return out;
+        return { ids: out, unresolved: missing };
     }
 
     /**

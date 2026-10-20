@@ -23,6 +23,7 @@
 
 import type { SQL } from 'drizzle-orm';
 import type { Database } from '@orthacms/database';
+import type { ValidationIssue } from '@orthacms/content-domain';
 import type { FieldSchema, ParsedRule } from '@orthacms/utils-server';
 import type { AnyContentType } from '../types/content-type';
 
@@ -71,21 +72,105 @@ export interface EntryWriteContext {
      * extension rewrites failing validation, and confirmed it. Without it an
      * extension refuses such a save with a 422 carrying
      * {@link SIBLING_INVALIDATED_CODE}; with it the save goes through. Only the
-     * admin's update route sets it, and only after showing the refusal to a
+     * admin's write routes set it, and only after showing the refusal to a
      * person — every other writer keeps the refusal.
      */
     allowInvalidSiblings?: boolean;
     /**
-     * Ask before rewriting any other **live** row. With it, an extension that
-     * would carry this save onto another row (a locale sibling, through a
-     * shared field or a synced relation) refuses it with a 422 carrying
-     * {@link SIBLING_SYNC_UNCONFIRMED_CODE} instead — and since the refusal
-     * rolls the write back, the save doubles as a dry run of its own fan-out.
-     * Only the admin's update route sets it, so the editor can ask once, with
-     * everything the save would do in front of the person, rather than
-     * confirming the sync and then, after the server refuses, the damage.
+     * Present when the caller **asked first** (`askBeforeSiblingSync`): the
+     * write is a dry run of its own fan-out. Every hook records each other
+     * **live** row it rewrites here — what changes in it, field by field and
+     * link by link — instead of refusing on its own, and once every hook has
+     * run the pipeline refuses the whole write with a 422 carrying
+     * {@link SIBLING_SYNC_UNCONFIRMED_CODE} and all of it, rolling it back. So
+     * the person is asked **once**, about everything, by the code that would
+     * have written it. Absent, nothing is recorded and nothing is asked.
      */
-    askBeforeSiblingSync?: boolean;
+    fanout?: EntryFanoutRecorder;
+    /**
+     * Rows of other records the caller declined to have filled in — the
+     * {@link EntryFanoutChange.optional} changes a person unticked. Read by
+     * {@link ContentEntryExtension.syncReferrers} only: a gap left open is a
+     * state the sync allows, while every other change it reports keeps one
+     * record's languages consistent and cannot be declined row by row.
+     */
+    skipReferrers?: ReadonlySet<string>;
+}
+
+/** One value another row takes on — a column, not a link. */
+export interface EntryFanoutFieldChange {
+    field: string;
+    before: unknown;
+    after: unknown;
+}
+
+/**
+ * One relation field's links on another row, as ids — the pipeline titles
+ * them before they reach the wire. A single relation reads as a one-element
+ * swap (`removed` the old id, `added` the new one).
+ */
+export interface EntryFanoutLinkChange {
+    field: string;
+    added: string[];
+    removed: string[];
+    /**
+     * The **source's** linked records that have no translation in this row's
+     * locale, so the row is left without them (i18n's I-18). Ids of the
+     * source's own rows — named so the person sees which record went missing.
+     */
+    unresolved: string[];
+}
+
+/** One other live row a write would change, and what changes in it. */
+export interface EntryFanoutChange {
+    type: AnyContentType;
+    entryId: string;
+    /** The row's locale slug, on a localized type. */
+    locale: string | null;
+    /** A translation of the record being written, rather than another record. */
+    sibling: boolean;
+    /** Published before the write — it becomes Modified. */
+    published: boolean;
+    /**
+     * The caller may leave this one out (by its `entryId`, through
+     * {@link EntryWriteContext.skipReferrers}) and the write still holds
+     * together. Only a filled-in gap is optional.
+     */
+    optional: boolean;
+    fields: EntryFanoutFieldChange[];
+    links: EntryFanoutLinkChange[];
+}
+
+/** One published other row a write would leave failing validation. */
+export interface EntryFanoutInvalidation {
+    type: AnyContentType;
+    entryId: string;
+    locale: string | null;
+    sibling: boolean;
+    issues: ValidationIssue[];
+}
+
+/**
+ * What an asked-first write would do to other rows, collected across every
+ * hook that runs in it. See {@link EntryWriteContext.fanout}.
+ */
+export interface EntryFanoutRecorder {
+    changes: EntryFanoutChange[];
+    invalidated: EntryFanoutInvalidation[];
+}
+
+/**
+ * The relation deltas a write applies from the **inverse** side, per field:
+ * each names rows of `owner` whose own link set (`owner.fields[field]`) the
+ * write changes. `byGroup` when the ids are translation groups
+ * (`by: "localeGroup"`), resolved to the rows in `locale`.
+ */
+export interface InverseLinkEdit {
+    owner: AnyContentType;
+    field: string;
+    ids: string[];
+    byGroup: boolean;
+    locale?: string;
 }
 
 /**
@@ -101,15 +186,20 @@ export interface EntryWriteContext {
 export const SIBLING_INVALIDATED_CODE = 'content.sibling_invalidated';
 
 /**
- * The `code` on a 422 an extension raises, when the caller asked first
- * ({@link EntryWriteContext.askBeforeSiblingSync}), because a save would also
- * rewrite other live rows.
+ * The `code` on the 422 a write that **asked first** (`askBeforeSiblingSync`,
+ * {@link EntryWriteContext.fanout}) is refused with, because it would also
+ * rewrite other live rows. Raised by the entries pipeline once every
+ * extension hook has run, so it describes the whole write.
  *
- * The body carries `locales` — every live sibling the save would change — and
- * `siblings: [{ locale, issues }]`, the subset of **published** ones it would
- * leave failing validation (empty when none would). Nothing was written. The
- * client retries without the flag once a person has agreed, adding
- * `allowInvalidSiblings` when `siblings` was not empty.
+ * The body carries `changes` — each other live row, with what changes in it
+ * (`fields: [{ field, label, before, after }]`, `links: [{ field, label,
+ * added, removed, unresolved }]` as titled refs) and whether it may be left
+ * out (`optional`) — plus `locales`, the slugs of the record's own
+ * translations among them, and `siblings: [{ locale, type, entryId, issues }]`,
+ * the **published** rows it would leave failing validation. Nothing was
+ * written. The client retries without the flag once a person has agreed,
+ * adding `allowInvalidSiblings` when `siblings` was not empty and
+ * `skipReferrers` with the optional rows they unticked.
  */
 export const SIBLING_SYNC_UNCONFIRMED_CODE = 'content.sibling_sync_unconfirmed';
 
@@ -307,7 +397,41 @@ export interface ContentEntryExtension {
         tx: EntryTransaction,
         type: AnyContentType,
         row: Record<string, unknown>,
+        workspaceId: string,
+        context: EntryWriteContext
+    ): Promise<EntryReferrerRewrite[]>;
+
+    /**
+     * Runs inside the create and update transactions **before the row is
+     * written or any relation delta applied**, when the write carries deltas
+     * on an inverse relation — the {@link beforeWrite} of the *owner* rows
+     * those deltas reach.
+     *
+     * An inverse delta writes the owner's join rows, so it takes the owner's
+     * per-list append lock; a concurrent save of the owner takes its own
+     * locks (i18n's translation-group lock) and then that same append lock.
+     * Taking the owner's locks here, ahead of the deltas, is what keeps the
+     * two from inverting — {@link syncInverseOwners} then runs under them.
+     */
+    lockInverseOwners?(
+        tx: EntryTransaction,
+        edits: InverseLinkEdit[],
         workspaceId: string
+    ): Promise<void>;
+
+    /**
+     * Runs inside the create and update transactions after the relation
+     * deltas, when the write carried deltas on an inverse relation: the owner
+     * rows whose link sets just changed may have rows of their own to keep
+     * consistent (i18n's locale siblings of a synced relation). Without it an
+     * edit made from the far side changed one language of the owner and left
+     * the rest behind. Returns the rows rewritten, grouped by type.
+     */
+    syncInverseOwners?(
+        tx: EntryTransaction,
+        edits: InverseLinkEdit[],
+        workspaceId: string,
+        context: EntryWriteContext
     ): Promise<EntryReferrerRewrite[]>;
 
     /**
