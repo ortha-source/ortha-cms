@@ -6,15 +6,7 @@ import { Spinner } from '@orthacms/design-system';
 /** Which write the editor is running — picks the glyph and the copy. */
 export const ENTRY_BUSY = {
     Saving: 'saving',
-    Publishing: 'publishing',
-    /**
-     * The server asked before a save that reaches other rows, and the
-     * question is on screen. The cover stays up — blur only, nothing
-     * announced — so the asking request, the dialog and the confirmed resend
-     * read as one write instead of a cover that lifts, a dialog, and a cover
-     * again.
-     */
-    Confirming: 'confirming'
+    Publishing: 'publishing'
 } as const;
 
 /** @see ENTRY_BUSY */
@@ -36,7 +28,10 @@ const messages = defineMessages({
  * Two deliberate differences from that one. It appears **with no delay** — the
  * locale overlay defers its swap so the layout change happens behind the cover,
  * but here nothing changes until the server answers, so there is nothing to hide
- * and any delay would just be lag between the click and the feedback. And it is
+ * and any delay would just be lag between the click and the feedback. (The one
+ * exception is the caller's: an **asked-first** write, which usually comes back
+ * as the sync question, is covered only once it outlasts `ASK_COVER_DELAY_MS`
+ * — a cover before that dialog was a blur → dialog → blur.) And it is
  * **not timed**: it stays up for as long as the write actually takes, refetches
  * included (the caller holds it across the whole flow), so it never lifts onto a
  * screen still showing pre-save values.
@@ -45,27 +40,10 @@ const messages = defineMessages({
  * already disables its own controls while saving. `role="status"` +
  * `aria-live="polite"` announces the state to screen readers, which is the part
  * a blur alone conveys only to sighted users.
- *
- * While {@link ENTRY_BUSY.Confirming} it is only the blur: the sync dialog sits
- * on top and is what the person reads, and a spinner under it would claim a
- * write is running while the app waits on them. It enters without the fade —
- * it replaces a cover that was already up — and one layer lower (`z-40`), so
- * the dialog's own `z-50` layer is above it whichever of the two portals the
- * commit appends to `<body>` last.
  */
 export function EntryBusyOverlay({ busy }: { busy: EntryBusy | null }) {
     const intl = useIntl();
     if (!busy) return null;
-    if (busy === ENTRY_BUSY.Confirming) {
-        return createPortal(
-            <div
-                aria-hidden
-                data-testid="entry-busy-held"
-                className="pointer-events-none fixed inset-0 z-40 bg-background/95 backdrop-blur-sm"
-            />,
-            document.body
-        );
-    }
     const publishing = busy === ENTRY_BUSY.Publishing;
     const Glyph = publishing ? Rocket : Save;
 
