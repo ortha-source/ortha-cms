@@ -31,3 +31,26 @@ export function chatsStatus(sessions: readonly CopilotSession[]): ChatsStatus {
         awaiting: sessions.some((s) => s.awaiting)
     };
 }
+
+/**
+ * The chats the sidebar's Agents switch counts: **every open chat**, wherever
+ * it is shown — the dock's, and the one the Agents page is presenting.
+ *
+ * It counted the dock's alone once, on the grounds that a chat on the page is
+ * already on screen. That made the number drop the moment you opened a running
+ * chat from the rail and come back when you left — a count of "chats open"
+ * that changes with where you are standing reads as chats closing and
+ * reopening. The one exclusion is the page's **unsaved new chat** (no thread
+ * yet): it is the Agents view's empty state, not a conversation, and counting
+ * it would put a `1` on the switch every time the view is opened.
+ *
+ * The launcher keeps counting the dock alone: it is drawn off the Agents view,
+ * where nothing is presented, so the two numbers agree wherever both show.
+ */
+export function switcherSessions(
+    sessions: readonly CopilotSession[]
+): CopilotSession[] {
+    return sessions.filter(
+        (s) => s.presented === 'dock' || s.conversationId !== null
+    );
+}
