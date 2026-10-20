@@ -712,6 +712,17 @@ overflow-auto`, the bound `ToolStep`'s payload already uses): a server message
   not `region`, so a failed card does not mint a landmark.
   Five other description-only call sites (users, api-tokens) have the same
   alignment defect and are a candidate for a generic `Alert` grid rewrite.
+- **The page under the chat catches up on its own.** Every `proposal` frame
+  runs `refreshAfterCopilotChange`, which invalidates every cached query whose
+  key does not start with `copilot` — it used to take a reload to see the change
+  the card described. Everything rather than a list of keys, because a change
+  can land in any plugin and this package imports none of them;
+  `invalidateQueries` refetches only what is mounted, so the cost is one refetch
+  of what is on screen. It is safe over an open editor: a pristine form adopts
+  the new values and one with unsaved edits keeps them and says so, since a
+  colleague's save arrives the same way. A failed receipt refreshes too — a bulk
+  save that stopped part-way has still written the items before it.
+  `dock.spec.ts` pins it ("a record the chat changed is redrawn under it").
 - **Reopening a thread reattaches the cards.** `useOpenConversation` fetches the
   transcript and `GET /copilot/proposals?conversationId=` concurrently and joins
   them on `toolCallId`, which is why the server stores it. The failure reason
