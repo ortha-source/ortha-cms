@@ -864,13 +864,16 @@ a third state with no column value spelling it made unavoidable.
   refetches included, so it never lifts onto pre-save values). It's held in view
   state rather than derived from `isPending` because the chain's two mutations
   are briefly both idle between steps, which would blink the cover mid-flow.
-  **It stays up under the sync question.** An asked-first save the server
-  refuses leaves the cover in a held state (`ENTRY_BUSY.Confirming`: blur
-  only, no spinner, nothing announced) while `SiblingSyncDialog` is open; a
-  confirm resends and takes it straight back to Saving, and a cancel — or a
-  resend the form stops — releases it through `EntryEditor`'s
-  `onSyncDismissed`. Lifting it for the dialog read as blur → dialog → blur
-  again, one write drawn as two. Pinned in `i18n-sibling-sync.spec.ts`.
+  **An asked-first write is covered late.** Every save goes out asking
+  first, and the asking request is mostly answered at once — with the sync
+  question, or as a plain save — so `ContentEntryView` raises the cover for it
+  only once it outlasts `ASK_COVER_DELAY_MS` (400 ms; the action button's own
+  saving state is the feedback until then). A refusal therefore opens
+  `SiblingSyncDialog` over the form with no cover before it, and the confirmed
+  resend — sent without asking — is covered at once. Covering the asking
+  request read as blur → dialog → blur, one write drawn as two; holding the
+  cover up under the dialog (tried first) still drew a blur before the
+  question. Pinned in `i18n-sibling-sync.spec.ts`.
 
 ## A background refetch never overwrites what the author typed
 

@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test';
 import { test, expect } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
 import { mockWorkspaces } from '../support/api/workspaces';
@@ -129,7 +130,44 @@ test.describe('Saving a change other locales share [i18n:I-34] [i18n:I-35]', () 
         await expect(contentLibraryPage.siblingSyncDialog).toBeHidden();
     });
 
-    test('the save cover stays up from the asking request to the confirmed save, instead of blinking around the question', async ({
+    /**
+     * Record every time the save cover goes up or comes down. The project
+     * ships no DOM lib, so the page's globals are typed inline (types only —
+     * erased before the body is sent to the browser).
+     */
+    async function watchCover(page: Page) {
+        type Page$ = {
+            document: {
+                querySelector(selector: string): unknown;
+                body: unknown;
+            };
+            MutationObserver: new (callback: () => void) => {
+                observe(
+                    target: unknown,
+                    options: { childList: boolean; subtree: boolean }
+                ): void;
+            };
+            coverLog?: boolean[];
+        };
+        await page.evaluate(() => {
+            const page$ = globalThis as unknown as Page$;
+            const covered = () =>
+                page$.document.querySelector('[data-testid="entry-busy"]') !==
+                null;
+            const log: boolean[] = [covered()];
+            page$.coverLog = log;
+            new page$.MutationObserver(() => {
+                const now = covered();
+                if (now !== log[log.length - 1]) log.push(now);
+            }).observe(page$.document.body, { childList: true, subtree: true });
+        });
+        return () =>
+            page.evaluate(
+                () => (globalThis as unknown as Page$).coverLog ?? []
+            );
+    }
+
+    test('the question opens with no cover before it, and only the confirmed save is covered', async ({
         page,
         contentLibraryPage
     }) => {
@@ -140,52 +178,47 @@ test.describe('Saving a change other locales share [i18n:I-34] [i18n:I-35]', () 
         await contentLibraryPage.typeLink('Localized posts').click();
         await contentLibraryPage.recordLink('Winter boots').click();
         await expect(contentLibraryPage.editorSave).toBeVisible();
-        // Every time the page goes from covered to uncovered or back.
-        await page.evaluate(() => {
-            const covered = () =>
-                document.querySelector(
-                    '[data-testid="entry-busy"], [data-testid="entry-busy-held"]'
-                ) !== null;
-            const log: boolean[] = [covered()];
-            (window as unknown as { coverLog: boolean[] }).coverLog = log;
-            new MutationObserver(() => {
-                const now = covered();
-                if (now !== log[log.length - 1]) log.push(now);
-            }).observe(document.body, { childList: true, subtree: true });
-        });
+        const coverLog = await watchCover(page);
         await contentLibraryPage.pickFieldOption('category', 'news');
         await contentLibraryPage.saveDraft();
 
         const dialog = contentLibraryPage.siblingSyncDialog;
         await expect(dialog).toBeVisible();
-        // Only the blur under the question — nothing says "Saving…" while
-        // the app is waiting on the person.
-        await expect(page.getByTestId('entry-busy-held')).toBeAttached();
-        await expect(page.getByTestId('entry-busy')).toHaveCount(0);
+        // The asking request came back as a question: no cover went up for
+        // it, and none sits under the dialog.
+        expect(await coverLog()).toEqual([false]);
 
         await contentLibraryPage.dialogButton('Save').click();
         await expect.poll(() => patches.length).toBe(2);
-        await expect(page.getByTestId('entry-busy-held')).toHaveCount(0);
+        await expect(dialog).toBeHidden();
         await expect(page.getByTestId('entry-busy')).toHaveCount(0);
-        // Covered once, uncovered once: no gap around the dialog.
-        expect(
-            await page.evaluate(
-                () => (window as unknown as { coverLog: boolean[] }).coverLog
-            )
-        ).toEqual([false, true, false]);
+        // One cover, for the save that happened.
+        expect(await coverLog()).toEqual([false, true, false]);
     });
 
-    test('Cancel lifts the cover held under the question', async ({
+    test('an asked-first save that takes a while is still covered', async ({
         page,
         contentLibraryPage
     }) => {
-        await mockSiblingSync(page, 'lp-en-1', { reached: ['de'] });
+        // Nothing else is reached, so the asking request is the save itself
+        // — held well past the cover's delay.
+        const patches = await mockSiblingSync(page, 'lp-en-1', {
+            reached: []
+        });
+        await page.route(
+            /\/api\/content\/localized_post\/lp-en-1$/,
+            async (route) => {
+                if (route.request().method() === 'PATCH')
+                    await new Promise((resolve) => setTimeout(resolve, 1500));
+                await route.fallback();
+            }
+        );
         await changeSharedCategory(contentLibraryPage);
 
-        await expect(page.getByTestId('entry-busy-held')).toBeAttached();
-        await contentLibraryPage.dialogButton('Cancel').click();
-        await expect(page.getByTestId('entry-busy-held')).toHaveCount(0);
-        await expect(contentLibraryPage.editorSave).toBeEnabled();
+        await expect(page.getByTestId('entry-busy')).toBeVisible();
+        await expect.poll(() => patches.length).toBe(1);
+        await expect(page.getByTestId('entry-busy')).toHaveCount(0);
+        await expect(contentLibraryPage.siblingSyncDialog).toBeHidden();
     });
 
     test('Cancel saves nothing more', async ({ page, contentLibraryPage }) => {

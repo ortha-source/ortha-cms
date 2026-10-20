@@ -57,7 +57,6 @@ import {
     initialEntryValues,
     mergeEntryValues
 } from '../../../domain/emptyEntryValues';
-import { siblingSyncRefusalFrom } from '../../../infrastructure/entryIssues';
 import { EntryEditor } from './EntryEditor';
 import {
     EntryBusyOverlay,
@@ -103,6 +102,15 @@ export type { EntryMode };
 
 /** The one-entry query params reused for `single` resolution. */
 const ONE_ENTRY = { page: 1, pageSize: 1 } as const;
+
+/**
+ * How long an **asked-first** write runs before the busy cover goes up. Such
+ * a write is mostly answered at once — with the sync question, or with a
+ * plain save — so the cover is held back for it: a cover drawn for a request
+ * that comes back as a question was the blur → dialog → blur sequence, one
+ * write drawn as two. A write that really takes longer still gets it.
+ */
+export const ASK_COVER_DELAY_MS = 400;
 
 /** A many/inverse relation whose links are managed live (paginated + deltas). */
 function isLinkManaged(field: ContentTypeDetail['fields'][number]): boolean {
@@ -509,12 +517,23 @@ export function ContentEntryView({
         );
         // Cover the editor for the whole write — including the refetches the
         // mutation awaits — so the form never sits half-updated under the user's
-        // cursor. `finally`, so a 422 uncovers the form it has to annotate.
-        setBusy(
+        // cursor. `uncover` in `finally`, so a 422 uncovers the form it has to
+        // annotate. An asked-first write is covered only once it outlasts
+        // `ASK_COVER_DELAY_MS`: when the server answers with the sync question
+        // the dialog opens over the form with no cover before it, and the
+        // confirmed resend — sent without asking — is covered at once.
+        const cover =
             options.publish && publishable
                 ? ENTRY_BUSY.Publishing
-                : ENTRY_BUSY.Saving
-        );
+                : ENTRY_BUSY.Saving;
+        const coverTimer = options.askBeforeSiblingSync
+            ? setTimeout(() => setBusy(cover), ASK_COVER_DELAY_MS)
+            : undefined;
+        if (!coverTimer) setBusy(cover);
+        const uncover = () => {
+            clearTimeout(coverTimer);
+            setBusy(null);
+        };
         // Slot-contributed save steps run first, under the cover, and may rewrite
         // the values — this is where the media plugin uploads the files staged on
         // media fields and swaps in the real asset ids. A step that throws aborts
@@ -530,7 +549,7 @@ export function ContentEntryView({
                 });
             }
         } catch (error) {
-            setBusy(null);
+            uncover();
             throw error;
         }
         // Plugin state stored alongside the entry (segments' audiences), read
@@ -547,7 +566,6 @@ export function ContentEntryView({
         // steps settle on (below).
         let landed: WriteLanded | undefined;
         let result: SubmitEntryResult | undefined;
-        let held = false;
         try {
             try {
                 result = await flow.submit({
@@ -628,16 +646,8 @@ export function ContentEntryView({
                     });
                 }
             }
-        } catch (error) {
-            // The server asked before a save that reaches other rows; the
-            // editor puts the question on screen. Nothing was written, and the
-            // cover stays up under the dialog until the person answers — a
-            // confirm resends through here and takes it straight back to
-            // Saving, a cancel releases it (`onSyncDismissed`).
-            held = siblingSyncRefusalFrom(error) !== undefined;
-            throw error;
         } finally {
-            setBusy(held ? ENTRY_BUSY.Confirming : null);
+            uncover();
         }
         toast.success(
             intl.formatMessage(
@@ -744,11 +754,6 @@ export function ContentEntryView({
                     saving={flow.isSaving}
                     mutating={flow.isMutating}
                     onSave={onSave}
-                    onSyncDismissed={() =>
-                        setBusy((current) =>
-                            current === ENTRY_BUSY.Confirming ? null : current
-                        )
-                    }
                     onUnpublish={onUnpublish}
                     onDelete={onDelete}
                     // Relations are offered to every type the workspace
