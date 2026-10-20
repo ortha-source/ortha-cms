@@ -204,10 +204,13 @@ The switcher's **Agents** segment carries the dock's status — the count of ope
 dock chats and the same dot, amber for "waiting for you", primary for
 "finished" — through the same `chatsStatus` the launcher reads, so the two
 cannot disagree. Both are in the segment's accessible name too ("Agents — 2
-chats, 1 waiting for you or finished"). It counts `sessions.dock`, not every
-chat: a chat the page is presenting is already on screen. On the Agents view,
-where the launcher stands down, it is the only thing still saying a background
-chat wants you.
+chats, 1 waiting for you or finished"). It counts **every open chat**, the one
+the Agents page is presenting included (`switcherSessions`): it used to count
+`sessions.dock` alone, and the number dropped the moment you opened a running
+chat from the rail and came back when you left, which reads as chats closing and
+reopening. The page's unsaved new chat is the one exclusion — it is the view's
+empty state, not a conversation. On the Agents view, where the launcher stands
+down, it is the only thing still saying a background chat wants you.
 
 Why a page at all, when the panel exists: the panel is for a question _about the
 page you are on_, and it is deliberately small and non-modal. The page is for the

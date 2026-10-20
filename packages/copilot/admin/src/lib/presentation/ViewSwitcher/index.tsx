@@ -12,7 +12,7 @@ import {
 import { useHasPermission } from '@orthacms/identity-admin';
 import { useCopilotAvailable } from '../../application/useCopilotModels';
 import { useCopilotSessions } from '../../application/useCopilotSessions';
-import { chatsStatus } from '../../application/chatsStatus';
+import { chatsStatus, switcherSessions } from '../../application/chatsStatus';
 import {
     COPILOT_USE,
     agentsPath,
@@ -115,10 +115,12 @@ function readCmsPath(workspaceId: string): string | null {
  * to ask a question should not have to navigate back to it, and the round trip
  * is the whole reason both surfaces exist.
  *
- * **The Agents half carries the dock's status** — the count of open chats and
+ * **The Agents half carries the chats' status** — the count of open chats and
  * the same amber/primary dot "Ask Ortha AI" shows when one is waiting for you
- * or finished. It matters most on the Agents view itself, where the dock stands
- * down and this is the only place a background chat can still say so.
+ * or finished. It counts every open chat, the one on the Agents page included,
+ * so the number stays put as you move between the two views. It matters most
+ * on the Agents view itself, where the dock stands down and this is the only
+ * place a background chat can still say so.
  *
  * It renders in the sidebar's contextual region — **above**
  * `CurrentWorkspaceProvider`, like every other section there — so it resolves the
@@ -137,11 +139,11 @@ export function ViewSwitcher() {
     const deploymentRunsCopilot = useCopilotAvailable({ enabled: canUse });
     const location = useLocation();
     const navigate = useNavigate();
-    // The dock's chats — the ones running, finished or waiting **off** the
-    // page. On the Agents view the dock stands down, so this segment is the
-    // one place that still says a chat in the background finished or is
-    // waiting; a chat the page itself is showing is already on screen.
-    const status = chatsStatus(useCopilotSessions().dock);
+    // Every open chat — the dock's and the one the Agents page is showing —
+    // so the number does not drop when you open a chat from the rail and come
+    // back when you leave. Only the page's unsaved new chat is left out: it is
+    // the view's empty state, not a conversation (`switcherSessions`).
+    const status = chatsStatus(switcherSessions(useCopilotSessions().all));
 
     const inAgents = isAgentsPath(location.pathname);
     const here = `${location.pathname}${location.search}`;

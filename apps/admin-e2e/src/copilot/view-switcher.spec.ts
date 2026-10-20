@@ -168,4 +168,47 @@ test.describe('CMS ⇄ Agents switcher', () => {
             /waiting for you or finished/
         );
     });
+
+    // The view's empty state is not a conversation; the chat the page is
+    // showing is one, and is counted while you look at it.
+    test('counts the chat open on the Agents view, not only the dock’s', async ({
+        agentsPage
+    }) => {
+        await agentsPage.goto(WORKSPACE_ID);
+        await agentsPage.welcomeHeading().waitFor();
+        await expect(agentsPage.viewTab('Agents')).toHaveAccessibleName(
+            'Agents'
+        );
+
+        await agentsPage.ask('Set the summary please');
+
+        await expect(agentsPage.viewTab('Agents')).toHaveAccessibleName(
+            'Agents — 1 chat'
+        );
+    });
+
+    // The bug: opening a running dock chat from the rail moved it to the
+    // page, and the count dropped to nothing while it was on screen.
+    test('keeps counting a dock chat once the Agents view opens it', async ({
+        page,
+        agentsPage,
+        contentLibraryPage,
+        copilotDockPage
+    }) => {
+        await mockCopilotApi(page, { runDelayMs: 1_500 });
+        await contentLibraryPage.goto(WORKSPACE_ID);
+        await copilotDockPage.startChat();
+        await copilotDockPage.ask('Set the summary please');
+        await copilotDockPage.composer().press('Escape');
+        await expect(agentsPage.viewTab('Agents')).toHaveAccessibleName(
+            /^Agents — 1 chat/
+        );
+
+        await agentsPage.switchView('Agents');
+        await agentsPage.railRow('Set the summary please').click();
+
+        await expect(agentsPage.viewTab('Agents')).toHaveAccessibleName(
+            /^Agents — 1 chat/
+        );
+    });
 });
