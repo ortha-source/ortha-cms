@@ -32,19 +32,28 @@ export type SyncFieldChange = {
     after: unknown;
 };
 
+/**
+ * A linked record named in the preview: a {@link RelationRef}, plus whether
+ * it is the record being saved (`self`) or a row that exists only inside the
+ * refused write (`unsaved`). Neither can be opened yet, and neither carries
+ * a status — the server leaves it off rather than report the state the
+ * rolled-back write would have left.
+ */
+export type SyncRef = RelationRef & { self?: true; unsaved?: true };
+
 /** One relation field's links on another row. */
 export type SyncLinkChange = {
     field: string;
     label: string;
     /** The linked records' content type name, when the server named it. */
     target?: string;
-    added: RelationRef[];
-    removed: RelationRef[];
+    added: SyncRef[];
+    removed: SyncRef[];
     /**
      * Records the source links that have no translation in this row's
      * language, so the row is left without them.
      */
-    unresolved: RelationRef[];
+    unresolved: SyncRef[];
 };
 
 /** One other row a save would change, and what changes in it. */
@@ -128,14 +137,25 @@ function objectOf(value: unknown): Record<string, unknown> | undefined {
         : undefined;
 }
 
-/** Keep only well-formed `{ id, title }` refs. */
-function toRefs(value: unknown): RelationRef[] {
+/**
+ * Keep only well-formed `{ id, title }` refs. `self` / `unsaved` drop any
+ * status a server still sent, so neither can be drawn with one.
+ */
+function toRefs(value: unknown): SyncRef[] {
     if (!Array.isArray(value)) return [];
-    return value.filter(
-        (ref): ref is RelationRef =>
-            typeof objectOf(ref)?.['id'] === 'string' &&
-            typeof objectOf(ref)?.['title'] === 'string'
-    );
+    return value
+        .filter(
+            (ref): ref is SyncRef =>
+                typeof objectOf(ref)?.['id'] === 'string' &&
+                typeof objectOf(ref)?.['title'] === 'string'
+        )
+        .map((ref) => {
+            const out: SyncRef = { ...ref };
+            if (ref.self !== true) delete out.self;
+            if (ref.unsaved !== true) delete out.unsaved;
+            if (out.self || out.unsaved) delete out.status;
+            return out;
+        });
 }
 
 /** Keep only well-formed changes, defaulting what a server may omit. */

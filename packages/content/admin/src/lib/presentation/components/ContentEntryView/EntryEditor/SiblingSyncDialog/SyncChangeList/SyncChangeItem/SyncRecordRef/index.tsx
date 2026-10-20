@@ -1,7 +1,7 @@
 import { defineMessages, useIntl } from 'react-intl';
 import { ExternalLink, Minus, Plus } from 'lucide-react';
 import { Badge, buttonVariants, cn } from '@orthacms/design-system';
-import type { RelationRef } from '../../../../../../../../domain/types/contentType';
+import type { SyncRef } from '../../../../../../../../infrastructure/entryIssues';
 import { ENTRY_STATUS } from '../../../../../../../../domain/constants';
 import { TrashedBadge } from '../../../../../../TrashedBadge';
 
@@ -29,6 +29,14 @@ const messages = defineMessages({
     open: {
         id: 'content.editor.siblingSync.ref.open',
         defaultMessage: 'Open {title} in a new tab'
+    },
+    self: {
+        id: 'content.editor.siblingSync.ref.self',
+        defaultMessage: 'This record'
+    },
+    unsaved: {
+        id: 'content.editor.siblingSync.ref.unsaved',
+        defaultMessage: 'Not saved yet'
     }
 });
 
@@ -44,7 +52,7 @@ export type SyncRefChange =
 
 /** Props for {@link SyncRecordRef}. */
 export type SyncRecordRefProps = {
-    record: RelationRef;
+    record: SyncRef;
     change: SyncRefChange;
     /** The record's own editor, when its type is known. */
     href?: string;
@@ -60,6 +68,12 @@ export type SyncRecordRefProps = {
  * A record that no longer resolves reads "Unavailable record" and carries no
  * link, and one in the trash keeps its title beside the "In trash" mark —
  * the same rules `RelationItemRow` follows.
+ *
+ * The record being saved (`self` — a link edited from its far side lands on
+ * the other record pointing back here) reads "This record", and a row the
+ * save would create (`unsaved`) "Not saved yet". Neither has a status worth
+ * showing or an editor to open: the record is not saved, and on a create it
+ * does not exist yet.
  */
 export function SyncRecordRef({ record, change, href }: SyncRecordRefProps) {
     const intl = useIntl();
@@ -69,6 +83,7 @@ export function SyncRecordRef({ record, change, href }: SyncRecordRefProps) {
         ? intl.formatMessage(messages.unavailable)
         : record.title;
     const live = !record.missing && !record.trashed;
+    const pending = record.self === true || record.unsaved === true;
 
     return (
         <li className="flex min-w-0 items-center gap-2">
@@ -94,7 +109,14 @@ export function SyncRecordRef({ record, change, href }: SyncRecordRefProps) {
                 {title}
             </span>
             {record.trashed ? <TrashedBadge /> : null}
-            {record.status && live ? (
+            {pending ? (
+                <Badge variant="info" className="shrink-0">
+                    {intl.formatMessage(
+                        record.self ? messages.self : messages.unsaved
+                    )}
+                </Badge>
+            ) : null}
+            {record.status && live && !pending ? (
                 <Badge
                     variant={
                         record.status === ENTRY_STATUS.Published
@@ -110,7 +132,7 @@ export function SyncRecordRef({ record, change, href }: SyncRecordRefProps) {
                     )}
                 </Badge>
             ) : null}
-            {href && live ? (
+            {href && live && !pending ? (
                 <a
                     href={href}
                     target="_blank"

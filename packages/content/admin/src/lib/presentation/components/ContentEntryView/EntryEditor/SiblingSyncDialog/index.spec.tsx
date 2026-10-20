@@ -153,6 +153,49 @@ describe('SiblingSyncDialog', () => {
         expect(within(preview).queryByRole('link')).toBeNull();
     });
 
+    it('shows the record being saved, and a row only this save creates, with no status and no link', () => {
+        const refusal: SiblingSyncRefusal = {
+            reached: [],
+            invalidated: [],
+            changes: [
+                {
+                    ...REFERRER_REFUSAL.changes[0],
+                    optional: false,
+                    links: [
+                        {
+                            field: 'contributors',
+                            label: 'Mirrored many',
+                            target: 'person',
+                            added: [
+                                {
+                                    id: 'kiwi',
+                                    title: 'Kiwi — DE only',
+                                    self: true
+                                },
+                                { id: 'new-1', title: 'Pear', unsaved: true }
+                            ],
+                            removed: [],
+                            unresolved: []
+                        }
+                    ]
+                }
+            ]
+        };
+        renderDialog(refusal, undefined, {
+            workspaceId: 'ws-1'
+        } as EntrySlotContext);
+        const preview = screen.getByRole('region', {
+            name: 'What else changes'
+        });
+        const linked = valueOf(preview, 'Mirrored many');
+        expect(linked).toContain('Will be linked: Kiwi — DE onlyThis record');
+        expect(linked).toContain('Will be linked: PearNot saved yet');
+        expect(linked).not.toContain('Draft');
+        expect(
+            within(preview).queryByRole('link', { name: /Kiwi|Pear/ })
+        ).toBeNull();
+    });
+
     it('names the languages it reaches, not their slugs', () => {
         renderDialog(SIBLING_REFUSAL);
         expect(screen.getByRole('dialog').textContent).toContain(

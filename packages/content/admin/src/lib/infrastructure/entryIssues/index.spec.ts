@@ -118,6 +118,50 @@ describe('siblingSyncRefusalFrom', () => {
         ]);
     });
 
+    it('never carries a status on the record being saved or on a row only the save creates', () => {
+        const result = siblingSyncRefusalFrom(
+            refusal({
+                code: 'content.sibling_sync_unconfirmed',
+                locales: [],
+                changes: [
+                    {
+                        type: 'article',
+                        entryId: 'de-1',
+                        links: [
+                            {
+                                field: 'contributors',
+                                added: [
+                                    {
+                                        id: 'self',
+                                        title: 'Kiwi',
+                                        status: 'draft',
+                                        self: true
+                                    },
+                                    {
+                                        id: 'new',
+                                        title: 'Pear',
+                                        status: 'draft',
+                                        unsaved: true
+                                    },
+                                    {
+                                        id: 'old',
+                                        title: 'Plum',
+                                        status: 'published'
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            })
+        );
+        expect(result?.changes[0].links[0].added).toEqual([
+            { id: 'self', title: 'Kiwi', self: true },
+            { id: 'new', title: 'Pear', unsaved: true },
+            { id: 'old', title: 'Plum', status: 'published' }
+        ]);
+    });
+
     it('drops malformed changes rather than rendering them', () => {
         const result = siblingSyncRefusalFrom(
             refusal({
