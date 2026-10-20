@@ -1242,6 +1242,14 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
         });
 
         /** One row of an asked-first refusal's `changes`. */
+        type FanoutRef = {
+            id: string;
+            title: string;
+            status?: string;
+            self?: true;
+            unsaved?: true;
+        };
+
         type FanoutChange = {
             type: string;
             entryId: string;
@@ -1260,9 +1268,9 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
                 field: string;
                 label: string;
                 target?: string;
-                added: { id: string; title: string }[];
-                removed: { id: string; title: string }[];
-                unresolved: { id: string; title: string }[];
+                added: FanoutRef[];
+                removed: FanoutRef[];
+                unresolved: FanoutRef[];
             }[];
         };
 
@@ -1427,13 +1435,14 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
                 });
                 // Titled from inside the refused write: the German Ada exists
                 // nowhere else.
-                expect(
-                    titles(
-                        change.links.find(
-                            (link) => link.field === 'contributors'
-                        )?.added ?? []
-                    )
-                ).toEqual(['Ada']);
+                const added =
+                    change.links.find((link) => link.field === 'contributors')
+                        ?.added ?? [];
+                expect(titles(added)).toEqual(['Ada']);
+                // …and it is the record being saved: flagged, and with no
+                // status, since it has none outside this write.
+                expect(added[0].self).toBe(true);
+                expect(added[0].status).toBeUndefined();
             }
             // Nothing was created.
             const authors = await agent
@@ -1595,6 +1604,40 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
                 })
                 .expect(200);
             expect(await linkIds(agent, en.id, 'contributors')).toEqual([]);
+        });
+
+        it('asked first, a linked record’s status is the one it has now, not the one the refused write leaves it in', async () => {
+            const agent = await login();
+            const en = await createArticle(agent);
+            const de = (await createTranslation(agent, en, 'de')).body as {
+                id: string;
+            };
+            const adaEn = await createAuthor(agent, 'Ada');
+            const adaDe = await createAuthor(agent, 'Ada', 'de', adaEn);
+            await agent
+                .post(`/api/content/test_author/${adaEn.id}/publish`)
+                .expect(201);
+
+            // A new shared `name` rewrites the published English Ada — inside
+            // the write, a draft — while the link from the German side hands
+            // her to the English article.
+            const refused = await agent
+                .patch(`/api/content/test_author/${adaDe.id}`)
+                .send({
+                    values: { name: 'Ada Lovelace' },
+                    relations: { articles: { link: [de.id] } },
+                    askBeforeSiblingSync: true
+                })
+                .expect(422);
+            const added =
+                changeFor(refused.body, en.id).links.find(
+                    (link) => link.field === 'contributors'
+                )?.added ?? [];
+            expect(added).toEqual([
+                expect.objectContaining({ id: adaEn.id, status: 'published' })
+            ]);
+            expect(added[0].self).toBeUndefined();
+            expect(added[0].unsaved).toBeUndefined();
         });
 
         it('an article tagged from the tag’s side carries the tag in every language [i18n:I-39]', async () => {

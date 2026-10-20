@@ -328,7 +328,14 @@ test.describe('Saving a change other locales share [i18n:I-34] [i18n:I-35]', () 
                 {
                     field: 'related',
                     label: 'Related post',
-                    added: [{ id: 'lp-fr-new', title: 'Bottes d’hiver' }],
+                    target: 'localized_post',
+                    added: [
+                        {
+                            id: 'lp-fr-new',
+                            title: 'Bottes d’hiver',
+                            self: true
+                        }
+                    ],
                     removed: [],
                     unresolved: []
                 }
@@ -354,6 +361,12 @@ test.describe('Saving a change other locales share [i18n:I-34] [i18n:I-35]', () 
             name: 'Update Nouveautés · Localized posts · French'
         });
         await expect(second).toBeChecked();
+        // The translation being created is this record: named so, with
+        // nothing to open — it does not exist until the save.
+        await expect(dialog).toContainText('Bottes d’hiverThis record');
+        await expect(
+            dialog.getByRole('link', { name: /Bottes d’hiver/ })
+        ).toHaveCount(0);
         await second.click();
         await expect(second).not.toBeChecked();
 

@@ -60,7 +60,8 @@ import {
 import type {
     EntryRecord,
     RelationDelta,
-    RelationFieldView
+    RelationFieldView,
+    RelationRef
 } from '../../types/entry-list-view';
 import type { BulkActionResult } from '../../types/bulk-publish';
 import { snakeCase } from '../../../collection/table-builder';
@@ -113,6 +114,14 @@ export const UUID_RE =
  * client shows are taken from what it gets.
  */
 const FANOUT_REF_CAP = 20;
+
+/**
+ * A record named in an asked-first refusal: a {@link RelationRef}, plus
+ * whether it is the record being written (`self`) or a row that exists only
+ * inside the refused write (`unsaved`) — either of which the person cannot
+ * open yet, and whose status says nothing true.
+ */
+type FanoutRef = RelationRef & { self?: true; unsaved?: true };
 
 /**
  * The infrastructure persistence engine for entry writes — create / read-one /
@@ -540,25 +549,57 @@ export class EntryWriterService {
      * not ask, or nothing else would change.
      *
      * Titles are read on `tx`: the write is still open, and a row it created
-     * (the translation a filled-in gap would link) exists only there.
+     * (the translation a filled-in gap would link) exists only there. A
+     * status is **not** — on `tx` it is what this rolled-back write would
+     * leave (a save moves a record to draft), not what the record is — so it
+     * is read as committed. A ref to the record being written is flagged
+     * `self`, and one to a row that exists only inside this write `unsaved`;
+     * neither carries a status, and the admin offers no link to open them.
      */
     private async refuseUnconfirmedFanout(
         tx: DbTransaction,
         fanout: EntryFanoutRecorder | undefined,
-        workspaceId: string
+        workspaceId: string,
+        selfId: string
     ): Promise<void> {
         if (!fanout) return;
         if (!fanout.changes.length && !fanout.invalidated.length) return;
-        const refs = (target: AnyContentType | undefined, ids: string[]) =>
-            target && ids.length
-                ? this.relations.resolveRefs(
-                      target,
-                      ids,
-                      workspaceId,
-                      FANOUT_REF_CAP,
-                      tx
-                  )
-                : Promise.resolve([]);
+        const refs = async (
+            target: AnyContentType | undefined,
+            ids: string[]
+        ): Promise<FanoutRef[]> => {
+            if (!target || !ids.length) return [];
+            const written = await this.relations.resolveRefs(
+                target,
+                ids,
+                workspaceId,
+                FANOUT_REF_CAP,
+                tx
+            );
+            const committed = new Map(
+                (
+                    await this.relations.resolveRefs(
+                        target,
+                        written
+                            .filter((ref) => !ref.missing)
+                            .map((ref) => ref.id),
+                        workspaceId,
+                        FANOUT_REF_CAP
+                    )
+                )
+                    .filter((ref) => !ref.missing)
+                    .map((ref) => [ref.id, ref])
+            );
+            return written.map((ref): FanoutRef => {
+                if (ref.missing) return ref;
+                const rest: FanoutRef = { ...ref };
+                delete rest.status;
+                if (ref.id === selfId) return { ...rest, self: true };
+                const now = committed.get(ref.id);
+                if (!now) return { ...rest, unsaved: true };
+                return now.status ? { ...rest, status: now.status } : rest;
+            });
+        };
         // The same label the admin prints for the field — its admin label,
         // else a humanized name — so the preview never shows a raw
         // `snake_case` identifier.
@@ -880,7 +921,8 @@ export class EntryWriterService {
                     await this.refuseUnconfirmedFanout(
                         tx,
                         context.fanout,
-                        workspaceId
+                        workspaceId,
+                        id
                     );
                     // Anything a bound plugin was asked to store about this
                     // entry — the row exists now, so it finally has something to
@@ -1335,7 +1377,12 @@ export class EntryWriterService {
                 : undefined;
             // Asked first, and something else would change: refuse with all
             // of it, which rolls every write above back.
-            await this.refuseUnconfirmedFanout(tx, context.fanout, workspaceId);
+            await this.refuseUnconfirmedFanout(
+                tx,
+                context.fanout,
+                workspaceId,
+                id
+            );
             // Whatever a bound plugin was asked to store about this entry, on
             // this transaction and before the snapshot reads it back — so the
             // version records the audiences the save actually applied rather

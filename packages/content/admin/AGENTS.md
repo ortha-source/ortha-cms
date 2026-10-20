@@ -843,7 +843,13 @@ a third state with no column value spelling it made unavoidable.
   server names each link field's `target` type for that, and labels fields
   the way the admin does (`admin.label`, else the humanized name — never a
   raw `snake_case` key); then a plain note for the linked records left out
-  for want of a translation. The links are built from the editor's slot
+  for want of a translation. A linked record the server flags `self` (the
+  record being saved — a link edited from the far side lands on the other
+  record pointing back here) or `unsaved` (a row only this save creates)
+  reads "This record" / "Not saved yet", with no status and no open link:
+  it is not saved, and on a create it does not exist yet; the server reads
+  every other linked record's status as committed, not as the refused write
+  would leave it. The links are built from the editor's slot
   context, so the dialog renders without them outside one. Only an
   `optional` row — a gap a new translation fills — carries a checkbox; the
   rest are kept consistent by the sync itself, so declining one would not
