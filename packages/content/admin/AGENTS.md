@@ -849,7 +849,12 @@ a third state with no column value spelling it made unavoidable.
   reads "This record" / "Not saved yet", with no status and no open link:
   it is not saved, and on a create it does not exist yet; the server reads
   every other linked record's status as committed, not as the refused write
-  would leave it. The links are built from the editor's slot
+  would leave it. Each card's details **fold** under its heading, which
+  then counts what is inside ("2 links", "1 value · 3 links") — one save can
+  relink a lot across a group. A lone row opens unfolded; several start
+  folded, with **Expand all / Collapse all** above them. The heading is the
+  trigger; the checkbox, the badges and the open link sit outside it. The
+  links are built from the editor's slot
   context, so the dialog renders without them outside one. Only an
   `optional` row — a gap a new translation fills — carries a checkbox; the
   rest are kept consistent by the sync itself, so declining one would not

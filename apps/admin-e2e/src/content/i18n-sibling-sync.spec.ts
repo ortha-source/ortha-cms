@@ -361,6 +361,12 @@ test.describe('Saving a change other locales share [i18n:I-34] [i18n:I-35]', () 
             name: 'Update Nouveautés · Localized posts · French'
         });
         await expect(second).toBeChecked();
+        // Two rows start folded, each heading counting what it holds.
+        await expect(
+            dialog.getByRole('button', { name: /Nouveautés/ })
+        ).toContainText('Nouveautés1 link');
+        await expect(dialog).not.toContainText('Bottes d’hiver');
+        await dialog.getByRole('button', { name: 'Expand all' }).click();
         // The translation being created is this record: named so, with
         // nothing to open — it does not exist until the save.
         await expect(dialog).toContainText('Bottes d’hiverThis record');

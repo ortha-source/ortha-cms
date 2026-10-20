@@ -196,6 +196,39 @@ describe('SiblingSyncDialog', () => {
         ).toBeNull();
     });
 
+    it('folds several rows under headings that say how much each holds, and opens them one by one or all at once', () => {
+        renderDialog(REFERRER_REFUSAL);
+        const preview = screen.getByRole('region', {
+            name: 'What else changes'
+        });
+        // Folded: the heading counts what is inside, the details are not drawn.
+        const first = within(preview).getByRole('button', {
+            name: /Article first/
+        });
+        expect(first.getAttribute('aria-expanded')).toBe('false');
+        expect(first.textContent).toContain('Article first1 link');
+        expect(within(preview).queryByText('Contributors')).toBeNull();
+
+        fireEvent.click(first);
+        expect(first.getAttribute('aria-expanded')).toBe('true');
+        expect(within(preview).getAllByText('Contributors')).toHaveLength(1);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Expand all' }));
+        expect(within(preview).getAllByText('Contributors')).toHaveLength(2);
+        fireEvent.click(screen.getByRole('button', { name: 'Collapse all' }));
+        expect(within(preview).queryByText('Contributors')).toBeNull();
+    });
+
+    it('opens a lone row unfolded, with no expand-all to press', () => {
+        renderDialog(SIBLING_REFUSAL);
+        expect(
+            screen
+                .getByRole('button', { name: /German version/ })
+                .getAttribute('aria-expanded')
+        ).toBe('true');
+        expect(screen.queryByRole('button', { name: 'Expand all' })).toBeNull();
+    });
+
     it('names the languages it reaches, not their slugs', () => {
         renderDialog(SIBLING_REFUSAL);
         expect(screen.getByRole('dialog').textContent).toContain(
