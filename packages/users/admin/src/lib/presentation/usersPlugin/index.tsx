@@ -1,4 +1,5 @@
-import { Suspense, lazy } from 'react';
+import { Suspense } from 'react';
+import { lazyPage } from '@orthacms/utils-admin';
 import type { AdminPlugin } from '@orthacms/bootstrap-admin';
 import { SIDEBAR_FOOTER_SLOT, SIDEBAR_NAV_SLOT } from '@orthacms/shell-admin';
 import { Users } from 'lucide-react';
@@ -10,26 +11,23 @@ import { AccountMenu } from '../components/AccountMenu';
 import { ThemeSync } from '../components/ThemeSync';
 import { PanelLayoutSync } from '../components/PanelLayoutSync';
 
-// Lazy-loaded so the Members page is code-split into its own chunk, fetched
-// only when a signed-in user first navigates to `/users`.
-const MembersPage = lazy(() =>
-    import('../pages/MembersPage').then((module) => ({
-        default: module.MembersPage
-    }))
+// Lazy-loaded so the Members page is code-split into its own chunk, kept out
+// of the boot bundle — fetched when the browser idles after boot or on first
+// navigation to `/users`, whichever comes first (see `lazyPage`).
+const MembersPage = lazyPage(
+    () => import('../pages/MembersPage'),
+    'MembersPage'
 );
 
-const InviteMemberPage = lazy(() =>
-    import('../pages/InviteMemberPage').then((module) => ({
-        default: module.InviteMemberPage
-    }))
+const InviteMemberPage = lazyPage(
+    () => import('../pages/InviteMemberPage'),
+    'InviteMemberPage'
 );
 
-// The detail page (its nested tab router) is its own chunk, fetched only when a
-// member row is opened.
-const UserDetailRouter = lazy(() =>
-    import('../components/UserDetailRouter').then((module) => ({
-        default: module.UserDetailRouter
-    }))
+// The detail page (its nested tab router) is its own chunk, likewise.
+const UserDetailRouter = lazyPage(
+    () => import('../components/UserDetailRouter'),
+    'UserDetailRouter'
 );
 
 /**

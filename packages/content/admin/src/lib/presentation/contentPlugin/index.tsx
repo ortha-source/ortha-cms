@@ -1,4 +1,5 @@
-import { Suspense, lazy } from 'react';
+import { Suspense } from 'react';
+import { lazyPage } from '@orthacms/utils-admin';
 import type { AdminPlugin } from '@orthacms/bootstrap-admin';
 import { COMMAND_SLOT } from '@orthacms/shell-admin';
 import {
@@ -22,10 +23,9 @@ import { PublishingVelocityWidget } from '../components/PublishingVelocityWidget
 import { UnshippedChangesWidget } from '../components/UnshippedChangesWidget';
 import { ContentPunchcardWidget } from '../components/ContentPunchcardWidget';
 
-const ContentLibraryPage = lazy(() =>
-    import('../pages/ContentLibraryPage').then((module) => ({
-        default: module.ContentLibraryPage
-    }))
+const ContentLibraryPage = lazyPage(
+    () => import('../pages/ContentLibraryPage'),
+    'ContentLibraryPage'
 );
 
 /**

@@ -1,4 +1,5 @@
-import { Suspense, lazy } from 'react';
+import { Suspense } from 'react';
+import { lazyPage } from '@orthacms/utils-admin';
 import type { AdminPlugin } from '@orthacms/bootstrap-admin';
 import { SIDEBAR_NAV_SLOT } from '@orthacms/shell-admin';
 import { Spinner } from '@orthacms/design-system';
@@ -7,22 +8,19 @@ import { WebhooksPageSkeleton } from '../../presentation/components/WebhooksSkel
 
 // Lazy-loaded so each page is code-split into its own chunk, fetched only when
 // someone first navigates to it.
-const WebhooksPage = lazy(() =>
-    import('../../presentation/pages/WebhooksPage').then((module) => ({
-        default: module.WebhooksPage
-    }))
+const WebhooksPage = lazyPage(
+    () => import('../../presentation/pages/WebhooksPage'),
+    'WebhooksPage'
 );
 
-const WebhookEditorPage = lazy(() =>
-    import('../../presentation/pages/WebhookEditorPage').then((module) => ({
-        default: module.WebhookEditorPage
-    }))
+const WebhookEditorPage = lazyPage(
+    () => import('../../presentation/pages/WebhookEditorPage'),
+    'WebhookEditorPage'
 );
 
-const WebhookDetailPage = lazy(() =>
-    import('../../presentation/pages/WebhookDetailPage').then((module) => ({
-        default: module.WebhookDetailPage
-    }))
+const WebhookDetailPage = lazyPage(
+    () => import('../../presentation/pages/WebhookDetailPage'),
+    'WebhookDetailPage'
 );
 
 /**

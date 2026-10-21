@@ -1,4 +1,5 @@
-import { Suspense, lazy } from 'react';
+import { Suspense } from 'react';
+import { lazyPage } from '@orthacms/utils-admin';
 import type { AdminPlugin } from '@orthacms/bootstrap-admin';
 import { SIDEBAR_NAV_SLOT } from '@orthacms/shell-admin';
 import { KeyRound } from 'lucide-react';
@@ -6,10 +7,9 @@ import { ApiTokensPageSkeleton } from '../components/ApiTokensSkeleton';
 
 // Lazy-loaded so the page is code-split into its own chunk, fetched only when a
 // signed-in user first navigates to `/api-tokens`.
-const ApiTokensPage = lazy(() =>
-    import('../pages/ApiTokensPage').then((module) => ({
-        default: module.ApiTokensPage
-    }))
+const ApiTokensPage = lazyPage(
+    () => import('../pages/ApiTokensPage'),
+    'ApiTokensPage'
 );
 
 /**

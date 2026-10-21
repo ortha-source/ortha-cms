@@ -1,4 +1,5 @@
-import { Suspense, lazy } from 'react';
+import { Suspense } from 'react';
+import { lazyPage } from '@orthacms/utils-admin';
 import type { AdminPlugin } from '@orthacms/bootstrap-admin';
 import {
     WORKSPACE_ROUTE_SLOT,
@@ -12,10 +13,9 @@ import {
 } from '../../presentation/slots/insightsSlots';
 import { InsightsPageSkeleton } from '../../presentation/components/InsightsSkeleton';
 
-const InsightsPage = lazy(() =>
-    import('../../presentation/pages/InsightsPage').then((module) => ({
-        default: module.InsightsPage
-    }))
+const InsightsPage = lazyPage(
+    () => import('../../presentation/pages/InsightsPage'),
+    'InsightsPage'
 );
 
 /**

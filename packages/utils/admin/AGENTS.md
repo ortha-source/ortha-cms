@@ -125,6 +125,21 @@ searchInput` on the way out) are what keep the round trip from looping or
       and is not: it overwrites the state React Router keeps its history index
       in, so the index reads back `undefined`, every later push writes `NaN`,
       and Back/Forward deltas are wrong for the rest of the session.
+- `lazyPage(() => import('../pages/X'), 'X')` / `preloadPages()` — the way a
+  plugin declares a code-split **route page**. Unlike bare `React.lazy`, once
+  the chunk has arrived the page renders **without suspending** (a plain
+  `lazy` suspends on its first render even with the module cached — a frame of
+  skeleton on every first visit), and it registers itself so the host's idle
+  `preloadPages()` can fetch it ahead of the click. A failed fetch is not
+  cached, so the next attempt fetches afresh; `React.lazy`'s own cached
+  rejection still reaches the app's error boundary as before.
+- `markJustCreated(scope, id)` / `useJustCreated(scope)` — "this is the row you
+  just made". A mutation's `onSuccess` marks the id; the list asks
+  `isJustCreated(id)` and puts the design system's `ds-flash` (and, for a list
+  that grows in view, `ds-item-enter`) on that row. Marks expire after ~4s.
+  Deliberately not "ids this list has not seen before": clearing a search or
+  turning a page brings those in too, and flashing them would teach readers to
+  ignore the highlight.
 - `avatarColorForId(id)` — hashes an id into `AVATAR_COLORS` (FNV-1a over code
   points). Not a sum of character codes: a sum is order-insensitive, so ids that
   are permutations of each other collide, and colour is one of the cues a roster

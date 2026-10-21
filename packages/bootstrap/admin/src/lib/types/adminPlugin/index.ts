@@ -65,4 +65,16 @@ export type CreateAdminOptions = {
      * (`ORT-141`).
      */
     locale?: string;
+    /**
+     * Fetch every lazily-loaded page's chunk in the background once the
+     * browser is idle after boot, so a first visit renders the page instead of
+     * its skeleton. Defaults to `true`.
+     *
+     * Turn it off under a dev server (`!import.meta.env.DEV` in a Vite app):
+     * there a page is not one chunk but its whole unbundled module graph, so
+     * preloading every page transforms most of the app on every reload — a
+     * cost to the dev loop and to an e2e suite run against it, for a benefit
+     * that only exists in a production build.
+     */
+    preloadPages?: boolean;
 };

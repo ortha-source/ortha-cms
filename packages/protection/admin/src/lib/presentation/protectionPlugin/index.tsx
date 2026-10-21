@@ -1,4 +1,5 @@
-import { Suspense, lazy } from 'react';
+import { Suspense } from 'react';
+import { lazyPage } from '@orthacms/utils-admin';
 import type { AdminPlugin } from '@orthacms/bootstrap-admin';
 import {
     ENTRY_PUBLISH_GUARD_SLOT,
@@ -30,10 +31,9 @@ import { useReviewStatusByEntry } from '../../application/hooks';
 // Lazy so the Reviews page is its own chunk, fetched when somebody first opens
 // it — every other surface this plugin has is a slot contribution that rides
 // screens the person was already on.
-const ReviewsPage = lazy(() =>
-    import('../pages/ReviewsPage').then((module) => ({
-        default: module.ReviewsPage
-    }))
+const ReviewsPage = lazyPage(
+    () => import('../pages/ReviewsPage'),
+    'ReviewsPage'
 );
 
 /** Admin-side protection plugin shape — a named alias of {@link AdminPlugin}. */

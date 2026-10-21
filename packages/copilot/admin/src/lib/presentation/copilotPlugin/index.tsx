@@ -1,4 +1,5 @@
-import { Suspense, lazy } from 'react';
+import { Suspense } from 'react';
+import { lazyPage } from '@orthacms/utils-admin';
 import type { AdminPlugin } from '@orthacms/bootstrap-admin';
 import { SESSION_RESET_SLOT } from '@orthacms/identity-admin';
 import { SIDEBAR_FOOTER_SLOT } from '@orthacms/shell-admin';
@@ -12,17 +13,9 @@ import { AgentsPageSkeleton, SkillsPageSkeleton } from '../AgentsSkeleton';
 import { CopilotLauncher } from '../CopilotLauncher';
 import { ViewSwitcher, forgetCmsPaths } from '../ViewSwitcher';
 
-const AgentsPage = lazy(() =>
-    import('../AgentsPage').then((module) => ({
-        default: module.AgentsPage
-    }))
-);
+const AgentsPage = lazyPage(() => import('../AgentsPage'), 'AgentsPage');
 
-const SkillsPage = lazy(() =>
-    import('../SkillsPage').then((module) => ({
-        default: module.SkillsPage
-    }))
-);
+const SkillsPage = lazyPage(() => import('../SkillsPage'), 'SkillsPage');
 
 /**
  * Admin-side copilot plugin shape. A thin alias of {@link AdminPlugin}, kept

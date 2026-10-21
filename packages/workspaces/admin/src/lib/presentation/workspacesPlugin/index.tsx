@@ -1,4 +1,5 @@
-import { Suspense, lazy } from 'react';
+import { Suspense } from 'react';
+import { lazyPage } from '@orthacms/utils-admin';
 import type { AdminPlugin } from '@orthacms/bootstrap-admin';
 import {
     COMMAND_SLOT,
@@ -24,28 +25,24 @@ import {
 
 // Lazy-loaded so each page is code-split into its own chunk, fetched only when
 // a signed-in user first navigates to it.
-const WorkspacesPage = lazy(() =>
-    import('../pages/WorkspacesPage').then((module) => ({
-        default: module.WorkspacesPage
-    }))
+const WorkspacesPage = lazyPage(
+    () => import('../pages/WorkspacesPage'),
+    'WorkspacesPage'
 );
 
-const CreateWorkspacePage = lazy(() =>
-    import('../pages/CreateWorkspacePage').then((module) => ({
-        default: module.CreateWorkspacePage
-    }))
+const CreateWorkspacePage = lazyPage(
+    () => import('../pages/CreateWorkspacePage'),
+    'CreateWorkspacePage'
 );
 
-const WorkspaceShell = lazy(() =>
-    import('../components/WorkspaceShell').then((module) => ({
-        default: module.WorkspaceShell
-    }))
+const WorkspaceShell = lazyPage(
+    () => import('../components/WorkspaceShell'),
+    'WorkspaceShell'
 );
 
-const WorkspaceSettingsPage = lazy(() =>
-    import('../pages/WorkspaceSettingsPage').then((module) => ({
-        default: module.WorkspaceSettingsPage
-    }))
+const WorkspaceSettingsPage = lazyPage(
+    () => import('../pages/WorkspaceSettingsPage'),
+    'WorkspaceSettingsPage'
 );
 
 /**

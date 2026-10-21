@@ -32,3 +32,5 @@ export {
     setDocumentTitle,
     setTitleDecorator
 } from './lib/documentTitle';
+export { lazyPage, preloadPages, type LazyPage } from './lib/lazyPage';
+export { markJustCreated, useJustCreated } from './lib/justCreated';
