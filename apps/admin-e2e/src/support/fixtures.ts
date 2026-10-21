@@ -1,4 +1,4 @@
-import { test as base } from '@playwright/test';
+import { test as base, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { LoginPage } from './pages/LoginPage';
 import { AcceptInvitePage } from './pages/AcceptInvitePage';
@@ -132,6 +132,55 @@ interface Fixtures {
 }
 
 /**
+ * Resolves once every **finite** animation on the page has finished (or after
+ * two seconds, whichever is first). Infinite ones — a spinner, a skeleton's
+ * pulse — never finish and are not waited for.
+ *
+ * axe reads computed styles, and the admin's entrances fade content in: a
+ * scan that lands mid-fade measures text at partial opacity and reports a
+ * contrast failure that no reader ever sees. Waiting the ~200ms out is the
+ * honest fix; turning motion off for the scan would hide a real problem the
+ * day an entrance leaves something stuck transparent.
+ *
+ * Runs in the page, so it is self-contained — no closure over this file.
+ */
+async function settleAnimations(page: Page): Promise<void> {
+    await page.evaluate(async () => {
+        type Running = {
+            playState: string;
+            finished: Promise<unknown>;
+            effect: { getTiming(): { iterations?: number } } | null;
+        };
+        const doc = (
+            globalThis as unknown as {
+                document: { getAnimations?: () => Running[] };
+            }
+        ).document;
+        const finite = (doc.getAnimations?.() ?? []).filter(
+            (animation) =>
+                animation.playState === 'running' &&
+                animation.effect?.getTiming().iterations !== Infinity
+        );
+        await Promise.race([
+            Promise.allSettled(finite.map((animation) => animation.finished)),
+            new Promise((resolve) => setTimeout(resolve, 2000))
+        ]);
+    });
+}
+
+/** An {@link AxeBuilder} that lets the page's entrances finish before it scans. */
+class SettledAxeBuilder extends AxeBuilder {
+    constructor(private readonly target: Page) {
+        super({ page: target });
+    }
+
+    override async analyze() {
+        await settleAnimations(this.target);
+        return super.analyze();
+    }
+}
+
+/**
  * `test` extended with page-object + accessibility fixtures — import this (not
  * `@playwright/test`) in specs, so a spec never constructs a page object itself.
  */
@@ -222,7 +271,7 @@ export const test = base.extend<Fixtures>({
     },
     makeAxe: async ({ page }, use) => {
         await use(() =>
-            new AxeBuilder({ page })
+            new SettledAxeBuilder(page)
                 .withTags([...AXE_TAGS])
                 .disableRules([...AXE_KNOWN_GAPS])
         );
