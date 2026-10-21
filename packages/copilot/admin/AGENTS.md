@@ -56,7 +56,7 @@ application/
   useComposerSkills.ts     # joins that catalogue to the chat's staged selection
   useManageSkills.ts       # the admin list, one skill, and the three writes
   tabBadge.ts              # pure: what the tab's (n) counts (tested)
-  chatsStatus.ts           # pure: count + attention, for the dock and the switcher (tested)
+  chatsStatus.ts           # pure: how many chats wait on you — the launcher, switcher and history dot (tested)
   threadActivity.ts        # pure: which threads are working / awaiting, for the rail (tested)
   useThreadActivity.ts     # the hook over it — re-renders on a change of state, not per token
   useTabBadge.ts           # the effect over it: title + favicon dot
@@ -134,10 +134,12 @@ presentation/
   end of the strip under the work area's card, on the sidebar's gray — outside
   the page and its header, so it covers nothing, needs no gutter, and can say
   what it is. With no chats it is one labelled "Ask Ortha AI" button (that is
-  also its accessible name) that starts one; with chats it carries a count and a dot and opens a **popover**
+  also its accessible name) that starts one; with chats it opens a **popover**
   listing them — each row toggles its window (`aria-pressed`) and has its own
-  named Close, and the launcher's accessible name says when one finished or is
-  waiting, so a closed list hides nothing. Closing the last chat swaps the
+  named Close, and says when it finished or is waiting. The launcher itself
+  draws **no count**, and a dot only while a chat is **waiting for you** (see
+  _Only "waiting for you" marks the way in_); its accessible name still carries
+  the count, so a screen-reader user hears that it opens a list. Closing the last chat swaps the
   trigger for the start button, a different element, so focus is handed back a
   frame later.
 - **The dock is the only entry point to the _panel_.** It replaced the floating
@@ -200,17 +202,31 @@ default section. Someone who breaks off mid-entry to ask a question should not
 have to navigate back to it; that round trip is the whole reason both surfaces
 exist.
 
-The switcher's **Agents** segment carries the dock's status — the count of open
-dock chats and the same dot, amber for "waiting for you", primary for
-"finished" — through the same `chatsStatus` the launcher reads, so the two
-cannot disagree. Both are in the segment's accessible name too ("Agents — 2
-chats, 1 waiting for you or finished"). It counts **every open chat**, the one
-the Agents page is presenting included (`switcherSessions`): it used to count
-`sessions.dock` alone, and the number dropped the moment you opened a running
-chat from the rail and came back when you left, which reads as chats closing and
-reopening. The page's unsaved new chat is the one exclusion — it is the view's
-empty state, not a conversation. On the Agents view, where the launcher stands
-down, it is the only thing still saying a background chat wants you.
+The switcher's **Agents** segment carries the same amber dot as the launcher
+while a chat is **waiting for you**, read through the same `chatsAwaiting`, so
+the two cannot disagree; the words are in the segment's accessible name too
+("Agents — 1 chat waiting for you"). It reads **every open chat**, the one the
+Agents page is presenting included, so the dot does not drop when a parked chat
+is handed between the page and the dock. On the Agents view, where the launcher
+stands down, it is the only thing still saying a background chat is blocked on
+you.
+
+### Only "waiting for you" marks the way in
+
+The launcher, the Agents segment and the panel's history button mark one state
+and nothing else: a chat **parked on a permission prompt**, which cannot move
+until somebody answers. They used to carry a count of open chats and a second,
+primary dot for "finished", and both were noise on controls you pass all day.
+The count was worse than noise: leaving the Agents view `release`s the chat it
+presented — an idle one is closed, a running one becomes a pill — so the number
+blinked out and back on a plain switch to the CMS, which reads as chats closing
+and reopening. "Finished" is still said where it costs nothing: on the rows of
+the launcher's list and in the tab badge.
+
+The history button leaves out **its own window's** thread — that prompt is
+already in the transcript below it — and marks the waiting thread's row in the
+dropdown too. It reads `useThreadActivity`, the rail's source, so it knows this
+tab's runs and no other's.
 
 Why a page at all, when the panel exists: the panel is for a question _about the
 page you are on_, and it is deliberately small and non-modal. The page is for the

@@ -2,7 +2,7 @@ import { expect, test } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
 import { mockWorkspaces } from '../support/api/workspaces';
 import { mockContentSchema } from '../support/api/content';
-import { frame, mockCopilotApi } from '../support/api/copilot';
+import { mockCopilotApi, parkedRun } from '../support/api/copilot';
 
 const WORKSPACE_ID = 'ws_marketing';
 const THREAD = 'Which articles are missing a summary?';
@@ -44,26 +44,7 @@ test.describe('Agents view — what a thread is doing', () => {
     }) => {
         await mockCopilotApi(page, {
             persistRuns: true,
-            runBody: (conversationId) =>
-                [
-                    frame({
-                        type: 'run-started',
-                        runId: 'r_ask',
-                        conversationId
-                    }),
-                    frame({
-                        type: 'text-delta',
-                        text: 'I can delete that draft for you.'
-                    }),
-                    frame({
-                        type: 'tool-permission-request',
-                        id: 'call_ask',
-                        runId: 'r_ask',
-                        name: 'content_delete',
-                        input: { contentType: 'article', id: 'e42' },
-                        expiresAt: new Date(Date.now() + 300_000).toISOString()
-                    })
-                ].join('')
+            runBody: parkedRun
         });
         await agentsPage.gotoThread(WORKSPACE_ID, 'c_summary');
         await agentsPage.composer().waitFor();

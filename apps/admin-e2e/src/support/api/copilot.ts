@@ -377,6 +377,28 @@ function runBody(conversationId: string): string {
 }
 
 /**
+ * A run that **parks on a permission prompt** and stays parked: a write tool
+ * the thread has not allowed yet, so nothing happens until the user answers.
+ *
+ * Pass it as `runBody`. It is the one state the launcher, the Agents switch
+ * and the history button mark — "waiting for you".
+ */
+export function parkedRun(conversationId: string): string {
+    return [
+        frame({ type: 'run-started', runId: 'r_ask', conversationId }),
+        frame({ type: 'text-delta', text: 'I can delete that draft for you.' }),
+        frame({
+            type: 'tool-permission-request',
+            id: 'call_ask',
+            runId: 'r_ask',
+            name: 'content_delete',
+            input: { contentType: 'article', id: 'e42' },
+            expiresAt: new Date(Date.now() + 300_000).toISOString()
+        })
+    ].join('');
+}
+
+/**
  * A run whose change **did not apply** — the receipt nobody wants to read.
  *
  * Pass it as `runBody`. The proposal lands `pending`, which since ADR-0009
