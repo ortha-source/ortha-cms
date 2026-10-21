@@ -241,6 +241,10 @@ function FieldError({
                 // change between the two.
                 'text-destructive text-sm font-normal leading-normal',
                 'nth-last-2:-mt-1 last:mt-0',
+                // Fades in where the hint was rather than blinking over it.
+                // Opacity only — the message occupies the hint's line box from
+                // the first frame, so nothing below it moves.
+                'ds-fade-in',
                 className
             )}
             {...props}

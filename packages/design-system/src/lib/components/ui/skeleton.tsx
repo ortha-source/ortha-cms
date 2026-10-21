@@ -69,6 +69,11 @@ type SkeletonRegionProps = React.ComponentProps<'div'> & {
  * **One region per loading surface.** Two of these mounted at once are two live
  * regions competing to speak, which is the failure the `Spinner` half of this
  * fix removed. Wrap the whole placeholder, not each block.
+ *
+ * **The blocks are not drawn for the first ~150ms** (`ds-skeleton-reveal` in
+ * styles.css). A load that finishes inside that window — most of them — goes
+ * straight from one real screen to the next, with no flash of grey between;
+ * the status is announced from the first frame either way.
  */
 export function SkeletonRegion({
     label,
@@ -78,7 +83,12 @@ export function SkeletonRegion({
     ...props
 }: SkeletonRegionProps) {
     return (
-        <div role="status" aria-busy className={className} {...props}>
+        <div
+            role="status"
+            aria-busy
+            className={cn('ds-skeleton-reveal', className)}
+            {...props}
+        >
             {heading ? <h1 className="sr-only">{heading}</h1> : null}
             <span className="sr-only">{label}</span>
             {/* The blocks carry no text, but they do carry structure — a

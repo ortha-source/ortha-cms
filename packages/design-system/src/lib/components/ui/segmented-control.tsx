@@ -4,6 +4,10 @@ import { cva, type VariantProps } from 'class-variance-authority';
 
 import { cn } from '../../utils';
 import { useDensity } from './density';
+import {
+    mergeRefs,
+    useActiveIndicator
+} from '../../hooks/use-active-indicator';
 
 /**
  * The two jobs this control does, which want different chrome.
@@ -53,27 +57,66 @@ type SegmentedControlProps = Omit<
         onValueChange?: (value: string) => void;
         /** Initial selected item value (uncontrolled). */
         defaultValue?: string;
+        /**
+         * Classes for the sliding selection pill. A caller that recolours the
+         * selected item (`data-[state=on]:bg-…` on its items) passes the same
+         * fill here: while the pill is live it *is* the selected fill, and the
+         * item's own background is cleared.
+         */
+        indicatorClassName?: string;
     };
 
 const SegmentedControl = React.forwardRef<
     React.ComponentRef<typeof ToggleGroupPrimitive.Root>,
     SegmentedControlProps
->(({ className, variant, ...props }, ref) => {
+>(({ className, variant, indicatorClassName, children, ...props }, ref) => {
     // Compact steps the toolbar variant down to the 32px line the buttons
     // beside it take there. The field variant is a form control and keeps
     // matching `Input`, whatever region it sits in.
     const compact = useDensity() === 'compact' && variant !== 'field';
+    // The selected fill is one pill that slides between items, rather than
+    // each item painting its own — see `useActiveIndicator`.
+    const indicator = useActiveIndicator<HTMLDivElement>('[data-state=on]');
+    const rootRef = React.useMemo(
+        () => mergeRefs(ref, indicator.ref),
+        [ref, indicator.ref]
+    );
+    const { rect, settled } = indicator;
     return (
         <ToggleGroupPrimitive.Root
-            ref={ref}
+            ref={rootRef}
             type="single"
+            data-indicator={rect ? 'live' : undefined}
             className={cn(
+                'group/segmented relative',
                 segmentedControlVariants({ variant }),
                 compact && 'h-8 p-[3px] [&>*]:h-6 [&>*]:px-2.5',
                 className
             )}
             {...props}
-        />
+        >
+            {/* First in the DOM and the items `relative`, so they paint over
+                it. A background, so `forced-colors` drops it — the selected
+                item's `Highlight` border in styles.css carries that mode. */}
+            {rect ? (
+                <span
+                    aria-hidden
+                    data-slot="segmented-indicator"
+                    className={cn(
+                        'pointer-events-none absolute left-0 top-0 rounded-lg bg-primary',
+                        settled &&
+                            'transition-[translate,width,height] duration-(--ds-duration-base) ease-(--ds-ease-out) motion-reduce:transition-none',
+                        indicatorClassName
+                    )}
+                    style={{
+                        width: rect.width,
+                        height: rect.height,
+                        translate: `${rect.x}px ${rect.y}px`
+                    }}
+                />
+            ) : null}
+            {children}
+        </ToggleGroupPrimitive.Root>
     );
 });
 SegmentedControl.displayName = 'SegmentedControl';
@@ -90,12 +133,14 @@ const SegmentedControlItem = React.forwardRef<
     <ToggleGroupPrimitive.Item
         ref={ref}
         className={cn(
-            'group inline-flex h-7 items-center gap-1.5 rounded-lg px-3 text-[13px] font-medium text-muted-foreground transition-colors',
+            'group relative inline-flex h-7 items-center gap-1.5 rounded-lg px-3 text-[13px] font-medium text-muted-foreground transition-colors duration-(--ds-duration-base)',
             'hover:text-foreground',
             'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
             // Active state pairs the primary fill with a weight bump so the
             // selection is distinguishable without relying on color alone.
             'data-[state=on]:bg-primary data-[state=on]:font-semibold data-[state=on]:text-primary-foreground',
+            // While the root's sliding pill is live it is the fill.
+            'group-data-[indicator=live]/segmented:data-[state=on]:bg-transparent',
             'disabled:pointer-events-none disabled:opacity-50',
             className
         )}

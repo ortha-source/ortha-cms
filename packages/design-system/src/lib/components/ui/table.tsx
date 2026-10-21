@@ -42,17 +42,27 @@ function useOverflows(element: HTMLElement | null): boolean {
     return overflows;
 }
 
-const Table = React.forwardRef<
-    HTMLTableElement,
-    React.HTMLAttributes<HTMLTableElement>
->(({ className, ...props }, ref) => {
-    const [wrapper, setWrapper] = React.useState<HTMLElement | null>(null);
-    const overflows = useOverflows(wrapper);
-    const name = props['aria-label'];
-    const labelledBy = props['aria-labelledby'];
+type TableProps = React.HTMLAttributes<HTMLTableElement> & {
+    /**
+     * The rows on screen are the *previous* result while the next one loads —
+     * TanStack Query's `isPlaceholderData` under `keepPreviousData`, on a page
+     * turn, a sort or a filter. The body dims (after a short beat, so a fast
+     * answer never flickers it) and the table is marked `aria-busy`, instead
+     * of the old rows standing there looking current until the new ones snap
+     * in over them.
+     */
+    stale?: boolean;
+};
 
-    return (
-        /* A region that scrolls has to be reachable by keyboard (WCAG 2.1.1) —
+const Table = React.forwardRef<HTMLTableElement, TableProps>(
+    ({ className, stale = false, ...props }, ref) => {
+        const [wrapper, setWrapper] = React.useState<HTMLElement | null>(null);
+        const overflows = useOverflows(wrapper);
+        const name = props['aria-label'];
+        const labelledBy = props['aria-labelledby'];
+
+        return (
+            /* A region that scrolls has to be reachable by keyboard (WCAG 2.1.1) —
            a mouse wheel is not a substitute, and a narrow viewport is exactly
            where a wide admin table stops fitting. The tab stop is taken *only*
            while the content actually overflows, because an unconditional one
@@ -62,27 +72,37 @@ const Table = React.forwardRef<
            beside the `<main>` the shell already provides. And a stop that is
            reached must be visible (WCAG 2.4.7) — the lesson the inset
            scrollport learned the hard way — hence the ring. */
-        <div
-            data-slot="table-scroll"
-            ref={setWrapper}
-            className={cn(
-                'relative w-full overflow-auto',
-                overflows &&
-                    'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset focus-visible:outline-none'
-            )}
-            tabIndex={overflows ? 0 : undefined}
-            role={overflows && (name || labelledBy) ? 'group' : undefined}
-            aria-label={overflows ? name : undefined}
-            aria-labelledby={overflows ? labelledBy : undefined}
-        >
-            <table
-                ref={ref}
-                className={cn('w-full caption-bottom text-sm', className)}
-                {...props}
-            />
-        </div>
-    );
-});
+            <div
+                data-slot="table-scroll"
+                ref={setWrapper}
+                className={cn(
+                    'relative w-full overflow-auto',
+                    overflows &&
+                        'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset focus-visible:outline-none'
+                )}
+                tabIndex={overflows ? 0 : undefined}
+                role={overflows && (name || labelledBy) ? 'group' : undefined}
+                aria-label={overflows ? name : undefined}
+                aria-labelledby={overflows ? labelledBy : undefined}
+            >
+                <table
+                    ref={ref}
+                    aria-busy={stale || undefined}
+                    data-stale={stale || undefined}
+                    className={cn(
+                        'w-full caption-bottom text-sm',
+                        '[&>tbody]:transition-opacity [&>tbody]:duration-(--ds-duration-base) motion-reduce:[&>tbody]:transition-none',
+                        // Dims after a beat; un-dims at once (the delay belongs to
+                        // the destination state only).
+                        'data-[stale]:[&>tbody]:opacity-60 data-[stale]:[&>tbody]:delay-150',
+                        className
+                    )}
+                    {...props}
+                />
+            </div>
+        );
+    }
+);
 Table.displayName = 'Table';
 
 /**
