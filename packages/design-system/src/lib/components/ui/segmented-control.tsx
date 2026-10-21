@@ -20,6 +20,12 @@ import { useDensity } from './density';
  * and the same 36px height — `h-9` on the box with `h-7` items inside its
  * `p-1`, since the default's 38px left the boolean field two pixels taller than
  * every field around it.
+ *
+ * It also takes their focus mark, on the **whole box** and on any focus
+ * (`focus-within`): an item's own 1px `focus-visible` ring vanishes on the
+ * filled active segment, and a segment focused by a script after a mouse click
+ * (the entry editor's field outline) never matches `:focus-visible` at all —
+ * so the boolean field was the one field in the column that never lit up.
  */
 const segmentedControlVariants = cva(
     'inline-flex items-center gap-0.5 border bg-background p-1 aria-invalid:border-destructive',
@@ -27,7 +33,7 @@ const segmentedControlVariants = cva(
         variants: {
             variant: {
                 toolbar: 'rounded-xl',
-                field: 'h-9 rounded-lg border-input [&>*]:h-7'
+                field: 'h-9 rounded-lg border-input focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15 aria-invalid:focus-within:ring-destructive/30 [&>*]:h-7'
             }
         },
         defaultVariants: {

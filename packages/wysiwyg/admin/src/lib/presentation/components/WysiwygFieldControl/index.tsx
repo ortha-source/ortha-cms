@@ -100,9 +100,16 @@ export function WysiwygFieldControl({
                 PREVIEW_MIN,
                 // The ring follows the overlay button, so the card reads as
                 // one focusable control rather than the button reading as a
-                // second thing floating on top of it.
-                'has-[button:focus-visible]:ring-2 has-[button:focus-visible]:ring-ring/40',
-                error && 'border-destructive'
+                // second thing floating on top of it. It is `Input`'s mark,
+                // and on any focus rather than only `:focus-visible`: the
+                // field outline and the jump to the first invalid field focus
+                // this button from a script after a mouse click, which never
+                // matches `:focus-visible` on a button — so the body was left
+                // looking unfocused while the text boxes around it lit up.
+                'has-[button:focus]:ring-2',
+                error
+                    ? 'border-destructive has-[button:focus]:ring-destructive/30'
+                    : 'has-[button:focus]:border-primary has-[button:focus]:ring-primary/15'
             )}
         >
             {empty ? (

@@ -152,7 +152,11 @@ function MultiSelect({
                     aria-describedby={ariaDescribedby}
                     disabled={disabled}
                     className={cn(
-                        'h-auto min-h-9 w-full justify-between px-3 py-1.5 font-normal shadow-none hover:bg-background aria-invalid:border-destructive aria-invalid:focus-visible:ring-destructive',
+                        // The focus mark is on `:focus`, as on `SelectTrigger`: a
+                        // field shows the cursor however it got there, and a
+                        // script's `focus()` after a mouse click never matches
+                        // `:focus-visible` on a button.
+                        'h-auto min-h-9 w-full justify-between px-3 py-1.5 font-normal shadow-none hover:bg-background focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15 focus-visible:ring-primary/15 aria-invalid:border-destructive aria-invalid:focus:ring-destructive/30 aria-invalid:focus-visible:ring-destructive/30',
                         className
                     )}
                 >

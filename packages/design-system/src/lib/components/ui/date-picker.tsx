@@ -22,6 +22,20 @@ const CALENDAR_CLASS_NAMES = {
     root: cn('w-full', getDefaultClassNames().root)
 };
 
+/**
+ * The trigger as a form field: the same box and focus mark as `SelectTrigger`.
+ *
+ * The focus mark is on `:focus`, not only `:focus-visible`. A form field shows
+ * where the cursor is however it got there, the way `Input` and `SelectTrigger`
+ * do — and a button reached by a script after a mouse click (the entry
+ * editor's field outline, the jump to the first invalid field) never matches
+ * `:focus-visible`, so a `focus-visible`-only mark left these fields looking
+ * unfocused while every text box beside them lit up. `focus-visible:` is
+ * restated so the `Button` base's grey keyboard ring doesn't win over it.
+ */
+const TRIGGER_CLASS =
+    'w-full justify-between font-normal shadow-none hover:bg-background data-[empty=true]:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15 focus-visible:ring-primary/15 aria-invalid:border-destructive aria-invalid:focus:ring-destructive/30 aria-invalid:focus-visible:ring-destructive/30';
+
 /** Popover sized to the field, capped so it never gets unwieldy. */
 const POPOVER_CLASS =
     'w-[var(--radix-popover-trigger-width)] max-w-[300px] p-0';
@@ -93,10 +107,7 @@ function DatePicker({
                     aria-describedby={ariaDescribedby}
                     disabled={disabled}
                     onBlur={onBlur}
-                    className={cn(
-                        'w-full justify-between font-normal shadow-none hover:bg-background data-[empty=true]:text-muted-foreground aria-invalid:border-destructive aria-invalid:focus-visible:ring-destructive',
-                        className
-                    )}
+                    className={cn(TRIGGER_CLASS, className)}
                 >
                     {value
                         ? value.toLocaleDateString(undefined, {
@@ -183,10 +194,7 @@ function DateTimePicker({
                     aria-describedby={ariaDescribedby}
                     disabled={disabled}
                     onBlur={onBlur}
-                    className={cn(
-                        'w-full justify-between font-normal shadow-none hover:bg-background data-[empty=true]:text-muted-foreground aria-invalid:border-destructive aria-invalid:focus-visible:ring-destructive',
-                        className
-                    )}
+                    className={cn(TRIGGER_CLASS, className)}
                 >
                     {value
                         ? value.toLocaleString(undefined, {

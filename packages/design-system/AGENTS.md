@@ -85,6 +85,14 @@ hand-written):
   toolbar's 38px box left the boolean field standing proud of its neighbours.
   Five of the six call sites are toolbars, which is why the fix is a variant
   rather than a change to the base class.
+- **A form field's focus mark is on `:focus`, not only `:focus-visible`,
+  whenever the control is a button** — `SelectTrigger`, the `DatePicker` /
+  `DateTimePicker` / `MultiSelect` triggers, and the field `SegmentedControl`
+  (whole box, `focus-within`). Chrome only matches `:focus-visible` on a
+  `<button>` focused by a script if the previous focus was keyboard-driven, so
+  a field focused from code after a mouse click (the entry editor's field
+  outline, the jump to the first invalid field) showed no mark while the
+  `Input`s beside it — which always match — lit up.
 - **`ContainerHeader` is where the admin's `<h1>` lives** — every page,
   including the two that used to draw their own. Its optional `icon` takes a
   sized icon element and draws the tile itself; the tile is `aria-hidden`,
