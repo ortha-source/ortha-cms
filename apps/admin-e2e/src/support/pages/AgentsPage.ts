@@ -73,6 +73,15 @@ export class AgentsPage extends BasePage {
         return this.viewSwitcher().getByRole('radio', { name });
     }
 
+    /**
+     * The amber "waiting for you" dot on a segment. Decorative (`aria-hidden`)
+     * — the segment's accessible name carries the same words — so it is found
+     * by the marker it publishes rather than by a role.
+     */
+    viewTabMarker(name: 'CMS' | 'Agents'): Locator {
+        return this.viewTab(name).locator('[data-marker="awaiting"]');
+    }
+
     /** Switch modes. Going back to CMS returns to the page you left. */
     async switchView(name: 'CMS' | 'Agents') {
         await this.viewTab(name).click();

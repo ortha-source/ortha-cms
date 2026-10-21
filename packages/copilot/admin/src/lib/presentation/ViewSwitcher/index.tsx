@@ -3,16 +3,14 @@ import { useLocation, useMatch, useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { Layers, Sparkles } from 'lucide-react';
 import {
-    cn,
     SegmentedControl,
-    SegmentedControlCount,
     SegmentedControlItem,
     SidebarGroup
 } from '@orthacms/design-system';
 import { useHasPermission } from '@orthacms/identity-admin';
 import { useCopilotAvailable } from '../../application/useCopilotModels';
 import { useCopilotSessions } from '../../application/useCopilotSessions';
-import { chatsStatus, switcherSessions } from '../../application/chatsStatus';
+import { chatsAwaiting } from '../../application/chatsStatus';
 import {
     COPILOT_USE,
     agentsPath,
@@ -34,18 +32,13 @@ const messages = defineMessages({
         id: 'copilot.viewSwitcher.agents',
         defaultMessage: 'Agents'
     },
-    // The segment's name once chats are open — the same words the dock's
-    // "Ask Ortha AI" uses. It still starts with the visible label, so "click
-    // Agents" keeps working by voice (2.5.3), and the count and the marker are
-    // said, not only drawn.
-    agentsChats: {
-        id: 'copilot.viewSwitcher.agentsChats',
-        defaultMessage: 'Agents — {count, plural, one {# chat} other {# chats}}'
-    },
-    agentsChatsAttention: {
-        id: 'copilot.viewSwitcher.agentsChatsAttention',
+    // The segment's name while a chat is parked on a question. It still
+    // starts with the visible label, so "click Agents" keeps working by voice
+    // (2.5.3), and the marker is said, not only drawn.
+    agentsAwaiting: {
+        id: 'copilot.viewSwitcher.agentsAwaiting',
         defaultMessage:
-            'Agents — {count, plural, one {# chat} other {# chats}}, {attention} waiting for you or finished'
+            'Agents — {count, plural, one {# chat} other {# chats}} waiting for you'
     }
 });
 
@@ -115,12 +108,13 @@ function readCmsPath(workspaceId: string): string | null {
  * to ask a question should not have to navigate back to it, and the round trip
  * is the whole reason both surfaces exist.
  *
- * **The Agents half carries the chats' status** — the count of open chats and
- * the same amber/primary dot "Ask Ortha AI" shows when one is waiting for you
- * or finished. It counts every open chat, the one on the Agents page included,
- * so the number stays put as you move between the two views. It matters most
- * on the Agents view itself, where the dock stands down and this is the only
- * place a background chat can still say so.
+ * **The Agents half carries a dot when a chat is waiting for you** — parked
+ * on a permission prompt, the same amber dot "Ask Ortha AI" shows
+ * (`chatsAwaiting`). Nothing else: no count, and no marker for a chat that
+ * merely finished. It reads every open chat, the one on the Agents page
+ * included, so the dot does not blink as a chat is handed between the page and
+ * the dock. It matters most on the Agents view itself, where the dock stands
+ * down and this is the only place a background chat can still say so.
  *
  * It renders in the sidebar's contextual region — **above**
  * `CurrentWorkspaceProvider`, like every other section there — so it resolves the
@@ -140,10 +134,9 @@ export function ViewSwitcher() {
     const location = useLocation();
     const navigate = useNavigate();
     // Every open chat — the dock's and the one the Agents page is showing —
-    // so the number does not drop when you open a chat from the rail and come
-    // back when you leave. Only the page's unsaved new chat is left out: it is
-    // the view's empty state, not a conversation (`switcherSessions`).
-    const status = chatsStatus(switcherSessions(useCopilotSessions().all));
+    // so the dot does not drop when you open a parked chat from the rail and
+    // come back when you leave.
+    const awaiting = chatsAwaiting(useCopilotSessions().all);
 
     const inAgents = isAgentsPath(location.pathname);
     const here = `${location.pathname}${location.search}`;
@@ -160,14 +153,9 @@ export function ViewSwitcher() {
     }
 
     const agentsLabel =
-        status.count === 0
-            ? intl.formatMessage(messages.agents)
-            : intl.formatMessage(
-                  status.attention > 0
-                      ? messages.agentsChatsAttention
-                      : messages.agentsChats,
-                  { count: status.count, attention: status.attention }
-              );
+        awaiting > 0
+            ? intl.formatMessage(messages.agentsAwaiting, { count: awaiting })
+            : intl.formatMessage(messages.agents);
 
     const change = (value: string) => {
         // Radix clears the value when the selected item is clicked again. That
@@ -221,29 +209,16 @@ export function ViewSwitcher() {
                 >
                     <Sparkles className="size-3.5" aria-hidden />
                     {intl.formatMessage(messages.agents)}
-                    {/* The count and the marker, exactly as "Ask Ortha AI"
-                        draws them: amber for a chat waiting on you, primary
-                        for one that finished off screen. Both are in the
+                    {/* The marker, exactly as "Ask Ortha AI" draws it: an
+                        amber dot for a chat waiting on you. It is in the
                         segment's name as well — colour is never the only
-                        signal. Full sidebar tokens in both states, for the
-                        reason the segment's own text uses them. */}
-                    {status.count > 0 && (
-                        <SegmentedControlCount
+                        signal. */}
+                    {awaiting > 0 && (
+                        <span
                             aria-hidden
-                            className="bg-sidebar-foreground text-sidebar group-data-[state=on]:bg-sidebar-foreground group-data-[state=on]:text-sidebar relative h-4 min-w-4 px-1 text-[0.625rem]"
-                        >
-                            {status.count}
-                            {status.attention > 0 && (
-                                <span
-                                    className={cn(
-                                        'ring-sidebar absolute -top-0.5 -right-0.5 size-2 rounded-full ring-2',
-                                        status.awaiting
-                                            ? 'bg-warning'
-                                            : 'bg-primary'
-                                    )}
-                                />
-                            )}
-                        </SegmentedControlCount>
+                            data-marker="awaiting"
+                            className="bg-warning size-2 shrink-0 rounded-full"
+                        />
                     )}
                 </SegmentedControlItem>
             </SegmentedControl>

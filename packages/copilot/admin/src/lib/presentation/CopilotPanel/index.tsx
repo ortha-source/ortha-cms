@@ -626,6 +626,7 @@ function PanelBody({
             <div className="flex shrink-0 items-center justify-end gap-1 border-b px-3 py-1.5">
                 <ConversationPicker
                     workspaceId={workspaceId}
+                    currentConversationId={chat.conversationId}
                     onOpen={(conversationId, threadTitle, loaded) => {
                         // Refused when another window already holds this
                         // thread; that one is focused instead of a second copy

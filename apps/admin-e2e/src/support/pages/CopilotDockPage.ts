@@ -225,6 +225,15 @@ export class CopilotDockPage extends BasePage {
         return this.headerButton('Previous chats', index);
     }
 
+    /**
+     * The amber "waiting for you" dot on a window's history button —
+     * decorative, the button's name says the same, so found by the marker it
+     * publishes rather than by a role.
+     */
+    historyMarker(index = 0): Locator {
+        return this.historyPicker(index).locator('[data-marker="awaiting"]');
+    }
+
     /** Open a persisted thread from the history dropdown. */
     async openFromHistory(title: string, index = 0) {
         await this.historyPicker(index).click();

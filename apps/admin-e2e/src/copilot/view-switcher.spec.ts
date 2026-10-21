@@ -2,7 +2,7 @@ import { expect, test } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
 import { mockWorkspaces } from '../support/api/workspaces';
 import { mockContentSchema } from '../support/api/content';
-import { mockCopilotApi } from '../support/api/copilot';
+import { mockCopilotApi, parkedRun } from '../support/api/copilot';
 
 const WORKSPACE_ID = 'ws_marketing';
 
@@ -122,27 +122,29 @@ test.describe('CMS ⇄ Agents switcher', () => {
         await expect(copilotDockPage.panel()).toBeVisible();
     });
 
-    test('the Agents segment counts the open chats, like "Ask Ortha AI"', async ({
+    // A count of open chats moved as chats were handed between the page and
+    // the dock, so it blinked out and back on a plain switch to the CMS. Only
+    // a chat waiting on the user marks the segment now.
+    test('the Agents segment draws no count for open chats', async ({
         agentsPage,
         contentLibraryPage,
         copilotDockPage
     }) => {
         await contentLibraryPage.goto(WORKSPACE_ID);
+        await copilotDockPage.startChat();
+        await copilotDockPage.ask('Set the summary please');
+
+        await expect(copilotDockPage.launcher).toHaveAccessibleName(
+            'Ask Ortha AI — 1 chat'
+        );
         await expect(agentsPage.viewTab('Agents')).toHaveAccessibleName(
             'Agents'
         );
-
-        await copilotDockPage.startChat();
-
-        // Said, not only drawn: the count is in the segment's name, and the
-        // name still starts with the visible label.
-        await expect(agentsPage.viewTab('Agents')).toHaveAccessibleName(
-            'Agents — 1 chat'
-        );
-        await expect(agentsPage.viewTab('Agents')).toContainText('1');
+        await expect(agentsPage.viewTab('Agents')).not.toContainText(/\d/);
+        await expect(agentsPage.viewTabMarker('Agents')).toHaveCount(0);
     });
 
-    test('…and says a background chat finished, on the Agents view too', async ({
+    test('…nor a dot for a chat that only finished', async ({
         page,
         agentsPage,
         contentLibraryPage,
@@ -156,59 +158,76 @@ test.describe('CMS ⇄ Agents switcher', () => {
         await copilotDockPage.ask('Set the summary please');
         await copilotDockPage.composer().press('Escape');
 
-        await expect(agentsPage.viewTab('Agents')).toHaveAccessibleName(
-            'Agents — 1 chat, 1 waiting for you or finished'
-        );
-
-        // The launcher stands down here, so this is the one place left that
-        // still says the chat in the background wants the user back.
-        await agentsPage.switchView('Agents');
-        await expect(agentsPage.dock).toBeHidden();
-        await expect(agentsPage.viewTab('Agents')).toHaveAccessibleName(
-            /waiting for you or finished/
-        );
-    });
-
-    // The view's empty state is not a conversation; the chat the page is
-    // showing is one, and is counted while you look at it.
-    test('counts the chat open on the Agents view, not only the dock’s', async ({
-        agentsPage
-    }) => {
-        await agentsPage.goto(WORKSPACE_ID);
-        await agentsPage.welcomeHeading().waitFor();
+        // Finished, as the list says…
+        await copilotDockPage.openChatList();
+        await expect(copilotDockPage.pill(/— finished/)).toBeVisible();
+        // …and asking nothing of the user, so nothing on the way in.
         await expect(agentsPage.viewTab('Agents')).toHaveAccessibleName(
             'Agents'
         );
-
-        await agentsPage.ask('Set the summary please');
-
-        await expect(agentsPage.viewTab('Agents')).toHaveAccessibleName(
-            'Agents — 1 chat'
-        );
+        await expect(agentsPage.viewTabMarker('Agents')).toHaveCount(0);
     });
 
-    // The bug: opening a running dock chat from the rail moved it to the
-    // page, and the count dropped to nothing while it was on screen.
-    test('keeps counting a dock chat once the Agents view opens it', async ({
+    test('marks a chat waiting for you, on the Agents view too', async ({
         page,
         agentsPage,
         contentLibraryPage,
         copilotDockPage
     }) => {
-        await mockCopilotApi(page, { runDelayMs: 1_500 });
+        await mockCopilotApi(page, { runBody: parkedRun });
         await contentLibraryPage.goto(WORKSPACE_ID);
         await copilotDockPage.startChat();
-        await copilotDockPage.ask('Set the summary please');
-        await copilotDockPage.composer().press('Escape');
+        await copilotDockPage.ask('Delete the stale draft');
+
         await expect(agentsPage.viewTab('Agents')).toHaveAccessibleName(
-            /^Agents — 1 chat/
+            'Agents — 1 chat waiting for you'
+        );
+        await expect(agentsPage.viewTabMarker('Agents')).toHaveCount(1);
+        await expect(copilotDockPage.launcher).toHaveAccessibleName(
+            'Ask Ortha AI — 1 chat, 1 waiting for you'
+        );
+
+        // The launcher stands down here, so this is the one place left that
+        // still says the chat in the background is blocked on the user.
+        await agentsPage.switchView('Agents');
+        await expect(agentsPage.dock).toBeHidden();
+        await expect(agentsPage.viewTab('Agents')).toHaveAccessibleName(
+            'Agents — 1 chat waiting for you'
+        );
+    });
+
+    // The bug the count had: switching views handed the chat between the page
+    // and the dock, and the marker on the way in blinked with it.
+    test('keeps the marker while a waiting chat moves between the page and the dock', async ({
+        page,
+        agentsPage,
+        copilotDockPage
+    }) => {
+        await mockCopilotApi(page, { runBody: parkedRun });
+        await agentsPage.goto(WORKSPACE_ID);
+        await agentsPage.welcomeHeading().waitFor();
+        await agentsPage.ask('Delete the stale draft');
+        await expect(agentsPage.viewTab('Agents')).toHaveAccessibleName(
+            'Agents — 1 chat waiting for you'
+        );
+
+        await agentsPage.switchView('CMS');
+        await expect(agentsPage.viewTab('Agents')).toHaveAccessibleName(
+            'Agents — 1 chat waiting for you'
+        );
+        await expect(copilotDockPage.launcher).toHaveAccessibleName(
+            'Ask Ortha AI — 1 chat, 1 waiting for you'
         );
 
         await agentsPage.switchView('Agents');
-        await agentsPage.railRow('Set the summary please').click();
-
+        await agentsPage
+            .railRowWithStatus(
+                'Set the summary please',
+                'Waiting for your answer'
+            )
+            .click();
         await expect(agentsPage.viewTab('Agents')).toHaveAccessibleName(
-            /^Agents — 1 chat/
+            'Agents — 1 chat waiting for you'
         );
     });
 });

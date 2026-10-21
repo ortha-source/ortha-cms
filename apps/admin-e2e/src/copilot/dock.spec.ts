@@ -6,7 +6,7 @@ import {
     mockContentSchema,
     mockContentSchemaDetail
 } from '../support/api/content';
-import { frame, mockCopilotApi } from '../support/api/copilot';
+import { frame, mockCopilotApi, parkedRun } from '../support/api/copilot';
 import { expectNoA11yViolations } from '../support/a11y';
 import type { BrowserGlobals, EvalScrollable } from '../support/browserGlobals';
 
@@ -190,12 +190,13 @@ test.describe('Ortha CMS AI dock', () => {
 
         // `unread` is edge-triggered off the run ending and only ever set on a
         // chat that is off screen — badging one the user is already reading
-        // trains them to ignore the badge. The closed launcher says so first.
-        await expect(copilotDockPage.launcher).toHaveAccessibleName(
-            /waiting for you or finished/
-        );
+        // trains them to ignore the badge. The list and the tab say so; the
+        // closed launcher does not — only a chat waiting on you marks it.
         await copilotDockPage.openChatList();
         await expect(copilotDockPage.pill(/— finished/)).toBeVisible();
+        await expect(copilotDockPage.launcher).toHaveAccessibleName(
+            'Ask Ortha AI — 1 chat'
+        );
         await expect.poll(() => page.title()).toMatch(/^\(1\)/);
 
         await copilotDockPage.pill(/— finished/).click();
@@ -463,6 +464,32 @@ test.describe('Ortha CMS AI dock — regressions', () => {
         await expect(copilotDockPage.panelTitle(1)).toHaveText('Ortha CMS AI');
         await copilotDockPage.openChatList();
         await expect(copilotDockPage.pill(THREAD)).toHaveCount(1);
+    });
+
+    test('the history button marks another window waiting for you, not its own', async ({
+        page,
+        copilotDockPage
+    }) => {
+        await mockCopilotApi(page, { runBody: parkedRun });
+        await copilotDockPage.startChat();
+        await copilotDockPage.ask('Delete the stale draft');
+        await expect(copilotDockPage.launcher).toHaveAccessibleName(
+            'Ask Ortha AI — 1 chat, 1 waiting for you'
+        );
+
+        // Its own prompt is on screen below, so its own button says nothing.
+        await expect(copilotDockPage.historyPicker(0)).toHaveAccessibleName(
+            'Previous chats'
+        );
+        await expect(copilotDockPage.historyMarker(0)).toHaveCount(0);
+
+        // A second window is where the dot earns its place.
+        await copilotDockPage.startChat();
+        await expect(copilotDockPage.windows()).toHaveCount(2);
+        await expect(copilotDockPage.historyPicker(1)).toHaveAccessibleName(
+            'Previous chats — 1 chat waiting for you'
+        );
+        await expect(copilotDockPage.historyMarker(1)).toHaveCount(1);
     });
 
     test('collapsing a window hands focus back to the dock, by button and by Escape', async ({

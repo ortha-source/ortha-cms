@@ -13,7 +13,7 @@ import {
     TooltipTrigger
 } from '@orthacms/design-system';
 import type { CopilotSession } from '../../application/sessions';
-import { chatsStatus } from '../../application/chatsStatus';
+import { chatsAwaiting } from '../../application/chatsStatus';
 import {
     NEW_CHAT_KEY_SHORTCUTS,
     shortcutModifierGlyph
@@ -64,18 +64,19 @@ const messages = defineMessages({
         defaultMessage: 'Close {title}'
     },
     // The launcher once chats exist. It still starts with its visible label,
-    // so "click Ask Ortha AI" keeps working by voice
-    // (2.5.3); the count and any chat wanting attention follow it, because a
-    // closed list must not hide that something finished or is waiting.
+    // so "click Ask Ortha AI" keeps working by voice (2.5.3). The count is
+    // said, not drawn — it tells a screen-reader user this now opens a list,
+    // which the bare label would not — and a chat waiting on you follows it,
+    // because a closed list must not hide that.
     chats: {
         id: 'copilot.dock.chats',
         defaultMessage:
             'Ask Ortha AI — {count, plural, one {# chat} other {# chats}}'
     },
-    chatsAttention: {
-        id: 'copilot.dock.chatsAttention',
+    chatsAwaiting: {
+        id: 'copilot.dock.chatsAwaiting',
         defaultMessage:
-            'Ask Ortha AI — {count, plural, one {# chat} other {# chats}}, {attention} waiting for you or finished'
+            'Ask Ortha AI — {count, plural, one {# chat} other {# chats}}, {awaiting} waiting for you'
     }
 });
 
@@ -94,9 +95,12 @@ const messages = defineMessages({
  * Two shapes:
  *
  * - **No chats:** clicking the icon opens a new chat straight away.
- * - **Chats open:** the icon carries a count and a dot when a chat wants
- *   attention, and opens a list of the chats. The list keeps everything the
- *   pill bar had to get right:
+ * - **Chats open:** the icon opens a list of the chats, and carries an amber
+ *   dot only while one of them is **waiting for you** — parked on a
+ *   permission prompt (`chatsAwaiting`). No count and no "finished" dot: a
+ *   number that moves as chats come and go is noise on a control you pass all
+ *   day, and a finished answer asks nothing of you. The list keeps everything
+ *   the pill bar had to get right:
  *   - **a row for a chat you cannot see says something happened in it** — the
  *     dot, and the same words in its accessible name ("— finished", "— waiting
  *     for you"; waiting outranks finished);
@@ -179,10 +183,10 @@ export function CopilotDock({
         );
     }
 
-    const { attention, awaiting: anyAwaiting } = chatsStatus(sessions);
+    const awaiting = chatsAwaiting(sessions);
     const launcherLabel = intl.formatMessage(
-        attention > 0 ? messages.chatsAttention : messages.chats,
-        { count: sessions.length, attention }
+        awaiting > 0 ? messages.chatsAwaiting : messages.chats,
+        { count: sessions.length, awaiting }
     );
 
     return (
@@ -202,24 +206,14 @@ export function CopilotDock({
                         >
                             <Sparkles aria-hidden className="size-4" />
                             {intl.formatMessage(messages.start)}
-                            {/* The count follows the label; the dot for a
-                                chat wanting attention sits on the corner.
-                                Both are said in the button's name as well. */}
-                            <span
-                                aria-hidden
-                                className="flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[0.625rem] leading-none font-semibold tabular-nums text-background"
-                            >
-                                {sessions.length}
-                            </span>
-                            {attention > 0 && (
+                            {/* The dot for a chat waiting on you sits on the
+                                corner, and is said in the button's name as
+                                well. */}
+                            {awaiting > 0 && (
                                 <span
                                     aria-hidden
-                                    className={cn(
-                                        'absolute -top-0.5 -right-0.5 size-2 rounded-full ring-2 ring-background',
-                                        anyAwaiting
-                                            ? 'bg-warning'
-                                            : 'bg-primary'
-                                    )}
+                                    data-marker="awaiting"
+                                    className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-warning ring-2 ring-background"
                                 />
                             )}
                         </Button>

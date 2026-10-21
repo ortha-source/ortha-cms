@@ -1,4 +1,4 @@
-import { chatsStatus, switcherSessions } from './chatsStatus';
+import { chatsAwaiting } from './chatsStatus';
 import type { CopilotSession } from './sessions';
 
 /** A session, with only the fields the status looks at spelled out. */
@@ -19,68 +19,30 @@ function session(overrides: Partial<CopilotSession> = {}): CopilotSession {
     };
 }
 
-describe('chatsStatus', () => {
-    it('is empty with no chats', () => {
-        expect(chatsStatus([])).toEqual({
-            count: 0,
-            attention: 0,
-            awaiting: false
-        });
+describe('chatsAwaiting', () => {
+    it('is zero with no chats', () => {
+        expect(chatsAwaiting([])).toBe(0);
     });
 
-    it('counts every chat, but only the ones wanting attention as such', () => {
+    it('counts only the chats parked on a question', () => {
         expect(
-            chatsStatus([
+            chatsAwaiting([
                 session({ id: 'a' }),
                 session({ id: 'b', unread: true }),
-                session({ id: 'c', awaiting: true })
+                session({ id: 'c', awaiting: true }),
+                session({ id: 'd', awaiting: true, presented: 'page' })
             ])
-        ).toEqual({ count: 3, attention: 2, awaiting: true });
+        ).toBe(2);
+    });
+
+    // "Finished" asks nothing of the user, so it is not a marker on the way in.
+    it('ignores a chat that only finished', () => {
+        expect(chatsAwaiting([session({ unread: true })])).toBe(0);
     });
 
     it('counts a chat that is both unread and awaiting once', () => {
-        expect(
-            chatsStatus([session({ unread: true, awaiting: true })]).attention
-        ).toBe(1);
-    });
-
-    it('is not awaiting when the only marker is "finished"', () => {
-        expect(chatsStatus([session({ unread: true })]).awaiting).toBe(false);
-    });
-});
-
-describe('switcherSessions', () => {
-    // Opening a running chat from the rail moves it to the page; the switch
-    // must not count one fewer for it.
-    it('counts the chat the Agents page is showing', () => {
-        expect(
-            switcherSessions([
-                session({ id: 'a' }),
-                session({
-                    id: 'b',
-                    presented: 'page',
-                    conversationId: 'c1'
-                })
-            ]).map((s) => s.id)
-        ).toEqual(['a', 'b']);
-    });
-
-    // The view's empty state is not a conversation.
-    it('leaves out the page’s unsaved new chat', () => {
-        expect(
-            switcherSessions([
-                session({ id: 'a' }),
-                session({ id: 'b', presented: 'page', conversationId: null })
-            ]).map((s) => s.id)
-        ).toEqual(['a']);
-    });
-
-    it('keeps every dock chat, saved or not', () => {
-        expect(
-            switcherSessions([
-                session({ id: 'a', conversationId: null }),
-                session({ id: 'b', conversationId: 'c2' })
-            ])
-        ).toHaveLength(2);
+        expect(chatsAwaiting([session({ unread: true, awaiting: true })])).toBe(
+            1
+        );
     });
 });
