@@ -1,3 +1,36 @@
+## 0.11.0 (2026-10-21)
+
+### 🚀 Features
+
+- **admin:** a motion pass — page cross-fade, sliding indicators, overlay entrances, no skeleton flash ([#346](https://github.com/ortha-source/ortha-cms/pull/346))
+- **content:** fold each row of the sync preview, with a count in its heading ([#341](https://github.com/ortha-source/ortha-cms/pull/341))
+- **copilot:** daily token quotas, runs per minute and runs in flight ([#335](https://github.com/ortha-source/ortha-cms/pull/335))
+- **copilot-admin:** mark the way in only when a chat is waiting for you ([#344](https://github.com/ortha-source/ortha-cms/pull/344))
+- **i18n:** preview what a save does to other locales and records, and ask before every one ([#336](https://github.com/ortha-source/ortha-cms/pull/336))
+- **server:** a feature-named dev content model and a full dev seed ([f9bdbbfb](https://github.com/ortha-source/ortha-cms/commit/f9bdbbfb))
+- **shell:** resizable sidebars, with the layout saved to the user's preferences ([#332](https://github.com/ortha-source/ortha-cms/pull/332))
+
+### 🩹 Fixes
+
+- **content:** no blur before the sync question — cover an asked-first write late ([#339](https://github.com/ortha-source/ortha-cms/pull/339))
+- **content:** the sync preview names the record being saved, and real statuses ([#340](https://github.com/ortha-source/ortha-cms/pull/340))
+- **copilot:** the page under the chat catches up after a change ([#342](https://github.com/ortha-source/ortha-cms/pull/342))
+- **copilot-admin:** the Agents switch counts the chat the page is showing ([#337](https://github.com/ortha-source/ortha-cms/pull/337))
+- **design-system:** a resize drag always ends, and never leaves the cursor stuck ([#333](https://github.com/ortha-source/ortha-cms/pull/333))
+- **design-system:** button-backed fields show focus however they got it ([#345](https://github.com/ortha-source/ortha-cms/pull/345))
+- **design-system:** the page cross-fade no longer zooms between pages of different sizes ([7e6ed357](https://github.com/ortha-source/ortha-cms/commit/7e6ed357))
+- **i18n:** a target's late translation fills the mirrored links waiting for it ([#334](https://github.com/ortha-source/ortha-cms/pull/334))
+- **i18n:** one cover across the sync question, and a preview a person can read ([#338](https://github.com/ortha-source/ortha-cms/pull/338))
+- **schema-builder-admin:** a group taller than the first one can be dragged to the top ([#343](https://github.com/ortha-source/ortha-cms/pull/343))
+
+### ❤️ Thank You
+
+- Claude
+- Claude Opus 5.5
+- Claude Opus 5.5 (1M context)
+- Pavel Makhanko @pmknk
+- pmknk
+
 ## 0.10.3 (2026-10-15)
 
 ### 🚀 Features
