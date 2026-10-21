@@ -264,12 +264,15 @@ export class ContentModelPage extends BasePage {
         await this.page.mouse.move(x, y + dy + 1);
     }
 
-    /** Drags a General-tab group by its handle onto the group `target`. */
+    /**
+     * Drags a General-tab group by its handle onto the group `target`'s
+     * handle — where a person aims, whatever the two blocks' heights.
+     */
     async dragGroup(label: string, target: string): Promise<void> {
         await this.startDrag(
             this.groupReorderHandle(label),
-            this.groupBlock(label),
-            this.groupBlock(target)
+            this.groupReorderHandle(label),
+            this.groupReorderHandle(target)
         );
         await this.page.mouse.up();
     }

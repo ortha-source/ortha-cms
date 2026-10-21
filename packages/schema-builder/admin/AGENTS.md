@@ -116,7 +116,10 @@ Hand-written types stay read-only and say how to hand them over.
   editor would re-sort it; into another list always allowed, landing where
   the drag drew it. The groups are a second sortable context in the same
   scope, dragged by their own handle (`moveGroup`); collisions and keyboard
-  steps are filtered by kind, so a group never lands on a field.
+  steps are filtered by kind, so a group never lands on a field. A group is
+  over the farthest group whose middle its leading edge has passed, not the
+  nearest center: blocks differ in height, and by centers a group taller than
+  the first could never be put first.
   Relations and Media are a scope each — nothing there joins a group. Dragging
   works from the handle by keyboard too; dnd-kit's announcements are replaced
   with ones that name fields and lists.

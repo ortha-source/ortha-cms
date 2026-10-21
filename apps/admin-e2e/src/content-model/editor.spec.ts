@@ -12,7 +12,8 @@ const EDITABLE = { editable: true, restart: 'watch' } as const;
 
 /**
  * The seed with every type handed to the builder, plus one with two inputs of
- * one rank, and one with a group holding a field and a group holding none.
+ * one rank, one with a group holding a field and a group holding none, and
+ * one whose second group is far taller than its first.
  */
 const OWNED: TypeDocSeed[] = [
     ...SCHEMA_TYPES_SEED.map((type) => ({
@@ -53,6 +54,34 @@ const OWNED: TypeDocSeed[] = [
                 spec: { type: 'text', admin: { group: 'location' } }
             },
             { key: 'place.open', name: 'open', spec: { type: 'boolean' } }
+        ],
+        origin: 'builder'
+    },
+    {
+        name: 'trip',
+        kind: 'collection',
+        label: 'Trips',
+        publishable: false,
+        paranoid: false,
+        i18n: false,
+        groups: [
+            { key: 'dates', label: 'Dates' },
+            { key: 'itinerary', label: 'Itinerary' }
+        ],
+        fields: [
+            { key: 'trip.name', name: 'name', spec: { type: 'text' } },
+            {
+                key: 'trip.start',
+                name: 'start',
+                spec: { type: 'text', admin: { group: 'dates' } }
+            },
+            ...['from', 'to', 'via', 'stops', 'carrier', 'notes'].map(
+                (name) => ({
+                    key: `trip.${name}`,
+                    name,
+                    spec: { type: 'text', admin: { group: 'itinerary' } }
+                })
+            )
         ],
         origin: 'builder'
     }
@@ -490,6 +519,45 @@ test.describe('Content model editor', () => {
             await expect
                 .poll(() => contentModelPage.groupNames())
                 .toEqual(['Extra', 'Location']);
+        });
+
+        test('drags a group taller than the first one to the top', async ({
+            contentModelPage
+        }) => {
+            await contentModelPage.goto('trip');
+            await expect
+                .poll(() => contentModelPage.groupNames())
+                .toEqual(['Dates', 'Itinerary']);
+
+            await contentModelPage.dragGroup('Itinerary', 'Dates');
+
+            await expect
+                .poll(() => contentModelPage.groupNames())
+                .toEqual(['Itinerary', 'Dates']);
+        });
+
+        test('moves a group taller than the first one to the top by keyboard', async ({
+            page,
+            contentModelPage
+        }) => {
+            await contentModelPage.goto('trip');
+            await contentModelPage.groupReorderHandle('Itinerary').focus();
+            await page.keyboard.press('Space');
+            await expect(
+                contentModelPage.announcement(
+                    /^Picked up the group Itinerary\.$/
+                )
+            ).toBeAttached();
+            await page.keyboard.press('ArrowUp');
+            await expect(
+                contentModelPage.announcement(
+                    /^The group Itinerary is over the group Dates\.$/
+                )
+            ).toBeAttached();
+            await page.keyboard.press('Space');
+            await expect
+                .poll(() => contentModelPage.groupNames())
+                .toEqual(['Itinerary', 'Dates']);
         });
 
         test('edits a group from its menu', async ({ contentModelPage }) => {
