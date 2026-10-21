@@ -528,6 +528,24 @@ html[data-ds-page-transition] [data-slot='sidebar-inset'] {
     view-transition-name: ds-page;
 }
 
+/* No morph between the two snapshots. The UA animates the group's size and
+   position from the old page's box to the new one's and stretches both images
+   to fit — and the work area is rarely the same size twice (a table vs. an
+   entry with its side panel, a short page vs. a long one), so the cross-fade
+   read as a zoom out and back in. The group takes the new box at once, each
+   snapshot keeps its own size from the top-left corner, and what overhangs is
+   clipped. */
+::view-transition-group(ds-page) {
+    animation: none;
+    overflow: clip;
+}
+::view-transition-old(ds-page),
+::view-transition-new(ds-page) {
+    inset: 0 auto auto 0;
+    width: auto;
+    height: auto;
+}
+
 ::view-transition-old(ds-page) {
     animation: ds-page-out 100ms ease-in both;
 }
