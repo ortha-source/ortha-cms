@@ -1,6 +1,12 @@
 import type { ReactNode } from 'react';
 import { defineMessages, FormattedMessage } from 'react-intl';
-import { Card, CardContent, Skeleton, cn } from '@orthacms/design-system';
+import {
+    Card,
+    CardContent,
+    CountUp,
+    Skeleton,
+    cn
+} from '@orthacms/design-system';
 import { Sparkline } from '../Sparkline';
 
 /** Intl descriptors for the stat tile, co-located here. */
@@ -15,8 +21,21 @@ const messages = defineMessages({
 export type StatWidgetProps = {
     /** What is being counted. */
     label: ReactNode;
-    /** The headline figure, pre-formatted. */
-    value: ReactNode;
+    /**
+     * The headline figure, pre-formatted. Ignored when `count` is given — pass
+     * one or the other.
+     */
+    value?: ReactNode;
+    /**
+     * The headline figure as a number, which counts up to itself when the
+     * figure arrives (and from the old figure when it changes). The final
+     * value is what assistive technology reads throughout; reduced motion
+     * shows it at once. Prefer this over `value` whenever the figure is a
+     * plain count.
+     */
+    count?: number;
+    /** Formats `count` — e.g. `intl.formatNumber`. Defaults to `String`. */
+    formatCount?: (value: number) => string;
     /** Unit shown smaller beside the value (e.g. `GB`). */
     unit?: string;
     /** Change against the previous period, pre-formatted. */
@@ -43,6 +62,8 @@ export type StatWidgetProps = {
 export function StatWidget({
     label,
     value,
+    count,
+    formatCount,
     unit,
     delta,
     deltaTone = 'up',
@@ -87,7 +108,11 @@ export function StatWidget({
                 ) : (
                     <>
                         <span className="text-2xl font-semibold tracking-[-0.02em] tabular-nums">
-                            {value}
+                            {count !== undefined ? (
+                                <CountUp value={count} format={formatCount} />
+                            ) : (
+                                value
+                            )}
                             {unit ? (
                                 <span className="ml-1 text-[0.6em] font-medium text-muted-foreground">
                                     {unit}

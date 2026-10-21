@@ -8,15 +8,20 @@ import {
     CardTitle,
     ConfirmDialog,
     Separator,
+    cn,
     toast
 } from '@orthacms/design-system';
+import { useJustCreated } from '@orthacms/utils-admin';
 import type {
     Workspace,
     WorkspaceMember
 } from '../../../domain/types/workspace';
 import type { DirectoryUser } from '../../../domain/types/wizard';
 import { isConflict } from '../../../infrastructure/isConflict';
-import { useAddWorkspaceMember } from '../../../application/useAddWorkspaceMember';
+import {
+    useAddWorkspaceMember,
+    workspaceMembersScope
+} from '../../../application/useAddWorkspaceMember';
 import { useRemoveWorkspaceMember } from '../../../application/useRemoveWorkspaceMember';
 import { MemberDirectorySearch } from './MemberDirectorySearch';
 import { MemberListRow } from './MemberListRow';
@@ -96,6 +101,7 @@ export function WorkspaceMembersSettings({
     const intl = useIntl();
     const addMember = useAddWorkspaceMember();
     const removeMember = useRemoveWorkspaceMember();
+    const isJustAdded = useJustCreated(workspaceMembersScope(workspace.id));
     const [pendingRemoval, setPendingRemoval] =
         useState<WorkspaceMember | null>(null);
 
@@ -210,9 +216,19 @@ export function WorkspaceMembersSettings({
                     </span>
                     <ul ref={rosterRef} className="rounded-xl border">
                         {workspace.members.map((member, index) => (
-                            <li key={member.id}>
+                            <li
+                                key={member.id}
+                                className={cn(
+                                    isJustAdded(member.id) && 'ds-item-enter'
+                                )}
+                            >
                                 {index > 0 ? <Separator /> : null}
                                 <MemberListRow
+                                    // Both classes set `animation`, so the
+                                    // flash goes on the row inside the item.
+                                    className={cn(
+                                        isJustAdded(member.id) && 'ds-flash'
+                                    )}
                                     member={member}
                                     canRemove={canUpdate}
                                     onRemove={() => {

@@ -1,7 +1,11 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { markJustCreated } from '@orthacms/utils-admin';
 import { httpApiTokenGateway } from '../../infrastructure/httpApiTokenGateway';
 import { apiTokensKeys } from '../../infrastructure/apiTokensKeys';
 import type { CreateApiTokenInput } from '../../infrastructure/apiTokenGateway';
+
+/** The `justCreated` scope of the tokens table. */
+export const API_TOKENS_SCOPE = 'api-tokens';
 
 /**
  * Mints a token. On success every cached token page is invalidated (a new row
@@ -22,8 +26,13 @@ export function useCreateApiToken() {
         mutationFn: (input: CreateApiTokenInput) =>
             httpApiTokenGateway.create(input),
         gcTime: 0,
-        onSuccess: () =>
-            queryClient.invalidateQueries({ queryKey: apiTokensKeys.all })
+        onSuccess: (created) => {
+            // The table flashes the row the refetch brings in.
+            markJustCreated(API_TOKENS_SCOPE, created.id);
+            return queryClient.invalidateQueries({
+                queryKey: apiTokensKeys.all
+            });
+        }
     });
 }
 

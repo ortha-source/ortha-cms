@@ -190,7 +190,8 @@ export function CollectionRecordsTable({
     readOnly = false,
     sort,
     onSort,
-    relationsPending = false
+    relationsPending = false,
+    stale = false
 }: {
     /** The content type's display label, for the table caption. */
     label: string;
@@ -245,6 +246,12 @@ export function CollectionRecordsTable({
      * relation cell with no preview must not read as "no linked records".
      */
     relationsPending?: boolean;
+    /**
+     * The rows are the previous page/sort/filter's result while the next one
+     * loads (`isPlaceholderData`) — the table dims its body and goes
+     * `aria-busy`, instead of the old rows looking current.
+     */
+    stale?: boolean;
 }) {
     const intl = useIntl();
     const navigate = useNavigate();
@@ -301,7 +308,10 @@ export function CollectionRecordsTable({
             aria-label={intl.formatMessage(messages.caption, { label })}
             className="w-full focus-visible:outline-none"
         >
-            <Table aria-label={intl.formatMessage(messages.caption, { label })}>
+            <Table
+                aria-label={intl.formatMessage(messages.caption, { label })}
+                stale={stale}
+            >
                 <TableHeader>
                     <TableRow>
                         {readOnly ? null : (

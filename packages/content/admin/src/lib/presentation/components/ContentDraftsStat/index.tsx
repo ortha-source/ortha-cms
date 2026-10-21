@@ -33,7 +33,8 @@ export function ContentDraftsStat() {
     return (
         <StatWidget
             label={intl.formatMessage(messages.label)}
-            value={intl.formatNumber(drafts)}
+            count={drafts}
+            formatCount={(value) => intl.formatNumber(value)}
             delta={intl.formatMessage(messages.share, { percent })}
             deltaTone="flat"
             isPending={isPending}

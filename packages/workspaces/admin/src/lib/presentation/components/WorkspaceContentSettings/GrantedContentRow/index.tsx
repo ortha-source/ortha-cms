@@ -1,6 +1,6 @@
 import { defineMessages, useIntl } from 'react-intl';
 import { FileText, Layers, Share2, TriangleAlert, X } from 'lucide-react';
-import { Badge, Button } from '@orthacms/design-system';
+import { Badge, Button, cn } from '@orthacms/design-system';
 import type { ContentType } from '../../../../domain/types/wizard';
 import type { SharedContentGrant } from '../../../../domain/types/workspace';
 import { isPage } from '..';
@@ -61,9 +61,7 @@ export type GrantedContent = {
 };
 
 /** The `key` of a {@link GrantedContent} — one rule for rows and dialogs. */
-export function grantKey(slug: string, sourceWorkspaceId?: string): string {
-    return sourceWorkspaceId ? `${slug}@${sourceWorkspaceId}` : slug;
-}
+export { grantKey } from '../../../../domain/grantKey';
 
 /** Props for {@link GrantedContentRow}. */
 export type GrantedContentRowProps = {
@@ -75,6 +73,8 @@ export type GrantedContentRowProps = {
     onRemove: () => void;
     /** Show the kind badge; off under a Collections/Pages group heading. */
     showKind?: boolean;
+    /** Extra classes for the row (the list's just-granted highlight). */
+    className?: string;
 };
 
 /**
@@ -104,7 +104,8 @@ export function GrantedContentRow({
     granted,
     canRemove,
     onRemove,
-    showKind = true
+    showKind = true,
+    className
 }: GrantedContentRowProps) {
     const intl = useIntl();
     const grantLabel = useGrantLabel();
@@ -119,7 +120,7 @@ export function GrantedContentRow({
         : type?.description;
 
     return (
-        <div className="flex items-center gap-3 px-3 py-2">
+        <div className={cn('flex items-center gap-3 px-3 py-2', className)}>
             <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
                 {isCollection ? (
                     <Layers className="size-4" aria-hidden />

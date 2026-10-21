@@ -1,4 +1,4 @@
-import { Separator } from '@orthacms/design-system';
+import { Separator, cn } from '@orthacms/design-system';
 import { GrantedContentRow, type GrantedContent } from '../GrantedContentRow';
 
 /** Props for {@link GrantedContentGroup}. */
@@ -13,6 +13,8 @@ export type GrantedContentGroupProps = {
     canRemove: boolean;
     /** Called with the item to remove. */
     onRemove: (item: GrantedContent) => void;
+    /** Whether the grant with this `key` was just added — its row is highlighted. */
+    isJustGranted?: (key: string) => boolean;
 };
 
 /**
@@ -25,7 +27,8 @@ export function GrantedContentGroup({
     items,
     emptyLabel,
     canRemove,
-    onRemove
+    onRemove,
+    isJustGranted
 }: GrantedContentGroupProps) {
     return (
         <div className="flex flex-col gap-1">
@@ -42,9 +45,19 @@ export function GrantedContentGroup({
             ) : (
                 <ul className="rounded-xl border">
                     {items.map((item, index) => (
-                        <li key={item.key}>
+                        <li
+                            key={item.key}
+                            className={cn(
+                                isJustGranted?.(item.key) && 'ds-item-enter'
+                            )}
+                        >
                             {index > 0 ? <Separator /> : null}
                             <GrantedContentRow
+                                // Both classes set `animation`, so the flash
+                                // goes on the row inside the item.
+                                className={cn(
+                                    isJustGranted?.(item.key) && 'ds-flash'
+                                )}
                                 granted={item}
                                 canRemove={canRemove}
                                 showKind={false}

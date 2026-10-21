@@ -115,10 +115,8 @@ export function ApiTokensPage() {
     const [createOpen, setCreateOpen] = useState(false);
     const [secret, setSecret] = useState<string | null>(null);
 
-    const { data, isPending, isError, refetch } = useApiTokens(
-        { page, pageSize: DEFAULT_PAGE_SIZE },
-        canRead
-    );
+    const { data, isPending, isError, isPlaceholderData, refetch } =
+        useApiTokens({ page, pageSize: DEFAULT_PAGE_SIZE }, canRead);
     // Workspace names for the table's Workspace column; the create dialog reuses
     // the same cached query.
     const { data: workspaces = [] } = useWorkspaceOptions(canRead);
@@ -340,6 +338,7 @@ export function ApiTokensPage() {
                                 resolveWorkspaceName={(id) =>
                                     workspaceNames.get(id) ?? id
                                 }
+                                stale={isPlaceholderData}
                             />
                             {pageCount > 1 ? (
                                 <div className="mt-4 flex items-center justify-end gap-3">

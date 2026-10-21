@@ -1102,6 +1102,7 @@ export function LoadedRecordsView({
                         sort={sort}
                         onSort={handleSort}
                         relationsPending={isPlaceholderData}
+                        stale={isPlaceholderData}
                     />
                     <CollectionRecordsPagination
                         page={page}

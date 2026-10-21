@@ -54,13 +54,26 @@ const messages = defineMessages({
  * (the name is a real link for keyboard users); the actions cell stops the
  * click from bubbling so opening the menu doesn't also navigate.
  */
-export function MembersTable({ members }: { members: Member[] }) {
+export function MembersTable({
+    members,
+    stale = false
+}: {
+    members: Member[];
+    /**
+     * The rows are the previous page/search's result while the next one loads
+     * (`isPlaceholderData`) — the table dims its body and goes `aria-busy`.
+     */
+    stale?: boolean;
+}) {
     const intl = useIntl();
     const navigate = useNavigate();
 
     return (
         <div>
-            <Table aria-label={intl.formatMessage(messages.caption)}>
+            <Table
+                aria-label={intl.formatMessage(messages.caption)}
+                stale={stale}
+            >
                 <TableHeader>
                     <TableRow>
                         <TableHead scope="col">

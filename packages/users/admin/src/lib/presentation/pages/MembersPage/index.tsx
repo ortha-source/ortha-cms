@@ -111,10 +111,8 @@ export function MembersPage() {
         pageSize
     };
 
-    const { data, isPending, isFetching, isError, refetch } = useMembers(
-        params,
-        canRead
-    );
+    const { data, isPending, isFetching, isError, isPlaceholderData, refetch } =
+        useMembers(params, canRead);
 
     const total = data?.total ?? 0;
     // The server echoes the effective page size; fall back to the requested one
@@ -291,7 +289,10 @@ export function MembersPage() {
                         />
                     ) : (
                         <>
-                            <MembersTable members={members} />
+                            <MembersTable
+                                members={members}
+                                stale={isPlaceholderData}
+                            />
                             <MembersPagination
                                 page={page}
                                 pageCount={pageCount}

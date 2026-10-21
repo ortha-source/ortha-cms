@@ -587,7 +587,10 @@ export function MediaLibraryPage() {
                             stale results are indistinguishable from the new
                             ones. Opacity rather than a spinner in place of the
                             grid, so nothing moves and the tiles stay clickable
-                            for the moment they remain correct. */}
+                            for the moment they remain correct. The same
+                            contract as the design-system Table's `stale`: it
+                            dims after a beat (so a fast answer never flickers
+                            it) and un-dims at once. */}
                         <section
                             ref={gridRef}
                             tabIndex={-1}
@@ -596,8 +599,8 @@ export function MediaLibraryPage() {
                             )}
                             aria-busy={store.isRefreshing}
                             className={cn(
-                                'transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                                store.isRefreshing && 'opacity-60'
+                                'transition-opacity duration-(--ds-duration-base) motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                                store.isRefreshing && 'opacity-60 delay-150'
                             )}
                         >
                             {isEmpty ? (

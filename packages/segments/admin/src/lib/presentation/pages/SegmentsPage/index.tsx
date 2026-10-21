@@ -12,7 +12,11 @@ import {
 } from 'lucide-react';
 import { PageTopBar } from '@orthacms/shell-admin';
 import { useHasPermission } from '@orthacms/identity-admin';
-import { useDebouncedValue, useDocumentTitle } from '@orthacms/utils-admin';
+import {
+    useDebouncedValue,
+    useDocumentTitle,
+    useJustCreated
+} from '@orthacms/utils-admin';
 import {
     Alert,
     AlertDescription,
@@ -38,12 +42,14 @@ import {
     TableHead,
     TableHeader,
     TableRow,
+    cn,
     toast
 } from '@orthacms/design-system';
 import type { Segment } from '../../../domain/types';
 import {
     SEGMENTS_MANAGE,
     SEGMENTS_READ,
+    SEGMENTS_SCOPE,
     useDeleteSegment,
     useSegments
 } from '../../../application/hooks';
@@ -162,6 +168,7 @@ export function SegmentsPage() {
     useDocumentTitle(intl.formatMessage(messages.title));
     const canRead = useHasPermission(SEGMENTS_READ);
     const canManage = useHasPermission(SEGMENTS_MANAGE);
+    const isJustCreated = useJustCreated(SEGMENTS_SCOPE);
 
     const [query, setQuery] = useState('');
     const debounced = useDebouncedValue(query, 250);
@@ -336,7 +343,7 @@ export function SegmentsPage() {
                         ) : (
                             <>
                                 <div className="mt-4">
-                                    <Table>
+                                    <Table stale={isPlaceholderData}>
                                         <TableHeader>
                                             <TableRow>
                                                 <TableHead>
@@ -376,7 +383,14 @@ export function SegmentsPage() {
                                         </TableHeader>
                                         <TableBody>
                                             {segments.map((segment) => (
-                                                <TableRow key={segment.id}>
+                                                <TableRow
+                                                    key={segment.id}
+                                                    className={cn(
+                                                        isJustCreated(
+                                                            segment.id
+                                                        ) && 'ds-flash'
+                                                    )}
+                                                >
                                                     <TableCell className="font-medium">
                                                         {canManage ? (
                                                             <Link

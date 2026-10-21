@@ -206,6 +206,9 @@ export function ViewSwitcher() {
                 // selected fill with `font-semibold`, so the distinction is
                 // weight plus background, and holds under 1.4.1 without colour.
                 className="border-sidebar-border bg-sidebar-accent/40 flex w-full rounded-lg p-0.5"
+                // The sliding pill is the selected fill — the same one the
+                // items name for `data-[state=on]` below.
+                indicatorClassName="bg-sidebar-accent"
             >
                 <SegmentedControlItem
                     value={CMS}

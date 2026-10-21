@@ -288,10 +288,8 @@ export function UserActivityPage() {
         [member.id]
     );
 
-    const { data, isPending, isError, refetch } = useActivityLog(
-        { filter, page, pageSize },
-        canRead
-    );
+    const { data, isPending, isError, isPlaceholderData, refetch } =
+        useActivityLog({ filter, page, pageSize }, canRead);
 
     const total = data?.total ?? 0;
     const effectivePageSize = data?.pageSize ?? pageSize;
@@ -332,7 +330,17 @@ export function UserActivityPage() {
                     </p>
                 ) : (
                     <>
-                        <ul>
+                        {/* A page turn keeps the previous page on screen
+                            (`keepPreviousData`) until the next one lands: it
+                            dims after a beat — the design-system Table's
+                            `stale` contract — instead of looking current. */}
+                        <ul
+                            aria-busy={isPlaceholderData || undefined}
+                            className={cn(
+                                'transition-opacity duration-(--ds-duration-base) motion-reduce:transition-none',
+                                isPlaceholderData && 'opacity-60 delay-150'
+                            )}
+                        >
                             {events.map((event) => (
                                 <ActivityRow key={event.id} event={event} />
                             ))}

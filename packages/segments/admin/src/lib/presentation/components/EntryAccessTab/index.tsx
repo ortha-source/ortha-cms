@@ -5,7 +5,7 @@ import { Globe, Lock, Search, ShieldCheck } from 'lucide-react';
 import { ChangedBadge, type EntryTabContext } from '@orthacms/content-admin';
 import { useHasPermission } from '@orthacms/identity-admin';
 import { useDebouncedValue } from '@orthacms/utils-admin';
-import { Badge, Button, Input, Skeleton } from '@orthacms/design-system';
+import { Badge, Button, Input, Skeleton, cn } from '@orthacms/design-system';
 import {
     isOpen,
     sameAccess,
@@ -299,7 +299,18 @@ export function EntryAccessTab({
                 </p>
             ) : (
                 <>
-                    <ul className="divide-y overflow-hidden rounded-xl border bg-card shadow-xs">
+                    {/* A page turn or a new search keeps the previous rows
+                        on screen (`keepPreviousData`) until the next ones land:
+                        they dim after a beat — the design-system Table's
+                        `stale` contract — instead of looking current. */}
+                    <ul
+                        aria-busy={segments.isPlaceholderData || undefined}
+                        className={cn(
+                            'divide-y overflow-hidden rounded-xl border bg-card shadow-xs',
+                            'transition-opacity duration-(--ds-duration-base) motion-reduce:transition-none',
+                            segments.isPlaceholderData && 'opacity-60 delay-150'
+                        )}
+                    >
                         {list.map((segment) => (
                             <li
                                 key={segment.id}

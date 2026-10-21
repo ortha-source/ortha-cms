@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Plus } from 'lucide-react';
+import { useJustCreated } from '@orthacms/utils-admin';
 import {
     Button,
     Card,
@@ -15,7 +16,10 @@ import type { SharedSource, Workspace } from '../../../domain/types/workspace';
 import type { ContentType } from '../../../domain/types/wizard';
 import { isConflict } from '../../../infrastructure/isConflict';
 import { useContentTypes } from '../../../application/useContentTypes';
-import { useAddWorkspaceContent } from '../../../application/useAddWorkspaceContent';
+import {
+    useAddWorkspaceContent,
+    workspaceContentScope
+} from '../../../application/useAddWorkspaceContent';
 import { useRemoveWorkspaceContent } from '../../../application/useRemoveWorkspaceContent';
 import { useSharedSources } from '../../../application/useSharedSources';
 import {
@@ -192,6 +196,7 @@ export function WorkspaceContentSettings({
     const sources = useSharedSources(workspace.id, canUpdate);
     const addContent = useAddWorkspaceContent();
     const removeContent = useRemoveWorkspaceContent();
+    const isJustGranted = useJustCreated(workspaceContentScope(workspace.id));
     const headingRef = useRef<HTMLHeadingElement>(null);
     // Set once a revoke lands: the row whose X opened the dialog is gone, so
     // Radix's focus restore would drop to `<body>`.
@@ -388,6 +393,7 @@ export function WorkspaceContentSettings({
                             )}
                             canRemove={canUpdate}
                             onRemove={setPendingRemoval}
+                            isJustGranted={isJustGranted}
                         />
                         <GrantedContentGroup
                             heading={intl.formatMessage(messages.pages)}
@@ -395,6 +401,7 @@ export function WorkspaceContentSettings({
                             emptyLabel={intl.formatMessage(messages.pagesEmpty)}
                             canRemove={canUpdate}
                             onRemove={setPendingRemoval}
+                            isJustGranted={isJustGranted}
                         />
                     </>
                 )}

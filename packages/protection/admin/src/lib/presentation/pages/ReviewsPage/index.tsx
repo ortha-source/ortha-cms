@@ -83,7 +83,7 @@ export function ReviewsPage() {
     const workspace = useCurrentWorkspace();
     const [tab, setTab] = useState<Tab>('waiting');
 
-    const { data, isPending, isError } = useReviewQueue(
+    const { data, isPending, isError, isPlaceholderData } = useReviewQueue(
         workspace?.id ?? '',
         {},
         !!workspace
@@ -169,6 +169,7 @@ export function ReviewsPage() {
                                 items={rows}
                                 currentUserId={auth.user?.id}
                                 overdueAfterDays={data.overdueAfterDays}
+                                stale={isPlaceholderData}
                             />
                         ) : (
                             !isError && (

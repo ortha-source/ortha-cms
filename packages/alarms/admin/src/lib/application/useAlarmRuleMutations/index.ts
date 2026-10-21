@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { markJustCreated } from '@orthacms/utils-admin';
 import { useCurrentWorkspace } from '@orthacms/workspaces-admin';
 import { alarmsKeys } from '../../infrastructure/alarmsKeys';
 import { httpAlarmsGateway } from '../../infrastructure/httpAlarmsGateway';
@@ -6,6 +7,12 @@ import type {
     CreateAlarmRuleInput,
     UpdateAlarmRuleInput
 } from '../../infrastructure/alarmsGateway';
+
+/**
+ * The `justCreated` scope of the alarms lists (the rule cards, and the
+ * flagged tab's groups — one per rule). Rule ids are unique across workspaces.
+ */
+export const ALARM_RULES_SCOPE = 'alarm-rules';
 
 /**
  * Creates a rule.
@@ -18,7 +25,8 @@ import type {
  * Invalidates the workspace's whole alarms root rather than placing the new
  * rule: that one scan has just changed the findings list, the counts on every
  * other rule's card (a shared entry can match several), and the summary badge.
- * There is no useful subset to place.
+ * There is no useful subset to place. The new rule is marked, so whichever
+ * list the editor returns to highlights its card or group.
  */
 export function useCreateAlarmRule() {
     const queryClient = useQueryClient();
@@ -26,7 +34,8 @@ export function useCreateAlarmRule() {
     return useMutation({
         mutationFn: (input: CreateAlarmRuleInput) =>
             httpAlarmsGateway.createRule(input),
-        onSuccess: () => {
+        onSuccess: ({ rule }) => {
+            markJustCreated(ALARM_RULES_SCOPE, rule.id);
             queryClient.invalidateQueries({
                 queryKey: alarmsKeys.all(workspace.id)
             });

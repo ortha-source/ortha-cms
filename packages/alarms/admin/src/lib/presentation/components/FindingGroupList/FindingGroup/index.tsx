@@ -9,7 +9,8 @@ import {
     CollapsibleTrigger,
     Skeleton,
     SkeletonRegion,
-    Spinner
+    Spinner,
+    cn
 } from '@orthacms/design-system';
 import { ChevronRight, RefreshCw } from 'lucide-react';
 import { useAlarmFindings } from '../../../../application/useAlarmFindings';
@@ -75,6 +76,8 @@ export type FindingGroupProps = {
     onRescan: (rule: AlarmRule) => void;
     /** A rescan of this alarm is in flight. */
     isRescanning: boolean;
+    /** The alarm was just created — its group is highlighted. */
+    justCreated?: boolean;
 };
 
 /**
@@ -101,7 +104,8 @@ export function FindingGroup({
     defaultOpen,
     canManage,
     onRescan,
-    isRescanning
+    isRescanning,
+    justCreated = false
 }: FindingGroupProps) {
     const intl = useIntl();
     const [open, setOpen] = useState(defaultOpen);
@@ -138,7 +142,15 @@ export function FindingGroup({
                 contain another one — nesting it would produce invalid markup
                 that browsers repair by hoisting it out of the trigger, which
                 is exactly where a click would then not toggle anything. */}
-            <div className="flex items-center gap-3 px-4 py-3 sm:px-5">
+            {/* The flash tints the header, not the card: its keyframes animate
+                `background-color` to transparent, which would drop the card's
+                own background for the length of the fade. */}
+            <div
+                className={cn(
+                    'flex items-center gap-3 px-4 py-3 sm:px-5',
+                    justCreated && 'ds-flash rounded-xl'
+                )}
+            >
                 <CollapsibleTrigger
                     className="flex min-w-0 flex-1 items-center gap-2 text-left"
                     // The severity leads the name because `aria-label` on a
@@ -236,8 +248,21 @@ export function FindingGroup({
                         </p>
                     ) : (
                         <>
+                            {/* A page turn keeps the previous page on
+                                screen (`keepPreviousData`) until the next one
+                                lands: it dims after a beat — the design-system
+                                Table's `stale` contract — instead of looking
+                                current. */}
                             <ul
-                                className="divide-y divide-border"
+                                aria-busy={
+                                    findings.isPlaceholderData || undefined
+                                }
+                                className={cn(
+                                    'divide-y divide-border',
+                                    'transition-opacity duration-(--ds-duration-base) motion-reduce:transition-none',
+                                    findings.isPlaceholderData &&
+                                        'opacity-60 delay-150'
+                                )}
                                 aria-label={intl.formatMessage(
                                     messages.listLabel,
                                     { name: rule.name }

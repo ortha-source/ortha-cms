@@ -305,8 +305,11 @@ export function ActivityLogPage() {
                         onClear={clearFilters}
                     />
                 ) : (
-                    <div aria-busy={isPlaceholderData}>
-                        <ActivityTable events={events} />
+                    <div>
+                        <ActivityTable
+                            events={events}
+                            stale={isPlaceholderData}
+                        />
                         <ActivityPagination
                             page={page}
                             pageCount={pageCount}

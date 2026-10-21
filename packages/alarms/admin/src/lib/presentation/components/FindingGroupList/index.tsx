@@ -1,6 +1,8 @@
 import { defineMessages, useIntl } from 'react-intl';
 import { Alert, AlertDescription, AlertTitle } from '@orthacms/design-system';
 import { BellOff, CircleCheck, TriangleAlert } from 'lucide-react';
+import { useJustCreated } from '@orthacms/utils-admin';
+import { ALARM_RULES_SCOPE } from '../../../application/useAlarmRuleMutations';
 import type { AlarmRule } from '../../../types/alarm';
 import { AlarmsEmpty } from '../AlarmsEmpty';
 import { FindingGroup } from './FindingGroup';
@@ -81,6 +83,7 @@ export function FindingGroupList({
     focusRuleId
 }: FindingGroupListProps) {
     const intl = useIntl();
+    const isJustCreated = useJustCreated(ALARM_RULES_SCOPE);
 
     if (isError) {
         return (
@@ -149,6 +152,7 @@ export function FindingGroupList({
                     canManage={canManage}
                     onRescan={onRescan}
                     isRescanning={rescanningIds.has(rule.id)}
+                    justCreated={isJustCreated(rule.id)}
                 />
             ))}
         </div>

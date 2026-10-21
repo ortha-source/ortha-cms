@@ -26,7 +26,7 @@ shape is unchanged from the original mock so no component had to change:
   maps responses through the ACL and normalizes failures to `ApiError`. Translates
   the admin's `ROOT_FOLDER_ID` sentinel to/from the wire's `null` folder.
 - **`infrastructure/mediaMapper`** — wire types (`AssetResponse` / `FolderResponse`)
-  + `toMediaAsset` / `toMediaFolder`.
+    - `toMediaAsset` / `toMediaFolder`.
 - **`infrastructure/mediaKeys`** — the per-workspace query-key factory; mutations
   invalidate `mediaKeys.all(workspaceId)`.
 
@@ -34,7 +34,7 @@ Folders (with per-folder + root asset counts) and the **open folder's** assets
 are fetched. **Search, kind, sort and paging all go to the server** — they are
 one `listParams` object used as both the request and the cache key, so the two
 cannot disagree. They used to be applied in the browser over one fixed page of
-100, which is what made "oldest first" order the *newest* hundred and let a
+100, which is what made "oldest first" order the _newest_ hundred and let a
 search miss a file that plainly existed; neither is fixable client-side, because
 the answer depends on rows the browser was never sent. Mutations post to the API
 and invalidate the cache; `apiClient` attaches `X-Workspace-Id` automatically
@@ -101,7 +101,7 @@ of the server's RBAC, which is the real enforcer).
   trigger is named after its folder ("Actions for Images"), so a grid of folders
   isn't a row of identical "Folder actions" buttons.
 - **Upload — stage, preview, then watch it go.** `UploadDialog` takes multiple
-  files (drag-and-drop *and* a `multiple` picker, accumulating across drops) and
+  files (drag-and-drop _and_ a `multiple` picker, accumulating across drops) and
   stages them as **`StagedFileRow`**s: images get a real thumbnail from a local
   `URL.createObjectURL` (revoked on unmount — a staged 200 MB video would
   otherwise leak for the tab's life), other kinds a MIME-derived glyph. Confirm
@@ -124,14 +124,14 @@ of the server's RBAC, which is the real enforcer).
   "Renamed to “a/b.png”" on screen beside "Request failed with status code 400";
   the rejection is already handled by `onError`, so the page only has to hold
   its own sentence back. Failures surface a toast + resync.
-- **Failures speak the API's words.** `toApiError` puts the *transport's*
+- **Failures speak the API's words.** `toApiError` puts the _transport's_
   description in `ApiError.message` and the parsed body in `details`, so a call
   site reading `.message` shows a status code where media-server sent a sentence
   ("File exceeds the maximum upload size.", "Invalid file name: a/b.png").
   Everything user-facing goes through **`infrastructure/apiMessage`**, which
   reads the body and falls back to local copy — the upload rows included.
 - **Alt text is writable in two places, and nowhere else.** `media_asset.alt` is
-  a per-asset column the server has always had; the admin used to *render* it
+  a per-asset column the server has always had; the admin used to _render_ it
   (read-only, and only when already set) without ever offering to write it, so
   an image that landed undescribed stayed that way while the Insights
   alt-coverage card counted it. Now: an optional **Alt text** input per staged
@@ -177,7 +177,7 @@ has a `media` field — `appliesTo` checks `CONTENT_FIELD_TYPE.Media`). Pieces:
   — not a look-alike that would drift — and an error alert icon) over a one-line
   description of what the field holds, then the control; an error tints the card
   border. The field is named as a **group** (`aria-labelledby` → its `<h3>`), not
-  by a `<label for>` pointing at a button: a media field is a *composite* control
+  by a `<label for>` pointing at a button: a media field is a _composite_ control
   (pick / upload / remove / reorder), and a label would **replace** the trigger's
   own accessible name — the a11y tree read "Cover image, button" instead of
   "Select from library". As a group it reads "Cover image, group" and then each
@@ -207,7 +207,7 @@ has a `media` field — `appliesTo` checks `CONTENT_FIELD_TYPE.Media`). Pieces:
   admin-e2e.
 
 **Uploading is gated on `media:create`, picking on `media:read`** — not decoration:
-uploads are deferred into the save, so an ungranted upload 403s *inside the write*
+uploads are deferred into the save, so an ungranted upload 403s _inside the write_
 and takes the user's unrelated edits down with it. Without `media:create` the
 Upload button and the drop zone are gone; without `media:read` the picker trigger
 is disabled and the card says why.
@@ -216,7 +216,7 @@ is disabled and the card says why.
 (content-admin) is true when the reader has no `content:update` — or no
 `content:create` on a create form — and `EntryMediaTab` threads it down through
 `MediaFieldSection` to `MediaFieldControl` and each `MediaFieldItem`. It is a
-*content* permission, distinct from the `media:*` matrix: a user may hold every
+_content_ permission, distinct from the `media:*` matrix: a user may hold every
 media permission there is and still not be allowed to change **this record**, and
 attaching an asset to a record is a write to the record. Read-only leaves the
 tiles (preview, name, metadata, position badge, open-in-a-new-tab) and removes
@@ -224,6 +224,7 @@ everything else — the Select/Replace/Add and Upload row, the remove and reorde
 controls, the drop zone (via `canStage`), and the `UploadDialog`, which is left
 unmounted. The accept hint and the "no Media Library access" note go too: the
 first describes attaching, and the second would blame the wrong permission.
+
 - **`MediaPickerDialog`** — a wide modal over `useMediaLibrary`, **permission-
   aware** (the trigger is disabled without `media:read`, and the field says why)
   and with its own **error** state: a failed library read offers a retry instead
@@ -239,14 +240,14 @@ first describes attaching, and the second would blame the wrong permission.
   filters, so a stale search can't hide the library on the next open.
 - **Upload — the library's dialog, but nothing moves until Save.** Picking a file
   opens the same **`UploadDialog`** the library toolbar opens (stage → preview →
-  confirm; dropping files on the field panel opens it *pre-staged*, so a drop is
+  confirm; dropping files on the field panel opens it _pre-staged_, so a drop is
   reviewed rather than sent blind), narrowed by new optional props: `multiple` /
   `accept` / `description` / `hint` / `confirmLabel` / `initialFiles`. (A single
   field stages exactly one file; `initialFiles` defaults to a module-level
   constant — an inline `[]` would re-seed the staging on every render.)
   Confirming **stages** the files; the bytes go up when the record is saved or
-  published. See *Deferred uploads* below.
-    `acceptsFile` (`utils/mediaAccept`, over the local `kindFromMime`) checks a
+  published. See _Deferred uploads_ below.
+  `acceptsFile` (`utils/mediaAccept`, over the local `kindFromMime`) checks a
   staged file against the field's `accept` at the moment it's chosen, so a
   rejected file never reaches the value; the server re-checks the real asset on
   save, which is the enforcing pass.
@@ -279,8 +280,8 @@ is doing.
 ### Why this uploads immediately, unlike a media field
 
 A media **field** defers uploads to the record's save (below), because the field
-holds an *id* and an abandoned edit would litter the library. A **body** holds a
-*URL*, and there is no URL until the bytes exist — so the upload has to happen
+holds an _id_ and an abandoned edit would litter the library. A **body** holds a
+_URL_, and there is no URL until the bytes exist — so the upload has to happen
 when the file is chosen. The trade is one-directional and deliberate: abandoning
 the edit leaves an asset in the library, where it is visible and deletable,
 rather than leaving the body pointing at nothing.
@@ -308,7 +309,7 @@ picked fills the Media Library with assets for a record the user then abandons.
   at a time, one request each) and returns the values with the placeholders
   swapped for real asset ids. A failed file **aborts the save** with a toast
   naming it — nothing is written, so the form keeps its placeholders. The files
-  that *did* upload remember their asset id (`PendingUpload.uploadedId`), so a
+  that _did_ upload remember their asset id (`PendingUpload.uploadedId`), so a
   retry attaches them instead of uploading twice.
 - **`settle`** runs after the write succeeded: object URLs revoked, staging
   dropped (the re-seeded form now holds the saved record's real ids).
@@ -375,6 +376,14 @@ The **field tiles** follow the same rule from the other side of the wire:
 link. A staged upload puts its local object URL in the same slot, so the tile
 renders one way regardless of where the image came from.
 
+Every asset `<img>` (grid and picker tiles, the drawer preview, field tiles,
+staged-upload thumbnails) is a **`FadeInImage`**: it starts at `opacity-0` over
+the tile's own gradient / muted fill and fades in on `load`, so nothing shifts
+and nothing paints top-down. It is revealed on `error` too (a broken image with
+its alt beats a blank tile), and an image already `complete` on mount — a cache
+hit whose `load` fired before React listened — is shown before the first paint.
+Pinned by `components/FadeInImage/index.spec.tsx`.
+
 ## End-to-end cover
 
 The **Media tab** has an admin-e2e suite —
@@ -411,7 +420,7 @@ A keyboard suite for the field and the library; tag editing in the drawer
 ## Unit cover
 
 The package has a **vitest target** (`vite.config.mts`, jsdom). Component
-*behaviour* still belongs in `admin-e2e`, which drives a real browser; what
+_behaviour_ still belongs in `admin-e2e`, which drives a real browser; what
 lives here is the state a browser has no handle on:
 
 - `hooks/useMediaLibrary` — the control → selection → page algebra. A selection
@@ -425,7 +434,7 @@ lives here is the state a browser has no handle on:
 - `infrastructure/mediaKeys` — every key factory in the plugin, enumerated by
   reflection rather than listed, so a new one written without a `workspaceId`
   fails on the day it is written.
-- `components/WysiwygUploadSource` — that a body's file is uploaded *before*
+- `components/WysiwygUploadSource` — that a body's file is uploaded _before_
   anything is inserted, and that a failed upload inserts nothing.
 
 ## Commands

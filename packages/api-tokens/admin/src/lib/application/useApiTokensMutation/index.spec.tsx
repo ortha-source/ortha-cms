@@ -9,6 +9,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CreatedApiToken } from '../../domain/types/apiToken';
 import type { CreateApiTokenInput } from '../../infrastructure/apiTokenGateway';
 import { httpApiTokenGateway } from '../../infrastructure/httpApiTokenGateway';
+import { useJustCreated } from '@orthacms/utils-admin';
 import { useCreateApiToken } from './index';
 
 // The request itself is the gateway's business. What belongs to this hook is
@@ -104,6 +105,28 @@ describe('useCreateApiToken', () => {
         unmount();
 
         await waitFor(() => expect(cachedSecrets(queryClient)).toEqual([]));
+    });
+
+    it('marks the minted token so the table can flash its row', async () => {
+        // An id of its own: the mark outlives a test, and the cases above
+        // mint `tok_1` too.
+        create.mockResolvedValueOnce({ ...minted, id: 'tok_marked' });
+        const { wrapper } = withQueryClient();
+        const { result } = renderHook(
+            () => ({
+                create: useCreateApiToken(),
+                isJustCreated: useJustCreated('api-tokens')
+            }),
+            { wrapper }
+        );
+
+        expect(result.current.isJustCreated('tok_marked')).toBe(false);
+
+        await act(async () => {
+            await result.current.create.mutateAsync(INPUT);
+        });
+
+        expect(result.current.isJustCreated('tok_marked')).toBe(true);
     });
 
     it('declares gcTime: 0 rather than leaning on the default five minutes', async () => {
