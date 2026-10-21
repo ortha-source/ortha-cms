@@ -5,6 +5,7 @@ import {
     useQueryClient
 } from '@tanstack/react-query';
 import { useHasPermission } from '@orthacms/identity-admin';
+import { markJustCreated } from '@orthacms/utils-admin';
 import {
     httpSegmentsGateway,
     segmentsKeys,
@@ -17,6 +18,9 @@ import {
 export const SEGMENTS_READ = 'segments:read';
 /** Permission to change it. Admin only. */
 export const SEGMENTS_MANAGE = 'segments:manage';
+
+/** The `justCreated` scope of the audience directory's table. */
+export const SEGMENTS_SCOPE = 'segments';
 
 /**
  * One page of the directory, narrowed by a search term and — in the entry
@@ -72,8 +76,13 @@ export function useCreateSegment() {
     return useMutation({
         mutationFn: (input: CreateSegmentInput) =>
             httpSegmentsGateway.createSegment(input),
-        onSuccess: () =>
-            queryClient.invalidateQueries({ queryKey: segmentsKeys.catalogue })
+        onSuccess: (created) => {
+            // The editor goes back to the directory, which flashes this row.
+            markJustCreated(SEGMENTS_SCOPE, created.id);
+            return queryClient.invalidateQueries({
+                queryKey: segmentsKeys.catalogue
+            });
+        }
     });
 }
 

@@ -2,6 +2,11 @@ import { defineMessages, useIntl } from 'react-intl';
 import { GripVertical } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import {
+    cn,
+    dragLiftTransition,
+    usePrefersReducedMotion
+} from '@orthacms/design-system';
 import type { EntryColumn } from '../../../../../domain/entryColumns';
 import { ColumnRow } from '../ColumnRow';
 
@@ -26,6 +31,7 @@ export function SortableColumnRow({
     onToggle: () => void;
 }) {
     const intl = useIntl();
+    const reducedMotion = usePrefersReducedMotion();
     const {
         attributes,
         listeners,
@@ -33,7 +39,12 @@ export function SortableColumnRow({
         transform,
         transition,
         isDragging
-    } = useSortable({ id: column.id });
+    } = useSortable({
+        id: column.id,
+        // dnd-kit's glide is an inline style, out of reach of any
+        // `motion-reduce:` class — so it is switched off at the source.
+        transition: reducedMotion ? null : undefined
+    });
 
     return (
         <ColumnRow
@@ -46,12 +57,15 @@ export function SortableColumnRow({
             rowRef={setNodeRef}
             style={{
                 transform: CSS.Translate.toString(transform),
-                transition
+                transition: dragLiftTransition(transition, reducedMotion)
             }}
             handle={
                 <button
                     type="button"
-                    className="cursor-grab rounded p-0.5 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className={cn(
+                        'rounded p-0.5 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                        isDragging ? 'cursor-grabbing' : 'cursor-grab'
+                    )}
                     aria-label={intl.formatMessage(messages.reorder, {
                         column: label
                     })}

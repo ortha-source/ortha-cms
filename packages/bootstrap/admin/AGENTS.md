@@ -29,12 +29,13 @@ unsaved-changes guard, the design-system labels). A host, not a plugin: ADR-0003
 
 ## Key exports
 
-- `createAdmin(options)` — mounts the React root, wraps it in `BrowserRouter`,
+- `createAdmin(options)` — mounts the React root, wraps it in
+  `PageTransitionRouter` (see below),
   splits routes into public siblings + a single private group under the
   contributed `layout`, and renders a catch-all redirect
 - `AdminPlugin` — the plugin contract: `{ name, routes?, layout?, slots? }`
 - `RouteItem` — a contributed route: `{ path, element, public? }`
-- `CreateAdminOptions` — `{ plugins, rootElement?, locale? }`
+- `CreateAdminOptions` — `{ plugins, rootElement?, locale?, preloadPages? }`
 
 The host is **auth-agnostic** — it owns no `RequireAuth`, no auth context, no
 `signInPath`. Authentication (state + gate) lives entirely in
@@ -45,7 +46,30 @@ identity's `AuthProvider` + `RequireAuth` inside the `layout` it contributes.
 
 - **Mount + shell.** `createAdmin` is the single place the SPA is created
   (`createRoot` + `<StrictMode>` + `<QueryClientProvider>` + `<IntlProvider>` +
-  `<TooltipProvider>` + `<BrowserRouter>`).
+  `<TooltipProvider>` + `<PageTransitionRouter>`).
+- **Pages cross-fade** (`PageTransitionRouter`). It is `BrowserRouter`'s own
+  few lines — same `createBrowserHistory({ v5Compat: true })`, same `<Router>` —
+  except that a navigation which changes the **page** is committed with
+  `flushSync` inside `document.startViewTransition`, so the work area fades
+  from the old page to the new one. "Page" is `isPageChange`: a search-param
+  change never fades, and neither does swapping one leaf for a sibling at depth
+  two or more (a tab, the next record) — fading the whole screen for a tab reads
+  as the app blinking. Plain navigation where View Transitions are missing,
+  under reduced motion, or in a hidden tab. React Router's own `viewTransition`
+  only exists on the data routers, which this host does not use. What is
+  captured (the inset only, never the sidebar) is in the design system's
+  `styles.css`, "Page cross-fade".
+- **Page chunks preload when the browser idles.** After the first render
+  `createAdmin` calls `preloadPages()` from `requestIdleCallback` (skipped under
+  `navigator.connection.saveData`). Every route page a plugin declares with
+  `lazyPage` (utils-admin) is then fetched in the background, one after
+  another, and renders without suspending once it has arrived — so the first
+  visit to a page does not flash its `Suspense` skeleton. A plugin should
+  declare its route pages with `lazyPage`, not bare `React.lazy`. Off with
+  `createAdmin({ preloadPages: false })`, which `apps/admin` (and the
+  scaffolded app) pass under the Vite dev server: there a page is its whole
+  unbundled module graph, and preloading all of them on every reload slowed
+  the dev loop and the admin e2e suite that runs against it.
 - **Plugin assembly.** It flattens every plugin's `routes`, then splits them by
   the `public` flag: public routes mount as top-level siblings, while every
   other route mounts under one pathless parent route whose element is the first

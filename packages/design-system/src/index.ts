@@ -284,6 +284,23 @@ export {
 // out differently on a phone reads the *same* boundary the sidebar does instead
 // of picking its own.
 export { useIsMobile } from './lib/hooks/use-mobile';
+// Motion JavaScript has to drive: the reader's reduced-motion setting as state
+// (for inline styles a `motion-reduce:` class cannot beat, like dnd-kit's), a
+// count-up for figures, and the shared "picked up" look of a dragged item.
+export {
+    usePrefersReducedMotion,
+    prefersReducedMotion,
+    REDUCED_MOTION_QUERY
+} from './lib/hooks/use-reduced-motion';
+export { useCountUp } from './lib/hooks/use-count-up';
+export type { CountUpOptions } from './lib/hooks/use-count-up';
+export { CountUp } from './lib/components/ui/count-up';
+export type { CountUpProps } from './lib/components/ui/count-up';
+export { dragLiftClassName, dragLiftTransition } from './lib/drag-lift';
+export {
+    useActiveIndicator,
+    type ActiveIndicatorRect
+} from './lib/hooks/use-active-indicator';
 // Resizable panels: one layout store for every panel's width and collapsed
 // state, the hook a panel sizes itself with, and the splitter on its edge.
 export {

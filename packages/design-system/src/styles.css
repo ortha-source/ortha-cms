@@ -1,7 +1,32 @@
 /* Global stylesheet shipped by @orthacms/design-system. Import it once from the
    host (after `@import 'tailwindcss'`). Holds the few rules that can't be plain
-   Tailwind utilities — the wizard step entrance used by `WizardStepCard`, the
-   sheet entrance, and the dropdown entrance motion below. */
+   Tailwind utilities — the library's motion (overlays, collapsibles, the wizard
+   step, the page cross-fade, the loading placeholders) and a handful of
+   accessibility rules below it. */
+
+/* ---------------------------------------------------------------------------
+   Motion tokens — every duration and curve the library moves by.
+
+   They used to be literals at each rule (90, 140, 200, 220, 280, 300ms), and
+   motion that is timed differently on every surface reads as several apps
+   stitched together. Tailwind call sites reach them as
+   `duration-(--ds-duration-base)` / `ease-(--ds-ease-out)`.
+
+   - `fast` — things that answer the pointer: a menu, a tooltip, a row.
+   - `base` — a surface that arrives: a dialog, an expanding section.
+   - `slow` — something that travels across the screen: a sheet, the sidebar.
+
+   `--ds-ease-out` decelerates hard — an entrance should land, not drift.
+   `--ds-ease-drawer` is the iOS sheet curve, for panels that slide a distance.
+--------------------------------------------------------------------------- */
+:root {
+    --ds-duration-fast: 140ms;
+    --ds-duration-base: 200ms;
+    --ds-duration-slow: 280ms;
+    --ds-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ds-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+    --ds-ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
 
 /* ---------------------------------------------------------------------------
    Dropdown motion — `Popover`, `DropdownMenu`, `Select`.
@@ -41,23 +66,35 @@
 
    `--ds-drop-x/y` give the content a small offset away from its trigger, so it
    appears to come *from* the trigger on whichever side Radix ended up placing
-   it (`data-side`).
+   it (`data-side`). The scale grows out of the trigger too — the components
+   pin `transform-origin` to Radix's `--radix-*-content-transform-origin`,
+   spelled `origin-(--…)`: the v3 `origin-[--…]` spelling compiles to an
+   invalid declaration under Tailwind v4 and the menu grew from its centre.
+
+   `Tooltip` shares the keyframes on its own class, faster, and only on a
+   `delayed-open`: once one tooltip is showing, moving to the next is an
+   `instant-open`, and replaying the entrance on every hop reads as flicker.
 --------------------------------------------------------------------------- */
-.ds-dropdown-motion {
+.ds-dropdown-motion,
+.ds-tooltip-motion {
     --ds-drop-x: 0px;
     --ds-drop-y: 0px;
 }
 
-.ds-dropdown-motion[data-side='bottom'] {
+.ds-dropdown-motion[data-side='bottom'],
+.ds-tooltip-motion[data-side='bottom'] {
     --ds-drop-y: -4px;
 }
-.ds-dropdown-motion[data-side='top'] {
+.ds-dropdown-motion[data-side='top'],
+.ds-tooltip-motion[data-side='top'] {
     --ds-drop-y: 4px;
 }
-.ds-dropdown-motion[data-side='left'] {
+.ds-dropdown-motion[data-side='left'],
+.ds-tooltip-motion[data-side='left'] {
     --ds-drop-x: 4px;
 }
-.ds-dropdown-motion[data-side='right'] {
+.ds-dropdown-motion[data-side='right'],
+.ds-tooltip-motion[data-side='right'] {
     --ds-drop-x: -4px;
 }
 
@@ -78,11 +115,108 @@
    `[data-state='closed']` unstyled is what lets Radix unmount the overlay in
    the same commit that closes it. */
 .ds-dropdown-motion[data-state='open'] {
-    animation: ds-dropdown-in 140ms cubic-bezier(0.16, 1, 0.3, 1);
+    animation: ds-dropdown-in var(--ds-duration-fast) var(--ds-ease-out);
+}
+.ds-tooltip-motion[data-state='delayed-open'] {
+    animation: ds-dropdown-in 120ms var(--ds-ease-out);
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .ds-dropdown-motion[data-state='open'] {
+    .ds-dropdown-motion[data-state='open'],
+    .ds-tooltip-motion[data-state='delayed-open'] {
+        animation: none;
+    }
+}
+
+/* ---------------------------------------------------------------------------
+   Dialog motion — the panel settles in from a slightly smaller size while the
+   scrim (`.ds-overlay-motion`, below) fades in.
+
+   Same rules as every Radix overlay here: **entrance only**, because a closed
+   dialog kept mounted for an exit animation is a full-screen layer that still
+   answers focus and pointer events; and **none under reduced motion**.
+
+   `scale` and `opacity`, never `transform` or `translate`: `DialogContent` is
+   centred by Tailwind's `translate-x/y-[-50%]`, which v4 writes to the
+   standalone `translate` property — a keyframe on either would pull the panel
+   off-centre for the length of the animation.
+--------------------------------------------------------------------------- */
+@keyframes ds-dialog-in {
+    from {
+        opacity: 0;
+        scale: 0.96;
+    }
+    to {
+        opacity: 1;
+        scale: 1;
+    }
+}
+
+.ds-dialog-motion[data-state='open'] {
+    animation: ds-dialog-in var(--ds-duration-base) var(--ds-ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ds-dialog-motion[data-state='open'] {
+        animation: none;
+    }
+}
+
+/* ---------------------------------------------------------------------------
+   Collapsible motion — the content opens and closes to its own height.
+
+   Radix measures the content and publishes the height as
+   `--radix-collapsible-content-height`, so the keyframes can run to a real
+   length rather than a `max-height` guess. Radix also suppresses the animation
+   on the first render, so a section that *starts* open does not unfold on
+   page load.
+
+   **This one animates its exit**, unlike the overlays above, and the reasons
+   those avoid it do not carry over: a collapsible is not a dismissable layer
+   (no outside-pointer handling, no focus scope, no `pointer-events` lock on
+   the page), so the ~150ms its content stays mounted while it folds is just
+   content, not a trap. A section that snapped shut after easing open would
+   feel broken in the other direction.
+
+   `overflow: hidden` is declared in the keyframes, not on the element: it holds
+   only for as long as the animation runs, so focus rings and popovers inside
+   an open section are never clipped.
+--------------------------------------------------------------------------- */
+@keyframes ds-collapsible-open {
+    from {
+        height: 0;
+        opacity: 0;
+        overflow: hidden;
+    }
+    to {
+        height: var(--radix-collapsible-content-height);
+        opacity: 1;
+        overflow: hidden;
+    }
+}
+@keyframes ds-collapsible-close {
+    from {
+        height: var(--radix-collapsible-content-height);
+        opacity: 1;
+        overflow: hidden;
+    }
+    to {
+        height: 0;
+        opacity: 0;
+        overflow: hidden;
+    }
+}
+
+.ds-collapsible-motion[data-state='open'] {
+    animation: ds-collapsible-open var(--ds-duration-base) var(--ds-ease-out);
+}
+.ds-collapsible-motion[data-state='closed'] {
+    animation: ds-collapsible-close 150ms var(--ds-ease-in-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ds-collapsible-motion[data-state='open'],
+    .ds-collapsible-motion[data-state='closed'] {
         animation: none;
     }
 }
@@ -145,19 +279,19 @@
 }
 
 .ds-sheet-motion-right[data-state='open'] {
-    animation: ds-sheet-in-right 280ms cubic-bezier(0.32, 0.72, 0, 1);
+    animation: ds-sheet-in-right var(--ds-duration-slow) var(--ds-ease-drawer);
 }
 .ds-sheet-motion-left[data-state='open'] {
-    animation: ds-sheet-in-left 280ms cubic-bezier(0.32, 0.72, 0, 1);
+    animation: ds-sheet-in-left var(--ds-duration-slow) var(--ds-ease-drawer);
 }
 .ds-sheet-motion-top[data-state='open'] {
-    animation: ds-sheet-in-top 280ms cubic-bezier(0.32, 0.72, 0, 1);
+    animation: ds-sheet-in-top var(--ds-duration-slow) var(--ds-ease-drawer);
 }
 .ds-sheet-motion-bottom[data-state='open'] {
-    animation: ds-sheet-in-bottom 280ms cubic-bezier(0.32, 0.72, 0, 1);
+    animation: ds-sheet-in-bottom var(--ds-duration-slow) var(--ds-ease-drawer);
 }
 .ds-overlay-motion[data-state='open'] {
-    animation: ds-overlay-in 200ms ease-out;
+    animation: ds-overlay-in var(--ds-duration-base) ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -184,7 +318,7 @@
 }
 
 .wizard-step-in {
-    animation: wizard-step-in 220ms ease-out;
+    animation: wizard-step-in var(--ds-duration-base) var(--ds-ease-out);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -240,6 +374,171 @@
 @media (prefers-reduced-motion: reduce) {
     .ds-spinner {
         animation: ds-spinner-breathe 1.6s ease-in-out infinite;
+    }
+}
+
+/* ---------------------------------------------------------------------------
+   Placeholder reveal — a skeleton that is on screen for less than ~150ms is
+   never drawn at all.
+
+   Most loads finish fast: a lazy route's chunk is usually already cached, a
+   query answers in tens of milliseconds. Drawing the skeleton anyway is a
+   flash of grey shapes between two real screens, and that flash *is* the jank
+   — the page would have felt instant without it. So `SkeletonRegion` holds its
+   blocks transparent for a beat and fades them in only if the wait outlasts it.
+
+   Opacity only, and only on a **decorative** layer: the region's `role=status`
+   label is announced from the first frame, whatever the blocks look like. That
+   is also why reduced motion keeps the delay (a 1ms opacity step, nothing
+   moves) instead of dropping it — a flash of placeholders is the more jarring
+   of the two for someone who asked for less motion.
+--------------------------------------------------------------------------- */
+@keyframes ds-reveal {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.ds-skeleton-reveal {
+    animation: ds-reveal 160ms ease-out 150ms both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ds-skeleton-reveal {
+        animation: ds-reveal 1ms linear 150ms both;
+    }
+}
+
+/* ---------------------------------------------------------------------------
+   Small-surface entrances, for a caller to put on its own element.
+
+   - `.ds-fade-in` — a cover or a notice that appears in place (the entry
+     editor's save overlay). Opacity only.
+   - `.ds-item-enter` — an item that joins a list the reader is looking at (an
+     uploaded file, an added member). It rises a few pixels into its slot.
+   - `.ds-flash` — "this is the one you just made": a tint that fades out of a
+     row over a second. Colour only, so it survives reduced motion — the
+     information is the point, and nothing moves. Safe on any surface: it
+     tints over the element's own background rather than replacing it.
+
+   None of these run on a first render the caller did not ask for: they are
+   classes, put on an element when it is *new*, never on a whole list.
+--------------------------------------------------------------------------- */
+@keyframes ds-item-enter {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+/* The tint is a registered `<color>` painted as a background *image*, so it
+   sits over whatever background the element already has — a card keeps its
+   card colour under the fade instead of flashing to transparent and snapping
+   back. Registering the property is what makes it interpolate. */
+@property --ds-flash-tint {
+    syntax: '<color>';
+    inherits: false;
+    initial-value: transparent;
+}
+
+@keyframes ds-flash {
+    from {
+        --ds-flash-tint: color-mix(
+            in oklab,
+            var(--color-primary) 10%,
+            transparent
+        );
+    }
+    to {
+        --ds-flash-tint: transparent;
+    }
+}
+
+.ds-fade-in {
+    animation: ds-reveal var(--ds-duration-fast) ease-out;
+}
+.ds-item-enter {
+    animation: ds-item-enter var(--ds-duration-base) var(--ds-ease-out);
+}
+.ds-flash {
+    background-image: linear-gradient(
+        var(--ds-flash-tint),
+        var(--ds-flash-tint)
+    );
+    animation: ds-flash 1.6s ease-out;
+}
+/* Both on one element: each sets the `animation` shorthand, so without this
+   the later rule wins and the item never rises. */
+.ds-item-enter.ds-flash {
+    animation:
+        ds-item-enter var(--ds-duration-base) var(--ds-ease-out),
+        ds-flash 1.6s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ds-fade-in,
+    .ds-item-enter {
+        animation: none;
+    }
+    .ds-flash,
+    .ds-item-enter.ds-flash {
+        animation: ds-flash 1.6s ease-out;
+    }
+}
+
+/* ---------------------------------------------------------------------------
+   Page cross-fade — a View Transition over the work area when the route's
+   path changes (started by the admin host's router, which also flags the
+   document with `data-ds-page-transition` for the length of it).
+
+   Only the work area is captured. The root is taken out of the transition, so
+   the sidebar's active row, the account menu and anything else outside the
+   card update live instead of being frozen into a snapshot and faded — a
+   cross-fade of chrome that did not change reads as the whole app blinking.
+   The name is applied only while the flag is up: a permanent
+   `view-transition-name` would make the inset a stacking context everywhere,
+   for nothing.
+
+   The outgoing page leaves faster than the incoming one arrives, so the two
+   never sit half-transparent over each other for long.
+--------------------------------------------------------------------------- */
+@keyframes ds-page-out {
+    to {
+        opacity: 0;
+    }
+}
+@keyframes ds-page-in {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+}
+
+html[data-ds-page-transition] {
+    view-transition-name: none;
+}
+html[data-ds-page-transition] [data-slot='sidebar-inset'] {
+    view-transition-name: ds-page;
+}
+
+::view-transition-old(ds-page) {
+    animation: ds-page-out 100ms ease-in both;
+}
+::view-transition-new(ds-page) {
+    animation: ds-page-in var(--ds-duration-base) var(--ds-ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    ::view-transition-old(ds-page),
+    ::view-transition-new(ds-page) {
+        animation: none;
     }
 }
 

@@ -1,15 +1,13 @@
 import { StrictMode } from 'react';
 import * as ReactDOM from 'react-dom/client';
-import {
-    BrowserRouter,
-    Navigate,
-    Outlet,
-    Route,
-    Routes
-} from 'react-router-dom';
+import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
 import { IntlProvider } from 'react-intl';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { queryClient, wireSlotContributions } from '@orthacms/utils-admin';
+import {
+    preloadPages,
+    queryClient,
+    wireSlotContributions
+} from '@orthacms/utils-admin';
 import {
     AppearanceProvider,
     TooltipProvider,
@@ -18,6 +16,7 @@ import {
 import { UnsavedChangesGuard } from '../UnsavedChangesGuard';
 import { AppErrorBoundary } from '../AppErrorBoundary';
 import { RouteAnnouncer } from '../RouteAnnouncer';
+import { PageTransitionRouter } from '../PageTransitionRouter';
 import { DesignSystemLabels } from '../DesignSystemLabels';
 import type { AdminPlugin, CreateAdminOptions } from '../types/adminPlugin';
 
@@ -199,7 +198,12 @@ function makeIntlErrorHandler(
  * with no gating `layout` therefore renders ungated.
  */
 export function createAdmin(options: CreateAdminOptions): void {
-    const { plugins, rootElement = 'root', locale = 'en' } = options;
+    const {
+        plugins,
+        rootElement = 'root',
+        locale = 'en',
+        preloadPages: preload = true
+    } = options;
 
     // The document's language, which nothing was setting: `apps/admin/index.html`
     // ships `lang="en"` and the host never touched it, so a `locale: 'de'` app
@@ -259,7 +263,7 @@ export function createAdmin(options: CreateAdminOptions): void {
                         <DesignSystemLabels>
                             <TooltipProvider delayDuration={200}>
                                 <AppErrorBoundary>
-                                    <BrowserRouter>
+                                    <PageTransitionRouter>
                                         <RouteAnnouncer />
                                         <UnsavedChangesGuard>
                                             <Routes>
@@ -296,7 +300,7 @@ export function createAdmin(options: CreateAdminOptions): void {
                                                 </Route>
                                             </Routes>
                                         </UnsavedChangesGuard>
-                                    </BrowserRouter>
+                                    </PageTransitionRouter>
                                 </AppErrorBoundary>
                                 {/* Outside the boundary on purpose: a toast is how
                                 the rest of the app reports trouble, so it has to
@@ -309,4 +313,28 @@ export function createAdmin(options: CreateAdminOptions): void {
             </AppearanceProvider>
         </StrictMode>
     );
+
+    if (preload) schedulePagePreload();
+}
+
+/**
+ * Once the browser is idle after boot, fetch every lazily-loaded page's chunk
+ * in the background (`preloadPages`), so the first visit to a page renders it
+ * straight away instead of through its `Suspense` skeleton.
+ *
+ * Skipped when the reader has asked the browser to save data — those chunks
+ * are a convenience, and a metered connection is the one place they are not.
+ */
+function schedulePagePreload() {
+    const connection = (
+        navigator as Navigator & { connection?: { saveData?: boolean } }
+    ).connection;
+    if (connection?.saveData) return;
+
+    const run = () => void preloadPages();
+    if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(run, { timeout: 5000 });
+    } else {
+        setTimeout(run, 2000);
+    }
 }

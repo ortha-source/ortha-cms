@@ -4,6 +4,7 @@ import { MEDIA_KIND } from '../../constants';
 import type { MediaAsset } from '../../types/mediaAsset';
 import { assetGradient } from '../../utils/assetGradient';
 import { formatDuration } from '../../utils/formatDuration';
+import { FadeInImage } from '../FadeInImage';
 import { MediaKindIcon } from '../MediaKindIcon';
 
 /**
@@ -11,8 +12,9 @@ import { MediaKindIcon } from '../MediaKindIcon';
  * from the media API — the small `thumb` derivative by default, or the larger
  * `preview` when `size="preview"` (the detail drawer) — falling back to the
  * original when no derivative exists (e.g. SVG). A deterministic gradient tile
- * sits underneath as the backdrop / loading state; non-image kinds show it with
- * a centred kind glyph. Video/audio get a play affordance and a duration pill.
+ * sits underneath as the backdrop / loading state — the image fades in over it
+ * once loaded (`FadeInImage`) — and non-image kinds show it with a centred kind
+ * glyph. Video/audio get a play affordance and a duration pill.
  * Sized entirely by the parent via `className` (aspect + radius), so it serves
  * tiles, list rows, and the drawer.
  */
@@ -48,7 +50,7 @@ export function MediaThumbnail({
             {/* A soft wash so overlaid glyphs stay legible on any hue. */}
             <div className="absolute inset-0 bg-black/5" aria-hidden />
             {isImage ? (
-                <img
+                <FadeInImage
                     src={imageSrc}
                     alt={asset.alt ?? ''}
                     loading="lazy"

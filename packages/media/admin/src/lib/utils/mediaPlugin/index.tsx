@@ -1,4 +1,5 @@
-import { Suspense, lazy } from 'react';
+import { Suspense } from 'react';
+import { lazyPage } from '@orthacms/utils-admin';
 import type { AdminPlugin } from '@orthacms/bootstrap-admin';
 import {
     WORKSPACE_ROUTE_SLOT,
@@ -31,10 +32,9 @@ import {
 } from '../../hooks/usePendingMediaUploads';
 import { MEDIA_READ } from '../../constants';
 
-const MediaLibraryPage = lazy(() =>
-    import('../../pages/MediaLibraryPage').then((module) => ({
-        default: module.MediaLibraryPage
-    }))
+const MediaLibraryPage = lazyPage(
+    () => import('../../pages/MediaLibraryPage'),
+    'MediaLibraryPage'
 );
 
 /** The Media tab applies to any type that declares a media field. */

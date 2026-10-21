@@ -3,6 +3,7 @@ import { defineMessages, useIntl } from 'react-intl';
 import { Button, InputField } from '@orthacms/design-system';
 import { FileText, Film, Music, Package, X } from 'lucide-react';
 import { formatBytes } from '../../../utils/formatBytes';
+import { FadeInImage } from '../../FadeInImage';
 
 /** Intl descriptors for {@link StagedFileRow}, co-located. */
 const messages = defineMessages({
@@ -99,7 +100,7 @@ export function StagedFileRow({
             <div className="flex items-center gap-3">
                 <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted">
                     {previewUrl ? (
-                        <img
+                        <FadeInImage
                             src={previewUrl}
                             alt=""
                             className="size-full object-cover"

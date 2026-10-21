@@ -18,11 +18,15 @@ hand-written):
 - UI components → `src/lib/components/ui/`
 - utilities → `src/lib/` · hooks → `src/lib/hooks/`
 - Theme tokens (Tailwind v4 `@theme`) live in `apps/admin/src/styles.css`
-- The package also ships a small global stylesheet at `src/styles.css` (the
-  `wizard-step-in` animation used by `WizardStepCard`, the dropdown entrance,
-  and the `Sheet` slide-in — entrance only, off under reduced motion, for the
-  reasons written above its rules); the host imports it once,
-  after `@import 'tailwindcss'`. Generic multi-step wizard chrome (`Stepper`,
+- The package also ships a global stylesheet at `src/styles.css`; the host
+  imports it once, after `@import 'tailwindcss'`. It holds **all of the
+  library's motion** — the `--ds-duration-*` / `--ds-ease-*` tokens, the
+  overlay entrances (dropdowns, tooltip, dialog, sheet — entrance only), the
+  collapsible open/close, the wizard step, the skeleton reveal, the opt-in
+  `ds-fade-in` / `ds-item-enter` / `ds-flash` classes and the page cross-fade
+  — plus the cursor, `forced-colors` and panel-resize rules. Read the comment
+  above a block before changing it: most of them record a bug the obvious
+  version caused. Generic multi-step wizard chrome (`Stepper`,
   `WizardStepCard`, `WizardFooter`) lives in `ui/wizard.tsx` — copy-free and
   i18n-free, configured by the consumer.
 
@@ -128,6 +132,50 @@ hand-written):
   value would toggle different code paths. Without the prop the search box
   answers "No results." and cannot invent a value, which is what a picker over
   a fixed vocabulary needs.
+
+## Motion
+
+- **Time things from the tokens** — `duration-(--ds-duration-fast|base|slow)`
+  and `ease-(--ds-ease-out)` in Tailwind, `var(--ds-…)` in `styles.css`.
+- **A Radix overlay animates its entrance only.** Its exit would keep a closed
+  layer mounted and answering focus and pointer events (the history is above
+  `.ds-dropdown-motion`). `Collapsible` is the one exception, for the reason
+  written above `.ds-collapsible-motion`.
+- **Every animation needs a reduced-motion branch** — `animation: none`, or a
+  replacement that moves nothing (opacity/colour). `library-conventions.spec.ts`
+  fails on a keyframed class without one.
+- **`tailwindcss-animate` is not installed**: `animate-in`, `fade-in-0`,
+  `zoom-in-95`, `slide-in-from-*` generate no CSS. Strip them from anything the
+  shadcn CLI adds.
+- **Tailwind v4 spellings.** Transition `translate`/`scale`, not `transform`
+  (v4 writes them as standalone properties), and write CSS-variable values as
+  `origin-(--radix-…)` — `origin-[--radix-…]` compiles to an invalid
+  declaration (pinned by the conventions spec).
+- **`TabsList`, `TabNav` and `SegmentedControl` slide one indicator** to the
+  active item (`useActiveIndicator`). Until it has measured something the
+  active item draws its own static style, so jsdom, a first frame and an empty
+  selection all look right.
+- **`Table` takes `stale`** for `keepPreviousData` lists: the body dims after a
+  150 ms beat and the table is `aria-busy`, instead of old rows posing as
+  current while the next page loads.
+- **`SkeletonRegion` reveals its blocks after 150 ms**, so a fast load never
+  flashes grey; the status text is announced from the first frame.
+- **A numeric `StatTile` value counts up** (`CountUp` over `useCountUp`: rAF,
+  ~600 ms, ease-out, from 0 on mount and from the old figure on change). The
+  moving figure is `aria-hidden` beside an `sr-only` final value, so assistive
+  tech never reads an in-between number; it lands as one plain text node. It
+  snaps to the final value under reduced motion, in a hidden tab and where
+  `requestAnimationFrame` / `matchMedia` are missing. Format with
+  `formatValue` (`intl.formatNumber`), never by passing a pre-formatted string
+  — a string is drawn as given and does not count.
+- **Motion an inline style owns needs `usePrefersReducedMotion`** — a
+  `motion-reduce:` class cannot beat a `style={{ transition }}`. dnd-kit's
+  sortable glide is the case in point: pass `transition: reduced ? null :
+undefined` to `useSortable`. A dragged sortable item takes
+  `dragLiftClassName(isDragging)` (shadow, `scale-[1.02]`, `z-10`, grabbing
+  cursor; transitions `scale`/`box-shadow`, never `transform`) and
+  `dragLiftTransition(transition, reduced)` for its inline style, because
+  dnd-kit's inline `transition` would otherwise replace the lift's.
 
 ## Tests
 

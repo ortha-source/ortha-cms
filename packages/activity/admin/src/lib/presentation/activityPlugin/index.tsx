@@ -1,4 +1,5 @@
-import { Suspense, lazy } from 'react';
+import { Suspense } from 'react';
+import { lazyPage } from '@orthacms/utils-admin';
 import type { AdminPlugin } from '@orthacms/bootstrap-admin';
 import { HOME_SECTION_SLOT, SIDEBAR_NAV_SLOT } from '@orthacms/shell-admin';
 import { ENTRY_TAB, ENTRY_TAB_SLOT } from '@orthacms/content-admin';
@@ -9,10 +10,9 @@ import { EntryActivityTab } from '../components/EntryActivityTab';
 
 // Lazy-loaded so the Activity Log page is code-split into its own chunk,
 // fetched only when a signed-in user first navigates to `/activity`.
-const ActivityLogPage = lazy(() =>
-    import('../pages/ActivityLogPage').then((module) => ({
-        default: module.ActivityLogPage
-    }))
+const ActivityLogPage = lazyPage(
+    () => import('../pages/ActivityLogPage'),
+    'ActivityLogPage'
 );
 
 /**

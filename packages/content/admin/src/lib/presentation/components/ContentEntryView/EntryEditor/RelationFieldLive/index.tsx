@@ -18,7 +18,8 @@ import {
     sortableKeyboardCoordinates,
     verticalListSortingStrategy
 } from '@dnd-kit/sortable';
-import { Button, Spinner } from '@orthacms/design-system';
+import { Button, Spinner, cn } from '@orthacms/design-system';
+import { markJustCreated, useJustCreated } from '@orthacms/utils-admin';
 import { useCurrentWorkspace } from '@orthacms/workspaces-admin';
 import type {
     ContentField,
@@ -150,6 +151,10 @@ export function RelationFieldLive({
     // it — and neither can a reader in preview, so the whole dnd context is left
     // unmounted rather than mounted with every drag rejected.
     const reorderable = many && !field.relation?.inverse && !readOnly;
+    // Records the picker just linked rise into the list. Scoped to this field,
+    // so the same record linked through a sibling field is not highlighted.
+    const addedScope = `relation-items:${typeName}:${field.name}`;
+    const isJustAdded = useJustCreated(addedScope);
 
     const { data: targetSchema } = useContentSchema(targetName, !!targetName);
     const targetLabel = targetSchema?.label ?? targetName;
@@ -235,6 +240,9 @@ export function RelationFieldLive({
                 source: c.source
             };
         });
+        for (const id of chosenIds) {
+            if (!ids.includes(id)) markJustCreated(addedScope, id);
+        }
         onStagedChange(
             reconcileStaged(staged, ids, serverItems, chosenIds, refs)
         );
@@ -367,6 +375,10 @@ export function RelationFieldLive({
                                     <SortableRelationItem
                                         key={item.id}
                                         id={item.id}
+                                        className={cn(
+                                            isJustAdded(item.id) &&
+                                                'ds-item-enter'
+                                        )}
                                         title={item.title}
                                         handle={handleFor(
                                             item.title,
@@ -403,6 +415,9 @@ export function RelationFieldLive({
                         displayed.map((item, i) => (
                             <RelationItemRow
                                 key={item.id}
+                                className={cn(
+                                    isJustAdded(item.id) && 'ds-item-enter'
+                                )}
                                 title={item.title}
                                 handle={handleFor(item.title, item.slug)}
                                 status={item.status}

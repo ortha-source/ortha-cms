@@ -1,7 +1,13 @@
 import type { CSSProperties, ReactNode, Ref } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { ChevronDown, ChevronUp, ExternalLink, X } from 'lucide-react';
-import { Badge, Button, buttonVariants, cn } from '@orthacms/design-system';
+import {
+    Badge,
+    Button,
+    buttonVariants,
+    cn,
+    dragLiftClassName
+} from '@orthacms/design-system';
 import type {
     EntrySource,
     EntryStatus
@@ -100,8 +106,10 @@ export type RelationItemRowProps = {
     rowRef?: Ref<HTMLDivElement>;
     /** dnd-kit transform/transition styles while dragging. */
     style?: CSSProperties;
-    /** Whether this row is the one being dragged (dims it). */
+    /** Whether this row is the one being dragged (lifts it — raised, scaled). */
     dragging?: boolean;
+    /** Extra classes for the row (the field's just-added entrance). */
+    className?: string;
     /**
      * Preview mode — drop every write control (reorder, drag, Replace, remove)
      * and keep the record's identity and its open-in-a-new-tab link.
@@ -132,7 +140,8 @@ export function RelationItemRow({
     rowRef,
     style,
     dragging = false,
-    readOnly = false
+    readOnly = false,
+    className
 }: RelationItemRowProps) {
     const intl = useIntl();
     const iconButton = cn(
@@ -145,8 +154,12 @@ export function RelationItemRow({
             ref={rowRef}
             style={style}
             className={cn(
-                'flex items-center gap-2.5 rounded-xl border bg-card px-2.5 py-2 transition-colors hover:border-border/80',
-                dragging ? 'opacity-60 shadow-sm' : ''
+                'flex items-center gap-2.5 rounded-xl border bg-card px-2.5 py-2 hover:border-border/80',
+                // The row *is* what moves (no drag overlay), so it is lifted,
+                // not dimmed — a faded row reads as the gap it left behind.
+                // Carries the colour transition `transition-colors` gave it.
+                dragLiftClassName(dragging),
+                className
             )}
         >
             {readOnly ? null : (dragHandle ?? null)}

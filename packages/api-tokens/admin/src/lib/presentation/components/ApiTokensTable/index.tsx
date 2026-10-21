@@ -14,8 +14,11 @@ import {
     TableCell,
     TableHead,
     TableHeader,
-    TableRow
+    TableRow,
+    cn
 } from '@orthacms/design-system';
+import { useJustCreated } from '@orthacms/utils-admin';
+import { API_TOKENS_SCOPE } from '../../../application/useApiTokensMutation';
 import type {
     ApiToken,
     ApiTokenScope,
@@ -101,16 +104,23 @@ export function ApiTokensTable({
     canRevoke,
     onRevoke,
     revokingId,
-    resolveWorkspaceName
+    resolveWorkspaceName,
+    stale = false
 }: {
     tokens: ApiToken[];
     canRevoke: boolean;
     onRevoke: (id: string) => void;
     revokingId: string | null;
     resolveWorkspaceName: (id: string) => string;
+    /**
+     * The rows are the previous page's result while the next one loads
+     * (`isPlaceholderData`) — the table dims its body and goes `aria-busy`.
+     */
+    stale?: boolean;
 }) {
     const intl = useIntl();
     const [pending, setPending] = useState<ApiToken | null>(null);
+    const isJustCreated = useJustCreated(API_TOKENS_SCOPE);
 
     const formatDate = (date: Date | null, fallback: string) =>
         date ? intl.formatDate(date, { dateStyle: 'medium' }) : fallback;
@@ -118,7 +128,10 @@ export function ApiTokensTable({
     return (
         <>
             <div className="mt-4">
-                <Table aria-label={intl.formatMessage(messages.caption)}>
+                <Table
+                    aria-label={intl.formatMessage(messages.caption)}
+                    stale={stale}
+                >
                     <TableHeader>
                         <TableRow>
                             <TableHead
@@ -174,7 +187,12 @@ export function ApiTokensTable({
                     </TableHeader>
                     <TableBody>
                         {tokens.map((token) => (
-                            <TableRow key={token.id}>
+                            <TableRow
+                                key={token.id}
+                                className={cn(
+                                    isJustCreated(token.id) && 'ds-flash'
+                                )}
+                            >
                                 <TableCell className="font-medium">
                                     {token.name}
                                 </TableCell>

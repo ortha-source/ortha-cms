@@ -12,7 +12,7 @@ import { Label } from './label';
 import { Popover, PopoverContent, PopoverTrigger } from './popover';
 
 /**
- * Day-cell size — small enough that all 7 columns (each `min-w-[--cell-size]`)
+ * Day-cell size — small enough that all 7 columns (each `min-w-(--cell-size)`)
  * fit inside the capped 300px popover without overflowing.
  */
 const CALENDAR_STYLE = { '--cell-size': '2.25rem' } as React.CSSProperties;

@@ -20,6 +20,7 @@ import { MEDIA_KIND, type MediaKind } from '../../../constants';
 import type { MediaFieldDisplay } from '../../../types/mediaFieldDisplay';
 import { assetGradient } from '../../../utils/assetGradient';
 import { formatBytes } from '../../../utils/formatBytes';
+import { FadeInImage } from '../../FadeInImage';
 import { MediaKindIcon } from '../../MediaKindIcon';
 
 /** Intl descriptors for {@link MediaFieldItem}, co-located. */
@@ -174,7 +175,7 @@ export function MediaFieldItem({
                         </span>
                     </span>
                 ) : asImage ? (
-                    <img
+                    <FadeInImage
                         src={item.url}
                         alt={item.name}
                         loading="lazy"

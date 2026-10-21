@@ -26,7 +26,17 @@ const messages = defineMessages({
  * details panel — the full subject, actor, exact time, and raw metadata. The
  * log is read-only; the only row interaction is expand/collapse.
  */
-export function ActivityTable({ events }: { events: ActivityEvent[] }) {
+export function ActivityTable({
+    events,
+    stale = false
+}: {
+    events: ActivityEvent[];
+    /**
+     * The rows are the previous page/filter's result while the next one loads
+     * (`isPlaceholderData`) — the table dims its body and goes `aria-busy`.
+     */
+    stale?: boolean;
+}) {
     const intl = useIntl();
     const [expanded, setExpanded] = useState<ReadonlySet<string>>(
         () => new Set()
@@ -45,7 +55,10 @@ export function ActivityTable({ events }: { events: ActivityEvent[] }) {
 
     return (
         <div>
-            <Table aria-label={intl.formatMessage(messages.caption)}>
+            <Table
+                aria-label={intl.formatMessage(messages.caption)}
+                stale={stale}
+            >
                 <TableHeader>
                     <TableRow>
                         {/* The disclosure column. An empty <th> reads as

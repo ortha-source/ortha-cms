@@ -36,6 +36,10 @@ const messages = defineMessages({
  * included (the caller holds it across the whole flow), so it never lifts onto a
  * screen still showing pre-save values.
  *
+ * It fades in (`ds-fade-in`, from the design system's stylesheet — the
+ * `animate-in` utilities it used to name generate no CSS here) and is gone the
+ * moment the write settles.
+ *
  * Purely visual — `pointer-events-none` blocks nothing on its own; the editor
  * already disables its own controls while saving. `role="status"` +
  * `aria-live="polite"` announces the state to screen readers, which is the part
@@ -52,7 +56,7 @@ export function EntryBusyOverlay({ busy }: { busy: EntryBusy | null }) {
             role="status"
             aria-live="polite"
             data-testid="entry-busy"
-            className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-background/95 backdrop-blur-sm animate-in fade-in-0 duration-150 motion-reduce:animate-none"
+            className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center ds-fade-in bg-background/95 backdrop-blur-sm"
         >
             <div className="flex flex-col items-center gap-3">
                 <Glyph aria-hidden className="size-12 text-muted-foreground" />

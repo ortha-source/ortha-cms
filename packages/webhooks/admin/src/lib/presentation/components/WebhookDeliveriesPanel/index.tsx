@@ -121,14 +121,12 @@ export function WebhookDeliveriesPanel({
     const [page, setPage] = useState(1);
     const [openDeliveryId, setOpenDeliveryId] = useState<string | null>(null);
 
-    const { data, isPending, isError, refetch } = useWebhookDeliveries(
-        endpointId,
-        {
+    const { data, isPending, isError, isPlaceholderData, refetch } =
+        useWebhookDeliveries(endpointId, {
             page,
             pageSize: DEFAULT_PAGE_SIZE,
             ...(status === ALL ? {} : { status })
-        }
-    );
+        });
     const { data: detail } = useWebhookDelivery(endpointId, openDeliveryId);
     const redeliver = useRedeliverWebhook();
 
@@ -196,7 +194,7 @@ export function WebhookDeliveriesPanel({
                 </p>
             ) : (
                 <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
-                    <Table>
+                    <Table stale={isPlaceholderData}>
                         <caption className="sr-only">
                             {intl.formatMessage(messages.caption)}
                         </caption>

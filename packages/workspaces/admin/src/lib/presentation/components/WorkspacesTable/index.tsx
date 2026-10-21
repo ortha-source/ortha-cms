@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
-import { initialsOf } from '@orthacms/utils-admin';
+import { initialsOf, useJustCreated } from '@orthacms/utils-admin';
 import {
     Table,
     TableBody,
@@ -14,6 +14,7 @@ import { WorkspaceAvatar } from '../WorkspaceAvatar';
 import { StatusChip } from '../StatusChip';
 import { isActiveWorkspace } from '../../../domain/isActiveWorkspace';
 import type { Workspace } from '../../../domain/types/workspace';
+import { WORKSPACES_SCOPE } from '../../../application/useCreateWorkspace';
 
 /** Intl descriptors for {@link WorkspacesTable}, co-located with the component. */
 const messages = defineMessages({
@@ -57,6 +58,7 @@ const messages = defineMessages({
 export function WorkspacesTable({ workspaces }: { workspaces: Workspace[] }) {
     const intl = useIntl();
     const navigate = useNavigate();
+    const isJustCreated = useJustCreated(WORKSPACES_SCOPE);
 
     return (
         <div>
@@ -88,7 +90,8 @@ export function WorkspacesTable({ workspaces }: { workspaces: Workspace[] }) {
                                 }
                                 className={cn(
                                     'cursor-pointer',
-                                    isArchived && 'bg-muted/30'
+                                    isArchived && 'bg-muted/30',
+                                    isJustCreated(workspace.id) && 'ds-flash'
                                 )}
                             >
                                 <TableCell>

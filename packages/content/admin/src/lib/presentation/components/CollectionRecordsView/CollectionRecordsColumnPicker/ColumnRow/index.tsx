@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react';
-import { Checkbox, cn } from '@orthacms/design-system';
+import { Checkbox, cn, dragLiftClassName } from '@orthacms/design-system';
 import type { EntryColumn } from '../../../../../domain/entryColumns';
 
 /**
@@ -37,6 +37,8 @@ export function ColumnRow({
             style={style}
             className={cn(
                 'flex items-center gap-2 rounded-md px-1 py-1.5 text-sm',
+                // Lifted while dragged; `bg-muted` gives the shadow a surface.
+                dragLiftClassName(Boolean(dragging)),
                 dragging && 'bg-muted'
             )}
         >

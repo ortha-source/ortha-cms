@@ -1,4 +1,5 @@
-import { lazy, Suspense } from 'react';
+import { Suspense } from 'react';
+import { lazyPage } from '@orthacms/utils-admin';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { LoginSkeleton } from '../components/LoginSkeleton';
 import { AuthErrorBoundary } from '../components/AuthErrorBoundary';
@@ -11,20 +12,15 @@ import { RouteNotFoundPage } from '../pages/RouteNotFoundPage';
  * named `LoginPage` is adapted here; the dynamic `import()` is what lets the
  * bundler split it into its own chunk, so it must be the module's only importer.
  */
-const LoginPage = lazy(() =>
-    import('../pages/LoginPage').then((module) => ({
-        default: module.LoginPage
-    }))
-);
+const LoginPage = lazyPage(() => import('../pages/LoginPage'), 'LoginPage');
 
 /**
  * Accept-invite page, split for the same reason and then some: hardly anyone
  * loads it, and those who do load it exactly once.
  */
-const AcceptInvitePage = lazy(() =>
-    import('../pages/AcceptInvitePage').then((module) => ({
-        default: module.AcceptInvitePage
-    }))
+const AcceptInvitePage = lazyPage(
+    () => import('../pages/AcceptInvitePage'),
+    'AcceptInvitePage'
 );
 
 /**
@@ -32,10 +28,9 @@ const AcceptInvitePage = lazy(() =>
  * is reached rarely, from a one-time link, and never by a signed-in user
  * browsing the app.
  */
-const ResetPasswordPage = lazy(() =>
-    import('../pages/ResetPasswordPage').then((module) => ({
-        default: module.ResetPasswordPage
-    }))
+const ResetPasswordPage = lazyPage(
+    () => import('../pages/ResetPasswordPage'),
+    'ResetPasswordPage'
 );
 
 /**

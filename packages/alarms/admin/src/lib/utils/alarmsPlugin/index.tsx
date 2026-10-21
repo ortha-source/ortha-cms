@@ -1,4 +1,5 @@
-import { Suspense, lazy } from 'react';
+import { Suspense } from 'react';
+import { lazyPage } from '@orthacms/utils-admin';
 import type { AdminPlugin } from '@orthacms/bootstrap-admin';
 import {
     ENTRY_SIDEBAR_WIDGET_SLOT,
@@ -22,16 +23,14 @@ import { useFindingsByEntry } from '../../application/useFindingsByEntry';
 import { alarmsColumnMessages } from '../alarmsColumnMessages';
 
 // Lazy so each page is its own chunk, fetched when a user first opens alarms.
-const AlarmsPage = lazy(() =>
-    import('../../presentation/pages/AlarmsPage').then((module) => ({
-        default: module.AlarmsPage
-    }))
+const AlarmsPage = lazyPage(
+    () => import('../../presentation/pages/AlarmsPage'),
+    'AlarmsPage'
 );
 
-const AlarmRuleEditorPage = lazy(() =>
-    import('../../presentation/pages/AlarmRuleEditorPage').then((module) => ({
-        default: module.AlarmRuleEditorPage
-    }))
+const AlarmRuleEditorPage = lazyPage(
+    () => import('../../presentation/pages/AlarmRuleEditorPage'),
+    'AlarmRuleEditorPage'
 );
 
 /** Admin-side alarms plugin shape — a named alias of {@link AdminPlugin}. */

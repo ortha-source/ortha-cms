@@ -1,4 +1,6 @@
 import { defineMessages, useIntl } from 'react-intl';
+import { useJustCreated } from '@orthacms/utils-admin';
+import { MEDIA_ASSETS_SCOPE } from '../../hooks/useUploadQueue';
 import type { MediaAsset } from '../../types/mediaAsset';
 import type { MediaFolder } from '../../types/mediaFolder';
 import type { AssetActionKind } from '../AssetActionsMenu';
@@ -45,6 +47,7 @@ export function MediaGrid({
     canDelete: boolean;
 }) {
     const intl = useIntl();
+    const isJustUploaded = useJustCreated(MEDIA_ASSETS_SCOPE);
     const showLabels = folders.length > 0 && assets.length > 0;
 
     return (
@@ -86,6 +89,7 @@ export function MediaGrid({
                                 key={asset.id}
                                 asset={asset}
                                 selected={selectedIds.has(asset.id)}
+                                justUploaded={isJustUploaded(asset.id)}
                                 onToggleSelect={onToggleSelect}
                                 onAction={onAssetAction}
                                 canCreate={canCreate}

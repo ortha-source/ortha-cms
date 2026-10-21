@@ -55,7 +55,8 @@ const messages = defineMessages({
 export function ReviewQueueTable({
     items,
     currentUserId,
-    overdueAfterDays
+    overdueAfterDays,
+    stale = false
 }: {
     /** The rows for this tab, already split by `splitQueue`. */
     items: readonly ReviewQueueItem[];
@@ -63,12 +64,20 @@ export function ReviewQueueTable({
     currentUserId?: string;
     /** The server's overdue cut, passed straight through to each age. */
     overdueAfterDays: number;
+    /**
+     * The rows are a previous query's result while the next one loads
+     * (`isPlaceholderData`) — the table dims its body and goes `aria-busy`.
+     */
+    stale?: boolean;
 }) {
     const intl = useIntl();
 
     return (
         <div>
-            <Table aria-label={intl.formatMessage(messages.caption)}>
+            <Table
+                aria-label={intl.formatMessage(messages.caption)}
+                stale={stale}
+            >
                 <TableHeader>
                     <TableRow>
                         <TableHead scope="col">

@@ -1,6 +1,6 @@
 import { defineMessages, useIntl } from 'react-intl';
 import { X } from 'lucide-react';
-import { Button } from '@orthacms/design-system';
+import { Button, cn } from '@orthacms/design-system';
 import type { WorkspaceMember } from '../../../../domain/types/workspace';
 import { WorkspaceAvatar } from '../../WorkspaceAvatar';
 
@@ -19,6 +19,8 @@ export type MemberListRowProps = {
     canRemove: boolean;
     /** Called when the remove control is pressed. */
     onRemove: () => void;
+    /** Extra classes for the row (the roster's just-added highlight). */
+    className?: string;
 };
 
 /**
@@ -29,12 +31,13 @@ export type MemberListRowProps = {
 export function MemberListRow({
     member,
     canRemove,
-    onRemove
+    onRemove,
+    className
 }: MemberListRowProps) {
     const intl = useIntl();
 
     return (
-        <div className="flex items-center gap-3 px-3 py-2">
+        <div className={cn('flex items-center gap-3 px-3 py-2', className)}>
             <WorkspaceAvatar
                 className="size-9 text-xs"
                 initials={member.initials || '—'}

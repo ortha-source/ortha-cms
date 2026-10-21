@@ -34,7 +34,8 @@ export function ContentPublishedStat() {
     return (
         <StatWidget
             label={intl.formatMessage(messages.label)}
-            value={intl.formatNumber(data?.published ?? 0)}
+            count={data?.published ?? 0}
+            formatCount={(value) => intl.formatNumber(value)}
             delta={
                 delta > 0
                     ? intl.formatMessage(messages.delta, { count: delta })

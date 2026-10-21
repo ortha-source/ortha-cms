@@ -465,6 +465,17 @@ describe('motion', () => {
         );
     }
 
+    /**
+     * Custom properties registered as a `<color>` (`@property … { syntax:
+     * '<color>' }`): a keyframe that animates one of them changes a colour
+     * and can move nothing, so it counts as motionless like `color` does.
+     */
+    const colorProperties = new Set(
+        [
+            ...styles.matchAll(/@property (--[\w-]+) \{[^}]*syntax: '<color>'/g)
+        ].map(([, name]) => name)
+    );
+
     /** The property names one `@keyframes` block declares. */
     function keyframeProperties(name: string): string[] {
         const block = styles.match(
@@ -503,7 +514,11 @@ describe('motion', () => {
                     const properties = keyframeProperties(name);
                     return (
                         properties.length > 0 &&
-                        properties.every((property) => MOTIONLESS.has(property))
+                        properties.every(
+                            (property) =>
+                                MOTIONLESS.has(property) ||
+                                colorProperties.has(property)
+                        )
                     );
                 })
                 .flatMap((rule) => rule.selectors)
@@ -677,6 +692,40 @@ describe('motion', () => {
             expect(sheet?.code).toContain(`ds-sheet-motion-${side}`);
         }
         expect(sheet?.code).toContain('ds-overlay-motion');
+    });
+
+    it('settles a dialog in without touching the translate that centres it [design-system:I-30]', () => {
+        // `DialogContent` is centred by `translate-x/y-[-50%]`, which Tailwind
+        // v4 writes to the standalone `translate` property. A keyframe on
+        // `translate` — or on `transform`, which composes with it — would
+        // throw the panel off-centre for the length of the entrance.
+        const properties = keyframeProperties('ds-dialog-in');
+        expect(properties.length).toBeGreaterThan(0);
+        expect(properties).not.toContain('translate');
+        expect(properties).not.toContain('transform');
+
+        const dialog = files.find(
+            (file) => file.module === 'lib/components/ui/dialog.tsx'
+        );
+        expect(dialog?.code).toContain('ds-dialog-motion');
+        expect(dialog?.code).toContain('ds-overlay-motion');
+    });
+
+    it('spells CSS-variable arbitrary values the Tailwind v4 way [design-system:I-30]', () => {
+        // `origin-[--radix-…]` is the v3 spelling. v4 no longer wraps a bare
+        // `--var` in `var()`, so it compiles to `transform-origin: --radix-…`,
+        // which the browser drops — every menu scaled from its centre instead
+        // of its trigger, and `Select` lost its available-height bound. The
+        // v4 form is `origin-(--radix-…)`. A declaration that *sets* a
+        // variable (`[--cell-size:2rem]`) is a different, valid thing.
+        const v3Var = /(^|:)[a-z-]+-\[--[\w-]+\]$/;
+        const offenders = files.flatMap((file) =>
+            stringLiterals(file.code)
+                .flatMap((literal) => literal.split(/\s+/))
+                .filter((token) => v3Var.test(token))
+                .map((token) => `${file.path}: ${token}`)
+        );
+        expect(offenders).toEqual([]);
     });
 });
 

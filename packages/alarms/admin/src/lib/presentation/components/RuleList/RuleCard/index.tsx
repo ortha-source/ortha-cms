@@ -5,7 +5,8 @@ import {
     AlertTitle,
     Badge,
     Button,
-    Spinner
+    Spinner,
+    cn
 } from '@orthacms/design-system';
 import { Pencil, RefreshCw, TriangleAlert, Trash2 } from 'lucide-react';
 import type { AlarmRule } from '../../../../types/alarm';
@@ -65,6 +66,8 @@ export type RuleCardProps = {
     onEdit: (rule: AlarmRule) => void;
     onDelete: (rule: AlarmRule) => void;
     onShowFindings: (rule: AlarmRule) => void;
+    /** The rule was just created — its card is highlighted. */
+    justCreated?: boolean;
 };
 
 /**
@@ -83,12 +86,18 @@ export function RuleCard({
     onRescan,
     onEdit,
     onDelete,
-    onShowFindings
+    onShowFindings,
+    justCreated = false
 }: RuleCardProps) {
     const intl = useIntl();
 
     return (
-        <li className="flex flex-col gap-3 rounded-md border p-4">
+        <li
+            className={cn(
+                'flex flex-col gap-3 rounded-md border p-4',
+                justCreated && 'ds-flash'
+            )}
+        >
             <div className="flex flex-wrap items-start gap-3">
                 <SeverityBadge severity={rule.severity} className="mt-0.5" />
 

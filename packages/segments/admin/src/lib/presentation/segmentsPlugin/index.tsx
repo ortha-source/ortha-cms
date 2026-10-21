@@ -1,4 +1,5 @@
-import { Suspense, lazy } from 'react';
+import { Suspense } from 'react';
+import { lazyPage } from '@orthacms/utils-admin';
 import type { AdminPlugin } from '@orthacms/bootstrap-admin';
 import { SIDEBAR_NAV_SLOT } from '@orthacms/shell-admin';
 import {
@@ -27,15 +28,13 @@ import { RevisionAccessValue } from '../components/RevisionAccessValue';
 // tab are **not** lazy: they mount inside the editor, which is already a chunk
 // of its own, and a suspense boundary around a badge in the Details block is a
 // flicker on every entry open.
-const SegmentsPage = lazy(() =>
-    import('../pages/SegmentsPage').then((module) => ({
-        default: module.SegmentsPage
-    }))
+const SegmentsPage = lazyPage(
+    () => import('../pages/SegmentsPage'),
+    'SegmentsPage'
 );
-const SegmentEditorPage = lazy(() =>
-    import('../pages/SegmentEditorPage').then((module) => ({
-        default: module.SegmentEditorPage
-    }))
+const SegmentEditorPage = lazyPage(
+    () => import('../pages/SegmentEditorPage'),
+    'SegmentEditorPage'
 );
 
 /** Admin-side segments plugin shape — a named alias of {@link AdminPlugin}. */

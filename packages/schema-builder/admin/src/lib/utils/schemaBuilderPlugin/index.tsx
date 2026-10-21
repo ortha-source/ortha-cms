@@ -1,14 +1,14 @@
-import { Suspense, lazy } from 'react';
+import { Suspense } from 'react';
+import { lazyPage } from '@orthacms/utils-admin';
 import { Blocks } from 'lucide-react';
 import type { AdminPlugin } from '@orthacms/bootstrap-admin';
 import { SIDEBAR_NAV_SLOT } from '@orthacms/shell-admin';
 import { ContentModelPageSkeleton } from '../../presentation/components/ContentModelPageSkeleton';
 
 // Lazy so the page is its own chunk, fetched on first navigation.
-const ContentModelPage = lazy(() =>
-    import('../../presentation/pages/ContentModelPage').then((module) => ({
-        default: module.ContentModelPage
-    }))
+const ContentModelPage = lazyPage(
+    () => import('../../presentation/pages/ContentModelPage'),
+    'ContentModelPage'
 );
 
 /** Admin-side schema builder plugin shape — a named alias of {@link AdminPlugin}. */

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
+import { markJustCreated } from '@orthacms/utils-admin';
 import { UPLOAD_CONCURRENCY, UPLOAD_STATUS } from '../../constants';
 import type { UploadItem, UploadSummary } from '../../types/upload';
 import { httpMediaGateway } from '../../infrastructure/httpMediaGateway';
@@ -20,6 +21,9 @@ const SETTLED: readonly string[] = [
     UPLOAD_STATUS.Failed,
     UPLOAD_STATUS.Cancelled
 ];
+
+/** The `justCreated` scope of the library's asset tiles. */
+export const MEDIA_ASSETS_SCOPE = 'media-assets';
 
 /**
  * The Media Library's upload queue: turns a set of picked files into a list of
@@ -59,6 +63,8 @@ export function useUploadQueue(folderId: string, onUploaded: () => void) {
     const activeRef = useRef(0);
     /** Whether the current batch has produced a success worth invalidating for. */
     const successRef = useRef(false);
+    /** Ids of the assets this batch created, marked when the batch settles. */
+    const createdRef = useRef<string[]>([]);
     const nextIdRef = useRef(0);
 
     // `pump` and `runOne` call each other; the ref breaks the cycle without
@@ -87,6 +93,14 @@ export function useUploadQueue(folderId: string, onUploaded: () => void) {
         if (activeRef.current === 0 && waitingRef.current.length === 0) {
             if (successRef.current) {
                 successRef.current = false;
+                // Marked here rather than per file: the mark lasts a few
+                // seconds, and the grid only learns of the files from the one
+                // refetch this triggers — a long batch would outlive marks
+                // set as each file landed.
+                for (const assetId of createdRef.current) {
+                    markJustCreated(MEDIA_ASSETS_SCOPE, assetId);
+                }
+                createdRef.current = [];
                 onUploadedRef.current();
             }
         }
@@ -110,8 +124,9 @@ export function useUploadQueue(folderId: string, onUploaded: () => void) {
                     signal: controller.signal,
                     onProgress: (percent) => patch(id, { progress: percent })
                 })
-                .then(() => {
+                .then((asset) => {
                     successRef.current = true;
+                    createdRef.current.push(asset.id);
                     patch(id, {
                         status: UPLOAD_STATUS.Done,
                         progress: 100,

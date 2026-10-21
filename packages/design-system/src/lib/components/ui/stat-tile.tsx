@@ -1,13 +1,24 @@
 import type { ComponentType, ReactNode } from 'react';
 import { Card, CardContent } from './card';
+import { CountUp } from './count-up';
 import { cn } from '../../utils';
 
 /** Props for {@link StatTile}. */
 export type StatTileProps = {
     /** The metric's label (e.g. "Active workspaces"). */
     label: ReactNode;
-    /** The metric's value (e.g. a count). */
+    /**
+     * The metric's value. A **number** counts up to itself (from 0 on mount,
+     * from the previous figure on change — see {@link CountUp}); anything else
+     * (a placeholder, a pre-formatted string) is drawn as given.
+     */
     value: ReactNode;
+    /**
+     * Formats a numeric `value` — e.g. `intl.formatNumber`. Applied to every
+     * figure of the count, so the digits are grouped the whole way up.
+     * Defaults to `String`.
+     */
+    formatValue?: (value: number) => string;
     /** Optional leading icon, shown muted beside the label. */
     icon?: ComponentType<{ className?: string }>;
     /** Extra classes for the card. */
@@ -21,6 +32,7 @@ export type StatTileProps = {
 export function StatTile({
     label,
     value,
+    formatValue,
     icon: Icon,
     className
 }: StatTileProps) {
@@ -28,7 +40,11 @@ export function StatTile({
         <Card className={cn('shadow-none', className)}>
             <CardContent className="flex flex-col gap-1 p-4">
                 <span className="text-2xl font-semibold tracking-[-0.01em] tabular-nums">
-                    {value}
+                    {typeof value === 'number' ? (
+                        <CountUp value={value} format={formatValue} />
+                    ) : (
+                        value
+                    )}
                 </span>
                 <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
                     {Icon ? <Icon className="size-4 shrink-0" /> : null}

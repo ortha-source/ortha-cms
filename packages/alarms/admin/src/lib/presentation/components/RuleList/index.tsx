@@ -1,6 +1,8 @@
 import { defineMessages, useIntl } from 'react-intl';
 import { Alert, AlertDescription, AlertTitle } from '@orthacms/design-system';
 import { Bell, TriangleAlert } from 'lucide-react';
+import { useJustCreated } from '@orthacms/utils-admin';
+import { ALARM_RULES_SCOPE } from '../../../application/useAlarmRuleMutations';
 import type { AlarmRule } from '../../../types/alarm';
 import { RuleCard } from './RuleCard';
 
@@ -64,6 +66,7 @@ export function RuleList({
     rescanningIds
 }: RuleListProps) {
     const intl = useIntl();
+    const isJustCreated = useJustCreated(ALARM_RULES_SCOPE);
 
     if (isError) {
         return (
@@ -108,6 +111,7 @@ export function RuleList({
                     onEdit={onEdit}
                     onDelete={onDelete}
                     onShowFindings={onShowFindings}
+                    justCreated={isJustCreated(rule.id)}
                 />
             ))}
         </ul>

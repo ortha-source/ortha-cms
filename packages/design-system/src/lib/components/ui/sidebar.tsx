@@ -708,7 +708,13 @@ function SidebarInset({
                         // replaced.
                         role={scrollLabel ? 'group' : undefined}
                         aria-label={scrollLabel}
-                        className="flex min-h-0 flex-1 flex-col overflow-y-auto focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset focus-visible:outline-none"
+                        // `scrollbar-gutter: stable` reserves the scrollbar's
+                        // width whether or not the page overflows, so a page
+                        // that grows past the fold (a list that finished
+                        // loading, a section opening) does not shift every
+                        // column sideways by the scrollbar's width. No effect
+                        // under overlay scrollbars, which take no space.
+                        className="flex min-h-0 flex-1 flex-col overflow-y-auto [scrollbar-gutter:stable] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset focus-visible:outline-none"
                     >
                         {children}
                     </div>

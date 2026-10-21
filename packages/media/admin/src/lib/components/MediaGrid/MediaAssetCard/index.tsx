@@ -25,10 +25,17 @@ export function MediaAssetCard({
     onAction,
     canCreate,
     canUpdate,
-    canDelete
+    canDelete,
+    justUploaded = false
 }: {
     asset: MediaAsset;
     selected: boolean;
+    /**
+     * The asset was just uploaded: the tile rises into its slot. Not
+     * `ds-flash` — its keyframes animate `background-color` to transparent,
+     * which would drop the tile's card background for the length of the fade.
+     */
+    justUploaded?: boolean;
     onToggleSelect: (id: string) => void;
     onAction: (kind: AssetActionKind, asset: MediaAsset) => void;
     canCreate: boolean;
@@ -42,7 +49,8 @@ export function MediaAssetCard({
         <div
             className={cn(
                 'group relative overflow-hidden rounded-xl border bg-card transition-shadow hover:shadow-md',
-                selected && 'ring-2 ring-primary ring-offset-1'
+                selected && 'ring-2 ring-primary ring-offset-1',
+                justUploaded && 'ds-item-enter'
             )}
         >
             <div className="relative">
