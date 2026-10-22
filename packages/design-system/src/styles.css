@@ -538,7 +538,36 @@ html[data-ds-page-transition] [data-slot='sidebar-inset'] {
 ::view-transition-group(ds-page) {
     animation: none;
     overflow: clip;
+    /* The group paints the card the snapshots sit on. Without it the card's
+       surface was only the two images, so mid-fade — both half transparent —
+       the sidebar's frame showed through it, and the card's shadow (part of
+       each image's ink overflow, which the clip above cuts) vanished for the
+       length of the fade. */
+    background: var(--color-background);
 }
+
+/* On a desktop `inset` sidebar the work area is a rounded card. The pseudo-
+   elements hang off `<html>`, not the card, so they inherit none of its
+   classes and the clip above was a plain rectangle: the incoming page rises
+   from 6px below, its rounded bottom corners were pushed out of the box and
+   the clip drew the edge square — sharp corners on every route change. The
+   radius and shadow here are the card's own (`rounded-xl shadow-sm` on
+   `SidebarInset`, behind its `md:` breakpoint). */
+@media (min-width: 48rem) {
+    html:has(
+            [data-slot='sidebar'][data-variant='inset']
+        )::view-transition-group(ds-page) {
+        /* Fallbacks are Tailwind's defaults: `shadow-sm` inlines its value
+           rather than reading the variable, so it may not be emitted. */
+        border-radius: var(--radius-xl, 0.75rem);
+        box-shadow: var(
+            --shadow-sm,
+            0 1px 3px 0 rgb(0 0 0 / 0.1),
+            0 1px 2px -1px rgb(0 0 0 / 0.1)
+        );
+    }
+}
+
 ::view-transition-old(ds-page),
 ::view-transition-new(ds-page) {
     inset: 0 auto auto 0;

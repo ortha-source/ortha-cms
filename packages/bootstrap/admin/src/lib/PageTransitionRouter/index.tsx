@@ -1,6 +1,17 @@
-import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import {
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+    type ReactNode
+} from 'react';
 import { flushSync } from 'react-dom';
-import { Router } from 'react-router-dom';
+import {
+    Router,
+    type NavigateOptions,
+    type Navigator,
+    type To
+} from 'react-router-dom';
 import {
     createBrowserHistory,
     type Action,
@@ -34,6 +45,11 @@ type DocumentWithTransitions = Document & {
  * around them is the same, and fading it reads as the whole screen blinking
  * for a tab change. Anything else, including one top-level section to another
  * (`/users` → `/webhooks`): yes.
+ *
+ * Tabs whose default is the bare path (`/…/post/1` → `/…/post/1/relations`)
+ * look exactly like a list opening a record (`/…/post` → `/…/post/1`), so the
+ * path cannot tell them apart; such a tab says so itself, by navigating with
+ * `viewTransition: false` (see {@link PageTransitionRouter}).
  */
 export function isPageChange(from: string, to: string): boolean {
     if (from === to) return false;
@@ -112,21 +128,59 @@ export function PageTransitionRouter({ children }: { children: ReactNode }) {
     }));
     // What is on screen, and what the latest navigation asked for — the
     // transition's update runs a frame later, after any number of others.
-    const shown = useRef(state.location.pathname);
+    const shown = useRef(state.location);
     const latest = useRef(state);
     const active = useRef<unknown>(null);
+    // The `viewTransition` of the push/replace in flight, and the history
+    // entries a `false` landed on (by `location.key`).
+    const requested = useRef<boolean | undefined>(undefined);
+    const quiet = useRef(new Set<string>());
+
+    const navigator = useMemo<Navigator>(() => {
+        const withIntent =
+            (go: (to: To, state?: unknown) => void) =>
+            (to: To, state?: unknown, opts?: NavigateOptions) => {
+                requested.current = opts?.viewTransition;
+                try {
+                    go(to, state);
+                } finally {
+                    requested.current = undefined;
+                }
+            };
+        return {
+            createHref: (to) => history.createHref(to),
+            encodeLocation: (to) => history.encodeLocation(to),
+            go: (delta) => history.go(delta),
+            push: withIntent((to, state) => history.push(to, state)),
+            replace: withIntent((to, state) => history.replace(to, state))
+        };
+    }, [history]);
 
     useLayoutEffect(
         () =>
-            history.listen(({ action, location }) => {
+            history.listen(({ action, location, delta }) => {
                 const next = { action, location };
                 latest.current = next;
-                if (!isPageChange(shown.current, location.pathname)) {
-                    shown.current = location.pathname;
+                let fade = requested.current;
+                if (fade === false) quiet.current.add(location.key);
+                if (fade === undefined && action === 'POP') {
+                    // Back undoes the entry being left, Forward redoes the one
+                    // being entered.
+                    const undone =
+                        delta !== null && delta < 0
+                            ? shown.current.key
+                            : location.key;
+                    if (quiet.current.has(undone)) fade = false;
+                }
+                fade ??= isPageChange(
+                    shown.current.pathname,
+                    location.pathname
+                );
+                shown.current = location;
+                if (!fade) {
                     setState(next);
                     return;
                 }
-                shown.current = location.pathname;
                 crossFade(
                     () => flushSync(() => setState(latest.current)),
                     active
@@ -139,7 +193,7 @@ export function PageTransitionRouter({ children }: { children: ReactNode }) {
         <Router
             location={state.location}
             navigationType={state.action}
-            navigator={history}
+            navigator={navigator}
         >
             {children}
         </Router>

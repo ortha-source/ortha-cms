@@ -290,8 +290,15 @@ export function ContentEntryView({
         // though, not live input: `useCreatePrefill` snapshots it once per
         // create session, so carrying it forward no longer re-applies it over
         // what the author has typed (`ORT-228`).
+        //
+        // `viewTransition: false`: the default tab is the bare entry path, so
+        // General ↔ another tab changes the path's length — which the host's
+        // router reads as a page change (a list opening a record looks the
+        // same) and cross-fades the whole card, the page dipping and rising on
+        // every tab click.
         navigate(`${editorPath}${segment}${location.search}`, {
-            state: location.state
+            state: location.state,
+            viewTransition: false
         });
     };
 

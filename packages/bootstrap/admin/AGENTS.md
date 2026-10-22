@@ -56,7 +56,13 @@ identity's `AuthProvider` + `RequireAuth` inside the `layout` it contributes.
   two or more (a tab, the next record) — fading the whole screen for a tab reads
   as the app blinking. Plain navigation where View Transitions are missing,
   under reduced motion, or in a hidden tab. React Router's own `viewTransition`
-  only exists on the data routers, which this host does not use. What is
+  only drives a transition on the data routers, which this host does not use —
+  but the option is honoured here as an **override** of `isPageChange`:
+  `navigate(to, { viewTransition: false })` (or `<Link viewTransition={false}>`)
+  never fades, `true` always does, and Back/Forward over an entry reached with
+  `false` doesn't fade either. It exists for tabs whose default is the bare
+  path (the entry editor: `/…/post/1` ↔ `/…/post/1/relations`), which the path
+  alone cannot tell apart from a list opening a record. What is
   captured (the inset only, never the sidebar) is in the design system's
   `styles.css`, "Page cross-fade".
 - **Page chunks preload when the browser idles.** After the first render

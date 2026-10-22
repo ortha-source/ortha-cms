@@ -91,4 +91,93 @@ describe('PageTransitionRouter', () => {
             document.documentElement.hasAttribute('data-ds-page-transition')
         ).toBe(false);
     });
+
+    describe('a navigation that passes `viewTransition`', () => {
+        // A view transition that runs its update at once and finishes.
+        function stubTransitions() {
+            const start = vi.fn((update: () => void) => {
+                update();
+                return {
+                    ready: Promise.resolve(),
+                    updateCallbackDone: Promise.resolve(),
+                    finished: Promise.resolve(),
+                    skipTransition: () => undefined
+                };
+            });
+            (
+                document as { startViewTransition?: unknown }
+            ).startViewTransition = start;
+            return start;
+        }
+
+        function Tabs() {
+            const navigate = useNavigate();
+            return (
+                <>
+                    <button
+                        type="button"
+                        onClick={() =>
+                            navigate('/post/1/relations', {
+                                viewTransition: false
+                            })
+                        }
+                    >
+                        relations tab
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() =>
+                            navigate('/post', { viewTransition: true })
+                        }
+                    >
+                        list
+                    </button>
+                </>
+            );
+        }
+
+        function TabbedApp() {
+            return (
+                <PageTransitionRouter>
+                    <Routes>
+                        <Route path="*" element={<Tabs />} />
+                    </Routes>
+                </PageTransitionRouter>
+            );
+        }
+
+        it('`false` is not faded, though the path reads as a page change — nor is Back out of it', async () => {
+            window.history.replaceState(null, '', '/post/1');
+            const start = stubTransitions();
+            render(<TabbedApp />);
+
+            // `/post/1` → `/post/1/relations` changes depth: a page change
+            // to the heuristic, a tab to the page that asked.
+            act(() =>
+                screen.getByRole('button', { name: 'relations tab' }).click()
+            );
+            expect(window.location.pathname).toBe('/post/1/relations');
+            expect(start).not.toHaveBeenCalled();
+
+            await act(async () => {
+                window.history.back();
+                await new Promise((resolve) =>
+                    window.addEventListener('popstate', resolve, {
+                        once: true
+                    })
+                );
+            });
+            expect(window.location.pathname).toBe('/post/1');
+            expect(start).not.toHaveBeenCalled();
+        });
+
+        it('`true` is faded, whatever the path says', () => {
+            window.history.replaceState(null, '', '/post/1');
+            const start = stubTransitions();
+            render(<TabbedApp />);
+
+            act(() => screen.getByRole('button', { name: 'list' }).click());
+            expect(start).toHaveBeenCalledTimes(1);
+        });
+    });
 });
