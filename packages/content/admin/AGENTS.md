@@ -60,7 +60,9 @@ short — and where an older paragraph further down disagrees, this wins:
   day — versions plus the rows **`ENTRY_TIMELINE_SLOT`** sources add (the
   record's activity) — filtered All / Versions / Activity through `?show=`.
 - **"On this page"** (`EntryPageNav`, `domain/pageSections`, `content:I-69`)
-  replaced the per-field outline: sections only, from three on.
+  replaced the per-field outline: sections only, from three on — a list
+  beside the form on a work area of at least 1024px, a "Sections" menu in
+  the title block below that.
 - **On a phone** the write actions sit in a sticky bottom bar
   (`EntryActions layout="bottom"`) and Properties is a bottom sheet.
 

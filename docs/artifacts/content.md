@@ -990,7 +990,7 @@ Statements that must always hold. Both a review list and a starting set of asser
 - **I-66** — A publish guard's refusal is a blocking status item in its own words, and Publish keeps its label and style (`protection:I-03`).
 - **I-67** — **The Properties panel opens over the form on demand** (⌘. or the top bar's button), non-modal: Escape or a click outside closes it; its pin docks it as a column and persists per browser. Nothing needed to decide a save or a publish lives only there — the issues are in the header and at the fields.
 - **I-68** — History is one timeline, newest first, grouped by day: the versions and the rows the `ENTRY_TIMELINE_SLOT` sources add. A source the reader may not see returns `null`, and the filter does not offer it.
-- **I-69** — "On this page" lists the form's sections (Basics first) from three sections on — beside the form on a work area of at least 1100px, as a "Sections" menu below that — with each section's changed and blocking counts; fewer sections draw no map.
+- **I-69** — "On this page" lists the form's sections (Basics first) from three sections on — beside the form on a work area of at least 1024px, as a "Sections" menu below that — with each section's changed and blocking counts; fewer sections draw no map.
 
 ## 12. Testing checklist
 

@@ -149,8 +149,8 @@ export function HistoryTimeline({
         </p>
     ) : shownRevisions.length === 0 &&
       events.length === 0 &&
-      sourcesFailed ? // empty-state line beside it would claim the opposite. // "Could not be loaded" is already said above; an
-    null : shownRevisions.length === 0 && events.length === 0 ? (
+      sourcesFailed ? null : shownRevisions.length === 0 && // empty-state line beside it would claim the opposite. // "Could not be loaded" is already said above; an
+      events.length === 0 ? (
         <p className="text-sm text-muted-foreground">
             {intl.formatMessage(
                 filter === HISTORY_FILTER.Activity

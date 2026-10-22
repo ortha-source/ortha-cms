@@ -87,7 +87,7 @@ test.describe('Entry editor — On this page', () => {
         contentLibraryPage
     }) => {
         // The default viewport with Properties docked beside the form leaves
-        // well under 1100px for it.
+        // well under 1024px for it.
         await contentLibraryPage.gotoNewEntry(
             LIBRARY_WORKSPACE.id,
             'blog_post'

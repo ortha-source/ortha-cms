@@ -64,6 +64,7 @@ import { relationLabel } from '../../../../domain/relationLabel';
 import { liveEntryTab } from '../../../../domain/entryTab';
 import {
     MIN_PAGE_SECTIONS,
+    PAGE_NAV_MIN_WIDTH,
     BASICS_SECTION,
     pageSections
 } from '../../../../domain/pageSections';
@@ -520,7 +521,8 @@ export function EntryEditor({
     // The pane the form is drawn in — where "On this page" finds its sections.
     const paneRef = useRef<HTMLDivElement>(null);
     // Whether the work area has room for "On this page" beside the form
-    // (1100px); narrower, it is a "Sections" menu in the title block.
+    // (`PAGE_NAV_MIN_WIDTH`); narrower, it is a "Sections" menu in the title
+    // block.
     const [wideWorkArea, setWideWorkArea] = useState(false);
     useEffect(() => {
         const pane = paneRef.current;
@@ -531,7 +533,7 @@ export function EntryEditor({
             // two would flip each other back and forth.
             setWideWorkArea(
                 ((entry?.target as HTMLElement | undefined)?.offsetWidth ??
-                    0) >= 1100
+                    0) >= PAGE_NAV_MIN_WIDTH
             )
         );
         observer.observe(pane);

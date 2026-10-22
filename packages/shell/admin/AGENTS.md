@@ -67,7 +67,11 @@ does, from inside its own tree:
   to the bar (`dismiss`), and never when the click lands in a layer the panel
   opened (a menu, a dialog). A **Pin** control in its header docks it back into
   the column; the pin is per browser (`orthacms:right-panel:pinned`), not in the
-  synced layout. A page that does not ask keeps the column. `attention` puts a
+  synced layout. While it floats, its toggle **stays in the top bar**, open or
+  closed ("Show / Hide {title}", `aria-expanded`): an overlay has no column to
+  keep a control in, so the way in and the way out are one button in one
+  place. Pinned, it behaves as the column does — the bar offers only the way
+  back. A page that does not ask keeps the column. `attention` puts a
   dot on the reopen button while the page says something there needs the
   reader (the editor's blocking issues). On a phone the panel is a **bottom
   sheet**, sliding up from the foot of the screen.

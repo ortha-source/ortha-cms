@@ -306,9 +306,10 @@ test.describe('Entry editor — rich text field', () => {
             await expect(wysiwygFieldPage.contentNav).toBeVisible();
             await expect(wysiwygFieldPage.propertiesPanel).toBeVisible();
             await expect(contentLibraryPage.editorSave).toBeVisible();
-            // …including which record is being edited.
+            // …including which record is being edited — its own title is
+            // the page's `<h1>` (`content:I-61`).
             await expect(
-                contentLibraryPage.viewHeading('Articles')
+                contentLibraryPage.viewHeading('Release 2.0')
             ).toBeVisible();
         });
 

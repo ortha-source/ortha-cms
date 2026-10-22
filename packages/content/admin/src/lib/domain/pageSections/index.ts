@@ -11,6 +11,13 @@ export const BASICS_SECTION = '__basics';
 /** "On this page" needs at least this many sections; fewer need no map. */
 export const MIN_PAGE_SECTIONS = 3;
 
+/**
+ * The narrowest work area "On this page" is drawn beside the form in, in
+ * pixels: its 184px list and gutter plus the form's 768px measure. Narrower,
+ * it is a "Sections" menu in the title block.
+ */
+export const PAGE_NAV_MIN_WIDTH = 1024;
+
 /** One row of "On this page": a section and the fields drawn in it. */
 export type PageSection = {
     /** The group's key, or {@link BASICS_SECTION}. */

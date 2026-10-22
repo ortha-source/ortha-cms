@@ -70,7 +70,7 @@ The first thing in the scroll is the record:
 
 `EntryFieldOutline` (bars that expand on hover) is replaced:
 
-- With **three or more sections** and a work area **≥ 1100px**, an "On this
+- With **three or more sections** and a work area **≥ 1024px**, an "On this
   page" list sits left of the form column (184px), sticky. One row per section
   (fields before the first section are grouped as "Basics"); the section in view
   is highlighted; each row carries a count of unsaved changes (warning) or
@@ -404,6 +404,8 @@ Where the shipped code differs from the text above, and why:
   Details one inside the other read as a mistake. Its body is unchanged: the
   publish gate (the "Before you can publish" list in its existing form), Used
   in, Details, then the contributed widgets.
+- **The panel's toggle stays in the top bar while it is not pinned**, open or
+  closed, so the way in and the way out are the same control.
 - **Overlay is opt-in per page.** `AppRightPanel`'s modes are reached through
   `RightPanelPortal overlay` rather than a global `mode`, so a page that never
   asked for an overlay keeps its column. The pin is per browser

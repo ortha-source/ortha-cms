@@ -90,15 +90,12 @@ export class MediaFieldPage extends BasePage {
      * here: both fields render a button called "Upload".
      */
     fieldCard(fieldLabel: string): Locator {
-        // `.last()` because the app-wide scrollport is a named `role="group"`
-        // now (`ORT-150`), and it is an **ancestor** of every field on the page
-        // — so an unscoped `getByRole('group')` filtered by a field's label
-        // matches the scrollport as well as the card. DOM order puts the
-        // ancestor first, so the innermost match is the card.
-        return this.page
-            .getByRole('group')
-            .filter({ has: this.page.getByText(fieldLabel, { exact: true }) })
-            .last();
+        // The field is a `group` **named** by its label row (the media control
+        // is `composite`), so it is found by that name — which leads with the
+        // label and may carry the row's marks after it ("Gallery Changed").
+        return this.page.getByRole('group', {
+            name: new RegExp(`^${fieldLabel}\\b`)
+        });
     }
 
     /** An attached asset's remove button, by the asset's file name. */

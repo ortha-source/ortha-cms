@@ -165,6 +165,26 @@ describe('AppRightPanel — overlay', () => {
         expect(column().className).not.toContain('w-0');
     });
 
+    it('keeps its toggle in the top bar while open, since it has no column', () => {
+        render(
+            <Chrome>
+                <PageWithOverlay />
+            </Chrome>
+        );
+        fireEvent.click(showDetails() as HTMLElement);
+
+        // The bar's toggle is still there, now saying what it will do.
+        const barToggle = screen
+            .getAllByLabelText('Hide Details')
+            .find((button) => button.getAttribute('aria-expanded') === 'true');
+        expect(barToggle).toBeDefined();
+        expect(showDetails()).toBeNull();
+
+        fireEvent.click(barToggle as HTMLElement);
+        expect(column().hasAttribute('inert')).toBe(true);
+        expect(showDetails()).not.toBeNull();
+    });
+
     it('closes on a click outside, but not on one inside', () => {
         render(
             <Chrome>

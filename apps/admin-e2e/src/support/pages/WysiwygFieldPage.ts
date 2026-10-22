@@ -567,7 +567,9 @@ export class WysiwygFieldPage extends BasePage {
     /** Collapse back to the form via the editor's footer action. */
     async done(): Promise<void> {
         await this.exitButton('Done').click();
-        await this.toolbar.waitFor({ state: 'hidden' });
+        // Waits on the view going, not on "no toolbar": Done hands focus back
+        // to the field's in-place editor, whose own toolbar then shows.
+        await this.exitButton('Done').waitFor({ state: 'hidden' });
     }
 
     /**
