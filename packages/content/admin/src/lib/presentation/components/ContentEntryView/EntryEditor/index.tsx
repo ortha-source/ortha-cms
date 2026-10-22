@@ -1352,7 +1352,16 @@ export function EntryEditor({
                             <div
                                 ref={paneRef}
                                 className={cn(
-                                    'relative flex min-w-0 flex-1 flex-col p-4 sm:px-10 sm:pb-12 sm:pt-8',
+                                    'relative flex min-w-0 flex-1 flex-col p-4 sm:px-6 sm:pb-12 sm:pt-8',
+                                    // The design's 40px gutter only where the
+                                    // pane can spare it: beside a pinned panel
+                                    // it would squeeze the rich-text toolbar
+                                    // onto a second row — and an expanded
+                                    // field, which exists for room, keeps the
+                                    // narrowest one.
+                                    expandedContext
+                                        ? 'sm:px-4'
+                                        : wideWorkArea && 'sm:px-10',
                                     // Clear of the phone's bottom action bar.
                                     isMobile && !locked && 'pb-36',
                                     // Room for "On this page" beside the form.

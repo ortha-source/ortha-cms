@@ -1355,8 +1355,9 @@ test.describe('Entry editor — rich text field', () => {
             // Focus does not follow a removed active element — it lands on
             // `<body>`, and the author who pressed Done from the keyboard has to
             // Tab from the top of the page to get back into the form
-            // (WCAG 2.4.3). It belongs on the control they came from.
-            await expect(wysiwygFieldPage.control('Body')).toBeFocused();
+            // (WCAG 2.4.3). It belongs on the field they came from — its
+            // in-place editor, which carries the field's id.
+            await expect(wysiwygFieldPage.inlineSurface('Body')).toBeFocused();
         });
 
         test('offers a keyboard way out of the document, and says so', async ({
