@@ -12,7 +12,7 @@
 - [`CONTEXT-MAP.md`](CONTEXT-MAP.md) — glossary + the full project map (every app & package, one line each)
 - [`docs/adr/`](docs/adr/README.md) — Architecture Decision Records (why things are the way they are)
 - [`docs/artifacts/`](docs/artifacts/) — one dossier per package group, each ending in its numbered invariants
-- [`docs/design/`](docs/design/) — engineering design docs for features with phases still unbuilt: [`copilot.md`](docs/design/copilot.md), [`mail.md`](docs/design/mail.md), [`protection.md`](docs/design/protection.md)
+- [`docs/design/`](docs/design/) — engineering design docs for features with phases still unbuilt: [`copilot.md`](docs/design/copilot.md), [`entry-editor.md`](docs/design/entry-editor.md), [`mail.md`](docs/design/mail.md), [`protection.md`](docs/design/protection.md)
 - [`README.md`](README.md) — human-facing project overview & getting started
 - `.cursor/BUGBOT.md` — recurring bug-patterns reviewers and agents must watch for
 
