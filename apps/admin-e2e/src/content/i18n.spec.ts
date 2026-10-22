@@ -326,8 +326,12 @@ test.describe('Content i18n', () => {
 
         // The chip names the open locale (code + label) and says how much of
         // the group exists — G1 has en + de of four configured locales.
+        // The count is in the name; on screen it is one dot per locale.
         await expect(contentLibraryPage.editorTitleChip).toHaveText(
-            'EN · English2/4'
+            'EN · English'
+        );
+        await expect(contentLibraryPage.editorTitleChip).toHaveAccessibleName(
+            /2 of 4 translated/
         );
 
         await contentLibraryPage.openLocaleMenu();
@@ -453,8 +457,12 @@ test.describe('Content i18n', () => {
         await expect(page).toHaveURL(/\/localized_post\/lp-de-1$/);
         await expect(page.getByText(/Switching to/)).toHaveCount(0);
         // The title chip follows the open locale.
+        // The count is in the name; on screen it is one dot per locale.
         await expect(contentLibraryPage.editorTitleChip).toHaveText(
-            'DE · Deutsch2/4'
+            'DE · Deutsch'
+        );
+        await expect(contentLibraryPage.editorTitleChip).toHaveAccessibleName(
+            /2 of 4 translated/
         );
     });
 
@@ -498,8 +506,12 @@ test.describe('Content i18n', () => {
 
         // The chip shows the default locale. Nothing of this record exists yet,
         // so none of the four locales is translated.
+        // The count is in the name; on screen it is one dot per locale.
         await expect(contentLibraryPage.editorTitleChip).toHaveText(
-            'EN · English0/4'
+            'EN · English'
+        );
+        await expect(contentLibraryPage.editorTitleChip).toHaveAccessibleName(
+            /0 of 4 translated/
         );
 
         // Switch the form's target locale to German (no group yet — a fresh

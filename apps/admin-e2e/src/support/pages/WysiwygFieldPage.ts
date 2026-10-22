@@ -95,13 +95,22 @@ export class WysiwygFieldPage extends BasePage {
     }
 
     /**
-     * What a link becomes in the collapsed preview: a `<span data-link>`. The
+     * What a link becomes in a **reader's** collapsed preview (an author edits
+     * the body in place, where a link is a link): a `<span data-link>`. The
      * preview sits under a full-bleed button, so a live `<a>` inside it would
      * be a tab stop the reader falls into on the way to that button — and
      * pressing it would navigate out of the record.
      */
     previewFlattenedLinks(label: string): Locator {
-        return this.preview(label).locator('[data-link]');
+        return this.viewPreview(label).locator('[data-link]');
+    }
+
+    /**
+     * The empty in-place editor's placeholder line — TipTap draws it from a
+     * `data-placeholder` attribute, so it is asserted as the attribute.
+     */
+    inlinePlaceholder(label: string): Locator {
+        return this.inlineSurface(label).locator('[data-placeholder]');
     }
 
     /**

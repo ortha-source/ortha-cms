@@ -192,8 +192,12 @@ test.describe('Content i18n — degraded reads and edge locales', () => {
         await expect(
             contentLibraryPage.createTranslation('Deutsch')
         ).toHaveCount(0);
+        // The count is in the name; on screen it is one dot per locale.
         await expect(contentLibraryPage.editorTitleChip).toHaveText(
-            'EN · English2/4'
+            'EN · English'
+        );
+        await expect(contentLibraryPage.editorTitleChip).toHaveAccessibleName(
+            /2 of 4 translated/
         );
     });
 

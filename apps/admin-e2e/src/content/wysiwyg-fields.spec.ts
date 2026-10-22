@@ -2,6 +2,7 @@ import { test, expect } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
 import { mockWorkspaces } from '../support/api/workspaces';
 import {
+    READ_ONLY_PERMISSIONS,
     WYSIWYG_WORKSPACE,
     WYSIWYG_SCHEMA_SEED,
     WYSIWYG_DETAIL_SEED,
@@ -147,9 +148,13 @@ test.describe('Entry editor — rich text field', () => {
             await expect(preview).not.toContainText('<strong>');
         });
 
-        test('flattens the body’s links, so there is none to fall into on the way to the editor [wysiwyg:I-05]', async ({
+        test('flattens the body’s links in a reader’s preview, so there is none to fall into on the way to the view [wysiwyg:I-05]', async ({
+            page,
             wysiwygFieldPage
         }) => {
+            // Only a reader still gets the preview with a button over it — an
+            // author edits the body in place (ADR-0022).
+            await mockSignedIn(page, { permissions: READ_ONLY_PERMISSIONS });
             await wysiwygFieldPage.gotoArticle(WS, WYSIWYG_ENTRY_ID);
 
             // The stored body **has** an anchor. Without one, "no links here"
@@ -163,7 +168,7 @@ test.describe('Entry editor — rich text field', () => {
             // underneath would be a tab stop hidden beneath it, and pressing it
             // would navigate out of the record.
             await expect(
-                wysiwygFieldPage.preview('Body').getByRole('link')
+                wysiwygFieldPage.viewPreview('Body').getByRole('link')
             ).toHaveCount(0);
         });
 
@@ -251,9 +256,9 @@ test.describe('Entry editor — rich text field', () => {
             wysiwygFieldPage
         }) => {
             await wysiwygFieldPage.gotoNewArticle(WS);
-            await expect(wysiwygFieldPage.preview('Body')).toContainText(
-                'Tell the story…'
-            );
+            await expect(
+                wysiwygFieldPage.inlinePlaceholder('Body')
+            ).toHaveAttribute('data-placeholder', 'Tell the story…');
         });
 
         test('keeps a plain textarea for a field that opted out [wysiwyg:I-02]', async ({
