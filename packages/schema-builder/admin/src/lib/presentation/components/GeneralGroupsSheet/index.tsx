@@ -18,7 +18,7 @@ import { GroupCard } from './GroupCard';
 const messages = defineMessages({
     title: {
         id: 'schemaBuilder.groups.title',
-        defaultMessage: 'Groups on the General tab'
+        defaultMessage: 'Groups on the Content tab'
     },
     description: {
         id: 'schemaBuilder.groups.sheetDescription',

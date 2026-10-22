@@ -15,29 +15,23 @@ import { mockEntryActivity } from '../support/api/activity';
 const ENTRY_ID = 'blog_post-01';
 
 /**
- * ORT-198 — the entry editor's **Activity** tab.
+ * The record's **activity** in the entry editor — since ADR-0022, rows of the
+ * History timeline picked out by its Activity filter, rather than a tab of
+ * its own beside History (two timelines of one record asked the reader to
+ * merge them in their head). Before that it was a tab (ORT-198), and before
+ * that a section of the Properties rail.
  *
- * It was a section of the Properties rail, which is 240px wide, shared by
- * widgets from four plugins, and collapsible as one — so a record's history
- * showed six wrapped rows and disappeared entirely whenever the reader
- * collapsed the panel. As a tab it is a route: linkable, and surviving the
- * remounts this editor takes from navigations it does not own.
- *
- * The tab reads `GET /activity/entries/:id`, gated `content:read` rather than
+ * The rows read `GET /activity/entries/:id`, gated `content:read` rather than
  * the admin-only `activity:read` that guards the deployment-wide log.
  */
-test.describe('Entry activity tab', () => {
+test.describe('Entry activity in History', () => {
     test.beforeEach(async ({ page }) => {
         await mockSignedIn(page);
         await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
         await mockContentSchema(page);
         await mockContentSchemaDetail(page);
         await mockContentEntries(page);
-        // Registered before the relations mock: its multi-segment route also
-        // matches `…/:id/relations`, and the last matching route wins.
         await mockContentEntryWrites(page);
-        // The editor loads relations on open; blog_post has none, so serve
-        // empty and keep the request off the dev proxy.
         await mockEntryRelations(page);
     });
 
@@ -52,15 +46,33 @@ test.describe('Entry activity tab', () => {
             ENTRY_ID
         );
 
-        await contentLibraryPage.openEditorTab('Activity');
+        await contentLibraryPage.showHistory('Activity');
 
-        // Localized action labels, not the raw `entry.published` wire tokens.
         await expect(page.getByText('Published content')).toBeVisible();
         await expect(page.getByText('Edited content')).toBeVisible();
         await expect(page.getByText('ada@orthacms.dev')).toBeVisible();
         // An event nobody performed reads as "System", not as a blank actor.
         await expect(page.getByText('System', { exact: true })).toBeVisible();
-        await expect(page.getByText('3 recorded actions')).toBeVisible();
+        await expect(
+            contentLibraryPage.historyFilter('Activity')
+        ).toHaveAttribute('aria-checked', 'true');
+    });
+
+    test('the retired /activity link lands on History showing activity [content:I-60]', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        await mockEntryActivity(page);
+        await page.goto(
+            `/workspaces/${LIBRARY_WORKSPACE.id}/content/blog_post/${ENTRY_ID}/activity`
+        );
+
+        await expect(page).toHaveURL(/\/history\?show=activity$/);
+        await expect(contentLibraryPage.editorTab('History')).toHaveAttribute(
+            'aria-selected',
+            'true'
+        );
+        await expect(page.getByText('Published content')).toBeVisible();
     });
 
     test('does not fetch a history for a record that has none yet', async ({
@@ -85,11 +97,16 @@ test.describe('Entry activity tab', () => {
         await page.goto(
             `/workspaces/${LIBRARY_WORKSPACE.id}/content/blog_post/new`
         );
-        await contentLibraryPage.openEditorTab('Activity');
+        await contentLibraryPage.openEditorTab('History');
 
-        // The tab explains itself rather than showing an empty list — and asks
+        // History explains itself rather than showing an empty list — and asks
         // the API nothing, because an unsaved record has no id to ask about.
-        await expect(page.getByText('has not been saved yet')).toBeVisible();
+        await expect(
+            page.getByText('Save this record to start its version history.')
+        ).toBeVisible();
+        await expect(contentLibraryPage.historyFilter('Activity')).toHaveCount(
+            0
+        );
         expect(asked).toBe(false);
     });
 
@@ -98,7 +115,7 @@ test.describe('Entry activity tab', () => {
      * screen, and only one of them is a fact — so a failed load must not
      * render as the empty state.
      */
-    test('says the history could not be loaded rather than showing it empty', async ({
+    test('says the activity could not be loaded rather than showing it empty', async ({
         page,
         contentLibraryPage
     }) => {
@@ -109,15 +126,11 @@ test.describe('Entry activity tab', () => {
             ENTRY_ID
         );
 
-        await contentLibraryPage.openEditorTab('Activity');
+        await contentLibraryPage.showHistory('Activity');
 
-        // Anchored on the tab's own wording: the alarms rail widget says
-        // "Checks could not be loaded" on the same screen, and the bare phrase
-        // matches both.
-        //
         // A 5xx takes TanStack Query's full retry ladder before `isError`.
         await expect(
-            page.getByText('The history could not be loaded')
+            page.getByText('Activity could not be loaded')
         ).toBeVisible({ timeout: 15_000 });
         await expect(page.getByText('Nothing has been recorded')).toHaveCount(
             0

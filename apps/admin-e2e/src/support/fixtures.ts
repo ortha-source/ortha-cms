@@ -184,7 +184,33 @@ class SettledAxeBuilder extends AxeBuilder {
  * `test` extended with page-object + accessibility fixtures — import this (not
  * `@playwright/test`) in specs, so a spec never constructs a page object itself.
  */
+/**
+ * Where the shell keeps the reader's pin of the right panel
+ * (`RIGHT_PANEL_PIN_KEY` in shell-admin — duplicated, since specs never import
+ * app source).
+ */
+export const RIGHT_PANEL_PIN_KEY = 'orthacms:right-panel:pinned';
+
 export const test = base.extend<Fixtures>({
+    // Every suite starts with the entry editor's Properties **pinned** as a
+    // docked column — the layout the rail's specs were written against. Since
+    // ADR-0022 it opens over the form on demand by default; the specs about
+    // that overlay unpin it themselves (`contentLibraryPage.unpinProperties`).
+    page: async ({ page }, use) => {
+        await page.addInitScript((key) => {
+            try {
+                (
+                    globalThis as unknown as {
+                        localStorage: { setItem(k: string, v: string): void };
+                    }
+                ).localStorage.setItem(key, 'true');
+            } catch {
+                // An opaque origin (about:blank) has no storage; the app's
+                // own origin does.
+            }
+        }, RIGHT_PANEL_PIN_KEY);
+        await use(page);
+    },
     loginPage: async ({ page }, use) => {
         await use(new LoginPage(page));
     },

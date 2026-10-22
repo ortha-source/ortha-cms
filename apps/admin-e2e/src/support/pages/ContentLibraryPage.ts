@@ -47,7 +47,7 @@ export class ContentLibraryPage extends BasePage {
         );
     }
 
-    /** An entry-editor tab trigger by label ("General" / "History"). */
+    /** An entry-editor tab trigger by label ("Content" / "Access" / "History"). */
     editorTab(name: string): Locator {
         return this.page.getByRole('tab', { name });
     }
@@ -55,6 +55,20 @@ export class ContentLibraryPage extends BasePage {
     /** Open one entry-editor tab. */
     async openEditorTab(name: string) {
         await this.editorTab(name).click();
+    }
+
+    /**
+     * One option of the History timeline's **All · Versions · Activity**
+     * filter (a single-select toggle group, so its options are radios).
+     */
+    historyFilter(name: 'All' | 'Versions' | 'Activity'): Locator {
+        return this.editorTabPanel.getByRole('radio', { name, exact: true });
+    }
+
+    /** Open History and narrow it to one kind of row. */
+    async showHistory(name: 'All' | 'Versions' | 'Activity') {
+        await this.openEditorTab('History');
+        await this.historyFilter(name).click();
     }
 
     /**
@@ -303,14 +317,21 @@ export class ContentLibraryPage extends BasePage {
     }
 
     /**
-     * The entry editor's **primary** action: Publish / Publish changes on a
+     * The entry editor's **primary** slot: Publish / Publish changes on a
      * publishable type the reader may publish, else the one Save — never the
      * secondary "Save draft" beside Publish (see `editorSaveDraft`).
+     *
+     * With nothing to do the slot shows the record's state instead, disabled
+     * ("Saved", "Published · up to date" — the action matrix,
+     * `content:I-62`), so a clean editor matches here too. A clean draft
+     * draws "Saved" **and** Publish; the primary is the last of them.
      */
     get editorSave(): Locator {
-        return this.page.getByRole('button', {
-            name: /^(Save|Publish|Publish changes)$/
-        });
+        return this.page
+            .getByRole('button', {
+                name: /^(Save|Publish|Publish changes|Saved|Published · up to date)$/
+            })
+            .last();
     }
 
     /** The secondary "Save draft" beside Publish on a publishable type. */
@@ -446,9 +467,17 @@ export class ContentLibraryPage extends BasePage {
         return this.page.getByRole('button', { name: 'Localized field' });
     }
 
-    /** A General-tab field-group heading ("Translated fields" / "Shared fields"). */
+    /**
+     * A heading by exact name — used to assert the retired "Translated fields"
+     * / "Shared fields" group headings stay gone.
+     */
     fieldGroupHeading(title: string): Locator {
         return this.page.getByRole('heading', { name: title, exact: true });
+    }
+
+    /** The "All locales" mark a shared field of a localized type carries. */
+    get sharedMark(): Locator {
+        return this.page.getByRole('button', { name: 'All locales' });
     }
 
     /**
@@ -481,30 +510,70 @@ export class ContentLibraryPage extends BasePage {
             .click({ force: true });
     }
 
-    /** The General tab's field outline — bars that open into a list. */
-    fieldOutline(): Locator {
-        return this.page.getByRole('navigation', { name: 'Jump to a field' });
+    /** The top bar's "Show Properties" button (the panel is closed). */
+    get showPropertiesControl(): Locator {
+        return this.page.getByRole('button', { name: 'Show Properties' });
     }
 
-    /** One stop in the field outline, by its field or section label. */
-    fieldOutlineItem(label: string): Locator {
-        return this.fieldOutline().getByRole('button', {
-            name: label,
-            exact: true
+    /** The panel header's pin toggle, in either state. */
+    get pinPropertiesButton(): Locator {
+        return this.page.getByRole('button', {
+            name: /^(Pin Properties beside the page|Unpin Properties)$/
         });
     }
 
+    /** The header's status cluster — one button over its chips. */
+    get statusCluster(): Locator {
+        return this.page.getByTestId('entry-status-cluster');
+    }
+
+    /** The list the status cluster opens. */
+    get statusList(): Locator {
+        return this.page.getByTestId('entry-status-list');
+    }
+
     /**
-     * The rule between the General tab's translated and shared field groups.
-     *
-     * Anchored on a testid rather than a role because it is **decorative** by
-     * design — the design-system `Separator` renders `role="none"`, so there is
-     * no accessible node to locate, and giving it one to make it testable would
-     * be the bug this asserts against. Same escape hatch the widget skeletons
-     * use.
+     * Let the Properties panel open **over** the form, as a reader sees it by
+     * default (ADR-0022). The shared fixture pins it as a docked column for the
+     * rail's specs; an init script registered after that one wins. Call before
+     * navigating.
      */
-    get fieldGroupDivider(): Locator {
-        return this.page.getByTestId('entry-field-group-divider');
+    async unpinProperties() {
+        await this.page.addInitScript(() => {
+            try {
+                (
+                    globalThis as unknown as {
+                        localStorage: { setItem(k: string, v: string): void };
+                    }
+                ).localStorage.setItem('orthacms:right-panel:pinned', 'false');
+            } catch {
+                // No storage on an opaque origin; the app's own has one.
+            }
+        });
+    }
+
+    /** "On this page" — the form's sections, beside a long form. */
+    get pageNav(): Locator {
+        return this.page.getByRole('navigation', { name: 'On this page' });
+    }
+
+    /** One section in "On this page", by its label (counts follow it). */
+    pageNavItem(label: string): Locator {
+        return this.pageNav.getByRole('button', {
+            name: new RegExp(`^${label}\\b`)
+        });
+    }
+
+    /** The "Sections" menu that stands in for it on a narrow work area. */
+    get sectionsMenu(): Locator {
+        return this.page.getByRole('button', { name: 'Sections' });
+    }
+
+    /** One section in the "Sections" menu. */
+    sectionsMenuItem(label: string): Locator {
+        return this.page.getByRole('menuitem', {
+            name: new RegExp(`^${label}\\b`)
+        });
     }
 
     /**
@@ -538,10 +607,24 @@ export class ContentLibraryPage extends BasePage {
         return this.page.getByText(text);
     }
 
-    /** Save the entry **as a draft** (the ⋯ actions menu → "Save draft"). */
+    /**
+     * Save the entry **without publishing**: the "Save draft" button beside
+     * Publish on a publishable type, the one "Save" otherwise. (It was a ⋯
+     * menu item until the action matrix made it a button — `content:I-63`.)
+     */
     async saveDraft(): Promise<void> {
-        await this.openEditorMenu();
-        await this.page.getByRole('menuitem', { name: 'Save draft' }).click();
+        await this.page
+            .getByRole('button', { name: /^(Save draft|Save)$/ })
+            .click();
+    }
+
+    /**
+     * The ⋯ menu's trigger. It renders only when the menu has an item — a
+     * create form, with nothing to unpublish or delete and no contribution,
+     * shows none.
+     */
+    get editorMenuTrigger(): Locator {
+        return this.page.getByRole('button', { name: 'More actions' });
     }
 
     /** Open the entry editor's ⋯ actions menu (in the page top bar). */

@@ -20,7 +20,7 @@ const messages = defineMessages({
     description: {
         id: 'schemaBuilder.groupSheet.description',
         defaultMessage:
-            'An accordion block on the General tab. Changes go into the draft as you make them.'
+            'An accordion block on the Content tab. Changes go into the draft as you make them.'
     },
     remove: {
         id: 'schemaBuilder.groupSheet.remove',

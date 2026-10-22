@@ -126,8 +126,12 @@ export function HistoryTimeline({
         ? sources.flatMap(({ source }) => source.events)
         : [];
     const shownRevisions = showVersions ? revisions : [];
+    // Only the Activity view waits on its sources: under All, the versions
+    // are drawn the moment they land and the activity joins them when it
+    // does — a slow or failing source must never hold the version list.
     const sourcesPending =
-        showEvents && sources.some(({ source }) => source.isPending);
+        filter === HISTORY_FILTER.Activity &&
+        sources.some(({ source }) => source.isPending);
     const sourcesFailed =
         showEvents && sources.some(({ source }) => source.isError);
 
@@ -143,7 +147,10 @@ export function HistoryTimeline({
         <p className="text-sm text-muted-foreground">
             {intl.formatMessage(messages.error)}
         </p>
-    ) : shownRevisions.length === 0 && events.length === 0 ? (
+    ) : shownRevisions.length === 0 &&
+      events.length === 0 &&
+      sourcesFailed ? // empty-state line beside it would claim the opposite. // "Could not be loaded" is already said above; an
+    null : shownRevisions.length === 0 && events.length === 0 ? (
         <p className="text-sm text-muted-foreground">
             {intl.formatMessage(
                 filter === HISTORY_FILTER.Activity

@@ -353,12 +353,12 @@ test.describe('Content Library', () => {
             contentLibraryPage.recordsTable('Blog posts')
         ).toBeVisible();
 
-        // Add record → the create-entry editor (title "New Blog posts").
+        // Add record → the create-entry editor. Its `<h1>` is the record's
+        // own title — "Untitled" until one is typed (`content:I-61`); the type
+        // is in the breadcrumb.
         await contentLibraryPage.addRecord.click();
         await expect(page).toHaveURL(/\/content\/blog_post\/new$/);
-        await expect(
-            contentLibraryPage.viewHeading('New Blog posts')
-        ).toBeVisible();
+        await expect(contentLibraryPage.viewHeading('Untitled')).toBeVisible();
 
         // Back to the table, then a row → the entry editor for that row.
         await page.goBack();
@@ -677,7 +677,7 @@ test.describe('Content Library', () => {
 
             // Back to the default tab drops the segment rather than spelling it
             // out, so the bare entry URL stays the canonical short link.
-            await contentLibraryPage.openEditorTab('General');
+            await contentLibraryPage.openEditorTab('Content');
             await expect(page).toHaveURL(/\/blog_post\/[^/?]+$/);
         });
 

@@ -1,9 +1,13 @@
 # @orthacms/wysiwyg-admin
 
 The **rich-text editing plugin** for the Ortha CMS admin UI. It owns how a
-`richtext` field looks and behaves in the entry form: the field shows the
-content **as it reads**, and pressing it expands a [TipTap](https://tiptap.dev)
-editor into the record's work area, with the formatting toolbar — text style and
+`richtext` field looks and behaves in the entry form: for an author the body is
+**edited in place** — a click puts the caret in it, the toolbar appears once it
+has focus, a long body scrolls inside a 480px cap
+(`WysiwygInlineEditor`, [ADR-0022](../../../docs/adr/0022-entry-editor-one-form-properties-on-demand.md))
+— and **Expand** opens a [TipTap](https://tiptap.dev) editor into the record's
+work area; a reader sees the content **as it reads** and can open the same view
+to read it, with the formatting toolbar — text style and
 size, colors and highlights, alignment, lists, links, callouts, tables, column
 layouts, and **embedded images and video**.
 
@@ -100,7 +104,14 @@ drift.
 same day.** If you ever render rich text somewhere else, go through
 `renderRichText` — never `innerHTML` on a raw value.
 
-### 2. The control is a button _beside_ the preview, not around it
+### 2. For a reader, the control is a button _beside_ the preview, not around it
+
+(An author no longer meets this control: since ADR-0022 the form edits the
+body in place. The in-place editor is seeded once at mount like the full view;
+a value that changes **from outside** — "Load the newer version" — is put into
+the document without being echoed back as an edit, recognised by identity
+against the last value it wrote. It carries the field's `id`, so the jump to an
+invalid field and the full view's **Done** land the caret in it.)
 
 Wrapping formatted content in a `<button>` puts headings, lists, and tables
 inside a control — invalid HTML, and it flattens the whole body into the

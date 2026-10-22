@@ -11,7 +11,12 @@ Layout: **layered** (`domain` omitted — see below), per ADR-0003.
 Nobody opens an alarms page to find out their article is broken. They open the
 article. So the primary contribution here is the **entry rail's checks block**
 (`ENTRY_SIDEBAR_WIDGET_SLOT`): an editor sees "Author is not published" beside
-the record, with a link to the author, without knowing a rule exists.
+the record, with a link to the author, without knowing a rule exists. The same
+findings are also **one status item** in the editor's header
+(`ENTRY_STATUS_ITEM_SLOT`, `hooks/useAlarmsStatusItem`) — "2 checks flagged",
+a warning when any is an error and info otherwise — so a flag is seen without
+opening the Properties panel. It shares the widget's query key, so it costs no
+request.
 
 The page is for the person who owns editorial policy — what is flagged across
 the workspace, grouped by alarm, and the alarms themselves.

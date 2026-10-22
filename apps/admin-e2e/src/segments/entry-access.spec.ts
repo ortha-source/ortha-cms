@@ -243,7 +243,7 @@ test.describe('Entry editor — Access tab', () => {
         await openAccessTab(contentLibraryPage);
         await segmentsPage.setAccess('Acme Corp', 'Cannot see');
 
-        await contentLibraryPage.openEditorTab('General');
+        await contentLibraryPage.openEditorTab('Content');
         await contentLibraryPage.openEditorTab('Access');
 
         await expect(

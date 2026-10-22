@@ -61,7 +61,7 @@ test.describe('Entry revision history', () => {
         ).toBeVisible();
 
         // Edit the title on the General tab, then Save as a draft.
-        await contentLibraryPage.openEditorTab('General');
+        await contentLibraryPage.openEditorTab('Content');
         await contentLibraryPage
             .fieldTextbox('Title')
             .fill('Launch announcement v2');

@@ -98,15 +98,15 @@ test.describe('Content i18n', () => {
         await contentLibraryPage.recordLink('Winter boots').click();
         await expect(contentLibraryPage.editorSave).toBeVisible();
 
-        // Working in Relations, switch to the German sibling…
-        await contentLibraryPage.openEditorTab('Relations');
-        await expect(page).toHaveURL(/\/relations$/);
+        // Working in History, switch to the German sibling…
+        await contentLibraryPage.openEditorTab('History');
+        await expect(page).toHaveURL(/\/history$/);
         await contentLibraryPage.switchToLocale('Deutsch');
 
         // …the editor re-targets the sibling **on the same tab**, instead of
         // dumping the user back on General mid-task.
-        await expect(page).toHaveURL(/\/localized_post\/[^/?]+\/relations$/);
-        await expect(contentLibraryPage.editorTab('Relations')).toHaveAttribute(
+        await expect(page).toHaveURL(/\/localized_post\/[^/?]+\/history$/);
+        await expect(contentLibraryPage.editorTab('History')).toHaveAttribute(
             'aria-selected',
             'true'
         );
@@ -148,21 +148,21 @@ test.describe('Content i18n', () => {
         );
     });
 
-    test('splits the form into translated and shared field groups', async ({
+    test('marks each field translated or shared, in the schema’s order', async ({
         contentLibraryPage
     }) => {
         await openCollection(contentLibraryPage);
         await contentLibraryPage.recordLink('Winter boots').click();
         await expect(contentLibraryPage.editorSave).toBeVisible();
 
-        // Editing a shared field changes it for *every* locale, so the two sets
-        // are labelled runs rather than interleaved.
-        await expect(
-            contentLibraryPage.fieldGroupHeading('Translated fields')
-        ).toBeVisible();
+        // Editing a shared field changes it for *every* locale, so each field
+        // says which it is beside its label (ADR-0022) — the form is no longer
+        // split into two labelled runs.
+        await expect(contentLibraryPage.localizedMark.first()).toBeVisible();
+        await expect(contentLibraryPage.sharedMark.first()).toBeVisible();
         await expect(
             contentLibraryPage.fieldGroupHeading('Shared fields')
-        ).toBeVisible();
+        ).toHaveCount(0);
     });
 
     test('marks how a relation carries across the record’s other locales', async ({
@@ -170,7 +170,6 @@ test.describe('Content i18n', () => {
     }) => {
         await openCollection(contentLibraryPage);
         await contentLibraryPage.recordLink('Winter boots').click();
-        await contentLibraryPage.openEditorTab('Relations');
 
         // `related` points at localized_post itself, so it is **mirrored**: the
         // mark is what explains both halves — why the picker hides other
@@ -740,13 +739,12 @@ test.describe('Content i18n', () => {
             await openGroupedRow(contentLibraryPage);
             await contentLibraryPage.openEditorMenu();
 
-            // save · publish · extras · danger, in that order. "Export…" is
-            // `transfer-admin`'s slot contribution, which lands in the same
-            // Extras group as the locale actions — so it adds an item here but
-            // no fourth separator.
+            // publish · extras · danger, in that order — the save group went
+            // with the action matrix, which made Save draft a button
+            // (`content:I-63`). "Export…" is `transfer-admin`'s slot
+            // contribution, which lands in the same Extras group as the locale
+            // actions — so it adds an item here but no third separator.
             await expect(contentLibraryPage.editorMenuItems).toHaveText([
-                'Save draft',
-                'Save & publish',
                 'Unpublish',
                 'Publish all locales',
                 'Unpublish all locales',
@@ -755,7 +753,7 @@ test.describe('Content i18n', () => {
             ]);
             // One rule between each pair of adjacent groups.
             await expect(contentLibraryPage.editorMenuSeparators).toHaveCount(
-                3
+                2
             );
         });
 
@@ -837,13 +835,10 @@ test.describe('Content i18n', () => {
                 'localized_post'
             );
             await expect(contentLibraryPage.editorSave).toBeVisible();
-            await contentLibraryPage.openEditorMenu();
 
-            // A create form has no siblings to act on — and nothing to delete.
-            await expect(contentLibraryPage.editorMenuItems).toHaveText([
-                'Save draft',
-                'Save & publish'
-            ]);
+            // A create form has no siblings to act on — and nothing to delete —
+            // so the menu has no item, and no trigger is drawn for it.
+            await expect(contentLibraryPage.editorMenuTrigger).toHaveCount(0);
         });
     });
 });

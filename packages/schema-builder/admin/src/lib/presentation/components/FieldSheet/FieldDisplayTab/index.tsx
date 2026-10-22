@@ -34,7 +34,7 @@ const messages = defineMessages({
     },
     group: {
         id: 'schemaBuilder.display.group',
-        defaultMessage: 'Group on the General tab'
+        defaultMessage: 'Group on the Content tab'
     },
     noGroup: {
         id: 'schemaBuilder.display.noGroup',

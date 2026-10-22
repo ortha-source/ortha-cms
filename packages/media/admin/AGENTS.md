@@ -158,35 +158,36 @@ of the server's RBAC, which is the real enforcer).
   dispatch left the tile on screen with nothing saying a request was running. A
   failed delete closes without claiming focus — the trigger still exists.
 
-## The content editor's Media tab
+## The content editor's media fields
 
-Beyond the library page, this plugin contributes the **Media tab** of the
-content entry editor via content-admin's **`ENTRY_TAB_SLOT`** (hence the
-`@orthacms/content-admin` dependency; the tab appears only when the open type
-has a `media` field — `appliesTo` checks `CONTENT_FIELD_TYPE.Media`). Pieces:
+Beyond the library page, this plugin draws every `media` field **in the
+content entry editor's one form**, in the schema's order beside the other
+fields ([ADR-0022](../../../docs/adr/0022-entry-editor-one-form-properties-on-demand.md)),
+through content-admin's **`ENTRY_FIELD_CONTROL_SLOT`** (hence the
+`@orthacms/content-admin` dependency; `appliesTo` checks
+`CONTENT_FIELD_TYPE.Media`). It was a Media **tab** of its own (`EntryMediaTab`
+→ `MediaFieldSection` cards) until then; the tab's URL now redirects to the
+entry. Pieces:
 
-- **`EntryMediaTab`** — the slot `Component`. Reads the schema's media fields and
-  renders one **`MediaFieldSection`** each, bound to the editor's shared form via
-  the slot's form bridge (`ctx.form.values` / `setValue` / `errorFor` / `touch` /
-  `isFieldDirty`). Media values live in the entry values bag; the tab is only
-  their surface.
-- **`MediaFieldSection`** — one field as a **titled card**, deliberately the same
-  shape as the Relations tab's `RelationFieldSection` so the two contributed tabs
-  read as one editor: header (heading + required mark, the localized globe in a
-  `Tooltip`, the **shared** `ChangedBadge` imported from `@orthacms/content-admin`
-  — not a look-alike that would drift — and an error alert icon) over a one-line
-  description of what the field holds, then the control; an error tints the card
-  border. The field is named as a **group** (`aria-labelledby` → its `<h3>`), not
-  by a `<label for>` pointing at a button: a media field is a _composite_ control
-  (pick / upload / remove / reorder), and a label would **replace** the trigger's
-  own accessible name — the a11y tree read "Cover image, button" instead of
-  "Select from library". As a group it reads "Cover image, group" and then each
-  action by its own name, which is also what makes the e2e locators legible.
+- **`MediaFieldInput`** — the slot `Component`. Content draws the label row
+  (label, required mark, locale mark, the shared `ChangedBadge`), the
+  description and the error, exactly as for any field; this hands the control
+  its value, the saved refs (`mediaRefs` / `mediaRefsPending`) and the plugin's
+  own staged uploads (`presave[MEDIA_PRESAVE_ID]`). The item is registered
+  **`composite`**, so content names the field as a **group** by its label rather
+  than with a `<label for>` pointing at a button: a media field is several
+  actions (pick / upload / remove / reorder), and a label would **replace** the
+  trigger's own accessible name — the a11y tree read "Cover image, button"
+  instead of "Select from library". As a group it reads "Cover image, group"
+  and then each action by its own name, which is also what makes the e2e
+  locators legible.
 - **`MediaFieldControl`** — the control itself. Attached assets render as
   **`MediaFieldItem`** tiles in a panel that is also a **drop zone** (highlight
   held by a drag-depth counter, since nested tiles fire `dragleave` as the
-  pointer crosses them). Empty, the panel is a dashed `Empty` state that says so
-  and invites the drop. Below sit **Select from library** / **Add from library** /
+  pointer crosses them). Empty, the panel is **one dashed line** that says so
+  and invites the drop (`media-field-empty`) — a centred empty-state card
+  outweighed the single-line fields around it once the field moved into the
+  form. Below sit **Select from library** / **Add from library** /
   **Replace**, **Upload**, and a muted meta line (attached count + the `accept`
   hint — the hint was a `Badge` beside the buttons, which read like an action). It
   writes an asset id (single) or id array (multiple).
@@ -214,8 +215,9 @@ is disabled and the card says why.
 
 **A third gate sits above both: the record's own.** `EntryTabContext.readOnly`
 (content-admin) is true when the reader has no `content:update` — or no
-`content:create` on a create form — and `EntryMediaTab` threads it down through
-`MediaFieldSection` to `MediaFieldControl` and each `MediaFieldItem`. It is a
+`content:create` on a create form — and the slot's `readOnly` reaches
+`MediaFieldInput`, which threads it to `MediaFieldControl` and each
+`MediaFieldItem`. It is a
 _content_ permission, distinct from the `media:*` matrix: a user may hold every
 media permission there is and still not be allowed to change **this record**, and
 attaching an asset to a record is a write to the record. Read-only leaves the
@@ -348,7 +350,8 @@ Two decisions worth keeping:
 
 This plugin contributes **no top-level route and no top-toolbar nav item**. It
 adds an `Image` rail button (`order: 20`) and a `media/*` route to the workspace
-shell — plus the content editor's **Media tab** (`ENTRY_TAB_SLOT`, above) — so it
+shell — plus the content editor's media field control
+(`ENTRY_FIELD_CONTROL_SLOT`, above) — so it
 only renders under `/workspaces/:id/media` and inside the content entry editor.
 
 ## Conventions
@@ -386,7 +389,7 @@ Pinned by `components/FadeInImage/index.spec.tsx`.
 
 ## End-to-end cover
 
-The **Media tab** has an admin-e2e suite —
+The **media field** has an admin-e2e suite —
 `apps/admin-e2e/src/content/media-fields.spec.ts`, driven by the
 `MediaFieldPage` page object: picking from the library, the `accept` narrowing,
 walking into a folder and back out via the breadcrumb, staging an upload and

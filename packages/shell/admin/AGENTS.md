@@ -58,6 +58,20 @@ does, from inside its own tree:
   its minimum collapses it **through `toggle`**, so it slides and hands focus
   exactly as the Hide button does.
 
+  **A page may ask for an overlay instead of a column**
+  (`<RightPanelPortal overlay>`, the entry editor's Properties since
+  [ADR-0022](../../../docs/adr/0022-entry-editor-one-form-properties-on-demand.md)).
+  Then on a desktop the panel is a card floating over the page's right edge,
+  opened on demand (it starts closed on every arrival), **non-modal**: Escape
+  or a click outside closes it — the outside click without stealing focus back
+  to the bar (`dismiss`), and never when the click lands in a layer the panel
+  opened (a menu, a dialog). A **Pin** control in its header docks it back into
+  the column; the pin is per browser (`orthacms:right-panel:pinned`), not in the
+  synced layout. A page that does not ask keeps the column. `attention` puts a
+  dot on the reopen button while the page says something there needs the
+  reader (the editor's blocking issues). On a phone the panel is a **bottom
+  sheet**, sliding up from the foot of the screen.
+
   **The toggle pair hands focus between its halves**, and this is not optional.
   "Hide {title}" lives inside the panel, "Show {title}" in the top bar, and only
   one is reachable at a time — collapsing puts the first inside the `inert`

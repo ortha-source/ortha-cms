@@ -36,12 +36,14 @@ utils/schemaBuilderPlugin/  the AdminPlugin factory
 - **No mapper.** The envelope is `@orthacms/schema-builder-domain`'s own
   contract, shared with the server, so the wire shape and the view shape are
   one type.
-- **Tabs are built in; groups are accordions on General.** The field list is
-  drawn under the entry editor's tabs — General, Relations, Media — and a tab
-  with nothing on it is left out, as the editor leaves it out. General's loose
-  fields follow `orderGeneralTab` from `@orthacms/content-domain`, the same
-  table `EntryFieldSections` uses; inside a group the declared order holds.
-  Nothing on this page suggests a schema can add a tab.
+- **One form; groups are accordions in it.** The field list is drawn the way
+  the entry editor's one **Content** form draws it
+  ([ADR-0022](../../../docs/adr/0022-entry-editor-one-form-properties-on-demand.md)):
+  relations and media are fields like any other, no longer blocks of their
+  own (`builtInTab` maps every field to the one tab). The loose fields follow
+  `orderGeneralTab` from `@orthacms/content-domain`, the same table
+  `EntryFieldSections` uses; inside a group the declared order holds. Nothing
+  on this page suggests a schema can add a tab.
 - **States never mix.** No access sends no request; loading is one
   `SkeletonRegion`; an error is an alert with a retry, never an empty rail; an
   app with no types is its own empty state.
@@ -102,8 +104,8 @@ Hand-written types stay read-only and say how to hand them over.
   on (`canChangeFlag`) — every other flip needs a data migration. Judged
   against the **served** type, so a flag the draft changed can always be
   switched back before an apply.
-- **Order and groups by drag.** Each list (loose fields, each group,
-  Relations, Media) is its own sortable context, but General's lists share one
+- **Order and groups by drag.** Each list (loose fields, each group) is its
+  own sortable context, but the lists share one
   `SortableFieldScope`, so a field is dragged into a group — an empty one is a
   drop target of its own — and back out to the loose fields (`field.regroup`
   sets or clears `admin.group`). Mid-drag the scope keeps its own order of
@@ -120,7 +122,7 @@ Hand-written types stay read-only and say how to hand them over.
   over the farthest group whose middle its leading edge has passed, not the
   nearest center: blocks differ in height, and by centers a group taller than
   the first could never be put first.
-  Relations and Media are a scope each — nothing there joins a group. Dragging
+  Dragging
   works from the handle by keyboard too; dnd-kit's announcements are replaced
   with ones that name fields and lists.
 - **Groups** are edited in `GeneralGroupsSheet` — accordion blocks on General,

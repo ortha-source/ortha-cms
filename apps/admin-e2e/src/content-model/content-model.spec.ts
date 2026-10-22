@@ -181,27 +181,27 @@ test.describe('Content Model', () => {
     });
 
     test.describe('a type', () => {
-        test('lays fields out under the built-in tabs, General by rank then groups', async ({
+        test('lays fields out as the one form does: by rank, relations and media included, then groups', async ({
             page,
             contentModelPage
         }) => {
             await mockSchemaDocument(page);
             await contentModelPage.goto('article');
 
-            await expect(contentModelPage.tab('General')).toBeVisible();
-            // Declared body, title, kind; drawn inputs → choices → long text.
-            expect(await contentModelPage.fieldNames('General')).toEqual([
+            await expect(contentModelPage.tab('Content')).toBeVisible();
+            // Declared body, title, kind; drawn inputs → choices → long text,
+            // then the relation and the media field (ADR-0022), then the
+            // group's field.
+            expect(await contentModelPage.fieldNames('Content')).toEqual([
                 'title',
                 'kind',
                 'body',
+                'author',
+                'cover',
                 'slug'
             ]);
-            expect(await contentModelPage.fieldNames('Relations')).toEqual([
-                'author'
-            ]);
-            expect(await contentModelPage.fieldNames('Media')).toEqual([
-                'cover'
-            ]);
+            await expect(contentModelPage.tab('Relations')).toHaveCount(0);
+            await expect(contentModelPage.tab('Media')).toHaveCount(0);
         });
 
         test('draws a group as an accordion that folds', async ({
@@ -214,24 +214,26 @@ test.describe('Content Model', () => {
             const trigger = contentModelPage.groupTrigger('SEO');
             await expect(trigger).toHaveAttribute('aria-expanded', 'true');
             await expect(
-                contentModelPage.tab('General').getByText('starts folded')
+                contentModelPage.tab('Content').getByText('starts folded')
             ).toBeVisible();
             await trigger.click();
             await expect(trigger).toHaveAttribute('aria-expanded', 'false');
-            expect(await contentModelPage.fieldNames('General')).toEqual([
+            expect(await contentModelPage.fieldNames('Content')).toEqual([
                 'title',
                 'kind',
-                'body'
+                'body',
+                'author',
+                'cover'
             ]);
         });
 
-        test('leaves out a tab with nothing on it', async ({
+        test('draws no Relations or Media block — they are fields of the form', async ({
             page,
             contentModelPage
         }) => {
             await mockSchemaDocument(page);
             await contentModelPage.goto('home');
-            await expect(contentModelPage.tab('General')).toBeVisible();
+            await expect(contentModelPage.tab('Content')).toBeVisible();
             await expect(contentModelPage.tab('Relations')).toHaveCount(0);
             await expect(contentModelPage.tab('Media')).toHaveCount(0);
         });
@@ -244,7 +246,7 @@ test.describe('Content Model', () => {
             await contentModelPage.goto('author');
             await expect(
                 contentModelPage
-                    .tab('Relations')
+                    .tab('Content')
                     .getByText('mirrors article.author')
             ).toBeVisible();
         });

@@ -76,8 +76,13 @@ case ADR-0003 says not to build a `domain/` layer for.
   The page itself also gates on `useHasPermission('activity:read')`.
 - A `HOME_SECTION_SLOT` panel (`RecentActivityPanel`) — the latest events on the
   home dashboard, reusing `useActivityLog` and gated on `activity:read`.
-- An `ENTRY_TAB_SLOT` tab (`EntryActivityTab`, slug `ENTRY_TAB.Activity`) —
-  **one entry's own trail**, in the content editor. It reads a different route
+- An `ENTRY_TIMELINE_SLOT` source (`hooks/useEntryActivityTimeline`) —
+  **one entry's own trail**, drawn between the versions of the content
+  editor's **History** timeline and picked out by its Activity filter
+  ([ADR-0022](../../../docs/adr/0022-entry-editor-one-form-properties-on-demand.md);
+  it was an Activity tab beside History until then, and the retired
+  `/activity` URL lands on `history?show=activity`). It returns `null` without
+  `content:read`, and History then offers no Activity filter. It reads a different route
   (`GET /activity/entries/:id`) under a different permission (`content:read`),
   which is the whole point: the editor's built-in History tab is the _revision_
   timeline — what the words were at each save — and cannot say who published the

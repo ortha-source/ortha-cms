@@ -51,12 +51,20 @@ export class WysiwygFieldPage extends BasePage {
     }
 
     /**
-     * A rich-text field's control — the button laid over the preview, named
-     * "Edit {label}". This is the field's focusable element, so it is also what
-     * the field's `<label>` points at.
+     * What opens a rich-text field's **full view** for an author: the
+     * "Expand {label}" button on the in-place editor. (Since ADR-0022 the body
+     * is edited in the form itself; this used to be an "Edit {label}" button
+     * laid over a preview, which only a reader still gets — `viewControl`.)
      */
     control(label: string): Locator {
-        return this.page.getByRole('button', { name: `Edit ${label}` });
+        return this.page.getByRole('button', { name: `Expand ${label}` });
+    }
+
+    /** The body edited in place in the form (an author's editor). */
+    inlineSurface(label: string): Locator {
+        return this.page
+            .locator('[data-testid^="wysiwyg-inline-"]')
+            .getByRole('textbox', { name: `${label} content` });
     }
 
     /**
@@ -69,9 +77,10 @@ export class WysiwygFieldPage extends BasePage {
     }
 
     /**
-     * The rendered preview for a field, located by walking up from its control
-     * to the shared card. Used to assert the field shows *content* — a heading,
-     * a list — rather than the markup that produced it.
+     * The field's body as the form shows it — for an author, the in-place
+     * editor's scroll box (the Expand button's parent). Used to assert the
+     * field shows *content* — a heading, a list — rather than the markup that
+     * produced it.
      */
     preview(label: string): Locator {
         return this.control(label).locator('..');

@@ -424,8 +424,12 @@ test.describe('Publication protection in the entry editor', () => {
         });
     });
 
-    /** The menu is the second door; it must be shut with the first. */
-    test('holds the menu’s Save & publish along with the button [protection:I-21]', async ({
+    /**
+     * The menu used to be the second door (its "Save & publish"); since the
+     * action matrix it holds no publish at all, and ⌘⇧P is the second door
+     * now — run through the same guarded handler as the button.
+     */
+    test('leaves no publish in the menu while the button is held [protection:I-21]', async ({
         page,
         contentLibraryPage
     }) => {
@@ -437,11 +441,11 @@ test.describe('Publication protection in the entry editor', () => {
 
         await contentLibraryPage.openEditorMenu();
         await expect(
-            page.getByRole('menuitem', { name: 'Save & publish' })
-        ).toHaveAttribute('aria-disabled', 'true');
+            page.getByRole('menuitem', { name: /publish$/i })
+        ).toHaveCount(0);
     });
 
-    test('opens the bypass confirmation from the menu when a bypass is offered [protection:I-21]', async ({
+    test('opens the bypass confirmation from the publish chord when a bypass is offered [protection:I-21]', async ({
         page,
         contentLibraryPage
     }) => {
@@ -452,9 +456,11 @@ test.describe('Publication protection in the entry editor', () => {
             bypassable: true
         });
         await contentLibraryPage.gotoEntry(WS, TYPE, ENTRY);
+        await expect(
+            page.getByRole('button', { name: /^publish$/i })
+        ).toBeVisible();
 
-        await contentLibraryPage.openEditorMenu();
-        await contentLibraryPage.chooseEditorAction('Save & publish');
+        await page.keyboard.press('ControlOrMeta+Shift+P');
 
         await expect(page.getByRole('dialog')).toContainText(
             /entry\.publish_bypassed/

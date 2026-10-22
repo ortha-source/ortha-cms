@@ -59,7 +59,7 @@ test.describe('Entry editor validation', () => {
             );
 
             await expect(
-                page.getByRole('heading', { name: 'New Gadgets' })
+                page.getByRole('heading', { name: 'Untitled', level: 1 })
             ).toBeVisible();
             await expect(page.locator('#entry-field-title')).toBeVisible();
             await expect(page.locator('#entry-field-internalCode')).toHaveCount(

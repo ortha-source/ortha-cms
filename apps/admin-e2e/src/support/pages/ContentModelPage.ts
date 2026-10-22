@@ -64,14 +64,18 @@ export class ContentModelPage extends BasePage {
         return this.page.getByRole('heading', { name: label, level: 2 });
     }
 
-    /** One built-in tab's block (General, Relations, Media). */
-    tab(name: 'General' | 'Relations' | 'Media'): Locator {
+    /**
+     * One built-in tab's block. Since ADR-0022 there is one, **Content**:
+     * relations and media are fields of the one form. The retired names stay
+     * accepted so a spec can assert they are gone.
+     */
+    tab(name: 'Content' | 'Relations' | 'Media'): Locator {
         return this.page.getByRole('region', { name });
     }
 
     /** The machine names of the fields drawn on a tab, top to bottom. */
     async fieldNames(
-        name: 'General' | 'Relations' | 'Media'
+        name: 'Content' | 'Relations' | 'Media'
     ): Promise<string[]> {
         const rows = await this.tab(name).getByRole('listitem').all();
         const names: string[] = [];
@@ -88,7 +92,7 @@ export class ContentModelPage extends BasePage {
 
     /** A General-tab group's block: its trigger, its handle and its fields. */
     groupBlock(label: string): Locator {
-        return this.tab('General').getByRole('group', {
+        return this.tab('Content').getByRole('group', {
             name: label,
             exact: true
         });
@@ -103,7 +107,7 @@ export class ContentModelPage extends BasePage {
 
     /** The labels of the General tab's groups, top to bottom. */
     async groupNames(): Promise<string[]> {
-        const blocks = await this.tab('General').getByRole('group').all();
+        const blocks = await this.tab('Content').getByRole('group').all();
         const labels: string[] = [];
         for (const block of blocks)
             labels.push((await block.getAttribute('aria-label')) ?? '');
@@ -304,7 +308,7 @@ export class ContentModelPage extends BasePage {
 
     /** The General block's "Groups" button. */
     groupsButton(): Locator {
-        return this.tab('General').getByRole('button', { name: 'Groups' });
+        return this.tab('Content').getByRole('button', { name: 'Groups' });
     }
 
     /** A select field's option input in its sheet's Validation tab, 1-based. */
@@ -331,7 +335,7 @@ export class ContentModelPage extends BasePage {
     /** The groups sheet. */
     groupsSheet(): Locator {
         return this.page.getByRole('dialog', {
-            name: 'Groups on the General tab'
+            name: 'Groups on the Content tab'
         });
     }
 

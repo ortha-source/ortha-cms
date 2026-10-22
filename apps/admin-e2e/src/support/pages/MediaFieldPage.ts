@@ -2,9 +2,10 @@ import { type Locator, type Page } from '@playwright/test';
 import { BasePage } from './BasePage';
 
 /**
- * Page object for the entry editor's **Media** tab — the media plugin's
- * `ENTRY_TAB_SLOT` contribution (`@orthacms/media-admin`): one card per media
- * field, each with attached-asset tiles, the library picker, and the upload
+ * Page object for the entry editor's **media fields** — the media plugin's
+ * `ENTRY_FIELD_CONTROL_SLOT` contribution (`@orthacms/media-admin`), drawn in
+ * the one Content form since ADR-0022 (it was a Media tab): each field a
+ * named group with attached-asset tiles, the library picker, and the upload
  * dialog. Drives the create editor at `/workspaces/:id/content/article/new`.
  *
  * Seed with `mockSignedIn`, `mockWorkspaces`, the `MEDIA_FIELDS_*` content mocks
@@ -22,7 +23,9 @@ export class MediaFieldPage extends BasePage {
 
     constructor(page: Page) {
         super(page);
-        this.mediaTab = page.getByRole('tab', { name: 'Media' });
+        // Media fields are part of the one Content form since ADR-0022; the
+        // tab that holds them is Content.
+        this.mediaTab = page.getByRole('tab', { name: 'Content' });
         this.pickerDialog = page.getByRole('dialog', {
             name: /^Select an? asset|^Select assets/
         });
@@ -41,7 +44,7 @@ export class MediaFieldPage extends BasePage {
         );
     }
 
-    /** Switch to the Media tab. */
+    /** Switch to the Content view, where the media fields are. */
     async openMediaTab() {
         await this.mediaTab.click();
     }
@@ -241,14 +244,21 @@ export class MediaFieldPage extends BasePage {
     // --- the editor ----------------------------------------------------------
 
     /**
-     * The entry editor's **primary** action: Publish / Publish changes on a
+     * The entry editor's **primary** slot: Publish / Publish changes on a
      * publishable type the reader may publish, else the one Save — never the
      * secondary "Save draft" beside Publish (see `editorSaveDraft`).
+     *
+     * With nothing to do the slot shows the record's state instead, disabled
+     * ("Saved", "Published · up to date" — the action matrix,
+     * `content:I-62`), so a clean editor matches here too. A clean draft
+     * draws "Saved" **and** Publish; the primary is the last of them.
      */
     get save(): Locator {
-        return this.page.getByRole('button', {
-            name: /^(Save|Publish|Publish changes)$/
-        });
+        return this.page
+            .getByRole('button', {
+                name: /^(Save|Publish|Publish changes|Saved|Published · up to date)$/
+            })
+            .last();
     }
 
     /** The secondary "Save draft" beside Publish on a publishable type. */

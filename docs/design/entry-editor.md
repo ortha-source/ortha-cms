@@ -1,16 +1,17 @@
 # Entry editor redesign — design
 
-> **Status:** proposed, nothing built. The decision behind it is
-> [ADR-0022](../adr/0022-entry-editor-one-form-properties-on-demand.md)
-> (**Proposed**); this document is the technical description that record
-> deliberately does not carry: the layout, the states, the plugin contract
-> changes, the phases and the invariants. The mockups live on the design canvas
+> **Status:** all seven phases built (one PR, ahead of
+> [ADR-0022](../adr/0022-entry-editor-one-form-properties-on-demand.md)'s
+> acceptance, which stays the reviewers' call). This document is the technical
+> description that record deliberately does not carry: the layout, the states,
+> the plugin contract changes, the phases and the invariants. The mockups live
+> on the design canvas
 > ["Entry editor redesign"](https://claude.ai/artifact/UGktxkPr3ghiq82GMcQRyD)
 > (ask its owner for access); every screen named here is an artboard there.
->
-> Once a phase ships, its part of this file moves into
-> `packages/content/admin/AGENTS.md` and the invariants into
-> [`docs/artifacts/content.md`](../artifacts/content.md).
+> [_As built_](#as-built) at the end lists where the code differs from this
+> text; the invariants are numbered into
+> [`docs/artifacts/content.md`](../artifacts/content.md) (`content:I-59` …
+> `I-69`).
 
 ## Why
 
@@ -392,3 +393,34 @@ introduces one adds its spec.
 The records table, the schema builder, the public API and every server
 contract. No write path, permission or validation rule changes; this redesign
 moves where things render and adds two admin-side slots.
+
+## As built
+
+Where the shipped code differs from the text above, and why:
+
+- **The panel keeps the name Properties.** It opens over the form on demand
+  (⌘. or the top bar's button) and pins into the docked column, as designed —
+  but its contents already hold a **Details** section, and two things named
+  Details one inside the other read as a mistake. Its body is unchanged: the
+  publish gate (the "Before you can publish" list in its existing form), Used
+  in, Details, then the contributed widgets.
+- **Overlay is opt-in per page.** `AppRightPanel`'s modes are reached through
+  `RightPanelPortal overlay` rather than a global `mode`, so a page that never
+  asked for an overlay keeps its column. The pin is per browser
+  (`orthacms:right-panel:pinned`), not in the synced panel layout. The admin
+  e2e fixture pins it, so the rail's specs keep the docked layout; the overlay
+  has specs of its own.
+- **The relation picker is still the dialog.** The popover picker is the first
+  open question above; until it is measured on a large type, the dialog stays.
+  Rows are compact (title first, actions on hover and focus).
+- **Status items come from content and alarms.** The editor's field issues and
+  a guard's refusal are items; alarms reports open findings. Protection needs
+  no item of its own — its refusal arrives through the guard. Segments and
+  i18n report nothing: neither has a status a reader must act on yet (a
+  sibling locale "behind" is the last open question).
+- **Activity stays `content:read`.** The entry-scoped activity route was
+  always gated on `content:read`, so the Activity filter is too — not on
+  `activity:read`, which gates the deployment-wide page.
+- **⌘⇧L and ⌥↑/⌥↓ are not bound yet.** ⌘S, ⌘⇧P and ⌘. are.
+- **Rich text in place has no slash menu**, so the placeholder does not
+  promise one; the toolbar appears once the field has focus.

@@ -55,7 +55,11 @@ slots the content plugin owns).
   switcher**, an outline button leading the top bar's actions (before Save /
   Publish), live in **both** modes. Shown
   only when `schema.i18n`. It reads the open locale as **code · name** (e.g.
-  `EN · English`) plus a **translated/total** count, and is a
+  `EN · English`, the name hidden on a narrow work area) plus **one dot per
+  configured locale** (`LocaleTitleChip/LocaleDots`), in the menu's order,
+  coloured by state — published, modified, draft, or hollow where the record
+  does not exist (it was a bare `translated/total` count, which said how many
+  but not which); the trigger's accessible name still spells the count out. It is a
   `PopoverTrigger` over a **searchable list** of every configured locale. The
   current
   locale is resolved by `resolveActiveLocale` (`entry.locale ?? ?locale= ??

@@ -91,7 +91,8 @@ test.describe('Entry editor: publishing a new record', () => {
         await expect(page).toHaveURL(
             new RegExp(`/content/${TYPE}/${CREATED_ID}$`)
         );
-        await expect(contentLibraryPage.viewHeading('Gadgets')).toBeVisible();
+        // The `<h1>` is the record's own title (`content:I-61`).
+        await expect(contentLibraryPage.viewHeading('A gadget')).toBeVisible();
         // And what the author typed is still what the form holds.
         await expect(title).toHaveValue('A gadget');
     });
@@ -249,7 +250,7 @@ test.describe('Entry editor: staged links across a refused publish', () => {
         await expect(
             contentLibraryPage.toast(/The server refused “internalCode”/)
         ).toBeVisible();
-        await expect(page).toHaveURL(/\/content\/article\/article-new\//);
+        await expect(page).toHaveURL(/\/content\/article\/article-new$/);
         // The create carried the link …
         expect(saves.bodies).toHaveLength(1);
         expect(saves.bodies[0].relations?.tags?.link).toEqual(['tag-01']);
@@ -335,7 +336,7 @@ test.describe('Entry editor: staged links across a refused publish', () => {
         await expect(
             contentLibraryPage.toast('Not published: Boom')
         ).toBeVisible();
-        await expect(page).toHaveURL(/\/content\/article\/new\//);
+        await expect(page).toHaveURL(/\/content\/article\/new$/);
         await expect(relationsEditorPage.changedBadge.first()).toBeVisible();
     });
 });

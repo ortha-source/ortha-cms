@@ -14,13 +14,55 @@ a "{n} selected" bar, pagination, and an **Add record** action); selecting a
 create form). The entry
 list is **served by the API** (`useContentEntries` → `GET /api/content/:typeName`):
 search, query-builder filter, sort, and pagination all run server-side. Creating
-(`/new`) or opening (`/:entryId`) an entry renders the **`EntryEditor`** — a
-tabbed, schema-driven form (see below). Writes are **live**: create/update
+(`/new`) or opening (`/:entryId`) an entry renders the **`EntryEditor`** — one
+schema-driven form with Access and History beside it (see _The entry editor
+after ADR-0022_ below). Writes are **live**: create/update
 (`useSaveEntry`), publish/unpublish + soft-delete/restore/purge
 (`useEntryStatusActions`), and their batch forms (`useBulkEntryActions`), all
 against the content-server write API; a server 422 maps back onto the form's
 fields. Each paranoid collection also has a **Trash** view
 (`:typeName/trash`).
+
+## The entry editor after ADR-0022
+
+[ADR-0022](../../../docs/adr/0022-entry-editor-one-form-properties-on-demand.md)
+and [`docs/design/entry-editor.md`](../../../docs/design/entry-editor.md) (its
+_As built_ section lists where the code differs) reshaped the editor. In
+short — and where an older paragraph further down disagrees, this wins:
+
+- **One Content form** (`content:I-59`). The tabs are **Content** (slug
+  `general`, unchanged), any `ENTRY_TAB_SLOT` tab (segments' Access), and
+  **History**. Relations render inline through the editor's own
+  `RelationFieldSection`, handed down by `hooks/useEntryFieldResources`
+  (`renderField`), so their staging stays on `EntryEditor`; media render through
+  `ENTRY_FIELD_CONTROL_SLOT` (the media plugin's `composite` control), reading
+  `mediaRefs` / `presave` from the same resources. The Translated / Shared
+  split is gone: each field says it beside its label (globe, or "All locales" —
+  `SharedFieldMark`). `/relations`, `/media` and `/activity` are retired slugs
+  that redirect (`RETIRED_ENTRY_TABS`, `content:I-60`).
+- **The record's title is the `<h1>`** (`EntryTitleBlock`, `content:I-61`),
+  over one meta line: status badge, locale, one sentence of history.
+- **Header actions follow the action matrix** (`EntryActions`,
+  `content:I-62`/`I-63`): a save state ("● Unsaved changes" / "Saved 2 min
+  ago"), **Save draft** + **Publish** / **Publish changes** (or one **Save**),
+  a disabled "✓ Saved" / "✓ Published · up to date" when there is nothing to
+  do, ⌘S / ⌘⇧P (`hooks/useEntryShortcuts`). The ⋯ menu keeps Unpublish,
+  Delete and the contributed groups.
+- **The status cluster** (`EntryActions/EntryStatusCluster`, `content:I-65`)
+  leads the actions: the editor's own field issues (`field:<name>` items, one
+  "N issues" chip), a guard's refusal, and what plugins report through
+  **`ENTRY_STATUS_ITEM_SLOT`**; the chip rules are `domain/statusChips`.
+- **Properties opens over the form** (`RightPanelPortal overlay`, ⌘.),
+  non-modal, and pins back into the docked column per browser
+  (`content:I-67`). Its reopen button carries a dot while anything blocks
+  publishing (`attention`).
+- **History** (`HistoryTimeline`, `content:I-68`) is one timeline grouped by
+  day — versions plus the rows **`ENTRY_TIMELINE_SLOT`** sources add (the
+  record's activity) — filtered All / Versions / Activity through `?show=`.
+- **"On this page"** (`EntryPageNav`, `domain/pageSections`, `content:I-69`)
+  replaced the per-field outline: sections only, from three on.
+- **On a phone** the write actions sit in a sticky bottom bar
+  (`EntryActions layout="bottom"`) and Properties is a bottom sheet.
 
 ## Layout — layered (ADR-0003)
 
@@ -84,7 +126,8 @@ The routes are (`index` → `ContentWelcome`,
 `ContentEntryRoute` (the create / edit editor); the static `new` segment
 outranks the `:entryId` param).
 
-**The editor's tabs are routes**, one segment deeper — `:typeName/:entryId/:tab`
+**The editor's tabs are routes** (Content, Access, History — see _The entry
+editor after ADR-0022_), one segment deeper — `:typeName/:entryId/:tab`
 (and `:typeName/new/:tab`); for a **single**, whose editor is mounted on the type
 itself, each tab slug is spelled out as a **static** segment (`:typeName/general`
 …) so it outranks the `:entryId` route, the same trick `new` and `trash` use. The
@@ -293,7 +336,9 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   `multiselect` uses the design-system `MultiSelect` (Popover + Command + Badge)
   rather than native controls. The records pane (`ContentPane`) is `overflow-auto` so
   wide content scrolls inside the work-area island, not the page.
-- **The General tab's outline** (`EntryEditor/EntryFieldOutline`) — a column of
+- **The General tab's outline** — **retired**, replaced by "On this page"
+  (`EntryPageNav`, see _The entry editor after ADR-0022_). What follows is the
+  record of the outline it replaced. `EntryEditor/EntryFieldOutline` was a column of
   short bars in the pane's left padding, one per field and per declared
   section, the way Notion, Coda and incident.io mark a long document. The bar
   in view is drawn darker and a field showing an error in the destructive
@@ -689,6 +734,12 @@ one of the two pages.
 than just being dead.
 
 ## The Properties panel + the editor's actions live in the app chrome
+
+> Since ADR-0022 the panel is registered with `overlay`: it opens over the form
+> on demand (⌘. or the top bar's button) and the reader may pin it back into
+> the column this section describes. The actions are no longer "the primary
+> button + ⋯ holding Save draft, Save & publish…" — see _The entry editor
+> after ADR-0022_.
 
 The entry editor no longer draws its own rail or its own action bar. Both render
 into **shell-owned regions** (`@orthacms/shell-admin`), filled by portal from
@@ -1107,20 +1158,22 @@ of the package — `infrastructure/contentInsightsGateway` (the port),
 
 ## Extension slots
 
-The library exposes sixteen named slots (`presentation/slots/contentSlots`, via
+The library exposes eighteen named slots (`presentation/slots/contentSlots`, via
 `createSlot`) another admin plugin contributes into — no coupling beyond the
 contracts, the same idiom as the workspace shell's slots.
 `@orthacms/i18n-admin` fills eight; `@orthacms/media-admin` fills two
-(`ENTRY_TAB_SLOT`, the Media tab, and `ENTRY_PRESAVE_SLOT`, its staged uploads);
+(`ENTRY_FIELD_CONTROL_SLOT`, the media field's control in the form, and
+`ENTRY_PRESAVE_SLOT`, its staged uploads);
 `@orthacms/wysiwyg-admin` fills one (`ENTRY_FIELD_CONTROL_SLOT`, the rich-text
 editor); `@orthacms/transfer-admin` fills three (`ENTRY_MENU_SLOT` and
 `RECORDS_BULK_ACTION_SLOT` to export, `RECORDS_MENU_SLOT` to import);
 `@orthacms/segments-admin` fills three (`ENTRY_DETAILS_ROW_SLOT`, the Access row;
 `ENTRY_TAB_SLOT`, the Access tab; and `ENTRY_PRESAVE_SLOT`, which is what applies
 an entry's audiences on Save rather than on a button of its own);
-`@orthacms/activity-admin` fills one (`ENTRY_TAB_SLOT`, the **Activity** tab —
-who did what to this record, which the revision-timeline History tab cannot
-answer).
+`@orthacms/activity-admin` fills one (`ENTRY_TIMELINE_SLOT`, the record's
+activity between the versions of the History timeline — who did what, which a
+version cannot say); `@orthacms/alarms-admin` fills `ENTRY_STATUS_ITEM_SLOT`
+with the record's open findings.
 **Slot items are boot-frozen**
 (`createAdmin` registers them once, before the first render), which is what
 makes the **hook-style** items (`RECORDS_COLUMN_SLOT.useRowsData`,
@@ -1219,6 +1272,18 @@ fetching internally.
       protection's review chip into its own **Review** block's heading, where
       it replaced the count that block already showed.
 
+- **`ENTRY_STATUS_ITEM_SLOT`** — a plugin's **report** into the header's
+  status cluster: `useItem(context, { dirty })` returns an `EntryStatusItem`
+  (`severity` blocking / warning / info, a short `label`, an optional `detail`
+  and a `target` — a field, or an action of its own) or `null`. A hook in a
+  loop, like the other hook-style items; `appliesTo` filters the result.
+  Plugins **do not draw header chips** — content decides how many show
+  (`domain/statusChips`) and lists the rest.
+- **`ENTRY_TIMELINE_SLOT`** — a source of rows for the History timeline:
+  `useEvents(context)` returns `{ events, isPending, isError }`, or `null` when
+  the reader may not see it (the filter then does not offer it). Each event is
+  `{ id, at, title, actor? }`, already localized; content sorts and groups them
+  between the versions.
 - **`RECORDS_FILTER_FIELDS_SLOT`** — extra query-builder filter fields, appended
   after the server-derived fields (`useFilterFields`) at the call site.
 - **`CONTENT_OVERLAY_SLOT`** — viewport-level chrome, rendered once by
@@ -1236,7 +1301,9 @@ fetching internally.
   (`createBodyKeys`; each must exist on the server `SaveEntryDto`), and extra
   relation-candidate list params (`relationCandidateParams`, consumed by the
   picker dialog through the slot context).
-- **`ENTRY_TAB_SLOT`** — a whole editor **tab** (id + `slug` + `label` + `order`
+- **`ENTRY_TAB_SLOT`** — a whole editor **tab** (segments' **Access**; the
+  media and activity tabs are retired — a retired slug's item is dropped)
+  (id + `slug` + `label` + `order`
     - `appliesTo` + `Component`). Rendered between Relations and History when
       `appliesTo(schema)` holds; the `slug` must be a known `ENTRY_TAB_SLUGS` member
       so the tab router/`entryTabFromPath` accept it. The Component receives an
@@ -1421,7 +1488,10 @@ already surfaces `required`), so a locale plugin needs no field-level slot:
   carries `aria-required`. The mark is deliberately `aria-hidden`: the control
   already announces "required", so marking the asterisk up too would say it
   twice on every required field.
-- `EntryFieldSections` **groups the General tab by locale scope** when the type
+- ~~`EntryFieldSections` **groups the General tab by locale scope**~~ —
+  retired with ADR-0022: the form keeps the schema's order and every field of a
+  localized type says its scope beside its label (a globe, or "All locales").
+  What it used to do: when the type
   has both kinds of field: a **Translated fields** run (`localized`) over a
   **Shared fields** run, each a `FieldGroup` with a one-line explanation —
   editing a shared field changes it in _every_ locale, which is not something to
