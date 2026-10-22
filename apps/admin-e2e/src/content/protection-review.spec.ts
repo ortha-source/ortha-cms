@@ -248,9 +248,9 @@ test.describe('Publication protection in the entry editor', () => {
         const publish = page.getByRole('button', { name: /^publish$/i });
         await expect(publish).toHaveAttribute('aria-disabled', 'true');
         // The reason reaches a screen reader as the button's *description*.
-        await expect(
-            page.getByText('2 approvals required on this version, 0 given.')
-        ).toBeAttached();
+        await expect(publish).toHaveAccessibleDescription(
+            '2 approvals required on this version, 0 given.'
+        );
     });
 
     /**
@@ -340,11 +340,9 @@ test.describe('Publication protection in the entry editor', () => {
         await contentLibraryPage.fieldTextbox('Title').fill('A late edit');
 
         await expect(publish).toHaveAttribute('aria-disabled', 'true');
-        await expect(
-            page.getByText(
-                'Saving your changes starts a new version: 1 approval required, 0 would count.'
-            )
-        ).toBeAttached();
+        await expect(publish).toHaveAccessibleDescription(
+            'Saving your changes starts a new version: 1 approval required, 0 would count.'
+        );
     });
 
     test('sends the bypass with the publish itself, once confirmed [protection:I-20]', async ({
@@ -598,11 +596,9 @@ test.describe('Publication protection in the entry editor', () => {
 
         const publish = page.getByRole('button', { name: /^publish$/i });
         await expect(publish).toHaveAttribute('aria-disabled', 'true');
-        await expect(
-            page.getByText(
-                '1 approval required before a new entry of this type can be published.'
-            )
-        ).toBeAttached();
+        await expect(publish).toHaveAccessibleDescription(
+            '1 approval required before a new entry of this type can be published.'
+        );
     });
 
     test('has no accessibility violations with a rule in force', async ({

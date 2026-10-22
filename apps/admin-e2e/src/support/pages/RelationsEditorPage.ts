@@ -310,7 +310,10 @@ export class RelationsEditorPage extends BasePage {
      * publish gate blocking on empty required fields.
      */
     async saveDraft() {
-        await this.page.getByRole('button', { name: 'More actions' }).click();
-        await this.page.getByRole('menuitem', { name: 'Save draft' }).click();
+        // A button since the action matrix (`content:I-63`) — "Save draft"
+        // beside Publish, or the one "Save" on a type without publishing.
+        await this.page
+            .getByRole('button', { name: /^(Save draft|Save)$/ })
+            .click();
     }
 }

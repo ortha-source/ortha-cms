@@ -149,9 +149,22 @@ export class SegmentsPage extends BasePage {
         await this.accessOption(audience, state).click();
     }
 
-    /** A "set every audience to…" bulk control. */
-    bulkAction(label: string): Locator {
-        return this.page.getByRole('button', { name: label, exact: true });
+    /** The Access tab's "Set all…" menu trigger. */
+    get bulkMenu(): Locator {
+        return this.page.getByRole('button', { name: 'Set all…' });
+    }
+
+    /** Open the "Set all…" menu. */
+    async openBulkMenu(): Promise<void> {
+        await this.bulkMenu.click();
+    }
+
+    /**
+     * One "set every audience to…" item in the open "Set all…" menu —
+     * "All can see", "None can see" or "Clear all".
+     */
+    bulkAction(label: 'All can see' | 'None can see' | 'Clear all'): Locator {
+        return this.page.getByRole('menuitem', { name: label, exact: true });
     }
 
     /** The tab's open/restricted summary badge. */

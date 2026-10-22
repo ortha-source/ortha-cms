@@ -93,7 +93,9 @@ test.describe('Publish, with a staged link and nothing else', () => {
         await relationsEditorPage.candidate('engineering').click();
         await relationsEditorPage.addSelectedButton.click();
 
-        await page.getByRole('button', { name: /^publish$/i }).click();
+        await page
+            .getByRole('button', { name: /^publish( changes)?$/i })
+            .click();
 
         await expect.poll(() => order).toEqual(['save', 'publish']);
         expect(saves.bodies[0]?.relations?.tags?.link).toEqual(['tag-01']);
@@ -135,7 +137,9 @@ test.describe('A bypass on a localized record with shared-field edits', () => {
         await contentLibraryPage.fieldTrigger('category').click();
         await page.getByRole('option', { name: 'news' }).click();
 
-        await page.getByRole('button', { name: /^publish$/i }).click();
+        await page
+            .getByRole('button', { name: /^publish( changes)?$/i })
+            .click();
         const bypass = page.getByRole('dialog');
         await bypass.getByRole('button', { name: /publish anyway/i }).click();
 

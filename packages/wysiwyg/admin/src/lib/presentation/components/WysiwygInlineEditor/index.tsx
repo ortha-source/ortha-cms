@@ -71,6 +71,7 @@ export function WysiwygInlineEditor({
 }: EntryFieldControlContext) {
     const intl = useIntl();
     const rootRef = useRef<HTMLDivElement>(null);
+    const expandRef = useRef<HTMLButtonElement>(null);
     const [active, setActive] = useState(false);
 
     const onChangeRef = useRef(onChange);
@@ -159,7 +160,12 @@ export function WysiwygInlineEditor({
     return (
         <div
             ref={rootRef}
-            onFocus={() => setActive(true)}
+            // Not for the Expand button: the toolbar appearing above would
+            // push the button down between press and release, and the click
+            // would be lost — and someone pressing Expand is leaving anyway.
+            onFocus={(event) => {
+                if ((event.target as Node) !== expandRef.current) setActive(true);
+            }}
             className={cn(
                 'overflow-hidden rounded-lg border border-input bg-card transition-[box-shadow]',
                 'focus-within:ring-2',
@@ -173,6 +179,7 @@ export function WysiwygInlineEditor({
             <div className="relative max-h-[480px] overflow-y-auto">
                 <EditorContent editor={editor} />
                 <Button
+                    ref={expandRef}
                     type="button"
                     variant="ghost"
                     size="icon"
