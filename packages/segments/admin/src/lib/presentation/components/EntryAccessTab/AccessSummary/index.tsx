@@ -4,19 +4,19 @@ import type { EntryAccess, Segment } from '../../../../domain/types';
 const messages = defineMessages({
     everyone: {
         id: 'segments.summary.everyone',
-        defaultMessage: 'Readable by everyone.'
+        defaultMessage: 'Readable by everyone'
     },
     everyoneExcept: {
         id: 'segments.summary.everyoneExcept',
-        defaultMessage: 'Readable by everyone except {deny}.'
+        defaultMessage: 'Readable by everyone except {deny}'
     },
     only: {
         id: 'segments.summary.only',
-        defaultMessage: 'Readable only by {allow}.'
+        defaultMessage: 'Readable only by {allow}'
     },
     onlyExcept: {
         id: 'segments.summary.onlyExcept',
-        defaultMessage: 'Readable only by {allow} — never by {deny}.'
+        defaultMessage: 'Readable only by {allow} — never by {deny}'
     },
     others: {
         id: 'segments.summary.others',
@@ -77,8 +77,11 @@ export function AccessSummary({
                     deny: names(deny)
                 });
     return (
-        <p data-testid="access-summary" className="text-sm">
+        <h2
+            data-testid="access-summary"
+            className="text-[15px] font-semibold leading-5"
+        >
             {sentence}
-        </p>
+        </h2>
     );
 }

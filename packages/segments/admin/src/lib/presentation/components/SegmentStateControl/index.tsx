@@ -51,6 +51,9 @@ export function SegmentStateControl({
 
     return (
         <SegmentedControl
+            // A quiet track: each row carries one, and a filled black segment
+            // in every row of a long table was the loudest thing on the page.
+            variant="muted"
             value={value}
             disabled={disabled}
             aria-label={intl.formatMessage(messages.label, { name })}
@@ -60,13 +63,24 @@ export function SegmentStateControl({
                 if (next) onChange(next as SegmentState);
             }}
         >
-            <SegmentedControlItem value={SEGMENT_STATE.Unset}>
+            <SegmentedControlItem
+                value={SEGMENT_STATE.Unset}
+                className="text-xs"
+            >
                 {intl.formatMessage(messages.unset)}
             </SegmentedControlItem>
-            <SegmentedControlItem value={SEGMENT_STATE.Allow}>
+            {/* The chosen answer takes its meaning's colour — green for can,
+                red for cannot — on top of its word and its raised tab. */}
+            <SegmentedControlItem
+                value={SEGMENT_STATE.Allow}
+                className="text-xs data-[state=on]:!text-success"
+            >
                 {intl.formatMessage(messages.allow)}
             </SegmentedControlItem>
-            <SegmentedControlItem value={SEGMENT_STATE.Deny}>
+            <SegmentedControlItem
+                value={SEGMENT_STATE.Deny}
+                className="text-xs data-[state=on]:!text-destructive"
+            >
                 {intl.formatMessage(messages.deny)}
             </SegmentedControlItem>
         </SegmentedControl>

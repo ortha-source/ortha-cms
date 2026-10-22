@@ -4,8 +4,9 @@ import type { EntryTimelineEvent } from '../../../../../slots/contentSlots';
 /**
  * One contributed row in the History timeline — something that was **done**
  * to the record (published, unpublished, audiences changed) rather than a
- * version of it. Lighter than a version row on purpose: it carries no
- * actions, and the eye should run down the versions first.
+ * version of it. Lighter than a version row on purpose: a small dot where a
+ * version has its number, muted text, no actions — the eye runs down the
+ * versions first.
  */
 export function TimelineEventRow({ event }: { event: EntryTimelineEvent }) {
     const intl = useIntl();
@@ -14,29 +15,33 @@ export function TimelineEventRow({ event }: { event: EntryTimelineEvent }) {
     return (
         <div
             data-testid="timeline-event"
-            className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 py-2 pl-3 text-muted-foreground"
+            className="flex gap-3 rounded-lg px-2.5 py-2 text-[13px] leading-[18px] text-muted-foreground"
         >
-            <div className="flex min-w-0 items-baseline gap-2">
+            <span className="flex w-[22px] shrink-0 justify-center">
                 <span
                     aria-hidden
-                    className="size-1.5 shrink-0 translate-y-[-1px] rounded-full bg-border"
+                    className="mt-[5px] size-2 rounded-full bg-border"
                 />
-                <span className="text-sm text-foreground">{event.title}</span>
-                {event.actor ? (
-                    <span className="truncate text-xs">{event.actor}</span>
+            </span>
+            <span className="flex min-w-0 flex-1 flex-col">
+                <span>
+                    <span className="text-foreground/80">{event.title}</span>
+                    {event.actor ? (
+                        <>
+                            {' · '}
+                            <span>{event.actor}</span>
+                        </>
+                    ) : null}
+                </span>
+                {valid ? (
+                    <time dateTime={at.toISOString()} className="text-xs">
+                        {intl.formatTime(at, {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        })}
+                    </time>
                 ) : null}
-            </div>
-            {valid ? (
-                <time
-                    dateTime={at.toISOString()}
-                    className="shrink-0 text-xs tabular-nums"
-                >
-                    {intl.formatTime(at, {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    })}
-                </time>
-            ) : null}
+            </span>
         </div>
     );
 }

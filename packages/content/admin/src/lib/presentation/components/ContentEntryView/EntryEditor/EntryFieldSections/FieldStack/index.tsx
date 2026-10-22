@@ -3,7 +3,9 @@ import { TriangleAlert } from 'lucide-react';
 import type { ContentField } from '../../../../../../domain/types/contentType';
 import { fieldWidth, layoutFields } from '../../../../../../domain/fieldLayout';
 import type { EntryFormState } from '../../../../../hooks/useEntryForm';
+import { cn } from '@orthacms/design-system';
 import { useEntryFieldResources } from '../../../../../hooks/useEntryFieldResources';
+import { useEntryReadOnly } from '../../../../../hooks/useEntryReadOnly';
 import { EntryFieldInput } from '../../../../EntryFieldInput';
 
 const messages = defineMessages({
@@ -23,6 +25,20 @@ const messages = defineMessages({
  * its own label.
  */
 const GRID_LINE = 'grid grid-cols-1 items-start gap-5 @lg:grid-cols-2';
+
+/**
+ * A read-only form's values as **text on a muted surface**, not as inputs that
+ * happen to refuse typing: no border, no shadow, full contrast — visibly not
+ * something to edit (`docs/design/entry-editor.md`, _Field anatomy_). Applied
+ * to the cell so every control shape gets it — a read-only input or textarea,
+ * and the triggers of the controls that can only be `disabled` (select, date,
+ * multi-select), whose chevrons go with them.
+ */
+const READ_ONLY_CELL = cn(
+    '[&_input:read-only]:border-transparent [&_input:read-only]:bg-muted [&_input:read-only]:shadow-none',
+    '[&_textarea:read-only]:border-transparent [&_textarea:read-only]:bg-muted [&_textarea:read-only]:shadow-none',
+    '[&_button[aria-expanded]:disabled]:border-transparent [&_button[aria-expanded]:disabled]:bg-muted [&_button[aria-expanded]:disabled]:text-foreground [&_button[aria-expanded]:disabled]:opacity-100 [&_button[aria-expanded]:disabled_svg]:hidden'
+);
 
 /**
  * A run of General-tab fields on a two-column grid.
@@ -63,6 +79,7 @@ export function FieldStack({
 }) {
     const intl = useIntl();
     const resources = useEntryFieldResources();
+    const readOnly = useEntryReadOnly();
     const renderField = (field: ContentField) => {
         const lang = field.localized ? localizedLang : sharedLang;
         const changed = isChanged?.(field.name) ?? false;
@@ -77,7 +94,10 @@ export function FieldStack({
                 // `min-w-0` lets a grid cell shrink below its content's
                 // intrinsic width; `w-fit` shrinks the boolean segments to
                 // themselves instead of framing an empty column.
-                className={fieldWidth(field) === 'fit' ? 'w-fit' : 'min-w-0'}
+                className={cn(
+                    fieldWidth(field) === 'fit' ? 'w-fit' : 'min-w-0',
+                    readOnly && READ_ONLY_CELL
+                )}
                 // What the outline scrolls to and watches.
                 data-entry-field={field.name}
                 {...(lang ? { lang } : {})}

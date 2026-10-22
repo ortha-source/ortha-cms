@@ -64,7 +64,7 @@ export {
     avatarColorVar
 } from './lib/components/ui/avatar';
 export type { AvatarColor } from './lib/components/ui/avatar';
-export { Badge, badgeVariants } from './lib/components/ui/badge';
+export { Badge, BadgeDot, badgeVariants } from './lib/components/ui/badge';
 export type { BadgeProps } from './lib/components/ui/badge';
 export {
     Popover,

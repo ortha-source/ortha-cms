@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import {
+    Badge,
     Tabs,
     TabsContent,
     TabsList,
@@ -104,6 +105,10 @@ const messages = defineMessages({
     tabHistory: {
         id: 'content.editor.tabHistory',
         defaultMessage: 'History'
+    },
+    readOnlyBadge: {
+        id: 'content.editor.readOnlyBadge',
+        defaultMessage: 'Read-only'
     },
     relationsInherited: {
         id: 'content.editor.relationsInherited',
@@ -1302,6 +1307,19 @@ export function EntryEditor({
                             portal: two portals into the same host stack in
                             mount order, so a chip that mounted after the
                             buttons (or remounted) landed behind them. */}
+                                {/* Said in the bar too, beside the controls that
+                                    are missing because of it — the banner under
+                                    the title scrolls away. */}
+                                {readOnly && !isMobile ? (
+                                    <Badge
+                                        variant="line"
+                                        className="h-7 rounded-lg px-2.5"
+                                    >
+                                        {intl.formatMessage(
+                                            messages.readOnlyBadge
+                                        )}
+                                    </Badge>
+                                ) : null}
                                 {isMobile ? null : headerControls}
                                 {locked || isMobile ? null : (
                                     <EntryActions {...actionProps} />
@@ -1334,7 +1352,7 @@ export function EntryEditor({
                             <div
                                 ref={paneRef}
                                 className={cn(
-                                    'relative flex min-w-0 flex-1 flex-col p-4 sm:p-6',
+                                    'relative flex min-w-0 flex-1 flex-col p-4 sm:px-10 sm:pb-12 sm:pt-8',
                                     // Clear of the phone's bottom action bar.
                                     isMobile && !locked && 'pb-36',
                                     // Room for "On this page" beside the form.
@@ -1351,7 +1369,12 @@ export function EntryEditor({
                                         'mx-auto w-full',
                                         expandedContext
                                             ? 'flex min-h-0 max-w-6xl flex-1 flex-col'
-                                            : 'max-w-3xl'
+                                            : // History lays a list beside a
+                                              // comparison, so it takes a
+                                              // wider measure than the form.
+                                              shownTab === ENTRY_TAB.History
+                                              ? 'max-w-[1040px]'
+                                              : 'max-w-[720px]'
                                     )}
                                 >
                                     {/* The record's title and where it stands —

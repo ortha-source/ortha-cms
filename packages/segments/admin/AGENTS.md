@@ -157,13 +157,16 @@ inert server-side, so a badge claiming anything about access would be a claim
 about a system that is not running.
 
 **The Access tab leads with one sentence** (`EntryAccessTab/AccessSummary`):
-who can read the record — "Readable by everyone except Trial users" — before
-the table that decides it. Audiences the loaded page names are named, the rest
+who can read the record — "Readable by everyone except Trial users" — in a
+summary card (globe/lock tile, a "Changed" pill while something is staged)
+before the table that decides it. Audiences the loaded page names are named, the rest
 counted, never dropped. How the rules combine sits behind a disclosure under
 it (ADR-0022's _Secondary views_).
 
-**The Access tab's search sits left; "Set all…" and the Segments link right,
-on one row.** The bulk control is one menu (`EntryAccessBulkActions`) rather
+**The Access tab's search sits left; "Set all…" and "Manage segments" right,
+on one row.** Below them the audiences are a real `<table>` (Audience · Tags ·
+Access), each decision a muted `SegmentStateControl` (Can see green, Cannot
+see red), a staged row tinted and marked "Changed". The bulk control is one menu (`EntryAccessBulkActions`) rather
 than a row of three buttons between the search and the list. The link is the
 way _out_ of this screen, so it belongs at the far edge rather than beside the
 heading, where it competed with the restricted/open badge.

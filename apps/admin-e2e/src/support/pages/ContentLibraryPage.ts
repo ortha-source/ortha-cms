@@ -92,7 +92,22 @@ export class ContentLibraryPage extends BasePage {
         return this.editorTabPanel.getByText('Live', { exact: true });
     }
 
-    /** The History-row "Publish version {n}" action (scoped to the tab panel). */
+    /**
+     * Pick version `n` in the History list, so the comparison beside it shows
+     * that version — its Preview / Restore / Publish actions live there, not on
+     * the row.
+     */
+    async selectRevision(n: number) {
+        const row = this.revisionItem(n).getByRole('button').first();
+        await row.click();
+        await expect(row).toHaveAttribute('aria-pressed', 'true');
+    }
+
+    /**
+     * The comparison panel's "Publish version {n}" action (scoped to the tab
+     * panel). Only the selected version's panel is on screen — see
+     * `selectRevision`.
+     */
     revisionPublish(n: number): Locator {
         return this.editorTabPanel.getByRole('button', {
             name: `Publish version ${n}`
@@ -100,7 +115,9 @@ export class ContentLibraryPage extends BasePage {
     }
 
     /**
-     * The History-row "Preview version {n}" action (scoped to the tab panel).
+     * The comparison panel's "Preview version {n}" action (scoped to the tab
+     * panel). It shows for the selected version — by default the one before
+     * the newest.
      *
      * Scoped for the reason the panel getter above gives: the right-rail widget
      * renders a compact copy of the same timeline, so an unscoped name matches
@@ -121,6 +138,7 @@ export class ContentLibraryPage extends BasePage {
 
     /** Publish revision `n` from the History timeline (row action + confirm). */
     async publishRevision(n: number) {
+        await this.selectRevision(n);
         await this.revisionPublish(n).click();
         await this.confirmPublishButton.click();
     }

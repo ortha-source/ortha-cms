@@ -88,7 +88,14 @@ hand-written):
   darker than `border`, so an editable surface reads as editable, and the
   toolbar's 38px box left the boolean field standing proud of its neighbours.
   Five of the six call sites are toolbars, which is why the fix is a variant
-  rather than a change to the base class.
+  rather than a change to the base class. A third, `variant="muted"`, is the
+  quiet switch inside dense content (the History filter, the Access table's
+  per-row decision): a muted track, the selected segment a raised white tab.
+  Items never wrap — a two-line segment is a broken one.
+- **`Badge` is a 20px chip** (`size="xs"` is 18px, for a badge inside a list
+  row) with `muted` and `line` variants beside the tones. A status badge
+  leads with `BadgeDot` — the dot takes `currentColor`, so it follows the
+  variant rather than carrying a colour of its own.
 - **A form field's focus mark is on `:focus`, not only `:focus-visible`,
   whenever the control is a button** — `SelectTrigger`, the `DatePicker` /
   `DateTimePicker` / `MultiSelect` triggers, and the field `SegmentedControl`

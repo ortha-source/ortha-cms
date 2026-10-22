@@ -59,6 +59,12 @@ short — and where an older paragraph further down disagrees, this wins:
 - **History** (`HistoryTimeline`, `content:I-68`) is one timeline grouped by
   day — versions plus the rows **`ENTRY_TIMELINE_SLOT`** sources add (the
   record's activity) — filtered All / Versions / Activity through `?show=`.
+  It is two panes on a 1040px column (the form keeps 720px): the list on the
+  left, and beside it a **comparison** of the selected version against the
+  current draft (`RevisionList/RevisionComparePanel`). Picking a row selects
+  it (`aria-pressed`); the version's Preview / Restore / Publish actions live
+  in that panel, not on the row. With nothing picked, the version before the
+  newest is selected — the one most worth comparing.
 - **"On this page"** (`EntryPageNav`, `domain/pageSections`, `content:I-69`)
   replaced the per-field outline: sections only, from three on — a list
   beside the form on a work area of at least 1024px, a "Sections" menu in
@@ -1071,19 +1077,23 @@ do not reintroduce it.
   and then publish the current one **or switch back to any earlier version and
   publish it**. After the latter, the "Live" badge and the "Current" (newest)
   marker sit on different rows — that is the point, not a glitch.
-  A `RevisionRow` shows a **Publish** action on any version that isn't already live
-  (publishable type + `content:publish`), and the preview dialog carries a
+  The comparison panel shows **Publish this version** for any selected version
+  that isn't already live (publishable type + `content:publish`), and the
+  preview dialog carries a
   **Publish this version** button; both route through a `ConfirmDialog` + toast in
   `RevisionList`. A `422` (an incomplete version) surfaces as an error toast.
 - **`RevisionList`** (`EntryEditor/RevisionList/`) is the timeline itself — a
-  `RevisionRow` per version (number, status badge Live/Draft/Superseded, capture
-  time) plus the **Restore** flow (permission gate on `content:update`, a
+  selectable `RevisionRow` per version (a `v{n}` tag, status badge
+  Live/Draft/Superseded, capture time, "Current draft" on the newest), a quiet
+  `TimelineEventRow` per activity event, and `RevisionComparePanel` beside
+  them (each changed field as a struck-through version value over the
+  inserted current one) — plus the **Restore** flow (permission gate on `content:update`, a
   `ConfirmDialog`, and the success/failure `toast`). Restore re-applies an older
   snapshot as a **new** revision, so the timeline refreshes in place. It has one
   caller, so the rows are always the labelled ones; the `compact` (icon-only)
   variant went with the rail widget.
-- **Preview / compare** (`RevisionList/RevisionPreviewDialog/`): each earlier
-  version's row carries a **Preview** action opening a diff dialog. It fetches
+- **Preview / compare** (`RevisionList/RevisionPreviewDialog/`): the comparison
+  panel's **Preview** action opens a diff dialog for the selected version. It fetches
   that version's snapshot **and** the latest one (`useRevisionDetail` →
   `getRevision`; the newest snapshot equals the live record, since every save
   appends one) and runs the pure `domain/revisionDiff` — a field-by-field compare

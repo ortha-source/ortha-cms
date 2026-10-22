@@ -167,14 +167,17 @@ export class SegmentsPage extends BasePage {
         return this.page.getByRole('menuitem', { name: label, exact: true });
     }
 
-    /** The tab's open/restricted summary badge. */
+    /** The tab's summary sentence — who can read the entry. */
     get accessSummary(): Locator {
-        return this.page.getByText(/Readable by everyone|^Restricted$/);
+        return this.page.getByTestId('access-summary');
     }
 
     /** The "Changed" pill the tab shows once something is staged. */
     get accessChanged(): Locator {
-        return this.page.getByText('Changed', { exact: true });
+        // The summary card's pill — each staged row carries one too.
+        return this.page
+            .getByRole('region', { name: /^Readable/ })
+            .getByText('Changed', { exact: true });
     }
 
     /** The access chip in the editor's Details block. */

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { ConfirmDialog, toast } from '@orthacms/design-system';
+import { ConfirmDialog, cn, toast } from '@orthacms/design-system';
 import { useHasPermission } from '@orthacms/identity-admin';
 import type {
     ContentTypeDetail,
@@ -22,6 +22,7 @@ import { SiblingSyncDialog } from '../SiblingSyncDialog';
 import { fieldLabel } from '../../../../../domain/entryColumns';
 import { RevisionRow } from './RevisionRow';
 import { RevisionPreviewDialog } from './RevisionPreviewDialog';
+import { RevisionComparePanel } from './RevisionComparePanel';
 import { TimelineEventRow } from './TimelineEventRow';
 import type { EntryTimelineEvent } from '../../../../slots/contentSlots';
 
@@ -36,7 +37,21 @@ function dayKey(at: number): string {
     return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
 }
 
+/** Whole calendar days from `at` to today (0 = today, 1 = yesterday). */
+function daysAgo(at: number): number {
+    const day = (value: number) => {
+        const date = new Date(value);
+        return Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
+    };
+    return Math.round((day(Date.now()) - day(at)) / 86_400_000);
+}
+
 const messages = defineMessages({
+    today: { id: 'content.revisions.today', defaultMessage: 'Today' },
+    yesterday: {
+        id: 'content.revisions.yesterday',
+        defaultMessage: 'Yesterday'
+    },
     confirmTitle: {
         id: 'content.revisions.confirmTitle',
         defaultMessage: 'Restore version {n}?'
@@ -118,6 +133,15 @@ export function RevisionList({
     const [pending, setPending] = useState<number | null>(null);
     const [pendingPublish, setPendingPublish] = useState<number | null>(null);
     const [previewing, setPreviewing] = useState<RevisionSummary | null>(null);
+    // The version the comparison shows. Until one is picked: the version
+    // before the current draft — the one a reader most often wants to see
+    // against what is there now — or the only one there is.
+    const [picked, setPicked] = useState<number | null>(null);
+    const newestFirst = [...revisions].sort((a, b) => b.number - a.number);
+    const selected =
+        newestFirst.find((revision) => revision.number === picked) ??
+        newestFirst[1] ??
+        newestFirst[0];
     // A restore or publish-a-version the server refused because re-applying
     // the version reaches other rows (the record's other locales above all) —
     // held for the person to confirm, exactly as an editor save is.
@@ -242,40 +266,85 @@ export function RevisionList({
         else days.push({ key, at: row.at, rows: [row] });
     }
 
+    const dayLabel = (at: number) => {
+        const ago = daysAgo(at);
+        if (ago === 0) return intl.formatMessage(messages.today);
+        if (ago === 1) return intl.formatMessage(messages.yesterday);
+        const sameYear =
+            new Date(at).getFullYear() === new Date().getFullYear();
+        return intl.formatDate(at, {
+            month: 'short',
+            day: 'numeric',
+            ...(sameYear ? {} : { year: 'numeric' })
+        });
+    };
+
     return (
         <>
-            <div className="flex flex-col gap-5">
-                {days.map((day) => (
-                    <div key={day.key}>
-                        <h3 className="mb-1 text-xs font-medium text-muted-foreground">
-                            {intl.formatDate(day.at, { dateStyle: 'medium' })}
-                        </h3>
-                        <ul className="divide-y divide-border/60">
-                            {day.rows.map((row) =>
-                                row.kind === 'revision' ? (
-                                    <li key={row.revision.id}>
-                                        <RevisionRow
-                                            revision={row.revision}
-                                            canUpdate={canUpdate}
-                                            canPublish={canPublish}
-                                            publishable={publishable}
-                                            busy={restoring || publishing}
-                                            onRestore={setPending}
-                                            onPublish={setPendingPublish}
-                                            onPreview={() =>
-                                                setPreviewing(row.revision)
-                                            }
-                                        />
-                                    </li>
-                                ) : (
-                                    <li key={`event:${row.event.id}`}>
-                                        <TimelineEventRow event={row.event} />
-                                    </li>
-                                )
-                            )}
-                        </ul>
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+                {/* Newest first: versions and what was done between them, in
+                    one list per day under the day's name. */}
+                <div
+                    className={cn(
+                        'flex min-w-0 flex-col',
+                        selected && 'lg:w-[400px] lg:shrink-0'
+                    )}
+                >
+                    {days.map((day) => (
+                        <div key={day.key}>
+                            <p className="px-2.5 pb-1.5 pt-3.5 text-xs font-medium text-muted-foreground">
+                                {dayLabel(day.at)}
+                            </p>
+                            <ul
+                                aria-label={dayLabel(day.at)}
+                                className="flex flex-col"
+                            >
+                                {day.rows.map((row) =>
+                                    row.kind === 'revision' ? (
+                                        <li key={row.revision.id}>
+                                            <RevisionRow
+                                                revision={row.revision}
+                                                publishable={publishable}
+                                                selected={
+                                                    selected?.number ===
+                                                    row.revision.number
+                                                }
+                                                onSelect={() =>
+                                                    setPicked(
+                                                        row.revision.number
+                                                    )
+                                                }
+                                            />
+                                        </li>
+                                    ) : (
+                                        <li key={`event:${row.event.id}`}>
+                                            <TimelineEventRow
+                                                event={row.event}
+                                            />
+                                        </li>
+                                    )
+                                )}
+                            </ul>
+                        </div>
+                    ))}
+                </div>
+                {selected ? (
+                    <div className="min-w-0 flex-1 lg:sticky lg:top-4">
+                        <RevisionComparePanel
+                            typeName={typeName}
+                            entryId={entryId}
+                            schema={schema}
+                            revision={selected}
+                            latestNumber={latestNumber}
+                            canRestore={canUpdate}
+                            canPublish={publishable && canPublish}
+                            busy={restoring || publishing}
+                            onPreview={() => setPreviewing(selected)}
+                            onRestore={() => setPending(selected.number)}
+                            onPublish={() => setPendingPublish(selected.number)}
+                        />
                     </div>
-                ))}
+                ) : null}
             </div>
             <ConfirmDialog
                 open={pending != null}

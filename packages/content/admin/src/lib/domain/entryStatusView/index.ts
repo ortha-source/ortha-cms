@@ -30,10 +30,10 @@ export type EntryStatusView =
  */
 export const ENTRY_STATUS_VIEW_VARIANT: Record<
     EntryStatusView,
-    'outline' | 'secondary' | 'warning' | 'success'
+    'line' | 'muted' | 'warning' | 'success'
 > = {
-    [ENTRY_STATUS_VIEW.New]: 'outline',
-    [ENTRY_STATUS_VIEW.Draft]: 'secondary',
+    [ENTRY_STATUS_VIEW.New]: 'line',
+    [ENTRY_STATUS_VIEW.Draft]: 'muted',
     [ENTRY_STATUS_VIEW.Modified]: 'warning',
     [ENTRY_STATUS_VIEW.Published]: 'success'
 };

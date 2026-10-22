@@ -151,7 +151,7 @@ test.describe('Entry editor — Access tab', () => {
         // record, so it says so the same way.
         await expect(segmentsPage.accessChanged).toBeVisible();
         await expect(segmentsPage.accessSummary.first()).toHaveText(
-            'Restricted'
+            /^Readable only by/
         );
 
         await contentLibraryPage.editorSave.click();
@@ -376,7 +376,7 @@ test.describe('Entry editor — Access tab', () => {
         // here…
         await expect(segmentsPage.accessControl('Acme Corp')).toBeVisible();
         await expect(segmentsPage.accessSummary.first()).toHaveText(
-            'Restricted'
+            /^Readable only by/
         );
         // …but it is counted, so the editor is not told the entry is governed
         // only by what they can see.

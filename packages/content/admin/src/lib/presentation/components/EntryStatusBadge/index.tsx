@@ -1,6 +1,7 @@
 import { defineMessages, useIntl } from 'react-intl';
 import {
     Badge,
+    BadgeDot,
     Tooltip,
     TooltipContent,
     TooltipTrigger
@@ -88,6 +89,7 @@ export function EntryStatusBadge({
     const view = isCreate ? ENTRY_STATUS_VIEW.New : entryStatusView(entry);
     const badge = (
         <Badge variant={ENTRY_STATUS_VIEW_VARIANT[view]}>
+            <BadgeDot />
             {intl.formatMessage(LABEL[view])}
         </Badge>
     );

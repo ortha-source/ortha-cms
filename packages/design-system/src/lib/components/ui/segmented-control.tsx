@@ -37,6 +37,13 @@ const segmentedControlVariants = cva(
         variants: {
             variant: {
                 toolbar: 'rounded-xl',
+                /**
+                 * A quiet switch on a muted track, the selected segment a raised
+                 * white tab — view filters and per-row choices (History's
+                 * All · Versions · Activity, an audience's Not set · Can see ·
+                 * Cannot see), where a filled black segment would shout.
+                 */
+                muted: 'h-8 gap-0.5 rounded-lg border-transparent bg-muted p-[3px] [&>*]:h-[26px] [&>*]:rounded-md',
                 field: 'h-9 rounded-lg border-input focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15 aria-invalid:focus-within:ring-destructive/30 [&>*]:h-7'
             }
         },
@@ -93,6 +100,7 @@ const SegmentedControl = React.forwardRef<
             ref={rootRef}
             type="single"
             data-indicator={rect ? 'live' : undefined}
+            data-variant={variant ?? 'toolbar'}
             className={cn(
                 'group/segmented relative',
                 segmentedControlVariants({ variant }),
@@ -110,6 +118,8 @@ const SegmentedControl = React.forwardRef<
                     data-slot="segmented-indicator"
                     className={cn(
                         'pointer-events-none absolute left-0 top-0 rounded-lg bg-primary',
+                        variant === 'muted' &&
+                            'rounded-md bg-background shadow-xs',
                         settled &&
                             'transition-[translate,width,height] duration-(--ds-duration-base) ease-(--ds-ease-out) motion-reduce:transition-none',
                         indicatorClassName
@@ -139,12 +149,15 @@ const SegmentedControlItem = React.forwardRef<
     <ToggleGroupPrimitive.Item
         ref={ref}
         className={cn(
-            'group relative inline-flex h-7 items-center gap-1.5 rounded-lg px-3 text-[13px] font-medium text-muted-foreground transition-colors duration-(--ds-duration-base)',
+            'group relative inline-flex h-7 shrink-0 items-center whitespace-nowrap gap-1.5 rounded-lg px-3 text-[13px] font-medium text-muted-foreground transition-colors duration-(--ds-duration-base)',
             'hover:text-foreground',
             'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
             // Active state pairs the primary fill with a weight bump so the
             // selection is distinguishable without relying on color alone.
             'data-[state=on]:bg-primary data-[state=on]:font-semibold data-[state=on]:text-primary-foreground',
+            // On the muted track the selected segment is a raised white tab
+            // in the text colour, at the same weight.
+            'group-data-[variant=muted]/segmented:data-[state=on]:bg-background group-data-[variant=muted]/segmented:data-[state=on]:font-medium group-data-[variant=muted]/segmented:data-[state=on]:text-foreground group-data-[variant=muted]/segmented:data-[state=on]:shadow-xs',
             // While the root's sliding pill is live it is the fill.
             'group-data-[indicator=live]/segmented:data-[state=on]:bg-transparent',
             'disabled:pointer-events-none disabled:opacity-50',

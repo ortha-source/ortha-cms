@@ -29,10 +29,10 @@ export function ReadOnlyNotice() {
     const intl = useIntl();
 
     return (
-        <div className="mb-6 flex items-start gap-2.5 rounded-lg border border-info/30 bg-info-soft px-4 py-3 text-sm text-info-soft-foreground">
+        <div className="mb-6 flex items-start gap-3 rounded-[10px] bg-info-soft px-3.5 py-3 text-[13px] leading-[18px] text-foreground">
             <Eye className="mt-0.5 size-4 shrink-0 text-info" aria-hidden />
             <p className="min-w-0">
-                <span className="font-medium">
+                <span className="font-semibold">
                     {intl.formatMessage(messages.title)}
                 </span>{' '}
                 {intl.formatMessage(messages.body)}

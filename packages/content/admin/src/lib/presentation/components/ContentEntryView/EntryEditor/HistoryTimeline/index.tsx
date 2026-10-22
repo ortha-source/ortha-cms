@@ -48,6 +48,11 @@ const messages = defineMessages({
             'Activity could not be loaded, so the timeline shows versions only.'
     },
     filter: { id: 'content.revisions.filter', defaultMessage: 'Show' },
+    counts: {
+        id: 'content.revisions.counts',
+        defaultMessage:
+            '{versions, plural, one {# version} other {# versions}}{withEvents, select, yes { · {events, plural, one {# event} other {# events}}} other {}}'
+    },
     all: { id: 'content.revisions.filterAll', defaultMessage: 'All' },
     versions: {
         id: 'content.revisions.filterVersions',
@@ -168,25 +173,34 @@ export function HistoryTimeline({
         />
     );
 
+    const allEvents = sources.flatMap(({ source }) => source.events);
+
     return (
         <section
             aria-labelledby="entry-history-title"
-            className="flex flex-col gap-4"
+            className="flex flex-col gap-5"
         >
-            <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="flex max-w-xl flex-col gap-1">
-                    <h2
-                        id="entry-history-title"
-                        className="text-base font-semibold"
-                    >
-                        {intl.formatMessage(messages.title)}
-                    </h2>
-                    <p className="text-sm text-muted-foreground">
-                        {intl.formatMessage(messages.body)}
-                    </p>
-                </div>
+            {/* The page already has its heading (the record's title); this
+                one names the section for a screen reader's outline. */}
+            <h2 id="entry-history-title" className="sr-only">
+                {intl.formatMessage(messages.title)}
+            </h2>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <p
+                    className="text-[13px] leading-[18px] text-muted-foreground"
+                    title={intl.formatMessage(messages.body)}
+                >
+                    {entryId
+                        ? intl.formatMessage(messages.counts, {
+                              versions: revisions.length,
+                              events: allEvents.length,
+                              withEvents: sources.length > 0 ? 'yes' : 'no'
+                          })
+                        : null}
+                </p>
                 {sources.length > 0 && entryId ? (
                     <SegmentedControl
+                        variant="muted"
                         aria-label={intl.formatMessage(messages.filter)}
                         value={filter}
                         onValueChange={setFilter}
@@ -204,7 +218,7 @@ export function HistoryTimeline({
                 ) : null}
             </div>
             {sourcesFailed ? (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-[13px] text-muted-foreground">
                     {intl.formatMessage(messages.sourceError)}
                 </p>
             ) : null}

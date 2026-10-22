@@ -1,6 +1,5 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { GitCompare, Rocket } from 'lucide-react';
-import { Badge, Button } from '@orthacms/design-system';
+import { Badge, cn } from '@orthacms/design-system';
 import type {
     RevisionStatus,
     RevisionSummary
@@ -8,34 +7,25 @@ import type {
 
 const messages = defineMessages({
     version: { id: 'content.revisions.version', defaultMessage: 'v{n}' },
+    saved: {
+        id: 'content.revisions.savedVersion',
+        defaultMessage: 'Saved version {n}'
+    },
     live: { id: 'content.revisions.live', defaultMessage: 'Live' },
     draft: { id: 'content.revisions.draft', defaultMessage: 'Draft' },
     superseded: {
         id: 'content.revisions.superseded',
         defaultMessage: 'Superseded'
     },
-    current: { id: 'content.revisions.current', defaultMessage: 'Current' },
-    restore: { id: 'content.revisions.restore', defaultMessage: 'Restore' },
-    restoreLabel: {
-        id: 'content.revisions.restoreLabel',
-        defaultMessage: 'Restore version {n}'
+    current: {
+        id: 'content.revisions.currentDraft',
+        defaultMessage: 'Current draft'
     },
-    preview: { id: 'content.revisions.preview', defaultMessage: 'Preview' },
-    previewLabel: {
-        id: 'content.revisions.previewLabel',
-        defaultMessage: 'Preview version {n}'
-    },
-    publish: {
-        id: 'content.revisions.publishAction',
-        defaultMessage: 'Publish'
-    },
-    publishLabel: {
-        id: 'content.revisions.publishActionLabel',
-        defaultMessage: 'Publish version {n}'
-    }
+    currentPlain: { id: 'content.revisions.current', defaultMessage: 'Current' }
 });
 
-const STATUS_LABEL: Record<
+/** Each revision state's label. */
+export const REVISION_STATUS_LABEL: Record<
     RevisionStatus,
     (typeof messages)[keyof typeof messages]
 > = {
@@ -44,136 +34,94 @@ const STATUS_LABEL: Record<
     superseded: messages.superseded
 };
 
-const STATUS_VARIANT: Record<
+/** Each revision state's badge tint: live green, a draft amber, past grey. */
+export const REVISION_STATUS_VARIANT: Record<
     RevisionStatus,
-    'success' | 'secondary' | 'outline'
+    'success' | 'warning' | 'muted'
 > = {
     published: 'success',
-    draft: 'secondary',
-    superseded: 'outline'
+    draft: 'warning',
+    superseded: 'muted'
 };
 
 /**
- * One revision in the timeline: its version number, a status badge (Live / Draft
- * / Superseded), the capture time, and its actions. **Preview** and **Restore**
- * apply to any earlier version (the newest is `Current`, nothing to compare/apply
- * against). **Publish** appears on any version that isn't already the live one
- * (publishable types, with permission) — it makes that version live.
+ * One **version** in the History timeline: its number as a small square badge
+ * (green while it is the live one), when it was saved, and — on a publishable
+ * type — its state. The whole row is a button that picks it for the
+ * comparison beside the list; the actions on a version (Preview, Restore,
+ * Publish this version) live in that comparison, so the list stays a list.
+ *
+ * Live / Draft / Superseded describe a publish workflow. On an always-live type
+ * there isn't one — every version was simply saved — so the badge would label a
+ * state the type doesn't have; "Current" still means something and stays.
  */
 export function RevisionRow({
     revision,
-    canUpdate,
-    canPublish,
     publishable,
-    busy,
-    onRestore,
-    onPublish,
-    onPreview
+    selected,
+    onSelect
 }: {
     revision: RevisionSummary;
-    canUpdate: boolean;
-    canPublish: boolean;
-    /** Whether the content type is publishable (else there's no publish action). */
+    /** Whether the content type is publishable (else no state badge). */
     publishable: boolean;
-    busy: boolean;
-    onRestore: (number: number) => void;
-    /** Publish this version live. */
-    onPublish: (number: number) => void;
-    /** Open the compare-against-current preview for this version. */
-    onPreview: (number: number) => void;
+    /** Whether this version is the one the comparison shows. */
+    selected: boolean;
+    onSelect: () => void;
 }) {
     const intl = useIntl();
-    // Preview / Restore compare/apply against the current (latest) version, so a
-    // no-op on the newest row. Publish is offered on any version that isn't the
-    // live one — including the latest draft (make it live).
-    const showPreview = !revision.isLatest;
-    const showRestore = canUpdate && !revision.isLatest;
-    const showPublish = publishable && canPublish && !revision.isPublished;
-    const showCluster = showPreview || showRestore || showPublish;
-    const previewLabel = intl.formatMessage(messages.previewLabel, {
-        n: revision.number
-    });
-    const restoreLabel = intl.formatMessage(messages.restoreLabel, {
-        n: revision.number
-    });
-    const publishLabel = intl.formatMessage(messages.publishLabel, {
-        n: revision.number
+    const live = publishable && revision.isPublished;
+    const time = intl.formatTime(revision.createdAt, {
+        hour: '2-digit',
+        minute: '2-digit'
     });
 
     return (
-        <div className="flex items-center gap-3 py-2">
-            <span className="w-10 shrink-0 font-mono text-sm font-semibold tabular-nums">
-                {intl.formatMessage(messages.version, { n: revision.number })}
-            </span>
-            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <div className="flex items-center gap-2">
-                    {/* Live / Draft / Superseded describe a publish workflow.
-                        On an always-live type there isn't one — every version
-                        was simply saved — so the badge would label a state the
-                        type doesn't have. "Current" still means something and
-                        stays. */}
-                    {publishable && (
-                        <Badge variant={STATUS_VARIANT[revision.status]}>
-                            {intl.formatMessage(STATUS_LABEL[revision.status])}
-                        </Badge>
-                    )}
-                    {revision.isLatest && (
-                        <span className="text-xs text-muted-foreground">
-                            {intl.formatMessage(messages.current)}
-                        </span>
-                    )}
-                </div>
-                <time
-                    dateTime={revision.createdAt}
-                    className="text-xs text-muted-foreground"
-                >
-                    {intl.formatDate(revision.createdAt, {
-                        dateStyle: 'medium',
-                        timeStyle: 'short'
-                    })}
-                </time>
-            </div>
-            {showCluster && (
-                <div className="flex shrink-0 items-center gap-1">
-                    {showPreview && (
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            aria-label={previewLabel}
-                            onClick={() => onPreview(revision.number)}
-                        >
-                            <GitCompare aria-hidden />
-                            {intl.formatMessage(messages.preview)}
-                        </Button>
-                    )}
-                    {showPublish && (
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            disabled={busy}
-                            aria-label={publishLabel}
-                            onClick={() => onPublish(revision.number)}
-                        >
-                            <Rocket aria-hidden />
-                            {intl.formatMessage(messages.publish)}
-                        </Button>
-                    )}
-                    {showRestore && (
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            disabled={busy}
-                            aria-label={restoreLabel}
-                            onClick={() => onRestore(revision.number)}
-                        >
-                            {intl.formatMessage(messages.restore)}
-                        </Button>
-                    )}
-                </div>
+        <button
+            type="button"
+            aria-pressed={selected}
+            onClick={onSelect}
+            className={cn(
+                'flex w-full items-start gap-3 rounded-lg px-2.5 py-2 text-left text-[13px] leading-[18px] transition-colors',
+                'hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                selected && 'bg-muted hover:bg-muted'
             )}
-        </div>
+        >
+            <span className="flex w-[22px] shrink-0 justify-center pt-px">
+                <span
+                    className={cn(
+                        'inline-flex h-5 min-w-6 items-center justify-center rounded-[5px] border bg-background px-[5px] text-[11px] font-semibold tabular-nums',
+                        live &&
+                            'border-transparent bg-success-soft text-success-soft-foreground'
+                    )}
+                >
+                    {intl.formatMessage(messages.version, {
+                        n: revision.number
+                    })}
+                </span>
+            </span>
+            <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate">
+                    {intl.formatMessage(messages.saved, { n: revision.number })}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                    <time dateTime={revision.createdAt}>{time}</time>
+                    {revision.isLatest
+                        ? ` · ${intl.formatMessage(
+                              publishable
+                                  ? messages.current
+                                  : messages.currentPlain
+                          )}`
+                        : null}
+                </span>
+            </span>
+            {publishable ? (
+                <Badge
+                    size="xs"
+                    variant={REVISION_STATUS_VARIANT[revision.status]}
+                >
+                    {intl.formatMessage(REVISION_STATUS_LABEL[revision.status])}
+                </Badge>
+            ) : null}
+        </button>
     );
 }

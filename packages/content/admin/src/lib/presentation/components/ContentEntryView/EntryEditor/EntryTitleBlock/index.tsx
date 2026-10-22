@@ -96,12 +96,14 @@ export function EntryTitleBlock({
                 intl.formatMessage(messages.draft, { date: created });
 
     return (
-        <div className="mb-6 flex min-w-0 flex-col gap-2">
+        <div className="mb-6 flex min-w-0 flex-col gap-2.5">
             <ContainerHeader
                 keepTitle
                 className="mb-0 min-w-0"
                 titleClassName={cn(
-                    'break-words',
+                    // The record's name, set larger than a page heading: it is
+                    // the one thing on the page that says which record this is.
+                    'break-words text-[28px] leading-[34px] tracking-[-0.012em]',
                     !title.trim() && 'text-muted-foreground'
                 )}
                 title={title.trim() || intl.formatMessage(messages.untitled)}
@@ -111,13 +113,13 @@ export function EntryTitleBlock({
             />
             <div
                 data-testid="entry-title-meta"
-                className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground"
+                className="flex flex-wrap items-center gap-2 text-[13px] leading-[18px] text-muted-foreground"
             >
                 {publishable ? (
                     <EntryStatusBadge entry={entry} isCreate={isCreate} />
                 ) : null}
                 {entry?.locale ? (
-                    <Badge variant="outline" className="font-normal">
+                    <Badge variant="line">
                         {entry.locale.toUpperCase()} ·{' '}
                         {languageName(entry.locale, intl.locale)}
                     </Badge>
