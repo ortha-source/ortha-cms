@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import {
     Badge,
@@ -73,6 +73,10 @@ export function EntryStatusCluster({
 }) {
     const intl = useIntl();
     const [open, setOpen] = useState(false);
+    // Set when a row sends the reader somewhere: the popover's own focus
+    // restore (back to its trigger) would otherwise land after — and undo —
+    // the focus the row just put on a field.
+    const leaving = useRef(false);
     if (items.length === 0) return null;
 
     const fieldIssues = items.filter((item) =>
@@ -103,6 +107,7 @@ export function EntryStatusCluster({
     const go = (item: EntryStatusItem) => {
         const target = item.target;
         if (!target) return;
+        leaving.current = true;
         setOpen(false);
         if ('field' in target) onGoToField?.(target.field);
         else target.onSelect();
@@ -189,6 +194,11 @@ export function EntryStatusCluster({
             </PopoverTrigger>
             <PopoverContent
                 align="end"
+                onCloseAutoFocus={(event) => {
+                    if (!leaving.current) return;
+                    leaving.current = false;
+                    event.preventDefault();
+                }}
                 className="flex w-80 flex-col gap-2 p-2"
                 data-testid="entry-status-list"
             >
