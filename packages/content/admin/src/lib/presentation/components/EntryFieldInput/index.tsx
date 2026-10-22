@@ -4,6 +4,7 @@ import {
     FieldDescription,
     FieldError,
     FieldLabel,
+    FieldTitle,
     InputField,
     MultiSelect,
     SegmentedControl,
@@ -23,10 +24,12 @@ import { CONTENT_FIELD_TYPE } from '../../../domain/constants';
 import { ENTRY_FIELD_CONTROL_SLOT } from '../../slots/contentSlots';
 import { useExpandedField } from '../../hooks/useExpandedField';
 import { useEntryReadOnly } from '../../hooks/useEntryReadOnly';
+import { useEntryFieldResources } from '../../hooks/useEntryFieldResources';
 import { ChangedBadge } from '../ChangedBadge';
 import { DateField } from './DateField';
 import { LocalizedFieldMark } from './LocalizedFieldMark';
 import { RequiredMark } from './RequiredMark';
+import { SharedFieldMark } from './SharedFieldMark';
 
 const messages = defineMessages({
     selectPlaceholder: {
@@ -151,18 +154,24 @@ export function EntryFieldInput({
     const intl = useIntl();
     const expandedField = useExpandedField();
     const readOnly = useEntryReadOnly();
+    const resources = useEntryFieldResources();
     const id = `entry-field-${field.name}`;
     const label = fieldLabel(field);
+    // On a localized type every field says which kind it is: a globe for one
+    // that differs per locale, "All locales" for one shared by every locale —
+    // since editing a shared field changes the record in all of them.
+    const shared = resources.i18n && !field.localized;
     // The label row's right-hand adornments, kept together so they never
-    // collide: the "Changed" badge (unsaved edit) and, for a `localized` field
-    // (only ever on i18n types), a globe mark. `ml-auto` pushes the pair to the
-    // far right of the label row — in a `w-full` `FieldLabel` or `InputField`'s
-    // `labelAction` slot. Null when the field has neither.
+    // collide: the "Changed" badge (unsaved edit) and the locale mark. `ml-auto`
+    // pushes them to the far right of the label row — in a `w-full`
+    // `FieldLabel` or `InputField`'s `labelAction` slot. Null when the field has
+    // none.
     const endAdornment =
-        changed || field.localized ? (
+        changed || field.localized || shared ? (
             <span className="ml-auto flex shrink-0 items-center gap-1.5">
                 {changed ? <ChangedBadge /> : null}
                 {field.localized ? <LocalizedFieldMark /> : null}
+                {shared ? <SharedFieldMark /> : null}
             </span>
         ) : null;
     // The label plus its required marker. The mark is presentational (the
@@ -246,15 +255,31 @@ export function EntryFieldInput({
         // a blank pane. `EntryEditor` owns the state — it is what renders the
         // expanded view — so this only reads and forwards it.
         const canExpand = !!contributed.FullView;
+        // A composite control (several buttons) is named as a group by the
+        // label row; a `<label for>` would rename the one element it points at.
+        const labelId = `${id}-label`;
         return (
-            <Field data-invalid={!!error}>
-                <FieldLabel
-                    htmlFor={id}
-                    className={endAdornment ? 'w-full' : undefined}
-                >
-                    {labelNode}
-                    {endAdornment}
-                </FieldLabel>
+            <Field
+                data-invalid={!!error}
+                data-testid={`entry-field-cell-${field.name}`}
+                {...(contributed.composite
+                    ? { role: 'group', 'aria-labelledby': labelId }
+                    : {})}
+            >
+                {contributed.composite ? (
+                    <FieldTitle id={labelId} className="w-full">
+                        {labelNode}
+                        {endAdornment}
+                    </FieldTitle>
+                ) : (
+                    <FieldLabel
+                        htmlFor={id}
+                        className={endAdornment ? 'w-full' : undefined}
+                    >
+                        {labelNode}
+                        {endAdornment}
+                    </FieldLabel>
+                )}
                 <Component
                     field={field}
                     id={id}
@@ -270,6 +295,9 @@ export function EntryFieldInput({
                         if (!canExpand) return;
                         expandedField.setName(next ? field.name : null);
                     }}
+                    mediaRefs={resources.mediaRefs[field.name]}
+                    mediaRefsPending={resources.mediaRefsPending}
+                    presave={resources.presave}
                 />
                 {description && (
                     <FieldDescription id={descriptionId} className={hintClass}>

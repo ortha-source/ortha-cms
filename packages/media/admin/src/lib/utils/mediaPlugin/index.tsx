@@ -7,10 +7,9 @@ import {
 } from '@orthacms/workspaces-admin';
 import {
     CONTENT_FIELD_TYPE,
+    ENTRY_FIELD_CONTROL_SLOT,
     ENTRY_PRESAVE_SLOT,
-    ENTRY_TAB,
-    ENTRY_TAB_SLOT,
-    type ContentTypeDetail
+    type ContentField
 } from '@orthacms/content-admin';
 import { WYSIWYG_MEDIA_SLOT } from '@orthacms/wysiwyg-admin';
 import {
@@ -22,7 +21,7 @@ import { MediaStorageStat } from '../../components/MediaStorageStat';
 import { MediaStorageWidget } from '../../components/MediaStorageWidget';
 import { MediaUploadsWidget } from '../../components/MediaUploadsWidget';
 import { MediaAltTextWidget } from '../../components/MediaAltTextWidget';
-import { EntryMediaTab } from '../../components/EntryMediaTab';
+import { MediaFieldInput } from '../../components/MediaFieldInput';
 import { MediaLibraryPageSkeleton } from '../../components/MediaLibrarySkeleton';
 import { WysiwygLibrarySource } from '../../components/WysiwygLibrarySource';
 import { WysiwygUploadSource } from '../../components/WysiwygUploadSource';
@@ -37,11 +36,9 @@ const MediaLibraryPage = lazyPage(
     'MediaLibraryPage'
 );
 
-/** The Media tab applies to any type that declares a media field. */
-function hasMediaField(schema: ContentTypeDetail): boolean {
-    return schema.fields.some(
-        (field) => field.type === CONTENT_FIELD_TYPE.Media
-    );
+/** The media control owns every `media` field, wherever the form draws it. */
+function isMediaField(field: ContentField): boolean {
+    return field.type === CONTENT_FIELD_TYPE.Media;
 }
 
 /**
@@ -135,23 +132,19 @@ export function MediaPlugin(): MediaAdminPlugin {
                     }
                 ]
             },
-            // The entry editor's Media tab — rendered by content-admin's
-            // ENTRY_TAB_SLOT only when the open type has a media field, so the
-            // tab appears exactly where media applies. Its `slug` is content's
-            // own `media` tab route, already accepted by the tab router.
+            // A media field's control in the entry form. It used to be a Media
+            // tab of its own; the field now sits in the schema's order with the
+            // rest (ADR-0022), and content draws its label row and error.
+            // `composite`: the control is several buttons, so the field is
+            // named as a group rather than by a label on one of them.
             {
-                slot: ENTRY_TAB_SLOT,
+                slot: ENTRY_FIELD_CONTROL_SLOT,
                 items: [
                     {
-                        id: 'media.entry.tab',
-                        slug: ENTRY_TAB.Media,
-                        label: {
-                            id: 'media.tab.label',
-                            defaultMessage: 'Media'
-                        },
-                        order: 10,
-                        appliesTo: hasMediaField,
-                        Component: EntryMediaTab
+                        id: 'media.entry.field',
+                        appliesTo: isMediaField,
+                        composite: true,
+                        Component: MediaFieldInput
                     }
                 ]
             },
@@ -194,7 +187,7 @@ export function MediaPlugin(): MediaAdminPlugin {
             // runs inside the record's save and puts them in the library then,
             // so an abandoned edit leaves no orphan assets behind. It also owns
             // the staging state, mounted above the tab body (a route) so it
-            // survives switching tabs.
+            // survives the form remounting.
             {
                 slot: ENTRY_PRESAVE_SLOT,
                 items: [

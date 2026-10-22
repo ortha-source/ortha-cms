@@ -781,6 +781,20 @@ export type EntryFieldControlContext = {
      * first.
      */
     setExpanded: (next: boolean) => void;
+    /**
+     * The saved entry's resolved refs for **this** field, when it is a media
+     * field — what the Media tab used to be handed, now that media fields
+     * render inline in the one form. Empty on a create form.
+     */
+    mediaRefs?: MediaRef[];
+    /** Whether {@link mediaRefs} are still loading. */
+    mediaRefsPending?: boolean;
+    /**
+     * The presave contributions' opaque handles, keyed by item id, exactly as
+     * `EntryTabContext.presave` carries them — a control reads only its own
+     * key (the media plugin's staged uploads).
+     */
+    presave?: Record<string, unknown>;
 };
 
 /** One contributed field control (e.g. the WYSIWYG plugin's rich-text editor). */
@@ -797,6 +811,15 @@ export type EntryFieldControlItem = {
     appliesTo: (field: ContentField) => boolean;
     /** The input surface, rendered inside the standard `Field` wrapper. */
     Component: ComponentType<EntryFieldControlContext>;
+    /**
+     * The control is a **composite** — several actions (pick, upload, remove,
+     * reorder) rather than one input. Its field is then named as a `group` by
+     * the label row instead of by a `<label for>` pointing at one element: a
+     * label would *replace* that button's own name, so "Cover image, button"
+     * would tell the reader nothing about what pressing it does. The media
+     * plugin's field sets it.
+     */
+    composite?: boolean;
     /**
      * An **expanded** editing surface for the field, for a control that needs
      * far more room than a form row — a rich-text body, a code editor, a canvas.

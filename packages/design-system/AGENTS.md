@@ -110,7 +110,9 @@ hand-written):
   so a page's controls fit the shorter line box without the page knowing where
   they are drawn. `SearchToolbar` sets the same density, so a list's search box
   and its Columns / Filters buttons take the top bar's 32px line too. `keepSubtitle` keeps a subtitle on screen when it is
-  data rather than a gloss (a webhook's URL). Below the breakpoint, or with no
+  data rather than a gloss (a webhook's URL). `keepTitle` keeps the whole header on screen
+  (the actions still portal up) for a page whose title is data — the record the
+  entry editor has open, which the breadcrumb names only in passing. Below the breakpoint, or with no
   bar, it draws in full — the bar has no room there for a page's actions.
 - **A page's tabs go in the top bar's second row** — wrap the `TabsList` (or
   `TabNav`) in `TopBarTabs`. Inside a `SidebarInset` it portals into the strip

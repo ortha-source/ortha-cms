@@ -28,7 +28,7 @@ const messages = defineMessages({
 });
 
 /**
- * One collapsible section of the General tab — a group the schema declared
+ * One collapsible section of the entry form — a group the schema declared
  * (`groups` on the type, `admin.group` on the field) — drawn as a framed
  * block, the way a relation is, so where a group starts and ends is seen
  * rather than inferred from a rule above it.
@@ -54,7 +54,8 @@ export function FieldSection({
     typeName,
     form,
     isChanged,
-    localizedLang
+    localizedLang,
+    sharedLang
 }: {
     section: Section;
     /** The content type, which keys the remembered open state. */
@@ -63,6 +64,8 @@ export function FieldSection({
     isChanged?: (name: string) => boolean;
     /** BCP-47 tag for the section's localized fields — see `FieldStack`. */
     localizedLang?: string;
+    /** BCP-47 tag for its shared fields on a prefill — see `FieldStack`. */
+    sharedLang?: string;
 }) {
     const intl = useIntl();
     const { group, fields } = section;
@@ -149,6 +152,7 @@ export function FieldSection({
                     form={form}
                     isChanged={isChanged}
                     localizedLang={localizedLang}
+                    sharedLang={sharedLang}
                 />
             </CollapsibleContent>
         </Collapsible>

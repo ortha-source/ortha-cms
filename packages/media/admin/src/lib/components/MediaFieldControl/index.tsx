@@ -1,16 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { ImagePlus, UploadCloud } from 'lucide-react';
-import {
-    Button,
-    cn,
-    Empty,
-    EmptyDescription,
-    EmptyHeader,
-    EmptyMedia,
-    EmptyTitle,
-    toast
-} from '@orthacms/design-system';
+import { Button, cn, toast } from '@orthacms/design-system';
 import { useHasPermission } from '@orthacms/identity-admin';
 import type { MediaRef } from '@orthacms/content-admin';
 import { toMediaValueRef, type MediaValueRef } from '@orthacms/content-domain';
@@ -466,50 +457,59 @@ export function MediaFieldControl({
                     openUploadWith(Array.from(event.dataTransfer.files));
                 }}
                 className={cn(
-                    'rounded-xl border bg-muted/20 p-3 transition-colors',
-                    isEmpty && 'border-dashed',
+                    'rounded-lg border bg-muted/20 transition-colors',
+                    isEmpty ? 'border-dashed px-2 py-1' : 'p-3',
                     invalid && 'border-destructive/60',
                     dragging && 'border-primary bg-primary/5'
                 )}
             >
                 {isEmpty ? (
-                    <Empty className="gap-4 p-6 md:p-8">
-                        <EmptyHeader>
-                            <EmptyMedia variant="icon">
-                                {dragging ? (
-                                    <UploadCloud aria-hidden />
-                                ) : (
-                                    <ImagePlus aria-hidden />
-                                )}
-                            </EmptyMedia>
-                            <EmptyTitle className="text-base">
-                                {readOnly
-                                    ? intl.formatMessage(messages.emptyReadOnly)
+                    // One line, not a centred empty-state card: the field sits
+                    // in the record's form among single-line inputs now, and a
+                    // 200px block for "nothing attached" outweighed the fields
+                    // around it.
+                    <div
+                        data-testid="media-field-empty"
+                        className="flex min-h-9 flex-wrap items-center gap-x-2 gap-y-0.5 px-1 text-sm"
+                    >
+                        {dragging ? (
+                            <UploadCloud
+                                aria-hidden
+                                className="size-4 shrink-0 text-primary"
+                            />
+                        ) : (
+                            <ImagePlus
+                                aria-hidden
+                                className="size-4 shrink-0 text-muted-foreground"
+                            />
+                        )}
+                        <span className="font-medium">
+                            {readOnly
+                                ? intl.formatMessage(messages.emptyReadOnly)
+                                : dragging
+                                  ? intl.formatMessage(messages.dropHere)
+                                  : intl.formatMessage(
+                                        multiple
+                                            ? messages.emptyMultiple
+                                            : messages.emptySingle
+                                    )}
+                        </span>
+                        {/* Every non-read-only variant of this line invites
+                            an action ("Drop a file here…", "Pick an asset
+                            from…"). A reader has none of them, so the state
+                            is simply stated. */}
+                        <span className="text-muted-foreground">
+                            {intl.formatMessage(
+                                readOnly
+                                    ? messages.emptyBodyReadOnly
                                     : dragging
-                                      ? intl.formatMessage(messages.dropHere)
-                                      : intl.formatMessage(
-                                            multiple
-                                                ? messages.emptyMultiple
-                                                : messages.emptySingle
-                                        )}
-                            </EmptyTitle>
-                            {/* Every non-read-only variant of this line invites
-                                an action ("Drop a file here…", "Pick an asset
-                                from…"). A reader has none of them, so the state
-                                is simply stated. */}
-                            <EmptyDescription>
-                                {intl.formatMessage(
-                                    readOnly
-                                        ? messages.emptyBodyReadOnly
-                                        : dragging
-                                          ? messages.dropBody
-                                          : canStage
-                                            ? messages.emptyBody
-                                            : messages.emptyBodyPickOnly
-                                )}
-                            </EmptyDescription>
-                        </EmptyHeader>
-                    </Empty>
+                                      ? messages.dropBody
+                                      : canStage
+                                        ? messages.emptyBody
+                                        : messages.emptyBodyPickOnly
+                            )}
+                        </span>
+                    </div>
                 ) : (
                     <ul
                         className={cn(

@@ -82,6 +82,13 @@ type ContainerHeaderProps = React.HTMLAttributes<HTMLDivElement> & {
      * on the page; the default drops it to screen-reader-only with the title.
      */
     keepSubtitle?: boolean;
+    /**
+     * Keep the whole header on screen when a top bar is present. For a page
+     * whose title is **data** — the record an editor has open — rather than the
+     * page's name, which the bar's breadcrumb already says. Its actions still
+     * portal into the bar.
+     */
+    keepTitle?: boolean;
 };
 
 /**
@@ -111,6 +118,7 @@ const ContainerHeader = React.forwardRef<HTMLDivElement, ContainerHeaderProps>(
             actions,
             titleClassName,
             keepSubtitle = false,
+            keepTitle = false,
             ...props
         },
         ref
@@ -118,7 +126,7 @@ const ContainerHeader = React.forwardRef<HTMLDivElement, ContainerHeaderProps>(
         const host = React.useContext(PageHeaderHostContext);
         const isMobile = useIsMobile();
 
-        if (host && !isMobile) {
+        if (host && !isMobile && !keepTitle) {
             return (
                 <>
                     <div
@@ -189,7 +197,18 @@ const ContainerHeader = React.forwardRef<HTMLDivElement, ContainerHeaderProps>(
                         </p>
                     ) : null}
                 </div>
-                {actions ? (
+                {actions && host && !isMobile ? (
+                    // `keepTitle` under a bar: the title stays, the actions
+                    // still go up to the bar like every other page's.
+                    createPortal(
+                        <DensityProvider density="compact">
+                            <div className="flex items-center gap-2">
+                                {actions}
+                            </div>
+                        </DensityProvider>,
+                        host
+                    )
+                ) : actions ? (
                     // Wraps rather than refusing to shrink: a header whose actions
                     // row has grown past two buttons (the records table's, which
                     // also carries the saved-view switcher) used to push itself

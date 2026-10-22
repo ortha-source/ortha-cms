@@ -240,10 +240,22 @@ export class MediaFieldPage extends BasePage {
 
     // --- the editor ----------------------------------------------------------
 
-    /** The editor's primary action (label varies by type/state). */
+    /**
+     * The entry editor's **primary** action: Publish / Publish changes on a
+     * publishable type the reader may publish, else the one Save — never the
+     * secondary "Save draft" beside Publish (see `editorSaveDraft`).
+     */
     get save(): Locator {
         return this.page.getByRole('button', {
-            name: /^(Save|Save draft|Save & publish|Publish)$/
+            name: /^(Save|Publish|Publish changes)$/
+        });
+    }
+
+    /** The secondary "Save draft" beside Publish on a publishable type. */
+    get saveDraft(): Locator {
+        return this.page.getByRole('button', {
+            name: 'Save draft',
+            exact: true
         });
     }
 

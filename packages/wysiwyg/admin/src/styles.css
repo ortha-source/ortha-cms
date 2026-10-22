@@ -288,11 +288,7 @@
    than a background on the cell (which a merged cell's own background would
    otherwise cover). */
 .orthacms-wysiwyg .selectedCell::after {
-    background-color: color-mix(
-        in oklab,
-        var(--color-brand) 18%,
-        transparent
-    );
+    background-color: color-mix(in oklab, var(--color-brand) 18%, transparent);
     content: '';
     inset: 0;
     pointer-events: none;

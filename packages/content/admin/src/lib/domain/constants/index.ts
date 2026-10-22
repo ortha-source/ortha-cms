@@ -48,6 +48,15 @@ export const TYPE_PARAM = 'typeName';
 /** Key that, with ⌘/Ctrl, toggles the search command palette. */
 export const SEARCH_SHORTCUT_KEY = 'k';
 
+/** Key that, with ⌘/Ctrl, saves the open entry (Save draft, or Save). */
+export const SAVE_SHORTCUT_KEY = 's';
+
+/** Key that, with ⌘/Ctrl + Shift, publishes the open entry. */
+export const PUBLISH_SHORTCUT_KEY = 'p';
+
+/** Key that, with ⌘/Ctrl, toggles the entry editor's Details panel. */
+export const DETAILS_SHORTCUT_KEY = '.';
+
 /**
  * Sub-route segment under a collection for the create-entry view
  * (`/workspaces/:id/content/:typeName/new`). A static segment, so React Router
@@ -115,6 +124,20 @@ export const ENTRY_TAB = {
 
 /** Every entry-tab slug, for the route table and for validating the param. */
 export const ENTRY_TAB_SLUGS = Object.values(ENTRY_TAB);
+
+/**
+ * Tab slugs that no longer name a tab, kept in {@link ENTRY_TAB} for one
+ * release so links to them still resolve — to the editor's Content view,
+ * replacing the URL, instead of a not-found.
+ *
+ * Relations and media are fields of the one form now, not tabs of their own
+ * (ADR-0022), and Activity is a filter of the History timeline. A link to
+ * `/…/:entryId/relations` sits in bookmarks and in the activity log.
+ */
+export const RETIRED_ENTRY_TABS: readonly string[] = [
+    ENTRY_TAB.Relations,
+    ENTRY_TAB.Media
+];
 
 /** The tab an entry opens on when the URL names none. */
 export const DEFAULT_ENTRY_TAB = ENTRY_TAB.General;

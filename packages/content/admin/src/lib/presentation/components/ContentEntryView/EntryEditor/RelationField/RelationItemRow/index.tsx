@@ -154,7 +154,7 @@ export function RelationItemRow({
             ref={rowRef}
             style={style}
             className={cn(
-                'flex items-center gap-2.5 rounded-xl border bg-card px-2.5 py-2 hover:border-border/80',
+                'group/row flex items-center gap-2.5 rounded-lg border bg-card px-2.5 py-1.5 hover:border-border/80',
                 // The row *is* what moves (no drag overlay), so it is lifted,
                 // not dimmed — a faded row reads as the gap it left behind.
                 // Carries the colour transition `transition-colors` gave it.
@@ -172,7 +172,7 @@ export function RelationItemRow({
                 ) : (
                     <span
                         className={cn(
-                            'truncate text-sm font-medium',
+                            'min-w-0 truncate text-sm font-medium',
                             trashed ? 'text-muted-foreground' : ''
                         )}
                     >
@@ -180,7 +180,9 @@ export function RelationItemRow({
                     </span>
                 )}
                 {handle && !missing ? (
-                    <span className="shrink-0 truncate font-mono text-xs text-muted-foreground">
+                    // The title comes first; the slug gives up its width
+                    // long before the title does.
+                    <span className="min-w-0 shrink-[8] truncate font-mono text-xs text-muted-foreground">
                         /{handle}
                     </span>
                 ) : null}
@@ -203,66 +205,71 @@ export function RelationItemRow({
                     )}
                 </Badge>
             ) : null}
-            {onMoveUp && !readOnly ? (
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="size-7 shrink-0 text-muted-foreground hover:text-foreground"
-                    aria-label={moveUpLabel}
-                    disabled={moveUpDisabled}
-                    onClick={onMoveUp}
-                >
-                    <ChevronUp className="size-4" aria-hidden />
-                </Button>
-            ) : null}
-            {onMoveDown && !readOnly ? (
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="size-7 shrink-0 text-muted-foreground hover:text-foreground"
-                    aria-label={moveDownLabel}
-                    disabled={moveDownDisabled}
-                    onClick={onMoveDown}
-                >
-                    <ChevronDown className="size-4" aria-hidden />
-                </Button>
-            ) : null}
-            {href && !trashed && !missing ? (
-                <a
-                    href={href}
-                    target="_blank"
-                    rel="noreferrer"
-                    className={iconButton}
-                    aria-label={openLabel}
-                >
-                    <ExternalLink className="size-4" aria-hidden />
-                </a>
-            ) : null}
-            {onReplace && !readOnly ? (
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="shrink-0 text-muted-foreground hover:text-foreground"
-                    onClick={onReplace}
-                >
-                    {intl.formatMessage(messages.replace)}
-                </Button>
-            ) : null}
-            {readOnly ? null : (
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="size-7 shrink-0 text-muted-foreground hover:text-foreground"
-                    aria-label={removeLabel}
-                    onClick={onRemove}
-                >
-                    <X className="size-4" />
-                </Button>
-            )}
+            {/* The row's actions show on hover and on focus anywhere in the
+                row — always, on a device that cannot hover. Faded, not
+                removed: they stay in the tab order and the a11y tree. */}
+            <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-focus-within/row:opacity-100 group-hover/row:opacity-100 [@media(hover:none)]:opacity-100">
+                {onMoveUp && !readOnly ? (
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-7 shrink-0 text-muted-foreground hover:text-foreground"
+                        aria-label={moveUpLabel}
+                        disabled={moveUpDisabled}
+                        onClick={onMoveUp}
+                    >
+                        <ChevronUp className="size-4" aria-hidden />
+                    </Button>
+                ) : null}
+                {onMoveDown && !readOnly ? (
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-7 shrink-0 text-muted-foreground hover:text-foreground"
+                        aria-label={moveDownLabel}
+                        disabled={moveDownDisabled}
+                        onClick={onMoveDown}
+                    >
+                        <ChevronDown className="size-4" aria-hidden />
+                    </Button>
+                ) : null}
+                {href && !trashed && !missing ? (
+                    <a
+                        href={href}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={iconButton}
+                        aria-label={openLabel}
+                    >
+                        <ExternalLink className="size-4" aria-hidden />
+                    </a>
+                ) : null}
+                {onReplace && !readOnly ? (
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="shrink-0 text-muted-foreground hover:text-foreground"
+                        onClick={onReplace}
+                    >
+                        {intl.formatMessage(messages.replace)}
+                    </Button>
+                ) : null}
+                {readOnly ? null : (
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-7 shrink-0 text-muted-foreground hover:text-foreground"
+                        aria-label={removeLabel}
+                        onClick={onRemove}
+                    >
+                        <X className="size-4" />
+                    </Button>
+                )}
+            </div>
         </div>
     );
 }

@@ -2,9 +2,9 @@ import { article } from '../../../testing/document';
 import { builtInTabOf, fieldsOnTab } from './index';
 
 describe('builtInTabOf', () => {
-    it('sends relations and media to their own tabs, everything else to General', () => {
-        expect(builtInTabOf({ type: 'relation', to: 'x' })).toBe('relations');
-        expect(builtInTabOf({ type: 'media' })).toBe('media');
+    it('puts every field on the one form, relations and media included', () => {
+        expect(builtInTabOf({ type: 'relation', to: 'x' })).toBe('general');
+        expect(builtInTabOf({ type: 'media' })).toBe('general');
         for (const type of [
             'text',
             'richtext',
@@ -23,17 +23,8 @@ describe('builtInTabOf', () => {
 
 describe('fieldsOnTab', () => {
     it('keeps declaration order', () => {
-        expect(fieldsOnTab(article, 'general').map((f) => f.name)).toEqual([
-            'body',
-            'title',
-            'kind',
-            'slug'
-        ]);
-        expect(fieldsOnTab(article, 'relations').map((f) => f.name)).toEqual([
-            'author'
-        ]);
-        expect(fieldsOnTab(article, 'media').map((f) => f.name)).toEqual([
-            'cover'
-        ]);
+        expect(fieldsOnTab(article, 'general').map((f) => f.name)).toEqual(
+            article.fields.map((f) => f.name)
+        );
     });
 });

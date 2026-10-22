@@ -1,8 +1,9 @@
-import { useId } from 'react';
-import { defineMessages, useIntl } from 'react-intl';
-import { Save, Send } from 'lucide-react';
+import { useId, type ReactNode } from 'react';
+import { defineMessages, useIntl, type MessageDescriptor } from 'react-intl';
+import { Check, Save, Send } from 'lucide-react';
 import {
     Button,
+    Kbd,
     Spinner,
     Tooltip,
     TooltipContent,
@@ -16,9 +17,17 @@ import {
     CONTENT_DELETE,
     CONTENT_PUBLISH,
     CONTENT_UPDATE,
-    ENTRY_STATUS
+    ENTRY_STATUS,
+    PUBLISH_SHORTCUT_KEY,
+    SAVE_SHORTCUT_KEY
 } from '../../../../../domain/constants';
+import {
+    ENTRY_STATUS_VIEW,
+    entryStatusView
+} from '../../../../../domain/entryStatusView';
+import { shortcutModifierGlyph } from '../../../../../domain/shortcutModifier';
 import { useEntrySlotContext } from '../../../../hooks/useEntrySlotContext';
+import { useEntryShortcuts } from '../../../../hooks/useEntryShortcuts';
 import {
     ENTRY_PUBLISH_GUARD_SLOT,
     type EntryPublishGuardState,
@@ -27,19 +36,26 @@ import {
     type EntrySlotContext
 } from '../../../../slots/contentSlots';
 import { EntryMenu } from './EntryMenu';
+import { EntrySaveState } from './EntrySaveState';
 
 const messages = defineMessages({
     save: { id: 'content.editor.save', defaultMessage: 'Save' },
     saveDraft: { id: 'content.editor.saveDraft', defaultMessage: 'Save draft' },
-    publish: { id: 'content.editor.publish', defaultMessage: 'Publish' }
+    publish: { id: 'content.editor.publish', defaultMessage: 'Publish' },
+    publishChanges: {
+        id: 'content.editor.publishChanges',
+        defaultMessage: 'Publish changes'
+    },
+    saved: { id: 'content.editor.saved', defaultMessage: 'Saved' },
+    upToDate: {
+        id: 'content.editor.upToDate',
+        defaultMessage: 'Published · up to date'
+    }
 });
 
-/** Icon + label per primary kind. */
-const PRIMARY_META = {
-    publish: { icon: Send, label: messages.publish },
-    save: { icon: Save, label: messages.save },
-    saveDraft: { icon: Save, label: messages.saveDraft }
-} as const;
+/** The chord as `aria-keyshortcuts` spells it — both modifiers accepted. */
+const SAVE_KEYS = `Meta+${SAVE_SHORTCUT_KEY.toUpperCase()} Control+${SAVE_SHORTCUT_KEY.toUpperCase()}`;
+const PUBLISH_KEYS = `Meta+Shift+${PUBLISH_SHORTCUT_KEY.toUpperCase()} Control+Shift+${PUBLISH_SHORTCUT_KEY.toUpperCase()}`;
 
 /**
  * The guard slot's answer for this entry: the first refusal, plus every
@@ -80,23 +96,27 @@ function usePublishVerdict(
 
 /**
  * The entry editor's **write actions**, rendered into the page top bar's actions
- * region (`PageActionsPortal`): a primary button — **Publish** for a publishable
- * type the user may publish, else **Save** / **Save draft** — beside the
- * {@link EntryMenu} holding the rest.
+ * region (`PageActionsPortal`): the save state in words, then an explicit pair —
+ * **Save draft** beside **Publish** / **Publish changes** on a publishable type,
+ * one **Save** otherwise — then the {@link EntryMenu} holding the rest.
  *
- * They live in the bar rather than in the Properties panel because the panel can
- * be collapsed away entirely, and a record you can't save is a trap. Rendered
- * through a portal from inside the editor, so the handlers, the busy state and
- * `useHasPermission` all resolve against the editor's own tree.
+ * The pair follows the action matrix in `docs/design/entry-editor.md`: a button
+ * says what a click will do, and with nothing to do it shows the record's state
+ * instead, disabled — "✓ Saved", or "✓ Published · up to date" on a published
+ * record nobody has edited. ⌘S and ⌘⇧P run the same two handlers, so a chord
+ * can never do what the buttons would not.
  *
- * Owns the permission gating and the primary/menu derivation; the menu owns its
- * own contents (including the delete confirmation and any contributed overlay).
+ * They live in the bar rather than in a side panel because a record you can't
+ * save is a trap, and a panel can be closed. Rendered through a portal from
+ * inside the editor, so the handlers, the busy state and `useHasPermission` all
+ * resolve against the editor's own tree.
  *
- * It also owns the **third** gate on that button. `content:publish` decides
- * whether it renders at all and the publish gate decides whether the values are
+ * It also owns the **third** gate on Publish. `content:publish` decides whether
+ * it renders at all and the publish gate decides whether the values are
  * complete; a contribution to {@link ENTRY_PUBLISH_GUARD_SLOT} may then refuse
  * the publish for a reason this package never learns. With nothing contributed
- * the button is exactly what the first two gates made it.
+ * the button is exactly what the first two gates made it, and a refusal never
+ * relabels or restyles it (ADR-0017).
  */
 export function EntryActions({
     entry,
@@ -119,9 +139,13 @@ export function EntryActions({
     saving: boolean;
     /** Whether an unpublish/delete action is in flight (disables the bar). */
     mutating?: boolean;
-    /** Whether the form holds unsaved changes — handed to the publish guards. */
+    /**
+     * Whether a Save would write anything — the form's values, staged links or
+     * a presave step's state. Drives the action matrix, and is handed to the
+     * publish guards (a save moves the version an approval is bound to).
+     */
     dirty?: boolean;
-    /** Save without publishing (the default submit). */
+    /** Save without publishing (Save draft, or a plain Save). */
     onSaveDraft: () => void;
     /**
      * Save (when anything is unsaved) and mark published — only wired for
@@ -151,16 +175,31 @@ export function EntryActions({
 
     const { blocking, overlays } = usePublishVerdict(slotContext, { dirty });
 
-    const showSaveDraft = publishable && canSave;
     const showPublish = publishable && canPublish && canSave;
     const showUnpublish =
         !isCreate && publishable && published && canPublish && !!onUnpublish;
     const showDelete = !isCreate && canDelete && !!onDelete;
 
+    // The action matrix. A button says what a click will do — and when there
+    // is nothing to do, it shows the record's state instead, disabled, so a
+    // clean editor never offers a click that would only append a version.
+    const view = entryStatusView(isCreate ? undefined : entry);
+    // Live content exists (published, or published with saved edits on top):
+    // a publish from here ships *changes*, and says so.
+    const live =
+        view === ENTRY_STATUS_VIEW.Published ||
+        view === ENTRY_STATUS_VIEW.Modified;
+    // Nothing a Save would write. A create form is never clean — there is no
+    // record yet, so saving it is always something.
+    const clean = !isCreate && !dirty;
+    // Published, and what is on screen is what is live: one state, no action.
+    const upToDate =
+        publishable && clean && view === ENTRY_STATUS_VIEW.Published;
+
     // A guard speaks about publishing, so it says nothing about a Save button.
     // Without this a refusal would silently disable the draft save on a type
     // whose drafts are explicitly still editable.
-    const guard = showPublish ? blocking : null;
+    const guard = showPublish && !upToDate ? blocking : null;
     const override = guard?.action;
 
     // Blocked with no way through: the control stays in the tab order and
@@ -170,64 +209,149 @@ export function EntryActions({
     // the treatment `GuardedMenuItem` already uses for the same problem.
     const inert = !!guard && !override;
 
-    // Every way to publish from this bar — the primary button and the menu's
-    // "Save & publish" — goes through this one handler, so the menu cannot be
-    // the door a refusal forgot to close. An override keeps the button an
-    // ordinary Publish and hands the click to the contribution, which publishes
-    // through `onPublish` once its own ceremony is done.
+    // Every way to publish — the button and ⌘⇧P — goes through this one
+    // handler, so a chord cannot be the door a refusal forgot to close. An
+    // override keeps the button an ordinary Publish and hands the click to the
+    // contribution, which publishes through `onPublish` once its own ceremony
+    // is done.
     const publish = override
         ? () => override.onSelect((options) => onPublish(options))
         : () => onPublish();
 
-    // The primary button: Publish for a publishable type the user may publish,
-    // else a plain Save (draft / live). Null when the user can't write at all.
-    const primary = showPublish
-        ? { kind: 'publish' as const, onClick: publish }
-        : canSave
-          ? {
-                kind: (publishable ? 'saveDraft' : 'save') as
-                    | 'saveDraft'
-                    | 'save',
-                onClick: onSaveDraft
-            }
-          : null;
+    // What the save button is: an action, its saved state, or absent (the
+    // reader may not save, or the record is published and up to date — one
+    // state button says that).
+    const saveMode: 'action' | 'done' | null = !canSave
+        ? null
+        : upToDate && showPublish
+          ? null
+          : clean
+            ? 'done'
+            : 'action';
+    const publishMode: 'action' | 'done' | null = !showPublish
+        ? null
+        : upToDate
+          ? 'done'
+          : 'action';
 
-    const primaryMeta = primary ? PRIMARY_META[primary.kind] : null;
-    const PrimaryIcon = primaryMeta?.icon;
-    const label = primaryMeta ? intl.formatMessage(primaryMeta.label) : '';
+    const glyph = shortcutModifierGlyph();
+    const saveLabel = intl.formatMessage(
+        publishable ? messages.saveDraft : messages.save
+    );
+    const publishLabel = intl.formatMessage(
+        live ? messages.publishChanges : messages.publish
+    );
 
-    const button =
-        primary && primaryMeta && PrimaryIcon ? (
-            <Button
-                type="button"
-                size="sm"
-                className={cn(inert && 'opacity-60')}
-                aria-disabled={inert || undefined}
-                aria-describedby={guard?.reason ? reasonId : undefined}
-                onClick={
-                    inert
-                        ? (event) => event.preventDefault()
-                        : () => primary.onClick()
-                }
-                disabled={busy}
-            >
-                {saving ? <Spinner aria-hidden /> : <PrimaryIcon aria-hidden />}
+    useEntryShortcuts({
+        onSave: saveMode === 'action' && !busy ? onSaveDraft : null,
+        onPublish: publishMode === 'action' && !busy && !inert ? publish : null
+    });
+
+    /** A state button: what is true now, with nothing to click. */
+    const doneButton = (label: MessageDescriptor) => (
+        <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled
+            className="text-muted-foreground shadow-none disabled:opacity-100"
+        >
+            <Check aria-hidden />
+            {intl.formatMessage(label)}
+        </Button>
+    );
+
+    /** A button with its chord in a tooltip, the way the menu shows ⌘K. */
+    const withHint = (button: ReactNode, label: string, keys: string[]) => (
+        <Tooltip>
+            <TooltipTrigger asChild>{button}</TooltipTrigger>
+            <TooltipContent className="flex items-center gap-2">
                 {label}
-            </Button>
-        ) : null;
+                <span className="flex gap-0.5">
+                    {keys.map((key) => (
+                        <Kbd key={key}>{key}</Kbd>
+                    ))}
+                </span>
+            </TooltipContent>
+        </Tooltip>
+    );
 
-    return (
-        <>
-            {button && guard?.reason ? (
+    // Save is the primary only when there is no Publish beside it.
+    const savePrimary = !showPublish;
+    const saveButton =
+        saveMode === 'done'
+            ? doneButton(messages.saved)
+            : saveMode === 'action'
+              ? withHint(
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant={savePrimary ? 'default' : 'outline'}
+                        className={cn(!savePrimary && 'shadow-none')}
+                        aria-keyshortcuts={SAVE_KEYS}
+                        onClick={() => onSaveDraft()}
+                        disabled={busy}
+                    >
+                        {saving && savePrimary ? (
+                            <Spinner aria-hidden />
+                        ) : (
+                            <Save aria-hidden />
+                        )}
+                        {saveLabel}
+                    </Button>,
+                    saveLabel,
+                    [glyph, SAVE_SHORTCUT_KEY.toUpperCase()]
+                )
+              : null;
+
+    const publishControl = (
+        <Button
+            type="button"
+            size="sm"
+            className={cn(inert && 'opacity-60')}
+            aria-disabled={inert || undefined}
+            aria-describedby={guard?.reason ? reasonId : undefined}
+            aria-keyshortcuts={inert ? undefined : PUBLISH_KEYS}
+            onClick={inert ? (event) => event.preventDefault() : publish}
+            disabled={busy}
+        >
+            {saving ? <Spinner aria-hidden /> : <Send aria-hidden />}
+            {publishLabel}
+        </Button>
+    );
+
+    const publishButton =
+        publishMode === 'done' ? (
+            doneButton(messages.upToDate)
+        ) : publishMode === 'action' ? (
+            guard?.reason ? (
                 <Tooltip>
-                    <TooltipTrigger asChild>{button}</TooltipTrigger>
+                    <TooltipTrigger asChild>{publishControl}</TooltipTrigger>
                     <TooltipContent className="max-w-60">
                         {guard.reason}
                     </TooltipContent>
                 </Tooltip>
             ) : (
-                button
-            )}
+                withHint(publishControl, publishLabel, [
+                    glyph,
+                    '⇧',
+                    PUBLISH_SHORTCUT_KEY.toUpperCase()
+                ])
+            )
+        ) : null;
+
+    return (
+        <>
+            {canSave ? (
+                <EntrySaveState
+                    dirty={dirty}
+                    isCreate={isCreate}
+                    updatedAt={entry?.updatedAt}
+                    className="hidden md:flex"
+                />
+            ) : null}
+            {saveButton}
+            {publishButton}
             {/* The reason is the button's **description**, so it lives beside
                 it rather than inside it: text nested in a control joins its
                 accessible *name*, which would have a screen reader announce
@@ -247,13 +371,8 @@ export function EntryActions({
                     context={slotContext}
                     paranoid={paranoid}
                     busy={busy}
-                    showSaveDraft={showSaveDraft}
-                    showPublish={showPublish}
-                    publishBlocked={inert}
                     showUnpublish={showUnpublish}
                     showDelete={showDelete}
-                    onSaveDraft={onSaveDraft}
-                    onPublish={publish}
                     onUnpublish={onUnpublish}
                     onDelete={onDelete}
                 />
