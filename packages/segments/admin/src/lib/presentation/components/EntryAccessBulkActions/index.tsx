@@ -1,15 +1,20 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { Check, Ban, Eraser } from 'lucide-react';
-import { Button } from '@orthacms/design-system';
+import { Check, Ban, ChevronDown, Eraser } from 'lucide-react';
+import {
+    Button,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger
+} from '@orthacms/design-system';
 import { SEGMENT_STATE, type SegmentState } from '../../../domain/types';
 
 const messages = defineMessages({
-    legend: {
-        id: 'segments.bulk.legend',
-        defaultMessage: 'Set every audience to'
-    },
-    allow: { id: 'segments.bulk.allow', defaultMessage: 'Can see' },
-    deny: { id: 'segments.bulk.deny', defaultMessage: 'Cannot see' },
+    trigger: { id: 'segments.bulk.trigger', defaultMessage: 'Set all…' },
+    allow: { id: 'segments.bulk.allow', defaultMessage: 'All can see' },
+    deny: { id: 'segments.bulk.deny', defaultMessage: 'None can see' },
     clear: { id: 'segments.bulk.clear', defaultMessage: 'Clear all' },
     scopeAll: {
         id: 'segments.bulk.scopeAll',
@@ -29,8 +34,8 @@ const messages = defineMessages({
 });
 
 /**
- * "Set every audience to Can see / Cannot see / Clear" for the entry's Access
- * tab.
+ * The Access tab's **Set all…** menu: every audience to Can see, to Cannot
+ * see, or back to unset.
  *
  * **Every audience means every one the filter matched, not this page's.** The
  * ids come from the list response rather than the rows on screen, because a
@@ -64,55 +69,58 @@ export function EntryAccessBulkActions({
 }) {
     const intl = useIntl();
     const locked = disabled || truncated || count === 0;
+    const scope = truncated
+        ? intl.formatMessage(messages.truncated)
+        : intl.formatMessage(
+              searching ? messages.scopeSearch : messages.scopeAll,
+              { count }
+          );
 
+    // One menu rather than a row of three buttons: setting every audience at
+    // once is the occasional move, and the row sat between the search and the
+    // list as loudly as the per-audience controls it overrides. Non-modal, like
+    // every menu in this admin.
     return (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border bg-muted/30 px-3 py-2">
-            <span className="text-xs font-medium text-muted-foreground">
-                {intl.formatMessage(messages.legend)}
-            </span>
-            <div className="flex flex-wrap items-center gap-2">
+        <DropdownMenu modal={false}>
+            <DropdownMenuTrigger asChild>
                 <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="h-7 shadow-none"
+                    className="shadow-none"
+                >
+                    {intl.formatMessage(messages.trigger)}
+                    <ChevronDown aria-hidden />
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-72">
+                <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+                    {scope}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
                     disabled={locked}
-                    onClick={() => onApply(SEGMENT_STATE.Allow)}
+                    onSelect={() => onApply(SEGMENT_STATE.Allow)}
                 >
                     <Check aria-hidden />
                     {intl.formatMessage(messages.allow)}
-                </Button>
-                <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-7 shadow-none"
+                </DropdownMenuItem>
+                <DropdownMenuItem
                     disabled={locked}
-                    onClick={() => onApply(SEGMENT_STATE.Deny)}
+                    onSelect={() => onApply(SEGMENT_STATE.Deny)}
                 >
                     <Ban aria-hidden />
                     {intl.formatMessage(messages.deny)}
-                </Button>
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-7"
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
                     disabled={locked}
-                    onClick={() => onApply(SEGMENT_STATE.Unset)}
+                    onSelect={() => onApply(SEGMENT_STATE.Unset)}
                 >
                     <Eraser aria-hidden />
                     {intl.formatMessage(messages.clear)}
-                </Button>
-            </div>
-            <p className="basis-full text-xs text-muted-foreground">
-                {truncated
-                    ? intl.formatMessage(messages.truncated)
-                    : intl.formatMessage(
-                          searching ? messages.scopeSearch : messages.scopeAll,
-                          { count }
-                      )}
-            </p>
-        </div>
+                </DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
     );
 }

@@ -8,6 +8,7 @@ import { sectionFields } from '../../../../../domain/fieldSections';
 import type { EntryFormState } from '../../../../hooks/useEntryForm';
 import { FieldSection } from './FieldSection';
 import { FieldStack } from './FieldStack';
+import { BASICS_SECTION } from '../../../../../domain/pageSections';
 
 const messages = defineMessages({
     sharedPrefilled: {
@@ -144,13 +145,17 @@ export function EntryFieldSections({
                 </p>
             ) : null}
             {ungrouped.length > 0 && (
-                <FieldStack
-                    fields={ordered.filter((field) => loose.has(field))}
-                    form={form}
-                    isChanged={isChanged}
-                    localizedLang={contentLocale}
-                    sharedLang={prefilledFromLocale}
-                />
+                // Marked like a section, so "On this page" can find and
+                // highlight the run above the first one (Basics).
+                <div data-entry-section={BASICS_SECTION}>
+                    <FieldStack
+                        fields={ordered.filter((field) => loose.has(field))}
+                        form={form}
+                        isChanged={isChanged}
+                        localizedLang={contentLocale}
+                        sharedLang={prefilledFromLocale}
+                    />
+                </div>
             )}
             {sections.length > 0 && (
                 <div className="flex flex-col gap-4">

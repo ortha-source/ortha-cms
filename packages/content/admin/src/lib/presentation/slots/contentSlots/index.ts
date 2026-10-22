@@ -392,6 +392,46 @@ export const ENTRY_STATUS_ITEM_SLOT = createSlot<EntryStatusItemContribution>(
     'content.entry.statusItem'
 );
 
+/** One row a timeline source adds to the History view. */
+export type EntryTimelineEvent = {
+    /** Stable id (used as the React key). */
+    id: string;
+    /** When it happened. */
+    at: string | Date;
+    /** What happened, already localized: "Published content". */
+    title: string;
+    /** Who did it, already localized: an email, or "System". */
+    actor?: string;
+};
+
+/** What a timeline source has to show for the open record. */
+export type EntryTimelineSource = {
+    events: EntryTimelineEvent[];
+    isPending: boolean;
+    isError: boolean;
+};
+
+/**
+ * A source of rows for the entry editor's **History** view, between its
+ * version rows (`docs/design/entry-editor.md`, _Secondary views_). The
+ * contributor owns its permission: `useEvents` is a hook, called once per
+ * render (items are boot-frozen), and returns `null` when the reader may not
+ * see it — then the History filter does not offer it at all.
+ * `@orthacms/activity-admin` contributes the record's activity.
+ */
+export type EntryTimelineItem = {
+    /** Stable id; also the History filter's value for it. */
+    id: string;
+    /** The filter's label: "Activity". */
+    label: MessageDescriptor;
+    useEvents: (context: EntrySlotContext) => EntryTimelineSource | null;
+};
+
+/** Sources of rows for the History timeline. See {@link EntryTimelineItem}. */
+export const ENTRY_TIMELINE_SLOT = createSlot<EntryTimelineItem>(
+    'content.entry.timeline'
+);
+
 /** One always-mounted overlay contribution for the content library. */
 export type ContentOverlayItem = {
     /** Stable id (used as the React key). */

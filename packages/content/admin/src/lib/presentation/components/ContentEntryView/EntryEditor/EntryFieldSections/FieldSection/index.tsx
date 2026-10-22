@@ -105,7 +105,7 @@ export function FieldSection({
             onOpenChange={setOpen}
             className="group/section rounded-xl border bg-card"
             data-testid={`entry-field-section-${group.key}`}
-            // What the outline scrolls to — see `EntryFieldOutline`.
+            // What "On this page" scrolls to and watches — see `EntryPageNav`.
             data-entry-section={group.key}
         >
             {/* The whole header block — description included — is the click

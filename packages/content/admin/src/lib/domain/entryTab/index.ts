@@ -25,9 +25,13 @@ export function entryTabFromPath(pathname: string): string {
 }
 
 /**
- * The tab a URL's tab slug actually opens: a retired slug (see
- * {@link RETIRED_ENTRY_TABS}) opens the Content view, every other slug itself.
+ * Where a URL's tab slug actually leads: a retired slug (see
+ * {@link RETIRED_ENTRY_TABS}) to the tab that holds its content now — with
+ * the search params that pick it out there — and every other slug to itself.
  */
-export function liveEntryTab(slug: string): string {
-    return RETIRED_ENTRY_TABS.includes(slug) ? DEFAULT_ENTRY_TAB : slug;
+export function liveEntryTab(slug: string): {
+    tab: string;
+    search?: Record<string, string>;
+} {
+    return RETIRED_ENTRY_TABS[slug] ?? { tab: slug };
 }

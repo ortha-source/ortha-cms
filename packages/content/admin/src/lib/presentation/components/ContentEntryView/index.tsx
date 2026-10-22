@@ -263,7 +263,8 @@ export function ContentEntryView({
     // A retired tab (`/relations`, `/media` — their fields are in the one
     // form now, ADR-0022) reads as the Content view, and its URL is replaced
     // by the canonical one below so a bookmark doesn't keep the dead segment.
-    const tab = liveEntryTab(pathTab);
+    const retired = liveEntryTab(pathTab);
+    const tab = retired.tab;
 
     // The editor's own base path — a collection row carries its id, a single is
     // mounted on the type itself. Tab links hang off it, and the query suffix
@@ -305,15 +306,23 @@ export function ContentEntryView({
         });
     };
 
-    // An old link to a retired tab lands on the bare entry URL. `replace`, so
+    // An old link to a retired tab lands where its content lives now (the
+    // Content view, or History showing activity). `replace`, so
     // Back doesn't bounce off the redirect.
     useEffect(() => {
         if (pathTab === tab) return;
-        navigate(`${editorPath}${location.search}`, {
+        const search = new URLSearchParams(location.search);
+        for (const [key, value] of Object.entries(retired.search ?? {}))
+            search.set(key, value);
+        const query = search.toString();
+        const segment = tab === DEFAULT_ENTRY_TAB ? '' : `/${tab}`;
+        navigate(`${editorPath}${segment}${query ? `?${query}` : ''}`, {
             replace: true,
             state: location.state,
             viewTransition: false
         });
+        // `retired.search` is a constant per slug, so `pathTab` covers it.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [pathTab, tab, editorPath, location.search, location.state, navigate]);
 
     // `single` resolves its one row via the list endpoint; other modes don't fetch.

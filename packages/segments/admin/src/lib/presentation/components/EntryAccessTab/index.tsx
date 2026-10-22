@@ -26,6 +26,7 @@ import { ENTRY_ACCESS_PRESAVE_ID } from '../../../application/useEntryAccessPres
 import { SegmentStateControl } from '../SegmentStateControl';
 import { SegmentsPagination } from '../SegmentsPagination';
 import { EntryAccessBulkActions } from '../EntryAccessBulkActions';
+import { AccessSummary } from './AccessSummary';
 
 const messages = defineMessages({
     heading: {
@@ -73,6 +74,10 @@ const messages = defineMessages({
         defaultMessage: 'Search audiences'
     },
     manage: { id: 'segments.entryTab.manage', defaultMessage: 'Segments' },
+    howRules: {
+        id: 'segments.entryTab.howRules',
+        defaultMessage: 'How rules combine'
+    },
     tags: { id: 'segments.entryTab.tags', defaultMessage: 'Tags: {tags}' },
     elsewhere: {
         id: 'segments.entryTab.elsewhere',
@@ -237,9 +242,20 @@ export function EntryAccessTab({
                     </Badge>
                     {dirty ? <ChangedBadge /> : null}
                 </h2>
-                <p className="mt-1 max-w-2xl text-xs text-muted-foreground">
-                    {intl.formatMessage(messages.body)}
-                </p>
+                <div className="mt-2 flex flex-col gap-1">
+                    <AccessSummary access={draft} known={list} />
+                    {/* The logic, for whoever asks — behind its own control
+                        rather than leading the tab: the sentence above already
+                        says what it adds up to for this record. */}
+                    <details className="group max-w-2xl text-xs text-muted-foreground">
+                        <summary className="w-fit cursor-pointer rounded underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                            {intl.formatMessage(messages.howRules)}
+                        </summary>
+                        <p className="mt-1">
+                            {intl.formatMessage(messages.body)}
+                        </p>
+                    </details>
+                </div>
                 {/* Said on screen, because it is the one thing here that is not
                     about the record in front of the editor. Who may read a
                     record is a fact about the record, not about its German
@@ -272,24 +288,25 @@ export function EntryAccessTab({
                         onChange={(event) => setQuery(event.target.value)}
                     />
                 </div>
-                <Button variant="outline" size="sm" asChild>
-                    <Link to="/segments">
-                        <ShieldCheck aria-hidden />
-                        {intl.formatMessage(messages.manage)}
-                    </Link>
-                </Button>
+                <div className="flex items-center gap-2">
+                    {locked ? null : (
+                        <EntryAccessBulkActions
+                            count={total}
+                            searching={Boolean(debounced)}
+                            truncated={segments.data?.idsTruncated ?? false}
+                            onApply={(state: SegmentState) =>
+                                stage(withStates(draft, matchedIds, state))
+                            }
+                        />
+                    )}
+                    <Button variant="outline" size="sm" asChild>
+                        <Link to="/segments">
+                            <ShieldCheck aria-hidden />
+                            {intl.formatMessage(messages.manage)}
+                        </Link>
+                    </Button>
+                </div>
             </div>
-
-            {locked ? null : (
-                <EntryAccessBulkActions
-                    count={total}
-                    searching={Boolean(debounced)}
-                    truncated={segments.data?.idsTruncated ?? false}
-                    onApply={(state: SegmentState) =>
-                        stage(withStates(draft, matchedIds, state))
-                    }
-                />
-            )}
 
             {total === 0 ? (
                 <p className="text-sm text-muted-foreground">

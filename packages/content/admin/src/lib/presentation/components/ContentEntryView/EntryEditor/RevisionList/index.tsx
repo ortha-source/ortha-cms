@@ -22,6 +22,19 @@ import { SiblingSyncDialog } from '../SiblingSyncDialog';
 import { fieldLabel } from '../../../../../domain/entryColumns';
 import { RevisionRow } from './RevisionRow';
 import { RevisionPreviewDialog } from './RevisionPreviewDialog';
+import { TimelineEventRow } from './TimelineEventRow';
+import type { EntryTimelineEvent } from '../../../../slots/contentSlots';
+
+/** One row of the timeline: a version, or something done to the record. */
+type TimelineRow =
+    | { kind: 'revision'; at: number; revision: RevisionSummary }
+    | { kind: 'event'; at: number; event: EntryTimelineEvent };
+
+/** A local calendar day, as a key rows are grouped by. */
+function dayKey(at: number): string {
+    const date = new Date(at);
+    return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
 
 const messages = defineMessages({
     confirmTitle: {
@@ -80,13 +93,19 @@ export function RevisionList({
     typeName,
     entryId,
     schema,
-    revisions
+    revisions,
+    events = []
 }: {
     typeName: string;
     entryId: string;
     /** The type's full field schema — drives the preview diff's labels + values. */
     schema: ContentTypeDetail;
     revisions: RevisionSummary[];
+    /**
+     * Rows from the timeline sources (`ENTRY_TIMELINE_SLOT` — the record's
+     * activity), drawn between the versions by time.
+     */
+    events?: EntryTimelineEvent[];
 }) {
     const intl = useIntl();
     const canUpdate = useHasPermission(CONTENT_UPDATE);
@@ -200,24 +219,64 @@ export function RevisionList({
         else runPublish(action);
     };
 
+    // One timeline, newest first, grouped by day: the versions and whatever
+    // the sources add between them. An event with an unreadable time sorts
+    // last rather than vanishing.
+    const rows: TimelineRow[] = [
+        ...revisions.map((revision) => ({
+            kind: 'revision' as const,
+            at: Date.parse(revision.createdAt) || 0,
+            revision
+        })),
+        ...events.map((event) => ({
+            kind: 'event' as const,
+            at: new Date(event.at).getTime() || 0,
+            event
+        }))
+    ].sort((a, b) => b.at - a.at);
+    const days: { key: string; at: number; rows: TimelineRow[] }[] = [];
+    for (const row of rows) {
+        const key = dayKey(row.at);
+        const last = days[days.length - 1];
+        if (last?.key === key) last.rows.push(row);
+        else days.push({ key, at: row.at, rows: [row] });
+    }
+
     return (
         <>
-            <ul className="divide-y divide-border/60">
-                {revisions.map((revision) => (
-                    <li key={revision.id}>
-                        <RevisionRow
-                            revision={revision}
-                            canUpdate={canUpdate}
-                            canPublish={canPublish}
-                            publishable={publishable}
-                            busy={restoring || publishing}
-                            onRestore={setPending}
-                            onPublish={setPendingPublish}
-                            onPreview={() => setPreviewing(revision)}
-                        />
-                    </li>
+            <div className="flex flex-col gap-5">
+                {days.map((day) => (
+                    <div key={day.key}>
+                        <h3 className="mb-1 text-xs font-medium text-muted-foreground">
+                            {intl.formatDate(day.at, { dateStyle: 'medium' })}
+                        </h3>
+                        <ul className="divide-y divide-border/60">
+                            {day.rows.map((row) =>
+                                row.kind === 'revision' ? (
+                                    <li key={row.revision.id}>
+                                        <RevisionRow
+                                            revision={row.revision}
+                                            canUpdate={canUpdate}
+                                            canPublish={canPublish}
+                                            publishable={publishable}
+                                            busy={restoring || publishing}
+                                            onRestore={setPending}
+                                            onPublish={setPendingPublish}
+                                            onPreview={() =>
+                                                setPreviewing(row.revision)
+                                            }
+                                        />
+                                    </li>
+                                ) : (
+                                    <li key={`event:${row.event.id}`}>
+                                        <TimelineEventRow event={row.event} />
+                                    </li>
+                                )
+                            )}
+                        </ul>
+                    </div>
                 ))}
-            </ul>
+            </div>
             <ConfirmDialog
                 open={pending != null}
                 onOpenChange={(open) => !open && setPending(null)}

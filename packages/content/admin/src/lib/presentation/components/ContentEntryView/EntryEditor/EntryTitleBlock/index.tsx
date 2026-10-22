@@ -61,7 +61,8 @@ export function EntryTitleBlock({
     entry,
     isCreate,
     publishable,
-    actions
+    actions,
+    nav
 }: {
     /** The record's title from its values, or empty for "Untitled". */
     title: string;
@@ -70,6 +71,8 @@ export function EntryTitleBlock({
     publishable: boolean;
     /** Controls drawn beside the title below the breakpoint. */
     actions?: ReactNode;
+    /** The "Sections" menu, on a work area too narrow for "On this page". */
+    nav?: ReactNode;
 }) {
     const intl = useIntl();
     const date = (iso?: string | null) =>
@@ -120,6 +123,7 @@ export function EntryTitleBlock({
                     </Badge>
                 ) : null}
                 {sentence ? <span>{sentence}</span> : null}
+                {nav ? <span className="ml-auto">{nav}</span> : null}
             </div>
         </div>
     );

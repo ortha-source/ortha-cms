@@ -131,19 +131,43 @@ export const ENTRY_TAB = {
 /** Every entry-tab slug, for the route table and for validating the param. */
 export const ENTRY_TAB_SLUGS = Object.values(ENTRY_TAB);
 
+/** The URL param that picks what the History timeline shows. */
+export const HISTORY_SHOW_PARAM = 'show';
+
+/**
+ * What the History timeline shows: versions and activity together (the
+ * default, no param), only the versions, or only the activity.
+ */
+export const HISTORY_FILTER = {
+    All: 'all',
+    Versions: 'versions',
+    Activity: 'activity'
+} as const;
+
+/** One of {@link HISTORY_FILTER}'s values. */
+export type HistoryFilter =
+    (typeof HISTORY_FILTER)[keyof typeof HISTORY_FILTER];
+
 /**
  * Tab slugs that no longer name a tab, kept in {@link ENTRY_TAB} for one
- * release so links to them still resolve — to the editor's Content view,
- * replacing the URL, instead of a not-found.
+ * release so links to them still resolve — each to where its content lives
+ * now, replacing the URL, instead of a not-found.
  *
  * Relations and media are fields of the one form now, not tabs of their own
- * (ADR-0022), and Activity is a filter of the History timeline. A link to
- * `/…/:entryId/relations` sits in bookmarks and in the activity log.
+ * (ADR-0022), so they open the Content view; Activity is a filter of the
+ * History timeline. A link to `/…/:entryId/relations` sits in bookmarks and
+ * in the activity log.
  */
-export const RETIRED_ENTRY_TABS: readonly string[] = [
-    ENTRY_TAB.Relations,
-    ENTRY_TAB.Media
-];
+export const RETIRED_ENTRY_TABS: Readonly<
+    Record<string, { tab: string; search?: Record<string, string> }>
+> = {
+    [ENTRY_TAB.Relations]: { tab: ENTRY_TAB.General },
+    [ENTRY_TAB.Media]: { tab: ENTRY_TAB.General },
+    [ENTRY_TAB.Activity]: {
+        tab: ENTRY_TAB.History,
+        search: { [HISTORY_SHOW_PARAM]: HISTORY_FILTER.Activity }
+    }
+};
 
 /** The tab an entry opens on when the URL names none. */
 export const DEFAULT_ENTRY_TAB = ENTRY_TAB.General;

@@ -62,11 +62,15 @@ import {
 import { fieldLabel } from '../../../../domain/entryColumns';
 import { relationLabel } from '../../../../domain/relationLabel';
 import { liveEntryTab } from '../../../../domain/entryTab';
-import { outlineGeneralTab } from '../../../../domain/fieldOutline';
+import {
+    MIN_PAGE_SECTIONS,
+    BASICS_SECTION,
+    pageSections
+} from '../../../../domain/pageSections';
 import { toRelationIds } from '../../../../domain/relationIds';
 import { EntryActions } from './EntryActions';
 import { EntryChangedNotice } from './EntryChangedNotice';
-import { EntryFieldOutline } from './EntryFieldOutline';
+import { EntryPageNav } from './EntryPageNav';
 import { EntryFieldSections } from './EntryFieldSections';
 import { EntrySidebar, type PublishGateItem } from './EntrySidebar';
 import { EntryTabIssues } from './EntryTabIssues';
@@ -352,7 +356,7 @@ export function EntryEditor({
     // fields are part of the one form now. A foreign record keeps only
     // Content; a deep link to any other tab lands there rather than on a tab
     // strip with nothing selected.
-    const liveTab = liveEntryTab(tab);
+    const liveTab = liveEntryTab(tab).tab;
     const shownTab =
         foreign && liveTab !== ENTRY_TAB.General ? ENTRY_TAB.General : liveTab;
     // Slot-contributed title-row add-ons (e.g. the i18n plugin's locale chip),
@@ -498,8 +502,8 @@ export function EntryEditor({
             ),
         [schema.fields, ignoredFields]
     );
-    const outlineItems = useMemo(
-        () => outlineGeneralTab(formFields, schema.groups),
+    const sectionsOnPage = useMemo(
+        () => pageSections(formFields, schema.groups),
         [formFields, schema.groups]
     );
     // The outline's request to unfold a section, carried to `FieldSection`
@@ -513,8 +517,26 @@ export function EntryEditor({
             })),
         []
     );
-    // The pane the form is drawn in — where the outline looks its stops up.
+    // The pane the form is drawn in — where "On this page" finds its sections.
     const paneRef = useRef<HTMLDivElement>(null);
+    // Whether the work area has room for "On this page" beside the form
+    // (1100px); narrower, it is a "Sections" menu in the title block.
+    const [wideWorkArea, setWideWorkArea] = useState(false);
+    useEffect(() => {
+        const pane = paneRef.current;
+        if (!pane || typeof ResizeObserver === 'undefined') return;
+        const observer = new ResizeObserver(([entry]) =>
+            // The border box, not the content rect: the nav's own padding
+            // would otherwise shrink the measure it was decided on, and the
+            // two would flip each other back and forth.
+            setWideWorkArea(
+                ((entry?.target as HTMLElement | undefined)?.offsetWidth ??
+                    0) >= 1100
+            )
+        );
+        observer.observe(pane);
+        return () => observer.disconnect();
+    }, []);
     // Every field with a control somewhere in this editor — General, the Media
     // tab, or Relations. A server issue naming anything else has nowhere inline
     // to land, so `submitWith` promotes it to a toast rather than dropping it.
@@ -549,7 +571,7 @@ export function EntryEditor({
                 })
                 // A retired slug names a view that is part of the form now
                 // (the media plugin's old Media tab). Its fields render inline.
-                .filter((item) => !RETIRED_ENTRY_TABS.includes(item.slug))
+                .filter((item) => !(item.slug in RETIRED_ENTRY_TABS))
                 .sort((a, b) => a.order - b.order),
         [schema]
     );
@@ -1159,12 +1181,36 @@ export function EntryEditor({
     // would be a dead end with no way out but Discard.
     useUnsavedChanges(isDirty && !readOnly);
 
-    // The General tab's outline: on General, with more than one stop, and
-    // never over an expanded field, which has taken the whole work area.
-    const showOutline =
+    // "On this page": on Content, with three sections or more (fewer need
+    // no map), and never over an expanded field, which has the work area.
+    const showPageNav =
         shownTab === ENTRY_TAB.General &&
         !expandedContext &&
-        outlineItems.length > 1;
+        sectionsOnPage.length >= MIN_PAGE_SECTIONS;
+    const issueNames = new Set(
+        issues.map((item) => item.id.slice(FIELD_ISSUE_PREFIX.length))
+    );
+    /** Unfold a section, then bring it to the top of the view. */
+    const goToSection = (key: string) => {
+        if (key !== BASICS_SECTION) revealSection(key);
+        requestAnimationFrame(() =>
+            requestAnimationFrame(() =>
+                paneRef.current
+                    ?.querySelector(`[data-entry-section="${CSS.escape(key)}"]`)
+                    ?.scrollIntoView?.({ block: 'start' })
+            )
+        );
+    };
+    const pageNav = (variant: 'list' | 'menu') => (
+        <EntryPageNav
+            sections={sectionsOnPage}
+            isChanged={(name) => isFieldDirty(name) || isRelationDirty(name)}
+            hasIssue={(name) => issueNames.has(name)}
+            onGo={goToSection}
+            scopeRef={paneRef}
+            variant={variant}
+        />
+    );
 
     return (
         <EntryReadOnlyProvider value={readOnly}>
@@ -1273,8 +1319,8 @@ export function EntryEditor({
                                 ref={paneRef}
                                 className={cn(
                                     'relative flex min-w-0 flex-1 flex-col p-4 sm:p-6',
-                                    // Room for the outline's bars beside the labels.
-                                    showOutline && 'md:pl-10'
+                                    // Room for "On this page" beside the form.
+                                    showPageNav && wideWorkArea && 'sm:pl-60'
                                 )}
                             >
                                 {/* Centered reading column: the editor content is capped and
@@ -1312,6 +1358,11 @@ export function EntryEditor({
                                         actions={
                                             isMobile
                                                 ? (headerControls ?? undefined)
+                                                : undefined
+                                        }
+                                        nav={
+                                            showPageNav && !wideWorkArea
+                                                ? pageNav('menu')
                                                 : undefined
                                         }
                                     />
@@ -1474,15 +1525,10 @@ export function EntryEditor({
                             tabbing through the fields does not first stop on
                             one button per field. The pane widens its left
                             padding to hold it (`showOutline`). */}
-                                {showOutline ? (
-                                    <div className="pointer-events-none absolute inset-y-0 left-3 hidden md:block">
-                                        <div className="pointer-events-auto sticky top-16">
-                                            <EntryFieldOutline
-                                                items={outlineItems}
-                                                errorFor={form.errorFor}
-                                                onRevealSection={revealSection}
-                                                scopeRef={paneRef}
-                                            />
+                                {showPageNav && wideWorkArea ? (
+                                    <div className="pointer-events-none absolute inset-y-0 left-6">
+                                        <div className="pointer-events-auto sticky top-16 pt-6">
+                                            {pageNav('list')}
                                         </div>
                                     </div>
                                 ) : null}
