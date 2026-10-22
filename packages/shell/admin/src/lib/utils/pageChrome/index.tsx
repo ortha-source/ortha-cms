@@ -46,7 +46,28 @@ export type RightPanel = {
      * registered one, or that is simply open on first paint, must not slide in.
      */
     animate: boolean;
+    /**
+     * How the panel sits on a desktop: a **docked** column beside the page, or
+     * an **overlay** floating over it, opened on demand. Overlay is offered
+     * only to a page that registered its panel with `overlay`, and only until
+     * the reader pins it back into a column.
+     */
+    mode: 'docked' | 'overlay';
+    /** Whether the panel can be pinned / unpinned (an overlay page, desktop). */
+    pinnable: boolean;
+    /** Whether the reader pinned the panel as a docked column. */
+    pinned: boolean;
+    /** Pin the panel into a column, or let it float again. Persisted per browser. */
+    setPinned: (pinned: boolean) => void;
+    /**
+     * Close an open overlay **without** handing focus to the top bar — for a
+     * click outside it, where the reader has already put focus somewhere.
+     */
+    dismiss: () => void;
 };
+
+/** One registered panel: its heading and whether it asked for the overlay. */
+type PanelRegistration = { title: string; overlay: boolean };
 
 type PageChromeValue = RightPanel & {
     /** The top bar's actions container, once the bar has mounted one. */
@@ -56,7 +77,7 @@ type PageChromeValue = RightPanel & {
     panelHost: HTMLElement | null;
     setPanelHost: (node: HTMLElement | null) => void;
     /** Registers a panel + its title while a filler is mounted. */
-    registerPanel: (title: string) => () => void;
+    registerPanel: (title: string, overlay?: boolean) => () => void;
     /**
      * The control that should take focus after the last {@link RightPanel.toggle},
      * or `null` when there is no pending handoff. See {@link PanelFocusTarget}.
@@ -80,6 +101,22 @@ export const RIGHT_PANEL_ID = 'app-right-panel';
  * collapsed state are kept, alongside the sidebar's.
  */
 export const RIGHT_PANEL_LAYOUT_ID = 'shell.rightPanel';
+
+/**
+ * Where the reader's pin is kept — per browser, like a panel's width cache.
+ * Not in the synced panel layout: whether a panel floats is a habit of the
+ * screen it is read on.
+ */
+export const RIGHT_PANEL_PIN_KEY = 'orthacms:right-panel:pinned';
+
+/** The stored pin, tolerating storage that throws (private mode, tests). */
+function readPinned(): boolean {
+    try {
+        return window.localStorage.getItem(RIGHT_PANEL_PIN_KEY) === 'true';
+    } catch {
+        return false;
+    }
+}
 
 /** How long the panel's slide runs — keep in step with its `duration-300`. */
 const PANEL_SLIDE_MS = 330;
@@ -115,11 +152,22 @@ export function PageChromeProvider({ children }: { children: ReactNode }) {
     const [actionsHost, setActionsHost] = useState<HTMLElement | null>(null);
     const [panelHost, setPanelHost] = useState<HTMLElement | null>(null);
     // Ref-counted, so the overlap while a page remounts can't read as "gone".
-    const [panels, setPanels] = useState<string[]>([]);
+    const [panels, setPanels] = useState<PanelRegistration[]>([]);
     const isMobile = useIsMobile();
     const [layout, updateLayout] = usePanelLayoutEntry(RIGHT_PANEL_LAYOUT_ID);
     const [mobileOpen, setMobileOpen] = useState(false);
-    const open = isMobile ? mobileOpen : !layout?.collapsed;
+    const [pinned, setPinnedState] = useState(readPinned);
+    // An overlay starts closed on every arrival, like the phone's: it is
+    // opened for a question, not kept open as a layout.
+    const [overlayOpen, setOverlayOpen] = useState(false);
+    const current = panels[panels.length - 1];
+    const pinnable = !isMobile && !!current?.overlay;
+    const overlay = pinnable && !pinned;
+    const open = isMobile
+        ? mobileOpen
+        : overlay
+          ? overlayOpen
+          : !layout?.collapsed;
     // Armed by `toggle`, disarmed once the slide is over. Gating the transition
     // on this is what keeps the panel from sliding in on first paint, or every
     // time a page registers one — motion should mean "you just did that".
@@ -146,11 +194,12 @@ export function PageChromeProvider({ children }: { children: ReactNode }) {
         return () => clearTimeout(timer);
     }, [focusTarget]);
 
-    const registerPanel = useCallback((title: string) => {
-        setPanels((current) => [...current, title]);
+    const registerPanel = useCallback((title: string, overlay = false) => {
+        const entry: PanelRegistration = { title, overlay };
+        setPanels((current) => [...current, entry]);
         return () =>
             setPanels((current) => {
-                const at = current.indexOf(title);
+                const at = current.indexOf(entry);
                 if (at === -1) return current;
                 const next = current.slice();
                 next.splice(at, 1);
@@ -169,20 +218,52 @@ export function PageChromeProvider({ children }: { children: ReactNode }) {
         setFocusTarget(open ? 'bar' : 'panel');
         if (isMobile) {
             setMobileOpen(!open);
+        } else if (overlay) {
+            setOverlayOpen(!open);
         } else {
             updateLayout({ collapsed: open });
         }
-    }, [open, isMobile, updateLayout]);
+    }, [open, isMobile, overlay, updateLayout]);
+
+    const dismiss = useCallback(() => {
+        setAnimate(true);
+        if (isMobile) setMobileOpen(false);
+        else setOverlayOpen(false);
+    }, [isMobile]);
+
+    const setPinned = useCallback(
+        (next: boolean) => {
+            try {
+                window.localStorage.setItem(RIGHT_PANEL_PIN_KEY, String(next));
+            } catch {
+                // A pin that cannot be stored still applies to this visit.
+            }
+            setPinnedState(next);
+            // Either way the panel stays on screen: pinning docks the open
+            // overlay as a column, unpinning floats the column it was.
+            if (next) updateLayout({ collapsed: false });
+            else setOverlayOpen(true);
+            // The pin control lives in the panel's header in both shapes, so
+            // focus goes back to the panel's own controls.
+            setFocusTarget('panel');
+        },
+        [updateLayout]
+    );
 
     const value = useMemo<PageChromeValue>(
         () => ({
             present: panels.length > 0,
             // The newest registration wins, so a page that mounts over another
             // heads the panel with its own title.
-            title: panels[panels.length - 1] ?? '',
+            title: current?.title ?? '',
             open,
             toggle,
             animate,
+            mode: overlay ? 'overlay' : 'docked',
+            pinnable,
+            pinned,
+            setPinned,
+            dismiss,
             actionsHost,
             setActionsHost,
             panelHost,
@@ -193,9 +274,15 @@ export function PageChromeProvider({ children }: { children: ReactNode }) {
         }),
         [
             panels,
+            current,
             open,
             toggle,
             animate,
+            overlay,
+            pinnable,
+            pinned,
+            setPinned,
+            dismiss,
             actionsHost,
             panelHost,
             registerPanel,
@@ -233,8 +320,30 @@ function usePageChrome(): PageChromeValue {
 export function useRightPanel(): RightPanel | null {
     const ctx = useContext(Context);
     if (!ctx) return null;
-    const { present, open, title, toggle, animate } = ctx;
-    return { present, open, title, toggle, animate };
+    const {
+        present,
+        open,
+        title,
+        toggle,
+        animate,
+        mode,
+        pinnable,
+        pinned,
+        setPinned,
+        dismiss
+    } = ctx;
+    return {
+        present,
+        open,
+        title,
+        toggle,
+        animate,
+        mode,
+        pinnable,
+        pinned,
+        setPinned,
+        dismiss
+    };
 }
 
 /**
@@ -269,15 +378,25 @@ export function PageActionsPortal({ children }: { children: ReactNode }) {
  */
 export function RightPanelPortal({
     title,
+    overlay = false,
     children
 }: {
     /** The panel's heading, shown in its header row. */
     title: string;
+    /**
+     * Open the panel **over** the page on demand rather than as a docked
+     * column — the entry editor's Details. The reader can pin it back into a
+     * column; that choice persists per browser.
+     */
+    overlay?: boolean;
     children: ReactNode;
 }) {
     const { panelHost, registerPanel } = usePageChrome();
 
-    useEffect(() => registerPanel(title), [registerPanel, title]);
+    useEffect(
+        () => registerPanel(title, overlay),
+        [registerPanel, title, overlay]
+    );
 
     return panelHost ? createPortal(children, panelHost) : null;
 }

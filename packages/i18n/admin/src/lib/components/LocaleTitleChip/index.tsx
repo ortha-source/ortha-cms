@@ -37,6 +37,7 @@ import {
     LocaleMenuItem,
     type LocaleMenuItemInertReason
 } from './LocaleMenuItem';
+import { LocaleDots, type LocaleDotState } from './LocaleDots';
 
 const messages = defineMessages({
     label: {
@@ -47,10 +48,6 @@ const messages = defineMessages({
         id: 'i18n.localeMenu.trigger',
         defaultMessage:
             'Locale: {name}. {translated} of {total} translated. Choose a locale'
-    },
-    count: {
-        id: 'i18n.localeMenu.count',
-        defaultMessage: '{translated}/{total}'
     },
     localesUnavailable: {
         id: 'i18n.localeMenu.localesUnavailable',
@@ -407,6 +404,17 @@ export function LocaleTitleChip({
     // it is the source most translations start from, so it is the one row a
     // reader should never have to hunt for. `sort` is stable, so the rest keep
     // their configured order.
+    // Each locale's dot on the trigger: its publish state, or hollow where
+    // the record does not exist in it yet. A type without publishing has no
+    // publish state to tell apart, so an existing locale reads as done.
+    const dotState = (slug: string): LocaleDotState => {
+        const sibling = siblingFor(slug);
+        if (!sibling) return 'missing';
+        if (!schema.publishable || sibling.status === 'published')
+            return 'published';
+        return sibling.publishedAt ? 'modified' : 'draft';
+    };
+
     const orderedLocales = [...locales].sort(
         (a, b) => Number(b.isDefault) - Number(a.isDefault)
     );
@@ -553,21 +561,23 @@ export function LocaleTitleChip({
                         dragged the ` · ` to the wrong side of itself — the
                         separator belongs to the chip's layout, not to the name
                         (`ORT-86`). */}
+                    {/* The name gives way first on a narrow work area: the
+                        code and the dots still say which and how many. */}
                     {currentName ? (
-                        <>
+                        <span className="hidden lg:inline">
                             {' · '}
                             <span {...localeAttrs(locales, currentLocale)}>
                                 {currentName}
                             </span>
-                        </>
+                        </span>
                     ) : null}
                     {countKnown ? (
-                        <span className="font-normal text-muted-foreground">
-                            {intl.formatMessage(messages.count, {
-                                translated,
-                                total
-                            })}
-                        </span>
+                        <LocaleDots
+                            states={orderedLocales.map((locale) => ({
+                                slug: locale.slug,
+                                state: dotState(locale.slug)
+                            }))}
+                        />
                     ) : null}
                     <ChevronDown
                         aria-hidden

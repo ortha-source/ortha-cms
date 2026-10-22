@@ -110,7 +110,7 @@ describe('transformPastedHTML', () => {
     });
 
     // covers: wysiwyg:I-32
-    it('is reached from the paste hook and from nowhere else', () => {
+    it('is reached from the paste hooks and from nowhere else', () => {
         // The invariant's second half — "a colour applied by a toolbar command
         // does not [lose it]" — is a statement about *where* this runs. The
         // colour commands write through TipTap; nothing in this package may
@@ -122,8 +122,11 @@ describe('transformPastedHTML', () => {
             .filter((file) =>
                 /\btransformPastedHTML\b/.test(readFileSync(file, 'utf8'))
             )
-            .map((file) => file.slice(SRC.length + 1));
+            .map((file) => file.slice(SRC.length + 1))
+            .sort();
 
+        // The two editing surfaces: the full view's panel and the in-place
+        // editor in the form.
         expect(callers).toEqual([
             join(
                 'lib',
@@ -131,13 +134,22 @@ describe('transformPastedHTML', () => {
                 'components',
                 'WysiwygEditorPanel',
                 'index.tsx'
+            ),
+            join(
+                'lib',
+                'presentation',
+                'components',
+                'WysiwygInlineEditor',
+                'index.tsx'
             )
         ]);
 
-        // …and in that one file it is an `editorProps` key, which is the
-        // clipboard seam, rather than something called from `onUpdate`.
-        const panel = readFileSync(join(SRC, callers[0]), 'utf8');
-        expect(panel).toMatch(/editorProps:\s*\{/);
-        expect(panel).toMatch(/^\s+transformPastedHTML\s*$/m);
+        // …and in each it is an `editorProps` key, which is the clipboard
+        // seam, rather than something called from `onUpdate`.
+        for (const caller of callers) {
+            const surface = readFileSync(join(SRC, caller), 'utf8');
+            expect(surface).toMatch(/editorProps:\s*\{/);
+            expect(surface).toMatch(/^\s+transformPastedHTML\s*$/m);
+        }
     });
 });

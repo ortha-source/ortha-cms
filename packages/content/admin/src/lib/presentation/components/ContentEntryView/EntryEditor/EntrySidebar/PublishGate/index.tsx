@@ -5,6 +5,8 @@ import { EntrySidebarSection } from '../../../../EntrySidebarSection';
 
 /** One row of the publish gate: a field check with its live pass/fail. */
 export type PublishGateItem = {
+    /** The field's name — where the header's status list jumps to. */
+    field?: string;
     /** The field's display label. */
     label: string;
     /** Whether the field currently passes publish validation. */

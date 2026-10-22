@@ -334,6 +334,64 @@ export const ENTRY_PUBLISH_GUARD_SLOT = createSlot<EntryPublishGuardItem>(
     'content.entry.publishGuard'
 );
 
+/**
+ * How much a status item matters, in the one order used everywhere: what
+ * **blocks** publishing, then what the author should **know** before they do
+ * (a warning), then context (info).
+ */
+export type EntryStatusSeverity = 'blocking' | 'warning' | 'info';
+
+/**
+ * One thing the editor's header has to say beyond the save state — a field
+ * that blocks publishing, a guard's refusal, a check that flagged the record.
+ * Content decides where it shows (the header's status cluster, the Details
+ * panel); a plugin only reports it.
+ */
+export type EntryStatusItem = {
+    /** Stable id (used as the React key). */
+    id: string;
+    severity: EntryStatusSeverity;
+    /** Short, already localized: "Review requested". */
+    label: string;
+    /** One line under it in the list: "Waiting for Mira Chen since 10:32". */
+    detail?: string;
+    /**
+     * Where the item leads: a field to scroll to and focus, or an action of
+     * the contributor's own ("Remind").
+     */
+    target?: { field: string } | { label: string; onSelect: () => void };
+};
+
+/**
+ * A plugin's report into the header's status cluster. `useItem` is a **hook**,
+ * mounted once per editor render and called unconditionally (items are
+ * boot-frozen), so it may run queries; it returns `null` when it has nothing
+ * to say.
+ */
+export type EntryStatusItemContribution = {
+    /** Stable id; the item's own `id` may differ. */
+    id: string;
+    /** Order among items of the same severity. Lower comes first. */
+    order?: number;
+    /** Whether the contribution applies to the open type. Filters the result. */
+    appliesTo?: (schema: ContentTypeDetail) => boolean;
+    useItem: (
+        context: EntrySlotContext,
+        state: EntryPublishGuardState
+    ) => EntryStatusItem | null;
+};
+
+/**
+ * Status items for the entry editor's header (`docs/design/entry-editor.md`,
+ * _Status items_). Plugins **do not draw header chips** — they report here,
+ * and content renders the cluster: at most two chips, most severe first, the
+ * rest behind "+N" in a grouped list. `@orthacms/alarms-admin` reports open
+ * check findings.
+ */
+export const ENTRY_STATUS_ITEM_SLOT = createSlot<EntryStatusItemContribution>(
+    'content.entry.statusItem'
+);
+
 /** One always-mounted overlay contribution for the content library. */
 export type ContentOverlayItem = {
     /** Stable id (used as the React key). */

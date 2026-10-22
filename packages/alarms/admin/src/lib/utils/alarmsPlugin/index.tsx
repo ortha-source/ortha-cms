@@ -3,6 +3,7 @@ import { lazyPage } from '@orthacms/utils-admin';
 import type { AdminPlugin } from '@orthacms/bootstrap-admin';
 import {
     ENTRY_SIDEBAR_WIDGET_SLOT,
+    ENTRY_STATUS_ITEM_SLOT,
     RECORDS_COLUMN_SLOT,
     RECORDS_TOOLBAR_SLOT,
     type ContentTypeDetail,
@@ -17,6 +18,7 @@ import { BellRing } from 'lucide-react';
 import { AlarmsSkeleton } from '../../presentation/components/AlarmsSkeleton';
 import { AlarmsColumnCell } from '../../presentation/components/AlarmsColumnCell';
 import { EntryAlarmsWidget } from '../../presentation/components/EntryAlarmsWidget';
+import { useAlarmsStatusItem } from '../../presentation/hooks/useAlarmsStatusItem';
 import { SaveFilterAsRuleAction } from '../../presentation/components/SaveFilterAsRuleAction';
 import { FindingsToolResult } from '../../presentation/components/FindingsToolResult';
 import { useFindingsByEntry } from '../../application/useFindingsByEntry';
@@ -138,6 +140,18 @@ export function AlarmsPlugin(): AlarmsAdminPlugin {
                         // thing you need when you open one.
                         order: 40,
                         Component: EntryAlarmsWidget
+                    }
+                ]
+            },
+            // The same findings as one heads-up in the editor's header, so a
+            // flag is seen without opening the Details panel.
+            {
+                slot: ENTRY_STATUS_ITEM_SLOT,
+                items: [
+                    {
+                        id: 'alarms.entry.status',
+                        order: 40,
+                        useItem: useAlarmsStatusItem
                     }
                 ]
             },

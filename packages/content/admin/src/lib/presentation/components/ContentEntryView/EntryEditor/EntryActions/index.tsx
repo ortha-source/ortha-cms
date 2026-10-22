@@ -28,15 +28,18 @@ import {
 import { shortcutModifierGlyph } from '../../../../../domain/shortcutModifier';
 import { useEntrySlotContext } from '../../../../hooks/useEntrySlotContext';
 import { useEntryShortcuts } from '../../../../hooks/useEntryShortcuts';
+import { useEntryStatusItems } from '../../../../hooks/useEntryStatusItems';
 import {
     ENTRY_PUBLISH_GUARD_SLOT,
     type EntryPublishGuardState,
     type EntryPublishOptions,
     type EntryPublishVerdict,
-    type EntrySlotContext
+    type EntrySlotContext,
+    type EntryStatusItem
 } from '../../../../slots/contentSlots';
 import { EntryMenu } from './EntryMenu';
 import { EntrySaveState } from './EntrySaveState';
+import { EntryStatusCluster } from './EntryStatusCluster';
 
 const messages = defineMessages({
     save: { id: 'content.editor.save', defaultMessage: 'Save' },
@@ -129,7 +132,9 @@ export function EntryActions({
     onSaveDraft,
     onPublish,
     onUnpublish,
-    onDelete
+    onDelete,
+    issues = [],
+    onGoToField
 }: {
     entry?: EntryRecord;
     publishable: boolean;
@@ -156,6 +161,14 @@ export function EntryActions({
     onUnpublish?: () => void;
     /** Delete the entry — only on a saved entry. */
     onDelete?: () => void;
+    /**
+     * The editor's own status items: each field that blocks publishing
+     * (`field:<name>`), shown in the header's status cluster with a guard's
+     * refusal and the plugins' reports.
+     */
+    issues?: EntryStatusItem[];
+    /** Scroll a field into view and focus it — the cluster's "Go to field". */
+    onGoToField?: (name: string) => void;
 }) {
     const intl = useIntl();
     // Always present in practice — `ContentEntryView` wraps the editor in the
@@ -174,6 +187,7 @@ export function EntryActions({
     const published = entry?.status === ENTRY_STATUS.Published;
 
     const { blocking, overlays } = usePublishVerdict(slotContext, { dirty });
+    const contributed = useEntryStatusItems(slotContext, { dirty });
 
     const showPublish = publishable && canPublish && canSave;
     const showUnpublish =
@@ -214,6 +228,24 @@ export function EntryActions({
     // override keeps the button an ordinary Publish and hands the click to the
     // contribution, which publishes through `onPublish` once its own ceremony
     // is done.
+    // Everything the header has to say beyond the save state, in one list: the
+    // fields that block publishing, the guard's refusal (in its own words —
+    // the button itself stays an ordinary Publish, ADR-0017), and what the
+    // plugins report.
+    const statusItems: EntryStatusItem[] = [
+        ...(showPublish ? issues : []),
+        ...(guard?.reason
+            ? [
+                  {
+                      id: 'publish-guard',
+                      severity: 'blocking' as const,
+                      label: guard.reason
+                  }
+              ]
+            : []),
+        ...contributed
+    ];
+
     const publish = override
         ? () => override.onSelect((options) => onPublish(options))
         : () => onPublish();
@@ -342,6 +374,7 @@ export function EntryActions({
 
     return (
         <>
+            <EntryStatusCluster items={statusItems} onGoToField={onGoToField} />
             {canSave ? (
                 <EntrySaveState
                     dirty={dirty}

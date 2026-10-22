@@ -58,6 +58,12 @@ export const PUBLISH_SHORTCUT_KEY = 'p';
 export const DETAILS_SHORTCUT_KEY = '.';
 
 /**
+ * The id prefix of the editor's own status items for fields that block
+ * publishing (`field:<name>`). The header folds them into one "N issues" chip.
+ */
+export const FIELD_ISSUE_PREFIX = 'field:';
+
+/**
  * Sub-route segment under a collection for the create-entry view
  * (`/workspaces/:id/content/:typeName/new`). A static segment, so React Router
  * ranks it above the `:${ENTRY_PARAM}` route.

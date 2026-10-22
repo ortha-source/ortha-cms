@@ -19,14 +19,20 @@ import type {
 } from '../../../../domain/types/contentType';
 import { ApiError, useUnsavedChanges } from '@orthacms/utils-admin';
 import { useHasPermission } from '@orthacms/identity-admin';
-import { PageActionsPortal, RightPanelPortal } from '@orthacms/shell-admin';
+import {
+    PageActionsPortal,
+    RightPanelPortal,
+    useRightPanel
+} from '@orthacms/shell-admin';
 import {
     CONTENT_CREATE,
     CONTENT_FIELD_TYPE,
     CONTENT_UPDATE,
     ENTRY_TAB,
     ENTRY_TAB_SLUGS,
-    RETIRED_ENTRY_TABS
+    RETIRED_ENTRY_TABS,
+    DETAILS_SHORTCUT_KEY,
+    FIELD_ISSUE_PREFIX
 } from '../../../../domain/constants';
 import { useEntryForm } from '../../../hooks/useEntryForm';
 import { useEntrySlotContext } from '../../../hooks/useEntrySlotContext';
@@ -43,6 +49,7 @@ import {
     ENTRY_TAB_SLOT,
     type EntryFieldControlContext,
     type EntryPublishOptions,
+    type EntryStatusItem,
     type EntryTabContext
 } from '../../../slots/contentSlots';
 import { useEntryRelations } from '../../../../application/useEntryRelations';
@@ -594,6 +601,7 @@ export function EntryEditor({
             .filter((field) => !validationIgnored.has(field.name))
             .filter((field) => field.required || form.errors[field.name])
             .map((field) => ({
+                field: field.name,
                 label: fieldLabel(field),
                 ok: !form.errors[field.name],
                 message: form.errors[field.name]
@@ -630,6 +638,7 @@ export function EntryEditor({
                 (serverTotal ?? 0) - staged.removed.length + staged.added.length
             );
             out.push({
+                field: field.name,
                 label: fieldLabel(field),
                 ok: count > 0,
                 message:
@@ -1080,6 +1089,55 @@ export function EntryEditor({
         );
     };
 
+    // What blocks publishing, as status items for the header's cluster: one
+    // per failing gate check, each leading to its field.
+    const issues: EntryStatusItem[] = gate
+        .filter((item) => !item.ok && item.field)
+        .map((item) => ({
+            id: `${FIELD_ISSUE_PREFIX}${item.field}`,
+            severity: 'blocking',
+            label: item.label,
+            ...(item.message ? { detail: item.message } : {}),
+            target: { field: item.field as string }
+        }));
+
+    /**
+     * Take the reader to a field from anywhere — the header's status list:
+     * back to the Content view, its section unfolded, then scrolled to and
+     * focused once the section has had a frame or two to mount it.
+     */
+    const goToField = (name: string) => {
+        if (shownTab !== ENTRY_TAB.General) onTabChange(ENTRY_TAB.General);
+        setExpandedFieldName(null);
+        const group = schema.fields.find((field) => field.name === name)
+            ?.admin?.['group'];
+        if (
+            typeof group === 'string' &&
+            schema.groups?.some((section) => section.key === group)
+        ) {
+            revealSection(group);
+        }
+        requestAnimationFrame(() =>
+            requestAnimationFrame(() => focusField(name))
+        );
+    };
+
+    // ⌘. / Ctrl+. opens and closes the Details panel from anywhere in the
+    // editor — the same toggle as the top bar's button.
+    const rightPanel = useRightPanel();
+    const togglePanel = rightPanel?.present ? rightPanel.toggle : null;
+    useEffect(() => {
+        if (!togglePanel) return;
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
+            if (event.shiftKey || event.key !== DETAILS_SHORTCUT_KEY) return;
+            event.preventDefault();
+            togglePanel();
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [togglePanel]);
+
     const save = (publish: boolean, options?: EntryPublishOptions) => {
         if (readOnly) return;
         // Every save asks the server first. Only it knows whether another live
@@ -1185,6 +1243,8 @@ export function EntryEditor({
                                         }
                                         onUnpublish={onUnpublish}
                                         onDelete={onDelete}
+                                        issues={issues}
+                                        onGoToField={goToField}
                                     />
                                 )}
                             </PageActionsPortal>
@@ -1193,6 +1253,9 @@ export function EntryEditor({
                                 title={intl.formatMessage(
                                     messages.propertiesPanel
                                 )}
+                                // Opened on demand over the form (⌘.), or
+                                // pinned beside it by the reader (ADR-0022).
+                                overlay
                             >
                                 <EntrySidebar
                                     entry={entry}

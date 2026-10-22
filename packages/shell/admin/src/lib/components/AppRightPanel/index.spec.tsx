@@ -135,3 +135,99 @@ describe('AppRightPanel', () => {
         expect(column().className).toContain('w-0');
     });
 });
+
+/** A page that asks for its panel on demand, as the entry editor's Details does. */
+function PageWithOverlay() {
+    return (
+        <RightPanelPortal title="Details" overlay>
+            <button type="button">Inside</button>
+        </RightPanelPortal>
+    );
+}
+
+describe('AppRightPanel — overlay', () => {
+    const showDetails = () => screen.queryByLabelText('Show Details');
+
+    it('starts closed and floats over the page when opened', () => {
+        render(
+            <Chrome>
+                <PageWithOverlay />
+            </Chrome>
+        );
+        expect(column().dataset['mode']).toBe('overlay');
+        expect(column().hasAttribute('inert')).toBe(true);
+
+        fireEvent.click(showDetails() as HTMLElement);
+
+        expect(column().hasAttribute('inert')).toBe(false);
+        expect(column().className).toContain('fixed');
+        // A floating card takes no width from the page.
+        expect(column().className).not.toContain('w-0');
+    });
+
+    it('closes on a click outside, but not on one inside', () => {
+        render(
+            <Chrome>
+                <PageWithOverlay />
+                <p>Form</p>
+            </Chrome>
+        );
+        fireEvent.click(showDetails() as HTMLElement);
+
+        fireEvent.pointerDown(screen.getByText('Inside'));
+        expect(column().hasAttribute('inert')).toBe(false);
+
+        fireEvent.pointerDown(screen.getByText('Form'));
+        expect(column().hasAttribute('inert')).toBe(true);
+    });
+
+    it('closes on Escape', () => {
+        render(
+            <Chrome>
+                <PageWithOverlay />
+            </Chrome>
+        );
+        fireEvent.click(showDetails() as HTMLElement);
+        fireEvent.keyDown(document, { key: 'Escape' });
+        expect(column().hasAttribute('inert')).toBe(true);
+    });
+
+    it('pins into a docked column, and the pin outlives the page', () => {
+        const { unmount } = render(
+            <Chrome>
+                <PageWithOverlay />
+            </Chrome>
+        );
+        fireEvent.click(showDetails() as HTMLElement);
+        fireEvent.click(screen.getByLabelText('Pin Details beside the page'));
+
+        expect(column().dataset['mode']).toBe('docked');
+        expect(column().className).toContain('w-(--right-panel-width)');
+        expect(window.localStorage.getItem('orthacms:right-panel:pinned')).toBe(
+            'true'
+        );
+        unmount();
+
+        render(
+            <Chrome>
+                <PageWithOverlay />
+            </Chrome>
+        );
+        // Docked and open on arrival, as a pinned column is.
+        expect(column().dataset['mode']).toBe('docked');
+        expect(column().hasAttribute('inert')).toBe(false);
+        expect(
+            screen.getByLabelText('Unpin Details').getAttribute('aria-pressed')
+        ).toBe('true');
+    });
+
+    it('offers no pin to a page that did not ask for the overlay', () => {
+        render(
+            <Chrome>
+                <PageWithPanel />
+            </Chrome>
+        );
+        expect(column().dataset['mode']).toBe('docked');
+        expect(screen.queryByLabelText(/Pin Properties/)).toBeNull();
+    });
+});
