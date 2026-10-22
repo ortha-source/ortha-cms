@@ -705,13 +705,13 @@ export function EntryEditor({
     // those. `form.errors` is live and ungated by `submitted`, deliberately:
     // the marker says "this is what publishing still wants", not "you got
     // something wrong just now".
-    const contentUnmet = useMemo(
+    const contentIssueCount = useMemo(
         () =>
-            visible.some(
+            visible.filter(
                 (field) =>
                     !validationIgnored.has(field.name) &&
                     !!form.errors[field.name]
-            ) || relationGate.some((item) => !item.ok),
+            ).length + relationGate.filter((item) => !item.ok).length,
         [form.errors, visible, validationIgnored, relationGate]
     );
 
@@ -1364,8 +1364,12 @@ export function EntryEditor({
                                         : wideWorkArea && 'sm:px-10',
                                     // Clear of the phone's bottom action bar.
                                     isMobile && !locked && 'pb-36',
-                                    // Room for "On this page" beside the form.
-                                    showPageNav && wideWorkArea && 'sm:pl-60'
+                                    // "On this page" beside the form: the two
+                                    // are one group, centred together, the
+                                    // list level with the title.
+                                    showPageNav &&
+                                        wideWorkArea &&
+                                        'sm:flex-row sm:items-start sm:justify-center sm:gap-12'
                                 )}
                             >
                                 {/* Centered reading column: the editor content is capped and
@@ -1375,7 +1379,10 @@ export function EntryEditor({
                     is the cramped thing the expansion exists to fix. */}
                                 <div
                                     className={cn(
-                                        'mx-auto w-full',
+                                        'w-full',
+                                        showPageNav && wideWorkArea
+                                            ? 'min-w-0 flex-1'
+                                            : 'mx-auto',
                                         expandedContext
                                             ? 'flex min-h-0 max-w-6xl flex-1 flex-col'
                                             : // History lays a list beside a
@@ -1468,8 +1475,8 @@ export function EntryEditor({
                                                                 messages.tabGeneral
                                                             )}
                                                             <EntryTabIssues
-                                                                unmet={
-                                                                    contentUnmet
+                                                                count={
+                                                                    contentIssueCount
                                                                 }
                                                             />
                                                         </TabsTrigger>
@@ -1569,15 +1576,14 @@ export function EntryEditor({
                                     )}
                                 </div>
 
-                                {/* The General tab's outline, in the pane's left
-                            padding: bars that open into a list of labels
-                            and jump to a field. After the form in the DOM so
+                                {/* "On this page", drawn before the form
+                            (`order-first`) but after it in the DOM, so
                             tabbing through the fields does not first stop on
-                            one button per field. The pane widens its left
-                            padding to hold it (`showOutline`). */}
+                            one button per section. It stretches with the row
+                            so its list can stay in view as the form scrolls. */}
                                 {showPageNav && wideWorkArea ? (
-                                    <div className="pointer-events-none absolute inset-y-0 left-6">
-                                        <div className="pointer-events-auto sticky top-16 pt-6">
+                                    <div className="order-first w-[184px] shrink-0 self-stretch">
+                                        <div className="sticky top-8">
                                             {pageNav('list')}
                                         </div>
                                     </div>

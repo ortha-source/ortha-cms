@@ -68,7 +68,20 @@ short — and where an older paragraph further down disagrees, this wins:
 - **"On this page"** (`EntryPageNav`, `domain/pageSections`, `content:I-69`)
   replaced the per-field outline: sections only, from three on — a list
   beside the form on a work area of at least 1024px, a "Sections" menu in
-  the title block below that.
+  the title block below that. Beside the form the two are **one centred
+  group** (a 184px list, 48px gap, the 720px form), the list level with the
+  title and sticky as the form scrolls; it is drawn first but sits after the
+  form in the DOM, so tabbing reaches the fields first. A row with a blocking
+  field turns red and carries a count chip, a row with unsaved edits a dot,
+  and a legend under the list names the marks shown. The Content tab carries
+  the same count chip.
+- **Relations read as the canvas draws them**: a many relation's records are
+  one framed list (`RelationItemRow variant="list"`, 44px rows ruled from the
+  one above, `01`… numbers, mono `/slug`, an xs status badge) with a quiet
+  "+ Add …" under it; a single relation is one framed row. No derived
+  "Single relation — …" line under the field — only the schema's own
+  description; an inverse relation says where its links come from in the
+  label row.
 - **On a phone** the write actions sit in a sticky bottom bar
   (`EntryActions layout="bottom"`) and Properties is a bottom sheet.
 

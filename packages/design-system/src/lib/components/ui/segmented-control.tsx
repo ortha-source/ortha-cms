@@ -19,11 +19,12 @@ import {
  * `field` — a form control in a column of form controls, which is the boolean
  * field in the entry editor. There it has to match `Input`, `Textarea` and
  * `SelectTrigger` exactly or it reads as a foreign object dropped into the form:
- * the same `rounded-lg`, the same `border-input` (a deliberately *darker* token
- * than `border`, so an editable surface is distinguishable from a card edge),
- * and the same 36px height — `h-9` on the box with `h-7` items inside its
- * `p-1`, since the default's 38px left the boolean field two pixels taller than
- * every field around it.
+ * the same `rounded-lg` and the same 36px height — `h-9` on the box with `h-7`
+ * items inside its 3px padding, since the default's 38px left the boolean
+ * field two pixels taller than every field around it. Its look is the muted
+ * variant's — a grey track, the selected segment a raised white tab — which is
+ * the canvas's boolean control: a filled black segment in a column of quiet
+ * inputs read as the one pressed button on the page.
  *
  * It also takes their focus mark, on the **whole box** and on any focus
  * (`focus-within`): an item's own 1px `focus-visible` ring vanishes on the
@@ -44,7 +45,7 @@ const segmentedControlVariants = cva(
                  * Cannot see), where a filled black segment would shout.
                  */
                 muted: 'h-8 gap-0.5 rounded-lg border-transparent bg-muted p-[3px] [&>*]:h-[26px] [&>*]:rounded-md',
-                field: 'h-9 rounded-lg border-input focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15 aria-invalid:focus-within:ring-destructive/30 [&>*]:h-7'
+                field: 'h-9 rounded-lg border-transparent bg-muted p-[3px] focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15 aria-invalid:focus-within:ring-destructive/30 [&>*]:h-7 [&>*]:rounded-md [&>*]:px-3.5'
             }
         },
         defaultVariants: {
@@ -118,7 +119,7 @@ const SegmentedControl = React.forwardRef<
                     data-slot="segmented-indicator"
                     className={cn(
                         'pointer-events-none absolute left-0 top-0 rounded-lg bg-primary',
-                        variant === 'muted' &&
+                        (variant === 'muted' || variant === 'field') &&
                             'rounded-md bg-background shadow-xs',
                         settled &&
                             'transition-[translate,width,height] duration-(--ds-duration-base) ease-(--ds-ease-out) motion-reduce:transition-none',
@@ -158,6 +159,8 @@ const SegmentedControlItem = React.forwardRef<
             // On the muted track the selected segment is a raised white tab
             // in the text colour, at the same weight.
             'group-data-[variant=muted]/segmented:data-[state=on]:bg-background group-data-[variant=muted]/segmented:data-[state=on]:font-medium group-data-[variant=muted]/segmented:data-[state=on]:text-foreground group-data-[variant=muted]/segmented:data-[state=on]:shadow-xs',
+            // The field variant is the same quiet switch, at a field's height.
+            'group-data-[variant=field]/segmented:data-[state=on]:bg-background group-data-[variant=field]/segmented:data-[state=on]:font-medium group-data-[variant=field]/segmented:data-[state=on]:text-foreground group-data-[variant=field]/segmented:data-[state=on]:shadow-xs',
             // While the root's sliding pill is live it is the fill.
             'group-data-[indicator=live]/segmented:data-[state=on]:bg-transparent',
             'disabled:pointer-events-none disabled:opacity-50',

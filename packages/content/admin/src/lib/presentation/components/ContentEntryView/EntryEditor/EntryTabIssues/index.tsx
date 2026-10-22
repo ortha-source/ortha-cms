@@ -1,54 +1,55 @@
 import { defineMessages, useIntl } from 'react-intl';
+import { Badge } from '@orthacms/design-system';
 
 /** Intl descriptors for the tab marker, co-located here. */
 const messages = defineMessages({
-    // Read out after the tab's own name, so a screen-reader user hears
-    // "Relations, required fields still to fill". The asterisk itself is
-    // `aria-hidden`: read literally it is the word "star", which says nothing.
-    required: {
-        id: 'content.entry.tabRequired',
-        defaultMessage: 'required fields still to fill'
+    // Read after the tab's own name, so a screen reader hears
+    // "Content, 2 to fix before publishing". The count itself is aria-hidden.
+    issues: {
+        id: 'content.entry.tabIssues',
+        defaultMessage:
+            '{count, plural, one {# to fix} other {# to fix}} before publishing'
     }
 });
 
 /** Props for {@link EntryTabIssues}. */
 export type EntryTabIssuesProps = {
-    /** Whether any field on this tab still blocks publishing. */
-    unmet: boolean;
+    /** How many fields on this tab still block publishing. */
+    count: number;
 };
 
 /**
  * The marker on an entry-editor tab whose fields are not yet publishable — a
  * required field left empty, or any field holding an invalid value.
  *
- * An asterisk, which is already what a required field is marked with across
- * forms, so the tab bar borrows a convention the reader has met rather than
- * inventing one. **It is a glyph, not a tint**: a bare coloured dot would carry
- * its meaning only for people who can see it against the surrounding text,
- * which is the trap `SkillPicker` calls out for its own tinted trigger. The
- * `text-destructive` here reinforces the asterisk; it never has to carry it
- * alone.
+ * A count in a small destructive chip, the same chip "On this page" puts on
+ * the section holding them, so the tab and the section say one thing. **It is
+ * a number, not a tint**: a bare coloured dot would carry its meaning only for
+ * people who can see it against the surrounding text.
  *
  * Renders nothing when the tab is satisfied, so a tab that is fine stays
  * visually quiet and the bar doesn't reserve width it isn't using.
  */
-export function EntryTabIssues({ unmet }: EntryTabIssuesProps) {
+export function EntryTabIssues({ count }: EntryTabIssuesProps) {
     const intl = useIntl();
 
-    if (!unmet) {
+    if (count <= 0) {
         return null;
     }
 
     return (
-        // `-ml-1` against the trigger's own `gap-1.5`: an asterisk belongs
-        // tight to the word it qualifies, not a control's width away from it.
-        // `leading-none` so the glyph — which sits high in its line box —
-        // centres against the label rather than riding above it.
-        <span className="text-destructive -ml-1 leading-none">
-            <span aria-hidden>*</span>
+        <>
+            <Badge
+                variant="destructive-soft"
+                size="xs"
+                className="tabular-nums"
+                aria-hidden
+            >
+                {count}
+            </Badge>
             <span className="sr-only">
-                {intl.formatMessage(messages.required)}
+                {intl.formatMessage(messages.issues, { count })}
             </span>
-        </span>
+        </>
     );
 }

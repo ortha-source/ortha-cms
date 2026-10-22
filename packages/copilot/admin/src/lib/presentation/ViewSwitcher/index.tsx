@@ -193,14 +193,18 @@ export function ViewSwitcher() {
                 // contrast between the two: `SegmentedControlItem` pairs its
                 // selected fill with `font-semibold`, so the distinction is
                 // weight plus background, and holds under 1.4.1 without colour.
-                className="border-sidebar-border bg-sidebar-accent/40 flex w-full rounded-lg p-0.5"
+                //
+                // The canvas draws it as a quiet track with the selected
+                // segment a raised white tab — the page surface, lifted off the
+                // sidebar's grey — rather than a darker grey on a grey.
+                className="bg-sidebar-accent flex w-full rounded-lg border-transparent p-[3px]"
                 // The sliding pill is the selected fill — the same one the
                 // items name for `data-[state=on]` below.
-                indicatorClassName="bg-sidebar-accent"
+                indicatorClassName="bg-background shadow-xs rounded-md"
             >
                 <SegmentedControlItem
                     value={CMS}
-                    className="text-sidebar-foreground hover:text-sidebar-foreground data-[state=on]:bg-sidebar-accent data-[state=on]:text-sidebar-foreground flex-1 justify-center px-2"
+                    className="text-sidebar-foreground hover:text-sidebar-foreground data-[state=on]:bg-background data-[state=on]:text-foreground h-7 flex-1 justify-center rounded-md px-2"
                 >
                     <Layers className="size-3.5" aria-hidden />
                     {intl.formatMessage(messages.cms)}
@@ -208,7 +212,7 @@ export function ViewSwitcher() {
                 <SegmentedControlItem
                     value={AGENTS}
                     aria-label={agentsLabel}
-                    className="text-sidebar-foreground hover:text-sidebar-foreground data-[state=on]:bg-sidebar-accent data-[state=on]:text-sidebar-foreground flex-1 justify-center px-2"
+                    className="text-sidebar-foreground hover:text-sidebar-foreground data-[state=on]:bg-background data-[state=on]:text-foreground h-7 flex-1 justify-center rounded-md px-2"
                 >
                     <Sparkles className="size-3.5" aria-hidden />
                     {intl.formatMessage(messages.agents)}

@@ -26,15 +26,6 @@ const messages = defineMessages({
         id: 'content.relations.section.loadingCount',
         defaultMessage: 'Loading linked count…'
     },
-    descSingle: {
-        id: 'content.relations.section.descSingle',
-        defaultMessage: 'Single relation — one record from {target}.'
-    },
-    descMany: {
-        id: 'content.relations.section.descMany',
-        defaultMessage:
-            'Ordered relation — drag to reorder, or use the arrows. Order is delivered as-is.'
-    },
     descInverse: {
         id: 'content.relations.section.descInverse',
         defaultMessage: 'Linked from {target}.'
@@ -116,14 +107,13 @@ export function RelationFieldSection({
     const { data: targetSchema } = useContentSchema(targetName, !!targetName);
     const targetLabel = targetSchema?.label ?? targetName;
 
-    const description = inverse
-        ? intl.formatMessage(messages.descInverse, { target: targetLabel })
-        : many
-          ? intl.formatMessage(messages.descMany)
-          : intl.formatMessage(messages.descSingle, { target: targetLabel });
+    // Only an inverse relation says where it comes from: its links are made
+    // on the other side. A single or many relation is drawn as what it is.
+    const description = intl.formatMessage(messages.descInverse, {
+        target: targetLabel
+    });
 
-    // The schema's own description wins; the derived one says what kind of
-    // relation this is when the author wrote none.
+    // The schema's own description, under the field like any field's.
     const authored = adminProps(field).description;
 
     return (
@@ -154,6 +144,13 @@ export function RelationFieldSection({
                     )
                 ) : null}
                 <span className="ml-auto flex shrink-0 items-center gap-1.5">
+                    {/* Where an inverse relation's links are made — they
+                        are read here, written on the other side. */}
+                    {inverse ? (
+                        <span className="text-xs text-muted-foreground">
+                            {description}
+                        </span>
+                    ) : null}
                     {changed ? <ChangedBadge /> : null}
                     {/* Read off THIS field's own schema, not the target's i18n
                         flag: what matters is whether a save here reaches the
@@ -191,11 +188,9 @@ export function RelationFieldSection({
                     />
                 )}
             </div>
-            {error ? null : (
-                <p className="text-xs text-muted-foreground">
-                    {typeof authored === 'string' && authored
-                        ? authored
-                        : description}
+            {error || typeof authored !== 'string' || !authored ? null : (
+                <p className="text-[13px] leading-[18px] text-muted-foreground">
+                    {authored}
                 </p>
             )}
         </div>

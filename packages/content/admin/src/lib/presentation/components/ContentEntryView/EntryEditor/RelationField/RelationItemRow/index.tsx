@@ -115,6 +115,12 @@ export type RelationItemRowProps = {
      * and keep the record's identity and its open-in-a-new-tab link.
      */
     readOnly?: boolean;
+    /**
+     * `card` — a framed row of its own (a single relation's one record).
+     * `list` — one line of a framed list, ruled from the line above (a many
+     * relation's records, the list drawing the frame).
+     */
+    variant?: 'card' | 'list';
 };
 
 export function RelationItemRow({
@@ -141,6 +147,7 @@ export function RelationItemRow({
     style,
     dragging = false,
     readOnly = false,
+    variant = 'card',
     className
 }: RelationItemRowProps) {
     const intl = useIntl();
@@ -154,7 +161,10 @@ export function RelationItemRow({
             ref={rowRef}
             style={style}
             className={cn(
-                'group/row flex items-center gap-2.5 rounded-lg border bg-card px-2.5 py-1.5 hover:border-border/80',
+                'group/row flex items-center gap-2.5',
+                variant === 'list'
+                    ? 'h-11 border-t bg-background pl-3 pr-2 first:border-t-0 hover:bg-muted/40'
+                    : 'rounded-[10px] border bg-background py-2 pl-3 pr-2 shadow-xs',
                 // The row *is* what moves (no drag overlay), so it is lifted,
                 // not dimmed — a faded row reads as the gap it left behind.
                 // Carries the colour transition `transition-colors` gave it.
@@ -192,10 +202,9 @@ export function RelationItemRow({
             {status && !trashed && !missing ? (
                 <Badge
                     variant={
-                        status === ENTRY_STATUS.Published
-                            ? 'success'
-                            : 'secondary'
+                        status === ENTRY_STATUS.Published ? 'success' : 'muted'
                     }
+                    size="xs"
                     className="shrink-0"
                 >
                     {intl.formatMessage(

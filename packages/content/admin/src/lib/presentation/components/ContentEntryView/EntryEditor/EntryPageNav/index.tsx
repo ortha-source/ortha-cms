@@ -2,6 +2,8 @@ import { useEffect, useState, type RefObject } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { ListTree } from 'lucide-react';
 import {
+    Badge,
+    BadgeDot,
     Button,
     DropdownMenu,
     DropdownMenuContent,
@@ -25,6 +27,14 @@ const messages = defineMessages({
     issues: {
         id: 'content.pageNav.issues',
         defaultMessage: '{count, plural, one {# issue} other {# issues}}'
+    },
+    legendChanged: {
+        id: 'content.pageNav.legendChanged',
+        defaultMessage: 'Unsaved changes'
+    },
+    legendIssues: {
+        id: 'content.pageNav.legendIssues',
+        defaultMessage: 'Needs a fix'
     }
 });
 
@@ -110,26 +120,30 @@ export function EntryPageNav({
     const marks = (section: PageSection) => {
         const { changed, issues } = counts(section);
         return (
-            <span className="ml-auto flex shrink-0 items-center gap-1.5 text-xs tabular-nums">
-                {issues > 0 ? (
-                    <span className="text-destructive">
-                        <span aria-hidden>{issues}</span>
-                        <span className="sr-only">
-                            {intl.formatMessage(messages.issues, {
-                                count: issues
-                            })}
-                        </span>
-                    </span>
-                ) : null}
+            <span className="ml-auto flex shrink-0 items-center gap-1.5">
                 {changed > 0 ? (
-                    <span className="text-warning-soft-foreground">
-                        <span aria-hidden>●</span>
+                    <span className="flex text-warning-soft-foreground">
+                        <BadgeDot />
                         <span className="sr-only">
                             {intl.formatMessage(messages.changed, {
                                 count: changed
                             })}
                         </span>
                     </span>
+                ) : null}
+                {issues > 0 ? (
+                    <Badge
+                        variant="destructive-soft"
+                        size="xs"
+                        className="tabular-nums"
+                    >
+                        <span aria-hidden>{issues}</span>
+                        <span className="sr-only">
+                            {intl.formatMessage(messages.issues, {
+                                count: issues
+                            })}
+                        </span>
+                    </Badge>
                 ) : null}
             </span>
         );
@@ -169,18 +183,22 @@ export function EntryPageNav({
         );
     }
 
+    const anyChanged = sections.some((section) => counts(section).changed);
+    const anyIssues = sections.some((section) => counts(section).issues);
+
     return (
         <nav
             aria-label={intl.formatMessage(messages.title)}
             data-testid="entry-page-nav"
-            className="flex w-46 flex-col gap-1"
+            className="flex w-[184px] flex-col gap-0.5 pt-1"
         >
-            <h2 className="px-2 pb-1 text-xs font-medium text-muted-foreground">
+            <h2 className="px-2.5 pb-2 text-xs font-medium text-muted-foreground">
                 {intl.formatMessage(messages.title)}
             </h2>
-            <ul className="flex flex-col">
+            <ul className="flex flex-col gap-0.5">
                 {sections.map((section) => {
                     const active = current === section.key;
+                    const failing = counts(section).issues > 0;
                     return (
                         <li key={section.key}>
                             <button
@@ -188,10 +206,12 @@ export function EntryPageNav({
                                 aria-current={active ? 'location' : undefined}
                                 onClick={() => go(section.key)}
                                 className={cn(
-                                    'flex w-full items-center gap-2 rounded-md border-l-2 px-2 py-1 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                                    'flex h-[30px] w-full items-center gap-2 rounded-md px-2.5 text-left text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                                     active
-                                        ? 'border-primary bg-muted/60 font-medium text-foreground'
-                                        : 'border-transparent text-muted-foreground hover:text-foreground'
+                                        ? 'bg-muted font-medium text-foreground'
+                                        : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+                                    failing &&
+                                        'text-destructive hover:text-destructive'
                                 )}
                             >
                                 <span className="truncate">
@@ -203,6 +223,28 @@ export function EntryPageNav({
                     );
                 })}
             </ul>
+            {/* What the marks mean, once, under the list — only the marks
+                actually drawn. Hidden from assistive tech: each mark already
+                carries its own sr-only sentence. */}
+            {anyChanged || anyIssues ? (
+                <div
+                    aria-hidden
+                    className="mx-2.5 mt-3 flex flex-col gap-1.5 border-t pt-3 text-xs text-muted-foreground"
+                >
+                    {anyChanged ? (
+                        <span className="flex items-center gap-2">
+                            <BadgeDot className="text-warning-soft-foreground" />
+                            {intl.formatMessage(messages.legendChanged)}
+                        </span>
+                    ) : null}
+                    {anyIssues ? (
+                        <span className="flex items-center gap-2">
+                            <BadgeDot className="text-destructive" />
+                            {intl.formatMessage(messages.legendIssues)}
+                        </span>
+                    ) : null}
+                </div>
+            ) : null}
         </nav>
     );
 }

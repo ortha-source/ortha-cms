@@ -83,10 +83,11 @@ hand-written):
 - **`SegmentedControl` has two variants, and the default is the toolbar one.**
   `variant="field"` is for a segmented control used as a **form control** — the
   entry editor's boolean field — and matches `Input` / `Textarea` /
-  `SelectTrigger` on radius, border token and height. Those are not
-  interchangeable with the toolbar's: `border-input` is deliberately a step
-  darker than `border`, so an editable surface reads as editable, and the
-  toolbar's 38px box left the boolean field standing proud of its neighbours.
+  `SelectTrigger` on radius and height; the toolbar's 38px box left the boolean
+  field standing proud of its neighbours. Its look is the muted variant's (a
+  grey track, the selected segment a raised white tab) — the canvas's boolean
+  control: a filled black segment in a column of quiet inputs read as the one
+  pressed button on the page.
   Five of the six call sites are toolbars, which is why the fix is a variant
   rather than a change to the base class. A third, `variant="muted"`, is the
   quiet switch inside dense content (the History filter, the Access table's

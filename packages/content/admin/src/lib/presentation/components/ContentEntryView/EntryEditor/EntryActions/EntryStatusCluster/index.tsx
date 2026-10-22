@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
+import { CircleAlert, TriangleAlert, type LucideIcon } from 'lucide-react';
 import {
     Badge,
     Button,
@@ -36,14 +37,21 @@ const messages = defineMessages({
     goTo: { id: 'content.status.goTo', defaultMessage: 'Go to field' }
 });
 
-/** A chip's tint by severity: destructive, warning, then neutral. */
+/** A chip's tint by severity: destructive, warning, then informational. */
 const CHIP_VARIANT: Record<
     EntryStatusSeverity,
-    'destructive-soft' | 'warning' | 'secondary'
+    'destructive-soft' | 'warning' | 'info'
 > = {
     blocking: 'destructive-soft',
     warning: 'warning',
-    info: 'secondary'
+    info: 'info'
+};
+
+/** A chip's lead icon by severity; an informational chip has none. */
+const CHIP_ICON: Record<EntryStatusSeverity, LucideIcon | null> = {
+    blocking: CircleAlert,
+    warning: TriangleAlert,
+    info: null
 };
 
 /** One chip the bar draws: an item, or the folded count of field issues. */
@@ -172,19 +180,32 @@ export function EntryStatusCluster({
                     aria-label={intl.formatMessage(messages.name, {
                         summary: sources.map((chip) => chip.label).join(', ')
                     })}
-                    className="flex shrink-0 items-center gap-1 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="flex shrink-0 items-center gap-1.5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                    {chips.map((chip) => (
-                        <Badge
-                            key={chip.id}
-                            variant={CHIP_VARIANT[chip.severity]}
-                            className="max-w-48 truncate"
-                        >
-                            {chip.label}
-                        </Badge>
-                    ))}
+                    {chips.map((chip) => {
+                        const Icon = CHIP_ICON[chip.severity];
+                        return (
+                            <Badge
+                                key={chip.id}
+                                variant={CHIP_VARIANT[chip.severity]}
+                                className={cn(
+                                    'h-7 max-w-56 gap-1.5 rounded-lg px-2.5',
+                                    chip.severity === 'blocking' &&
+                                        'font-semibold'
+                                )}
+                            >
+                                {Icon ? (
+                                    <Icon className="size-3.5" aria-hidden />
+                                ) : null}
+                                <span className="truncate">{chip.label}</span>
+                            </Badge>
+                        );
+                    })}
                     {more > 0 ? (
-                        <Badge variant="outline" className="tabular-nums">
+                        <Badge
+                            variant="outline"
+                            className="h-7 rounded-lg px-2.5 tabular-nums"
+                        >
                             {intl.formatMessage(messages.more, {
                                 count: more
                             })}
