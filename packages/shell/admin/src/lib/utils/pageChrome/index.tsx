@@ -64,10 +64,20 @@ export type RightPanel = {
      * click outside it, where the reader has already put focus somewhere.
      */
     dismiss: () => void;
+    /**
+     * Whether the panel holds something the reader must act on — the entry
+     * editor's blocking issues. The reopen control carries a dot for it, so a
+     * closed panel does not hide that something is wrong.
+     */
+    attention: boolean;
 };
 
 /** One registered panel: its heading and whether it asked for the overlay. */
-type PanelRegistration = { title: string; overlay: boolean };
+type PanelRegistration = {
+    title: string;
+    overlay: boolean;
+    attention: boolean;
+};
 
 type PageChromeValue = RightPanel & {
     /** The top bar's actions container, once the bar has mounted one. */
@@ -77,7 +87,11 @@ type PageChromeValue = RightPanel & {
     panelHost: HTMLElement | null;
     setPanelHost: (node: HTMLElement | null) => void;
     /** Registers a panel + its title while a filler is mounted. */
-    registerPanel: (title: string, overlay?: boolean) => () => void;
+    registerPanel: (
+        title: string,
+        overlay?: boolean,
+        attention?: boolean
+    ) => () => void;
     /**
      * The control that should take focus after the last {@link RightPanel.toggle},
      * or `null` when there is no pending handoff. See {@link PanelFocusTarget}.
@@ -194,18 +208,21 @@ export function PageChromeProvider({ children }: { children: ReactNode }) {
         return () => clearTimeout(timer);
     }, [focusTarget]);
 
-    const registerPanel = useCallback((title: string, overlay = false) => {
-        const entry: PanelRegistration = { title, overlay };
-        setPanels((current) => [...current, entry]);
-        return () =>
-            setPanels((current) => {
-                const at = current.indexOf(entry);
-                if (at === -1) return current;
-                const next = current.slice();
-                next.splice(at, 1);
-                return next;
-            });
-    }, []);
+    const registerPanel = useCallback(
+        (title: string, overlay = false, attention = false) => {
+            const entry: PanelRegistration = { title, overlay, attention };
+            setPanels((current) => [...current, entry]);
+            return () =>
+                setPanels((current) => {
+                    const at = current.indexOf(entry);
+                    if (at === -1) return current;
+                    const next = current.slice();
+                    next.splice(at, 1);
+                    return next;
+                });
+        },
+        []
+    );
 
     const clearFocusTarget = useCallback(() => setFocusTarget(null), []);
 
@@ -264,6 +281,7 @@ export function PageChromeProvider({ children }: { children: ReactNode }) {
             pinned,
             setPinned,
             dismiss,
+            attention: !!current?.attention,
             actionsHost,
             setActionsHost,
             panelHost,
@@ -330,9 +348,11 @@ export function useRightPanel(): RightPanel | null {
         pinnable,
         pinned,
         setPinned,
-        dismiss
+        dismiss,
+        attention
     } = ctx;
     return {
+        attention,
         present,
         open,
         title,
@@ -379,6 +399,7 @@ export function PageActionsPortal({ children }: { children: ReactNode }) {
 export function RightPanelPortal({
     title,
     overlay = false,
+    attention = false,
     children
 }: {
     /** The panel's heading, shown in its header row. */
@@ -389,13 +410,15 @@ export function RightPanelPortal({
      * column; that choice persists per browser.
      */
     overlay?: boolean;
+    /** Mark the reopen control with a dot: the panel needs the reader. */
+    attention?: boolean;
     children: ReactNode;
 }) {
     const { panelHost, registerPanel } = usePageChrome();
 
     useEffect(
-        () => registerPanel(title, overlay),
-        [registerPanel, title, overlay]
+        () => registerPanel(title, overlay, attention),
+        [registerPanel, title, overlay, attention]
     );
 
     return panelHost ? createPortal(children, panelHost) : null;

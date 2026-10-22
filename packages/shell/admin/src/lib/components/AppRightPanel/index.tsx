@@ -83,9 +83,9 @@ export const RIGHT_PANEL = {
  * so the panel does not slide in on first paint, or each time a page registers
  * one. Motion here means "you just did that", nothing else.
  *
- * **On a phone it overlays instead of taking a column**: a 22rem column would
- * leave the content nothing. It slides in from the right edge over a scrim that
- * dismisses it, and it starts collapsed there regardless of the desktop
+ * **On a phone it is a bottom sheet instead of a column**: a 22rem column would
+ * leave the content nothing. It slides up from the bottom edge over a scrim
+ * that dismisses it, and it starts collapsed there regardless of the desktop
  * preference (see `PageChromeProvider`).
  *
  * **As a column it is resizable**: a handle on its left edge drags its width
@@ -197,13 +197,13 @@ export function AppRightPanel() {
                 className={cn(
                     'relative flex shrink-0 overflow-hidden motion-reduce:transition-none',
                     isMobile
-                        ? // Overlay: off the right edge and back, so the
-                          // content underneath keeps its full width.
+                        ? // A bottom sheet: up from the bottom edge, where a
+                          // thumb already is, over the page it describes.
                           cn(
-                              'fixed inset-y-0 right-0 z-40 w-[min(22rem,88vw)]',
+                              'fixed inset-x-0 bottom-0 z-40 h-[85svh] rounded-t-2xl border-t shadow-2xl',
                               animate &&
                                   'transition-transform duration-300 ease-in-out',
-                              shown ? 'translate-x-0' : 'translate-x-full'
+                              shown ? 'translate-y-0' : 'translate-y-full'
                           )
                         : floating
                           ? // A card floating over the page's right edge,
@@ -237,6 +237,7 @@ export function AppRightPanel() {
                 <div
                     className={cn(
                         'relative flex h-full shrink-0 flex-col bg-background',
+                        isMobile && 'rounded-t-2xl',
                         floating ? 'w-full' : 'border-l',
                         isMobile || floating
                             ? 'w-full'

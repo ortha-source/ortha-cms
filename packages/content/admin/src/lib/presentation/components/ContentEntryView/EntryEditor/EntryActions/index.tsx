@@ -134,7 +134,8 @@ export function EntryActions({
     onUnpublish,
     onDelete,
     issues = [],
-    onGoToField
+    onGoToField,
+    layout = 'bar'
 }: {
     entry?: EntryRecord;
     publishable: boolean;
@@ -169,6 +170,12 @@ export function EntryActions({
     issues?: EntryStatusItem[];
     /** Scroll a field into view and focus it — the cluster's "Go to field". */
     onGoToField?: (name: string) => void;
+    /**
+     * `bar`: one row in the top bar. `bottom`: the phone's sticky bar at the
+     * foot of the screen — the save state and the status over Save draft /
+     * Publish at a 44px touch height, so the top bar never grows.
+     */
+    layout?: 'bar' | 'bottom';
 }) {
     const intl = useIntl();
     // Always present in practice — `ContentEntryView` wraps the editor in the
@@ -267,6 +274,8 @@ export function EntryActions({
           : 'action';
 
     const glyph = shortcutModifierGlyph();
+    // The phone's bar: each write action shares the row at a touch height.
+    const touch = layout === 'bottom' ? 'h-11 flex-1' : undefined;
     const saveLabel = intl.formatMessage(
         publishable ? messages.saveDraft : messages.save
     );
@@ -286,7 +295,10 @@ export function EntryActions({
             size="sm"
             variant="outline"
             disabled
-            className="text-muted-foreground shadow-none disabled:opacity-100"
+            className={cn(
+                'text-muted-foreground shadow-none disabled:opacity-100',
+                touch
+            )}
         >
             <Check aria-hidden />
             {intl.formatMessage(label)}
@@ -319,7 +331,7 @@ export function EntryActions({
                         type="button"
                         size="sm"
                         variant={savePrimary ? 'default' : 'outline'}
-                        className={cn(!savePrimary && 'shadow-none')}
+                        className={cn(!savePrimary && 'shadow-none', touch)}
                         aria-keyshortcuts={SAVE_KEYS}
                         onClick={() => onSaveDraft()}
                         disabled={busy}
@@ -340,7 +352,7 @@ export function EntryActions({
         <Button
             type="button"
             size="sm"
-            className={cn(inert && 'opacity-60')}
+            className={cn(inert && 'opacity-60', touch)}
             aria-disabled={inert || undefined}
             aria-describedby={guard?.reason ? reasonId : undefined}
             aria-keyshortcuts={inert ? undefined : PUBLISH_KEYS}
@@ -372,19 +384,55 @@ export function EntryActions({
             )
         ) : null;
 
+    const saveState = canSave ? (
+        <EntrySaveState
+            dirty={dirty}
+            isCreate={isCreate}
+            updatedAt={entry?.updatedAt}
+            className={layout === 'bottom' ? undefined : 'hidden md:flex'}
+        />
+    ) : null;
+    const cluster = (
+        <EntryStatusCluster items={statusItems} onGoToField={onGoToField} />
+    );
+
     return (
         <>
-            <EntryStatusCluster items={statusItems} onGoToField={onGoToField} />
-            {canSave ? (
-                <EntrySaveState
-                    dirty={dirty}
-                    isCreate={isCreate}
-                    updatedAt={entry?.updatedAt}
-                    className="hidden md:flex"
-                />
-            ) : null}
-            {saveButton}
-            {publishButton}
+            {layout === 'bottom' ? (
+                // Fixed to the foot of the screen; the editor pads its pane
+                // by the bar's height so the last field is never under it.
+                <div
+                    data-testid="entry-bottom-bar"
+                    className="fixed inset-x-0 bottom-0 z-30 flex flex-col gap-2 border-t bg-background/95 px-4 pt-2 pb-[max(env(safe-area-inset-bottom),0.75rem)] backdrop-blur"
+                >
+                    <div className="flex min-h-6 items-center justify-between gap-2 text-sm">
+                        {saveState ?? <span />}
+                        {cluster}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {saveButton}
+                        {publishButton}
+                        {slotContext && (
+                            <EntryMenu
+                                context={slotContext}
+                                paranoid={paranoid}
+                                busy={busy}
+                                showUnpublish={showUnpublish}
+                                showDelete={showDelete}
+                                onUnpublish={onUnpublish}
+                                onDelete={onDelete}
+                            />
+                        )}
+                    </div>
+                </div>
+            ) : (
+                <>
+                    {cluster}
+                    {saveState}
+                    {saveButton}
+                    {publishButton}
+                </>
+            )}
             {/* The reason is the button's **description**, so it lives beside
                 it rather than inside it: text nested in a control joins its
                 accessible *name*, which would have a screen reader announce
@@ -399,7 +447,7 @@ export function EntryActions({
                     {guard.reason}
                 </span>
             )}
-            {slotContext && (
+            {layout === 'bar' && slotContext && (
                 <EntryMenu
                     context={slotContext}
                     paranoid={paranoid}

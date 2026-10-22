@@ -1190,6 +1190,24 @@ export function EntryEditor({
     const issueNames = new Set(
         issues.map((item) => item.id.slice(FIELD_ISSUE_PREFIX.length))
     );
+    // What the write actions are handed, wherever they render (the top bar,
+    // or the phone's bottom bar).
+    const actionProps = {
+        entry,
+        publishable,
+        paranoid: schema.paranoid ?? false,
+        isCreate,
+        saving,
+        mutating,
+        dirty: willWriteVersion,
+        onSaveDraft: () => save(false),
+        onPublish: (options?: EntryPublishOptions) => save(true, options),
+        onUnpublish,
+        onDelete,
+        issues,
+        onGoToField: goToField
+    };
+
     /** Unfold a section, then bring it to the top of the view. */
     const goToSection = (key: string) => {
         if (key !== BASICS_SECTION) revealSection(key);
@@ -1268,30 +1286,23 @@ export function EntryEditor({
                         workspace doesn't own — has no actions at all, not even
                         the menu: every write route refuses it, and a bar of
                         buttons that can only fail is worse than none. */}
+                            {locked || !isMobile ? null : (
+                                // On a phone the write actions leave the top
+                                // bar for a sticky bar at the foot of the
+                                // screen, so the header never grows.
+                                <EntryActions
+                                    {...actionProps}
+                                    layout="bottom"
+                                />
+                            )}
                             <PageActionsPortal>
                                 {/* The header controls lead the actions in **one**
                             portal: two portals into the same host stack in
                             mount order, so a chip that mounted after the
                             buttons (or remounted) landed behind them. */}
                                 {isMobile ? null : headerControls}
-                                {locked ? null : (
-                                    <EntryActions
-                                        entry={entry}
-                                        publishable={publishable}
-                                        paranoid={schema.paranoid ?? false}
-                                        isCreate={isCreate}
-                                        saving={saving}
-                                        mutating={mutating}
-                                        dirty={willWriteVersion}
-                                        onSaveDraft={() => save(false)}
-                                        onPublish={(options) =>
-                                            save(true, options)
-                                        }
-                                        onUnpublish={onUnpublish}
-                                        onDelete={onDelete}
-                                        issues={issues}
-                                        onGoToField={goToField}
-                                    />
+                                {locked || isMobile ? null : (
+                                    <EntryActions {...actionProps} />
                                 )}
                             </PageActionsPortal>
 
@@ -1302,6 +1313,9 @@ export function EntryEditor({
                                 // Opened on demand over the form (⌘.), or
                                 // pinned beside it by the reader (ADR-0022).
                                 overlay
+                                // Its reopen control carries a dot while
+                                // something blocks publishing.
+                                attention={issues.length > 0}
                             >
                                 <EntrySidebar
                                     entry={entry}
@@ -1319,6 +1333,8 @@ export function EntryEditor({
                                 ref={paneRef}
                                 className={cn(
                                     'relative flex min-w-0 flex-1 flex-col p-4 sm:p-6',
+                                    // Clear of the phone's bottom action bar.
+                                    isMobile && !locked && 'pb-36',
                                     // Room for "On this page" beside the form.
                                     showPageNav && wideWorkArea && 'sm:pl-60'
                                 )}

@@ -12,6 +12,10 @@ const messages = defineMessages({
     show: {
         id: 'shell.rightPanel.show',
         defaultMessage: 'Show {title}'
+    },
+    attention: {
+        id: 'shell.rightPanel.attention',
+        defaultMessage: 'Something here needs your attention.'
     }
 });
 
@@ -46,15 +50,27 @@ export function PageActions() {
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="-mr-1 size-7 shrink-0 text-muted-foreground"
+                    className="relative -mr-1 size-7 shrink-0 text-muted-foreground"
                     aria-controls={RIGHT_PANEL_ID}
                     aria-expanded={false}
                     aria-label={intl.formatMessage(messages.show, {
                         title: panel.title
                     })}
+                    title={
+                        panel.attention
+                            ? intl.formatMessage(messages.attention)
+                            : undefined
+                    }
                     onClick={panel.toggle}
                 >
                     <PanelRightOpen aria-hidden />
+                    {panel.attention ? (
+                        <span
+                            aria-hidden
+                            data-testid="right-panel-attention"
+                            className="absolute right-0.5 top-0.5 size-2 rounded-full bg-destructive ring-2 ring-background"
+                        />
+                    ) : null}
                 </Button>
             ) : null}
         </TopBarActions>
