@@ -19,7 +19,7 @@ import { expectNoA11yViolations } from '../support/a11y';
 
 /**
  * Accessibility scans (axe, WCAG 2.1 A/AA) of the Content Library and its
- * dynamic states — the sidebar + welcome pane, an expanded group with a selected
+ * dynamic states — the sidebar + overview, an expanded group with a selected
  * type, and the open search palette. A regression guard, not a conformance claim.
  */
 test.describe('Content Library accessibility (axe, WCAG 2.1 A/AA)', () => {
@@ -35,9 +35,15 @@ test.describe('Content Library accessibility (axe, WCAG 2.1 A/AA)', () => {
         await mockSavedViews(page, []);
     });
 
-    test('sidebar + welcome pane', async ({ contentLibraryPage, makeAxe }) => {
+    test('sidebar + overview', async ({ contentLibraryPage, makeAxe }) => {
         await contentLibraryPage.goto(LIBRARY_WORKSPACE.id);
         await contentLibraryPage.group('Collections').waitFor();
+        // Scan the overview's cards, not their skeletons.
+        await contentLibraryPage
+            .overviewSection('Recently edited')
+            .getByRole('link')
+            .first()
+            .waitFor();
         await expectNoA11yViolations(makeAxe());
     });
 

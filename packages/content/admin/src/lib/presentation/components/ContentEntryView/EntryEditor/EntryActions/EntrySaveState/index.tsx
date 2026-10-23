@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { cn } from '@orthacms/design-system';
+import { relativeUnit } from '../../../../../../domain/relativeTime';
 
 const messages = defineMessages({
     unsaved: {
@@ -19,17 +20,6 @@ const messages = defineMessages({
 
 /** How often the "Saved … ago" sentence is re-read, in milliseconds. */
 const TICK_MS = 30_000;
-
-/** The largest unit that fits, for `Intl.RelativeTimeFormat`. */
-function relative(
-    elapsedSeconds: number
-): [number, Intl.RelativeTimeFormatUnit] {
-    const minutes = Math.round(elapsedSeconds / 60);
-    if (minutes < 60) return [-minutes, 'minute'];
-    const hours = Math.round(minutes / 60);
-    if (hours < 24) return [-hours, 'hour'];
-    return [-Math.round(hours / 24), 'day'];
-}
 
 /**
  * The editor's **save state**, said in words beside its buttons: "Unsaved
@@ -103,7 +93,7 @@ export function EntrySaveState({
             {elapsed < 60
                 ? intl.formatMessage(messages.savedJustNow)
                 : intl.formatMessage(messages.savedAgo, {
-                      ago: intl.formatRelativeTime(...relative(elapsed), {
+                      ago: intl.formatRelativeTime(...relativeUnit(elapsed), {
                           numeric: 'auto'
                       })
                   })}

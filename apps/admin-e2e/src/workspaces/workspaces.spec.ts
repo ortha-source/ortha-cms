@@ -127,12 +127,11 @@ test.describe('Workspaces page', () => {
         await workspacesPage.openButton('Marketing site').click();
 
         // The card opens the workspace shell, which redirects the base to its
-        // first rail section (Content Library) and shows its welcome pane.
+        // first rail section (Content Library) and shows its overview, titled
+        // with the workspace's name.
         await expect(page).toHaveURL('/workspaces/ws_marketing/content');
         await expect(
-            page.getByText(
-                'Select a collection or page from the sidebar to get started in Marketing site.'
-            )
+            page.getByRole('heading', { level: 1, name: 'Marketing site' })
         ).toBeVisible();
     });
 

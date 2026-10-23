@@ -40,6 +40,22 @@ export class ContentLibraryPage extends BasePage {
         await this.page.goto(`/workspaces/${workspaceId}/content`);
     }
 
+    /**
+     * A section of the library's overview (the index pane before a type is
+     * picked) by its heading: "Recently edited", "Not live yet",
+     * "Collections", "Pages".
+     */
+    overviewSection(name: string): Locator {
+        return this.page.getByRole('main').getByRole('region', { name });
+    }
+
+    /** A type's card on the overview — one link, named by its contents. */
+    overviewTypeCard(section: string, label: string): Locator {
+        return this.overviewSection(section).getByRole('link', {
+            name: new RegExp(`^${label}`)
+        });
+    }
+
     /** Navigate straight to one entry's editor (`/content/:type/:id`). */
     async gotoEntry(workspaceId: string, typeName: string, id: string) {
         await this.page.goto(

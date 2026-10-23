@@ -144,7 +144,7 @@ route-derived breadcrumb: Content › the type's label › the open record's tit
 "New record" / "Trash"; the record title comes from `EntryTitleCrumb`, which
 subscribes to the editor's own schema/entry queries at no extra request) over an
 outlet driven by nested routes.
-The routes are (`index` → `ContentWelcome`,
+The routes are (`index` → `ContentOverview` (see _The overview_ below),
 `:typeName` → `ContentTypeView`, `:typeName/new` + `:typeName/:entryId` →
 `ContentEntryRoute` (the create / edit editor); the static `new` segment
 outranks the `:entryId` param).
@@ -548,6 +548,33 @@ staged.added`), not the values bag it doesn't live in — mirroring the server's
 - The design-system `command` + `collapsible` + `tabs` + `calendar` +
   `multi-select` primitives this plugin relies on were added there via the
   shadcn skill (consumed from `@orthacms/design-system`).
+
+## The overview — the library's landing
+
+Before a type is picked the pane is **`ContentOverview`**, not a prompt to
+pick one: the workspace's name as the `<h1>` over its record count and how
+many collections and pages it has; **Recently edited** (the newest saves
+across its types — title, type, status, when) beside **Not live yet** (live
+records with unpublished edits per type, the never-published drafts as a
+footnote); then a card per **collection** (record count, last save, and a
+published · modified · drafts bar stated in words under it) and per **page**
+(its one record's status).
+
+- **One list read per own type**, `?sort=-updatedAt&pageSize=5`, through
+  `application/useRecentEntries` — keyed with `contentEntriesKey` and the
+  schema with `contentSchemaKey`, so it shares cache with the records table.
+  The same reads answer each type's total and last save. Capped at
+  `RECENT_TYPE_LIMIT` types so a large catalogue does not fan out a request
+  per type on every landing.
+- **The split is two insights reads joined**: `pipeline` counts `draft`
+  including modified, `unshipped` counts modified, so drafts = drafts −
+  modified. Rows for types the workspace is not granted are dropped.
+- **Only own types are summarised.** A shared-only type has no records of
+  this workspace to count; the sidebar reaches its sources.
+- Times are `presentation/hooks/useFormatSince`: relative within a week, a
+  short date after it.
+
+Pinned by `apps/admin-e2e/src/content/overview.spec.ts`.
 
 ## Shared workspaces — linking and viewing another workspace's records
 
