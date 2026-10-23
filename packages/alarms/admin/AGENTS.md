@@ -19,7 +19,14 @@ opening the Properties panel. It shares the widget's query key, so it costs no
 request.
 
 The page is for the person who owns editorial policy — what is flagged across
-the workspace, grouped by alarm, and the alarms themselves.
+the workspace, grouped by alarm, and the alarms themselves. It leads with its
+own `<h1>` and description (**New alarm** in the top bar) and a strip of
+figures (`AlarmSummaryStrip`): open findings per severity — the summary the
+nav badge reads — and when the alarms last checked, the newest `lastScanAt`.
+Each group's header is a severity **pill** (its glyph and its word, so colour
+is never alone — `alarms:I-32`), the alarm's name over its type and finding
+title, an "N open" count from the alarm itself, **Re-check** and **Edit
+alarm**.
 
 ## The user-facing noun is **alarm**; the code's is `rule`
 

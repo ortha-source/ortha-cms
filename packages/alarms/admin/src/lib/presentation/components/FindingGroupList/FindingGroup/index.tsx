@@ -12,7 +12,9 @@ import {
     Spinner,
     cn
 } from '@orthacms/design-system';
-import { ChevronRight, RefreshCw } from 'lucide-react';
+import { ChevronRight, Pencil, RefreshCw } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { useCurrentWorkspace } from '@orthacms/workspaces-admin';
 import { useAlarmFindings } from '../../../../application/useAlarmFindings';
 import type { AlarmRule } from '../../../../types/alarm';
 import { severityLook } from '../../../severityLook';
@@ -21,8 +23,13 @@ import { FindingsPager } from '../../FindingsPager';
 
 const messages = defineMessages({
     count: {
-        id: 'alarms.group.count',
-        defaultMessage: '{count, plural, one {# record} other {# records}}'
+        id: 'alarms.group.openCount',
+        defaultMessage: '{count, number} open'
+    },
+    edit: { id: 'alarms.group.edit', defaultMessage: 'Edit alarm' },
+    editLabel: {
+        id: 'alarms.group.editLabel',
+        defaultMessage: 'Edit {name}'
     },
     toggle: {
         id: 'alarms.group.toggle',
@@ -110,7 +117,8 @@ export function FindingGroup({
     const intl = useIntl();
     const [open, setOpen] = useState(defaultOpen);
     const [page, setPage] = useState(1);
-    const { Icon, ink, label } = severityLook(rule.severity);
+    const { chip, Icon, label } = severityLook(rule.severity);
+    const workspace = useCurrentWorkspace();
 
     const findings = useAlarmFindings(
         { state: 'open', ruleId: rule.id, page, pageSize: GROUP_PAGE_SIZE },
@@ -170,24 +178,34 @@ export function FindingGroup({
                             open ? 'rotate-90' : ''
                         }`}
                     />
-                    <Icon
-                        aria-hidden="true"
-                        className={`size-4 shrink-0 ${ink}`}
-                    />
+                    {/* The severity as a pill: its own glyph and its word, so
+                        colour is never the only signal (`alarms:I-32`). */}
+                    <span
+                        className={cn(
+                            'inline-flex h-5 shrink-0 items-center gap-1.5 rounded-md border px-1.5 text-xs font-medium',
+                            chip
+                        )}
+                    >
+                        <Icon
+                            aria-hidden="true"
+                            className="size-3.5 shrink-0"
+                        />
+                        {intl.formatMessage(label)}
+                    </span>
                     <span className="flex min-w-0 flex-1 flex-col">
-                        <span className="truncate text-sm font-medium">
+                        <span className="truncate text-sm font-semibold">
                             {rule.name}
                         </span>
                         {/* What an editor reads on the record itself. It is
                             constant across this group, which is exactly why it
                             belongs on the header and not on every row. */}
                         <span className="truncate text-xs text-muted-foreground">
-                            {rule.findingTitle}
+                            {rule.contentType} · {rule.findingTitle}
                         </span>
                     </span>
                 </CollapsibleTrigger>
 
-                <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
+                <span className="inline-flex h-5 shrink-0 items-center rounded-md bg-muted px-1.5 text-xs font-medium tabular-nums text-muted-foreground">
                     {intl.formatMessage(messages.count, { count })}
                 </span>
 
@@ -213,6 +231,24 @@ export function FindingGroup({
                             <RefreshCw aria-hidden="true" />
                         )}
                         {intl.formatMessage(messages.recheck)}
+                    </Button>
+                ) : null}
+                {canManage ? (
+                    <Button
+                        asChild
+                        variant="ghost"
+                        size="sm"
+                        className="shrink-0"
+                    >
+                        <Link
+                            to={`/workspaces/${workspace.id}/alarms/rules/${rule.id}`}
+                            aria-label={intl.formatMessage(messages.editLabel, {
+                                name: rule.name
+                            })}
+                        >
+                            <Pencil aria-hidden="true" />
+                            {intl.formatMessage(messages.edit)}
+                        </Link>
                     </Button>
                 ) : null}
             </div>

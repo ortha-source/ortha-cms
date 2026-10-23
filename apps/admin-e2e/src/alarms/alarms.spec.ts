@@ -92,6 +92,21 @@ test.describe('The alarms page', () => {
         ).toBeVisible();
     });
 
+    test('sums open findings by severity over the groups', async ({
+        page,
+        alarmsPage
+    }) => {
+        await mockAlarmsApi(page);
+        await alarmsPage.goto(WORKSPACE_ID);
+
+        // The summary the nav badge reads, said per severity in words.
+        const strip = alarmsPage.summaryStrip();
+        await expect(strip).toContainText('Errors');
+        await expect(strip).toContainText('Warnings');
+        await expect(strip).toContainText('Info');
+        await expect(strip).toContainText('Last checked');
+    });
+
     test('does not load a collapsed group’s records', async ({
         page,
         alarmsPage
