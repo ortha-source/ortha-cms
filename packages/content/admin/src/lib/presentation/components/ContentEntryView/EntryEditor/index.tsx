@@ -770,6 +770,10 @@ export function EntryEditor({
         (values: Record<string, unknown>) => {
             const sent = relationDeltas;
             let landed = false;
+            // The response comes back as a new seed before `onWriteLanded`
+            // adopts it; this keeps the form from reading it as somebody
+            // else's change in between (see `beginWrite`).
+            form.beginWrite();
             return onSave(values, {
                 publish,
                 relations: relationsPayload(),
@@ -804,8 +808,13 @@ export function EntryEditor({
                     form.acceptSeed();
                 }
             })
-                .then(() => clearSentRelations(sent))
+                .then(() => {
+                    // A submit can settle without writing (nothing to send).
+                    if (!landed) form.endWrite();
+                    clearSentRelations(sent);
+                })
                 .catch((error) => {
+                    if (!landed) form.endWrite();
                     // Cleared here rather than in `onWriteLanded`: by now the
                     // flow has run the refresh the save deferred to its publish,
                     // so the tab swaps the staging for the refetched server set
