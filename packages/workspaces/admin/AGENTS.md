@@ -2,7 +2,7 @@
 
 The **workspaces feature plugin** for the Ortha CMS admin UI. It owns the
 Workspaces management experience: the private `/workspaces` route (a searchable,
-status-filterable **table** of workspaces), the full-page **create wizard** at
+status-filterable **grid of cards**, one per workspace), the full-page **create wizard** at
 `/workspaces/new`, and its sidebar nav entry + a "Workspaces" quick-list section.
 It also owns the **workspace shell** at `/workspaces/:id/*` — which, when a row
 is clicked, **injects a per-workspace nav (`WorkspaceNav`: switcher + Content +
@@ -271,11 +271,17 @@ exist", mirroring the API's flat 403.
   `AvatarColor` palette from `@orthacms/design-system` (the `--color-avatar-*`
   tokens in the host's `styles.css`) — the only color in the otherwise-neutral
   admin. New tokens/types live in the design-system, not here.
-- **The table row opens the workspace; it has no actions menu and shows no
-  role** — role is a property of the current user, not the row. Clicking it
-  navigates to `/workspaces/:id`, which the shell redirects to the first section
-  (the Content Library). The row surfaces member + content-type counts and a
-  status pill; the status filter is a segmented chip group (All/Active/Archived).
+- **The list is a grid of cards** (`WorkspaceCards` → `WorkspaceCard`, a
+  labelled `<ul>`): the workspace's tile, its name (the card's link) and
+  description, a **Shared** badge when it is shared, an **Archived** chip on an
+  archived one, up to four member avatars with the member and content-type
+  counts, and **Open** / **Settings**. A click anywhere else on the card opens
+  it too, for the mouse, without adding a tab stop. It shows **no role** — role
+  is a property of the current user, not the workspace. Whoever may create a
+  workspace gets a trailing dashed **New workspace** card (not while searching
+  or on Archived). The status filter is a segmented chip group
+  (All/Active/Archived); the header is the page's own `<h1>` and description,
+  with **New workspace** in the top bar.
 
 ## Conventions
 
@@ -294,7 +300,7 @@ exist", mirroring the API's flat 403.
   the whole `components/CreateWorkspaceWizard/` subtree (Basics/Members/Content
   step bodies and their parts) nests under the wizard, and `WorkspaceNavButton`
   / `WorkspaceSwitcher` nest under `components/WorkspaceNav/`. The page-level
-  components — `WorkspacesTable`, `WorkspaceToolbar`, `WorkspacesEmpty`,
+  components — `WorkspaceCards`, `WorkspaceToolbar`, `WorkspacesEmpty`,
   `CreateWorkspaceWizard` — and the shared pieces — `WorkspaceAvatar`,
   `StatusChip`, `WorkspacesSkeleton`, `WorkspaceNav`, `WorkspacesNavSection`,
   `WorkspaceStats`, `WorkspacesHomePanel` — all sit at the top of `components/`.
