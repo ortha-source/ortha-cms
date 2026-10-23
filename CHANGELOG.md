@@ -1,12 +1,26 @@
 ## 0.12.0 (2026-10-23)
 
+### 🚀 Features
+
+- **content-admin:** the entry editor is one form — relations and media inline, Properties on demand, a status cluster, History with activity (ADR-0022) ([#347](https://github.com/ortha-source/ortha-cms/pull/347))
+- **content-admin:** an overview for the Content Library; saved views as tabs, status chips and a floating selection bar on the records page ([#347](https://github.com/ortha-source/ortha-cms/pull/347))
+- **media-admin:** folders in the tree, type chips, a list view and a details panel beside the grid ([#347](https://github.com/ortha-source/ortha-cms/pull/347))
+- **shell:** a "Needs your attention" row and top-bar actions on Home; every page shows its title and subtitle ([#347](https://github.com/ortha-source/ortha-cms/pull/347))
+- **webhooks-admin:** a state filter and delivery strips, a sectioned editor, figures and a two-pane delivery log ([#347](https://github.com/ortha-source/ortha-cms/pull/347))
+- **workspaces-admin:** workspaces as cards, and settings with a side nav ([#347](https://github.com/ortha-source/ortha-cms/pull/347))
+- **alarms-admin:** a per-severity strip and framed alarm groups; **protection-admin:** the Reviews queue redrawn ([#347](https://github.com/ortha-source/ortha-cms/pull/347))
+
 ### 🩹 Fixes
 
+- **content-admin:** an author's own save no longer flashes the conflict notice ([#347](https://github.com/ortha-source/ortha-cms/pull/347))
 - **admin:** no page cross-fade on entry tab switches, no square corners mid-fade ([30e55f2cf](https://github.com/ortha-source/ortha-cms/commit/30e55f2cf))
 
 ### ❤️ Thank You
 
+- Claude
+- Claude Opus 5.5
 - Claude Opus 5.5 (1M context)
+- Pavel Makhanko @pmknk
 - pmknk
 
 ## 0.11.0 (2026-10-21)
