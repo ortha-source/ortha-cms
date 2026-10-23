@@ -677,6 +677,21 @@ test.describe('Webhooks', () => {
             );
         });
 
+        test('sums up the recent deliveries over the log', async ({
+            page,
+            webhooksPage
+        }) => {
+            await mockWebhooksApi(page);
+            await webhooksPage.gotoDetail(WEBHOOKS_SEED[0].id);
+
+            // The seed log: one delivered, one dead. The window is named in
+            // the label, so the rate never reads as an all-time figure.
+            const stats = webhooksPage.deliveryStats();
+            await expect(stats).toContainText('Succeeded, last 2');
+            await expect(stats).toContainText('50%');
+            await expect(stats).toContainText('Failed1');
+        });
+
         test('shows only the secret hint, never the secret', async ({
             page,
             webhooksPage

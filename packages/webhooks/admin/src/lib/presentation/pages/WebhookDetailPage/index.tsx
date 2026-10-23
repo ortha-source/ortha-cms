@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { Pencil, Send, Trash2, TriangleAlert, Webhook } from 'lucide-react';
-import { PageTopBar } from '@orthacms/shell-admin';
+import { PageActionsPortal, PageTopBar } from '@orthacms/shell-admin';
 import { useHasPermission } from '@orthacms/identity-admin';
 import { useDocumentTitle } from '@orthacms/utils-admin';
 import {
@@ -11,7 +11,6 @@ import {
     Button,
     ConfirmDialog,
     Container,
-    ContainerHeader,
     Spinner,
     Tabs,
     TabsContent,
@@ -29,6 +28,7 @@ import {
 import { RevealWebhookSecretDialog } from '../../components/RevealWebhookSecretDialog';
 import { WebhookDeliveriesPanel } from '../../components/WebhookDeliveriesPanel';
 import { WebhooksNoAccess } from '../../components/WebhooksNoAccess';
+import { WebhookStateBadge } from '../../components/WebhookStateBadge';
 
 const messages = defineMessages({
     listTitle: { id: 'webhooks.page.title', defaultMessage: 'Webhooks' },
@@ -223,67 +223,71 @@ export function WebhookDetailPage() {
                     { key: endpoint.id, label: endpoint.name }
                 ]}
             />
-            <Container>
-                <ContainerHeader
-                    title={endpoint.name}
-                    subtitle={endpoint.url}
-                    keepSubtitle
-                    actions={
-                        canManage ? (
-                            <div className="flex gap-2">
-                                <Button
-                                    variant="outline"
-                                    disabled={test.isPending}
-                                    onClick={() =>
-                                        test.mutate(endpoint.id, {
-                                            onSuccess: (result) => {
-                                                if (result.ok) {
-                                                    toast.success(
-                                                        intl.formatMessage(
-                                                            messages.testOk,
-                                                            {
-                                                                status: result.statusCode,
-                                                                ms: result.durationMs
-                                                            }
-                                                        )
-                                                    );
-                                                } else {
-                                                    toast.error(
-                                                        intl.formatMessage(
-                                                            messages.testFailed,
-                                                            {
-                                                                reason:
-                                                                    result.error ??
-                                                                    `HTTP ${result.statusCode}`
-                                                            }
-                                                        )
-                                                    );
+            {canManage ? (
+                <PageActionsPortal>
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={test.isPending}
+                        onClick={() =>
+                            test.mutate(endpoint.id, {
+                                onSuccess: (result) => {
+                                    if (result.ok) {
+                                        toast.success(
+                                            intl.formatMessage(
+                                                messages.testOk,
+                                                {
+                                                    status: result.statusCode,
+                                                    ms: result.durationMs
                                                 }
-                                            }
-                                        })
+                                            )
+                                        );
+                                    } else {
+                                        toast.error(
+                                            intl.formatMessage(
+                                                messages.testFailed,
+                                                {
+                                                    reason:
+                                                        result.error ??
+                                                        `HTTP ${result.statusCode}`
+                                                }
+                                            )
+                                        );
                                     }
-                                >
-                                    <Send aria-hidden />
-                                    {intl.formatMessage(messages.test)}
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    onClick={() =>
-                                        navigate(
-                                            `/webhooks/${endpoint.id}/edit`
-                                        )
-                                    }
-                                >
-                                    <Pencil aria-hidden />
-                                    {intl.formatMessage(messages.edit)}
-                                </Button>
-                            </div>
-                        ) : undefined
-                    }
-                />
+                                }
+                            })
+                        }
+                    >
+                        <Send aria-hidden />
+                        {intl.formatMessage(messages.test)}
+                    </Button>
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                            navigate(`/webhooks/${endpoint.id}/edit`)
+                        }
+                    >
+                        <Pencil aria-hidden />
+                        {intl.formatMessage(messages.edit)}
+                    </Button>
+                </PageActionsPortal>
+            ) : null}
+            <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-5 px-4 py-8 sm:px-10">
+                <header className="flex min-w-0 flex-col gap-1.5">
+                    <h1 className="truncate text-[28px] font-semibold leading-[34px] tracking-[-0.012em]">
+                        {endpoint.name}
+                    </h1>
+                    <div className="flex min-w-0 flex-wrap items-center gap-2 text-[13px] text-muted-foreground">
+                        <WebhookStateBadge endpoint={endpoint} />
+                        <span className="min-w-0 truncate font-mono text-xs">
+                            {endpoint.url}
+                        </span>
+                    </div>
+                </header>
 
                 {endpoint.disabledReason ? (
-                    <Alert variant="destructive" role="alert" className="mt-4">
+                    <Alert variant="destructive" role="alert">
                         <TriangleAlert aria-hidden />
                         <AlertDescription>
                             {intl.formatMessage(messages.autoDisabled, {
@@ -293,7 +297,7 @@ export function WebhookDetailPage() {
                     </Alert>
                 ) : null}
 
-                <Tabs defaultValue="deliveries" className="mt-6">
+                <Tabs defaultValue="deliveries">
                     <TopBarTabs>
                         <TabsList>
                             <TabsTrigger value="deliveries">
@@ -305,14 +309,14 @@ export function WebhookDetailPage() {
                         </TabsList>
                     </TopBarTabs>
 
-                    <TabsContent value="deliveries" className="mt-4">
+                    <TabsContent value="deliveries">
                         <WebhookDeliveriesPanel
                             endpointId={endpoint.id}
                             canRedeliver={canManage}
                         />
                     </TabsContent>
 
-                    <TabsContent value="settings" className="mt-4">
+                    <TabsContent value="settings">
                         <dl className="grid gap-4 sm:grid-cols-2">
                             <Fact label={intl.formatMessage(messages.url)}>
                                 <span className="font-mono text-xs break-all">
@@ -397,7 +401,7 @@ export function WebhookDetailPage() {
                         ) : null}
                     </TabsContent>
                 </Tabs>
-            </Container>
+            </div>
 
             <RevealWebhookSecretDialog
                 secret={secret}

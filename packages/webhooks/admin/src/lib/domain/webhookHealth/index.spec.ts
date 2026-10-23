@@ -1,5 +1,10 @@
 import type { WebhookDelivery } from '../types/webhook';
-import { deliveryOutcome, successRate, webhookState } from './index';
+import {
+    deliveryOutcome,
+    medianDuration,
+    successRate,
+    webhookState
+} from './index';
 
 const delivery = (status: WebhookDelivery['status']) =>
     ({ id: status, status }) as WebhookDelivery;
@@ -36,5 +41,19 @@ describe('successRate', () => {
 
     it('reads a retrying delivery as failed so far', () => {
         expect(deliveryOutcome('failed')).toBe('failed');
+    });
+});
+
+describe('medianDuration', () => {
+    const timed = (durationMs: number | null) =>
+        ({ id: String(durationMs), durationMs }) as WebhookDelivery;
+
+    it('takes the middle of the deliveries that were answered', () => {
+        expect(medianDuration([timed(300), timed(100), timed(null)])).toBe(200);
+        expect(medianDuration([timed(5), timed(100), timed(900)])).toBe(100);
+    });
+
+    it('is nothing over nothing', () => {
+        expect(medianDuration([timed(null)])).toBeNull();
     });
 });

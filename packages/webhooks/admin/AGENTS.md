@@ -33,6 +33,13 @@ and only when it is dismissed does the page move to the new endpoint.
 
 Deliveries is the default tab on purpose. "What does this send?" is asked once,
 when the endpoint is created; "did it arrive?" is asked every time afterwards.
+The page leads with the endpoint's name over its state and URL, Send test and
+Edit in the top bar, then a row of figures over the log
+(`WebhookDeliveriesPanel/DeliveryStats`: success rate, delivered, failed,
+median response, last delivery) taken over the **last 50 deliveries** — the
+window is in the label ("Succeeded, last 50"), so the rate never passes for an
+all-time number the API does not compute. The log's times read relative
+within a week (`presentation/hooks/useFormatSince`), the full date on hover.
 
 ## The list answers "is anything broken?"
 

@@ -26,6 +26,8 @@ import {
 import { useRedeliverWebhook } from '../../../application/useWebhookMutations';
 import { DeliveryStatusBadge } from '../DeliveryStatusBadge';
 import { DeliveryDetailSheet } from './DeliveryDetailSheet';
+import { DeliveryStats } from './DeliveryStats';
+import { useFormatSince } from '../../hooks/useFormatSince';
 
 const messages = defineMessages({
     caption: {
@@ -59,6 +61,10 @@ const messages = defineMessages({
         defaultMessage: 'Filter by state'
     },
     view: { id: 'webhooks.deliveries.view', defaultMessage: 'View' },
+    total: {
+        id: 'webhooks.deliveries.total',
+        defaultMessage: '{count, plural, one {# delivery} other {# deliveries}}'
+    },
     actions: { id: 'webhooks.deliveries.actions', defaultMessage: 'Actions' },
     prev: { id: 'webhooks.deliveries.prev', defaultMessage: 'Previous' },
     next: { id: 'webhooks.deliveries.next', defaultMessage: 'Next' },
@@ -117,6 +123,7 @@ export function WebhookDeliveriesPanel({
     canRedeliver: boolean;
 }) {
     const intl = useIntl();
+    const since = useFormatSince();
     const [status, setStatus] = useState<string>(ALL);
     const [page, setPage] = useState(1);
     const [openDeliveryId, setOpenDeliveryId] = useState<string | null>(null);
@@ -160,8 +167,16 @@ export function WebhookDeliveriesPanel({
     const items = data?.items ?? [];
 
     return (
-        <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-end">
+        <div className="flex flex-col gap-4">
+            <DeliveryStats endpointId={endpointId} />
+            <div className="flex items-center justify-between gap-3">
+                <span className="text-[13px] text-muted-foreground">
+                    {data
+                        ? intl.formatMessage(messages.total, {
+                              count: data.total
+                          })
+                        : null}
+                </span>
                 <Select
                     value={status}
                     onValueChange={(next) => {
@@ -193,7 +208,7 @@ export function WebhookDeliveriesPanel({
                     {intl.formatMessage(messages.empty)}
                 </p>
             ) : (
-                <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
+                <div className="overflow-hidden rounded-xl border bg-card">
                     <Table stale={isPlaceholderData}>
                         <caption className="sr-only">
                             {intl.formatMessage(messages.caption)}
@@ -244,10 +259,18 @@ export function WebhookDeliveriesPanel({
                                         {delivery.attempts}
                                     </TableCell>
                                     <TableCell className="text-sm text-muted-foreground">
-                                        {intl.formatDate(delivery.createdAt, {
-                                            dateStyle: 'medium',
-                                            timeStyle: 'short'
-                                        })}
+                                        <time
+                                            dateTime={delivery.createdAt}
+                                            title={intl.formatDate(
+                                                delivery.createdAt,
+                                                {
+                                                    dateStyle: 'medium',
+                                                    timeStyle: 'short'
+                                                }
+                                            )}
+                                        >
+                                            {since(delivery.createdAt)}
+                                        </time>
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <Button

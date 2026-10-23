@@ -50,3 +50,19 @@ export function successRate(deliveries: WebhookDelivery[]): number | null {
     ).length;
     return Math.round((ok / finished.length) * 100);
 }
+
+/**
+ * The median response time of the deliveries that got one, in milliseconds,
+ * or `null` with none — a median over nothing is not zero.
+ */
+export function medianDuration(deliveries: WebhookDelivery[]): number | null {
+    const times = deliveries
+        .map((delivery) => delivery.durationMs)
+        .filter((ms): ms is number => ms !== null)
+        .sort((a, b) => a - b);
+    if (times.length === 0) return null;
+    const middle = Math.floor(times.length / 2);
+    return times.length % 2
+        ? times[middle]
+        : Math.round((times[middle - 1] + times[middle]) / 2);
+}

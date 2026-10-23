@@ -77,6 +77,13 @@ export class WebhooksPage extends BasePage {
         return this.page.getByRole('heading', { name, level: 2 });
     }
 
+    /** The figures over the delivery log (a `<dl>` of label / value pairs). */
+    deliveryStats(): Locator {
+        return this.page.locator('dl', {
+            has: this.page.getByText('Median response', { exact: true })
+        });
+    }
+
     /** One endpoint's row, found by its name. */
     row(name: string): Locator {
         return this.table.getByRole('row').filter({ hasText: name });
