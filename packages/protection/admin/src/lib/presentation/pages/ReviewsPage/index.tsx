@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import {
+    Container,
+    ContainerHeader,
     SegmentedControl,
     SegmentedControlCount,
     SegmentedControlItem,
@@ -104,15 +106,11 @@ export function ReviewsPage() {
                     }
                 ]}
             />
-            <div className="mx-auto flex w-full max-w-[1120px] flex-col px-4 py-8 sm:px-10">
-                <header className="mb-5 flex flex-col gap-1.5">
-                    <h1 className="text-2xl font-semibold leading-8 tracking-[-0.01em]">
-                        {intl.formatMessage(messages.title)}
-                    </h1>
-                    <p className="max-w-[640px] text-[13px] text-muted-foreground">
-                        {intl.formatMessage(messages.subtitle)}
-                    </p>
-                </header>
+            <Container className="flex flex-col">
+                <ContainerHeader
+                    title={intl.formatMessage(messages.title)}
+                    subtitle={intl.formatMessage(messages.subtitle)}
+                />
 
                 {isPending ? (
                     <SkeletonRegion
@@ -186,7 +184,7 @@ export function ReviewsPage() {
                         )}
                     </>
                 )}
-            </div>
+            </Container>
         </>
     );
 }

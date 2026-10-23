@@ -219,7 +219,7 @@ export function SegmentsPage() {
         return (
             <>
                 {bar}
-                <Container width="full">
+                <Container>
                     <ContainerHeader
                         title={intl.formatMessage(messages.title)}
                     />
@@ -246,7 +246,7 @@ export function SegmentsPage() {
     return (
         <>
             {bar}
-            <Container width="full">
+            <Container>
                 <ContainerHeader
                     title={intl.formatMessage(messages.title)}
                     subtitle={intl.formatMessage(messages.subtitle)}

@@ -246,7 +246,7 @@ the queue line carries the tally but not who approved. The table has a
 _Reviewers_ column naming who each ask is waiting on.
 
 **It looks like every other list.** It is the same plain design-system table
-as the members, tokens and webhooks tables, under the page's own `<h1>`, names each record by its title and
+as the members, tokens and webhooks tables, under the shared `ContainerHeader` (`<h1>` + subtitle), names each record by its title and
 its type by its label — both sent by the queue route, one read per line of a
 bounded page — and loads behind a skeleton of the same shape. A record with no
 title to show falls back to a fragment of its id, as "Open 1a2b3c4d".

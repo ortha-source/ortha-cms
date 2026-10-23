@@ -91,8 +91,8 @@ export function ContentTypeView({
     // not submit. Point at the sources instead.
     if (!hasOwnAccess(type)) {
         return (
-            <Container className="max-w-none p-6 sm:p-6">
-                <ContainerHeader titleClassName="text-lg" title={type.label} />
+            <Container>
+                <ContainerHeader title={type.label} />
                 <SharedOnlyNotice
                     type={type}
                     basePath={`/workspaces/${workspace.id}/${CONTENT_SEGMENT}`}

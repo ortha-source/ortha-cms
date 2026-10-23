@@ -280,7 +280,7 @@ exist", mirroring the API's flat 403.
   is a property of the current user, not the workspace. Whoever may create a
   workspace gets a trailing dashed **New workspace** card (not while searching
   or on Archived). The status filter is a segmented chip group
-  (All/Active/Archived); the header is the page's own `<h1>` and description,
+  (All/Active/Archived); the header is the shared `ContainerHeader` (`<h1>` and description),
   with **New workspace** in the top bar.
 
 ## Conventions

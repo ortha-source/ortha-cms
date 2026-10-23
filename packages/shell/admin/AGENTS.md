@@ -16,7 +16,7 @@ with nothing explaining it — and being `tabIndex={-1}` it's a mouse-only
 duplicate of three toggles that already exist. What sits on the edge instead
 is a **resize handle** (the design system's `ResizeHandle`, a focusable
 splitter): the sidebar is resizable on a desktop, and dragged well past its
-minimum it collapses (see *Resizable panels* below). It
+minimum it collapses (see _Resizable panels_ below). It
 **owns the gating wiring**: its `layout` composes identity's
 `AuthProvider` (auth-state source) around `RequireAuth` (the gate) around
 `AppShell`. The host mounts that `layout` as the single parent of all
@@ -37,7 +37,7 @@ does, from inside its own tree:
   design-system `TopBarActions`); a page pushes controls into it with
   `<PageActionsPortal>` (rendered at compact button density). The same region
   is handed to the design system as `PageHeaderHost`, so on a desktop page with
-  a bar `ContainerHeader` folds its title away and its actions land here too.
+  a bar `ContainerHeader` keeps its title on the page and its actions land here too.
   `PageTopBar` renders `PageActions` already; a page that composes `TopBar` itself (content-admin's `ContentTopBar`) adds it as the bar's
   **last** child, since the region is `ml-auto`.
 - **The right panel** — `AppRightPanel` (rendered by `AppShell` as the column
@@ -58,53 +58,53 @@ does, from inside its own tree:
   its minimum collapses it **through `toggle`**, so it slides and hands focus
   exactly as the Hide button does.
 
-  **A page may ask for an overlay instead of a column**
-  (`<RightPanelPortal overlay>`, the entry editor's Properties since
-  [ADR-0022](../../../docs/adr/0022-entry-editor-one-form-properties-on-demand.md)).
-  Then on a desktop the panel is a **sheet**: the window's full height at its
-  right edge, over a dark scrim, opened on demand (it starts closed on every
-  arrival). It is modal while up — the inner wrapper is the `role="dialog"`
-  (an `<aside>` may not take that role, and swapping the tag would remount the
-  portal host), and `AppShell` makes the page, the sidebar and the footer
-  strip `inert`. Escape, a click on the scrim or the Hide button closes it,
-  all through `toggle`, so focus goes back to the top bar. It slides on
-  `translate` with `--ds-ease-drawer`; it was a floating card that animated
-  `transition-[opacity,transform]`, which Tailwind v4 does not apply to
-  `translate`, so it faded while its movement snapped. A **Pin** control in its header docks it back into
-  the column; the pin is per browser (`orthacms:right-panel:pinned`), not in the
-  synced layout. While it floats, its toggle **stays in the top bar**, open or
-  closed ("Show / Hide {title}", `aria-expanded`): an overlay has no column to
-  keep a control in, so the way in and the way out are one button in one
-  place. Pinned, it behaves as the column does — the bar offers only the way
-  back. A page that does not ask keeps the column. `attention` puts a
-  dot on the reopen button while the page says something there needs the
-  reader (the editor's blocking issues). On a phone the panel is a **bottom
-  sheet**, sliding up from the foot of the screen.
+    **A page may ask for an overlay instead of a column**
+    (`<RightPanelPortal overlay>`, the entry editor's Properties since
+    [ADR-0022](../../../docs/adr/0022-entry-editor-one-form-properties-on-demand.md)).
+    Then on a desktop the panel is a **sheet**: the window's full height at its
+    right edge, over a dark scrim, opened on demand (it starts closed on every
+    arrival). It is modal while up — the inner wrapper is the `role="dialog"`
+    (an `<aside>` may not take that role, and swapping the tag would remount the
+    portal host), and `AppShell` makes the page, the sidebar and the footer
+    strip `inert`. Escape, a click on the scrim or the Hide button closes it,
+    all through `toggle`, so focus goes back to the top bar. It slides on
+    `translate` with `--ds-ease-drawer`; it was a floating card that animated
+    `transition-[opacity,transform]`, which Tailwind v4 does not apply to
+    `translate`, so it faded while its movement snapped. A **Pin** control in its header docks it back into
+    the column; the pin is per browser (`orthacms:right-panel:pinned`), not in the
+    synced layout. While it floats, its toggle **stays in the top bar**, open or
+    closed ("Show / Hide {title}", `aria-expanded`): an overlay has no column to
+    keep a control in, so the way in and the way out are one button in one
+    place. Pinned, it behaves as the column does — the bar offers only the way
+    back. A page that does not ask keeps the column. `attention` puts a
+    dot on the reopen button while the page says something there needs the
+    reader (the editor's blocking issues). On a phone the panel is a **bottom
+    sheet**, sliding up from the foot of the screen.
 
-  **The toggle pair hands focus between its halves**, and this is not optional.
-  "Hide {title}" lives inside the panel, "Show {title}" in the top bar, and only
-  one is reachable at a time — collapsing puts the first inside the `inert`
-  `<aside>`, reopening unmounts the second — so **every toggle destroys the
-  control that caused it** and the browser drops focus to `<body>`. `toggle`
-  therefore names the survivor (`PanelFocusTarget`) and that control claims focus
-  via `usePanelFocusHandoff` in the same commit that reveals it. Both directions
-  were broken; a handoff that covers only collapsing looks complete and is not.
+    **The toggle pair hands focus between its halves**, and this is not optional.
+    "Hide {title}" lives inside the panel, "Show {title}" in the top bar, and only
+    one is reachable at a time — collapsing puts the first inside the `inert`
+    `<aside>`, reopening unmounts the second — so **every toggle destroys the
+    control that caused it** and the browser drops focus to `<body>`. `toggle`
+    therefore names the survivor (`PanelFocusTarget`) and that control claims focus
+    via `usePanelFocusHandoff` in the same commit that reveals it. Both directions
+    were broken; a handoff that covers only collapsing looks complete and is not.
 
-  **Persistence records a decision, not a layout.** Below the design system's
-  breakpoint (`useIsMobile`) the panel starts collapsed whatever was stored (an
-  overlay covering the page on arrival is nobody's request), and that state is
-  a **separate, local** `mobileOpen` that is never persisted — a single write-
-  back used to overwrite the desktop preference for good, and two states make
-  that structurally impossible rather than guarded against.
+    **Persistence records a decision, not a layout.** Below the design system's
+    breakpoint (`useIsMobile`) the panel starts collapsed whatever was stored (an
+    overlay covering the page on arrival is nobody's request), and that state is
+    a **separate, local** `mobileOpen` that is never persisted — a single write-
+    back used to overwrite the desktop preference for good, and two states make
+    that structurally impossible rather than guarded against.
 
-  **On a narrow viewport it is an overlay with a hand-wired `Esc`**, and it is
-  deliberately **not** a Radix `Sheet`: a Sheet unmounts its content, and the
-  panel's body is a portal host that has to stay mounted or collapsing throws
-  away the filler's state and refetches its data. So the one affordance a Sheet
-  would have brought for free is added by hand. The scrim is `aria-hidden`
-  decoration, not a `<button>` — a dismiss control no keyboard could reach was
-  worse than none, now that `Esc` exists. Focus is still not *contained* in the
-  overlay; that half is open.
+    **On a narrow viewport it is an overlay with a hand-wired `Esc`**, and it is
+    deliberately **not** a Radix `Sheet`: a Sheet unmounts its content, and the
+    panel's body is a portal host that has to stay mounted or collapsing throws
+    away the filler's state and refetches its data. So the one affordance a Sheet
+    would have brought for free is added by hand. The scrim is `aria-hidden`
+    decoration, not a `<button>` — a dismiss control no keyboard could reach was
+    worse than none, now that `Esc` exists. Focus is still not _contained_ in the
+    overlay; that half is open.
 
 **Both are filled by `createPortal`, not by handing the shell a node** the way
 `useSidebarContent` does. React resolves context by where a node is _rendered_,
@@ -125,8 +125,8 @@ so every resizable panel in the app — the sidebar and the right panel here,
 and any a page draws (copilot's Agents rail, media's folders column) — reads
 and writes one layout. Shell owns two entries and their bounds:
 
-| Entry              | Declared in                     | Default / min / max                     | Collapses |
-| ------------------ | ------------------------------- | --------------------------------------- | --------- |
+| Entry              | Declared in                     | Default / min / max                      | Collapses |
+| ------------------ | ------------------------------- | ---------------------------------------- | --------- |
 | `shell.sidebar`    | `SIDEBAR_PANEL` (`AppShell`)    | 256 / 208 / 384px, ≤ 25% of the viewport | yes       |
 | `shell.rightPanel` | `RIGHT_PANEL` (`AppRightPanel`) | 352 / 288 / 640px, ≤ 35% of the viewport | yes       |
 
@@ -173,7 +173,7 @@ per-workspace nav. The footer stays persistent across both contexts.
 
 The region holds **one** node, so two callers mounted at once are
 last-writer-wins — that part is by design. What was not: the loser's unmount
-cleanup cleared the *winner's* content, blanking the sidebar's whole middle until
+cleanup cleared the _winner's_ content, blanking the sidebar's whole middle until
 the next route change. Each caller now holds an ownership token and `clearContent`
 is a no-op unless it is still the one showing. An override is also expected to
 carry **its own labelled landmark** — the `<nav aria-label="Primary">` belongs to
@@ -183,7 +183,7 @@ carry **its own labelled landmark** — the `<nav aria-label="Primary">` belongs
 **⌘K ignores editable targets.** `SidebarSearch` binds on `window`, so the
 shortcut used to fire with the caret in a page's search box or the rich-text body
 — opening the palette, taking the focus, and `preventDefault()`ing away the
-keystroke the user meant (WCAG 3.2.2). The *close* half still works from the
+keystroke the user meant (WCAG 3.2.2). The _close_ half still works from the
 palette's own input, which is a text field too. The palette also **restores focus**
 when closed without navigating; Radix does not do it here, though it does for every
 other overlay in the app.
@@ -285,4 +285,4 @@ order, icon, permission? }`) — the primary nav slot; `group` is
   focus handoff expiring unclaimed, the empty-nav-group guard (unreachable in a
   browser — the shipped Directory group always has an ungated row), and the
   floating toggle's DOM position, which exists only to satisfy a `~` selector.
-  Page *behaviour* stays in `apps/admin-e2e`.
+  Page _behaviour_ stays in `apps/admin-e2e`.

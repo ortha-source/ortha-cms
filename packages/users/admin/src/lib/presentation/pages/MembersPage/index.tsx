@@ -155,7 +155,7 @@ export function MembersPage() {
                         }
                     ]}
                 />
-                <Container width="full">
+                <Container>
                     <ContainerHeader
                         title={intl.formatMessage(messages.title)}
                     />
@@ -191,7 +191,7 @@ export function MembersPage() {
                     }
                 ]}
             />
-            <Container width="full">
+            <Container>
                 <ContainerHeader
                     title={intl.formatMessage(messages.title)}
                     // No count until one is known: the read failed or hasn't

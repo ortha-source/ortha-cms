@@ -307,8 +307,9 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   drag-and-drop / keyboard reorderable rows (a `DndContext` + vertical
   `SortableContext`, `GripVertical` handle per row, `KeyboardSensor` +
   `sortableKeyboardCoordinates`), then hidden columns as toggle-only rows. The
-  table header itself is static. The records view spans full width (`Container`
-  overridden to `max-w-none`) with a uniform 24px gutter (`p-6 sm:p-6`, overriding
+  table header itself is static. The records view is the **one** page in the admin
+  that spans full width (`Container width="full"` — every other list keeps the
+  1120px measure) with a uniform 24px gutter (`p-6 sm:p-6`, overriding
   the Container's responsive padding); the table sits in a full-width bordered
   card with no padding of its own.
 - **Entry editor** (`/new`, `/:entryId`, and a single page): `ContentEntryView`

@@ -109,19 +109,25 @@ hand-written):
   including the two that used to draw their own. Its optional `icon` takes a
   sized icon element and draws the tile itself; the tile is `aria-hidden`,
   because the heading beside it already names the page.
-- **Under a top bar, `ContainerHeader` folds away.** The shell hands it the
-  bar's actions region through `PageHeaderHost`; with one present on a desktop
-  viewport the header keeps its `<h1>` and subtitle for assistive technology
-  only (`sr-only`) and portals its `actions` into the bar inside a
-  `DensityProvider density="compact"`, which steps every control one notch
-  down (`Button`, `InputGroup`, `SelectTrigger`, a toolbar `SegmentedControl`)
-  so a page's controls fit the shorter line box without the page knowing where
-  they are drawn. `SearchToolbar` sets the same density, so a list's search box
-  and its Columns / Filters buttons take the top bar's 32px line too. `keepSubtitle` keeps a subtitle on screen when it is
-  data rather than a gloss (a webhook's URL). `keepTitle` keeps the whole header on screen
-  (the actions still portal up) for a page whose title is data — the record the
-  entry editor has open, which the breadcrumb names only in passing. Below the breakpoint, or with no
-  bar, it draws in full — the bar has no room there for a page's actions.
+- **Under a top bar, `ContainerHeader` keeps its title; only the actions move.**
+  Every page opens on its `<h1>` (24px, semibold) over one 13px line of
+  supporting copy, then its sections as `<h2>`. The header used to fold to
+  `sr-only` under a bar, the breadcrumb standing in for it, which left list
+  pages opening on a bare toolbar with nothing saying what the list was for.
+  The shell hands the header the bar's actions region through
+  `PageHeaderHost`; with one present on a desktop viewport the header portals
+  its `actions` into the bar inside a `DensityProvider density="compact"`,
+  which steps every control one notch down (`Button`, `InputGroup`,
+  `SelectTrigger`, a toolbar `SegmentedControl`) so a page's controls fit the
+  shorter line box without the page knowing where they are drawn.
+  `SearchToolbar` sets the same density, so a list's search box and its
+  Columns / Filters buttons take the top bar's 32px line too. Below the
+  breakpoint, or with no bar, the actions stay beside the title.
+- **`Container` is 1120px wide, except one page.** `width="full"` belongs to a
+  collection's records table alone — its columns are the reader's choice and
+  can number a dozen. Every other page, tables included (members, tokens,
+  activity, webhooks, segments), keeps the measure, so a page doesn't change
+  width as you move between them.
 - **A page's tabs go in the top bar's second row** — wrap the `TabsList` (or
   `TabNav`) in `TopBarTabs`. Inside a `SidebarInset` it portals into the strip
   under the bar, the way `TopBar` hoists itself, so the breadcrumb, the page's

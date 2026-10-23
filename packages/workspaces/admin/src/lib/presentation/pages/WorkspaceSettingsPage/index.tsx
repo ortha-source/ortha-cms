@@ -77,9 +77,8 @@ export function WorkspaceSettingsPage() {
                         ? intl.formatMessage(messages.dangerDenied)
                         : ''}
                 </span>
-                {/* The shared header, so under the top bar it folds away like
-                    every other page's — the breadcrumb already says Settings.
-                    The Archived mark rides the actions region, the way the
+                {/* The shared header, the same `<h1>` and subtitle as every
+                    other page's. The Archived mark rides the actions region, the way the
                     entry editor's marks about the record do. */}
                 <ContainerHeader
                     className="mb-0"

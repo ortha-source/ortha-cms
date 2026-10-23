@@ -1420,9 +1420,9 @@ export function EntryEditor({
                                     )}
                                 >
                                     {/* The record's title and where it stands —
-                                the page's `<h1>`, drawn on screen even under
-                                the top bar (`keepTitle`): it is the record's
-                                name, which the breadcrumb only truncates.
+                                the page's `<h1>`, drawn on screen like every
+                                page's: it is the record's name, which the
+                                breadcrumb only truncates.
 
                                 `ENTRY_HEADER_SLOT` items lead the top bar's
                                 actions (see the portal above) on a desktop

@@ -4,7 +4,13 @@ import { defineMessages, useIntl } from 'react-intl';
 import { useHasPermission } from '@orthacms/identity-admin';
 import { PageActionsPortal, PageTopBar } from '@orthacms/shell-admin';
 import { Layers, Plus } from 'lucide-react';
-import { Alert, AlertDescription, Button } from '@orthacms/design-system';
+import {
+    Alert,
+    AlertDescription,
+    Button,
+    Container,
+    ContainerHeader
+} from '@orthacms/design-system';
 import { useDocumentTitle } from '@orthacms/utils-admin';
 import { useWorkspaces } from '../../../application/useWorkspaces';
 import { WorkspaceCards } from '../../components/WorkspaceCards';
@@ -137,7 +143,7 @@ export function WorkspacesPage() {
                     </Button>
                 </PageActionsPortal>
             ) : null}
-            <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-5 px-4 py-8 sm:px-10">
+            <Container className="flex flex-col gap-5">
                 {/* A gated redirect landed here; say so, since the page simply
                     swapped under the user with no other signal. */}
                 <span role="status" aria-live="polite" className="sr-only">
@@ -145,14 +151,11 @@ export function WorkspacesPage() {
                         ? intl.formatMessage(messages.createDenied)
                         : ''}
                 </span>
-                <header className="flex flex-col gap-1.5">
-                    <h1 className="text-2xl font-semibold leading-8 tracking-[-0.01em]">
-                        {intl.formatMessage(messages.title)}
-                    </h1>
-                    <p className="max-w-[640px] text-[13px] text-muted-foreground">
-                        {intl.formatMessage(messages.subtitle)}
-                    </p>
-                </header>
+                <ContainerHeader
+                    className="mb-0"
+                    title={intl.formatMessage(messages.title)}
+                    subtitle={intl.formatMessage(messages.subtitle)}
+                />
 
                 <WorkspaceToolbar
                     search={search}
@@ -203,7 +206,7 @@ export function WorkspacesPage() {
                         }
                     />
                 )}
-            </div>
+            </Container>
         </>
     );
 }

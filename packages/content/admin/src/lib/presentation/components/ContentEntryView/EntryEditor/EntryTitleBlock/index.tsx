@@ -53,8 +53,7 @@ function languageName(locale: string, uiLocale: string): string {
  * the type's name, and on a desktop viewport it was screen-reader-only besides,
  * so nothing on the page said which record was open.
  *
- * `ContainerHeader` keeps the admin's one `<h1>` style; `keepTitle` stops it
- * folding into the top bar, since this title is data, not the page's name.
+ * `ContainerHeader` keeps the admin's one `<h1>` style.
  */
 export function EntryTitleBlock({
     title,
@@ -101,7 +100,6 @@ export function EntryTitleBlock({
     return (
         <div className="mb-6 flex min-w-0 flex-col gap-2.5">
             <ContainerHeader
-                keepTitle
                 className="mb-0 min-w-0"
                 titleClassName={cn(
                     // The record's name, set larger than a page heading: it is

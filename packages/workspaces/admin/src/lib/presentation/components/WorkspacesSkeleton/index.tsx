@@ -75,7 +75,7 @@ export function WorkspacesGridSkeleton({ count = 6 }: { count?: number }) {
  */
 export function WorkspacesPageSkeleton() {
     return (
-        <Container width="full">
+        <Container>
             <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex flex-col gap-2">
                     <Skeleton className="h-8 w-48" />
@@ -201,7 +201,7 @@ export function WorkspaceSettingsPageSkeleton() {
     return (
         <>
             <WorkspaceSettingsTopBar />
-            <Container width="full" className="space-y-6 py-8" role="status">
+            <Container className="space-y-6 py-8" role="status">
                 <span className="sr-only">
                     {intl.formatMessage(messages.loadingSettings)}
                 </span>

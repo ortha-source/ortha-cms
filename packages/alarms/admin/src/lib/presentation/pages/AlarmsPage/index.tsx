@@ -177,15 +177,12 @@ export function AlarmsPage() {
                     </Button>
                 </PageActionsPortal>
             ) : null}
-            <div className="mx-auto flex w-full max-w-[1040px] flex-col gap-5 px-4 py-8 sm:px-10">
-                <header className="flex flex-col gap-1.5">
-                    <h1 className="text-2xl font-semibold leading-8 tracking-[-0.01em]">
-                        {intl.formatMessage(messages.title)}
-                    </h1>
-                    <p className="max-w-[640px] text-[13px] text-muted-foreground">
-                        {intl.formatMessage(messages.subtitle)}
-                    </p>
-                </header>
+            <Container className="flex flex-col gap-5">
+                <ContainerHeader
+                    className="mb-0"
+                    title={intl.formatMessage(messages.title)}
+                    subtitle={intl.formatMessage(messages.subtitle)}
+                />
 
                 <AlarmSummaryStrip
                     summary={summary.data}
@@ -278,7 +275,7 @@ export function AlarmsPage() {
                         setPendingDelete(null);
                     }}
                 />
-            </div>
+            </Container>
         </>
     );
 }

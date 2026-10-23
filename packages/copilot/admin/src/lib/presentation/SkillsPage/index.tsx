@@ -191,7 +191,7 @@ export function SkillsPage() {
         // people.
         const denied = !canManage;
         return (
-            <Container width="full" className="py-8">
+            <Container>
                 <Empty className="border" role="alert">
                     <EmptyHeader>
                         <EmptyMedia variant="icon">
@@ -244,7 +244,7 @@ export function SkillsPage() {
     };
 
     return (
-        <Container width="full" className="flex flex-col gap-6 py-8">
+        <Container className="flex flex-col gap-6">
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="max-w-2xl">
                     <Button
@@ -258,10 +258,10 @@ export function SkillsPage() {
                             {intl.formatMessage(messages.back)}
                         </Link>
                     </Button>
-                    <h1 className="text-xl font-semibold">
+                    <h1 className="text-2xl font-semibold leading-8 tracking-[-0.01em]">
                         {intl.formatMessage(messages.title)}
                     </h1>
-                    <p className="text-muted-foreground mt-1 text-sm">
+                    <p className="text-muted-foreground mt-1.5 max-w-[640px] text-[13px]">
                         {intl.formatMessage(messages.intro)}
                     </p>
                 </div>

@@ -310,7 +310,7 @@ export function PageChromeProvider({ children }: { children: ReactNode }) {
     );
 
     // The same region, handed to the design system's `ContainerHeader`: on a
-    // page with a top bar the header folds away and its actions land here,
+    // page with a top bar the header keeps its title and its actions land here,
     // beside whatever the page put there through `PageActionsPortal`.
     return (
         <Context.Provider value={value}>

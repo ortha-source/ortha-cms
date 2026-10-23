@@ -62,11 +62,9 @@ describe('ContainerHeader', () => {
 });
 
 /**
- * Under a top bar the header folds away: the bar names the page, so the title
- * goes screen-reader-only and the actions move into the bar. The seam worth
- * pinning is that "folds away" never means "goes away" — a header that dropped
- * its `<h1>` with its pixels would leave every page without a heading, and the
- * page would look exactly as intended.
+ * Under a top bar the header keeps its title on screen and only its actions
+ * move into the bar. The seam worth pinning is the heading: it used to fold to
+ * `sr-only` there, which left every list page opening on a bare toolbar.
  */
 describe('ContainerHeader under a top bar', () => {
     afterEach(() => {
@@ -81,7 +79,7 @@ describe('ContainerHeader under a top bar', () => {
         return host;
     }
 
-    it('keeps its heading for assistive technology and moves its actions into the bar [design-system:I-43]', () => {
+    it('keeps its heading and subtitle on screen and moves its actions into the bar [design-system:I-43]', () => {
         const host = barHost();
         render(
             <PageHeaderHost host={host}>
@@ -95,7 +93,10 @@ describe('ContainerHeader under a top bar', () => {
 
         const heading = screen.getByRole('heading', { level: 1 });
         expect(heading.textContent).toBe('Blog posts');
-        expect(heading.className).toContain('sr-only');
+        expect(heading.className).not.toContain('sr-only');
+        expect(screen.getByText('42 records').className).not.toContain(
+            'sr-only'
+        );
         expect(screen.getAllByRole('heading')).toHaveLength(1);
 
         // In the bar, and stepped down to the bar's density.
@@ -104,25 +105,7 @@ describe('ContainerHeader under a top bar', () => {
         host.remove();
     });
 
-    it('keeps a data subtitle on screen when asked to', () => {
-        const host = barHost();
-        render(
-            <PageHeaderHost host={host}>
-                <ContainerHeader
-                    title="Endpoint"
-                    subtitle="https://example.com/hook"
-                    keepSubtitle
-                />
-            </PageHeaderHost>
-        );
-
-        expect(
-            screen.getByText('https://example.com/hook').className
-        ).not.toContain('sr-only');
-        host.remove();
-    });
-
-    it('draws in full below the breakpoint, where the bar has no room [design-system:I-43]', () => {
+    it('keeps its actions beside the title below the breakpoint, where the bar has no room [design-system:I-43]', () => {
         vi.spyOn(window, 'matchMedia').mockImplementation(
             (query: string) =>
                 ({

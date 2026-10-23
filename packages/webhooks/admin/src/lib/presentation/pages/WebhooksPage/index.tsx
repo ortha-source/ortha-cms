@@ -96,7 +96,7 @@ export function WebhooksPage() {
                         }
                     ]}
                 />
-                <Container width="full">
+                <Container>
                     {/* The header stays even without access: the page still
                         needs its `<h1>`, or it has no accessible name and no
                         heading at all (axe `page-has-heading-one`). */}
@@ -128,15 +128,12 @@ export function WebhooksPage() {
                     </Button>
                 </PageActionsPortal>
             ) : null}
-            <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-5 px-4 py-8 sm:px-10">
-                <header className="flex flex-col gap-1.5">
-                    <h1 className="text-[28px] font-semibold leading-[34px] tracking-[-0.012em]">
-                        {intl.formatMessage(messages.title)}
-                    </h1>
-                    <p className="max-w-[640px] text-[13px] text-muted-foreground">
-                        {intl.formatMessage(messages.subtitle)}
-                    </p>
-                </header>
+            <Container className="flex flex-col gap-5">
+                <ContainerHeader
+                    className="mb-0"
+                    title={intl.formatMessage(messages.title)}
+                    subtitle={intl.formatMessage(messages.subtitle)}
+                />
 
                 {isPending ? <WebhooksSkeleton /> : null}
 
@@ -190,7 +187,7 @@ export function WebhooksPage() {
                         )}
                     </>
                 ) : null}
-            </div>
+            </Container>
         </>
     );
 }

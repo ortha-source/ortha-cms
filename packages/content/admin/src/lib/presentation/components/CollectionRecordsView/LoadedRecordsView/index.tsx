@@ -822,7 +822,7 @@ export function LoadedRecordsView({
     };
 
     return (
-        <Container className="max-w-none p-6 sm:p-6">
+        <Container width="full" className="p-6 sm:p-6">
             <ContainerHeader
                 // The same mark the sidebar puts on this type, so the heading
                 // and the row that led here read as one place — and the trash
