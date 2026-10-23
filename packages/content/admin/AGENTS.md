@@ -220,12 +220,10 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   conditions read out as a `QueryBuilderSummary` row of removable chips under
   the toolbar. The **Columns** trigger beside it is icon-only too
   (`Columns3`, `aria-label` + `Tooltip`).
-  **Field-first filtering**: a **"+ Filter"** (`AddFilterButton`, "Add a
-  filter") ends the summary row — a searchable list of the filterable fields,
-  grouped by relation path; picking one opens the same popover with a fresh
-  rule for that field already in place (the pick is deferred to the next frame
-  from `onCloseAutoFocus`, or the closing list's focus return dismisses the
-  popover it just opened). On a publishable type the server's surface accepts
+  The applied-filter chips are the soft blue `info` tint (see
+  `QueryBuilderSummary`). There is **no "+ Filter"** beside them: a field-first
+  picker was tried and dropped — the Filters popover is the one way in.
+  On a publishable type the server's surface accepts
   `publishedAt` but the served picker omits it (copilot unions SQL fields), so
   `LoadedRecordsView` appends a **Published at** field after Status.
   **Status chips** (`RecordsStatusChips`, "Show by status") lead the toolbar on

@@ -59,7 +59,7 @@ export function ViewTab({
             onClick={onSelect}
             className={cn(
                 'relative inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 text-[13px] text-muted-foreground outline-none transition-colors',
-                'hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring',
+                'hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
                 'after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full',
                 active && 'font-medium text-foreground after:bg-foreground'
             )}

@@ -195,10 +195,16 @@ export function ViewSwitcher({
             aria-label={intl.formatMessage(messages.group)}
             className="flex min-w-0 flex-1 items-center gap-1"
         >
+            {/* Scrolls sideways only. `overflow-x: auto` turns the other
+                axis to `auto` as well, and the active tab's underline hangs
+                1px below the tab onto the row's rule — which was enough for
+                a vertical scrollbar. So y is clipped, and the strip reaches
+                1px down (`-mb-px pb-px`) to keep that underline on the rule
+                rather than cutting it off. */}
             <div
                 role="group"
                 aria-label={intl.formatMessage(messages.tabs)}
-                className="flex min-w-0 items-center gap-0.5 overflow-x-auto"
+                className="-mb-px flex min-w-0 items-center gap-0.5 overflow-x-auto overflow-y-hidden pb-px [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             >
                 <ViewTab active={!active} onSelect={() => onSelect(null)}>
                     {intl.formatMessage(messages.all)}

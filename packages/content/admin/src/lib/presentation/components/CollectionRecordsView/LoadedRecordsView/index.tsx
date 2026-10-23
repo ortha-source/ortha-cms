@@ -8,19 +8,15 @@ import {
 import { defineMessages, useIntl } from 'react-intl';
 import { FileText, Plus, Table2, Trash2 } from 'lucide-react';
 import {
-    COMBINATOR,
     FIELD_TYPE,
     QueryBuilderPopover,
     QueryBuilderSummary,
     countRules,
-    defaultValueForOp,
     jsonFilterToTree,
     newId,
-    opsForField,
     treeToJsonFilter,
     type FilterField,
-    type FilterGroup,
-    type FilterRule
+    type FilterGroup
 } from '@orthacms/query-builder-admin';
 import { useTableUrlState } from '@orthacms/utils-admin';
 import { useCurrentWorkspace } from '@orthacms/workspaces-admin';
@@ -77,7 +73,6 @@ import { useSetDefaultView } from '../../../../application/useSetDefaultView';
 import { ViewSwitcher } from '../../ViewSwitcher';
 import { RecordsTabLink } from '../RecordsTabLink';
 import { RecordsStatusChips } from '../RecordsStatusChips';
-import { AddFilterButton } from '../AddFilterButton';
 import { useStatusCounts } from '../../../hooks/useStatusCounts';
 import {
     PUBLISHED_AT_FIELD,
@@ -595,27 +590,6 @@ export function LoadedRecordsView({
         [updateParams]
     );
 
-    // **+ Filter** picks the field first and opens the builder with a new
-    // condition on it. The builder re-reads `value` each time it opens, so the
-    // condition is handed over as part of the value it opens on — closing
-    // without Apply drops it, like any other draft.
-    const [filterOpen, setFilterOpen] = useState(false);
-    const [seedRule, setSeedRule] = useState<FilterRule | null>(null);
-    const builderValue = useMemo(
-        () => (seedRule ? appendRule(appliedFilter, seedRule) : appliedFilter),
-        [appliedFilter, seedRule]
-    );
-    const addFilterOn = (field: FilterField) => {
-        const op = opsForField(field)[0];
-        setSeedRule({
-            id: newId(),
-            fieldId: field.id,
-            op,
-            value: defaultValueForOp(op)
-        });
-        setFilterOpen(true);
-    };
-
     // The status chips own their two conditions; the applied-filter chips
     // under the toolbar show everything else, and a change there keeps the
     // chip's conditions in place.
@@ -1125,21 +1099,15 @@ export function LoadedRecordsView({
                             ))}
                             {/* The filter builder, in a popover anchored to an
                                 icon-only "Filters" button — the full builder,
-                                AND / OR groups included. **+ Filter** below
-                                opens the same popover on a new condition. */}
+                                AND / OR groups included. */}
                             <QueryBuilderPopover
                                 fields={filterFields}
-                                value={builderValue}
+                                value={appliedFilter}
                                 onApply={applyFilter}
                                 onApplied={() => setApplying(true)}
                                 fieldsPending={filterFieldsPending}
                                 fieldsError={filterFieldsError}
                                 onRetryFields={refetchFilterFields}
-                                open={filterOpen}
-                                onOpenChange={(next) => {
-                                    setFilterOpen(next);
-                                    if (!next) setSeedRule(null);
-                                }}
                                 renderRelationValue={(props) => (
                                     <RelationValuePicker {...props} />
                                 )}
@@ -1157,28 +1125,21 @@ export function LoadedRecordsView({
                 />
             )}
 
-            {/* The applied conditions as removable chips, and **+ Filter** —
-                the field-first way to add one. */}
-            <div className="mb-4 flex min-h-7 flex-wrap items-center gap-2">
-                {summaryTree && countRules(summaryTree) > 0 ? (
-                    <QueryBuilderSummary
-                        tree={summaryTree}
-                        fields={filterFields}
-                        onChange={(next) =>
-                            applyFilter(
-                                quickStatus
-                                    ? withQuickStatus(next, quickStatus, newId)
-                                    : next
-                            )
-                        }
-                    />
-                ) : null}
-                <AddFilterButton
+            {/* The applied conditions as removable chips. */}
+            {summaryTree && countRules(summaryTree) > 0 ? (
+                <QueryBuilderSummary
+                    className="mb-4"
+                    tree={summaryTree}
                     fields={filterFields}
-                    disabled={filterFieldsPending || filterFieldsError}
-                    onPick={addFilterOn}
+                    onChange={(next) =>
+                        applyFilter(
+                            quickStatus
+                                ? withQuickStatus(next, quickStatus, newId)
+                                : next
+                        )
+                    }
                 />
-            </div>
+            ) : null}
 
             {/* Always-mounted live region so a search/filter/sort that updates
                 the table without a navigation is actually announced — a region
@@ -1319,15 +1280,4 @@ function hasAnyListParams(params: URLSearchParams): boolean {
 function readStatus(error: unknown): number | null {
     const status = (error as { status?: unknown } | null)?.status;
     return typeof status === 'number' ? status : null;
-}
-
-/** The tree with one more condition at its root (wrapping an OR root). */
-function appendRule(tree: FilterGroup | null, rule: FilterRule): FilterGroup {
-    if (!tree) {
-        return { id: newId(), combinator: COMBINATOR.And, children: [rule] };
-    }
-    if (tree.combinator === COMBINATOR.And) {
-        return { ...tree, children: [...tree.children, rule] };
-    }
-    return { id: newId(), combinator: COMBINATOR.And, children: [tree, rule] };
 }
