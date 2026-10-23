@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { IntlProvider } from 'react-intl';
 import { describe, expect, it, vi } from 'vitest';
+import { PageChromeProvider } from '../../utils/pageChrome';
 import { HomePage } from './index';
 
 /**
@@ -40,7 +41,11 @@ describe('HomePage', () => {
     it('names the tab for the route, and gives the name back on unmount [shell:I-31]', () => {
         const { unmount } = render(
             <IntlProvider locale="en">
-                <HomePage />
+                {/* Home draws its own top bar since 0.12.0, and the bar's
+                    actions region reads the shell's page chrome. */}
+                <PageChromeProvider>
+                    <HomePage />
+                </PageChromeProvider>
             </IntlProvider>
         );
 
