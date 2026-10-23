@@ -73,6 +73,12 @@ type Crumb = {
     label: ReactNode;
     /** Where the crumb links; omitted for plain (group) and leaf crumbs. */
     to?: string;
+    /**
+     * A grouping that says nothing a click could use (Collections / Pages):
+     * dropped from a deep trail unless the bar is very wide, so the links
+     * either side of it keep their room.
+     */
+    optional?: boolean;
 };
 
 /**
@@ -133,6 +139,7 @@ export function ContentTopBar({
             // Collections / Pages split. A grouping, not a route — no link.
             crumbs.push({
                 key: `kind-${type.kind}`,
+                optional: true,
                 label: intl.formatMessage(
                     type.kind === 'collection'
                         ? messages.collections
@@ -184,6 +191,8 @@ export function ContentTopBar({
     }
 
     const last = crumbs.length - 1;
+    // Deeper than "Content › Collections › Type", the grouping gives way.
+    const dropOptional = crumbs.length > 3;
 
     return (
         <TopBar>
@@ -202,18 +211,30 @@ export function ContentTopBar({
                         index > 0 ? (
                             <BreadcrumbSeparator
                                 key={`${crumb.key}-sep`}
-                                className="hidden sm:flex"
+                                className={
+                                    crumb.optional && dropOptional
+                                        ? 'hidden 2xl:flex'
+                                        : 'hidden sm:flex'
+                                }
                             />
                         ) : null,
-                        // Below `sm` only the open record survives: the trail
-                        // would otherwise shrink past its own text and the
-                        // crumbs would overlap each other.
+                        // Below `sm` only the open record survives. Above it
+                        // the **links** back keep their width (up to 10rem)
+                        // and the open record's name is what truncates: it is
+                        // the page's `<h1>` already, while a link squeezed to
+                        // nothing — or spilling under its neighbour, which is
+                        // what it used to do once the Properties panel took its
+                        // column — is a way back that cannot be clicked.
                         <BreadcrumbItem
                             key={crumb.key}
                             className={
                                 index === last
                                     ? 'min-w-0 whitespace-nowrap'
-                                    : 'hidden min-w-0 whitespace-nowrap sm:inline-flex'
+                                    : crumb.to
+                                      ? 'hidden max-w-40 shrink-0 whitespace-nowrap sm:inline-flex'
+                                      : crumb.optional && dropOptional
+                                        ? 'hidden min-w-0 whitespace-nowrap 2xl:inline-flex'
+                                        : 'hidden min-w-0 whitespace-nowrap sm:inline-flex'
                             }
                         >
                             {index === last ? (
@@ -222,10 +243,17 @@ export function ContentTopBar({
                                 </BreadcrumbPage>
                             ) : crumb.to ? (
                                 <BreadcrumbLink asChild>
-                                    <Link to={crumb.to}>{crumb.label}</Link>
+                                    <Link
+                                        to={crumb.to}
+                                        className="block min-w-0 truncate"
+                                    >
+                                        {crumb.label}
+                                    </Link>
                                 </BreadcrumbLink>
                             ) : (
-                                <span>{crumb.label}</span>
+                                <span className="block min-w-0 truncate">
+                                    {crumb.label}
+                                </span>
                             )}
                         </BreadcrumbItem>
                     ])}
