@@ -3,13 +3,18 @@ import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { cn } from '@orthacms/design-system';
 
-/** How loud a {@link HomeAttentionCard} is: broken, waiting, or a heads-up. */
-export type HomeAttentionTone = 'destructive' | 'warning' | 'info';
+/**
+ * How loud a {@link HomeAttentionCard} is: broken, waiting, a heads-up, or
+ * `calm` — a queue that is empty right now, said as "0" so its absence is
+ * not mistaken for a card that failed to load.
+ */
+export type HomeAttentionTone = 'destructive' | 'warning' | 'info' | 'calm';
 
 const TONE: Record<HomeAttentionTone, string> = {
     destructive: 'bg-destructive-soft text-destructive-soft-foreground',
     warning: 'bg-warning-soft text-warning-soft-foreground',
-    info: 'bg-info-soft text-info-soft-foreground'
+    info: 'bg-info-soft text-info-soft-foreground',
+    calm: 'bg-muted text-muted-foreground'
 };
 
 /**

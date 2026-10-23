@@ -76,7 +76,14 @@ export type ProtectionGateway = {
      * they sent, and somebody who cannot approve still has to see whether
      * anyone has looked.
      */
-    listQueue(params?: ReviewQueueParams): Promise<ReviewQueue>;
+    /**
+     * The review queue — of the open workspace, or of `workspaceId` when
+     * given (Home asks each workspace in turn).
+     */
+    listQueue(
+        params?: ReviewQueueParams,
+        workspaceId?: string
+    ): Promise<ReviewQueue>;
     /**
      * Every rule the open workspace holds, including any addressed at a type it
      * is no longer granted — those are the rows an administrator needs in order
@@ -350,14 +357,22 @@ export const httpProtectionGateway: ProtectionGateway = {
         }
     },
 
-    async listQueue(params: ReviewQueueParams = {}): Promise<ReviewQueue> {
+    async listQueue(
+        params: ReviewQueueParams = {},
+        workspaceId?: string
+    ): Promise<ReviewQueue> {
         try {
             // No `mine` flag: the page fetches one window and splits it into
             // both tabs, so their counts cannot disagree with each other or
             // with the nav badge. See `splitQueue`.
             const { data } = await apiClient.get<ReviewQueueResponse>(
                 '/protection/queue',
-                { params }
+                {
+                    params,
+                    ...(workspaceId
+                        ? { headers: { 'X-Workspace-Id': workspaceId } }
+                        : {})
+                }
             );
             return {
                 items: data.items.map(toQueueItem),

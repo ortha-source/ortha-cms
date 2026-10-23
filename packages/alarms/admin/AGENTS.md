@@ -339,3 +339,14 @@ locally is a hue nobody measured.
   in `support/api/auth.ts` had to gain `alarms:read` / `alarms:manage` first —
   without them this whole surface renders for nobody and no browser test can see
   it, which is why it shipped with a `window.prompt` in it.
+
+## On Home
+
+`AlarmsHomeAttention` fills `HOME_SECTION_SLOT`'s `attention` region: open
+findings summed across the reader's active workspaces, naming each one with a
+count, and linking to the workspace with the most. Home sits outside every
+workspace, so `useAlarmTotals` asks each with its own `X-Workspace-Id`
+(`httpAlarmsGateway.summary(workspaceId)`; `apiClient` keeps a header a
+request sets itself), keyed as `useAlarmSummary` so the two share cache. It
+shows at **0** too ("0 open findings — every alarm check passes"), and
+renders nothing without `alarms:read` or while the counts are in flight.

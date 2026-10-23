@@ -44,6 +44,7 @@ Layered per [ADR-0003](../../../docs/adr/0003-tactical-ddd-inside-plugins.md).
 | `reviewState`   | `RECORDS_FILTER_FIELDS_SLOT`  | waiting on review / not requested                                                    |
 | Insights card   | `INSIGHTS_WIDGET_SLOT`        | how much review is outstanding                                                       |
 | Reviews page    | `WORKSPACE_ROUTE_SLOT` + nav  | what is waiting, and on whom                                                         |
+| Home card       | `HOME_SECTION_SLOT`           | entries awaiting review across workspaces — "0" when none                            |
 
 **The three entry contributions render nothing on an unprotected type** and on a
 non-publishable one. `reviewScopeOf` is the single place that decides, so the
@@ -296,3 +297,12 @@ identical and mean opposite things, and the second one tells a reviewer they are
 free when they are not. The overdue threshold arrives **with** the figure rather
 than being restated here, so the caption cannot come to say "3 days" over a
 number counted against something else.
+
+## The Home card
+
+`ReviewsHomeAttention` sums each active workspace's queue `total` (a one-row
+window per workspace, asked with its own `X-Workspace-Id` through
+`listQueue(params, workspaceId)`) and links to the workspace with the most
+waiting. It stays on Home at **0** — an empty queue said as a number, not a
+card that vanished — and renders nothing without `content:read` or while the
+counts are in flight.

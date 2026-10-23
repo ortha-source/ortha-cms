@@ -226,7 +226,10 @@ order, icon, permission? }`) — the primary nav slot; `group` is
   `attention` item renders nothing, so a calm install shows no empty section.
 - `HomeAttentionCard` (`{ tone, icon, title, description, action, to }`) — the
   one shape of an attention card: the whole card is a link to where the
-  problem is fixed.
+  problem is fixed. A **work queue** (alarms' open findings, protection's
+  reviews) stays on the row at **0** with `tone="calm"`, so an empty queue is
+  not mistaken for a card that failed to load; a **fault** (a stopped webhook,
+  unrecorded audit events) renders only while it is happening.
 - `useSidebarContent(render, deps)` / `SidebarContentProvider` — the mechanism a
   route uses to take over the sidebar's contextual region.
 - `PageActionsPortal` / `RightPanelPortal` / `PageActions` / `useRightPanel` —

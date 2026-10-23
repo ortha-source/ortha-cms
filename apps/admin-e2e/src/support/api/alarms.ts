@@ -538,3 +538,26 @@ export async function mockAlarmsSlots(
 
     return recorder;
 }
+
+/**
+ * Stubs only `GET /api/alarms/findings/summary`, answering per workspace from
+ * the request's `X-Workspace-Id` — the header Home sets itself when it asks
+ * every workspace in turn. A workspace not in `openByWorkspace` has none.
+ */
+export async function mockAlarmSummary(
+    page: Page,
+    openByWorkspace: Record<string, number> = {}
+): Promise<void> {
+    await page.route('**/api/alarms/findings/summary*', async (route) => {
+        const workspaceId = route.request().headers()['x-workspace-id'] ?? '';
+        const open = openByWorkspace[workspaceId] ?? 0;
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+                open: { error: 0, warn: open, info: 0 },
+                openTotal: open
+            })
+        });
+    });
+}

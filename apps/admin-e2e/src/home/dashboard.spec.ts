@@ -3,6 +3,8 @@ import { mockSignedIn } from '../support/api/auth';
 import { mockWorkspaces } from '../support/api/workspaces';
 import { mockActivity, mockDeadLetters } from '../support/api/activity';
 import { mockWebhooksApi } from '../support/api/webhooks';
+import { mockAlarmSummary } from '../support/api/alarms';
+import { mockReviewQueue } from '../support/api/protection';
 
 /**
  * The Home dashboard (`/`, from `@orthacms/shell-admin`). The greeting is the
@@ -89,5 +91,38 @@ test.describe('Home dashboard', () => {
             'href',
             '/activity'
         );
+    });
+
+    test('alarms and reviews say 0 rather than disappearing', async ({
+        homePage,
+        page
+    }) => {
+        await mockAlarmSummary(page);
+        await mockReviewQueue(page, []);
+        await homePage.goto();
+
+        await expect(homePage.attention).toBeVisible();
+        await expect(homePage.attentionCard(/0 open findings/)).toContainText(
+            'Every alarm check passes'
+        );
+        await expect(
+            homePage.attentionCard(/0 entries await review/)
+        ).toContainText('Nothing is waiting on a reviewer');
+    });
+
+    test('open findings are counted across workspaces and lead to them', async ({
+        homePage,
+        page
+    }) => {
+        // Home sits outside every workspace, so it asks each one by header.
+        await mockAlarmSummary(page, { ws_marketing: 3 });
+        await homePage.goto();
+
+        const card = homePage.attentionCard(/3 open findings/);
+        await expect(card).toHaveAttribute(
+            'href',
+            '/workspaces/ws_marketing/alarms'
+        );
+        await expect(card).toContainText('Marketing site (3)');
     });
 });
