@@ -290,7 +290,7 @@ export class WebhooksPage extends BasePage {
 
     /** The delivery log's table. */
     deliveriesTable(): Locator {
-        return this.page.getByRole('table', { name: 'Delivery log' });
+        return this.page.getByRole('list', { name: 'Delivery log' });
     }
 
     /** The detail page's Edit action, which opens the editor on this endpoint. */
@@ -322,12 +322,24 @@ export class WebhooksPage extends BasePage {
 
     /** The "View" action on the first delivery row. */
     firstDeliveryViewButton(): Locator {
-        return this.page.getByRole('button', { name: 'View' }).first();
+        return this.deliveriesTable().getByRole('button').first();
     }
 
-    /** The delivery detail sheet. */
+    /** A delivery row of the log, by its event kind. */
+    deliveryRow(eventKind: string): Locator {
+        return this.deliveriesTable().getByRole('button', {
+            name: new RegExp(eventKind.replace('.', '\\.'))
+        });
+    }
+
+    /** The picked delivery's panel beside the log. */
     deliverySheet(): Locator {
-        return this.page.getByRole('dialog');
+        return this.page.getByRole('region', { name: 'Delivery', exact: true });
+    }
+
+    /** The delivery panel's Request / Response tab. */
+    deliveryTab(name: 'Request' | 'Response'): Locator {
+        return this.deliverySheet().getByRole('tab', { name });
     }
 
     /** The delivery log's state filter — named explicitly, not by its value. */

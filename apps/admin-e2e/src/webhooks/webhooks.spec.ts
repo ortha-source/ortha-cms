@@ -726,14 +726,33 @@ test.describe('Webhooks', () => {
             await webhooksPage.gotoDetail(WEBHOOKS_SEED[0].id);
             await webhooksPage.deliveriesTable().waitFor();
 
-            await webhooksPage.firstDeliveryViewButton().click();
-
-            const sheet = webhooksPage.deliverySheet();
-            await expect(sheet).toContainText('entry.published');
+            // The newest delivery is shown beside the log without a click.
+            const panel = webhooksPage.deliverySheet();
+            await expect(panel).toContainText('entry.published');
+            await expect(
+                webhooksPage.firstDeliveryViewButton()
+            ).toHaveAttribute('aria-pressed', 'true');
             // The stored body, verbatim — the only version worth debugging
             // against.
-            await expect(sheet).toContainText('"eventId": "evt_1"');
-            await expect(sheet).toContainText('received');
+            await expect(panel).toContainText('"eventId": "evt_1"');
+            await webhooksPage.deliveryTab('Response').click();
+            await expect(panel).toContainText('received');
+        });
+
+        test('picking another delivery shows it beside the log', async ({
+            page,
+            webhooksPage
+        }) => {
+            await mockWebhooksApi(page);
+            await webhooksPage.gotoDetail(WEBHOOKS_SEED[0].id);
+            await webhooksPage.deliveriesTable().waitFor();
+
+            const row = webhooksPage.deliveryRow('entry.updated');
+            await row.click();
+            await expect(row).toHaveAttribute('aria-pressed', 'true');
+            await expect(webhooksPage.deliverySheet()).toContainText(
+                'entry.updated'
+            );
         });
     });
 });

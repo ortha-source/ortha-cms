@@ -312,6 +312,7 @@ export function WebhookDetailPage() {
                     <TabsContent value="deliveries">
                         <WebhookDeliveriesPanel
                             endpointId={endpoint.id}
+                            endpointUrl={endpoint.url}
                             canRedeliver={canManage}
                         />
                     </TabsContent>

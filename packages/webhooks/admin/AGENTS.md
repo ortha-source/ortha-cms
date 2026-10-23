@@ -38,8 +38,14 @@ Edit in the top bar, then a row of figures over the log
 (`WebhookDeliveriesPanel/DeliveryStats`: success rate, delivered, failed,
 median response, last delivery) taken over the **last 50 deliveries** — the
 window is in the label ("Succeeded, last 50"), so the rate never passes for an
-all-time number the API does not compute. The log's times read relative
-within a week (`presentation/hooks/useFormatSince`), the full date on hover.
+all-time number the API does not compute. Under them the log is **two panes**: the
+list on the left (`DeliveryRow` buttons grouped by day — an outcome dot, the
+event, the response and the time; picking one sets `aria-pressed`) and the
+picked delivery on the right (`DeliveryDetailPanel`: event and state, when it
+went and how it was answered, **Send again**, then **Request** — where it was
+posted and the body, verbatim — and **Response** tabs). With nothing picked
+the newest row on the page is shown, so the panel is never empty beside a
+log that is not. It replaced a sheet that covered the log it was explaining.
 
 ## The list answers "is anything broken?"
 

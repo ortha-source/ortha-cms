@@ -300,13 +300,21 @@ export async function mockWebhooksApi(
         })
     );
 
-    await page.route('**/api/webhooks/*/deliveries/*', (route) =>
-        json(route, {
-            ...deliveries[0],
-            payload: { event: 'entry.published', eventId: 'evt_1' },
+    // The detail of whichever delivery was asked for, so picking a second
+    // row in the log really shows a second delivery.
+    await page.route('**/api/webhooks/*/deliveries/*', (route) => {
+        const deliveryId = new URL(route.request().url()).pathname
+            .split('/')
+            .pop();
+        const delivery =
+            deliveries.find((candidate) => candidate.id === deliveryId) ??
+            deliveries[0];
+        return json(route, {
+            ...delivery,
+            payload: { event: delivery.eventKind, eventId: 'evt_1' },
             responseSnippet: 'received'
-        })
-    );
+        });
+    });
 
     await page.route('**/api/webhooks/*/deliveries/*/redeliver', (route) =>
         json(route, { ...deliveries[0], id: 'del_repeat' }, 201)
