@@ -262,10 +262,12 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   schema, and re-seeded when the open type changes. Row selection is local
   component state (a `Set<string>` by id)
   in `LoadedRecordsView`, surfaced through the table's leading checkbox column
-  and the `CollectionRecordsSelectionBar` — a dark bar that **takes the
-  toolbar's place** while anything is selected ("{n} selected of {total}", the
-  built-in actions as buttons, the destructive ones at the far end, ✕ to
-  clear), so the table never jumps down a row. **The table itself is
+  and the `CollectionRecordsSelectionBar` — the design-system `SelectionBar`,
+  a light card **floating at the bottom centre of the work area** while
+  anything is selected ("{n} selected of {total}", the built-in actions as
+  buttons, the destructive ones after a divider, ✕ to clear), so neither the
+  toolbar nor the table moves; the page pads its bottom (`pb-24`) meanwhile so
+  the last rows scroll clear of it. **The table itself is
   untouched** — the redesign moved everything around it, not its cells. **It belongs to one list**:
   `CollectionRecordsView` keys `LoadedRecordsView` by type, trash-or-live and
   shared source. Without the key, moving to a collection whose schema was
@@ -1289,7 +1291,7 @@ fetching internally.
 - **`RECORDS_BULK_ACTION_SLOT`** — an item in the records **selection bar's**
   ⋯ menu ("Bulk actions"). The built-ins are buttons of their own on the bar —
   Publish / Unpublish (Restore in the trash) first, Delete (Delete permanently)
-  pushed to the far end — and the ⋯ holding the contributions sits after the
+  last after a divider — and the ⋯ holding the contributions sits after the
   first group. `useItem` receives the selected `ids` and `trashed`, plus
   `onDone` to clear the selection.
     - The bar's own layout is **count · actions · ⋯ · … · Delete · ✕**: the

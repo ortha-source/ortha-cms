@@ -126,6 +126,13 @@ hand-written):
 - **`SearchToolbar` takes `leading`** — controls drawn at the row's start (the
   records table's status chips); with it the search box moves to the right, a
   fixed 260px beside the actions, instead of stretching from the left edge.
+- **`SelectionBar` floats; the page makes room.** A list's bulk bar is a light
+  card at the bottom centre of the **work area** — `InsetFloating` portals it
+  into a layer `SidebarInset` keeps over its scrollport's bottom edge, so it
+  stays centred whether the sidebar is open or collapsed. The inset does not
+  pad its scrollport for it: that shrank a page running its own inner scroll
+  (the Media Library) instead of adding room. The page pads whatever scrolls
+  (`pb-24`) while the bar is up.
 - **`Container` is 1120px wide, except one page.** `width="full"` belongs to a
   collection's records table alone — its columns are the reader's choice and
   can number a dozen. Every other page, tables included (members, tokens,

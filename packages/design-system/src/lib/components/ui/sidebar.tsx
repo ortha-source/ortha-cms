@@ -622,6 +622,41 @@ function useInsetTabsHost() {
 }
 
 /**
+ * Where {@link InsetFloating} draws — a layer pinned to the bottom of the
+ * inset, over the scrollport. Same three states as {@link InsetTopBarContext}.
+ */
+const InsetFloatContext = React.createContext<HTMLElement | null | undefined>(
+    undefined
+);
+
+/**
+ * Floats its children **at the bottom centre of the work area** — the inset,
+ * not the window, so it stays centred over the page whether the sidebar is
+ * open, collapsed or gone — above the content and outside the scroll, like the
+ * top bar. For transient page chrome that acts on what the reader has picked
+ * (a selection bar), not for anything that must always be on screen.
+ *
+ * It portals into the inset's float layer (keeping the page's React context).
+ * **The page makes room for it**: bottom padding on whatever scrolls (`pb-24`
+ * while the bar is up), so its last rows can be scrolled clear. The inset
+ * can't do that for it — padding the inset's scrollport shrinks a page that
+ * runs its own inner scroll (the Media Library) instead of adding room. The
+ * layer ignores the pointer; give the floating element `pointer-events-auto`.
+ * With no inset above (a public page) it floats over the viewport instead.
+ */
+function InsetFloating({ children }: { children: React.ReactNode }) {
+    const host = React.useContext(InsetFloatContext);
+    if (host === undefined) {
+        return (
+            <div className="pointer-events-none fixed inset-x-0 bottom-4 z-20 flex justify-center px-4">
+                {children}
+            </div>
+        );
+    }
+    return host ? createPortal(children, host) : null;
+}
+
+/**
  * The main content region beside the sidebar, split into a **fixed bar strip**
  * and a **scrollport** below it. The page's `TopBar` hoists itself into the
  * strip (by portal, so it keeps the page's React context), which is what makes
@@ -657,6 +692,7 @@ function SidebarInset({
 }) {
     const [barHost, setBarHost] = React.useState<HTMLElement | null>(null);
     const [tabsHost, setTabsHost] = React.useState<HTMLElement | null>(null);
+    const [floatHost, setFloatHost] = React.useState<HTMLElement | null>(null);
 
     return (
         <main
@@ -685,7 +721,8 @@ function SidebarInset({
             <div data-slot="sidebar-inset-tabs" ref={setTabsHost} />
             <InsetTabsContext.Provider value={tabsHost}>
                 <InsetTopBarContext.Provider value={barHost}>
-                    {/* `tabIndex={0}` because this is the app's scroll container:
+                    <InsetFloatContext.Provider value={floatHost}>
+                        {/* `tabIndex={0}` because this is the app's scroll container:
                     a region that scrolls must be reachable by keyboard (WCAG
                     2.1.1), and a mouse user's wheel is not a substitute. It
                     matters most exactly when the page has nothing else to focus
@@ -705,29 +742,37 @@ function SidebarInset({
                     were being handed. The ring is `inset` because the parent
                     `<main>` clips overflow, so an outset one is drawn outside its
                     own box and never seen. */}
-                    <div
-                        data-slot="sidebar-inset-scroll"
-                        tabIndex={0}
-                        // `group`, not `region`: naming it must not add a second
-                        // landmark (see `scrollLabel`). Both are conditional on a
-                        // name existing — a bare `aria-label` with no role names an
-                        // element assistive tech has no role to announce it with,
-                        // and a `group` with no name is worse than the generic it
-                        // replaced.
-                        role={scrollLabel ? 'group' : undefined}
-                        aria-label={scrollLabel}
-                        // `scrollbar-gutter: stable` reserves the scrollbar's
-                        // width whether or not the page overflows, so a page
-                        // that grows past the fold (a list that finished
-                        // loading, a section opening) does not shift every
-                        // column sideways by the scrollbar's width. No effect
-                        // under overlay scrollbars, which take no space.
-                        className="flex min-h-0 flex-1 flex-col overflow-y-auto [scrollbar-gutter:stable] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset focus-visible:outline-none"
-                    >
-                        {children}
-                    </div>
+                        <div
+                            data-slot="sidebar-inset-scroll"
+                            tabIndex={0}
+                            // `group`, not `region`: naming it must not add a second
+                            // landmark (see `scrollLabel`). Both are conditional on a
+                            // name existing — a bare `aria-label` with no role names an
+                            // element assistive tech has no role to announce it with,
+                            // and a `group` with no name is worse than the generic it
+                            // replaced.
+                            role={scrollLabel ? 'group' : undefined}
+                            aria-label={scrollLabel}
+                            // `scrollbar-gutter: stable` reserves the scrollbar's
+                            // width whether or not the page overflows, so a page
+                            // that grows past the fold (a list that finished
+                            // loading, a section opening) does not shift every
+                            // column sideways by the scrollbar's width. No effect
+                            // under overlay scrollbars, which take no space.
+                            className="flex min-h-0 flex-1 flex-col overflow-y-auto [scrollbar-gutter:stable] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset focus-visible:outline-none"
+                        >
+                            {children}
+                        </div>
+                    </InsetFloatContext.Provider>
                 </InsetTopBarContext.Provider>
             </InsetTabsContext.Provider>
+            {/* The float layer: {@link InsetFloating}'s host, over the
+                scrollport's bottom edge. Empty, it is hidden. */}
+            <div
+                data-slot="sidebar-inset-float"
+                ref={setFloatHost}
+                className="pointer-events-none absolute inset-x-0 bottom-4 z-20 flex justify-center px-4 empty:hidden"
+            />
         </main>
     );
 }
@@ -1170,6 +1215,7 @@ export {
     useOptionalSidebar,
     useInsetTopBarHost,
     useInsetTabsHost,
+    InsetFloating,
     InsetFooter,
     InsetFooterEnd
 };

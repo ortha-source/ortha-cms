@@ -94,8 +94,11 @@ of the server's RBAC, which is the real enforcer).
   Archives, the same pill as the records table's status chips, one pressed),
   then a search box (name + tags) and a **sort** select.
 - **Select + bulk-act** — tile / row checkboxes (and the table's select-all)
-  raise **`MediaSelectionBar`**, the records table's dark bar: "{n} selected of
-  {total}", Move to… / Download / Duplicate, Delete at the far end, ✕ to clear.
+  raise **`MediaSelectionBar`** — the design-system `SelectionBar` the records
+  table uses too, floating at the bottom centre of the work area: "{n}
+  selected of {total}", Move to… / Download / Duplicate, Delete after a
+  divider, ✕ to clear. The browser pane scrolls itself, so it pads its own
+  bottom while the bar is up.
 - **Per-asset actions** — the shared **`AssetActionsMenu`** (Download, Copy link,
   Duplicate, Rename, Move, Delete), routed through one dispatcher. It carries
   **no "Open" item**: in the details panel it re-opened the panel already on screen,

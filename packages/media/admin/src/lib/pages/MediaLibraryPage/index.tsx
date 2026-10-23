@@ -567,7 +567,14 @@ export function MediaLibraryPage() {
                     `landmark-no-duplicate-main` once admin-e2e's axe fixture
                     stopped omitting the whole `best-practice` ruleset. */}
                 <div className="min-w-0 flex-1 overflow-auto">
-                    <div className="px-4 py-6 sm:px-8">
+                    {/* The browser scrolls itself, not the inset, so it
+                        makes its own room under the floating selection bar. */}
+                    <div
+                        className={cn(
+                            'px-4 py-6 sm:px-8',
+                            selectedIds.length > 0 && 'pb-24'
+                        )}
+                    >
                         <div className="mb-4">
                             <h1 className="text-2xl font-semibold tracking-[-0.01em]">
                                 {store.currentFolder

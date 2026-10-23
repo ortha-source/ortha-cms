@@ -10,6 +10,7 @@ import {
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
+    SelectionBarDivider,
     Spinner,
     toast
 } from '@orthacms/design-system';
@@ -262,9 +263,9 @@ export function CollectionRecordsBulkActions({
         }
     }
 
-    // On the dark selection bar: the built-ins are buttons of their own, the
+    // On the selection bar: the built-ins are buttons of their own, the
     // contributions (Export) sit in the ⋯ after them, and the destructive ones
-    // are pushed to the far end, away from Publish.
+    // come last, after a divider, away from Publish.
     const barButton = (row: Placed) => {
         const Icon = row.icon;
         return (
@@ -276,9 +277,8 @@ export function CollectionRecordsBulkActions({
                 disabled={row.disabled}
                 onClick={row.onSelect}
                 className={cn(
-                    'shrink-0 text-background hover:bg-background/10 hover:text-background',
-                    row.destructive &&
-                        'text-red-300 hover:text-red-200 dark:text-red-600 dark:hover:text-red-700'
+                    'shrink-0',
+                    row.destructive && 'text-destructive hover:text-destructive'
                 )}
             >
                 {Icon ? <Icon aria-hidden /> : null}
@@ -297,7 +297,7 @@ export function CollectionRecordsBulkActions({
                             type="button"
                             variant="ghost"
                             size="icon-sm"
-                            className="shrink-0 text-background hover:bg-background/10 hover:text-background"
+                            className="shrink-0"
                             aria-label={intl.formatMessage(messages.trigger)}
                         >
                             <MoreHorizontal aria-hidden />
@@ -325,8 +325,8 @@ export function CollectionRecordsBulkActions({
                     </DropdownMenuContent>
                 </DropdownMenu>
             ) : null}
-            {danger.length > 0 ? (
-                <span aria-hidden className="ml-auto" />
+            {danger.length > 0 && (primary.length > 0 || extras.length > 0) ? (
+                <SelectionBarDivider />
             ) : null}
             {danger.map(barButton)}
 

@@ -28,6 +28,7 @@ import {
     Container,
     ContainerHeader,
     SearchToolbar,
+    cn,
     toast
 } from '@orthacms/design-system';
 import type {
@@ -896,7 +897,14 @@ export function LoadedRecordsView({
         ) : null;
 
     return (
-        <Container width="full" className="p-6 sm:p-6">
+        <Container
+            width="full"
+            className={cn(
+                'p-6 sm:p-6',
+                // Room to scroll the last rows clear of the floating bar.
+                selectedIds.size > 0 && !readOnly && 'pb-24 sm:pb-24'
+            )}
+        >
             <ContainerHeader
                 // The same mark the sidebar puts on this type, so the heading
                 // and the row that led here read as one place — and the trash
@@ -1047,8 +1055,9 @@ export function LoadedRecordsView({
                 </p>
             ) : null}
 
-            {/* While rows are selected the bulk bar takes the toolbar's place
-                rather than pushing the table down. */}
+            {/* While rows are selected the bulk bar floats at the bottom of
+                the work area (a portal), so neither the toolbar nor the table
+                moves. */}
             {selectedIds.size > 0 && !readOnly ? (
                 <CollectionRecordsSelectionBar
                     count={selectedIds.size}
@@ -1067,63 +1076,62 @@ export function LoadedRecordsView({
                         />
                     }
                 />
-            ) : (
-                <SearchToolbar
-                    value={searchInput}
-                    onValueChange={setSearchInput}
-                    busy={searchPending || (isFetching && !isPending)}
-                    searchLabel={intl.formatMessage(messages.searchLabel)}
-                    searchPlaceholder={intl.formatMessage(
-                        messages.searchPlaceholder
-                    )}
-                    className="mb-2"
-                    leading={
-                        publishable && !trashed ? (
-                            <RecordsStatusChips
-                                tree={appliedFilter}
-                                counts={statusCounts}
-                                onChange={applyFilter}
+            ) : null}
+            <SearchToolbar
+                value={searchInput}
+                onValueChange={setSearchInput}
+                busy={searchPending || (isFetching && !isPending)}
+                searchLabel={intl.formatMessage(messages.searchLabel)}
+                searchPlaceholder={intl.formatMessage(
+                    messages.searchPlaceholder
+                )}
+                className="mb-2"
+                leading={
+                    publishable && !trashed ? (
+                        <RecordsStatusChips
+                            tree={appliedFilter}
+                            counts={statusCounts}
+                            onChange={applyFilter}
+                        />
+                    ) : undefined
+                }
+                actions={
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                        {toolbarItems.map((item) => (
+                            <item.Component
+                                key={item.id}
+                                schema={schema}
+                                workspaceId={workspace.id}
+                                params={slotParams}
+                                updateParams={updateParams}
                             />
-                        ) : undefined
-                    }
-                    actions={
-                        <div className="flex flex-wrap items-center justify-end gap-2">
-                            {toolbarItems.map((item) => (
-                                <item.Component
-                                    key={item.id}
-                                    schema={schema}
-                                    workspaceId={workspace.id}
-                                    params={slotParams}
-                                    updateParams={updateParams}
-                                />
-                            ))}
-                            {/* The filter builder, in a popover anchored to an
-                                icon-only "Filters" button — the full builder,
-                                AND / OR groups included. */}
-                            <QueryBuilderPopover
-                                fields={filterFields}
-                                value={appliedFilter}
-                                onApply={applyFilter}
-                                onApplied={() => setApplying(true)}
-                                fieldsPending={filterFieldsPending}
-                                fieldsError={filterFieldsError}
-                                onRetryFields={refetchFilterFields}
-                                renderRelationValue={(props) => (
-                                    <RelationValuePicker {...props} />
-                                )}
-                            />
-                            <CollectionRecordsColumnPicker
-                                columns={columns}
-                                visible={visible}
-                                isVisible={isVisible}
-                                onToggle={toggle}
-                                onReorder={reorder}
-                                visibleCount={visible.length}
-                            />
-                        </div>
-                    }
-                />
-            )}
+                        ))}
+                        {/* The filter builder, in a popover anchored to an
+                            icon-only "Filters" button — the full builder,
+                            AND / OR groups included. */}
+                        <QueryBuilderPopover
+                            fields={filterFields}
+                            value={appliedFilter}
+                            onApply={applyFilter}
+                            onApplied={() => setApplying(true)}
+                            fieldsPending={filterFieldsPending}
+                            fieldsError={filterFieldsError}
+                            onRetryFields={refetchFilterFields}
+                            renderRelationValue={(props) => (
+                                <RelationValuePicker {...props} />
+                            )}
+                        />
+                        <CollectionRecordsColumnPicker
+                            columns={columns}
+                            visible={visible}
+                            isVisible={isVisible}
+                            onToggle={toggle}
+                            onReorder={reorder}
+                            visibleCount={visible.length}
+                        />
+                    </div>
+                }
+            />
 
             {/* The applied conditions as removable chips. */}
             {summaryTree && countRules(summaryTree) > 0 ? (
