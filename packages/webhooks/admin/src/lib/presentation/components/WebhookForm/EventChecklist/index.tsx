@@ -60,7 +60,7 @@ export function EventChecklist({
                     total: events.length
                 })}
             </p>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="flex flex-col gap-3">
                 {[...groups].map(([group, members], groupIndex) => {
                     const on = members.filter((event) =>
                         picked.has(event.kind)
@@ -69,9 +69,9 @@ export function EventChecklist({
                     return (
                         <fieldset
                             key={group}
-                            className="flex flex-col gap-2 rounded-[10px] border px-3 py-2.5"
+                            aria-labelledby={`${groupId}-label`}
+                            className="flex flex-col gap-2.5 rounded-[10px] border px-3 py-2.5"
                         >
-                            <legend className="sr-only">{group}</legend>
                             <div className="flex items-center gap-2">
                                 <Checkbox
                                     id={groupId}
@@ -94,44 +94,49 @@ export function EventChecklist({
                                     }
                                 />
                                 <span
-                                    aria-hidden
+                                    id={`${groupId}-label`}
                                     className="text-[13px] font-semibold capitalize"
                                 >
                                     {group}
                                 </span>
                             </div>
-                            {members.map((event) => {
-                                const eventId = `webhook-event-${event.kind}`;
-                                return (
-                                    <div
-                                        key={event.kind}
-                                        className="flex items-start gap-2"
-                                    >
-                                        <Checkbox
-                                            id={eventId}
-                                            checked={picked.has(event.kind)}
-                                            onCheckedChange={(checked) =>
-                                                setMany(
-                                                    [event.kind],
-                                                    checked === true
-                                                )
-                                            }
-                                            className="mt-0.5"
-                                        />
-                                        <Label
-                                            htmlFor={eventId}
-                                            className="flex flex-col items-start gap-0.5 font-normal"
+                            {/* The events of a group as a grid, so a group of
+                                seven reads as two short rows, not a column
+                                running down the page. */}
+                            <div className="grid gap-x-4 gap-y-2.5 [grid-template-columns:repeat(auto-fill,minmax(180px,1fr))]">
+                                {members.map((event) => {
+                                    const eventId = `webhook-event-${event.kind}`;
+                                    return (
+                                        <div
+                                            key={event.kind}
+                                            className="flex items-start gap-2"
                                         >
-                                            <span className="text-[13px] leading-4">
-                                                {event.label}
-                                            </span>
-                                            <span className="font-mono text-[11px] leading-4 text-muted-foreground">
-                                                {event.kind}
-                                            </span>
-                                        </Label>
-                                    </div>
-                                );
-                            })}
+                                            <Checkbox
+                                                id={eventId}
+                                                checked={picked.has(event.kind)}
+                                                onCheckedChange={(checked) =>
+                                                    setMany(
+                                                        [event.kind],
+                                                        checked === true
+                                                    )
+                                                }
+                                                className="mt-0.5"
+                                            />
+                                            <Label
+                                                htmlFor={eventId}
+                                                className="flex flex-col items-start gap-0.5 font-normal"
+                                            >
+                                                <span className="text-[13px] leading-4">
+                                                    {event.label}
+                                                </span>
+                                                <span className="font-mono text-[11px] leading-4 text-muted-foreground">
+                                                    {event.kind}
+                                                </span>
+                                            </Label>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </fieldset>
                     );
                 })}

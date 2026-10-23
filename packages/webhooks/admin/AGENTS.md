@@ -85,7 +85,9 @@ and events as two option cards (`WebhookForm/ScopeChoice`, a radio group —
 content types as an **All types / Only some** segmented control. Picking
 "only these" opens the picker: a multi-select for workspaces and types, and
 for events a **checklist** grouped by the catalogue's groups
-(`WebhookForm/EventChecklist`), each group with a box of its own that ticks
+(`WebhookForm/EventChecklist`) — each group a full-width block with its events
+in a grid, so a group of seven reads as rows rather than one long column —
+each group with a box of its own that ticks
 or clears the lot and reads mixed in between; the kinds are saved in
 catalogue order. The endpoint's state is an **Active / Paused** segmented
 control (decision 4 still holds: pausing asks). Turning one
