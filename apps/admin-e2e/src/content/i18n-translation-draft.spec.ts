@@ -14,7 +14,7 @@ import { I18N_WORKSPACE, mockI18n } from '../support/api/i18n';
  * prompt about it. Both are about the same click, which is why they live
  * together.
  *
- * The editor's tabs are route segments (`/new/relations`), so moving between
+ * The editor's tabs are route segments (`/new/history`), so moving between
  * them is a navigation — but it is a navigation **within one draft**, not to
  * another record. That distinction is the whole contract here:
  *
@@ -71,9 +71,9 @@ test.describe('Content i18n — the translation draft', () => {
 
         // A tab is a route segment, so this is a navigation away and back —
         // exactly what an author does to attach a relation before saving.
-        await contentLibraryPage.openEditorTab('Relations');
-        await expect(page).toHaveURL(/\/new\/relations/);
-        await contentLibraryPage.openEditorTab('General');
+        await contentLibraryPage.openEditorTab('History');
+        await expect(page).toHaveURL(/\/new\/history/);
+        await contentLibraryPage.openEditorTab('Content');
 
         // The draft is still unsaved and the author never left it, so the title
         // is still theirs. The prefill seeded this form once, on arrival; it is
@@ -104,7 +104,7 @@ test.describe('Content i18n — the translation draft', () => {
             'Bottes d’hiver'
         );
 
-        await contentLibraryPage.openEditorTab('Relations');
+        await contentLibraryPage.openEditorTab('History');
 
         // The guard is for leaving this record for another — picking a locale
         // raises it (AC-9), and `i18n.spec.ts` pins both answers to it. A tab
@@ -122,8 +122,8 @@ test.describe('Content i18n — the translation draft', () => {
         //     was added; the tab move never completed.
         //   - the count below             → a prompt that **doesn't** block was
         //     added; the move landed and something appeared over it anyway.
-        await expect(page).toHaveURL(/\/new\/relations/);
-        await expect(contentLibraryPage.editorTab('Relations')).toHaveAttribute(
+        await expect(page).toHaveURL(/\/new\/history/);
+        await expect(contentLibraryPage.editorTab('History')).toHaveAttribute(
             'aria-selected',
             'true'
         );

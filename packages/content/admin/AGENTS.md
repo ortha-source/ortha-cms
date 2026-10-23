@@ -14,13 +14,78 @@ a "{n} selected" bar, pagination, and an **Add record** action); selecting a
 create form). The entry
 list is **served by the API** (`useContentEntries` → `GET /api/content/:typeName`):
 search, query-builder filter, sort, and pagination all run server-side. Creating
-(`/new`) or opening (`/:entryId`) an entry renders the **`EntryEditor`** — a
-tabbed, schema-driven form (see below). Writes are **live**: create/update
+(`/new`) or opening (`/:entryId`) an entry renders the **`EntryEditor`** — one
+schema-driven form with Access and History beside it (see _The entry editor
+after ADR-0022_ below). Writes are **live**: create/update
 (`useSaveEntry`), publish/unpublish + soft-delete/restore/purge
 (`useEntryStatusActions`), and their batch forms (`useBulkEntryActions`), all
 against the content-server write API; a server 422 maps back onto the form's
 fields. Each paranoid collection also has a **Trash** view
 (`:typeName/trash`).
+
+## The entry editor after ADR-0022
+
+[ADR-0022](../../../docs/adr/0022-entry-editor-one-form-properties-on-demand.md)
+and [`docs/design/entry-editor.md`](../../../docs/design/entry-editor.md) (its
+_As built_ section lists where the code differs) reshaped the editor. In
+short — and where an older paragraph further down disagrees, this wins:
+
+- **One Content form** (`content:I-59`). The tabs are **Content** (slug
+  `general`, unchanged), any `ENTRY_TAB_SLOT` tab (segments' Access), and
+  **History**. Relations render inline through the editor's own
+  `RelationFieldSection`, handed down by `hooks/useEntryFieldResources`
+  (`renderField`), so their staging stays on `EntryEditor`; media render through
+  `ENTRY_FIELD_CONTROL_SLOT` (the media plugin's `composite` control), reading
+  `mediaRefs` / `presave` from the same resources. The Translated / Shared
+  split is gone: each field says it beside its label (globe, or "All locales" —
+  `SharedFieldMark`). `/relations`, `/media` and `/activity` are retired slugs
+  that redirect (`RETIRED_ENTRY_TABS`, `content:I-60`).
+- **The record's title is the `<h1>`** (`EntryTitleBlock`, `content:I-61`),
+  over one meta line: status badge, locale, one sentence of history, and the
+  save state ("● Unsaved changes" / "Saved 2 min ago" — `EntrySaveState`,
+  in the phone's bottom bar instead).
+- **Header actions follow the action matrix** (`EntryActions`,
+  `content:I-62`/`I-63`): **Save draft** + **Publish** / **Publish changes**
+  (or one **Save**),
+  a disabled "✓ Saved" / "✓ Published · up to date" when there is nothing to
+  do, ⌘S / ⌘⇧P (`hooks/useEntryShortcuts`). The ⋯ menu keeps Unpublish,
+  Delete and the contributed groups.
+- **The status cluster** (`EntryActions/EntryStatusCluster`, `content:I-65`)
+  leads the actions: the editor's own field issues (`field:<name>` items, one
+  "N issues" chip), a guard's refusal, and what plugins report through
+  **`ENTRY_STATUS_ITEM_SLOT`**; the chip rules are `domain/statusChips`.
+- **Properties opens over the form** (`RightPanelPortal overlay`, ⌘.) as a
+  sheet over a scrim, the page inert behind it, and pins back into the
+  docked column per browser (`content:I-67`). Its reopen button carries a dot while anything blocks
+  publishing (`attention`).
+- **History** (`HistoryTimeline`, `content:I-68`) is one timeline grouped by
+  day — versions plus the rows **`ENTRY_TIMELINE_SLOT`** sources add (the
+  record's activity) — filtered All / Versions / Activity through `?show=`.
+  It is two panes on a 1040px column (the form keeps 720px): the list on the
+  left, and beside it a **comparison** of the selected version against the
+  current draft (`RevisionList/RevisionComparePanel`). Picking a row selects
+  it (`aria-pressed`); the version's Preview / Restore / Publish actions live
+  in that panel, not on the row. With nothing picked, the version before the
+  newest is selected — the one most worth comparing.
+- **"On this page"** (`EntryPageNav`, `domain/pageSections`, `content:I-69`)
+  replaced the per-field outline: sections only, from three on — a list
+  beside the form on a work area of at least 1024px, a "Sections" menu in
+  the title block below that. Beside the form the two are **one centred
+  group** (a 184px list, 48px gap, the 720px form), the list level with the
+  title and sticky as the form scrolls; it is drawn first but sits after the
+  form in the DOM, so tabbing reaches the fields first. A row with a blocking
+  field turns red and carries a count chip, a row with unsaved edits a dot,
+  and a legend under the list names the marks shown. The Content tab carries
+  the same count chip.
+- **Relations read as the canvas draws them**: a many relation's records are
+  one framed list (`RelationItemRow variant="list"`, 44px rows ruled from the
+  one above, `01`… numbers, mono `/slug`, an xs status badge) with a quiet
+  "+ Add …" under it; a single relation is one framed row. No derived
+  "Single relation — …" line under the field — only the schema's own
+  description; an inverse relation says where its links come from in the
+  label row.
+- **On a phone** the write actions sit in a sticky bottom bar
+  (`EntryActions layout="bottom"`) and Properties is a bottom sheet.
 
 ## Layout — layered (ADR-0003)
 
@@ -79,12 +144,13 @@ route-derived breadcrumb: Content › the type's label › the open record's tit
 "New record" / "Trash"; the record title comes from `EntryTitleCrumb`, which
 subscribes to the editor's own schema/entry queries at no extra request) over an
 outlet driven by nested routes.
-The routes are (`index` → `ContentWelcome`,
+The routes are (`index` → `ContentOverview` (see _The overview_ below),
 `:typeName` → `ContentTypeView`, `:typeName/new` + `:typeName/:entryId` →
 `ContentEntryRoute` (the create / edit editor); the static `new` segment
 outranks the `:entryId` param).
 
-**The editor's tabs are routes**, one segment deeper — `:typeName/:entryId/:tab`
+**The editor's tabs are routes** (Content, Access, History — see _The entry
+editor after ADR-0022_), one segment deeper — `:typeName/:entryId/:tab`
 (and `:typeName/new/:tab`); for a **single**, whose editor is mounted on the type
 itself, each tab slug is spelled out as a **static** segment (`:typeName/general`
 …) so it outranks the `:entryId` route, the same trick `new` and `trash` use. The
@@ -153,7 +219,23 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   to it, over the table; Apply commits and closes it, and the applied
   conditions read out as a `QueryBuilderSummary` row of removable chips under
   the toolbar. The **Columns** trigger beside it is icon-only too
-  (`Columns3`, `aria-label` + `Tooltip`). `useContentEntries`
+  (`Columns3`, `aria-label` + `Tooltip`).
+  The applied-filter chips are the soft blue `info` tint (see
+  `QueryBuilderSummary`). There is **no "+ Filter"** beside them: a field-first
+  picker was tried and dropped — the Filters popover is the one way in.
+  On a publishable type the server's surface accepts
+  `publishedAt` but the served picker omits it (copilot unions SQL fields), so
+  `LoadedRecordsView` appends a **Published at** field after Status.
+  **Status chips** (`RecordsStatusChips`, "Show by status") lead the toolbar on
+  a publishable type outside the trash: Published · Modified · Draft, each one
+  click, with the type's counts from `useStatusCounts` (insights' pipeline;
+  hidden on an i18n type, whose insights count every locale). A chip is a pair
+  of ordinary conditions (`presentation/statusQuickFilter`: published =
+  `status = published`; modified = `status = draft` + `publishedAt` is not
+  empty; draft = + `publishedAt` is empty), ANDed beside whatever else is
+  applied — picking another swaps it, pressing the lit one clears it — and the
+  summary row hides the chip's own rules so they aren't drawn twice.
+  `SearchToolbar` takes a `leading` slot for them (search moves right). `useContentEntries`
   fetches `GET /api/content/:name` with `{ search, filter, sort, page, pageSize }`
   → the `{ items, total, page, pageSize }` envelope; the **server** runs search →
   query-builder filter → sort → pagination (this hook owns no row logic). The
@@ -180,7 +262,13 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   schema, and re-seeded when the open type changes. Row selection is local
   component state (a `Set<string>` by id)
   in `LoadedRecordsView`, surfaced through the table's leading checkbox column
-  and the `CollectionRecordsSelectionBar`. **It belongs to one list**:
+  and the `CollectionRecordsSelectionBar` — the design-system `SelectionBar`,
+  a light card **floating at the bottom centre of the work area** while
+  anything is selected ("{n} selected of {total}", the built-in actions as
+  buttons, the destructive ones after a divider, ✕ to clear), so neither the
+  toolbar nor the table moves; the page pads its bottom (`pb-24`) meanwhile so
+  the last rows scroll clear of it. **The table itself is
+  untouched** — the redesign moved everything around it, not its cells. **It belongs to one list**:
   `CollectionRecordsView` keys `LoadedRecordsView` by type, trash-or-live and
   shared source. Without the key, moving to a collection whose schema was
   cached skipped the skeleton, React kept the view mounted, and a bulk action
@@ -241,8 +329,9 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   drag-and-drop / keyboard reorderable rows (a `DndContext` + vertical
   `SortableContext`, `GripVertical` handle per row, `KeyboardSensor` +
   `sortableKeyboardCoordinates`), then hidden columns as toggle-only rows. The
-  table header itself is static. The records view spans full width (`Container`
-  overridden to `max-w-none`) with a uniform 24px gutter (`p-6 sm:p-6`, overriding
+  table header itself is static. The records view is the **one** page in the admin
+  that spans full width (`Container width="full"` — every other list keeps the
+  1120px measure) with a uniform 24px gutter (`p-6 sm:p-6`, overriding
   the Container's responsive padding); the table sits in a full-width bordered
   card with no padding of its own.
 - **Entry editor** (`/new`, `/:entryId`, and a single page): `ContentEntryView`
@@ -293,7 +382,9 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   `multiselect` uses the design-system `MultiSelect` (Popover + Command + Badge)
   rather than native controls. The records pane (`ContentPane`) is `overflow-auto` so
   wide content scrolls inside the work-area island, not the page.
-- **The General tab's outline** (`EntryEditor/EntryFieldOutline`) — a column of
+- **The General tab's outline** — **retired**, replaced by "On this page"
+  (`EntryPageNav`, see _The entry editor after ADR-0022_). What follows is the
+  record of the outline it replaced. `EntryEditor/EntryFieldOutline` was a column of
   short bars in the pane's left padding, one per field and per declared
   section, the way Notion, Coda and incident.io mark a long document. The bar
   in view is drawn darker and a field showing an error in the destructive
@@ -481,6 +572,37 @@ staged.added`), not the values bag it doesn't live in — mirroring the server's
   `multi-select` primitives this plugin relies on were added there via the
   shadcn skill (consumed from `@orthacms/design-system`).
 
+## The overview — the library's landing
+
+Before a type is picked the pane is **`ContentOverview`**, not a prompt to
+pick one: the workspace's name as the `<h1>` over its record count and how
+many collections and pages it has; **Recently edited** (the newest saves
+across its types — title, type, status, when) beside **Not live yet** (live
+records with unpublished edits per type, the never-published drafts as a
+footnote); then a card per **collection** (record count, last save, and a
+published · modified · drafts bar stated in words under it) and per **page**
+(its one record's status).
+
+- **One list read per own type**, `?sort=-updatedAt&pageSize=5`, through
+  `application/useRecentEntries` — keyed with `contentEntriesKey` and the
+  schema with `contentSchemaKey`, so it shares cache with the records table.
+  The same reads answer each type's total and last save, so **every** own
+  type is read (`RECENT_TYPE_LIMIT`, 60, is only a guard): a cap of twelve
+  left every card after the twelfth on a skeleton for good. Schemas, needed
+  only to title a row, are read for the types that reach the list. A card
+  shows a skeleton only while its read is in flight (`TypeActivity.state`);
+  a failed read leaves it with its name and link and no figures, and the
+  header's record count waits for every read to answer.
+- **The split is two insights reads joined**: `pipeline` counts `draft`
+  including modified, `unshipped` counts modified, so drafts = drafts −
+  modified. Rows for types the workspace is not granted are dropped.
+- **Only own types are summarised.** A shared-only type has no records of
+  this workspace to count; the sidebar reaches its sources.
+- Times are `presentation/hooks/useFormatSince`: relative within a week, a
+  short date after it.
+
+Pinned by `apps/admin-e2e/src/content/overview.spec.ts`.
+
 ## Shared workspaces — linking and viewing another workspace's records
 
 A workspace flagged **shared** (`Workspace.isShared`, set on its General
@@ -558,38 +680,75 @@ here".
 
 Pinned by `apps/admin-e2e/src/content/per-source-grants.spec.ts`.
 
-## Saved views — the switcher in the records toolbar
+## Saved views — tabs over the records toolbar
 
 A saved view is a named slice of a collection's records list: the filter, the
 sort, the visible columns, the page size, and the slot-owned params (i18n's
 locale). Served by `/api/views` (`packages/content/server/src/lib/views/`).
 
-**Where it lives.** `ViewSwitcher` **leads `SearchToolbar`'s actions row**,
-before the locale switcher, Columns and Filters. The page's two right-aligned
-rows are split by the question they answer: the header carries what you do _to_
-the collection (**Add record**, the **⋯**), the toolbar carries what changes
-_which records you are looking at_. A saved view is the broadest of those, so it
-goes first in that row.
+**Where it lives.** `ViewSwitcher` is a **row of tabs above the toolbar**
+("View controls" → a "Views" group): **All records** first, then each saved
+view (`ViewTab`, a toggle button — `aria-pressed`; a dot + sr-only "Modified"
+on the active one when it has drifted, a star for your default, a people
+glyph for a shared view) and a **+ View** button ("New view from the current
+list"). The row ends with the collection's **Trash** tab on a paranoid type a
+user may delete from (`trashHref`, `RecordsTabLink`, `aria-current` on the
+trash page — where a banner says the trash isn't served and links are kept).
+A collection with no saved views still gets the row: All records + View, so
+the place to make one is always in sight. In the trash, on a shared source's
+list, or while views are loading or failed, the row is the two places alone —
+the list (`RecordsTabLink`) and Trash.
 
-It has lived in two other places, and the reasons both moved are worth keeping.
-Under the `<h1>` (through a `titleAdornment` slot on `ContainerHeader`, since
-removed with its last caller) a small pill read as a caption on the heading
-rather than a control, and pushed the record count down on every collection. In
+**Each view's actions are on its own tab** (`SavedViewTab`) — there is no ⋯
+"Saved views" menu at the end of the row any more; finding Delete or "Set as
+my default" used to mean knowing to look there.
+
+- The **selected** tab draws a ▾ ("Options for {name}"); clicking the
+  selected tab again opens the same menu (Notion's gesture — it is already
+  applied). **Right-click**, the context-menu key and **Shift+F10** open it on
+  any tab without switching to it. Only the selected tab draws the ▾: room
+  for one on every tab spread the row out with gaps, so elsewhere it is an
+  invisible anchor for the menu.
+- The menu: **Rename** (F2), **Duplicate**, **Copy link** · **Set / Clear my
+  default**, **Shared with workspace** (a `menuitemcheckbox`, owner +
+  `views:share`) · **Delete view…** (asks). Rename, sharing and delete are the
+  owner's; a colleague's shared view still offers Duplicate, its link and your
+  default. Duplicate saves a **personal** copy ("{name} (copy)") and opens it;
+  Copy link copies the list URL with `?view=<id>` alone, which the landing
+  ladder expands into the whole slice.
+- **Rename happens in the tab** (`TabRenameField`): F2, a double-click, or
+  the menu item turns the name into a field — Enter or leaving it saves,
+  Escape cancels, an empty or unchanged name sends nothing. A refused name (a
+  409 — you already have a view by that name) keeps the field open with what
+  was typed and says why in a toast. Focus goes back to the tab afterwards. A
+  tab's first click ignores `event.detail > 1`, so the second click of a
+  double-click is the rename's, not a re-select (or the menu's).
+- **Tabs that don't fit fold into "N more ▾"** (`ViewOverflowMenu`, a
+  `Popover` + `Command` so a menu's typeahead doesn't eat the search box's
+  keystrokes): searchable, grouped Yours / Shared, with **New view from the
+  current list** always offered. The fit is measured from the strip's width
+  (`ResizeObserver`) and the widths each tab had when last drawn; the selected
+  view always keeps its tab, in place of the last that would have fit. The
+  strip clips rather than scrolls.
+- The **dropped-columns notice** is drawn **under** the row, not above it:
+  above, it pushed the row down under the pointer the moment a stale view was
+  picked (and a double-click on the tab landed on empty page).
+
+Before the tabs it lived in three other places. Leading `SearchToolbar`'s actions row it
+was one control among Columns / Filters, its name truncated to fit. Under the
+`<h1>` (through a since-removed `titleAdornment` slot on `ContainerHeader`) a
+small pill read as a caption on the heading rather than a control. In
 `ContainerHeader`'s `actions` cluster it was one of six near-identical outline
-buttons spread over two right-aligned rows with nothing to say which row was
-which — the argument for it there ("it says which slice the actions beside it
-would act on") stopped holding once those actions were the ones that moved away.
-Both rows stay `flex-wrap`: a `shrink-0` row of controls ran off the right edge
-on a narrow viewport.
+buttons over two right-aligned rows. Tabs say what a view is — another slice of
+the same list — and make switching one click instead of two.
 
-The menu is `modal={false}`, like every other menu in this admin: a modal Radix
+Each tab's menu is `modal={false}`, like every other menu in this admin: a modal Radix
 menu `aria-hidden`s the page root, so `aria-hidden-focus` fires and the page —
 its `<h1>` included — drops out of the a11y tree while the menu is open.
 
-The **dropped-columns notice** is drawn by `LoadedRecordsView` under the header,
-not by the switcher: a wrapping sentence inside a right-aligned row of buttons
-would shove them around every time a stale view loads. It keeps the switcher's
-original message id, so its translations survive the move.
+The **dropped-columns notice** is drawn by `LoadedRecordsView` under the
+views row, not by the switcher. It keeps the switcher's original message id,
+so its translations survive the move.
 
 **`?view=` is a pointer, not the slice.** `filter`, `sort`, `pageSize` and the
 slot params stay in the URL as themselves; `?view=<id>` only names which saved
@@ -616,7 +775,8 @@ Seeding during render instead means the two fight and the columns flicker back
 to the type's defaults.
 
 **Nothing autosaves.** When the live state drifts from the saved payload the
-trigger says "Modified" and offers Save / Save as new / Reset inline beside it.
+active tab carries the Modified dot and the row offers Save / Save as new /
+Reset inline after the tabs.
 None of the three is `variant="default"` — the header's one primary button is
 **Add record**, and a second would compete with it. Save is absent on someone
 else's shared view — that one is theirs, and "Save as new" is the remedy.
@@ -625,21 +785,16 @@ else's shared view — that one is theirs, and "Save as new" is the remedy.
 two consequential menu actions each get the treatment the _other_ one doesn't
 need:
 
-- **Delete** opens a `ConfirmDialog` naming the view, rendered outside
-  `DropdownMenuContent` (which unmounts the instant the menu closes — the same
-  rule `ENTRY_MENU_SLOT` overlays follow). A view holds no records, so nothing
-  is destroyed, but it is not undoable and a **shared** one is a colleague's
-  tool too — which is why the body has two variants. Confirm closes the dialog
-  and lets the outcome land as a toast, exactly like the entry editor's delete.
-  Focus is put back by hand (`onCloseAutoFocus`): the menu item that opened the
-  dialog is long gone, so Radix's restore would target a detached node. The
-  trigger it is put back on is always there — the switcher has **one shape**,
-  saved views or none. It used to collapse to a lone "Save current as view…"
-  button on an empty list, which spent the row's loudest secondary slot on an
-  action that only pays off _after_ the reader has changed something, and needed
-  a `justDeleted` ref to chase focus across the swap when deleting the last view
-  brought that button back. **Save current as view…** is a menu item now, beside
-  the rest of the view actions.
+- **Delete** opens a `ConfirmDialog` naming the view, rendered by the
+  switcher outside the tab's `DropdownMenuContent` (which unmounts the instant
+  the menu closes — the same rule `ENTRY_MENU_SLOT` overlays follow). A view
+  holds no records, so nothing is destroyed, but it is not undoable and a
+  **shared** one is a colleague's tool too — which is why the body has two
+  variants. Confirm closes the dialog and lets the outcome land as a toast,
+  exactly like the entry editor's delete. Focus is put back by hand
+  (`onCloseAutoFocus`): the menu item that opened the dialog is gone, and so is
+  its tab — so it lands on **All records** when the deleted view was the one
+  on screen (the list falls back to it), else on the selected tab.
 - **Set as my default** gets the toast instead, because a default decides the
   _next_ visit: nothing on this screen moves, so a silent success reads as a
   dead menu item. The message names the view, which also covers the
@@ -689,6 +844,12 @@ one of the two pages.
 than just being dead.
 
 ## The Properties panel + the editor's actions live in the app chrome
+
+> Since ADR-0022 the panel is registered with `overlay`: it opens over the form
+> on demand (⌘. or the top bar's button) and the reader may pin it back into
+> the column this section describes. The actions are no longer "the primary
+> button + ⋯ holding Save draft, Save & publish…" — see _The entry editor
+> after ADR-0022_.
 
 The entry editor no longer draws its own rail or its own action bar. Both render
 into **shell-owned regions** (`@orthacms/shell-admin`), filled by portal from
@@ -1018,19 +1179,23 @@ do not reintroduce it.
   and then publish the current one **or switch back to any earlier version and
   publish it**. After the latter, the "Live" badge and the "Current" (newest)
   marker sit on different rows — that is the point, not a glitch.
-  A `RevisionRow` shows a **Publish** action on any version that isn't already live
-  (publishable type + `content:publish`), and the preview dialog carries a
+  The comparison panel shows **Publish this version** for any selected version
+  that isn't already live (publishable type + `content:publish`), and the
+  preview dialog carries a
   **Publish this version** button; both route through a `ConfirmDialog` + toast in
   `RevisionList`. A `422` (an incomplete version) surfaces as an error toast.
 - **`RevisionList`** (`EntryEditor/RevisionList/`) is the timeline itself — a
-  `RevisionRow` per version (number, status badge Live/Draft/Superseded, capture
-  time) plus the **Restore** flow (permission gate on `content:update`, a
+  selectable `RevisionRow` per version (a `v{n}` tag, status badge
+  Live/Draft/Superseded, capture time, "Current draft" on the newest), a quiet
+  `TimelineEventRow` per activity event, and `RevisionComparePanel` beside
+  them (each changed field as a struck-through version value over the
+  inserted current one) — plus the **Restore** flow (permission gate on `content:update`, a
   `ConfirmDialog`, and the success/failure `toast`). Restore re-applies an older
   snapshot as a **new** revision, so the timeline refreshes in place. It has one
   caller, so the rows are always the labelled ones; the `compact` (icon-only)
   variant went with the rail widget.
-- **Preview / compare** (`RevisionList/RevisionPreviewDialog/`): each earlier
-  version's row carries a **Preview** action opening a diff dialog. It fetches
+- **Preview / compare** (`RevisionList/RevisionPreviewDialog/`): the comparison
+  panel's **Preview** action opens a diff dialog for the selected version. It fetches
   that version's snapshot **and** the latest one (`useRevisionDetail` →
   `getRevision`; the newest snapshot equals the live record, since every save
   appends one) and runs the pure `domain/revisionDiff` — a field-by-field compare
@@ -1107,20 +1272,22 @@ of the package — `infrastructure/contentInsightsGateway` (the port),
 
 ## Extension slots
 
-The library exposes sixteen named slots (`presentation/slots/contentSlots`, via
+The library exposes eighteen named slots (`presentation/slots/contentSlots`, via
 `createSlot`) another admin plugin contributes into — no coupling beyond the
 contracts, the same idiom as the workspace shell's slots.
 `@orthacms/i18n-admin` fills eight; `@orthacms/media-admin` fills two
-(`ENTRY_TAB_SLOT`, the Media tab, and `ENTRY_PRESAVE_SLOT`, its staged uploads);
+(`ENTRY_FIELD_CONTROL_SLOT`, the media field's control in the form, and
+`ENTRY_PRESAVE_SLOT`, its staged uploads);
 `@orthacms/wysiwyg-admin` fills one (`ENTRY_FIELD_CONTROL_SLOT`, the rich-text
 editor); `@orthacms/transfer-admin` fills three (`ENTRY_MENU_SLOT` and
 `RECORDS_BULK_ACTION_SLOT` to export, `RECORDS_MENU_SLOT` to import);
 `@orthacms/segments-admin` fills three (`ENTRY_DETAILS_ROW_SLOT`, the Access row;
 `ENTRY_TAB_SLOT`, the Access tab; and `ENTRY_PRESAVE_SLOT`, which is what applies
 an entry's audiences on Save rather than on a button of its own);
-`@orthacms/activity-admin` fills one (`ENTRY_TAB_SLOT`, the **Activity** tab —
-who did what to this record, which the revision-timeline History tab cannot
-answer).
+`@orthacms/activity-admin` fills one (`ENTRY_TIMELINE_SLOT`, the record's
+activity between the versions of the History timeline — who did what, which a
+version cannot say); `@orthacms/alarms-admin` fills `ENTRY_STATUS_ITEM_SLOT`
+with the record's open findings.
 **Slot items are boot-frozen**
 (`createAdmin` registers them once, before the first render), which is what
 makes the **hook-style** items (`RECORDS_COLUMN_SLOT.useRowsData`,
@@ -1143,33 +1310,27 @@ fetching internally.
     - It is a **menu** and not more header buttons because what belongs here is
       the occasional whole-collection operation, and those should not take the
       header's one primary slot from **Add record**.
-    - **`CollectionRecordsMenu` contributes one item itself**: **Trash**, via a
-      `trashHref` prop (`paranoid && canDelete`, the pair that used to gate the
-      header button). It is here because it is a _destination_, not an action,
-      so it read oddly among buttons that do something — and because the menu
-      otherwise held exactly one contributed item, making the ⋯ a button that
-      hid a button.
-    - **The trigger renders only when something resolves** — a contributed item
-      or `trashHref` — so an install with neither sees no ⋯ opening onto
-      nothing.
+    - **Trash is no longer in it.** It moved to a tab at the end of the views
+      row (see _Saved views_): a destination, beside the other ways of picking
+      which records you are looking at.
+    - **The trigger renders only when a contributed item resolves**, so an
+      install with none sees no ⋯ opening onto nothing.
     - `@orthacms/transfer-admin` fills it with **Import…**.
 - **`RECORDS_BULK_ACTION_SLOT`** — an item in the records **selection bar's**
-  ⋯ menu, after the built-in Publish / Unpublish / Delete (and, in the trash,
-  Restore / Delete permanently). `useItem` receives the selected `ids` and
-  `trashed`, plus `onDone` to clear the selection.
-    - The bar's own layout is **count · Clear · ⋯**: everything the bar can do
-      to the selection lives in the menu, and **Clear** stays outside it,
-      because it is the way _out_ of a selection the user may have made by
-      accident — burying that behind the same menu as Delete would be the wrong
-      shape. Contributions sort after the built-ins and above the separator the
-      destructive actions sit below.
+  ⋯ menu ("Bulk actions"). The built-ins are buttons of their own on the bar —
+  Publish / Unpublish (Restore in the trash) first, Delete (Delete permanently)
+  last after a divider — and the ⋯ holding the contributions sits after the
+  first group. `useItem` receives the selected `ids` and `trashed`, plus
+  `onDone` to clear the selection.
+    - The bar's own layout is **count · actions · ⋯ · … · Delete · ✕**: the
+      ✕ (**Clear selection**) stays last and outside every menu, because it is
+      the way _out_ of a selection the user may have made by accident.
     - Its `overlay` is rendered outside `DropdownMenuContent` for the same
       reason `RECORDS_MENU_SLOT`'s is — the menu content unmounts the instant
       the menu closes. On top of that, the bar unmounts as soon as the selection
       is empty, taking the overlay with it — so an action whose dialog must stay
       open calls `onDone` on success, never on open.
-    - **The trigger renders only when an item resolves** — a viewer with neither
-      publish nor delete, and no contribution, sees no ⋯ button.
+    - **The ⋯ renders only when a contribution resolves**.
     - `@orthacms/transfer-admin` fills it with **Export**.
 - **`RECORDS_COLUMN_SLOT`** — an extension table column (`COLUMN_KIND.Extension`)
   that joins the column picker like any column (non-sortable header); optional
@@ -1219,6 +1380,18 @@ fetching internally.
       protection's review chip into its own **Review** block's heading, where
       it replaced the count that block already showed.
 
+- **`ENTRY_STATUS_ITEM_SLOT`** — a plugin's **report** into the header's
+  status cluster: `useItem(context, { dirty })` returns an `EntryStatusItem`
+  (`severity` blocking / warning / info, a short `label`, an optional `detail`
+  and a `target` — a field, or an action of its own) or `null`. A hook in a
+  loop, like the other hook-style items; `appliesTo` filters the result.
+  Plugins **do not draw header chips** — content decides how many show
+  (`domain/statusChips`) and lists the rest.
+- **`ENTRY_TIMELINE_SLOT`** — a source of rows for the History timeline:
+  `useEvents(context)` returns `{ events, isPending, isError }`, or `null` when
+  the reader may not see it (the filter then does not offer it). Each event is
+  `{ id, at, title, actor? }`, already localized; content sorts and groups them
+  between the versions.
 - **`RECORDS_FILTER_FIELDS_SLOT`** — extra query-builder filter fields, appended
   after the server-derived fields (`useFilterFields`) at the call site.
 - **`CONTENT_OVERLAY_SLOT`** — viewport-level chrome, rendered once by
@@ -1236,7 +1409,9 @@ fetching internally.
   (`createBodyKeys`; each must exist on the server `SaveEntryDto`), and extra
   relation-candidate list params (`relationCandidateParams`, consumed by the
   picker dialog through the slot context).
-- **`ENTRY_TAB_SLOT`** — a whole editor **tab** (id + `slug` + `label` + `order`
+- **`ENTRY_TAB_SLOT`** — a whole editor **tab** (segments' **Access**; the
+  media and activity tabs are retired — a retired slug's item is dropped)
+  (id + `slug` + `label` + `order`
     - `appliesTo` + `Component`). Rendered between Relations and History when
       `appliesTo(schema)` holds; the `slug` must be a known `ENTRY_TAB_SLUGS` member
       so the tab router/`entryTabFromPath` accept it. The Component receives an
@@ -1421,7 +1596,10 @@ already surfaces `required`), so a locale plugin needs no field-level slot:
   carries `aria-required`. The mark is deliberately `aria-hidden`: the control
   already announces "required", so marking the asterisk up too would say it
   twice on every required field.
-- `EntryFieldSections` **groups the General tab by locale scope** when the type
+- ~~`EntryFieldSections` **groups the General tab by locale scope**~~ —
+  retired with ADR-0022: the form keeps the schema's order and every field of a
+  localized type says its scope beside its label (a globe, or "All locales").
+  What it used to do: when the type
   has both kinds of field: a **Translated fields** run (`localized`) over a
   **Shared fields** run, each a `FieldGroup` with a one-line explanation —
   editing a shared field changes it in _every_ locale, which is not something to

@@ -141,7 +141,7 @@ export function ContentSidebar({
                     type="button"
                     onClick={onOpenSearch}
                     aria-keyshortcuts={SEARCH_KEY_SHORTCUTS}
-                    className="flex items-center gap-2 rounded-md border border-sidebar-border bg-sidebar-accent/50 px-2.5 py-1.5 text-sm text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+                    className="flex h-8 items-center gap-2 rounded-lg border border-sidebar-border bg-background px-2 text-[13px] text-muted-foreground shadow-xs transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
                 >
                     <Search className="size-4 shrink-0" />
                     <span className="truncate">
@@ -154,7 +154,7 @@ export function ContentSidebar({
                         Ctrl too and most readers are not on a Mac. */}
                     <kbd
                         aria-hidden
-                        className="ml-auto rounded border border-sidebar-border bg-sidebar px-1.5 font-sans text-[10px] text-sidebar-foreground/70"
+                        className="ml-auto inline-flex h-[18px] items-center rounded border bg-muted/50 px-[5px] font-sans text-[11px] font-medium text-muted-foreground"
                     >
                         {modifier}K
                     </kbd>

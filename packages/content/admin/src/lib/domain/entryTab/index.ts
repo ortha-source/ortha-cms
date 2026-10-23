@@ -1,10 +1,8 @@
 import {
-    CONTENT_FIELD_TYPE,
     DEFAULT_ENTRY_TAB,
-    ENTRY_TAB,
-    ENTRY_TAB_SLUGS
+    ENTRY_TAB_SLUGS,
+    RETIRED_ENTRY_TABS
 } from '../constants';
-import type { ContentField } from '../types/contentType';
 
 /**
  * The entry editor's open tab, read off the URL path.
@@ -27,23 +25,13 @@ export function entryTabFromPath(pathname: string): string {
 }
 
 /**
- * Which tab a field's control lives on.
- *
- * The editor splits its fields three ways and nothing else decides it: relations
- * render on Relations, media on the contributed Media tab, and everything else
- * inline on General. Kept here because two callers need the same answer and must
- * not drift — the blocked-submit toast, which moves to the offending field's tab
- * so the marked control is on screen, and the tab bar's own unmet-required
- * markers, which would otherwise count a field onto a tab the toast then fails
- * to open.
- *
- * A media field on a type whose schema contributes no Media tab resolves to a
- * slug nothing renders. That is the pre-existing behaviour of the toast and is
- * left alone: media-admin contributes the tab for exactly the schemas that have
- * a media field, so the two agree wherever the field is actually reachable.
+ * Where a URL's tab slug actually leads: a retired slug (see
+ * {@link RETIRED_ENTRY_TABS}) to the tab that holds its content now — with
+ * the search params that pick it out there — and every other slug to itself.
  */
-export function entryTabForField(field: ContentField): string {
-    if (field.type === CONTENT_FIELD_TYPE.Relation) return ENTRY_TAB.Relations;
-    if (field.type === CONTENT_FIELD_TYPE.Media) return ENTRY_TAB.Media;
-    return ENTRY_TAB.General;
+export function liveEntryTab(slug: string): {
+    tab: string;
+    search?: Record<string, string>;
+} {
+    return RETIRED_ENTRY_TABS[slug] ?? { tab: slug };
 }

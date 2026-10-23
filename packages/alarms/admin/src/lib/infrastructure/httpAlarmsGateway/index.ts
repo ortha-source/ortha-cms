@@ -108,9 +108,12 @@ export const httpAlarmsGateway: AlarmsGateway = {
         return toFindingsByEntry(data);
     },
 
-    async summary(): Promise<AlarmSummary> {
+    async summary(workspaceId?: string): Promise<AlarmSummary> {
         const { data } = await apiClient.get<AlarmSummaryResponse>(
-            '/alarms/findings/summary'
+            '/alarms/findings/summary',
+            workspaceId
+                ? { headers: { 'X-Workspace-Id': workspaceId } }
+                : undefined
         );
         return toAlarmSummary(data);
     }

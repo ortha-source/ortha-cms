@@ -38,9 +38,12 @@ export function setActiveWorkspaceId(id: string | null): void {
  * Attach the active workspace as `X-Workspace-Id` on every request. The server's
  * `WorkspaceGuard` reads it on workspace-scoped routes (content) and ignores it
  * elsewhere; when no workspace is open the header is omitted entirely.
+ *
+ * A request that names its own workspace keeps it: a page outside any
+ * workspace (Home) asks each workspace in turn by setting the header itself.
  */
 apiClient.interceptors.request.use((config) => {
-    if (activeWorkspaceId) {
+    if (activeWorkspaceId && !config.headers.has('X-Workspace-Id')) {
         config.headers.set('X-Workspace-Id', activeWorkspaceId);
     }
     return config;

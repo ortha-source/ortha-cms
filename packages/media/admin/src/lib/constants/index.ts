@@ -111,3 +111,19 @@ export const MEDIA_FOLDERS_PANEL = {
     maxViewportRatio: 0.2,
     cssVar: '--media-folders-width'
 } as const;
+
+/**
+ * How the library draws the open folder's files: tiles, or the design-system
+ * table. Remembered per browser under {@link MEDIA_VIEW_STORAGE_KEY} — a
+ * reading preference, not shared state.
+ */
+export const MEDIA_VIEW = {
+    Grid: 'grid',
+    List: 'list'
+} as const;
+
+/** One way of drawing the files. */
+export type MediaView = (typeof MEDIA_VIEW)[keyof typeof MEDIA_VIEW];
+
+/** Where the chosen {@link MediaView} is kept (`localStorage`). */
+export const MEDIA_VIEW_STORAGE_KEY = 'orthacms.media.view';

@@ -334,6 +334,104 @@ export const ENTRY_PUBLISH_GUARD_SLOT = createSlot<EntryPublishGuardItem>(
     'content.entry.publishGuard'
 );
 
+/**
+ * How much a status item matters, in the one order used everywhere: what
+ * **blocks** publishing, then what the author should **know** before they do
+ * (a warning), then context (info).
+ */
+export type EntryStatusSeverity = 'blocking' | 'warning' | 'info';
+
+/**
+ * One thing the editor's header has to say beyond the save state — a field
+ * that blocks publishing, a guard's refusal, a check that flagged the record.
+ * Content decides where it shows (the header's status cluster, the Details
+ * panel); a plugin only reports it.
+ */
+export type EntryStatusItem = {
+    /** Stable id (used as the React key). */
+    id: string;
+    severity: EntryStatusSeverity;
+    /** Short, already localized: "Review requested". */
+    label: string;
+    /** One line under it in the list: "Waiting for Mira Chen since 10:32". */
+    detail?: string;
+    /**
+     * Where the item leads: a field to scroll to and focus, or an action of
+     * the contributor's own ("Remind").
+     */
+    target?: { field: string } | { label: string; onSelect: () => void };
+};
+
+/**
+ * A plugin's report into the header's status cluster. `useItem` is a **hook**,
+ * mounted once per editor render and called unconditionally (items are
+ * boot-frozen), so it may run queries; it returns `null` when it has nothing
+ * to say.
+ */
+export type EntryStatusItemContribution = {
+    /** Stable id; the item's own `id` may differ. */
+    id: string;
+    /** Order among items of the same severity. Lower comes first. */
+    order?: number;
+    /** Whether the contribution applies to the open type. Filters the result. */
+    appliesTo?: (schema: ContentTypeDetail) => boolean;
+    useItem: (
+        context: EntrySlotContext,
+        state: EntryPublishGuardState
+    ) => EntryStatusItem | null;
+};
+
+/**
+ * Status items for the entry editor's header (`docs/design/entry-editor.md`,
+ * _Status items_). Plugins **do not draw header chips** — they report here,
+ * and content renders the cluster: at most two chips, most severe first, the
+ * rest behind "+N" in a grouped list. `@orthacms/alarms-admin` reports open
+ * check findings.
+ */
+export const ENTRY_STATUS_ITEM_SLOT = createSlot<EntryStatusItemContribution>(
+    'content.entry.statusItem'
+);
+
+/** One row a timeline source adds to the History view. */
+export type EntryTimelineEvent = {
+    /** Stable id (used as the React key). */
+    id: string;
+    /** When it happened. */
+    at: string | Date;
+    /** What happened, already localized: "Published content". */
+    title: string;
+    /** Who did it, already localized: an email, or "System". */
+    actor?: string;
+};
+
+/** What a timeline source has to show for the open record. */
+export type EntryTimelineSource = {
+    events: EntryTimelineEvent[];
+    isPending: boolean;
+    isError: boolean;
+};
+
+/**
+ * A source of rows for the entry editor's **History** view, between its
+ * version rows (`docs/design/entry-editor.md`, _Secondary views_). The
+ * contributor owns its permission: `useEvents` is a hook, called once per
+ * render (items are boot-frozen), and returns `null` when the reader may not
+ * see it — then the History filter does not offer it at all.
+ * `@orthacms/activity-admin` contributes the record's activity.
+ */
+export type EntryTimelineItem = {
+    /** Stable id; also the History filter's value for it. */
+    id: string;
+    /** The filter's label: "Activity". */
+    label: MessageDescriptor;
+    useEvents: (context: EntrySlotContext) => EntryTimelineSource | null;
+};
+
+/** Sources of rows for the History timeline. See {@link EntryTimelineItem}. */
+export const ENTRY_TIMELINE_SLOT = createSlot<EntryTimelineItem>(
+    'content.entry.timeline'
+);
+
 /** One always-mounted overlay contribution for the content library. */
 export type ContentOverlayItem = {
     /** Stable id (used as the React key). */
@@ -781,6 +879,20 @@ export type EntryFieldControlContext = {
      * first.
      */
     setExpanded: (next: boolean) => void;
+    /**
+     * The saved entry's resolved refs for **this** field, when it is a media
+     * field — what the Media tab used to be handed, now that media fields
+     * render inline in the one form. Empty on a create form.
+     */
+    mediaRefs?: MediaRef[];
+    /** Whether {@link mediaRefs} are still loading. */
+    mediaRefsPending?: boolean;
+    /**
+     * The presave contributions' opaque handles, keyed by item id, exactly as
+     * `EntryTabContext.presave` carries them — a control reads only its own
+     * key (the media plugin's staged uploads).
+     */
+    presave?: Record<string, unknown>;
 };
 
 /** One contributed field control (e.g. the WYSIWYG plugin's rich-text editor). */
@@ -797,6 +909,15 @@ export type EntryFieldControlItem = {
     appliesTo: (field: ContentField) => boolean;
     /** The input surface, rendered inside the standard `Field` wrapper. */
     Component: ComponentType<EntryFieldControlContext>;
+    /**
+     * The control is a **composite** — several actions (pick, upload, remove,
+     * reorder) rather than one input. Its field is then named as a `group` by
+     * the label row instead of by a `<label for>` pointing at one element: a
+     * label would *replace* that button's own name, so "Cover image, button"
+     * would tell the reader nothing about what pressing it does. The media
+     * plugin's field sets it.
+     */
+    composite?: boolean;
     /**
      * An **expanded** editing surface for the field, for a control that needs
      * far more room than a form row — a rich-text body, a code editor, a canvas.

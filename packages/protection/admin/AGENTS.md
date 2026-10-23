@@ -35,15 +35,16 @@ Layered per [ADR-0003](../../../docs/adr/0003-tactical-ddd-inside-plugins.md).
 
 ## What it contributes
 
-| Surface         | Where                         | What it says                                                                         |
-| --------------- | ----------------------------- | ------------------------------------------------------------------------------------ |
-| Review block    | `ENTRY_SIDEBAR_WIDGET_SLOT`   | "Needs review · 0 of 2" in its heading, who was asked, who approved, and the actions |
-| Publish verdict | `ENTRY_PUBLISH_GUARD_SLOT`    | whether Publish is held, and why                                                     |
-| Protection tab  | `WORKSPACE_SETTINGS_TAB_SLOT` | which types are protected, and how                                                   |
-| Review column   | `RECORDS_COLUMN_SLOT`         | where each row stands, one request per page                                          |
-| `reviewState`   | `RECORDS_FILTER_FIELDS_SLOT`  | waiting on review / not requested                                                    |
-| Insights card   | `INSIGHTS_WIDGET_SLOT`        | how much review is outstanding                                                       |
-| Reviews page    | `WORKSPACE_ROUTE_SLOT` + nav  | what is waiting, and on whom                                                         |
+| Surface          | Where                         | What it says                                                                         |
+| ---------------- | ----------------------------- | ------------------------------------------------------------------------------------ |
+| Review block     | `ENTRY_SIDEBAR_WIDGET_SLOT`   | "Needs review · 0 of 2" in its heading, who was asked, who approved, and the actions |
+| Publish verdict  | `ENTRY_PUBLISH_GUARD_SLOT`    | whether Publish is held, and why                                                     |
+| Publishing rules | `WORKSPACE_SETTINGS_TAB_SLOT` | which types are protected, and how                                                   |
+| Review column    | `RECORDS_COLUMN_SLOT`         | where each row stands, one request per page                                          |
+| `reviewState`    | `RECORDS_FILTER_FIELDS_SLOT`  | waiting on review / not requested                                                    |
+| Insights card    | `INSIGHTS_WIDGET_SLOT`        | how much review is outstanding                                                       |
+| Reviews page     | `WORKSPACE_ROUTE_SLOT` + nav  | what is waiting, and on whom                                                         |
+| Home card        | `HOME_SECTION_SLOT`           | entries awaiting review across workspaces — "0" when none                            |
 
 **The three entry contributions render nothing on an unprotected type** and on a
 non-publishable one. `reviewScopeOf` is the single place that decides, so the
@@ -185,7 +186,13 @@ name beside a vote costs no request. Somebody who has left is named as such
 rather than given a fabricated label: a vote records who looked, and inventing a
 name over a gap in the roster misreports the one fact the row carries.
 
-## The settings tab
+## The settings section (Publishing rules)
+
+Listed in the workspace settings side nav as **Publishing rules**; the page
+draws its `<h1>` and description from the slot item, and the section is one
+framed list — each publishable type with its rule in one line (the count, then
+each exception), a Protected / Not protected / Switched off badge, and
+Configure — with rules on types no longer granted in a second list under it.
 
 **The list is the workspace's content grants, not its rules.** A rule is
 addressed by `(workspace, kind, slug)` — the same pair `workspace_content`
@@ -244,13 +251,21 @@ though anyone with `content:approve` may still approve it. The narrower reading
 the queue line carries the tally but not who approved. The table has a
 _Reviewers_ column naming who each ask is waiting on.
 
-**It looks like every other list.** The table sits in the same bordered card
-as the members, tokens and webhooks tables, names each record by its title and
+**It looks like every other list.** It is the same plain design-system table
+as the members, tokens and webhooks tables, under the shared `ContainerHeader` (`<h1>` + subtitle), names each record by its title and
 its type by its label — both sent by the queue route, one read per line of a
 bounded page — and loads behind a skeleton of the same shape. A record with no
 title to show falls back to a fragment of its id, as "Open 1a2b3c4d".
 
-**The age says "overdue" in words, not only in colour.** A greyscale screen, a
+**A row reads like the canvas draws it**: the record's title over its type
+(one column, not two), who asked, the reviewers as overlapping avatars
+(`ReviewerLabel compact` — the names stay in the list as `sr-only` text and
+on hover), the approvals as pips beside "1 of 2" (with an `sr-only`
+"approvals", so the tally is still a sentence), and a **Review** button —
+a duplicate of the title link, so it is taken out of the tab order.
+
+**The age says "overdue" in words, not only in colour** — and an overdue one
+is a badge. A greyscale screen, a
 colour-blind reader and a screen reader all have to get the same fact — the rule
 a queue breaks most easily, because "this one is old" feels like something red
 says by itself. The exact moment rides `<time datetime>` so nothing is lost to
@@ -296,3 +311,15 @@ identical and mean opposite things, and the second one tells a reviewer they are
 free when they are not. The overdue threshold arrives **with** the figure rather
 than being restated here, so the caption cannot come to say "3 days" over a
 number counted against something else.
+
+## The Home card
+
+`ReviewsHomeAttention` counts what waits on **the reader** in each active
+workspace — the same window, key and `splitQueue` as the Reviews page, so the
+number is the page's default tab (asked with its own `X-Workspace-Id` through
+`listQueue(params, workspaceId)`) — and links to the workspace with the most.
+It used to sum the queue's `total`, which counted the reader's own asks too and
+led to a page with nothing waiting on them; those are said separately now
+("You are waiting on reviewers for N"). It stays on Home at **0** — an empty queue said as a number, not a
+card that vanished — and renders nothing without `content:read` or while the
+counts are in flight.

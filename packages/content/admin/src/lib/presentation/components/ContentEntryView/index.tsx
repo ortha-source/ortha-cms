@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { useQueryClient } from '@tanstack/react-query';
@@ -30,7 +30,7 @@ import {
     hasOwnAccess,
     reachableTypeNames
 } from '../../../domain/contentTypeAccess';
-import { entryTabFromPath } from '../../../domain/entryTab';
+import { entryTabFromPath, liveEntryTab } from '../../../domain/entryTab';
 import { listParamsQuery } from '../../../domain/listParamsQuery';
 import { useContentSchema } from '../../../application/useContentSchema';
 import {
@@ -65,7 +65,6 @@ import {
 } from './EntryBusyOverlay';
 
 const messages = defineMessages({
-    newTitle: { id: 'content.entry.newTitle', defaultMessage: 'New {label}' },
     loadError: {
         id: 'content.entry.loadError',
         defaultMessage: 'Couldn’t load this entry. Please try again.'
@@ -260,7 +259,12 @@ export function ContentEntryView({
     // The open tab is a **route** segment, not editor state: switching locale
     // remounts the editor at the sibling's id, and local state reset the user to
     // General mid-task.
-    const tab = entryTabFromPath(location.pathname);
+    const pathTab = entryTabFromPath(location.pathname);
+    // A retired tab (`/relations`, `/media` — their fields are in the one
+    // form now, ADR-0022) reads as the Content view, and its URL is replaced
+    // by the canonical one below so a bookmark doesn't keep the dead segment.
+    const retired = liveEntryTab(pathTab);
+    const tab = retired.tab;
 
     // The editor's own base path — a collection row carries its id, a single is
     // mounted on the type itself. Tab links hang off it, and the query suffix
@@ -301,6 +305,25 @@ export function ContentEntryView({
             viewTransition: false
         });
     };
+
+    // An old link to a retired tab lands where its content lives now (the
+    // Content view, or History showing activity). `replace`, so
+    // Back doesn't bounce off the redirect.
+    useEffect(() => {
+        if (pathTab === tab) return;
+        const search = new URLSearchParams(location.search);
+        for (const [key, value] of Object.entries(retired.search ?? {}))
+            search.set(key, value);
+        const query = search.toString();
+        const segment = tab === DEFAULT_ENTRY_TAB ? '' : `/${tab}`;
+        navigate(`${editorPath}${segment}${query ? `?${query}` : ''}`, {
+            replace: true,
+            state: location.state,
+            viewTransition: false
+        });
+        // `retired.search` is a constant per slug, so `pathTab` covers it.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pathTab, tab, editorPath, location.search, location.state, navigate]);
 
     // `single` resolves its one row via the list endpoint; other modes don't fetch.
     const oneEntryQuery = useContentEntries(
@@ -482,11 +505,6 @@ export function ContentEntryView({
 
     const isCreate = resolved.entry === undefined;
     const publishable = schema.publishable ?? false;
-    const title =
-        mode === ENTRY_MODE.Create
-            ? intl.formatMessage(messages.newTitle, { label: schema.label })
-            : schema.label;
-
     // Persist, then (optionally) publish, via the use-case flow. Rejects on a
     // server error so the editor can surface a 422's field issues; resolves on
     // success after toast + nav.
@@ -756,8 +774,6 @@ export function ContentEntryView({
                     entry={resolved.entry}
                     isCreate={isCreate}
                     publishable={publishable}
-                    title={title}
-                    subtitle={schema.description}
                     saving={flow.isSaving}
                     mutating={flow.isMutating}
                     onSave={onSave}

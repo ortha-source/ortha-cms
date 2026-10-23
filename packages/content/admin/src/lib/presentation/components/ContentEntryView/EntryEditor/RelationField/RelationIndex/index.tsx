@@ -8,7 +8,7 @@ export function RelationIndex({ position }: { position: number }) {
     return (
         <span
             aria-hidden
-            className="w-6 shrink-0 text-center font-mono text-xs tabular-nums text-muted-foreground"
+            className="w-[18px] shrink-0 text-xs tabular-nums text-muted-foreground"
         >
             {String(position + 1).padStart(2, '0')}
         </span>

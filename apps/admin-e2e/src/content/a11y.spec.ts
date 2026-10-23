@@ -19,7 +19,7 @@ import { expectNoA11yViolations } from '../support/a11y';
 
 /**
  * Accessibility scans (axe, WCAG 2.1 A/AA) of the Content Library and its
- * dynamic states — the sidebar + welcome pane, an expanded group with a selected
+ * dynamic states — the sidebar + overview, an expanded group with a selected
  * type, and the open search palette. A regression guard, not a conformance claim.
  */
 test.describe('Content Library accessibility (axe, WCAG 2.1 A/AA)', () => {
@@ -35,9 +35,15 @@ test.describe('Content Library accessibility (axe, WCAG 2.1 A/AA)', () => {
         await mockSavedViews(page, []);
     });
 
-    test('sidebar + welcome pane', async ({ contentLibraryPage, makeAxe }) => {
+    test('sidebar + overview', async ({ contentLibraryPage, makeAxe }) => {
         await contentLibraryPage.goto(LIBRARY_WORKSPACE.id);
         await contentLibraryPage.group('Collections').waitFor();
+        // Scan the overview's cards, not their skeletons.
+        await contentLibraryPage
+            .overviewSection('Recently edited')
+            .getByRole('link')
+            .first()
+            .waitFor();
         await expectNoA11yViolations(makeAxe());
     });
 
@@ -175,10 +181,10 @@ test.describe('Content Library accessibility (axe, WCAG 2.1 A/AA)', () => {
         await contentLibraryPage.expandGroup('Collections');
         await contentLibraryPage.typeLink('Blog posts').click();
         await contentLibraryPage.recordsTable('Blog posts').waitFor();
-        // The menu holds the two visibility sections, the tick column and the
-        // per-view actions — none of which exist until it is open.
-        await savedViewsPage.open();
-        await savedViewsPage.menuItem('Needs review').waitFor();
+        // The tab's menu — its heading, the view actions and the share
+        // checkbox item — none of which exist until it is open.
+        await savedViewsPage.open('Needs review');
+        await savedViewsPage.menuItem('Rename').waitFor();
         await expectNoA11yViolations(makeAxe());
     });
 
@@ -188,9 +194,8 @@ test.describe('Content Library accessibility (axe, WCAG 2.1 A/AA)', () => {
         makeAxe
     }) => {
         await mockSavedViews(page, [NEEDS_REVIEW_VIEW]);
-        // The amber trigger and the three inline actions only exist once the
-        // live state has drifted, and that trigger's contrast is the reason to
-        // scan it.
+        // The Modified dot and the three inline actions only exist once the
+        // live state has drifted.
         await savedViewsPage.goto(
             LIBRARY_WORKSPACE.id,
             'blog_post',
@@ -213,7 +218,7 @@ test.describe('Content Library accessibility (axe, WCAG 2.1 A/AA)', () => {
         );
         // A modal over a records page: its own name, and the page behind it
         // going `aria-hidden` while it is up, are what this scan is for.
-        await savedViewsPage.open();
+        await savedViewsPage.open('Needs review');
         await savedViewsPage.deleteItem().click();
         await savedViewsPage.confirmDeleteDialog().waitFor();
         await expectNoA11yViolations(makeAxe());

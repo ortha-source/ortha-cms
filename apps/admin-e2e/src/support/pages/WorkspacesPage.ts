@@ -36,7 +36,10 @@ export class WorkspacesPage extends BasePage {
         this.search = page.getByRole('searchbox', {
             name: 'Search workspaces'
         });
-        this.table = page.getByRole('table', { name: 'Workspaces' });
+        // The grid of cards — a labelled list, one item per workspace.
+        this.table = page
+            .getByRole('main')
+            .getByRole('list', { name: 'Workspaces' });
         this.newWorkspaceButton = page
             .getByRole('button', { name: 'New workspace' })
             .first();
@@ -68,7 +71,7 @@ export class WorkspacesPage extends BasePage {
      * never matches the sidebar's Workspaces quick-list (same names).
      */
     card(name: string): Locator {
-        return this.table.getByRole('row').filter({
+        return this.table.getByRole('listitem').filter({
             has: this.page.getByRole('link', { name, exact: true })
         });
     }
@@ -86,10 +89,8 @@ export class WorkspacesPage extends BasePage {
      */
     monogram(name: string | RegExp): Locator {
         return this.table
-            .getByRole('row')
+            .getByRole('listitem')
             .filter({ hasText: name })
-            .getByRole('cell')
-            .first()
             .locator('span')
             .first();
     }
@@ -200,7 +201,12 @@ export class WorkspacesPage extends BasePage {
      * named button.
      */
     get sidebarNewWorkspaceAction(): Locator {
-        return this.page.getByRole('link', { name: 'New workspace' });
+        // Exact: the grid's dashed "New workspace" card is a link too, named
+        // by its hint as well.
+        return this.page.getByRole('link', {
+            name: 'New workspace',
+            exact: true
+        });
     }
 
     /**

@@ -1,22 +1,26 @@
 import { defineMessages, useIntl } from 'react-intl';
 import {
-    Button,
     DensityProvider,
     InputGroup,
     InputGroupAddon,
     InputGroupInput,
+    SegmentedControl,
+    SegmentedControlItem,
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
-    SelectValue
+    SelectValue,
+    cn
 } from '@orthacms/design-system';
-import { FolderPlus, Search, UploadCloud } from 'lucide-react';
+import { LayoutGrid, List, Search } from 'lucide-react';
 import {
     KIND_FILTER_ALL,
     MEDIA_KIND,
     MEDIA_SORT,
-    type MediaSort
+    MEDIA_VIEW,
+    type MediaSort,
+    type MediaView
 } from '../../constants';
 import type { KindFilter } from '../../hooks/useMediaLibrary';
 
@@ -31,9 +35,9 @@ const messages = defineMessages({
         id: 'media.toolbar.kindLabel',
         defaultMessage: 'Filter by type'
     },
-    kindAll: { id: 'media.toolbar.kindAll', defaultMessage: 'All types' },
+    kindAll: { id: 'media.toolbar.kindAll', defaultMessage: 'All' },
     kindImage: { id: 'media.toolbar.kindImage', defaultMessage: 'Images' },
-    kindVideo: { id: 'media.toolbar.kindVideo', defaultMessage: 'Videos' },
+    kindVideo: { id: 'media.toolbar.kindVideo', defaultMessage: 'Video' },
     kindAudio: { id: 'media.toolbar.kindAudio', defaultMessage: 'Audio' },
     kindDocument: {
         id: 'media.toolbar.kindDocument',
@@ -65,14 +69,28 @@ const messages = defineMessages({
         id: 'media.toolbar.sortSmallest',
         defaultMessage: 'Smallest'
     },
-    newFolder: { id: 'media.toolbar.newFolder', defaultMessage: 'New folder' },
-    upload: { id: 'media.toolbar.upload', defaultMessage: 'Upload' }
+    viewLabel: { id: 'media.toolbar.viewLabel', defaultMessage: 'View' },
+    viewGrid: { id: 'media.toolbar.viewGrid', defaultMessage: 'Grid view' },
+    viewList: { id: 'media.toolbar.viewList', defaultMessage: 'List view' }
 });
 
+/** The type chips, in reading order — "All" first, the kinds after it. */
+const KIND_CHIPS: { value: KindFilter; label: keyof typeof messages }[] = [
+    { value: KIND_FILTER_ALL, label: 'kindAll' },
+    { value: MEDIA_KIND.Image, label: 'kindImage' },
+    { value: MEDIA_KIND.Video, label: 'kindVideo' },
+    { value: MEDIA_KIND.Audio, label: 'kindAudio' },
+    { value: MEDIA_KIND.Document, label: 'kindDocument' },
+    { value: MEDIA_KIND.Archive, label: 'kindArchive' }
+];
+
 /**
- * The Media Library's control bar — a search box, a type filter, a sort select,
- * and (permission-gated) New folder + Upload actions. Fully controlled: every
- * value lives in the page's store and changes dispatch straight back up.
+ * The Media Library's control bar — the **type chips** (All · Images · Video ·
+ * Audio · Documents · Archives, one pressed at a time; the same pill the
+ * records table's status chips are) on the left, then a search box, a sort
+ * select and the Grid / List switch on the right. Fully controlled: every value
+ * lives in the page and changes dispatch straight back up. New folder and
+ * Upload are the page's top-bar actions, not this bar's.
  */
 export function MediaToolbar({
     search,
@@ -81,9 +99,8 @@ export function MediaToolbar({
     onKindFilterChange,
     sort,
     onSortChange,
-    onNewFolder,
-    onUpload,
-    canCreate
+    view,
+    onViewChange
 }: {
     search: string;
     onSearchChange: (value: string) => void;
@@ -91,115 +108,117 @@ export function MediaToolbar({
     onKindFilterChange: (value: KindFilter) => void;
     sort: MediaSort;
     onSortChange: (value: MediaSort) => void;
-    onNewFolder: () => void;
-    onUpload: () => void;
-    canCreate: boolean;
+    view: MediaView;
+    onViewChange: (value: MediaView) => void;
 }) {
     const intl = useIntl();
 
     return (
         <DensityProvider density="compact">
             <div className="mb-4 flex flex-wrap items-center gap-2">
-                <InputGroup className="w-full shadow-none sm:w-auto sm:max-w-[280px] sm:flex-1">
-                    <InputGroupAddon>
-                        <Search />
-                    </InputGroupAddon>
-                    <InputGroupInput
-                        type="search"
-                        value={search}
-                        onChange={(event) => onSearchChange(event.target.value)}
-                        aria-label={intl.formatMessage(messages.search)}
-                        placeholder={intl.formatMessage(
-                            messages.searchPlaceholder
-                        )}
-                    />
-                </InputGroup>
-
-                <Select
-                    value={kindFilter}
-                    onValueChange={(value) =>
-                        onKindFilterChange(value as KindFilter)
-                    }
+                <div
+                    role="group"
+                    aria-label={intl.formatMessage(messages.kindLabel)}
+                    className="flex flex-wrap items-center gap-1.5"
                 >
-                    <SelectTrigger
-                        className="w-[150px] shadow-none"
-                        aria-label={intl.formatMessage(messages.kindLabel)}
-                    >
-                        <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value={KIND_FILTER_ALL}>
-                            {intl.formatMessage(messages.kindAll)}
-                        </SelectItem>
-                        <SelectItem value={MEDIA_KIND.Image}>
-                            {intl.formatMessage(messages.kindImage)}
-                        </SelectItem>
-                        <SelectItem value={MEDIA_KIND.Video}>
-                            {intl.formatMessage(messages.kindVideo)}
-                        </SelectItem>
-                        <SelectItem value={MEDIA_KIND.Audio}>
-                            {intl.formatMessage(messages.kindAudio)}
-                        </SelectItem>
-                        <SelectItem value={MEDIA_KIND.Document}>
-                            {intl.formatMessage(messages.kindDocument)}
-                        </SelectItem>
-                        <SelectItem value={MEDIA_KIND.Archive}>
-                            {intl.formatMessage(messages.kindArchive)}
-                        </SelectItem>
-                    </SelectContent>
-                </Select>
-
-                <Select
-                    value={sort}
-                    onValueChange={(value) => onSortChange(value as MediaSort)}
-                >
-                    <SelectTrigger
-                        className="w-[150px] shadow-none"
-                        aria-label={intl.formatMessage(messages.sortLabel)}
-                    >
-                        <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value={MEDIA_SORT.Newest}>
-                            {intl.formatMessage(messages.sortNewest)}
-                        </SelectItem>
-                        <SelectItem value={MEDIA_SORT.Oldest}>
-                            {intl.formatMessage(messages.sortOldest)}
-                        </SelectItem>
-                        <SelectItem value={MEDIA_SORT.NameAsc}>
-                            {intl.formatMessage(messages.sortNameAsc)}
-                        </SelectItem>
-                        <SelectItem value={MEDIA_SORT.NameDesc}>
-                            {intl.formatMessage(messages.sortNameDesc)}
-                        </SelectItem>
-                        <SelectItem value={MEDIA_SORT.Largest}>
-                            {intl.formatMessage(messages.sortLargest)}
-                        </SelectItem>
-                        <SelectItem value={MEDIA_SORT.Smallest}>
-                            {intl.formatMessage(messages.sortSmallest)}
-                        </SelectItem>
-                    </SelectContent>
-                </Select>
-
-                <div className="ml-auto flex items-center gap-2 sm:gap-3">
-                    {canCreate ? (
-                        <>
-                            <Button
-                                variant="outline"
-                                className="shadow-none"
-                                onClick={onNewFolder}
+                    {KIND_CHIPS.map(({ value, label }) => {
+                        const on = kindFilter === value;
+                        return (
+                            <button
+                                key={value}
+                                type="button"
+                                aria-pressed={on}
+                                onClick={() => onKindFilterChange(value)}
+                                className={cn(
+                                    'inline-flex h-7 items-center rounded-full border px-2.5 text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
+                                    on
+                                        ? 'border-foreground bg-foreground text-background'
+                                        : 'bg-background text-foreground hover:bg-muted'
+                                )}
                             >
-                                <FolderPlus aria-hidden />
-                                <span className="hidden sm:inline">
-                                    {intl.formatMessage(messages.newFolder)}
-                                </span>
-                            </Button>
-                            <Button onClick={onUpload}>
-                                <UploadCloud aria-hidden />
-                                {intl.formatMessage(messages.upload)}
-                            </Button>
-                        </>
-                    ) : null}
+                                {intl.formatMessage(messages[label])}
+                            </button>
+                        );
+                    })}
+                </div>
+
+                <div className="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto">
+                    <InputGroup className="w-full shadow-none sm:w-[200px]">
+                        <InputGroupAddon>
+                            <Search />
+                        </InputGroupAddon>
+                        <InputGroupInput
+                            type="search"
+                            value={search}
+                            onChange={(event) =>
+                                onSearchChange(event.target.value)
+                            }
+                            aria-label={intl.formatMessage(messages.search)}
+                            placeholder={intl.formatMessage(
+                                messages.searchPlaceholder
+                            )}
+                        />
+                    </InputGroup>
+
+                    <Select
+                        value={sort}
+                        onValueChange={(value) =>
+                            onSortChange(value as MediaSort)
+                        }
+                    >
+                        <SelectTrigger
+                            className="w-[132px] shadow-none"
+                            aria-label={intl.formatMessage(messages.sortLabel)}
+                        >
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value={MEDIA_SORT.Newest}>
+                                {intl.formatMessage(messages.sortNewest)}
+                            </SelectItem>
+                            <SelectItem value={MEDIA_SORT.Oldest}>
+                                {intl.formatMessage(messages.sortOldest)}
+                            </SelectItem>
+                            <SelectItem value={MEDIA_SORT.NameAsc}>
+                                {intl.formatMessage(messages.sortNameAsc)}
+                            </SelectItem>
+                            <SelectItem value={MEDIA_SORT.NameDesc}>
+                                {intl.formatMessage(messages.sortNameDesc)}
+                            </SelectItem>
+                            <SelectItem value={MEDIA_SORT.Largest}>
+                                {intl.formatMessage(messages.sortLargest)}
+                            </SelectItem>
+                            <SelectItem value={MEDIA_SORT.Smallest}>
+                                {intl.formatMessage(messages.sortSmallest)}
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
+
+                    <SegmentedControl
+                        variant="muted"
+                        value={view}
+                        // A single toggle group reports '' when its pressed
+                        // item is pressed again; a view switch can't be off.
+                        onValueChange={(value) => {
+                            if (value) onViewChange(value as MediaView);
+                        }}
+                        aria-label={intl.formatMessage(messages.viewLabel)}
+                    >
+                        <SegmentedControlItem
+                            value={MEDIA_VIEW.Grid}
+                            aria-label={intl.formatMessage(messages.viewGrid)}
+                            className="px-2"
+                        >
+                            <LayoutGrid className="size-4" aria-hidden />
+                        </SegmentedControlItem>
+                        <SegmentedControlItem
+                            value={MEDIA_VIEW.List}
+                            aria-label={intl.formatMessage(messages.viewList)}
+                            className="px-2"
+                        >
+                            <List className="size-4" aria-hidden />
+                        </SegmentedControlItem>
+                    </SegmentedControl>
                 </div>
             </div>
         </DensityProvider>

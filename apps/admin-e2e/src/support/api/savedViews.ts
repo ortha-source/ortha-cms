@@ -195,3 +195,55 @@ export function spySetDefaultView(
     });
     return spy;
 }
+
+/**
+ * Answers `PATCH /api/views/:id` — a rename or a (un)share from a tab's menu —
+ * by merging the body into the stored view and re-serving the list, so the
+ * tab shows the new name. A name in `taken` is refused with a 409, the
+ * server's answer to a name already in use.
+ */
+export function spyUpdateView(
+    page: Page,
+    views: SavedViewSeed[],
+    { taken = [] as string[] } = {}
+): { count: number; lastBody: Partial<SavedViewSeed> | null } {
+    const spy = {
+        count: 0,
+        lastBody: null as Partial<SavedViewSeed> | null
+    };
+    let current = views;
+    void page.route('**/api/views?*', async (route) => {
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify(current)
+        });
+    });
+    void page.route('**/api/views/*', async (route) => {
+        if (route.request().method() !== 'PATCH') {
+            await route.fallback();
+            return;
+        }
+        const id = new URL(route.request().url()).pathname.split('/').pop();
+        const body = route.request().postDataJSON() as Partial<SavedViewSeed>;
+        spy.count += 1;
+        spy.lastBody = body;
+        if (body.name && taken.includes(body.name)) {
+            await route.fulfill({
+                status: 409,
+                contentType: 'application/json',
+                body: JSON.stringify({ message: 'Name taken' })
+            });
+            return;
+        }
+        current = current.map((view) =>
+            view.id === id ? { ...view, ...body } : view
+        );
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify(current.find((view) => view.id === id))
+        });
+    });
+    return spy;
+}

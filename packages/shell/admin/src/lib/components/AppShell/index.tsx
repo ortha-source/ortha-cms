@@ -123,9 +123,13 @@ function AppShellChrome() {
     const isMobile = useIsMobile();
 
     // The overlay is up only when the panel has something in it *and* is open
-    // *and* we are under the mobile breakpoint — as a desktop column it covers
+    // *and* it covers the page — the phone's bottom sheet, or a desktop panel
+    // in overlay mode (a sheet over a scrim). As a docked column it covers
     // nothing, so inerting the page beside it would be a bug, not containment.
-    const overlayUp = isMobile && !!panel?.present && panel.open;
+    const overlayUp =
+        !!panel?.present &&
+        panel.open &&
+        (isMobile || panel.mode === 'overlay');
 
     // The sidebar's open state is the layout store's, not the cookie the
     // design system falls back to: it travels with the user's preferences.
@@ -151,7 +155,10 @@ function AppShellChrome() {
             >
                 {intl.formatMessage(messages.skipToContent)}
             </a>
-            <AppSidebar resize={sidebar.handleProps} />
+            {/* Under a desktop sheet the sidebar is on screen beside the
+                page, so it goes inert with it (on a phone it is a Sheet of its
+                own, closed or trapping focus). */}
+            <AppSidebar resize={sidebar.handleProps} inert={overlayUp} />
             {/* `scrollLabel` names the scrollport tab stop — it is focusable so
                 a keyboard user can scroll a page that has nothing else to focus,
                 and it was an unnamed, roleless stop until now (`ORT-150`). The
@@ -189,7 +196,7 @@ function AppShellChrome() {
                         registers a panel — see `AppRightPanel`. */}
                     <AppRightPanel />
                 </div>
-                <InsetFooter className="md:px-1" />
+                <InsetFooter className="md:px-1" inert={overlayUp} />
             </div>
             {/* Inert with the rest of the page behind the overlay: it is
                 `fixed`, so it would otherwise sit above the scrim and stay both

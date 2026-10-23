@@ -6,7 +6,8 @@ import {
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuSeparator,
-    DropdownMenuTrigger
+    DropdownMenuTrigger,
+    cn
 } from '@orthacms/design-system';
 import { FolderOpen, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 
@@ -33,7 +34,8 @@ export function FolderActionsMenu({
     onDelete,
     canUpdate,
     canDelete,
-    trigger
+    trigger,
+    triggerClassName
 }: {
     /**
      * The folder this menu acts on — its name goes in the trigger's accessible
@@ -47,6 +49,8 @@ export function FolderActionsMenu({
     canUpdate: boolean;
     canDelete: boolean;
     trigger?: ReactNode;
+    /** Extra classes for the default ⋯ trigger (the tree's smaller one). */
+    triggerClassName?: string;
 }) {
     const intl = useIntl();
 
@@ -57,7 +61,7 @@ export function FolderActionsMenu({
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="size-8 shadow-none"
+                        className={cn('size-8 shadow-none', triggerClassName)}
                         aria-label={intl.formatMessage(messages.trigger, {
                             name
                         })}

@@ -114,6 +114,48 @@ describe('useEntryForm — re-seeding', () => {
         expect(result.current.seedRefused).toBe(true);
     });
 
+    it('takes a seed that lands during its own write for that write’s echo', () => {
+        // The save's response reaches the form as a new seed (the read-one
+        // cache is primed in `onSuccess`) a moment before the editor adopts
+        // it. Read as a conflict, it painted "This record changed while you
+        // were editing" over the author's own update.
+        const { result, rerender } = renderForm({
+            values: STORED,
+            seedKey: 'edit:post-1'
+        });
+
+        act(() => result.current.setValue('title', 'My unsaved rewrite'));
+        act(() => result.current.beginWrite());
+        const SAVED = { title: 'My unsaved rewrite' };
+        rerender({ values: SAVED, seedKey: 'edit:post-1' });
+
+        expect(result.current.seedRefused).toBe(false);
+
+        // The write landing adopts it.
+        act(() => result.current.acceptSeed());
+        rerender({ values: SAVED, seedKey: 'edit:post-1' });
+        expect(result.current.values).toEqual(SAVED);
+        expect(result.current.seedRefused).toBe(false);
+    });
+
+    it('reports a seed that arrived during a write that never landed', () => {
+        const { result, rerender } = renderForm({
+            values: STORED,
+            seedKey: 'edit:post-1'
+        });
+
+        act(() => result.current.setValue('title', 'My unsaved rewrite'));
+        act(() => result.current.beginWrite());
+        rerender({ values: THEIRS, seedKey: 'edit:post-1' });
+        expect(result.current.seedRefused).toBe(false);
+
+        act(() => result.current.endWrite());
+        rerender({ values: THEIRS, seedKey: 'edit:post-1' });
+
+        expect(result.current.values).toEqual({ title: 'My unsaved rewrite' });
+        expect(result.current.seedRefused).toBe(true);
+    });
+
     it('adopts a different record even with unsaved edits', () => {
         const { result, rerender } = renderForm({
             values: STORED,

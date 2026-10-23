@@ -83,12 +83,20 @@ hand-written):
 - **`SegmentedControl` has two variants, and the default is the toolbar one.**
   `variant="field"` is for a segmented control used as a **form control** — the
   entry editor's boolean field — and matches `Input` / `Textarea` /
-  `SelectTrigger` on radius, border token and height. Those are not
-  interchangeable with the toolbar's: `border-input` is deliberately a step
-  darker than `border`, so an editable surface reads as editable, and the
-  toolbar's 38px box left the boolean field standing proud of its neighbours.
+  `SelectTrigger` on radius and height; the toolbar's 38px box left the boolean
+  field standing proud of its neighbours. Its look is the muted variant's (a
+  grey track, the selected segment a raised white tab) — the canvas's boolean
+  control: a filled black segment in a column of quiet inputs read as the one
+  pressed button on the page.
   Five of the six call sites are toolbars, which is why the fix is a variant
-  rather than a change to the base class.
+  rather than a change to the base class. A third, `variant="muted"`, is the
+  quiet switch inside dense content (the History filter, the Access table's
+  per-row decision): a muted track, the selected segment a raised white tab.
+  Items never wrap — a two-line segment is a broken one.
+- **`Badge` is a 20px chip** (`size="xs"` is 18px, for a badge inside a list
+  row) with `muted` and `line` variants beside the tones. A status badge
+  leads with `BadgeDot` — the dot takes `currentColor`, so it follows the
+  variant rather than carrying a colour of its own.
 - **A form field's focus mark is on `:focus`, not only `:focus-visible`,
   whenever the control is a button** — `SelectTrigger`, the `DatePicker` /
   `DateTimePicker` / `MultiSelect` triggers, and the field `SegmentedControl`
@@ -101,17 +109,35 @@ hand-written):
   including the two that used to draw their own. Its optional `icon` takes a
   sized icon element and draws the tile itself; the tile is `aria-hidden`,
   because the heading beside it already names the page.
-- **Under a top bar, `ContainerHeader` folds away.** The shell hands it the
-  bar's actions region through `PageHeaderHost`; with one present on a desktop
-  viewport the header keeps its `<h1>` and subtitle for assistive technology
-  only (`sr-only`) and portals its `actions` into the bar inside a
-  `DensityProvider density="compact"`, which steps every control one notch
-  down (`Button`, `InputGroup`, `SelectTrigger`, a toolbar `SegmentedControl`)
-  so a page's controls fit the shorter line box without the page knowing where
-  they are drawn. `SearchToolbar` sets the same density, so a list's search box
-  and its Columns / Filters buttons take the top bar's 32px line too. `keepSubtitle` keeps a subtitle on screen when it is
-  data rather than a gloss (a webhook's URL). Below the breakpoint, or with no
-  bar, it draws in full — the bar has no room there for a page's actions.
+- **Under a top bar, `ContainerHeader` keeps its title; only the actions move.**
+  Every page opens on its `<h1>` (24px, semibold) over one 13px line of
+  supporting copy, then its sections as `<h2>`. The header used to fold to
+  `sr-only` under a bar, the breadcrumb standing in for it, which left list
+  pages opening on a bare toolbar with nothing saying what the list was for.
+  The shell hands the header the bar's actions region through
+  `PageHeaderHost`; with one present on a desktop viewport the header portals
+  its `actions` into the bar inside a `DensityProvider density="compact"`,
+  which steps every control one notch down (`Button`, `InputGroup`,
+  `SelectTrigger`, a toolbar `SegmentedControl`) so a page's controls fit the
+  shorter line box without the page knowing where they are drawn.
+  `SearchToolbar` sets the same density, so a list's search box and its
+  Columns / Filters buttons take the top bar's 32px line too. Below the
+  breakpoint, or with no bar, the actions stay beside the title.
+- **`SearchToolbar` takes `leading`** — controls drawn at the row's start (the
+  records table's status chips); with it the search box moves to the right, a
+  fixed 260px beside the actions, instead of stretching from the left edge.
+- **`SelectionBar` floats; the page makes room.** A list's bulk bar is a light
+  card at the bottom centre of the **work area** — `InsetFloating` portals it
+  into a layer `SidebarInset` keeps over its scrollport's bottom edge, so it
+  stays centred whether the sidebar is open or collapsed. The inset does not
+  pad its scrollport for it: that shrank a page running its own inner scroll
+  (the Media Library) instead of adding room. The page pads whatever scrolls
+  (`pb-24`) while the bar is up.
+- **`Container` is 1120px wide, except one page.** `width="full"` belongs to a
+  collection's records table alone — its columns are the reader's choice and
+  can number a dozen. Every other page, tables included (members, tokens,
+  activity, webhooks, segments), keeps the measure, so a page doesn't change
+  width as you move between them.
 - **A page's tabs go in the top bar's second row** — wrap the `TabsList` (or
   `TabNav`) in `TopBarTabs`. Inside a `SidebarInset` it portals into the strip
   under the bar, the way `TopBar` hoists itself, so the breadcrumb, the page's

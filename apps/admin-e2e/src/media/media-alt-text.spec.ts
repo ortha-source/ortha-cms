@@ -21,7 +21,7 @@ const PNG = {
  * undescribed forever. WCAG 1.1.1 (Non-text Content).
  *
  * Two routes are pinned: at upload, while the author is still looking at the
- * picture, and afterwards from the asset's own drawer.
+ * picture, and afterwards from the asset's own details panel.
  */
 test.describe('Media alt text', () => {
     test.beforeEach(async ({ page }) => {
@@ -77,7 +77,7 @@ test.describe('Media alt text', () => {
         await expect(mediaLibraryPage.stagedAltInput('notes.txt')).toBeHidden();
     });
 
-    test('edits an existing asset’s alt text from its drawer', async ({
+    test('edits an existing asset’s alt text from its details panel', async ({
         page,
         mediaLibraryPage
     }) => {
@@ -108,7 +108,7 @@ test.describe('Media alt text', () => {
         await expect(mediaLibraryPage.altInput()).toBeHidden();
     });
 
-    test('has no accessibility violations with the drawer open', async ({
+    test('has no accessibility violations with the details panel open', async ({
         page,
         mediaLibraryPage,
         makeAxe

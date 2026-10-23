@@ -11,18 +11,17 @@ import {
 import { I18N_WORKSPACE, mockI18n } from '../support/api/i18n';
 
 /**
- * The General tab's **field grouping** — the boundary between the run of
- * translated fields and the run of shared ones.
+ * How a localized type's form says which fields are **shared** — since
+ * ADR-0022, beside each field rather than by splitting the form into a
+ * "Translated fields" run over a "Shared fields" one.
  *
- * Which run a field sits in decides whether editing it changes every locale, so
- * the split is the one thing on that tab a reader must not have to infer. It
- * used to be carried by whitespace alone; it is now drawn as a rule. Both
- * halves of the branch are pinned here: a type with both kinds of field gets the
- * grouped layout **with** the rule, and a type with only one kind keeps the
- * flat, header-free stack — where a lone rule would announce a division that
- * does not exist.
+ * Whether editing a field changes every locale is the one thing on the form a
+ * reader must not have to infer; it used to be said once, above a group. The
+ * form now keeps the schema's order, so each field says it itself — a globe
+ * for one that differs per locale, "All locales" for one that does not — and
+ * a plain type, with no locales, says neither.
  */
-test.describe('Entry editor field groups', () => {
+test.describe('Entry editor locale scope marks', () => {
     test.describe('a type with both translated and shared fields', () => {
         test.beforeEach(async ({ page }) => {
             await mockSignedIn(page);
@@ -30,7 +29,7 @@ test.describe('Entry editor field groups', () => {
             await mockI18n(page);
         });
 
-        test('draws a rule between the two runs, under their headings', async ({
+        test('marks each field in place and draws no group headings', async ({
             contentLibraryPage
         }) => {
             await contentLibraryPage.gotoNewEntry(
@@ -39,41 +38,16 @@ test.describe('Entry editor field groups', () => {
             );
             await expect(contentLibraryPage.editorSave).toBeVisible();
 
-            // The headings the grouped layout has always had — the e2e for the
-            // split itself lives in `i18n.spec.ts`; they are re-asserted here
-            // because the rule is only meaningful as their boundary.
+            await expect(
+                contentLibraryPage.localizedMark.first()
+            ).toBeVisible();
+            await expect(contentLibraryPage.sharedMark.first()).toBeVisible();
             await expect(
                 contentLibraryPage.fieldGroupHeading('Translated fields')
-            ).toBeVisible();
+            ).toHaveCount(0);
             await expect(
                 contentLibraryPage.fieldGroupHeading('Shared fields')
-            ).toBeVisible();
-
-            // Exactly one rule: one boundary, drawn once.
-            await expect(contentLibraryPage.fieldGroupDivider).toBeVisible();
-            await expect(contentLibraryPage.fieldGroupDivider).toHaveCount(1);
-        });
-
-        test('the rule is decorative — it never lands in the a11y tree', async ({
-            contentLibraryPage
-        }) => {
-            await contentLibraryPage.gotoNewEntry(
-                I18N_WORKSPACE.id,
-                'localized_post'
-            );
-            await expect(contentLibraryPage.fieldGroupDivider).toBeVisible();
-
-            // A rule that names itself would sit between the two group headings
-            // as content, read out on the way past and saying nothing. Radix's
-            // `decorative` separator renders `role="none"`, which is what keeps
-            // it out — the headings alone name the runs.
-            await expect(contentLibraryPage.fieldGroupDivider).toHaveAttribute(
-                'role',
-                'none'
-            );
-            await expect(
-                contentLibraryPage.fieldGroupDivider
-            ).not.toHaveAttribute('aria-label', /.+/);
+            ).toHaveCount(0);
         });
     });
 
@@ -87,26 +61,17 @@ test.describe('Entry editor field groups', () => {
             await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
         });
 
-        test('keeps the flat stack — no headings and no rule', async ({
-            contentLibraryPage
-        }) => {
-            // `product` is a plain, non-i18n type: every field is shared, so
-            // there is only one run. The grouping is inert outside i18n, and so
-            // is its divider — a rule here would draw a boundary between a group
-            // and nothing.
+        test('says nothing about locales', async ({ contentLibraryPage }) => {
+            // `product` is a plain, non-i18n type: there are no other locales
+            // for a field to be shared with, so neither mark applies.
             await contentLibraryPage.gotoNewEntry(
                 LIBRARY_WORKSPACE.id,
                 'product'
             );
             await expect(contentLibraryPage.fieldTextbox('Name')).toBeVisible();
 
-            await expect(
-                contentLibraryPage.fieldGroupHeading('Translated fields')
-            ).toHaveCount(0);
-            await expect(
-                contentLibraryPage.fieldGroupHeading('Shared fields')
-            ).toHaveCount(0);
-            await expect(contentLibraryPage.fieldGroupDivider).toHaveCount(0);
+            await expect(contentLibraryPage.sharedMark).toHaveCount(0);
+            await expect(contentLibraryPage.localizedMark).toHaveCount(0);
         });
     });
 });

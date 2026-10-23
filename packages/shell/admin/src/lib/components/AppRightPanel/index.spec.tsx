@@ -135,3 +135,124 @@ describe('AppRightPanel', () => {
         expect(column().className).toContain('w-0');
     });
 });
+
+/** A page that asks for its panel on demand, as the entry editor's Details does. */
+function PageWithOverlay() {
+    return (
+        <RightPanelPortal title="Details" overlay>
+            <button type="button">Inside</button>
+        </RightPanelPortal>
+    );
+}
+
+describe('AppRightPanel — overlay', () => {
+    const showDetails = () => screen.queryByLabelText('Show Details');
+
+    it('starts closed and floats over the page when opened', () => {
+        render(
+            <Chrome>
+                <PageWithOverlay />
+            </Chrome>
+        );
+        expect(column().dataset['mode']).toBe('overlay');
+        expect(column().hasAttribute('inert')).toBe(true);
+
+        fireEvent.click(showDetails() as HTMLElement);
+
+        expect(column().hasAttribute('inert')).toBe(false);
+        expect(column().className).toContain('fixed');
+        // A floating card takes no width from the page.
+        expect(column().className).not.toContain('w-0');
+    });
+
+    it('keeps its toggle in the top bar while open, since it has no column', () => {
+        render(
+            <Chrome>
+                <PageWithOverlay />
+            </Chrome>
+        );
+        fireEvent.click(showDetails() as HTMLElement);
+
+        // The bar's toggle is still there, now saying what it will do.
+        const barToggle = screen
+            .getAllByLabelText('Hide Details')
+            .find((button) => button.getAttribute('aria-expanded') === 'true');
+        expect(barToggle).toBeDefined();
+        expect(showDetails()).toBeNull();
+
+        fireEvent.click(barToggle as HTMLElement);
+        expect(column().hasAttribute('inert')).toBe(true);
+        expect(showDetails()).not.toBeNull();
+    });
+
+    // A sheet over a scrim: a click inside keeps it, a click on the scrim —
+    // everything outside it — closes it.
+    it('closes on a click on the scrim, but not on one inside', () => {
+        render(
+            <Chrome>
+                <PageWithOverlay />
+            </Chrome>
+        );
+        fireEvent.click(showDetails() as HTMLElement);
+
+        fireEvent.click(screen.getByText('Inside'));
+        expect(column().hasAttribute('inert')).toBe(false);
+        expect(screen.getByRole('dialog', { name: 'Details' })).toBeTruthy();
+
+        const scrim = document.querySelector<HTMLElement>(
+            '[data-slot="right-panel-scrim"]'
+        );
+        fireEvent.click(scrim as HTMLElement);
+        expect(column().hasAttribute('inert')).toBe(true);
+    });
+
+    it('closes on Escape', () => {
+        render(
+            <Chrome>
+                <PageWithOverlay />
+            </Chrome>
+        );
+        fireEvent.click(showDetails() as HTMLElement);
+        fireEvent.keyDown(document, { key: 'Escape' });
+        expect(column().hasAttribute('inert')).toBe(true);
+    });
+
+    it('pins into a docked column, and the pin outlives the page', () => {
+        const { unmount } = render(
+            <Chrome>
+                <PageWithOverlay />
+            </Chrome>
+        );
+        fireEvent.click(showDetails() as HTMLElement);
+        fireEvent.click(screen.getByLabelText('Pin Details beside the page'));
+
+        expect(column().dataset['mode']).toBe('docked');
+        expect(column().className).toContain('w-(--right-panel-width)');
+        expect(window.localStorage.getItem('orthacms:right-panel:pinned')).toBe(
+            'true'
+        );
+        unmount();
+
+        render(
+            <Chrome>
+                <PageWithOverlay />
+            </Chrome>
+        );
+        // Docked and open on arrival, as a pinned column is.
+        expect(column().dataset['mode']).toBe('docked');
+        expect(column().hasAttribute('inert')).toBe(false);
+        expect(
+            screen.getByLabelText('Unpin Details').getAttribute('aria-pressed')
+        ).toBe('true');
+    });
+
+    it('offers no pin to a page that did not ask for the overlay', () => {
+        render(
+            <Chrome>
+                <PageWithPanel />
+            </Chrome>
+        );
+        expect(column().dataset['mode']).toBe('docked');
+        expect(screen.queryByLabelText(/Pin Properties/)).toBeNull();
+    });
+});

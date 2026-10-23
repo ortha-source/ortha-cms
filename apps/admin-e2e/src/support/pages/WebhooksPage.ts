@@ -53,6 +53,37 @@ export class WebhooksPage extends BasePage {
 
     // --- list --------------------------------------------------------------
 
+    /** A button of the list's All / Healthy / Paused / Stopped filter. */
+    stateFilterButton(name: RegExp): Locator {
+        return this.page
+            .getByRole('group', { name: 'Show' })
+            .getByRole('button', { name });
+    }
+
+    /** The list's search over name and URL. */
+    searchBox(): Locator {
+        return this.page.getByRole('searchbox', { name: 'Search webhooks' });
+    }
+
+    /** A link of the editor's "On this page" list. */
+    pageNavLink(name: string): Locator {
+        return this.page
+            .getByRole('navigation', { name: 'On this page' })
+            .getByRole('link', { name });
+    }
+
+    /** An editor section's heading (`<h2>`). */
+    sectionHeading(name: string): Locator {
+        return this.page.getByRole('heading', { name, level: 2 });
+    }
+
+    /** The figures over the delivery log (a `<dl>` of label / value pairs). */
+    deliveryStats(): Locator {
+        return this.page.locator('dl', {
+            has: this.page.getByText('Median response', { exact: true })
+        });
+    }
+
     /** One endpoint's row, found by its name. */
     row(name: string): Locator {
         return this.table.getByRole('row').filter({ hasText: name });
@@ -121,12 +152,22 @@ export class WebhooksPage extends BasePage {
 
     /** The "All workspaces" toggle — the difference between "all" and "none". */
     allWorkspacesToggle(): Locator {
-        return this.page.getByRole('checkbox', { name: /All workspaces/ });
+        return this.page.getByRole('radio', { name: /All workspaces/ });
     }
 
     /** The "Every event" toggle. */
     allEventsToggle(): Locator {
-        return this.page.getByRole('checkbox', { name: /Every event/ });
+        return this.page.getByRole('radio', { name: /Every event/ });
+    }
+
+    /** The events choice that opens the checklist. */
+    someEventsChoice(): Locator {
+        return this.page.getByRole('radio', { name: /Only these events/ });
+    }
+
+    /** One event's checkbox in the checklist, by its label. */
+    eventCheckbox(label: string): Locator {
+        return this.page.getByRole('checkbox', { name: new RegExp(label) });
     }
 
     /** The workspace picker, which only exists once "All workspaces" is off. */
@@ -156,9 +197,8 @@ export class WebhooksPage extends BasePage {
 
     /** The "Every content type" toggle. */
     allContentTypesToggle(): Locator {
-        return this.page.getByRole('checkbox', {
-            name: /Every content type/
-        });
+        // "All types / Only some": clicking it narrows to a picker.
+        return this.page.getByRole('radio', { name: 'Only some' });
     }
 
     /** The content-type picker, which only exists once that toggle is off. */
@@ -191,8 +231,10 @@ export class WebhooksPage extends BasePage {
     }
 
     /** The status switch — enabled or not. */
-    enabledSwitch(): Locator {
-        return this.page.getByRole('switch');
+    stateChoice(name: 'Active' | 'Paused'): Locator {
+        return this.page
+            .getByRole('radiogroup', { name: 'State' })
+            .getByRole('radio', { name });
     }
 
     /** The confirm shown when the switch is turned off. */
@@ -259,7 +301,7 @@ export class WebhooksPage extends BasePage {
 
     /** The delivery log's table. */
     deliveriesTable(): Locator {
-        return this.page.getByRole('table', { name: 'Delivery log' });
+        return this.page.getByRole('list', { name: 'Delivery log' });
     }
 
     /** The detail page's Edit action, which opens the editor on this endpoint. */
@@ -291,12 +333,24 @@ export class WebhooksPage extends BasePage {
 
     /** The "View" action on the first delivery row. */
     firstDeliveryViewButton(): Locator {
-        return this.page.getByRole('button', { name: 'View' }).first();
+        return this.deliveriesTable().getByRole('button').first();
     }
 
-    /** The delivery detail sheet. */
+    /** A delivery row of the log, by its event kind. */
+    deliveryRow(eventKind: string): Locator {
+        return this.deliveriesTable().getByRole('button', {
+            name: new RegExp(eventKind.replace('.', '\\.'))
+        });
+    }
+
+    /** The picked delivery's panel beside the log. */
     deliverySheet(): Locator {
-        return this.page.getByRole('dialog');
+        return this.page.getByRole('region', { name: 'Delivery', exact: true });
+    }
+
+    /** The delivery panel's Request / Response tab. */
+    deliveryTab(name: 'Request' | 'Response'): Locator {
+        return this.deliverySheet().getByRole('tab', { name });
     }
 
     /** The delivery log's state filter — named explicitly, not by its value. */
@@ -311,10 +365,7 @@ export class WebhooksPage extends BasePage {
 
     /** Opens the event picker, which only exists once "Every event" is off. */
     async openEventPicker() {
-        await this.allEventsToggle().click();
-        // By name, not by position: the form holds three pickers, and which one
-        // is last depends on which "All …" toggles are off.
-        await this.page.getByRole('combobox', { name: 'Events' }).click();
+        await this.someEventsChoice().click();
     }
 
     /**

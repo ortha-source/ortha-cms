@@ -21,7 +21,9 @@ export class RelationsEditorPage extends BasePage {
 
     constructor(page: Page) {
         super(page);
-        this.relationsTab = page.getByRole('tab', { name: 'Relations' });
+        // Relations are fields of the one Content form since ADR-0022; the
+        // tab that holds them is Content.
+        this.relationsTab = page.getByRole('tab', { name: 'Content' });
         this.dialog = page.getByRole('dialog', { name: /^Assign / });
     }
 
@@ -37,14 +39,18 @@ export class RelationsEditorPage extends BasePage {
         );
     }
 
-    /** Open a saved record's editor straight on its Relations tab. */
+    /**
+     * Open a saved record's editor, where its relations are — inline in the
+     * Content form. (It used to open a Relations tab; that URL now redirects
+     * here, which `relations.spec.ts` pins.)
+     */
     async gotoEntryRelations(
         workspaceId: string,
         typeName: string,
         id: string
     ) {
         await this.page.goto(
-            `/workspaces/${workspaceId}/content/${typeName}/${id}/relations`
+            `/workspaces/${workspaceId}/content/${typeName}/${id}`
         );
     }
 
@@ -63,14 +69,17 @@ export class RelationsEditorPage extends BasePage {
         return this.page.getByText(value, { exact: true });
     }
 
-    /** Switch to the Relations tab. */
+    /** Switch to the Content view, where the relation fields are. */
     async openRelationsTab() {
         await this.relationsTab.click();
     }
 
-    /** A relation field's card heading (an exact-match `heading` by its label). */
+    /**
+     * A relation field in the form — a `group` named by its label, since the
+     * control is several buttons (an exact match on the label).
+     */
     section(label: string): Locator {
-        return this.page.getByRole('heading', { name: label });
+        return this.page.getByRole('group', { name: label, exact: true });
     }
 
     /** The "Select {label}" trigger of an empty single relation. */
@@ -301,7 +310,10 @@ export class RelationsEditorPage extends BasePage {
      * publish gate blocking on empty required fields.
      */
     async saveDraft() {
-        await this.page.getByRole('button', { name: 'More actions' }).click();
-        await this.page.getByRole('menuitem', { name: 'Save draft' }).click();
+        // A button since the action matrix (`content:I-63`) — "Save draft"
+        // beside Publish, or the one "Save" on a type without publishing.
+        await this.page
+            .getByRole('button', { name: /^(Save draft|Save)$/ })
+            .click();
     }
 }

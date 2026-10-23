@@ -393,7 +393,6 @@ test.describe('Saving a change other locales share [i18n:I-34] [i18n:I-35]', () 
         await contentLibraryPage.recordLink('Winter boots').click();
         await expect(contentLibraryPage.editorSave).toBeVisible();
         await contentLibraryPage.startTranslation('Français');
-        await contentLibraryPage.openEditorTab('Relations');
 
         await expect(
             page.getByTestId('relations-inherited-note')

@@ -248,9 +248,9 @@ test.describe('Publication protection in the entry editor', () => {
         const publish = page.getByRole('button', { name: /^publish$/i });
         await expect(publish).toHaveAttribute('aria-disabled', 'true');
         // The reason reaches a screen reader as the button's *description*.
-        await expect(
-            page.getByText('2 approvals required on this version, 0 given.')
-        ).toBeAttached();
+        await expect(publish).toHaveAccessibleDescription(
+            '2 approvals required on this version, 0 given.'
+        );
     });
 
     /**
@@ -340,11 +340,9 @@ test.describe('Publication protection in the entry editor', () => {
         await contentLibraryPage.fieldTextbox('Title').fill('A late edit');
 
         await expect(publish).toHaveAttribute('aria-disabled', 'true');
-        await expect(
-            page.getByText(
-                'Saving your changes starts a new version: 1 approval required, 0 would count.'
-            )
-        ).toBeAttached();
+        await expect(publish).toHaveAccessibleDescription(
+            'Saving your changes starts a new version: 1 approval required, 0 would count.'
+        );
     });
 
     test('sends the bypass with the publish itself, once confirmed [protection:I-20]', async ({
@@ -424,8 +422,12 @@ test.describe('Publication protection in the entry editor', () => {
         });
     });
 
-    /** The menu is the second door; it must be shut with the first. */
-    test('holds the menu’s Save & publish along with the button [protection:I-21]', async ({
+    /**
+     * The menu used to be the second door (its "Save & publish"); since the
+     * action matrix it holds no publish at all, and ⌘⇧P is the second door
+     * now — run through the same guarded handler as the button.
+     */
+    test('leaves no publish in the menu while the button is held [protection:I-21]', async ({
         page,
         contentLibraryPage
     }) => {
@@ -437,11 +439,11 @@ test.describe('Publication protection in the entry editor', () => {
 
         await contentLibraryPage.openEditorMenu();
         await expect(
-            page.getByRole('menuitem', { name: 'Save & publish' })
-        ).toHaveAttribute('aria-disabled', 'true');
+            page.getByRole('menuitem', { name: /publish$/i })
+        ).toHaveCount(0);
     });
 
-    test('opens the bypass confirmation from the menu when a bypass is offered [protection:I-21]', async ({
+    test('opens the bypass confirmation from the publish chord when a bypass is offered [protection:I-21]', async ({
         page,
         contentLibraryPage
     }) => {
@@ -452,9 +454,11 @@ test.describe('Publication protection in the entry editor', () => {
             bypassable: true
         });
         await contentLibraryPage.gotoEntry(WS, TYPE, ENTRY);
+        await expect(
+            page.getByRole('button', { name: /^publish$/i })
+        ).toBeVisible();
 
-        await contentLibraryPage.openEditorMenu();
-        await contentLibraryPage.chooseEditorAction('Save & publish');
+        await page.keyboard.press('ControlOrMeta+Shift+P');
 
         await expect(page.getByRole('dialog')).toContainText(
             /entry\.publish_bypassed/
@@ -592,11 +596,9 @@ test.describe('Publication protection in the entry editor', () => {
 
         const publish = page.getByRole('button', { name: /^publish$/i });
         await expect(publish).toHaveAttribute('aria-disabled', 'true');
-        await expect(
-            page.getByText(
-                '1 approval required before a new entry of this type can be published.'
-            )
-        ).toBeAttached();
+        await expect(publish).toHaveAccessibleDescription(
+            '1 approval required before a new entry of this type can be published.'
+        );
     });
 
     test('has no accessibility violations with a rule in force', async ({

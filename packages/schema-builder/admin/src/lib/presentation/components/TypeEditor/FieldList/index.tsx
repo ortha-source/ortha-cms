@@ -6,7 +6,6 @@ import {
 } from '@dnd-kit/sortable';
 import { Button } from '@orthacms/design-system';
 import type { TypeDoc } from '@orthacms/schema-builder-domain';
-import { fieldsOnTab } from '../../../../domain/builtInTab';
 import { generalTabLayout } from '../../../../domain/generalTabLayout';
 import { BuiltInTabBlock } from './BuiltInTabBlock';
 import type { FieldListEditing } from './fieldListEditing';
@@ -39,15 +38,14 @@ const messages = defineMessages({
 type Props = { type: TypeDoc; editing?: FieldListEditing };
 
 /**
- * A type's fields under the tab the entry editor draws each on: General
- * (loose fields by rank, then the groups as accordions), Relations, Media.
- * A tab with nothing on it is left out, as the editor leaves it out — except
- * General while editing, where groups are managed. A type with no fields
+ * A type's fields as the entry editor's one form draws them (ADR-0022): loose
+ * fields by rank, then the groups as accordions — relations and media
+ * included, which used to sit on tabs of their own. A type with no fields
  * and no groups gets an empty state instead: what fields are, and the way in.
  *
- * While editing, General's loose fields and its groups are one sortable scope
- * — a field is dragged into a group and back out, and the groups are dragged
- * into a new order — and Relations and Media are a scope each.
+ * While editing, the loose fields and the groups are one sortable scope — a
+ * field is dragged into a group and back out, and the groups are dragged into
+ * a new order.
  */
 export function FieldList({ type, editing }: Props) {
     const intl = useIntl();
@@ -72,20 +70,6 @@ export function FieldList({ type, editing }: Props) {
             fields
         } satisfies SortableList
     }));
-    // Nothing leaves or joins these, so their label is never announced.
-    const relations: SortableList = {
-        id: 'fields:relations',
-        label: 'Relations',
-        group: null,
-        fields: fieldsOnTab(type, 'relations')
-    };
-    const media: SortableList = {
-        id: 'fields:media',
-        label: 'Media',
-        group: null,
-        fields: fieldsOnTab(type, 'media')
-    };
-
     return (
         <section
             aria-labelledby="schema-fields-title"
@@ -186,23 +170,6 @@ export function FieldList({ type, editing }: Props) {
                         </SortableFieldScope>
                     </BuiltInTabBlock>
                 )
-            )}
-            {relations.fields.length > 0 && (
-                <BuiltInTabBlock
-                    tab="relations"
-                    count={relations.fields.length}
-                >
-                    <SortableFieldScope lists={[relations]} editing={editing}>
-                        <FieldRows list={relations} editing={editing} />
-                    </SortableFieldScope>
-                </BuiltInTabBlock>
-            )}
-            {media.fields.length > 0 && (
-                <BuiltInTabBlock tab="media" count={media.fields.length}>
-                    <SortableFieldScope lists={[media]} editing={editing}>
-                        <FieldRows list={media} editing={editing} />
-                    </SortableFieldScope>
-                </BuiltInTabBlock>
             )}
         </section>
     );

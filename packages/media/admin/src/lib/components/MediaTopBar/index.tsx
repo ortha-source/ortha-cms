@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Image } from 'lucide-react';
 import {
@@ -8,6 +9,7 @@ import {
     BreadcrumbPage,
     BreadcrumbSeparator,
     TopBar,
+    TopBarActions,
     TopBarIcon
 } from '@orthacms/design-system';
 import { ROOT_FOLDER_ID } from '../../constants';
@@ -31,14 +33,20 @@ const messages = defineMessages({
  * the store's `breadcrumbs` and each one dispatches `onNavigate` rather than
  * linking. They are still `BreadcrumbLink`s over real `<button>`s — a control
  * that changes view without changing location is a button, not a link.
+ *
+ * `actions` (New folder, Upload) sit at the bar's right end, where every other
+ * admin page keeps its page-level actions.
  */
 export function MediaTopBar({
     breadcrumbs,
-    onNavigate
+    onNavigate,
+    actions
 }: {
     /** Ancestor chain of the open folder, root-first (excludes the root itself). */
     breadcrumbs: MediaFolder[];
     onNavigate: (folderId: string) => void;
+    /** Page-level actions, drawn at the bar's right end. */
+    actions?: ReactNode;
 }) {
     const intl = useIntl();
 
@@ -81,6 +89,7 @@ export function MediaTopBar({
                     ])}
                 </BreadcrumbList>
             </Breadcrumb>
+            {actions ? <TopBarActions>{actions}</TopBarActions> : null}
         </TopBar>
     );
 }

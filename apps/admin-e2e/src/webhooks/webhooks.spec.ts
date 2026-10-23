@@ -39,9 +39,9 @@ test.describe('Webhooks', () => {
             await webhooksPage.table.waitFor();
 
             for (const header of [
-                'Name',
-                'URL',
+                'Webhook',
                 'Sends',
+                'Last 20 deliveries',
                 'State',
                 'Last delivery'
             ]) {
@@ -65,18 +65,21 @@ test.describe('Webhooks', () => {
             // `allWorkspaces: true`. Rendering that as "0 events" would be the
             // exact inversion of what the subscription model means.
             const row = webhooksPage.row('Rebuild the storefront');
-            await expect(row).toContainText('All events');
-            await expect(row).toContainText('All workspaces');
+            await expect(row).toContainText('All events · all workspaces');
         });
 
-        test('counts a named filter', async ({ page, webhooksPage }) => {
+        test('names a narrow filter and counts a wider one', async ({
+            page,
+            webhooksPage
+        }) => {
             await mockWebhooksApi(page);
             await webhooksPage.goto();
             await webhooksPage.table.waitFor();
 
+            // One workspace reads as its name; the events, as their labels
+            // once the catalogue has them; the types, as a count.
             const row = webhooksPage.row('Search re-index');
-            await expect(row).toContainText('2 events');
-            await expect(row).toContainText('1 workspace');
+            await expect(row).toContainText('Marketing site');
             await expect(row).toContainText('1 type');
         });
 
@@ -94,8 +97,48 @@ test.describe('Webhooks', () => {
             await expect(webhooksPage.row('Search re-index')).toContainText(
                 'Paused'
             );
-            await expect(webhooksPage.row('Old staging preview')).toContainText(
-                'Stopped after failures'
+            const stopped = webhooksPage.row('Old staging preview');
+            await expect(stopped).toContainText('Stopped');
+            await expect(stopped).toContainText('404 · after 20 failures');
+        });
+
+        test('says how the recent deliveries went', async ({
+            page,
+            webhooksPage
+        }) => {
+            await mockWebhooksApi(page);
+            await webhooksPage.goto();
+            await webhooksPage.table.waitFor();
+
+            // The strip is decoration; the rate beside it is what a screen
+            // reader hears. The seed log holds one delivered and one dead.
+            await expect(
+                webhooksPage.row('Rebuild the storefront')
+            ).toContainText('50% of the last 2 deliveries succeeded');
+        });
+
+        test('filters by state and searches name and URL', async ({
+            page,
+            webhooksPage
+        }) => {
+            await mockWebhooksApi(page);
+            await webhooksPage.goto();
+            await webhooksPage.table.waitFor();
+
+            await webhooksPage.stateFilterButton(/Stopped/).click();
+            await expect(
+                webhooksPage.stateFilterButton(/Stopped/)
+            ).toHaveAttribute('aria-pressed', 'true');
+            await expect(webhooksPage.row('Old staging preview')).toBeVisible();
+            await expect(
+                webhooksPage.row('Rebuild the storefront')
+            ).toHaveCount(0);
+
+            await webhooksPage.stateFilterButton(/All/).click();
+            await webhooksPage.searchBox().fill('search.example');
+            await expect(webhooksPage.row('Search re-index')).toBeVisible();
+            await expect(webhooksPage.row('Old staging preview')).toHaveCount(
+                0
             );
         });
 
@@ -164,6 +207,21 @@ test.describe('Webhooks', () => {
     });
 
     test.describe('creating one', () => {
+        test('"On this page" takes the reader to a section', async ({
+            page,
+            webhooksPage
+        }) => {
+            await mockWebhooksApi(page);
+            await webhooksPage.gotoNew();
+
+            await webhooksPage.pageNavLink('Delivery').click();
+            await expect(webhooksPage.sectionHeading('Delivery')).toBeFocused();
+            await expect(webhooksPage.pageNavLink('Delivery')).toHaveAttribute(
+                'aria-current',
+                'true'
+            );
+        });
+
         test('submits no filter values when "all" is chosen', async ({
             page,
             webhooksPage
@@ -193,6 +251,39 @@ test.describe('Webhooks', () => {
                 allWorkspaces: true,
                 workspaceIds: [],
                 eventKinds: []
+            });
+        });
+
+        test('a group box ticks its events and sends them in catalogue order', async ({
+            page,
+            webhooksPage
+        }) => {
+            await mockWebhooksApi(page);
+            await webhooksPage.gotoNew();
+            const posted = page.waitForRequest(
+                (request) =>
+                    request.url().endsWith('/api/webhooks') &&
+                    request.method() === 'POST'
+            );
+
+            await webhooksPage.nameField().fill('Cache purge');
+            await webhooksPage.urlField().fill('https://cdn.example.com/hooks');
+            await webhooksPage.allWorkspacesToggle().click();
+            await webhooksPage.openEventPicker();
+            await webhooksPage.eventCheckbox('Entry deleted').click();
+            // One of three picked: the group box reads mixed, and ticking it
+            // takes the rest.
+            const group = webhooksPage.eventCheckbox('All content events');
+            await expect(group).toHaveAttribute('data-state', 'indeterminate');
+            await group.click();
+            await webhooksPage.submitButton().click();
+
+            expect((await posted).postDataJSON()).toMatchObject({
+                eventKinds: [
+                    'entry.created',
+                    'entry.published',
+                    'entry.deleted'
+                ]
             });
         });
 
@@ -273,8 +364,8 @@ test.describe('Webhooks', () => {
             await webhooksPage.gotoNew();
             await webhooksPage.editorHeading('New webhook').waitFor();
 
-            await expect(webhooksPage.enabledSwitch()).toBeChecked();
-            await webhooksPage.enabledSwitch().click();
+            await expect(webhooksPage.stateChoice('Active')).toBeChecked();
+            await webhooksPage.stateChoice('Paused').click();
 
             // What happens while an endpoint is off is not recorded anywhere,
             // so the switch says so before it moves. Declining leaves it on —
@@ -283,11 +374,11 @@ test.describe('Webhooks', () => {
             await expect(webhooksPage.disableConfirm()).toBeVisible();
             await webhooksPage.keepEnabledButton().click();
             await expect(webhooksPage.disableConfirm()).toBeHidden();
-            await expect(webhooksPage.enabledSwitch()).toBeChecked();
+            await expect(webhooksPage.stateChoice('Active')).toBeChecked();
 
-            await webhooksPage.enabledSwitch().click();
+            await webhooksPage.stateChoice('Paused').click();
             await webhooksPage.disableConfirmButton().click();
-            await expect(webhooksPage.enabledSwitch()).not.toBeChecked();
+            await expect(webhooksPage.stateChoice('Paused')).toBeChecked();
         });
 
         test('turns an endpoint back on without asking', async ({
@@ -299,12 +390,12 @@ test.describe('Webhooks', () => {
             await webhooksPage.gotoEdit('wh_paused');
             await webhooksPage.editorHeading('Edit webhook').waitFor();
 
-            await expect(webhooksPage.enabledSwitch()).not.toBeChecked();
-            await webhooksPage.enabledSwitch().click();
+            await expect(webhooksPage.stateChoice('Paused')).toBeChecked();
+            await webhooksPage.stateChoice('Active').click();
 
             // Turning it on loses nothing, so there is nothing to confirm.
             await expect(webhooksPage.disableConfirm()).toBeHidden();
-            await expect(webhooksPage.enabledSwitch()).toBeChecked();
+            await expect(webhooksPage.stateChoice('Active')).toBeChecked();
         });
 
         test('sends a custom header with the endpoint', async ({
@@ -376,13 +467,13 @@ test.describe('Webhooks', () => {
             await webhooksPage.table.waitFor();
 
             await webhooksPage.newWebhookButton.click();
-            // The picker only exists once "Every event" is switched off.
+            // The checklist only exists once "Only these events" is picked.
             await webhooksPage.openEventPicker();
 
             await expect(
-                webhooksPage.eventOption('Entry published')
+                webhooksPage.eventCheckbox('Entry published')
             ).toBeVisible();
-            await expect(webhooksPage.eventOption('Test ping')).toBeHidden();
+            await expect(webhooksPage.eventCheckbox('Test ping')).toBeHidden();
         });
 
         test('does not ask about types before a workspace is chosen', async ({
@@ -619,6 +710,21 @@ test.describe('Webhooks', () => {
             );
         });
 
+        test('sums up the recent deliveries over the log', async ({
+            page,
+            webhooksPage
+        }) => {
+            await mockWebhooksApi(page);
+            await webhooksPage.gotoDetail(WEBHOOKS_SEED[0].id);
+
+            // The seed log: one delivered, one dead. The window is named in
+            // the label, so the rate never reads as an all-time figure.
+            const stats = webhooksPage.deliveryStats();
+            await expect(stats).toContainText('Succeeded, last 2');
+            await expect(stats).toContainText('50%');
+            await expect(stats).toContainText('Failed1');
+        });
+
         test('shows only the secret hint, never the secret', async ({
             page,
             webhooksPage
@@ -653,14 +759,33 @@ test.describe('Webhooks', () => {
             await webhooksPage.gotoDetail(WEBHOOKS_SEED[0].id);
             await webhooksPage.deliveriesTable().waitFor();
 
-            await webhooksPage.firstDeliveryViewButton().click();
-
-            const sheet = webhooksPage.deliverySheet();
-            await expect(sheet).toContainText('entry.published');
+            // The newest delivery is shown beside the log without a click.
+            const panel = webhooksPage.deliverySheet();
+            await expect(panel).toContainText('entry.published');
+            await expect(
+                webhooksPage.firstDeliveryViewButton()
+            ).toHaveAttribute('aria-pressed', 'true');
             // The stored body, verbatim — the only version worth debugging
             // against.
-            await expect(sheet).toContainText('"eventId": "evt_1"');
-            await expect(sheet).toContainText('received');
+            await expect(panel).toContainText('"eventId": "evt_1"');
+            await webhooksPage.deliveryTab('Response').click();
+            await expect(panel).toContainText('received');
+        });
+
+        test('picking another delivery shows it beside the log', async ({
+            page,
+            webhooksPage
+        }) => {
+            await mockWebhooksApi(page);
+            await webhooksPage.gotoDetail(WEBHOOKS_SEED[0].id);
+            await webhooksPage.deliveriesTable().waitFor();
+
+            const row = webhooksPage.deliveryRow('entry.updated');
+            await row.click();
+            await expect(row).toHaveAttribute('aria-pressed', 'true');
+            await expect(webhooksPage.deliverySheet()).toContainText(
+                'entry.updated'
+            );
         });
     });
 });

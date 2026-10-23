@@ -7,10 +7,12 @@ import { DensityProvider } from './density';
 
 type ContainerProps = React.HTMLAttributes<HTMLDivElement> & {
     /**
-     * `default` centres the body at a 6xl measure — right for forms, editors
-     * and anything read line by line. `full` lets it run the width of the work
-     * area, for pages that are one big table: a list gains columns, not
-     * line length, and a measure only cut it off with empty gutters beside it.
+     * `default` centres the body at the admin's one page measure (1120px) —
+     * every list, form and settings page, tables included: a list of members
+     * or webhooks reads better with its columns close together than spread
+     * over a wide screen. `full` lets it run the width of the work area, and
+     * belongs to **one** page: a collection's records table, whose columns
+     * are the reader's own choice and can number a dozen.
      */
     width?: 'default' | 'full';
 };
@@ -21,8 +23,8 @@ const Container = React.forwardRef<HTMLDivElement, ContainerProps>(
         <div
             ref={ref}
             className={cn(
-                'mx-auto w-full px-4 py-6 sm:px-6 sm:py-8',
-                width === 'full' ? 'max-w-none' : 'max-w-6xl',
+                'mx-auto w-full px-4 py-8 sm:px-10',
+                width === 'full' ? 'max-w-none' : 'max-w-[1120px]',
                 className
             )}
             {...props}
@@ -76,95 +78,44 @@ type ContainerHeaderProps = React.HTMLAttributes<HTMLDivElement> & {
     actions?: React.ReactNode;
     /** Override classes for the `<h1>` (e.g. a smaller size on dense pages). */
     titleClassName?: string;
-    /**
-     * Keep the subtitle on screen when the header folds into the top bar.
-     * For a subtitle that is **data** (a webhook's URL) rather than a gloss
-     * on the page; the default drops it to screen-reader-only with the title.
-     */
-    keepSubtitle?: boolean;
 };
 
 /**
- * Page header: title + optional subtitle on the leading side, actions trailing.
- * Wraps to a stacked layout on narrow viewports so the actions never crowd the
- * title.
+ * Page header: the page's `<h1>` over one line of supporting copy, actions
+ * trailing. Wraps to a stacked layout on narrow viewports so the actions never
+ * crowd the title.
  *
  * **Every page in the admin gets its heading from here**, which is the point:
- * the two pages that drew their own — the records list and the entry editor —
- * had drifted to a different size and a different tracking from everywhere
- * else, and would have drifted again after the next change to this file.
+ * pages that drew their own had drifted to a different size and a different
+ * tracking from everywhere else, and would have drifted again after the next
+ * change to this file. Sections below it are `<h2>`.
  *
- * **Under a top bar it folds away.** The bar already names the page, so on a
- * desktop viewport with a {@link PageHeaderHost} the header keeps its `<h1>`
- * (and subtitle) for assistive technology only, and portals its actions into
- * the bar at compact density — the page gets the vertical space back. Below
- * the breakpoint the bar has no room for a page's actions, so the header draws
- * itself in full there, as it does on a page with no bar at all.
+ * **The title stays on screen under a top bar.** It used to fold away there
+ * (`sr-only`, the breadcrumb standing in for it), which left list pages
+ * starting straight on a toolbar with nothing saying what the list was or why
+ * it mattered. The bar's breadcrumb says where you are; the heading says what
+ * the page is for. Only the **actions** move: on a desktop viewport with a
+ * {@link PageHeaderHost} they portal into the bar at compact density. Below
+ * the breakpoint the bar has no room for them, so they stay beside the title.
  */
 const ContainerHeader = React.forwardRef<HTMLDivElement, ContainerHeaderProps>(
     (
-        {
-            className,
-            title,
-            icon,
-            subtitle,
-            actions,
-            titleClassName,
-            keepSubtitle = false,
-            ...props
-        },
+        { className, title, icon, subtitle, actions, titleClassName, ...props },
         ref
     ) => {
         const host = React.useContext(PageHeaderHostContext);
         const isMobile = useIsMobile();
 
-        if (host && !isMobile) {
-            return (
-                <>
-                    <div
-                        ref={ref}
-                        className={cn(
-                            keepSubtitle && subtitle ? 'mb-4' : 'sr-only'
-                        )}
-                        {...props}
-                    >
-                        <h1 className="sr-only">{title}</h1>
-                        {subtitle ? (
-                            <p
-                                className={cn(
-                                    keepSubtitle
-                                        ? 'max-w-2xl truncate text-sm text-muted-foreground'
-                                        : 'sr-only'
-                                )}
-                            >
-                                {subtitle}
-                            </p>
-                        ) : null}
-                    </div>
-                    {actions
-                        ? createPortal(
-                              <DensityProvider density="compact">
-                                  <div className="flex items-center gap-2">
-                                      {actions}
-                                  </div>
-                              </DensityProvider>,
-                              host
-                          )
-                        : null}
-                </>
-            );
-        }
-
         return (
             <div
                 ref={ref}
                 className={cn(
-                    'mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between',
+                    'mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between',
                     className
                 )}
                 {...props}
             >
-                <div className="flex flex-col gap-1">
+                <div className="flex min-w-0 flex-col gap-1.5">
                     <div className="flex items-center gap-2.5">
                         {icon ? (
                             <span
@@ -176,7 +127,7 @@ const ContainerHeader = React.forwardRef<HTMLDivElement, ContainerHeaderProps>(
                         ) : null}
                         <h1
                             className={cn(
-                                'text-2xl font-semibold tracking-tight',
+                                'text-2xl font-semibold leading-8 tracking-[-0.01em]',
                                 titleClassName
                             )}
                         >
@@ -184,17 +135,25 @@ const ContainerHeader = React.forwardRef<HTMLDivElement, ContainerHeaderProps>(
                         </h1>
                     </div>
                     {subtitle ? (
-                        <p className="max-w-2xl text-sm text-muted-foreground">
+                        <p className="max-w-[640px] text-[13px] text-muted-foreground">
                             {subtitle}
                         </p>
                     ) : null}
                 </div>
-                {actions ? (
+                {actions && host && !isMobile ? (
+                    createPortal(
+                        <DensityProvider density="compact">
+                            <div className="flex items-center gap-2">
+                                {actions}
+                            </div>
+                        </DensityProvider>,
+                        host
+                    )
+                ) : actions ? (
                     // Wraps rather than refusing to shrink: a header whose actions
-                    // row has grown past two buttons (the records table's, which
-                    // also carries the saved-view switcher) used to push itself
-                    // off the right edge on a narrow viewport instead of taking a
-                    // second line.
+                    // row has grown past two buttons used to push itself off the
+                    // right edge on a narrow viewport instead of taking a second
+                    // line.
                     <div className="flex flex-wrap items-center justify-end gap-2">
                         {actions}
                     </div>

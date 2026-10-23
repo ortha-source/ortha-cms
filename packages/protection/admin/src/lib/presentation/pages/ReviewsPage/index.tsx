@@ -106,7 +106,7 @@ export function ReviewsPage() {
                     }
                 ]}
             />
-            <Container width="full">
+            <Container className="flex flex-col">
                 <ContainerHeader
                     title={intl.formatMessage(messages.title)}
                     subtitle={intl.formatMessage(messages.subtitle)}

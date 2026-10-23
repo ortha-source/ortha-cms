@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { Button } from '@orthacms/design-system';
+import { SelectionBar } from '@orthacms/design-system';
 
 /** Intl descriptors for {@link CollectionRecordsSelectionBar}, co-located. */
 const messages = defineMessages({
@@ -8,21 +8,26 @@ const messages = defineMessages({
         id: 'content.records.selection.count',
         defaultMessage: '{count, plural, one {# selected} other {# selected}}'
     },
+    of: {
+        id: 'content.records.selection.of',
+        defaultMessage: 'of {total}'
+    },
+    label: {
+        id: 'content.records.selection.label',
+        defaultMessage: 'Selection'
+    },
     clear: {
         id: 'content.records.selection.clear',
-        defaultMessage: 'Clear'
+        defaultMessage: 'Clear selection'
     }
 });
 
 /**
- * The selection summary bar shown above the table once one or more rows are
- * selected: a "{n} selected" count, then **Clear**, then the caller's bulk
- * `actions` (a ⋯ menu holding publish / delete / restore, composed per view +
- * permission).
- *
- * Clear comes first, and outside that menu, because it is the way *out* of a
- * state the user may have entered by accident — burying the undo behind the
- * same menu as Delete would be the wrong shape.
+ * The records list's selection bar — the design-system `SelectionBar`, which
+ * floats a light card at the bottom centre of the work area while rows are
+ * selected: "{n} selected of {total}", the caller's bulk `actions` (buttons,
+ * the destructive ones after a divider) and a **✕** that clears. The toolbar
+ * above the table stays where it is.
  *
  * The count here is **visual only** — the bar mounts and unmounts with the
  * selection, so it can't be a reliable live region; the spoken announcement
@@ -30,12 +35,15 @@ const messages = defineMessages({
  */
 export function CollectionRecordsSelectionBar({
     count,
+    total,
     actions,
     onClear
 }: {
     /** Number of currently selected records. */
     count: number;
-    /** Bulk action controls for the current selection, after Clear. */
+    /** Records in the list, for "of N". */
+    total?: number;
+    /** Bulk action controls for the current selection. */
     actions?: ReactNode;
     /** Clears the selection. */
     onClear: () => void;
@@ -43,21 +51,26 @@ export function CollectionRecordsSelectionBar({
     const intl = useIntl();
 
     return (
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-muted/40 px-4 py-2">
-            <span className="text-sm font-medium">
-                {intl.formatMessage(messages.count, { count })}
-            </span>
-            <div className="flex items-center gap-2">
-                <Button
-                    variant="outline"
-                    size="sm"
-                    className="shadow-none"
-                    onClick={onClear}
-                >
-                    {intl.formatMessage(messages.clear)}
-                </Button>
-                {actions}
-            </div>
-        </div>
+        <SelectionBar
+            label={intl.formatMessage(messages.label)}
+            clearLabel={intl.formatMessage(messages.clear)}
+            onClear={onClear}
+            count={
+                <>
+                    <span className="font-medium">
+                        {intl.formatMessage(messages.count, { count })}
+                    </span>
+                    {total !== undefined ? (
+                        <span className="text-xs text-muted-foreground">
+                            {intl.formatMessage(messages.of, {
+                                total: intl.formatNumber(total)
+                            })}
+                        </span>
+                    ) : null}
+                </>
+            }
+        >
+            {actions}
+        </SelectionBar>
     );
 }

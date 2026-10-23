@@ -63,7 +63,6 @@ test.describe('Bulk publish pre-flight', () => {
         await expect(contentLibraryPage.selectionCount).toHaveText(
             '2 selected'
         );
-        await contentLibraryPage.bulkActions.click();
         await contentLibraryPage.bulkAction('Publish').click();
         await expect(contentLibraryPage.bulkPublishDialog).toBeVisible();
     });

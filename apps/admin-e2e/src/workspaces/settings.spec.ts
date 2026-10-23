@@ -63,7 +63,7 @@ test.describe('Workspace settings page', () => {
                 workspaceSettingsPage.navItem('Members')
             ).toBeVisible();
             await expect(
-                workspaceSettingsPage.navItem('Content')
+                workspaceSettingsPage.navItem('Content types')
             ).toBeVisible();
             await expect(
                 workspaceSettingsPage.navItem('Danger zone')
@@ -169,11 +169,12 @@ test.describe('Workspace settings page', () => {
             workspaceSettingsPage
         }) => {
             await workspaceSettingsPage.goto(WORKSPACE_ID);
-            await workspaceSettingsPage.openSection('Content');
+            await workspaceSettingsPage.openSection('Content types');
 
-            // Grant an ungranted page through the pages search + multi-select
-            // dialog (About is a standalone page).
-            await workspaceSettingsPage.addPagesButton.click();
+            // Grant an ungranted page through the search + multi-select
+            // dialog, narrowed to pages (About is a standalone page).
+            await workspaceSettingsPage.addContentButton.click();
+            await workspaceSettingsPage.addDialogKind('Pages').click();
             await workspaceSettingsPage.addContentSearch.fill('About');
             await workspaceSettingsPage.contentCheckbox('About').click();
             await workspaceSettingsPage.addContentSave.click();
@@ -199,7 +200,7 @@ test.describe('Workspace settings page', () => {
             workspaceSettingsPage
         }) => {
             await workspaceSettingsPage.goto(WORKSPACE_ID);
-            await workspaceSettingsPage.openSection('Content');
+            await workspaceSettingsPage.openSection('Content types');
 
             // product is locked (reports entries) → the dialog blocks Remove
             // with a warning instead of letting the request 409.
@@ -211,6 +212,45 @@ test.describe('Workspace settings page', () => {
             await expect(
                 workspaceSettingsPage.removeContentConfirm
             ).toBeDisabled();
+        });
+
+        test('says how many entries each own type holds, and searches the list', async ({
+            workspaceSettingsPage
+        }) => {
+            await workspaceSettingsPage.gotoSection(WORKSPACE_ID, 'content');
+
+            await expect(
+                workspaceSettingsPage.grantedRow('Products')
+            ).toContainText('3 entries');
+            await expect(
+                workspaceSettingsPage.grantedRow('Blog posts')
+            ).toContainText('0 entries');
+
+            await workspaceSettingsPage.grantedSearch.fill('prod');
+            await expect(
+                workspaceSettingsPage.grantedRow('Products')
+            ).toBeVisible();
+            await expect(
+                workspaceSettingsPage.grantedRow('Blog posts')
+            ).toHaveCount(0);
+        });
+
+        test('keeps Save in the top bar: Unsaved changes and Discard while dirty', async ({
+            workspaceSettingsPage
+        }) => {
+            await workspaceSettingsPage.goto(WORKSPACE_ID);
+
+            await expect(workspaceSettingsPage.discardButton).toBeHidden();
+            await workspaceSettingsPage.nameInput.fill('Marketing hub');
+            await expect(workspaceSettingsPage.unsavedNotice).toBeVisible();
+
+            // Discard puts the stored values back and the bar goes quiet.
+            await workspaceSettingsPage.discardButton.click();
+            await expect(workspaceSettingsPage.nameInput).toHaveValue(
+                'Marketing site'
+            );
+            await expect(workspaceSettingsPage.unsavedNotice).toBeHidden();
+            await expect(workspaceSettingsPage.saveButton).toBeDisabled();
         });
 
         test('archives the workspace from the danger zone', async ({
@@ -261,6 +301,12 @@ test.describe('Workspace settings page', () => {
             await workspaceSettingsPage.goto(WORKSPACE_ID);
             await workspaceSettingsPage.openSection('Danger zone');
 
+            // Said on the page before anybody presses Delete…
+            await expect(workspaceSettingsPage.stillHoldsNotice).toContainText(
+                'It still holds 2 entries.'
+            );
+
+            // …and the dialog still runs its own check.
             await workspaceSettingsPage.deleteButton.click();
 
             await expect(
@@ -310,7 +356,7 @@ test.describe('Workspace settings page', () => {
                 workspaceSettingsPage
             }) => {
                 await workspaceSettingsPage.goto(WORKSPACE_ID);
-                await workspaceSettingsPage.openSection('Content');
+                await workspaceSettingsPage.openSection('Content types');
 
                 // Blog posts is the *empty* type — so this is genuinely the
                 // pending state, not the blocked one wearing its clothes.
@@ -359,7 +405,7 @@ test.describe('Workspace settings page', () => {
                 workspaceSettingsPage
             }) => {
                 await workspaceSettingsPage.goto(WORKSPACE_ID);
-                await workspaceSettingsPage.openSection('Content');
+                await workspaceSettingsPage.openSection('Content types');
 
                 await workspaceSettingsPage
                     .contentRemoveButton('Blog posts')
@@ -449,12 +495,9 @@ test.describe('Workspace settings page', () => {
             await workspaceSettingsPage.openSection('Members');
             await expect(workspaceSettingsPage.memberSearch).toBeHidden();
 
-            // Content tab offers no add controls.
-            await workspaceSettingsPage.openSection('Content');
-            await expect(
-                workspaceSettingsPage.addCollectionsButton
-            ).toBeHidden();
-            await expect(workspaceSettingsPage.addPagesButton).toBeHidden();
+            // Content tab offers no add control.
+            await workspaceSettingsPage.openSection('Content types');
+            await expect(workspaceSettingsPage.addContentButton).toBeHidden();
         });
 
         // workspaces:I-34 — hiding a tab is not a gate. A bookmark, a shared link or the
@@ -524,8 +567,8 @@ test.describe('Workspace settings page', () => {
 
         test('content tab', async ({ workspaceSettingsPage, makeAxe }) => {
             await workspaceSettingsPage.goto(WORKSPACE_ID);
-            await workspaceSettingsPage.openSection('Content');
-            await workspaceSettingsPage.addPagesButton.waitFor();
+            await workspaceSettingsPage.openSection('Content types');
+            await workspaceSettingsPage.addContentButton.waitFor();
             await expectNoA11yViolations(makeAxe());
         });
 
@@ -541,8 +584,8 @@ test.describe('Workspace settings page', () => {
             makeAxe
         }) => {
             await workspaceSettingsPage.goto(WORKSPACE_ID);
-            await workspaceSettingsPage.openSection('Content');
-            await workspaceSettingsPage.addPagesButton.click();
+            await workspaceSettingsPage.openSection('Content types');
+            await workspaceSettingsPage.addContentButton.click();
             await workspaceSettingsPage.addContentSearch.waitFor();
             await expectNoA11yViolations(makeAxe());
         });
@@ -552,7 +595,7 @@ test.describe('Workspace settings page', () => {
             makeAxe
         }) => {
             await workspaceSettingsPage.goto(WORKSPACE_ID);
-            await workspaceSettingsPage.openSection('Content');
+            await workspaceSettingsPage.openSection('Content types');
             await workspaceSettingsPage.contentRemoveButton('Products').click();
             await workspaceSettingsPage.removeBlockedAlert.waitFor();
             await expectNoA11yViolations(makeAxe());

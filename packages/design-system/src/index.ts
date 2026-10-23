@@ -64,7 +64,7 @@ export {
     avatarColorVar
 } from './lib/components/ui/avatar';
 export type { AvatarColor } from './lib/components/ui/avatar';
-export { Badge, badgeVariants } from './lib/components/ui/badge';
+export { Badge, BadgeDot, badgeVariants } from './lib/components/ui/badge';
 export type { BadgeProps } from './lib/components/ui/badge';
 export {
     Popover,
@@ -179,6 +179,10 @@ export {
     SearchToolbar,
     type SearchToolbarProps
 } from './lib/components/ui/search-toolbar';
+export {
+    SelectionBar,
+    SelectionBarDivider
+} from './lib/components/ui/selection-bar';
 export { Toaster } from './lib/components/ui/sonner';
 export { toast } from 'sonner';
 export {
@@ -277,6 +281,7 @@ export {
     SidebarTrigger,
     useSidebar,
     useOptionalSidebar,
+    InsetFloating,
     InsetFooter,
     InsetFooterEnd
 } from './lib/components/ui/sidebar';

@@ -11,7 +11,7 @@ import {
     toast,
     useResizablePanel
 } from '@orthacms/design-system';
-import { PanelLeft } from 'lucide-react';
+import { FolderPlus, PanelLeft, UploadCloud } from 'lucide-react';
 import { useHasPermission } from '@orthacms/identity-admin';
 import {
     MEDIA_CREATE,
@@ -19,7 +19,10 @@ import {
     MEDIA_FOLDERS_PANEL,
     MEDIA_READ,
     MEDIA_UPDATE,
-    ROOT_FOLDER_ID
+    MEDIA_VIEW,
+    MEDIA_VIEW_STORAGE_KEY,
+    ROOT_FOLDER_ID,
+    type MediaView
 } from '../../constants';
 import { useMediaLibrary } from '../../hooks/useMediaLibrary';
 import type { MediaAsset } from '../../types/mediaAsset';
@@ -31,9 +34,10 @@ import { MediaToolbar } from '../../components/MediaToolbar';
 import { MediaSelectionBar } from '../../components/MediaSelectionBar';
 import { MediaUploadBanner } from '../../components/MediaUploadBanner';
 import { MediaGrid } from '../../components/MediaGrid';
+import { MediaAssetTable } from '../../components/MediaAssetTable';
 import { MediaPagination } from '../../components/MediaPagination';
 import { MediaEmptyState } from '../../components/MediaEmptyState';
-import { AssetDetailDrawer } from '../../components/AssetDetailDrawer';
+import { AssetDetailPanel } from '../../components/AssetDetailPanel';
 import { NewFolderDialog } from '../../components/NewFolderDialog';
 import { RenameDialog } from '../../components/RenameDialog';
 import { MoveAssetsDialog } from '../../components/MoveAssetsDialog';
@@ -44,11 +48,12 @@ import { useDocumentTitle } from '@orthacms/utils-admin';
 /** Intl descriptors for the Media Library page + its toasts, co-located. */
 const messages = defineMessages({
     title: { id: 'media.page.title', defaultMessage: 'Media Library' },
-    subtitle: {
-        id: 'media.page.subtitle',
-        defaultMessage:
-            '{count, plural, one {# item} other {# items}} in {location}'
+    fileCount: {
+        id: 'media.page.fileCount',
+        defaultMessage: '{count, plural, one {# file} other {# files}}'
     },
+    newFolder: { id: 'media.page.newFolder', defaultMessage: 'New folder' },
+    upload: { id: 'media.page.upload', defaultMessage: 'Upload' },
     allMedia: { id: 'media.page.allMedia', defaultMessage: 'All media' },
     noAccess: {
         id: 'media.page.noAccess',
@@ -168,6 +173,16 @@ type RenameTarget =
     | { kind: 'asset'; id: string; name: string }
     | { kind: 'folder'; id: string; name: string };
 
+/** The remembered view, or the grid — storage can be absent or refuse. */
+function readView(): MediaView {
+    try {
+        const stored = window.localStorage.getItem(MEDIA_VIEW_STORAGE_KEY);
+        return stored === MEDIA_VIEW.List ? MEDIA_VIEW.List : MEDIA_VIEW.Grid;
+    } catch {
+        return MEDIA_VIEW.Grid;
+    }
+}
+
 /** A pending delete awaiting confirmation. */
 type DeleteTarget =
     | { kind: 'assets'; ids: string[] }
@@ -178,14 +193,16 @@ type DeleteTarget =
  * `/workspaces/:id/media`. `useMediaLibrary` is the store — folders and the open
  * folder's assets come from `@orthacms/media-server`, and every action (browse
  * folders, upload, create folder, rename, duplicate, move, delete, filter, sort,
- * open the detail drawer) runs against the API, firing a toast per action —
+ * open the details panel) runs against the API, firing a toast per action —
  * except uploads, whose status lives in the `MediaUploadBanner`. Controls gate
  * on the real `media:*` matrix via `useHasPermission`.
  *
  * A sticky `MediaTopBar` heads the page (the shared icon-tile + breadcrumb
- * header every admin page carries), spanning both panes. Below it sits a
- * two-pane layout — a folders sidebar beside the asset browser — plus the detail
- * drawer and the create/rename/move/upload dialogs. Both panes sit
+ * header every admin page carries, with New folder / Upload at its right end),
+ * spanning every pane. Below it: the folder tree, the file browser (title, type
+ * chips + search + sort + Grid/List, the selection bar, then tiles or the
+ * table) and — while a file is open — the non-modal details panel as a third
+ * column; plus the create/rename/move/upload dialogs. The panes sit
  * **flush on the canvas** (no muted board, no bordered island), mirroring the
  * Content Library's work area: the sidebar is divided by a hairline `border-r`
  * and each pane scrolls independently. Sized with `flex-1` against the workspace
@@ -221,6 +238,15 @@ export function MediaLibraryPage() {
     const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
     /** A confirmed delete is in flight — the dialog shows a spinner meanwhile. */
     const [deleting, setDeleting] = useState(false);
+    const [view, setViewState] = useState<MediaView>(readView);
+    const setView = (next: MediaView) => {
+        setViewState(next);
+        try {
+            window.localStorage.setItem(MEDIA_VIEW_STORAGE_KEY, next);
+        } catch {
+            // A private window or blocked storage: the choice lasts the visit.
+        }
+    };
 
     /**
      * Puts focus on the grid and **keeps** it there for a few frames.
@@ -257,15 +283,32 @@ export function MediaLibraryPage() {
 
     const hasFilters = store.search.trim() !== '' || store.kindFilter !== 'all';
 
-    // Sub-folders belong to the folder, not to a page of its assets, so they are
-    // drawn once on the first page rather than repeating above every page of
-    // files. On any later page the grid is assets alone.
-    const showFolders = store.page === 1;
-    const visibleFolders = showFolders ? store.childFolders : [];
+    // Emptiness is a fact about the whole folder, not about what happened to
+    // load: `total` counts every asset matching the search and filter across
+    // it. Sub-folders don't count — they are drawn in the tree, not the grid.
+    const isEmpty = store.total === 0;
 
-    // Emptiness is now a fact about the whole folder, not about what happened to
-    // load: `total` counts every asset matching the search and filter across it.
-    const isEmpty = visibleFolders.length === 0 && store.total === 0;
+    // The details panel steps through the files on screen, in their order.
+    const detailIndex = store.detailAsset
+        ? store.visibleAssets.findIndex((a) => a.id === store.detailAsset?.id)
+        : -1;
+    const previousAsset =
+        detailIndex > 0 ? store.visibleAssets[detailIndex - 1] : undefined;
+    const nextAsset =
+        detailIndex >= 0 ? store.visibleAssets[detailIndex + 1] : undefined;
+
+    // The table's header checkbox: select the page, or clear it when it's all
+    // selected already.
+    const toggleAllOnPage = () => {
+        const page = store.visibleAssets;
+        if (page.length > 0 && page.every((a) => store.selectedIds.has(a.id))) {
+            store.clearSelection();
+            return;
+        }
+        for (const asset of page) {
+            if (!store.selectedIds.has(asset.id)) store.toggleSelect(asset.id);
+        }
+    };
 
     // Triggers a browser download for one asset (its bytes stream from the
     // `media:read`-gated raw route). Shared by the row action and bulk download.
@@ -278,7 +321,7 @@ export function MediaLibraryPage() {
         link.remove();
     };
 
-    // A single dispatcher every card / row / drawer forwards asset actions to.
+    // A single dispatcher every tile / row / panel forwards asset actions to.
     const handleAssetAction = (kind: AssetActionKind, asset: MediaAsset) => {
         switch (kind) {
             case 'open':
@@ -447,6 +490,30 @@ export function MediaLibraryPage() {
             <MediaTopBar
                 breadcrumbs={store.breadcrumbs}
                 onNavigate={store.navigateTo}
+                actions={
+                    canCreate ? (
+                        <>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="shadow-none"
+                                onClick={() => setNewFolderOpen(true)}
+                            >
+                                <FolderPlus aria-hidden />
+                                <span className="hidden sm:inline">
+                                    {intl.formatMessage(messages.newFolder)}
+                                </span>
+                            </Button>
+                            <Button
+                                size="sm"
+                                onClick={() => setUploadOpen(true)}
+                            >
+                                <UploadCloud aria-hidden />
+                                {intl.formatMessage(messages.upload)}
+                            </Button>
+                        </>
+                    ) : null
+                }
             />
 
             <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:flex-row">
@@ -479,7 +546,11 @@ export function MediaLibraryPage() {
                         rootCount={store.folderCounts.get(ROOT_FOLDER_ID) ?? 0}
                         onNavigate={store.navigateTo}
                         onNewFolder={() => setNewFolderOpen(true)}
+                        onRenameFolder={handleRenameFolder}
+                        onDeleteFolder={handleDeleteFolder}
                         canCreate={canCreate}
+                        canUpdate={canUpdate}
+                        canDelete={canDelete}
                     />
                     <ResizeHandle
                         {...foldersPanel.handleProps}
@@ -496,17 +567,23 @@ export function MediaLibraryPage() {
                     `landmark-no-duplicate-main` once admin-e2e's axe fixture
                     stopped omitting the whole `best-practice` ruleset. */}
                 <div className="min-w-0 flex-1 overflow-auto">
-                    <div className="p-4 sm:p-6">
+                    {/* The browser scrolls itself, not the inset, so it
+                        makes its own room under the floating selection bar. */}
+                    <div
+                        className={cn(
+                            'px-4 py-6 sm:px-8',
+                            selectedIds.length > 0 && 'pb-24'
+                        )}
+                    >
                         <div className="mb-4">
                             <h1 className="text-2xl font-semibold tracking-[-0.01em]">
                                 {store.currentFolder
                                     ? store.currentFolder.name
                                     : intl.formatMessage(messages.title)}
                             </h1>
-                            <p className="mt-0.5 text-sm text-muted-foreground">
-                                {intl.formatMessage(messages.subtitle, {
-                                    count: store.total,
-                                    location: locationLabel
+                            <p className="mt-0.5 text-[13px] text-muted-foreground">
+                                {intl.formatMessage(messages.fileCount, {
+                                    count: store.total
                                 })}
                             </p>
                         </div>
@@ -518,9 +595,8 @@ export function MediaLibraryPage() {
                             onKindFilterChange={store.setKindFilter}
                             sort={store.sort}
                             onSortChange={store.setSort}
-                            onNewFolder={() => setNewFolderOpen(true)}
-                            onUpload={() => setUploadOpen(true)}
-                            canCreate={canCreate}
+                            view={view}
+                            onViewChange={setView}
                         />
 
                         <p className="sr-only" aria-live="polite">
@@ -540,6 +616,7 @@ export function MediaLibraryPage() {
                         {selectedIds.length > 0 ? (
                             <MediaSelectionBar
                                 count={selectedIds.length}
+                                total={store.total}
                                 onDownload={() => {
                                     store.selectedAssets.forEach(downloadAsset);
                                     toast.success(
@@ -613,15 +690,23 @@ export function MediaLibraryPage() {
                                         store.setKindFilter('all');
                                     }}
                                 />
+                            ) : view === MEDIA_VIEW.List ? (
+                                <MediaAssetTable
+                                    assets={store.visibleAssets}
+                                    selectedIds={store.selectedIds}
+                                    activeId={store.detailAsset?.id}
+                                    onToggleSelect={store.toggleSelect}
+                                    onToggleAll={toggleAllOnPage}
+                                    onAction={handleAssetAction}
+                                    canCreate={canCreate}
+                                    canUpdate={canUpdate}
+                                    canDelete={canDelete}
+                                />
                             ) : (
                                 <MediaGrid
-                                    folders={visibleFolders}
                                     assets={store.visibleAssets}
-                                    folderCounts={store.folderCounts}
                                     selectedIds={store.selectedIds}
-                                    onOpenFolder={store.navigateTo}
-                                    onRenameFolder={handleRenameFolder}
-                                    onDeleteFolder={handleDeleteFolder}
+                                    activeId={store.detailAsset?.id}
                                     onToggleSelect={store.toggleSelect}
                                     onAssetAction={handleAssetAction}
                                     canCreate={canCreate}
@@ -631,9 +716,8 @@ export function MediaLibraryPage() {
                             )}
                         </section>
 
-                        {/* Keyed off the assets, not off emptiness: a folder
-                            holding only sub-folders is not empty, and a pager
-                            reading "0–0 of 0" under it says nothing. */}
+                        {/* No pager under an empty folder: "0–0 of 0" says
+                            nothing. */}
                         {store.total > 0 ? (
                             <MediaPagination
                                 page={store.page}
@@ -646,6 +730,43 @@ export function MediaLibraryPage() {
                         ) : null}
                     </div>
                 </div>
+
+                {/* The details panel: a third column from `lg`, beside the
+                    browser, so the files stay in view and clickable; below
+                    that it is laid over the page. Non-modal either way — no
+                    focus trap, nothing behind it made inert. */}
+                {store.detailAsset ? (
+                    <AssetDetailPanel
+                        className="fixed inset-0 z-40 lg:static lg:z-auto lg:w-[340px] lg:shrink-0 lg:border-l"
+                        asset={store.detailAsset}
+                        locationLabel={locationLabel}
+                        onClose={store.closeDetail}
+                        onPrevious={
+                            previousAsset
+                                ? () => store.openDetail(previousAsset.id)
+                                : undefined
+                        }
+                        onNext={
+                            nextAsset
+                                ? () => store.openDetail(nextAsset.id)
+                                : undefined
+                        }
+                        onAction={handleAssetAction}
+                        onSaveAlt={(id, alt) =>
+                            store.setAssetAlt(id, alt).then((ok) => {
+                                if (ok) {
+                                    toast.success(
+                                        intl.formatMessage(messages.tAltSaved)
+                                    );
+                                }
+                                return ok;
+                            })
+                        }
+                        canCreate={canCreate}
+                        canUpdate={canUpdate}
+                        canDelete={canDelete}
+                    />
+                ) : null}
             </div>
 
             {/* Mobile-only folder navigation, mirroring the inline sidebar. */}
@@ -673,32 +794,20 @@ export function MediaLibraryPage() {
                             setNavOpen(false);
                             setNewFolderOpen(true);
                         }}
+                        onRenameFolder={(folder) => {
+                            setNavOpen(false);
+                            handleRenameFolder(folder);
+                        }}
+                        onDeleteFolder={(folder) => {
+                            setNavOpen(false);
+                            handleDeleteFolder(folder);
+                        }}
                         canCreate={canCreate}
+                        canUpdate={canUpdate}
+                        canDelete={canDelete}
                     />
                 </DrawerContent>
             </Drawer>
-
-            <AssetDetailDrawer
-                asset={store.detailAsset}
-                locationLabel={locationLabel}
-                onOpenChange={(open) => {
-                    if (!open) store.closeDetail();
-                }}
-                onAction={handleAssetAction}
-                onSaveAlt={(id, alt) =>
-                    store.setAssetAlt(id, alt).then((ok) => {
-                        if (ok) {
-                            toast.success(
-                                intl.formatMessage(messages.tAltSaved)
-                            );
-                        }
-                        return ok;
-                    })
-                }
-                canCreate={canCreate}
-                canUpdate={canUpdate}
-                canDelete={canDelete}
-            />
 
             <NewFolderDialog
                 open={newFolderOpen}

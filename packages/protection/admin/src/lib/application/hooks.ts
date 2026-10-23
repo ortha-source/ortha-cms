@@ -1,6 +1,7 @@
 import {
     keepPreviousData,
     useMutation,
+    useQueries,
     useQuery,
     useQueryClient,
     type QueryClient
@@ -16,6 +17,7 @@ import type {
     ReviewerCandidate,
     ReviewQueue
 } from '../domain/types';
+import { splitQueue } from '../domain/types';
 import {
     entryReviewKey,
     entryReviewPrefix,
@@ -370,6 +372,54 @@ export function useReviewQueue(
         placeholderData: keepPreviousData,
         enabled
     });
+}
+
+/** One workspace's open review asks, for a page outside any workspace. */
+export type WorkspaceReviewTotal = {
+    workspaceId: string;
+    workspaceName: string;
+    /** Asks that name the caller as a reviewer — the page's default tab. */
+    waitingOnMe: number;
+    /** Asks the caller made, waiting on somebody else. */
+    mine: number;
+};
+
+/**
+ * Each workspace's queue split for the caller, for Home — which sits outside
+ * every workspace, so it asks each in turn. The same window and the same
+ * `splitQueue` as the Reviews page, under the same key, so the card's number
+ * is the page's tab count and the two share cache.
+ */
+export function useReviewTotals(
+    workspaces: readonly { id: string; name: string }[],
+    callerId: string,
+    enabled = true
+) {
+    const results = useQueries({
+        queries: workspaces.map((workspace) => ({
+            queryKey: queueKey(workspace.id, {}),
+            queryFn: () => httpProtectionGateway.listQueue({}, workspace.id),
+            enabled: enabled && callerId.length > 0
+        }))
+    });
+    const totals: WorkspaceReviewTotal[] = [];
+    workspaces.forEach((workspace, index) => {
+        const data = results[index].data;
+        if (data) {
+            const { waitingOnMe, mine } = splitQueue(data.items, callerId);
+            totals.push({
+                workspaceId: workspace.id,
+                workspaceName: workspace.name,
+                waitingOnMe: waitingOnMe.length,
+                mine: mine.length
+            });
+        }
+    });
+    return {
+        totals,
+        isPending: results.some((result) => result.isPending),
+        isError: results.length > 0 && results.every((r) => r.isError)
+    };
 }
 
 /**

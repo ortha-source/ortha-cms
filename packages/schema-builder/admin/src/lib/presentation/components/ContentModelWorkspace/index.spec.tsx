@@ -41,7 +41,7 @@ function renderWorkspace(envelope = owned, path = '/content-model/article') {
     );
 }
 
-const general = () => screen.getByRole('region', { name: 'General' });
+const general = () => screen.getByRole('region', { name: 'Content' });
 
 describe('ContentModelWorkspace — editing', () => {
     beforeEach(() => hasPermission.mockReturnValue(true));
@@ -262,7 +262,7 @@ describe('ContentModelWorkspace — editing', () => {
         );
 
         expect(screen.getByText('No fields yet')).toBeTruthy();
-        expect(screen.queryByRole('region', { name: 'General' })).toBeNull();
+        expect(screen.queryByRole('region', { name: 'Content' })).toBeNull();
         // The description is a small text box of its own.
         expect(screen.getByLabelText('Description').tagName.toLowerCase()).toBe(
             'textarea'

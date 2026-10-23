@@ -1,6 +1,6 @@
 import { defineMessages, useIntl } from 'react-intl';
 import { X } from 'lucide-react';
-import { Button, cn } from '@orthacms/design-system';
+import { Badge, Button, cn } from '@orthacms/design-system';
 import type { WorkspaceMember } from '../../../../domain/types/workspace';
 import { WorkspaceAvatar } from '../../WorkspaceAvatar';
 
@@ -8,6 +8,10 @@ const messages = defineMessages({
     remove: {
         id: 'workspaces.settings.members.remove',
         defaultMessage: 'Remove {name}'
+    },
+    you: {
+        id: 'workspaces.settings.members.you',
+        defaultMessage: 'You'
     }
 });
 
@@ -15,6 +19,8 @@ const messages = defineMessages({
 export type MemberListRowProps = {
     /** The member to render. */
     member: WorkspaceMember;
+    /** The signed-in person's own row. */
+    isYou?: boolean;
     /** Whether a remove control should be offered. */
     canRemove: boolean;
     /** Called when the remove control is pressed. */
@@ -30,6 +36,7 @@ export type MemberListRowProps = {
  */
 export function MemberListRow({
     member,
+    isYou = false,
     canRemove,
     onRemove,
     className
@@ -37,15 +44,27 @@ export function MemberListRow({
     const intl = useIntl();
 
     return (
-        <div className={cn('flex items-center gap-3 px-3 py-2', className)}>
+        <div
+            className={cn(
+                'flex min-h-[52px] items-center gap-3 px-4 py-2',
+                className
+            )}
+        >
             <WorkspaceAvatar
-                className="size-9 text-xs"
+                className="size-7 rounded-full text-[11px]"
                 initials={member.initials || '—'}
                 color={member.color}
             />
             <div className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate text-sm font-medium">
-                    {member.name}
+                <span className="flex min-w-0 items-center gap-2">
+                    <span className="truncate text-sm font-medium">
+                        {member.name}
+                    </span>
+                    {isYou ? (
+                        <Badge variant="muted" size="xs">
+                            {intl.formatMessage(messages.you)}
+                        </Badge>
+                    ) : null}
                 </span>
                 <span className="truncate text-xs text-muted-foreground">
                     {member.email}
@@ -55,7 +74,7 @@ export function MemberListRow({
                 <Button
                     type="button"
                     variant="ghost"
-                    size="icon"
+                    size="icon-sm"
                     // Marks this as the roster's focus target: removing a member
                     // destroys the button focus would otherwise return to, so
                     // the list finds the next one by this attribute.

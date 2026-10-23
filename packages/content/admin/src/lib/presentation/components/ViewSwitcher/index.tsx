@@ -1,64 +1,36 @@
-import { useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import {
-    Check,
-    ChevronDown,
-    LayoutList,
-    Pin,
-    PinOff,
-    Trash2
-} from 'lucide-react';
-import {
-    Button,
-    ConfirmDialog,
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-    Spinner,
-    cn
-} from '@orthacms/design-system';
+import { Plus } from 'lucide-react';
+import { Button, ConfirmDialog, Spinner } from '@orthacms/design-system';
 import {
     VIEW_VISIBILITY,
     type SavedView
 } from '../../../domain/types/savedView';
-import { ViewRow } from './ViewRow';
+import { SavedViewTab, type SavedViewTabActions } from './SavedViewTab';
+import { ViewOverflowMenu } from './ViewOverflowMenu';
+import { ViewTab } from './ViewTab';
 
 /** Intl descriptors for {@link ViewSwitcher}, co-located. */
 const messages = defineMessages({
-    trigger: {
-        id: 'content.views.switcher.trigger',
-        defaultMessage: 'Saved views'
-    },
     group: {
         id: 'content.views.switcher.group',
         defaultMessage: 'View controls'
-    },
-    personal: {
-        id: 'content.views.switcher.personal',
-        defaultMessage: 'Personal'
-    },
-    shared: {
-        id: 'content.views.switcher.shared',
-        defaultMessage: 'Shared'
     },
     all: {
         id: 'content.views.switcher.all',
         defaultMessage: 'All records'
     },
-    allHint: {
-        id: 'content.views.switcher.allHint',
-        defaultMessage: 'No filters'
+    tabs: {
+        id: 'content.views.switcher.tabs',
+        defaultMessage: 'Views'
     },
-    saveAs: {
-        id: 'content.views.switcher.saveAs',
-        defaultMessage: 'Save current as view…'
+    newView: {
+        id: 'content.views.switcher.newView',
+        defaultMessage: 'View'
     },
-    modified: {
-        id: 'content.views.switcher.modified',
-        defaultMessage: 'Modified'
+    newViewLabel: {
+        id: 'content.views.switcher.newViewLabel',
+        defaultMessage: 'New view from the current list'
     },
     save: { id: 'content.views.switcher.save', defaultMessage: 'Save' },
     saveNew: {
@@ -66,18 +38,6 @@ const messages = defineMessages({
         defaultMessage: 'Save as new'
     },
     reset: { id: 'content.views.switcher.reset', defaultMessage: 'Reset' },
-    makeDefault: {
-        id: 'content.views.switcher.makeDefault',
-        defaultMessage: 'Set as my default'
-    },
-    clearDefault: {
-        id: 'content.views.switcher.clearDefault',
-        defaultMessage: 'Clear my default'
-    },
-    delete: {
-        id: 'content.views.switcher.delete',
-        defaultMessage: 'Delete view'
-    },
     deleteTitle: {
         id: 'content.views.switcher.deleteTitle',
         defaultMessage: 'Delete this view?'
@@ -103,7 +63,7 @@ const messages = defineMessages({
 });
 
 /** Props for {@link ViewSwitcher}. */
-export type ViewSwitcherProps = {
+export type ViewSwitcherProps = Omit<SavedViewTabActions, 'onDelete'> & {
     /** Views the caller may see for this list. */
     views: SavedView[];
     /** The view currently applied, or null for the unfiltered list. */
@@ -120,31 +80,73 @@ export type ViewSwitcherProps = {
     onSaveChanges: () => void;
     /** Re-applies the active view, discarding the live changes. */
     onReset: () => void;
-    /** Points the caller's default at a view, or clears it. */
-    onSetDefault: (view: SavedView, isDefault: boolean) => void;
-    /** Deletes a view the caller owns. */
+    /** Deletes a view the caller owns (after the switcher's confirm). */
     onDelete: (view: SavedView) => void;
+    /** Drawn at the far end of the tab row — the Trash tab. */
+    trailing?: ReactNode;
 };
 
+/** Space kept for the "N more" button while it isn't drawn yet. */
+const MORE_FALLBACK_WIDTH = 96;
+/** The strip's `gap-0.5`. */
+const TAB_GAP = 2;
+
 /**
- * The saved-view picker, leading the records toolbar's action row — beside the
- * locale, column and filter controls, and above the table they all describe.
+ * Which views fold into "N more": the row keeps as many tabs as fit, in
+ * order, and always the selected one (in place of the last that would have
+ * fit). Widths come from the last time each tab was drawn — a folded tab
+ * can't be measured, and its name has not changed since.
+ */
+function overflowing(
+    views: SavedView[],
+    activeId: string | null,
+    widths: Map<string, number>,
+    available: number
+): string[] {
+    const width = (id: string) => (widths.get(id) ?? 120) + TAB_GAP;
+    const fixed = width('__all') + width('__new');
+    const all = views.reduce((sum, view) => sum + width(view.id), fixed);
+    if (all <= available) return [];
+
+    const budget =
+        available - fixed - (widths.get('__more') ?? MORE_FALLBACK_WIDTH);
+    const kept: string[] = [];
+    let used = 0;
+    for (const view of views) {
+        if (used + width(view.id) > budget) break;
+        kept.push(view.id);
+        used += width(view.id);
+    }
+    if (activeId && !kept.includes(activeId)) {
+        while (kept.length > 0 && used + width(activeId) > budget) {
+            used -= width(kept.pop() as string);
+        }
+        kept.push(activeId);
+    }
+    return views.map((view) => view.id).filter((id) => !kept.includes(id));
+}
+
+/**
+ * The saved views as **tabs over the records table** — All records, then each
+ * view the reader may see, then **+ View** — the way Airtable and Notion make a
+ * view navigation rather than a hidden menu. The Trash tab, when the type has
+ * one, sits at the far end (`trailing`).
  *
- * It sits with those rather than in the header's action cluster because it
- * answers the same question they do: *which slice am I looking at*. The header
- * is left to the things you do **to** the collection (add a record, the ⋯).
+ * **Each view's actions are on its own tab** (`SavedViewTab`): a ▾ on the
+ * selected tab (or on hover), a second click on the selected tab, a
+ * right-click, F2 to rename in place. There is no ⋯ at the end of the row any
+ * more — finding Delete used to mean knowing to look there.
  *
- * The trigger renders the same way whether or not anything is saved. It used to
- * collapse to a lone "Save current as view…" button when the list was empty,
- * which put the loudest secondary control on the page in service of an action
- * that is only useful *after* the reader has changed something — and gave the
- * control two shapes to learn instead of one. The save-as affordance is where
- * the rest of the view actions are: inside the menu.
+ * **Tabs that don't fit fold into "N more"** (`ViewOverflowMenu`, searchable)
+ * instead of scrolling out of sight; the selected view always keeps its tab.
+ * The fit is measured from the strip's width (a `ResizeObserver`), so a
+ * narrower window, or the Save / Reset buttons appearing, re-folds the row.
  *
- * When the live state drifts from the saved payload the trigger says so and the
- * three resolutions appear inline beside it. Nothing autosaves: silently
- * rewriting a shared view would lose a colleague's work with no trace, and the
- * same rule for personal views keeps one mental model instead of two.
+ * When the live state drifts from the saved payload the active tab carries a
+ * dot and the three resolutions appear inline after the row. Nothing
+ * autosaves: silently rewriting a shared view would lose a colleague's work
+ * with no trace, and the same rule for personal views keeps one mental model
+ * instead of two.
  */
 export function ViewSwitcher({
     views,
@@ -155,192 +157,152 @@ export function ViewSwitcher({
     onSaveAs,
     onSaveChanges,
     onReset,
-    onSetDefault,
-    onDelete
+    onDelete,
+    trailing,
+    ...actions
 }: ViewSwitcherProps) {
     const intl = useIntl();
-    const [open, setOpen] = useState(false);
+    // One menu and one rename at a time, across every tab.
+    const [menuFor, setMenuFor] = useState<string | null>(null);
+    const [renaming, setRenaming] = useState<string | null>(null);
     // The view the confirm dialog is asking about, held by value rather than by
     // a boolean: the menu that named it is gone by the time the dialog is up.
     const [pendingDelete, setPendingDelete] = useState<SavedView | null>(null);
-    // Where focus goes when the dialog closes — see the dialog's own comment.
-    // The trigger outlives every list change, deleting the last view included,
-    // so it is always there to take focus back.
-    const triggerRef = useRef<HTMLButtonElement>(null);
-    // Set by the one menu item that opens a dialog on the way out. Radix runs
-    // its close-autofocus *after* the dialog has mounted and taken its own
-    // `autoFocus`, so the restore lands on the trigger and the reader's first
-    // keystroke goes nowhere — the save dialog opened with its name field
-    // unfocused. Yield the restore for that exit only; Escape and picking a
-    // view still put focus back where it belongs.
-    const openingDialog = useRef(false);
+    const [folded, setFolded] = useState<string[]>([]);
+    const stripRef = useRef<HTMLDivElement>(null);
+    // Whether the view being deleted is the one on screen: then the list
+    // falls back to All records, whose tab is where focus should land.
+    const deletingActive = useRef(false);
+    const widths = useRef(new Map<string, number>());
 
-    const personal = views.filter(
-        (view) => view.visibility === VIEW_VISIBILITY.Private
-    );
-    const shared = views.filter(
-        (view) => view.visibility === VIEW_VISIBILITY.Workspace
-    );
+    const activeId = active?.id ?? null;
+    const viewKey = views.map((view) => `${view.id}:${view.name}`).join('|');
+
+    useLayoutEffect(() => {
+        const strip = stripRef.current;
+        if (!strip) return;
+        const measure = () => {
+            strip
+                .querySelectorAll<HTMLElement>('[data-view-slot]')
+                .forEach((slot) => {
+                    const key = slot.dataset.viewSlot;
+                    if (key) widths.current.set(key, slot.offsetWidth);
+                });
+            const next = overflowing(
+                views,
+                activeId,
+                widths.current,
+                strip.clientWidth
+            );
+            setFolded((prev) =>
+                prev.length === next.length &&
+                prev.every((id, index) => id === next[index])
+                    ? prev
+                    : next
+            );
+        };
+        measure();
+        if (typeof ResizeObserver === 'undefined') return;
+        const observer = new ResizeObserver(measure);
+        observer.observe(strip);
+        return () => observer.disconnect();
+        // `viewKey` stands for `views`: a new array with the same views and
+        // names changes nothing a measurement depends on.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [viewKey, activeId, renaming, folded.length]);
+
+    const shown = views.filter((view) => !folded.includes(view.id));
+    const hidden = views.filter((view) => folded.includes(view.id));
+
+    const tabActions: SavedViewTabActions = {
+        ...actions,
+        onDelete: (view) => setPendingDelete(view)
+    };
 
     return (
-        // A labelled group: the trigger and the Save / Save as new / Reset
-        // buttons beside it are one cluster, and the page has other buttons by
-        // those names (the filter panel's own Reset). The name disambiguates
-        // them for a screen reader the same way position does visually.
+        // A labelled group: the tabs and the Save / Save as new / Reset
+        // buttons beside them are one cluster, and the page has other buttons
+        // by those names (the filter panel's own Reset). The name
+        // disambiguates them for a screen reader the same way position does
+        // visually.
         <div
             role="group"
             aria-label={intl.formatMessage(messages.group)}
-            className="flex flex-wrap items-center gap-2"
+            className="flex min-w-0 flex-1 items-center gap-1"
         >
-            {/* `modal={false}`, like every other menu in the admin: a modal
-                Radix menu `aria-hidden`s the page root, which holds focusable
-                content, and axe's `aria-hidden-focus` fires on it (the whole
-                page — the `<h1>` included — also drops out of the a11y tree). */}
-            <DropdownMenu modal={false} open={open} onOpenChange={setOpen}>
-                <DropdownMenuTrigger asChild>
-                    <Button
-                        ref={triggerRef}
-                        variant="outline"
-                        aria-label={intl.formatMessage(messages.trigger)}
-                        className={cn(
-                            'shadow-none',
-                            isDirty &&
-                                'border-amber-500/60 text-amber-700 dark:text-amber-400'
-                        )}
+            {/* Clips rather than scrolls: what doesn't fit folds into "N
+                more". y is clipped too, and the strip reaches 1px down
+                (`-mb-px pb-px`) so the selected tab's underline, which hangs
+                1px below the tab, lands on the row's rule. */}
+            <div
+                ref={stripRef}
+                role="group"
+                aria-label={intl.formatMessage(messages.tabs)}
+                className="-mb-px flex min-w-0 flex-1 items-center gap-0.5 overflow-hidden pb-px"
+            >
+                <span data-view-slot="__all" className="shrink-0">
+                    <ViewTab active={!active} onSelect={() => onSelect(null)}>
+                        {intl.formatMessage(messages.all)}
+                    </ViewTab>
+                </span>
+                {shown.map((view) => (
+                    <span
+                        key={view.id}
+                        data-view-slot={view.id}
+                        className="shrink-0"
                     >
-                        <LayoutList aria-hidden />
-                        <span className="max-w-[14rem] truncate">
-                            {active
-                                ? active.name
-                                : intl.formatMessage(messages.all)}
-                        </span>
-                        {isDirty ? (
-                            <>
-                                <span aria-hidden className="opacity-50">
-                                    ·
-                                </span>
-                                {intl.formatMessage(messages.modified)}
-                            </>
-                        ) : null}
-                        <ChevronDown aria-hidden className="opacity-60" />
-                    </Button>
-                </DropdownMenuTrigger>
-
-                <DropdownMenuContent
-                    align="end"
-                    className="w-72"
-                    onCloseAutoFocus={(event) => {
-                        if (!openingDialog.current) return;
-                        openingDialog.current = false;
-                        event.preventDefault();
-                    }}
-                >
-                    {personal.length > 0 ? (
-                        <>
-                            <DropdownMenuLabel>
-                                {intl.formatMessage(messages.personal)}
-                            </DropdownMenuLabel>
-                            {personal.map((view) => (
-                                <ViewRow
-                                    key={view.id}
-                                    view={view}
-                                    active={active?.id === view.id}
-                                    onSelect={onSelect}
-                                />
-                            ))}
-                        </>
-                    ) : null}
-
-                    {shared.length > 0 ? (
-                        <>
-                            <DropdownMenuLabel>
-                                {intl.formatMessage(messages.shared)}
-                            </DropdownMenuLabel>
-                            {shared.map((view) => (
-                                <ViewRow
-                                    key={view.id}
-                                    view={view}
-                                    active={active?.id === view.id}
-                                    onSelect={onSelect}
-                                />
-                            ))}
-                        </>
-                    ) : null}
-
-                    {views.length > 0 ? <DropdownMenuSeparator /> : null}
-
-                    {/* Not a view — the way back out of one. Kept as its own
-                        row at the bottom because "clear everything" is the most
-                        common move after "switch". */}
-                    <DropdownMenuItem onSelect={() => onSelect(null)}>
-                        <Check
-                            aria-hidden
-                            className={cn(
-                                'size-3.5',
-                                active ? 'invisible' : 'text-primary'
-                            )}
+                        <SavedViewTab
+                            view={view}
+                            active={activeId === view.id}
+                            dirty={isDirty && activeId === view.id}
+                            onSelect={() => onSelect(view)}
+                            menuOpen={menuFor === view.id}
+                            onMenuOpenChange={(open) =>
+                                setMenuFor(open ? view.id : null)
+                            }
+                            renaming={renaming === view.id}
+                            onRenamingChange={(next) =>
+                                setRenaming(next ? view.id : null)
+                            }
+                            actions={tabActions}
                         />
-                        <span className="flex-1">
-                            {intl.formatMessage(messages.all)}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                            {intl.formatMessage(messages.allHint)}
-                        </span>
-                    </DropdownMenuItem>
-
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                        onSelect={() => {
-                            openingDialog.current = true;
-                            onSaveAs();
-                        }}
+                    </span>
+                ))}
+                {hidden.length > 0 ? (
+                    <span data-view-slot="__more" className="shrink-0">
+                        <ViewOverflowMenu
+                            views={hidden}
+                            onSelect={onSelect}
+                            onSaveAs={onSaveAs}
+                        />
+                    </span>
+                ) : null}
+                <span data-view-slot="__new" className="shrink-0">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-muted-foreground"
+                        aria-label={intl.formatMessage(messages.newViewLabel)}
+                        onClick={onSaveAs}
                     >
-                        {intl.formatMessage(messages.saveAs)}
-                    </DropdownMenuItem>
+                        <Plus aria-hidden />
+                        {intl.formatMessage(messages.newView)}
+                    </Button>
+                </span>
+            </div>
 
-                    {active ? (
-                        <>
-                            <DropdownMenuItem
-                                onSelect={() =>
-                                    onSetDefault(active, !active.isDefault)
-                                }
-                            >
-                                {active.isDefault ? (
-                                    <PinOff aria-hidden className="size-3.5" />
-                                ) : (
-                                    <Pin aria-hidden className="size-3.5" />
-                                )}
-                                {intl.formatMessage(
-                                    active.isDefault
-                                        ? messages.clearDefault
-                                        : messages.makeDefault
-                                )}
-                            </DropdownMenuItem>
-                            {active.isOwn ? (
-                                <DropdownMenuItem
-                                    className="text-destructive focus:text-destructive"
-                                    onSelect={() => setPendingDelete(active)}
-                                >
-                                    <Trash2 aria-hidden className="size-3.5" />
-                                    {intl.formatMessage(messages.delete)}
-                                </DropdownMenuItem>
-                            ) : null}
-                        </>
-                    ) : null}
-                </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* The three resolutions, inline rather than inside the menu: the
-                reader is already looking at the trigger that says "Modified",
-                and burying the fix one click deeper buys nothing. `Save` is
-                absent on someone else's shared view — that one is theirs.
-                None of them is `variant="default"`: the header's one primary
-                button is "Add record", and a second would compete with it. */}
+            {/* The three resolutions, inline: the reader is already looking at
+                the tab that says "Modified", and burying the fix in a menu
+                buys nothing. `Save` is absent on someone else's shared view —
+                that one is theirs. None of them is `variant="default"`: the
+                header's one primary button is "Add record", and a second
+                would compete with it. */}
             {isDirty && active ? (
-                <>
+                <div className="ml-2 flex shrink-0 items-center gap-1.5">
                     {active.isOwn ? (
                         <Button
                             variant="secondary"
+                            size="sm"
                             className="shadow-none"
                             disabled={isSaving}
                             onClick={onSaveChanges}
@@ -351,20 +313,27 @@ export function ViewSwitcher({
                     ) : null}
                     <Button
                         variant="outline"
+                        size="sm"
                         className="shadow-none"
                         onClick={onSaveAs}
                     >
                         {intl.formatMessage(messages.saveNew)}
                     </Button>
-                    <Button variant="ghost" onClick={onReset}>
+                    <Button variant="ghost" size="sm" onClick={onReset}>
                         {intl.formatMessage(messages.reset)}
                     </Button>
-                </>
+                </div>
             ) : null}
 
-            {/* Outside `DropdownMenuContent`, which unmounts the instant the
-                menu closes — precisely when this dialog is meant to appear.
-                Same rule the entry editor's ⋯ menu follows.
+            {trailing ? (
+                <div className="ml-2 flex shrink-0 items-center">
+                    {trailing}
+                </div>
+            ) : null}
+
+            {/* Outside the tab's `DropdownMenuContent`, which unmounts the
+                instant the menu closes — precisely when this dialog is meant
+                to appear.
 
                 A view is a slice, not records, so deleting one destroys no
                 content — but it is not undoable and a shared view is somebody
@@ -372,8 +341,9 @@ export function ViewSwitcher({
                 which of the two this is.
 
                 `onCloseAutoFocus`: the control that opened this — a menu item —
-                is long gone, so Radix's restore would target a detached node
-                and drop focus on `<body>`. Put it back on the switcher. */}
+                is long gone (and its tab may be too), so Radix's restore would
+                drop focus on `<body>`. Put it on the selected tab, which
+                always exists. */}
             {pendingDelete ? (
                 <ConfirmDialog
                     open
@@ -391,11 +361,17 @@ export function ViewSwitcher({
                     cancelLabel={intl.formatMessage(messages.cancel)}
                     confirmVariant="destructive"
                     onCloseAutoFocus={(event) => {
-                        if (!triggerRef.current) return;
                         event.preventDefault();
-                        triggerRef.current.focus();
+                        const target = deletingActive.current
+                            ? '[data-view-slot="__all"] button'
+                            : 'button[aria-pressed="true"]';
+                        deletingActive.current = false;
+                        stripRef.current
+                            ?.querySelector<HTMLElement>(target)
+                            ?.focus();
                     }}
                     onConfirm={() => {
+                        deletingActive.current = pendingDelete.id === activeId;
                         // Closed here rather than held open behind `busy`: the
                         // outcome lands as a toast either way, which is how the
                         // entry editor's delete behaves too.

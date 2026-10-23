@@ -187,35 +187,28 @@ describe('ContentModelPage', () => {
         expect(screen.queryByText(/is written by hand in/)).toBeNull();
     });
 
-    it('draws fields under the built-in tabs: General by rank then groups, Relations, Media', async () => {
+    it('draws fields as the one form does: by rank, relations and media included, then groups', async () => {
         fetchDocument.mockResolvedValue(envelopeOf([article]));
         renderPage();
-        const general = await screen.findByRole('region', { name: 'General' });
-        const names = within(general)
+        const content = await screen.findByRole('region', { name: 'Content' });
+        const names = within(content)
             .getAllByRole('listitem')
             .map((item) => item.querySelector('.font-mono')?.textContent);
-        expect(names).toEqual(['title', 'kind', 'body', 'slug']);
+        expect(names).toEqual([
+            'title',
+            'kind',
+            'body',
+            'author',
+            'cover',
+            'slug'
+        ]);
         expect(
-            within(general).getByRole('button', { name: /SEO/ })
+            within(content).getByRole('button', { name: /SEO/ })
         ).toBeTruthy();
-        expect(within(general).getByText('starts folded')).toBeTruthy();
-
-        const relations = screen.getByRole('region', { name: 'Relations' });
-        expect(within(relations).getByText('author')).toBeTruthy();
-        expect(
-            within(relations).getByText('many-to-one → author')
-        ).toBeTruthy();
-        expect(
-            within(screen.getByRole('region', { name: 'Media' })).getByText(
-                'Multiple'
-            )
-        ).toBeTruthy();
-    });
-
-    it('leaves out a tab with nothing on it', async () => {
-        fetchDocument.mockResolvedValue(envelopeOf([author]));
-        renderPage();
-        await screen.findByRole('region', { name: 'General' });
+        expect(within(content).getByText('starts folded')).toBeTruthy();
+        expect(within(content).getByText('many-to-one → author')).toBeTruthy();
+        expect(within(content).getByText('Multiple')).toBeTruthy();
+        // The editor has no Relations or Media tab any more (ADR-0022).
         expect(screen.queryByRole('region', { name: 'Relations' })).toBeNull();
         expect(screen.queryByRole('region', { name: 'Media' })).toBeNull();
     });

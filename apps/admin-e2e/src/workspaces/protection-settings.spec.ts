@@ -36,7 +36,7 @@ const TYPES = [
 ];
 
 /**
- * The workspace settings **Protection** tab — the surface that makes a rule
+ * The workspace settings **Publishing rules** section — the surface that makes a rule
  * exist at all. Until this shipped a rule could only be written with SQL.
  *
  * The server side is covered by `server-e2e`; what only a browser can answer is
@@ -44,7 +44,7 @@ const TYPES = [
  * in particular whether the workspace that would lock itself out is told so at
  * the moment it happens rather than a week later.
  */
-test.describe('Workspace settings, Protection tab', () => {
+test.describe('Workspace settings, Publishing rules', () => {
     test.beforeEach(async ({ page }) => {
         await mockSignedIn(page);
         await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
@@ -59,7 +59,9 @@ test.describe('Workspace settings, Protection tab', () => {
         ]);
         await page.goto(SETTINGS);
 
-        await expect(page.getByText('Publication protection')).toBeVisible();
+        await expect(
+            page.getByRole('heading', { name: 'Publishing rules', level: 1 })
+        ).toBeVisible();
         // The protected one says how many, the granted-but-unprotected one says
         // so in words — a badge tone alone would be colour carrying meaning.
         await expect(page.getByText('2 approvals')).toBeVisible();
@@ -70,11 +72,11 @@ test.describe('Workspace settings, Protection tab', () => {
         ).toHaveCount(0);
     });
 
-    test('is reachable from the settings tab strip', async ({ page }) => {
+    test('is reachable from the settings side nav', async ({ page }) => {
         await mockProtectionRules(page, []);
         await page.goto(`/workspaces/${WS}/settings/general`);
 
-        await page.getByRole('link', { name: 'Protection' }).click();
+        await page.getByRole('link', { name: 'Publishing rules' }).click();
         await expect(page).toHaveURL(new RegExp(`${SETTINGS}$`));
     });
 
@@ -182,7 +184,7 @@ test.describe('Workspace settings, Protection tab', () => {
         await page.goto(`/workspaces/${WS}/settings/general`);
 
         await expect(
-            page.getByRole('link', { name: 'Protection' })
+            page.getByRole('link', { name: 'Publishing rules' })
         ).toHaveCount(0);
     });
 
@@ -214,7 +216,9 @@ test.describe('Workspace settings, Protection tab', () => {
             { slug: 'blog_post', enabled: true, requiredApprovals: 2 }
         ]);
         await page.goto(SETTINGS);
-        await expect(page.getByText('Publication protection')).toBeVisible();
+        await expect(
+            page.getByRole('heading', { name: 'Publishing rules', level: 1 })
+        ).toBeVisible();
         await expectNoA11yViolations(makeAxe());
 
         await page

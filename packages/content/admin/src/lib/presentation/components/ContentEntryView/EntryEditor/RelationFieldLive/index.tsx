@@ -349,12 +349,12 @@ export function RelationFieldLive({
                     <Spinner aria-hidden />
                 </div>
             ) : ids.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-[13px] text-muted-foreground">
                     {intl.formatMessage(messages.empty)}
                 </p>
             ) : (
                 <div
-                    className="flex max-h-72 flex-col gap-2 overflow-y-auto pr-1"
+                    className="flex max-h-72 flex-col overflow-y-auto rounded-[10px] border bg-background shadow-xs"
                     onScroll={onScroll}
                 >
                     {reorderable ? (
@@ -389,6 +389,7 @@ export function RelationFieldLive({
                                         trashed={item.trashed}
                                         missing={item.missing}
                                         leading={<RelationIndex position={i} />}
+                                        variant="list"
                                         onRemove={() => removeId(item.id)}
                                         removeLabel={removeLabelFor(
                                             labelOf(item)
@@ -425,6 +426,7 @@ export function RelationFieldLive({
                                 trashed={item.trashed}
                                 missing={item.missing}
                                 leading={<RelationIndex position={i} />}
+                                variant="list"
                                 onRemove={() => removeId(item.id)}
                                 removeLabel={removeLabelFor(labelOf(item))}
                                 href={hrefFor(item.id)}
@@ -450,8 +452,9 @@ export function RelationFieldLive({
                 <>
                     <Button
                         type="button"
-                        variant="outline"
-                        className="w-full justify-center border-dashed shadow-none"
+                        variant="ghost"
+                        size="sm"
+                        className="-ml-2 self-start text-muted-foreground"
                         onClick={openPicker}
                         disabled={preparing}
                     >

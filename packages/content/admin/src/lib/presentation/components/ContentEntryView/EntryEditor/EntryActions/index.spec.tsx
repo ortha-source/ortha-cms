@@ -2,7 +2,10 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { IntlProvider } from 'react-intl';
 import { TooltipProvider } from '@orthacms/design-system';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { ContentTypeDetail } from '../../../../../domain/types/contentType';
+import type {
+    ContentTypeDetail,
+    EntryRecord
+} from '../../../../../domain/types/contentType';
 import { ENTRY_MODE } from '../../../../../domain/constants';
 import { EntrySlotContextProvider } from '../../../../hooks/useEntrySlotContext';
 import {
@@ -83,7 +86,11 @@ afterEach(() => {
     vi.restoreAllMocks();
 });
 
-function renderActions(onPublish = vi.fn()) {
+function renderActions(
+    onPublish = vi.fn(),
+    props: Partial<Parameters<typeof EntryActions>[0]> = {}
+) {
+    const onSaveDraft = vi.fn();
     render(
         <IntlProvider locale="en">
             <TooltipProvider>
@@ -93,14 +100,28 @@ function renderActions(onPublish = vi.fn()) {
                         paranoid={false}
                         isCreate
                         saving={false}
-                        onSaveDraft={vi.fn()}
+                        onSaveDraft={onSaveDraft}
                         onPublish={onPublish}
+                        {...props}
                     />
                 </EntrySlotContextProvider>
             </TooltipProvider>
         </IntlProvider>
     );
-    return { onPublish };
+    return { onPublish, onSaveDraft };
+}
+
+/** A saved record, as the editor hands it over. */
+function record(overrides: Partial<EntryRecord> = {}): EntryRecord {
+    return {
+        id: 'e-1',
+        status: 'draft',
+        publishedAt: null,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+        values: {},
+        ...overrides
+    } as EntryRecord;
 }
 
 /**
@@ -269,19 +290,25 @@ describe('with a contribution that blocks', () => {
     });
 });
 
-/** Open the ⋯ menu the way a keyboard does — Radix opens on Enter. */
-function openMenu() {
-    const trigger = screen.getByRole('button', { name: 'More actions' });
-    fireEvent.keyDown(trigger, { key: 'Enter' });
-    return screen.getByRole('menuitem', { name: 'Save & publish' });
+/** Press the publish chord the way a Mac keyboard does. */
+function pressPublish() {
+    fireEvent.keyDown(window, { key: 'P', metaKey: true, shiftKey: true });
 }
 
 /**
- * The menu is a second way to publish, and the easy one to forget: it was, until
- * `Save & publish` published straight past a refusal the primary button was
- * holding.
+ * Publish has exactly one second door now — the ⌘⇧P chord. The menu's old
+ * `Save & publish` was the easy one to forget: it published straight past a
+ * refusal the primary button was holding, so it is gone, and the chord runs
+ * the button's own handler.
  */
-describe('the ⋯ menu’s Save & publish [protection:I-21]', () => {
+describe('the publish chord [protection:I-21]', () => {
+    it('leaves the ⋯ menu with no way to publish', () => {
+        renderActions(vi.fn(), { isCreate: false, entry: record() });
+        const trigger = screen.queryByRole('button', { name: 'More actions' });
+        if (trigger) fireEvent.keyDown(trigger, { key: 'Enter' });
+        expect(screen.queryByRole('menuitem', { name: /publish/i })).toBeNull();
+    });
+
     it('is held along with the button when a guard refuses with no way through', () => {
         useGuards({
             id: 'protection',
@@ -289,10 +316,8 @@ describe('the ⋯ menu’s Save & publish [protection:I-21]', () => {
         });
 
         const { onPublish } = renderActions();
-        const item = openMenu();
+        pressPublish();
 
-        expect(item.getAttribute('aria-disabled')).toBe('true');
-        fireEvent.click(item);
         expect(onPublish).not.toHaveBeenCalled();
     });
 
@@ -308,7 +333,7 @@ describe('the ⋯ menu’s Save & publish [protection:I-21]', () => {
         });
 
         const { onPublish } = renderActions();
-        fireEvent.click(openMenu());
+        pressPublish();
 
         expect(onSelect).toHaveBeenCalledTimes(1);
         expect(onPublish).not.toHaveBeenCalled();
@@ -316,10 +341,78 @@ describe('the ⋯ menu’s Save & publish [protection:I-21]', () => {
 
     it('publishes plainly when nothing objects', () => {
         const { onPublish } = renderActions();
-        fireEvent.click(openMenu());
+        pressPublish();
 
-        // Called with no options — a menu event must never leak in as one.
+        // Called with no options — a key event must never leak in as one.
         expect(onPublish.mock.calls).toEqual([[]]);
+    });
+});
+
+describe('the action matrix', () => {
+    it('offers Save draft beside Publish on a new record, and ⌘S saves it', () => {
+        const { onSaveDraft } = renderActions();
+
+        expect(screen.getByRole('button', { name: 'Save draft' })).toBeTruthy();
+        expect(screen.getByRole('button', { name: 'Publish' })).toBeTruthy();
+        fireEvent.keyDown(window, { key: 's', ctrlKey: true });
+        expect(onSaveDraft).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows a saved draft as Saved, with Publish still offered', () => {
+        const { onSaveDraft } = renderActions(vi.fn(), {
+            isCreate: false,
+            entry: record()
+        });
+
+        const saved = screen.getByRole('button', { name: 'Saved' });
+        expect((saved as HTMLButtonElement).disabled).toBe(true);
+        expect(screen.getByRole('button', { name: 'Publish' })).toBeTruthy();
+        // Nothing to save: the chord is taken from the browser, and does nothing.
+        fireEvent.keyDown(window, { key: 's', metaKey: true });
+        expect(onSaveDraft).not.toHaveBeenCalled();
+    });
+
+    it('says "Publish changes" once live content exists', () => {
+        renderActions(vi.fn(), {
+            isCreate: false,
+            dirty: true,
+            entry: record({ publishedAt: '2026-01-02T00:00:00.000Z' })
+        });
+
+        expect(
+            screen.getByRole('button', { name: 'Publish changes' })
+        ).toBeTruthy();
+        expect(screen.getByRole('button', { name: 'Save draft' })).toBeTruthy();
+    });
+
+    it('shows a published, unedited record as one state with nothing to click', () => {
+        const { onPublish } = renderActions(vi.fn(), {
+            isCreate: false,
+            entry: record({
+                status: 'published',
+                publishedAt: '2026-01-02T00:00:00.000Z'
+            })
+        });
+
+        const state = screen.getByRole('button', {
+            name: 'Published · up to date'
+        });
+        expect((state as HTMLButtonElement).disabled).toBe(true);
+        expect(screen.queryByRole('button', { name: 'Save draft' })).toBeNull();
+        pressPublish();
+        expect(onPublish).not.toHaveBeenCalled();
+    });
+
+    it('gives a non-publishable type one Save and no publish vocabulary', () => {
+        renderActions(vi.fn(), {
+            publishable: false,
+            isCreate: false,
+            dirty: true,
+            entry: record({ status: undefined })
+        });
+
+        expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy();
+        expect(screen.queryByRole('button', { name: /publish/i })).toBeNull();
     });
 });
 

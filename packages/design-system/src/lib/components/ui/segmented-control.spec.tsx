@@ -5,7 +5,9 @@ import { Input } from './input';
 import { SegmentedControl, SegmentedControlItem } from './segmented-control';
 
 /**
- * ORT-204 — the boolean field's control has to be shaped like a field.
+ * ORT-204 — the boolean field's control has to be shaped like a field: the
+ * same radius and height as the inputs around it. Its *look* is the canvas's
+ * quiet switch (a muted track, a raised selected tab), not a bordered box.
  *
  * `SegmentedControl` does two jobs: a toolbar switch (AND/OR, Open/Rules) and
  * the entry editor's boolean field. The second sits in a column of `Input`s and
@@ -46,22 +48,17 @@ describe('SegmentedControl', () => {
         return container.firstElementChild?.className ?? '';
     }
 
-    it('matches the reference form control on radius and border in the field variant [design-system:I-41]', () => {
-        const reference = inputClasses();
-        const field = segmentedClasses('field');
+    it('matches the reference form control on radius in the field variant [design-system:I-41]', () => {
+        expect(inputClasses()).toContain('rounded-lg');
+        expect(segmentedClasses('field')).toContain('rounded-lg');
+    });
 
-        for (const token of ['rounded-lg', 'border-input']) {
-            expect(`${token} on Input`).toBe(
-                reference.includes(token)
-                    ? `${token} on Input`
-                    : `${token} missing from Input`
-            );
-            expect(`${token} on the field variant`).toBe(
-                field.includes(token)
-                    ? `${token} on the field variant`
-                    : `${token} missing from the field variant`
-            );
-        }
+    // A quiet muted track, not a bordered box: a filled black segment in a
+    // column of inputs read as the one pressed button on the page.
+    it('draws the field variant as a muted track with no border of its own [design-system:I-41]', () => {
+        const field = segmentedClasses('field');
+        expect(field).toContain('bg-muted');
+        expect(field).toContain('border-transparent');
     });
 
     // 36px, like every other control in a form column. The default is 38px

@@ -8,11 +8,14 @@ import {
 import { defineMessages, useIntl } from 'react-intl';
 import { FileText, Plus, Table2, Trash2 } from 'lucide-react';
 import {
+    FIELD_TYPE,
     QueryBuilderPopover,
     QueryBuilderSummary,
     countRules,
     jsonFilterToTree,
+    newId,
     treeToJsonFilter,
+    type FilterField,
     type FilterGroup
 } from '@orthacms/query-builder-admin';
 import { useTableUrlState } from '@orthacms/utils-admin';
@@ -25,6 +28,7 @@ import {
     Container,
     ContainerHeader,
     SearchToolbar,
+    cn,
     toast
 } from '@orthacms/design-system';
 import type {
@@ -56,6 +60,7 @@ import {
     viewPayloadToParams
 } from '../../../../domain/viewPayload';
 import {
+    VIEW_NAME_MAX_LENGTH,
     VIEW_VISIBILITY,
     type SavedView
 } from '../../../../domain/types/savedView';
@@ -68,6 +73,15 @@ import { useUpdateView } from '../../../../application/useUpdateView';
 import { useDeleteView } from '../../../../application/useDeleteView';
 import { useSetDefaultView } from '../../../../application/useSetDefaultView';
 import { ViewSwitcher } from '../../ViewSwitcher';
+import { RecordsTabLink } from '../RecordsTabLink';
+import { RecordsStatusChips } from '../RecordsStatusChips';
+import { useStatusCounts } from '../../../hooks/useStatusCounts';
+import {
+    PUBLISHED_AT_FIELD,
+    STATUS_FIELD,
+    activeQuickStatus,
+    withQuickStatus
+} from '../../../statusQuickFilter';
 import { SaveViewDialog } from '../../ViewSwitcher/SaveViewDialog';
 import { useContentEntries } from '../../../../application/useContentEntries';
 import { useEntryColumns } from '../../../hooks/useEntryColumns';
@@ -98,6 +112,23 @@ import { SharedSourceBadge } from '../../SharedSourceBadge';
 
 /** Intl descriptors for {@link LoadedRecordsView}, co-located. */
 const messages = defineMessages({
+    allRecords: {
+        id: 'content.records.tabs.all',
+        defaultMessage: 'All records'
+    },
+    trashTab: {
+        id: 'content.records.tabs.trash',
+        defaultMessage: 'Trash'
+    },
+    trashBanner: {
+        id: 'content.records.trashBanner',
+        defaultMessage:
+            'Records in the trash aren’t served. Links to them are kept, and Restore brings a record back as it was.'
+    },
+    publishedAtField: {
+        id: 'content.records.filter.publishedAt',
+        defaultMessage: 'Published at'
+    },
     subtitle: {
         id: 'content.records.subtitle',
         defaultMessage:
@@ -199,6 +230,46 @@ const messages = defineMessages({
     viewDefaultFailed: {
         id: 'content.records.viewDefaultFailed',
         defaultMessage: 'Couldn’t change your default view. Please try again.'
+    },
+    viewRenamed: {
+        id: 'content.records.viewRenamed',
+        defaultMessage: 'Renamed to “{name}”.'
+    },
+    viewNameTaken: {
+        id: 'content.records.viewNameTaken',
+        defaultMessage: 'You already have a view called “{name}”.'
+    },
+    viewRenameFailed: {
+        id: 'content.records.viewRenameFailed',
+        defaultMessage: 'Couldn’t rename the view. Please try again.'
+    },
+    viewCopyName: {
+        id: 'content.records.viewCopyName',
+        defaultMessage: '{name} (copy)'
+    },
+    viewDuplicated: {
+        id: 'content.records.viewDuplicated',
+        defaultMessage: 'Duplicated as “{name}”.'
+    },
+    viewDuplicateFailed: {
+        id: 'content.records.viewDuplicateFailed',
+        defaultMessage: 'Couldn’t duplicate the view. Please try again.'
+    },
+    viewLinkCopied: {
+        id: 'content.records.viewLinkCopied',
+        defaultMessage: 'Link to “{name}” copied.'
+    },
+    viewLinkFailed: {
+        id: 'content.records.viewLinkFailed',
+        defaultMessage: 'Couldn’t copy the link.'
+    },
+    viewShared: {
+        id: 'content.records.viewShared',
+        defaultMessage: '“{name}” is shared with the workspace.'
+    },
+    viewUnshared: {
+        id: 'content.records.viewUnshared',
+        defaultMessage: '“{name}” is only visible to you now.'
     },
     viewsError: {
         id: 'content.records.viewsError',
@@ -429,7 +500,27 @@ export function LoadedRecordsView({
     const slotFilterFields = RECORDS_FILTER_FIELDS_SLOT.getItems().flatMap(
         (item) => item.useFields(schema)
     );
-    const filterFields = [...schemaFilterFields, ...slotFilterFields];
+    // `publishedAt` is filterable on the server but not in the served picker:
+    // it is what tells **Modified** (live content behind a draft) from a
+    // never-published **Draft**, so the status chips need it as a field, and
+    // so does a reader asking for "published since Monday". Placed after
+    // Status, and only while the served list has nothing by that id.
+    const filterFields: FilterField[] = [...schemaFilterFields];
+    if (
+        publishable &&
+        schemaFilterFields.length > 0 &&
+        !schemaFilterFields.some((field) => field.id === PUBLISHED_AT_FIELD)
+    ) {
+        const at = schemaFilterFields.findIndex(
+            (field) => field.id === STATUS_FIELD
+        );
+        filterFields.splice(at + 1, 0, {
+            id: PUBLISHED_AT_FIELD,
+            label: messages.publishedAtField,
+            type: FIELD_TYPE.Date
+        });
+    }
+    filterFields.push(...slotFilterFields);
     const appliedFilter = useMemo(
         () => jsonFilterToTree(filterParam),
         [filterParam]
@@ -539,6 +630,18 @@ export function LoadedRecordsView({
             updateParams({ filter: treeToJsonFilter(next) ?? undefined });
         },
         [updateParams]
+    );
+
+    // The status chips own their two conditions; the applied-filter chips
+    // under the toolbar show everything else, and a change there keeps the
+    // chip's conditions in place.
+    const quickStatus = publishable ? activeQuickStatus(appliedFilter) : null;
+    const summaryTree = quickStatus
+        ? withQuickStatus(appliedFilter, null, newId)
+        : appliedFilter;
+    const statusCounts = useStatusCounts(
+        type.name,
+        publishable && !schema.i18n && !readOnly
     );
 
     // The live slice, in the same shape a stored payload has — one object both
@@ -712,6 +815,120 @@ export function LoadedRecordsView({
         [setDefaultView, intl]
     );
 
+    /** A 409 from the views API: the name is already one of yours. */
+    const nameTaken = (error: unknown) => readStatus(error) === 409;
+
+    const handleRenameView = useCallback(
+        (view: SavedView, name: string) =>
+            updateView.mutateAsync({ id: view.id, name }).then(
+                () => {
+                    toast.success(
+                        intl.formatMessage(messages.viewRenamed, { name })
+                    );
+                    return true;
+                },
+                (error: unknown) => {
+                    toast.error(
+                        nameTaken(error)
+                            ? intl.formatMessage(messages.viewNameTaken, {
+                                  name
+                              })
+                            : intl.formatMessage(messages.viewRenameFailed)
+                    );
+                    return false;
+                }
+            ),
+        [updateView, intl]
+    );
+
+    // A copy is always personal: duplicating a colleague's shared view is how
+    // you make a version of it that is yours to change.
+    const handleDuplicateView = useCallback(
+        (view: SavedView) => {
+            const name = intl
+                .formatMessage(messages.viewCopyName, { name: view.name })
+                .slice(0, VIEW_NAME_MAX_LENGTH);
+            saveView.mutate(
+                {
+                    scope,
+                    name,
+                    visibility: VIEW_VISIBILITY.Private,
+                    payload: view.payload
+                },
+                {
+                    onSuccess: (created) => {
+                        applyView(created);
+                        toast.success(
+                            intl.formatMessage(messages.viewDuplicated, {
+                                name: created.name
+                            })
+                        );
+                    },
+                    onError: (error) =>
+                        toast.error(
+                            nameTaken(error)
+                                ? intl.formatMessage(messages.viewNameTaken, {
+                                      name
+                                  })
+                                : intl.formatMessage(
+                                      messages.viewDuplicateFailed
+                                  )
+                        )
+                }
+            );
+        },
+        [saveView, scope, applyView, intl]
+    );
+
+    // `?view=` alone is a complete address — the landing ladder applies the
+    // view's whole slice from it — so the link is the list's URL with only
+    // that. It keeps working after a rename.
+    const handleCopyLink = useCallback(
+        (view: SavedView) => {
+            const url = new URL(window.location.href);
+            url.search = new URLSearchParams({
+                [VIEW_PARAM]: view.id
+            }).toString();
+            void navigator.clipboard?.writeText(url.href).then(
+                () =>
+                    toast.success(
+                        intl.formatMessage(messages.viewLinkCopied, {
+                            name: view.name
+                        })
+                    ),
+                () => toast.error(intl.formatMessage(messages.viewLinkFailed))
+            );
+        },
+        [intl]
+    );
+
+    const handleShareView = useCallback(
+        (view: SavedView, shared: boolean) => {
+            updateView.mutate(
+                {
+                    id: view.id,
+                    visibility: shared
+                        ? VIEW_VISIBILITY.Workspace
+                        : VIEW_VISIBILITY.Private
+                },
+                {
+                    onSuccess: () =>
+                        toast.success(
+                            intl.formatMessage(
+                                shared
+                                    ? messages.viewShared
+                                    : messages.viewUnshared,
+                                { name: view.name }
+                            )
+                        ),
+                    onError: () =>
+                        toast.error(intl.formatMessage(messages.viewSaveFailed))
+                }
+            );
+        },
+        [updateView, intl]
+    );
+
     // Which view the reader lands on, resolved on every **arrival**:
     //
     //   1. `?view=<id>` with no competing slice params → apply that view. This
@@ -821,8 +1038,28 @@ export function LoadedRecordsView({
         navigate(`${typePath}/${NEW_SEGMENT}${entryQuery}`);
     };
 
+    // The trash is a tab at the end of the views row — it used to be an item
+    // in the header's ⋯ menu, a destination filed among actions.
+    const trashTab =
+        paranoid && canDelete && ownAccess ? (
+            <RecordsTabLink
+                to={`${typePath}/${TRASH_SEGMENT}`}
+                active={trashed}
+            >
+                <Trash2 aria-hidden />
+                {intl.formatMessage(messages.trashTab)}
+            </RecordsTabLink>
+        ) : null;
+
     return (
-        <Container className="max-w-none p-6 sm:p-6">
+        <Container
+            width="full"
+            className={cn(
+                'p-6 sm:p-6',
+                // Room to scroll the last rows clear of the floating bar.
+                selectedIds.size > 0 && !readOnly && 'pb-24 sm:pb-24'
+            )}
+        >
             <ContainerHeader
                 // The same mark the sidebar puts on this type, so the heading
                 // and the row that led here read as one place — and the trash
@@ -893,11 +1130,6 @@ export function LoadedRecordsView({
                                     schema={schema}
                                     workspaceId={workspace.id}
                                     trashed={trashed}
-                                    trashHref={
-                                        paranoid && canDelete
-                                            ? `${typePath}/${TRASH_SEGMENT}`
-                                            : undefined
-                                    }
                                 />
                             ) : null}
                         </div>
@@ -907,10 +1139,8 @@ export function LoadedRecordsView({
 
             {/* A view outlives the field it was saved over, so applying one
                 drops what no longer exists. Say so — a silently shorter table
-                reads as a bug in the view, not as a changed content type. It is
-                a full-width line under the header rather than part of the
-                switcher: a wrapping sentence inside a right-aligned row of
-                buttons would push them around every time a stale view loads. */}
+                reads as a bug in the view, not as a changed content type. That
+                line is drawn under the views row, below. */}
             {!ownAccess && !readOnly && !trashed ? (
                 <SharedOnlyNotice
                     type={type}
@@ -919,6 +1149,56 @@ export function LoadedRecordsView({
                 />
             ) : null}
 
+            {/* The slices of this list: the saved views as tabs, then the
+                Trash at the far end — a place, not a slice. In the trash (and
+                on a shared source's list) there are no views, so the row is
+                the two places alone. */}
+            {readOnly ? null : (
+                <div className="mb-4 flex min-h-9 items-center gap-1 border-b">
+                    {viewsEnabled && !viewsPending && !viewsError ? (
+                        <ViewSwitcher
+                            views={views}
+                            active={activeView}
+                            isDirty={viewIsDirty}
+                            isSaving={updateView.isPending}
+                            onSelect={applyView}
+                            onSaveAs={() => {
+                                setSaveViewError(null);
+                                setSaveViewOpen(true);
+                            }}
+                            onSaveChanges={handleSaveChanges}
+                            onReset={() =>
+                                activeView ? applyView(activeView) : undefined
+                            }
+                            onSetDefault={handleSetDefault}
+                            onDelete={handleDeleteView}
+                            onRename={handleRenameView}
+                            onDuplicate={handleDuplicateView}
+                            onCopyLink={handleCopyLink}
+                            onShare={
+                                canShareViews ? handleShareView : undefined
+                            }
+                            trailing={trashTab}
+                        />
+                    ) : (
+                        <>
+                            <RecordsTabLink
+                                to={`${typePath}${entryQuery}`}
+                                active={!trashed}
+                            >
+                                {intl.formatMessage(messages.allRecords)}
+                            </RecordsTabLink>
+                            {trashTab ? (
+                                <div className="ml-auto">{trashTab}</div>
+                            ) : null}
+                        </>
+                    )}
+                </div>
+            )}
+
+            {/* Under the tabs, not above them: drawn above, it pushed the row
+                down the moment a stale view was picked, under the pointer
+                that picked it. */}
             {droppedColumns > 0 ? (
                 <p
                     className="-mt-2 mb-4 text-sm text-muted-foreground"
@@ -929,7 +1209,35 @@ export function LoadedRecordsView({
                     })}
                 </p>
             ) : null}
+            {trashed ? (
+                <p className="mb-4 flex items-center gap-2.5 rounded-xl border bg-muted/40 px-4 py-2.5 text-[13px] text-muted-foreground">
+                    <Trash2 aria-hidden className="size-4 shrink-0" />
+                    {intl.formatMessage(messages.trashBanner)}
+                </p>
+            ) : null}
 
+            {/* While rows are selected the bulk bar floats at the bottom of
+                the work area (a portal), so neither the toolbar nor the table
+                moves. */}
+            {selectedIds.size > 0 && !readOnly ? (
+                <CollectionRecordsSelectionBar
+                    count={selectedIds.size}
+                    total={total}
+                    onClear={clearSelection}
+                    actions={
+                        <CollectionRecordsBulkActions
+                            typeName={type.name}
+                            schema={schema}
+                            workspaceId={workspace.id}
+                            ids={[...selectedIds]}
+                            publishable={publishable}
+                            paranoid={paranoid}
+                            trashed={trashed}
+                            onDone={clearSelection}
+                        />
+                    }
+                />
+            ) : null}
             <SearchToolbar
                 value={searchInput}
                 onValueChange={setSearchInput}
@@ -938,35 +1246,18 @@ export function LoadedRecordsView({
                 searchPlaceholder={intl.formatMessage(
                     messages.searchPlaceholder
                 )}
+                className="mb-2"
+                leading={
+                    publishable && !trashed ? (
+                        <RecordsStatusChips
+                            tree={appliedFilter}
+                            counts={statusCounts}
+                            onChange={applyFilter}
+                        />
+                    ) : undefined
+                }
                 actions={
                     <div className="flex flex-wrap items-center justify-end gap-2">
-                        {/* The switcher leads the row: it says *which slice* the
-                            controls beside it are narrowing. Rendered only once
-                            the views request has settled — a control that says
-                            "All records" before we know whether any views exist
-                            flashes a label that may be about to change, and on
-                            an error there is nothing truthful to show. */}
-                        {viewsEnabled && !viewsPending && !viewsError ? (
-                            <ViewSwitcher
-                                views={views}
-                                active={activeView}
-                                isDirty={viewIsDirty}
-                                isSaving={updateView.isPending}
-                                onSelect={applyView}
-                                onSaveAs={() => {
-                                    setSaveViewError(null);
-                                    setSaveViewOpen(true);
-                                }}
-                                onSaveChanges={handleSaveChanges}
-                                onReset={() =>
-                                    activeView
-                                        ? applyView(activeView)
-                                        : undefined
-                                }
-                                onSetDefault={handleSetDefault}
-                                onDelete={handleDeleteView}
-                            />
-                        ) : null}
                         {toolbarItems.map((item) => (
                             <item.Component
                                 key={item.id}
@@ -976,18 +1267,9 @@ export function LoadedRecordsView({
                                 updateParams={updateParams}
                             />
                         ))}
-                        <CollectionRecordsColumnPicker
-                            columns={columns}
-                            visible={visible}
-                            isVisible={isVisible}
-                            onToggle={toggle}
-                            onReorder={reorder}
-                            visibleCount={visible.length}
-                        />
                         {/* The filter builder, in a popover anchored to an
-                            icon-only "Filters" button. It owns its trigger,
-                            open state and staged draft; the applied conditions
-                            read out as removable chips below the toolbar. */}
+                            icon-only "Filters" button — the full builder,
+                            AND / OR groups included. */}
                         <QueryBuilderPopover
                             fields={filterFields}
                             value={appliedFilter}
@@ -1000,16 +1282,31 @@ export function LoadedRecordsView({
                                 <RelationValuePicker {...props} />
                             )}
                         />
+                        <CollectionRecordsColumnPicker
+                            columns={columns}
+                            visible={visible}
+                            isVisible={isVisible}
+                            onToggle={toggle}
+                            onReorder={reorder}
+                            visibleCount={visible.length}
+                        />
                     </div>
                 }
             />
 
-            {appliedFilter && ruleCount > 0 ? (
+            {/* The applied conditions as removable chips. */}
+            {summaryTree && countRules(summaryTree) > 0 ? (
                 <QueryBuilderSummary
                     className="mb-4"
-                    tree={appliedFilter}
+                    tree={summaryTree}
                     fields={filterFields}
-                    onChange={applyFilter}
+                    onChange={(next) =>
+                        applyFilter(
+                            quickStatus
+                                ? withQuickStatus(next, quickStatus, newId)
+                                : next
+                        )
+                    }
                 />
             ) : null}
 
@@ -1064,24 +1361,6 @@ export function LoadedRecordsView({
                 />
             ) : (
                 <>
-                    {selectedIds.size > 0 && !readOnly && (
-                        <CollectionRecordsSelectionBar
-                            count={selectedIds.size}
-                            onClear={clearSelection}
-                            actions={
-                                <CollectionRecordsBulkActions
-                                    typeName={type.name}
-                                    schema={schema}
-                                    workspaceId={workspace.id}
-                                    ids={[...selectedIds]}
-                                    publishable={publishable}
-                                    paranoid={paranoid}
-                                    trashed={trashed}
-                                    onDone={clearSelection}
-                                />
-                            }
-                        />
-                    )}
                     <CollectionRecordsTable
                         label={schema.label}
                         entries={entries}

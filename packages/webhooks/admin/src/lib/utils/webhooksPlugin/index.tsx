@@ -1,10 +1,11 @@
 import { Suspense } from 'react';
 import { lazyPage } from '@orthacms/utils-admin';
 import type { AdminPlugin } from '@orthacms/bootstrap-admin';
-import { SIDEBAR_NAV_SLOT } from '@orthacms/shell-admin';
+import { HOME_SECTION_SLOT, SIDEBAR_NAV_SLOT } from '@orthacms/shell-admin';
 import { Spinner } from '@orthacms/design-system';
 import { Webhook } from 'lucide-react';
 import { WebhooksPageSkeleton } from '../../presentation/components/WebhooksSkeleton';
+import { StoppedWebhooksAttention } from '../../presentation/components/StoppedWebhooksAttention';
 
 // Lazy-loaded so each page is code-split into its own chunk, fetched only when
 // someone first navigates to it.
@@ -110,6 +111,19 @@ export function WebhooksPlugin(): WebhooksAdminPlugin {
                         icon: Webhook,
                         iconColor: 'text-nav-purple',
                         permission: 'webhooks:read'
+                    }
+                ]
+            },
+            {
+                // A receiver the worker switched off has stopped hearing
+                // about content changes; Home is where that gets noticed.
+                slot: HOME_SECTION_SLOT,
+                items: [
+                    {
+                        id: 'webhooks.home.stopped',
+                        region: 'attention',
+                        order: 10,
+                        Component: StoppedWebhooksAttention
                     }
                 ]
             }

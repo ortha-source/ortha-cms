@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { PanelRightClose } from 'lucide-react';
+import { PanelRightClose, Pin, PinOff } from 'lucide-react';
 import {
     Button,
     cn,
@@ -24,6 +24,14 @@ const messages = defineMessages({
     resize: {
         id: 'shell.rightPanel.resize',
         defaultMessage: 'Resize {title}'
+    },
+    pin: {
+        id: 'shell.rightPanel.pin',
+        defaultMessage: 'Pin {title} beside the page'
+    },
+    unpin: {
+        id: 'shell.rightPanel.unpin',
+        defaultMessage: 'Unpin {title}'
     }
 });
 
@@ -68,9 +76,9 @@ export const RIGHT_PANEL = {
  * so the panel does not slide in on first paint, or each time a page registers
  * one. Motion here means "you just did that", nothing else.
  *
- * **On a phone it overlays instead of taking a column**: a 22rem column would
- * leave the content nothing. It slides in from the right edge over a scrim that
- * dismisses it, and it starts collapsed there regardless of the desktop
+ * **On a phone it is a bottom sheet instead of a column**: a 22rem column would
+ * leave the content nothing. It slides up from the bottom edge over a scrim
+ * that dismisses it, and it starts collapsed there regardless of the desktop
  * preference (see `PageChromeProvider`).
  *
  * **As a column it is resizable**: a handle on its left edge drags its width
@@ -86,6 +94,10 @@ export function AppRightPanel() {
     const isMobile = useIsMobile();
     const shown = !!panel?.present && panel.open;
     const animate = !!panel?.animate;
+    // A desktop overlay: a sheet over the whole page, opened on demand.
+    const floating = !isMobile && panel?.mode === 'overlay';
+    // Both overlay shapes cover the page and take it out of reach while up.
+    const covering = isMobile || floating;
     const collapseRef = usePanelFocusHandoff('panel');
     const toggle = panel?.toggle;
     const resizable = useResizablePanel(RIGHT_PANEL);
@@ -100,18 +112,18 @@ export function AppRightPanel() {
     // open over the panel owns `Esc` first, and closing the panel out from under
     // it would strand the user twice over.
     useEffect(() => {
-        if (!isMobile || !shown || !toggle) return;
+        if (!(isMobile || floating) || !shown || !toggle) return;
         const onKeyDown = (event: KeyboardEvent) => {
             if (event.key !== 'Escape') return;
             //
-            // `:not(#RIGHT_PANEL_ID)` because the panel is **itself** a
-            // `role="dialog"` on this breakpoint now (`ORT-154`) — without the
+            // `:not([data-slot=right-panel-dialog])` because the panel is
+            // **itself** a `role="dialog"` while it covers the page (`ORT-154`) — without the
             // exclusion this handler found the panel, concluded something was
             // stacked on top of it, and yielded to itself, so `Esc` stopped
             // working the moment the attribute was added.
             if (
                 document.querySelector(
-                    `[role="dialog"]:not(#${RIGHT_PANEL_ID}),[role="alertdialog"],[role="menu"],[role="listbox"]`
+                    '[role="dialog"]:not([data-slot="right-panel-dialog"]),[role="alertdialog"],[role="menu"],[role="listbox"]'
                 )
             ) {
                 return;
@@ -120,26 +132,36 @@ export function AppRightPanel() {
         };
         document.addEventListener('keydown', onKeyDown);
         return () => document.removeEventListener('keydown', onKeyDown);
-    }, [isMobile, shown, toggle]);
+    }, [isMobile, floating, shown, toggle]);
 
     return (
         <>
-            {isMobile && shown ? (
+            {covering ? (
                 // A scrim, not a control: it was a `<button aria-hidden
                 // tabIndex={-1}>`, which advertises a role to nobody and cannot be
                 // operated by keyboard — a dismiss affordance that only a pointer
                 // could reach. The keyboard equivalents are `Esc` (above) and the
                 // panel's own collapse button, so this is honest as inert
-                // decoration.
+                // decoration. It stays mounted so it can fade out with the
+                // sheet, and takes clicks only while the sheet is up; a click
+                // on it closes through `toggle`, which hands focus back to the
+                // top bar rather than dropping it on `<body>`.
                 <div
                     aria-hidden
-                    onClick={toggle}
-                    className="fixed inset-0 z-30 cursor-default bg-foreground/20"
+                    data-slot="right-panel-scrim"
+                    onClick={shown ? toggle : undefined}
+                    className={cn(
+                        'fixed inset-0 z-40 cursor-default bg-black/40 dark:bg-black/60',
+                        animate &&
+                            'transition-opacity duration-300 ease-(--ds-ease-drawer) motion-reduce:transition-none',
+                        shown ? 'opacity-100' : 'pointer-events-none opacity-0'
+                    )}
                 />
             ) : null}
             <aside
                 ref={resizable.ref}
                 style={isMobile ? undefined : resizable.style}
+                data-mode={floating ? 'overlay' : 'docked'}
                 id={RIGHT_PANEL_ID}
                 aria-label={shown ? panel?.title : undefined}
                 // On a phone this is an overlay covering the page, so it says so
@@ -149,29 +171,47 @@ export function AppRightPanel() {
                 // would have been false; a truthful `complementary` beats a
                 // `dialog` the markup does not keep. As a desktop column it
                 // covers nothing and stays a complementary landmark.
-                role={isMobile && shown ? 'dialog' : undefined}
-                aria-modal={isMobile && shown ? true : undefined}
                 inert={!shown}
                 className={cn(
                     'relative flex shrink-0 overflow-hidden motion-reduce:transition-none',
                     isMobile
-                        ? // Overlay: off the right edge and back, so the
-                          // content underneath keeps its full width.
+                        ? // A bottom sheet: up from the bottom edge, where a
+                          // thumb already is, over the page it describes.
                           cn(
-                              'fixed inset-y-0 right-0 z-40 w-[min(22rem,88vw)]',
+                              'fixed inset-x-0 bottom-0 z-50 h-[85svh] rounded-t-2xl border-t shadow-2xl',
+                              // `translate`, not `transform`: Tailwind v4
+                              // writes it as its own property.
                               animate &&
-                                  'transition-transform duration-300 ease-in-out',
-                              shown ? 'translate-x-0' : 'translate-x-full'
+                                  'transition-[translate] duration-300 ease-(--ds-ease-drawer)',
+                              shown ? 'translate-y-0' : 'translate-y-full'
                           )
-                        : // Column: full height of the viewport-bounded shell
-                          // row, so the panel scrolls on its own rather than
-                          // riding the inset's scrollport.
-                          cn(
-                              'h-full',
-                              animate &&
-                                  'transition-[width] duration-300 ease-in-out',
-                              shown ? 'w-(--right-panel-width)' : 'w-0'
-                          )
+                        : floating
+                          ? // A classic sheet: the full height of the window
+                            // at its right edge, over a scrim. It takes no
+                            // width from the page, so the form keeps its
+                            // measure. It slides on `translate` — the card it
+                            // replaced transitioned `transform`, which Tailwind
+                            // v4 does not write, so it faded while its
+                            // movement snapped. Its shadow goes with it: at
+                            // `translate-x-full` a shadow would still bleed
+                            // back into the window.
+                            cn(
+                                'fixed inset-y-0 right-0 z-50 w-(--right-panel-width) max-w-[calc(100vw-3rem)] border-l',
+                                animate &&
+                                    'transition-[translate,box-shadow] duration-300 ease-(--ds-ease-drawer)',
+                                shown
+                                    ? 'translate-x-0 shadow-2xl'
+                                    : 'pointer-events-none translate-x-full shadow-none'
+                            )
+                          : // Column: full height of the viewport-bounded shell
+                            // row, so the panel scrolls on its own rather than
+                            // riding the inset's scrollport.
+                            cn(
+                                'h-full',
+                                animate &&
+                                    'transition-[width] duration-300 ease-in-out',
+                                shown ? 'w-(--right-panel-width)' : 'w-0'
+                            )
                 )}
             >
                 {/* Never unmounted, and — in the column layout — a **fixed**
@@ -181,12 +221,24 @@ export function AppRightPanel() {
                     the clip. On mobile the column doesn't animate its width (it
                     translates), so the panel simply fills it. */}
                 <div
+                    // The dialog is this wrapper, not the `<aside>`: a
+                    // `complementary` element may not take `role="dialog"`
+                    // (axe's `aria-allowed-role`), and swapping the aside's
+                    // tag would remount the portal host inside it.
+                    data-slot="right-panel-dialog"
+                    role={covering && shown ? 'dialog' : undefined}
+                    aria-modal={covering && shown ? true : undefined}
+                    aria-label={covering && shown ? panel?.title : undefined}
                     className={cn(
-                        'relative flex h-full shrink-0 flex-col border-l bg-background',
-                        isMobile ? 'w-full' : 'w-(--right-panel-width)'
+                        'relative flex h-full shrink-0 flex-col bg-background',
+                        isMobile && 'rounded-t-2xl',
+                        floating ? 'w-full' : 'border-l',
+                        isMobile || floating
+                            ? 'w-full'
+                            : 'w-(--right-panel-width)'
                     )}
                 >
-                    {shown && !isMobile && toggle ? (
+                    {shown && !isMobile && !floating && toggle ? (
                         // Inside the panel rather than on the column: the
                         // column clips, so a handle hanging over its edge
                         // would be cut in half.
@@ -205,25 +257,59 @@ export function AppRightPanel() {
                         (`TopBarTabs` is a fixed `h-9`), so the header grows to
                         rule itself on the same line, keeping its title level
                         with the breadcrumb. */}
-                    <div className="flex h-12 shrink-0 items-center justify-between gap-2 border-b px-4 [[data-slot=app-frame]:has([data-slot=top-bar-tabs])_&]:h-21 [[data-slot=app-frame]:has([data-slot=top-bar-tabs])_&]:pb-9">
+                    <div
+                        className={cn(
+                            'flex h-12 shrink-0 items-center justify-between gap-2 border-b px-4',
+                            // Only the column sits beside the page's band; a
+                            // sheet over it has a header of its own height.
+                            !floating &&
+                                '[[data-slot=app-frame]:has([data-slot=top-bar-tabs])_&]:h-21 [[data-slot=app-frame]:has([data-slot=top-bar-tabs])_&]:pb-9'
+                        )}
+                    >
                         <h2 className="min-w-0 truncate text-sm font-semibold tracking-[-0.01em]">
                             {panel?.title}
                         </h2>
-                        <Button
-                            ref={collapseRef}
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="-mr-1 size-7 shrink-0 text-muted-foreground"
-                            aria-controls={RIGHT_PANEL_ID}
-                            aria-expanded
-                            aria-label={intl.formatMessage(messages.hide, {
-                                title: panel?.title ?? ''
-                            })}
-                            onClick={toggle}
-                        >
-                            <PanelRightClose aria-hidden />
-                        </Button>
+                        <div className="ml-auto flex items-center gap-0.5">
+                            {panel?.pinnable ? (
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="size-7 shrink-0 text-muted-foreground"
+                                    aria-pressed={panel.pinned}
+                                    aria-label={intl.formatMessage(
+                                        panel.pinned
+                                            ? messages.unpin
+                                            : messages.pin,
+                                        { title: panel.title }
+                                    )}
+                                    onClick={() =>
+                                        panel.setPinned(!panel.pinned)
+                                    }
+                                >
+                                    {panel.pinned ? (
+                                        <PinOff aria-hidden />
+                                    ) : (
+                                        <Pin aria-hidden />
+                                    )}
+                                </Button>
+                            ) : null}
+                            <Button
+                                ref={collapseRef}
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="-mr-1 size-7 shrink-0 text-muted-foreground"
+                                aria-controls={RIGHT_PANEL_ID}
+                                aria-expanded
+                                aria-label={intl.formatMessage(messages.hide, {
+                                    title: panel?.title ?? ''
+                                })}
+                                onClick={toggle}
+                            >
+                                <PanelRightClose aria-hidden />
+                            </Button>
+                        </div>
                     </div>
                     <div
                         ref={setPanelHost}

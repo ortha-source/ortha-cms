@@ -9,7 +9,10 @@ const badgeVariants = cva(
     // put a glyph in one had to remember to re-add the spacing — the ones that
     // forgot rendered the icon touching the first letter. A gap costs nothing
     // on a text-only badge, which has a single child.
-    'inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
+    // A 20px chip with a 6px radius — a label on a record, not a pill-shaped
+    // button. `leading-none` and a fixed height (rather than vertical padding)
+    // keep a badge with a dot or an icon the same height as one without.
+    'inline-flex shrink-0 items-center gap-[5px] whitespace-nowrap rounded-md border font-medium leading-none transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
     {
         variants: {
             variant: {
@@ -30,11 +33,21 @@ const badgeVariants = cva(
                 'destructive-soft':
                     'border-transparent bg-destructive-soft text-destructive-soft-foreground',
                 'primary-soft':
-                    'border-transparent bg-brand-soft text-brand-soft-foreground'
+                    'border-transparent bg-brand-soft text-brand-soft-foreground',
+                /** Neutral tint: a quiet state ("Draft", "Superseded"). */
+                muted: 'border-transparent bg-muted text-muted-foreground',
+                /** Hairline only: a fact beside a state ("EN · English"). */
+                line: 'border-border bg-transparent text-muted-foreground'
+            },
+            size: {
+                default: 'h-5 px-[7px] text-xs',
+                /** Inside a row or beside a label: "Changed", "Live". */
+                xs: 'h-[18px] px-1.5 text-[11px]'
             }
         },
         defaultVariants: {
-            variant: 'default'
+            variant: 'default',
+            size: 'default'
         }
     }
 );
@@ -43,10 +56,34 @@ export interface BadgeProps
     extends React.HTMLAttributes<HTMLDivElement>,
         VariantProps<typeof badgeVariants> {}
 
-function Badge({ className, variant, ...props }: BadgeProps) {
+function Badge({ className, variant, size, ...props }: BadgeProps) {
     return (
-        <div className={cn(badgeVariants({ variant }), className)} {...props} />
+        <div
+            className={cn(badgeVariants({ variant, size }), className)}
+            {...props}
+        />
     );
 }
 
-export { Badge, badgeVariants };
+/**
+ * The 6px status dot a state badge leads with ("● Published") — in the
+ * badge's own colour, so the state is carried by shape and word as well as
+ * hue.
+ */
+function BadgeDot({
+    className,
+    ...props
+}: React.HTMLAttributes<HTMLSpanElement>) {
+    return (
+        <span
+            aria-hidden
+            className={cn(
+                'size-1.5 shrink-0 rounded-full bg-current',
+                className
+            )}
+            {...props}
+        />
+    );
+}
+
+export { Badge, BadgeDot, badgeVariants };

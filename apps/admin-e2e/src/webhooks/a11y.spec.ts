@@ -73,7 +73,7 @@ test.describe('Webhooks accessibility (axe, WCAG 2.1 A/AA)', () => {
         // the free-entry field and its button. The type controls need a
         // workspace decision before they exist at all.
         await webhooksPage.allWorkspacesToggle().click();
-        await webhooksPage.allEventsToggle().click();
+        await webhooksPage.someEventsChoice().click();
         await webhooksPage.allContentTypesToggle().click();
         await webhooksPage.contentTypesPicker().waitFor();
         // A header row's two inputs are named by `sr-only` labels and its
@@ -91,7 +91,7 @@ test.describe('Webhooks accessibility (axe, WCAG 2.1 A/AA)', () => {
         await mockWebhooksApi(page);
         await webhooksPage.gotoNew();
         await webhooksPage.editorHeading('New webhook').waitFor();
-        await webhooksPage.enabledSwitch().click();
+        await webhooksPage.stateChoice('Paused').click();
         await webhooksPage.disableConfirm().waitFor();
         await expectNoA11yViolations(makeAxe());
     });

@@ -10,7 +10,9 @@ import {
     mockContentSchemaDetail,
     mockContentEntries,
     mockContentEntryWrites,
-    mockEntryChangedByAnotherSession
+    mockEntryChangedByAnotherSession,
+    mockEntryMedia,
+    mockEntryRelations
 } from '../support/api/content';
 
 /** The record this suite edits — deliberately not one of the list seed's rows. */
@@ -310,5 +312,85 @@ test.describe('Entry editor — a record that changed while the tab was away', (
         await expect(page).toHaveURL(
             new RegExp(`/workspaces/${LIBRARY_WORKSPACE.id}/content/blog_post$`)
         );
+    });
+});
+
+/**
+ * **The author's own save is not "somebody else's change".** The write's
+ * response reaches the form as a new seed — `useSaveEntry` primes the read-one
+ * cache in `onSuccess` — a moment before the editor's `onWriteLanded` adopts
+ * it. The dirty form read that moment as a conflict, so every update flashed
+ * "This record changed while you were editing" for a frame or ten and then
+ * took it back. `useEntryForm.beginWrite` marks the write in flight so its echo
+ * is not reported; a write that never lands (`endWrite`) still lets a real
+ * conflict through, which the suite above pins.
+ *
+ * Watched with a `MutationObserver`, because the notice is gone again before
+ * any `expect` could look for it.
+ */
+test.describe('Entry editor — the author’s own update', () => {
+    test.beforeEach(async ({ page }) => {
+        await mockSignedIn(page);
+        await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
+        await mockContentSchema(page, { types: CONTENT_SCHEMA_SEED });
+        await mockContentSchemaDetail(page, { details: CONTENT_DETAIL_SEED });
+        await mockContentEntries(page, { details: CONTENT_DETAIL_SEED });
+        await mockContentEntryWrites(page, { details: CONTENT_DETAIL_SEED });
+        await mockEntryRelations(page);
+        await mockEntryMedia(page);
+    });
+
+    test('saving an edit never flashes the conflict notice [ORT-230]', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        await contentLibraryPage.gotoNewEntry(
+            LIBRARY_WORKSPACE.id,
+            'blog_post'
+        );
+        const title = contentLibraryPage.fieldTextbox('Title', { exact: true });
+        await title.fill('First draft');
+        await contentLibraryPage.saveDraft();
+        await expect(contentLibraryPage.toast(/created/)).toBeVisible();
+
+        await page.evaluate(() => {
+            // Typed inline through `globalThis`: this project's tsconfig ships
+            // no DOM lib (the same reason `returnToTab` casts above).
+            const browser = globalThis as unknown as {
+                document: { body: { textContent: string } };
+                MutationObserver: new (callback: () => void) => {
+                    observe(node: unknown, options: object): void;
+                };
+                __conflictSeen?: boolean;
+            };
+            const body = browser.document.body;
+            new browser.MutationObserver(() => {
+                if (
+                    body.textContent.includes(
+                        'This record changed while you were editing'
+                    )
+                ) {
+                    browser.__conflictSeen = true;
+                }
+            }).observe(body, {
+                childList: true,
+                subtree: true,
+                characterData: true
+            });
+        });
+
+        await title.fill('Second draft');
+        await contentLibraryPage.saveDraft();
+        await expect(contentLibraryPage.toast(/updated|saved/i)).toBeVisible();
+        await expect(title).toHaveValue('Second draft');
+
+        expect(
+            await page.evaluate(
+                () =>
+                    (globalThis as unknown as { __conflictSeen?: boolean })
+                        .__conflictSeen === true
+            )
+        ).toBe(false);
+        await expect(contentLibraryPage.entryChangedNotice).toBeHidden();
     });
 });

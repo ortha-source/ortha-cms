@@ -2,11 +2,12 @@ import { Suspense } from 'react';
 import { lazyPage } from '@orthacms/utils-admin';
 import type { AdminPlugin } from '@orthacms/bootstrap-admin';
 import { HOME_SECTION_SLOT, SIDEBAR_NAV_SLOT } from '@orthacms/shell-admin';
-import { ENTRY_TAB, ENTRY_TAB_SLOT } from '@orthacms/content-admin';
+import { ENTRY_TIMELINE_SLOT } from '@orthacms/content-admin';
 import { Activity } from 'lucide-react';
 import { ActivityLogPageSkeleton } from '../components/ActivityLogSkeleton';
 import { RecentActivityPanel } from '../components/RecentActivityPanel';
-import { EntryActivityTab } from '../components/EntryActivityTab';
+import { DeadLettersAttention } from '../components/DeadLettersAttention';
+import { useEntryActivityTimeline } from '../hooks/useEntryActivityTimeline';
 
 // Lazy-loaded so the Activity Log page is code-split into its own chunk,
 // fetched only when a signed-in user first navigates to `/activity`.
@@ -72,41 +73,19 @@ export function ActivityPlugin(): ActivityAdminPlugin {
                 ]
             },
             {
-                // The entry editor's **Activity** tab: who did what to the open
-                // record. The built-in History tab is the **revision**
-                // timeline — what the words were at each save — and cannot say
-                // who published it, who took it down, or who changed who may
-                // read it. Those rows exist and were reachable only from the
-                // admin-only Activity page, so the person most likely to ask
-                // was the one who could not.
-                //
-                // A tab rather than a section of the Properties rail
-                // (`ORT-198`): the list grows, the rail is 240px wide and
-                // shared by four plugins, and collapsing the panel took the
-                // record's whole history with it. Tabs are routes here, so the
-                // open one also survives the remounts this editor takes from
-                // navigations it does not own.
-                //
-                // Not mounted, and not requested, unless the reader holds
-                // `content:read` — the same key the scoped route is gated on.
-                slot: ENTRY_TAB_SLOT,
+                // The record's activity, drawn between the versions of the
+                // entry editor's History timeline (it used to be a tab of its
+                // own beside History). Not requested unless the reader holds
+                // `content:read` — the key the scoped route is gated on.
+                slot: ENTRY_TIMELINE_SLOT,
                 items: [
                     {
-                        id: 'activity.entry.history',
-                        slug: ENTRY_TAB.Activity,
+                        id: 'activity.entry.timeline',
                         label: {
                             id: 'activity.entryTab.label',
                             defaultMessage: 'Activity'
                         },
-                        // After Access (20) and before the built-in History,
-                        // which the tab strip always renders last: the two are
-                        // neighbours because readers reach for either when
-                        // asking "what happened here".
-                        order: 30,
-                        // Every type. Any record can be acted on, and a schema
-                        // says nothing about whether it has been.
-                        appliesTo: () => true,
-                        Component: EntryActivityTab
+                        useEvents: useEntryActivityTimeline
                     }
                 ]
             },
@@ -114,6 +93,12 @@ export function ActivityPlugin(): ActivityAdminPlugin {
                 // Home dashboard: the recent-activity panel.
                 slot: HOME_SECTION_SLOT,
                 items: [
+                    {
+                        id: 'activity.home.deadLetters',
+                        region: 'attention',
+                        order: 40,
+                        Component: DeadLettersAttention
+                    },
                     {
                         id: 'activity.home.recent',
                         region: 'panel',

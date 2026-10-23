@@ -12,7 +12,7 @@ import {
     toast
 } from '@orthacms/design-system';
 import { useHasPermission } from '@orthacms/identity-admin';
-import { PageTopBar } from '@orthacms/shell-admin';
+import { PageActionsPortal, PageTopBar } from '@orthacms/shell-admin';
 import { useCurrentWorkspace } from '@orthacms/workspaces-admin';
 import { BellRing, Plus } from 'lucide-react';
 import { useAlarmRules } from '../../../application/useAlarmRules';
@@ -26,6 +26,7 @@ import { AlarmsNoAccess } from '../../components/AlarmsNoAccess';
 import { AlarmsSkeleton } from '../../components/AlarmsSkeleton';
 import { FindingGroupList } from '../../components/FindingGroupList';
 import { RuleList } from '../../components/RuleList';
+import { AlarmSummaryStrip } from '../../components/AlarmSummaryStrip';
 
 const messages = defineMessages({
     title: { id: 'alarms.page.title', defaultMessage: 'Alarms' },
@@ -161,32 +162,35 @@ export function AlarmsPage() {
     return (
         <>
             <PageTopBar icon={BellRing} crumbs={crumbs} />
-            <Container>
+            {canManage ? (
+                <PageActionsPortal>
+                    <Button
+                        size="sm"
+                        onClick={() =>
+                            navigate(
+                                `/workspaces/${workspace.id}/alarms/rules/new`
+                            )
+                        }
+                    >
+                        <Plus />
+                        {intl.formatMessage(messages.newAlarm)}
+                    </Button>
+                </PageActionsPortal>
+            ) : null}
+            <Container className="flex flex-col gap-5">
                 <ContainerHeader
+                    className="mb-0"
                     title={intl.formatMessage(messages.title)}
                     subtitle={intl.formatMessage(messages.subtitle)}
-                    actions={
-                        canManage ? (
-                            <Button
-                                onClick={() =>
-                                    navigate(
-                                        `/workspaces/${workspace.id}/alarms/rules/new`
-                                    )
-                                }
-                            >
-                                <Plus />
-                                {intl.formatMessage(messages.newAlarm)}
-                            </Button>
-                        ) : undefined
-                    }
                 />
 
-                {/* The page's own vertical rhythm. `Container` sets padding but
-                    no gap, and `ContainerHeader`'s `mb-6` is the only margin in
-                    play — so without this the tab strip and whatever it selects
-                    sat flush against each other and the page read as one
-                    undifferentiated block. */}
-                <div className="flex flex-col items-stretch gap-6">
+                <AlarmSummaryStrip
+                    summary={summary.data}
+                    rules={rules.data ?? []}
+                />
+
+                {/* The tabs and the view they select, one step apart. */}
+                <div className="flex flex-col items-stretch gap-4">
                     <SegmentedControl
                         // `self-start`, because a flex column stretches its
                         // children: without it the tab strip spanned the full

@@ -318,12 +318,12 @@ test.describe('Content model editor', () => {
     }) => {
         await contentModelPage.goto('venue');
         await expect
-            .poll(() => contentModelPage.fieldNames('General'))
+            .poll(() => contentModelPage.fieldNames('Content'))
             .toEqual(['name', 'city', 'open']);
 
         await contentModelPage.moveFieldUp('city');
         await expect
-            .poll(() => contentModelPage.fieldNames('General'))
+            .poll(() => contentModelPage.fieldNames('Content'))
             .toEqual(['city', 'name', 'open']);
 
         // A boolean is a choice, ranked after inputs: the editor would put it back.
@@ -332,7 +332,7 @@ test.describe('Content model editor', () => {
             contentModelPage.announcement(/open stays where it is/)
         ).toBeAttached();
         await expect
-            .poll(() => contentModelPage.fieldNames('General'))
+            .poll(() => contentModelPage.fieldNames('Content'))
             .toEqual(['city', 'name', 'open']);
     });
 
@@ -352,7 +352,7 @@ test.describe('Content model editor', () => {
         await contentModelPage.editField('city').click();
         const field = contentModelPage.fieldSheet('city');
         await field.getByRole('tab', { name: 'Display' }).click();
-        await field.getByLabel('Group on the General tab').click();
+        await field.getByLabel('Group on the Content tab').click();
         await contentModelPage.option('Location').click();
         await field.getByRole('button', { name: 'Done' }).click();
 
@@ -365,7 +365,7 @@ test.describe('Content model editor', () => {
         }) => {
             await contentModelPage.goto('place');
             await expect
-                .poll(() => contentModelPage.fieldNames('General'))
+                .poll(() => contentModelPage.fieldNames('Content'))
                 .toEqual(['name', 'open', 'city']);
 
             await contentModelPage.dragField(
@@ -382,7 +382,7 @@ test.describe('Content model editor', () => {
                 contentModelPage.groupTrigger('Location')
             ).toContainText('2 fields');
             await expect
-                .poll(() => contentModelPage.fieldNames('General'))
+                .poll(() => contentModelPage.fieldNames('Content'))
                 .toEqual(['open', 'name', 'city']);
             await expect(contentModelPage.changeCount()).toBeVisible();
 
@@ -391,7 +391,7 @@ test.describe('Content model editor', () => {
             const sheet = contentModelPage.fieldSheet('name');
             await sheet.getByRole('tab', { name: 'Display' }).click();
             await expect(
-                sheet.getByLabel('Group on the General tab')
+                sheet.getByLabel('Group on the Content tab')
             ).toContainText('Location');
         });
 
@@ -411,7 +411,7 @@ test.describe('Content model editor', () => {
                 contentModelPage.emptyGroupDropZone('Extra')
             ).toHaveCount(0);
             await expect
-                .poll(() => contentModelPage.fieldNames('General'))
+                .poll(() => contentModelPage.fieldNames('Content'))
                 .toEqual(['name', 'city', 'open']);
         });
 
@@ -430,7 +430,7 @@ test.describe('Content model editor', () => {
                 )
             ).toBeAttached();
             await expect
-                .poll(() => contentModelPage.fieldNames('General'))
+                .poll(() => contentModelPage.fieldNames('Content'))
                 .toEqual(['city', 'name', 'open']);
             // The group it left is empty now, and says so.
             await expect(
@@ -477,7 +477,7 @@ test.describe('Content model editor', () => {
                 contentModelPage.groupTrigger('Location')
             ).toContainText('2 fields');
             await expect
-                .poll(() => contentModelPage.fieldNames('General'))
+                .poll(() => contentModelPage.fieldNames('Content'))
                 .toEqual(['name', 'open', 'city']);
         });
     });
@@ -590,7 +590,7 @@ test.describe('Content model editor', () => {
                 0
             );
             await expect
-                .poll(() => contentModelPage.fieldNames('General'))
+                .poll(() => contentModelPage.fieldNames('Content'))
                 .toEqual(['name', 'city', 'open']);
         });
     });
@@ -625,7 +625,7 @@ test.describe('Content model editor', () => {
         );
         await contentModelPage.discardButton().click();
         await expect
-            .poll(() => contentModelPage.fieldNames('General'))
+            .poll(() => contentModelPage.fieldNames('Content'))
             .toEqual(['name', 'city', 'open']);
         await expect(contentModelPage.changeCount()).toHaveCount(0);
     });

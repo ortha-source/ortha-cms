@@ -3,6 +3,7 @@ import { lazyPage } from '@orthacms/utils-admin';
 import type { AdminPlugin } from '@orthacms/bootstrap-admin';
 import {
     ENTRY_SIDEBAR_WIDGET_SLOT,
+    ENTRY_STATUS_ITEM_SLOT,
     RECORDS_COLUMN_SLOT,
     RECORDS_TOOLBAR_SLOT,
     type ContentTypeDetail,
@@ -13,10 +14,13 @@ import {
     WORKSPACE_ROUTE_SLOT
 } from '@orthacms/workspaces-admin';
 import { COPILOT_TOOL_RESULT_SLOT } from '@orthacms/copilot-admin';
+import { HOME_SECTION_SLOT } from '@orthacms/shell-admin';
+import { AlarmsHomeAttention } from '../../presentation/components/AlarmsHomeAttention';
 import { BellRing } from 'lucide-react';
 import { AlarmsSkeleton } from '../../presentation/components/AlarmsSkeleton';
 import { AlarmsColumnCell } from '../../presentation/components/AlarmsColumnCell';
 import { EntryAlarmsWidget } from '../../presentation/components/EntryAlarmsWidget';
+import { useAlarmsStatusItem } from '../../presentation/hooks/useAlarmsStatusItem';
 import { SaveFilterAsRuleAction } from '../../presentation/components/SaveFilterAsRuleAction';
 import { FindingsToolResult } from '../../presentation/components/FindingsToolResult';
 import { useFindingsByEntry } from '../../application/useFindingsByEntry';
@@ -75,6 +79,18 @@ export function AlarmsPlugin(): AlarmsAdminPlugin {
     return {
         name: 'alarms',
         slots: [
+            {
+                // Open findings across every workspace, on Home — at 0 too.
+                slot: HOME_SECTION_SLOT,
+                items: [
+                    {
+                        id: 'alarms.home.findings',
+                        region: 'attention',
+                        order: 30,
+                        Component: AlarmsHomeAttention
+                    }
+                ]
+            },
             {
                 slot: WORKSPACE_ROUTE_SLOT,
                 items: [
@@ -138,6 +154,18 @@ export function AlarmsPlugin(): AlarmsAdminPlugin {
                         // thing you need when you open one.
                         order: 40,
                         Component: EntryAlarmsWidget
+                    }
+                ]
+            },
+            // The same findings as one heads-up in the editor's header, so a
+            // flag is seen without opening the Details panel.
+            {
+                slot: ENTRY_STATUS_ITEM_SLOT,
+                items: [
+                    {
+                        id: 'alarms.entry.status',
+                        order: 40,
+                        useItem: useAlarmsStatusItem
                     }
                 ]
             },

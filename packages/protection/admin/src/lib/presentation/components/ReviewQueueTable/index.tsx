@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import {
+    Button,
     Table,
     TableBody,
     TableCell,
@@ -29,9 +30,15 @@ const messages = defineMessages({
         defaultMessage: 'Approvals'
     },
     tally: {
-        id: 'protection.queue.tally',
-        defaultMessage: '{given} of {required} approvals'
+        id: 'protection.queue.tallyShort',
+        defaultMessage: '{given} of {required}'
     },
+    tallyNoun: {
+        id: 'protection.queue.tallyNoun',
+        defaultMessage: 'approvals'
+    },
+    review: { id: 'protection.queue.review', defaultMessage: 'Review' },
+    actions: { id: 'protection.queue.col.actions', defaultMessage: 'Actions' },
     open: { id: 'protection.queue.open', defaultMessage: 'Open {entry}' },
     caption: {
         id: 'protection.queue.caption',
@@ -84,9 +91,6 @@ export function ReviewQueueTable({
                             {intl.formatMessage(messages.entry)}
                         </TableHead>
                         <TableHead scope="col">
-                            {intl.formatMessage(messages.type)}
-                        </TableHead>
-                        <TableHead scope="col">
                             {intl.formatMessage(messages.requestedBy)}
                         </TableHead>
                         <TableHead scope="col">
@@ -98,12 +102,17 @@ export function ReviewQueueTable({
                         <TableHead scope="col">
                             {intl.formatMessage(messages.approvals)}
                         </TableHead>
+                        <TableHead scope="col">
+                            <span className="sr-only">
+                                {intl.formatMessage(messages.actions)}
+                            </span>
+                        </TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {items.map((item) => (
                         <TableRow key={item.id}>
-                            <TableCell className="font-medium">
+                            <TableCell>
                                 {/* The record by its title, as every other list
                                 names one. An entry with nothing to show falls
                                 back to a fragment of its id, and the link text
@@ -111,16 +120,18 @@ export function ReviewQueueTable({
                                 opens out of context. */}
                                 <Link
                                     to={`../content/${item.contentType}/${item.entryId}`}
-                                    className="underline-offset-4 hover:underline focus-visible:underline"
+                                    className="font-medium underline-offset-4 hover:underline focus-visible:underline"
                                 >
                                     {item.entryTitle ??
                                         intl.formatMessage(messages.open, {
                                             entry: item.entryId.slice(0, 8)
                                         })}
                                 </Link>
-                            </TableCell>
-                            <TableCell className="text-muted-foreground">
-                                {item.contentTypeLabel}
+                                {/* The type under the title, as every other
+                                    list names a record and what it is. */}
+                                <div className="text-xs text-muted-foreground">
+                                    {item.contentTypeLabel}
+                                </div>
                             </TableCell>
                             <TableCell>
                                 <ReviewerLabel
@@ -129,12 +140,19 @@ export function ReviewQueueTable({
                                 />
                             </TableCell>
                             <TableCell>
-                                <ul className="flex flex-col gap-1">
+                                {/* One avatar per person, overlapping; the
+                                    names are still in the list, for a screen
+                                    reader and on hover. */}
+                                <ul className="flex items-center">
                                     {item.reviewerIds.map((userId) => (
-                                        <li key={userId}>
+                                        <li
+                                            key={userId}
+                                            className="-ml-1.5 first:ml-0"
+                                        >
                                             <ReviewerLabel
                                                 userId={userId}
                                                 currentUserId={currentUserId}
+                                                compact
                                             />
                                         </li>
                                     ))}
@@ -146,11 +164,42 @@ export function ReviewQueueTable({
                                     overdueAfterDays={overdueAfterDays}
                                 />
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="whitespace-nowrap">
+                                <span
+                                    aria-hidden
+                                    className="mr-2 inline-flex gap-0.5 align-middle"
+                                >
+                                    {Array.from(
+                                        { length: item.required },
+                                        (_, index) => (
+                                            <i
+                                                key={index}
+                                                className={
+                                                    index < item.given
+                                                        ? 'block h-1.5 w-3.5 rounded-full bg-success'
+                                                        : 'block h-1.5 w-3.5 rounded-full bg-muted'
+                                                }
+                                            />
+                                        )
+                                    )}
+                                </span>
                                 {intl.formatMessage(messages.tally, {
                                     given: item.given,
                                     required: item.required
-                                })}
+                                })}{' '}
+                                <span className="sr-only">
+                                    {intl.formatMessage(messages.tallyNoun)}
+                                </span>
+                            </TableCell>
+                            <TableCell className="text-right">
+                                <Button asChild variant="outline" size="sm">
+                                    <Link
+                                        to={`../content/${item.contentType}/${item.entryId}`}
+                                        tabIndex={-1}
+                                    >
+                                        {intl.formatMessage(messages.review)}
+                                    </Link>
+                                </Button>
                             </TableCell>
                         </TableRow>
                     ))}

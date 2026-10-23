@@ -9,12 +9,6 @@ import {
     SelectItem,
     SelectTrigger,
     SelectValue,
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
     toast
 } from '@orthacms/design-system';
 import { DELIVERY_STATUSES } from '../../../domain/types/webhook';
@@ -24,22 +18,16 @@ import {
     useWebhookDelivery
 } from '../../../application/useWebhookDeliveries';
 import { useRedeliverWebhook } from '../../../application/useWebhookMutations';
-import { DeliveryStatusBadge } from '../DeliveryStatusBadge';
-import { DeliveryDetailSheet } from './DeliveryDetailSheet';
+import type { WebhookDelivery } from '../../../domain/types/webhook';
+import { DeliveryDetailPanel } from './DeliveryDetailPanel';
+import { DeliveryRow } from './DeliveryRow';
+import { DeliveryStats } from './DeliveryStats';
 
 const messages = defineMessages({
     caption: {
         id: 'webhooks.deliveries.caption',
         defaultMessage: 'Delivery log'
     },
-    event: { id: 'webhooks.deliveries.event', defaultMessage: 'Event' },
-    status: { id: 'webhooks.deliveries.status', defaultMessage: 'Status' },
-    code: { id: 'webhooks.deliveries.code', defaultMessage: 'Response' },
-    attempts: {
-        id: 'webhooks.deliveries.attempts',
-        defaultMessage: 'Attempts'
-    },
-    when: { id: 'webhooks.deliveries.when', defaultMessage: 'Queued' },
     empty: {
         id: 'webhooks.deliveries.empty',
         defaultMessage:
@@ -58,8 +46,15 @@ const messages = defineMessages({
         id: 'webhooks.deliveries.filterLabel',
         defaultMessage: 'Filter by state'
     },
-    view: { id: 'webhooks.deliveries.view', defaultMessage: 'View' },
-    actions: { id: 'webhooks.deliveries.actions', defaultMessage: 'Actions' },
+    today: { id: 'webhooks.deliveries.today', defaultMessage: 'Today' },
+    yesterday: {
+        id: 'webhooks.deliveries.yesterday',
+        defaultMessage: 'Yesterday'
+    },
+    total: {
+        id: 'webhooks.deliveries.total',
+        defaultMessage: '{count, plural, one {# delivery} other {# deliveries}}'
+    },
     prev: { id: 'webhooks.deliveries.prev', defaultMessage: 'Previous' },
     next: { id: 'webhooks.deliveries.next', defaultMessage: 'Next' },
     pageOf: {
@@ -99,6 +94,43 @@ const STATUS_LABELS = {
     dead: messages.statusDead
 } as const;
 
+/** One day of the log, newest first as the page arrives. */
+type DayGroup = {
+    key: string;
+    date: Date;
+    today: boolean;
+    yesterday: boolean;
+    items: WebhookDelivery[];
+};
+
+/** Splits a page of the log into runs of one calendar day each. */
+function groupByDay(deliveries: WebhookDelivery[]): DayGroup[] {
+    const dayKey = (date: Date) => date.toDateString();
+    const now = new Date();
+    const todayKey = dayKey(now);
+    const yesterdayKey = dayKey(
+        new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)
+    );
+    const groups: DayGroup[] = [];
+    for (const delivery of deliveries) {
+        const date = new Date(delivery.createdAt);
+        const key = dayKey(date);
+        const last = groups[groups.length - 1];
+        if (last && last.key === key) {
+            last.items.push(delivery);
+        } else {
+            groups.push({
+                key,
+                date,
+                today: key === todayKey,
+                yesterday: key === yesterdayKey,
+                items: [delivery]
+            });
+        }
+    }
+    return groups;
+}
+
 /** Sentinel for "no state filter" — a `Select` cannot hold an empty value. */
 const ALL = 'all';
 
@@ -111,15 +143,18 @@ const ALL = 'all';
  */
 export function WebhookDeliveriesPanel({
     endpointId,
+    endpointUrl,
     canRedeliver
 }: {
     endpointId: string;
+    /** Where deliveries are posted — shown in the detail's Request tab. */
+    endpointUrl: string;
     canRedeliver: boolean;
 }) {
     const intl = useIntl();
     const [status, setStatus] = useState<string>(ALL);
     const [page, setPage] = useState(1);
-    const [openDeliveryId, setOpenDeliveryId] = useState<string | null>(null);
+    const [pickedId, setPickedId] = useState<string | null>(null);
 
     const { data, isPending, isError, isPlaceholderData, refetch } =
         useWebhookDeliveries(endpointId, {
@@ -127,7 +162,14 @@ export function WebhookDeliveriesPanel({
             pageSize: DEFAULT_PAGE_SIZE,
             ...(status === ALL ? {} : { status })
         });
-    const { data: detail } = useWebhookDelivery(endpointId, openDeliveryId);
+    // The picked delivery, else the newest on the page — the panel beside
+    // the log is never empty while the log is not.
+    const items = data?.items ?? [];
+    const selectedId =
+        items.find((delivery) => delivery.id === pickedId)?.id ??
+        items[0]?.id ??
+        null;
+    const { data: detail } = useWebhookDelivery(endpointId, selectedId);
     const redeliver = useRedeliverWebhook();
 
     // The log shrinks under the reader — retention prunes it, a filter narrows
@@ -157,11 +199,17 @@ export function WebhookDeliveriesPanel({
         );
     }
 
-    const items = data?.items ?? [];
-
     return (
-        <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-end">
+        <div className="flex flex-col gap-4">
+            <DeliveryStats endpointId={endpointId} />
+            <div className="flex items-center justify-between gap-3">
+                <span className="text-[13px] text-muted-foreground">
+                    {data
+                        ? intl.formatMessage(messages.total, {
+                              count: data.total
+                          })
+                        : null}
+                </span>
                 <Select
                     value={status}
                     onValueChange={(next) => {
@@ -193,77 +241,77 @@ export function WebhookDeliveriesPanel({
                     {intl.formatMessage(messages.empty)}
                 </p>
             ) : (
-                <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
-                    <Table stale={isPlaceholderData}>
-                        <caption className="sr-only">
+                <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
+                    <div
+                        className="overflow-hidden rounded-xl border bg-card"
+                        aria-busy={isPlaceholderData || undefined}
+                    >
+                        {/* Names the log for the outline, so its day
+                            headings sit one level under it. */}
+                        <h2 className="sr-only">
                             {intl.formatMessage(messages.caption)}
-                        </caption>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>
-                                    {intl.formatMessage(messages.event)}
-                                </TableHead>
-                                <TableHead>
-                                    {intl.formatMessage(messages.status)}
-                                </TableHead>
-                                <TableHead>
-                                    {intl.formatMessage(messages.code)}
-                                </TableHead>
-                                <TableHead>
-                                    {intl.formatMessage(messages.attempts)}
-                                </TableHead>
-                                <TableHead>
-                                    {intl.formatMessage(messages.when)}
-                                </TableHead>
-                                <TableHead className="w-20">
-                                    {/* Visually redundant beside a row of
-                                        buttons, but a header cell with no text
-                                        leaves the column unnamed to a screen
-                                        reader (axe `empty-table-header`). */}
-                                    <span className="sr-only">
-                                        {intl.formatMessage(messages.actions)}
-                                    </span>
-                                </TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {items.map((delivery) => (
-                                <TableRow key={delivery.id}>
-                                    <TableCell className="font-mono text-xs">
-                                        {delivery.eventKind}
-                                    </TableCell>
-                                    <TableCell>
-                                        <DeliveryStatusBadge
-                                            status={delivery.status}
-                                        />
-                                    </TableCell>
-                                    <TableCell className="tabular-nums">
-                                        {delivery.statusCode ?? '—'}
-                                    </TableCell>
-                                    <TableCell className="tabular-nums">
-                                        {delivery.attempts}
-                                    </TableCell>
-                                    <TableCell className="text-sm text-muted-foreground">
-                                        {intl.formatDate(delivery.createdAt, {
-                                            dateStyle: 'medium',
-                                            timeStyle: 'short'
-                                        })}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={() =>
-                                                setOpenDeliveryId(delivery.id)
-                                            }
-                                        >
-                                            {intl.formatMessage(messages.view)}
-                                        </Button>
-                                    </TableCell>
-                                </TableRow>
+                        </h2>
+                        <ul aria-label={intl.formatMessage(messages.caption)}>
+                            {groupByDay(items).map((group) => (
+                                <li key={group.key}>
+                                    <h3 className="bg-muted/40 px-3.5 py-1.5 text-[11px] font-medium text-muted-foreground first:border-t-0">
+                                        {group.today
+                                            ? intl.formatMessage(messages.today)
+                                            : group.yesterday
+                                              ? intl.formatMessage(
+                                                    messages.yesterday
+                                                )
+                                              : intl.formatDate(group.date, {
+                                                    month: 'short',
+                                                    day: 'numeric',
+                                                    year: 'numeric'
+                                                })}
+                                    </h3>
+                                    <ul>
+                                        {group.items.map((delivery) => (
+                                            <li key={delivery.id}>
+                                                <DeliveryRow
+                                                    delivery={delivery}
+                                                    selected={
+                                                        delivery.id ===
+                                                        selectedId
+                                                    }
+                                                    onSelect={() =>
+                                                        setPickedId(delivery.id)
+                                                    }
+                                                />
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </li>
                             ))}
-                        </TableBody>
-                    </Table>
+                        </ul>
+                    </div>
+                    <DeliveryDetailPanel
+                        delivery={selectedId === null ? null : detail}
+                        url={endpointUrl}
+                        canRedeliver={canRedeliver}
+                        redelivering={redeliver.isPending}
+                        onRedeliver={(deliveryId) =>
+                            redeliver.mutate(
+                                { endpointId, deliveryId },
+                                {
+                                    onSuccess: () =>
+                                        toast.success(
+                                            intl.formatMessage(
+                                                messages.redelivered
+                                            )
+                                        ),
+                                    onError: () =>
+                                        toast.error(
+                                            intl.formatMessage(
+                                                messages.redeliverFailed
+                                            )
+                                        )
+                                }
+                            )
+                        }
+                    />
                 </div>
             )}
 
@@ -295,33 +343,6 @@ export function WebhookDeliveriesPanel({
                     </div>
                 </div>
             ) : null}
-
-            <DeliveryDetailSheet
-                delivery={detail}
-                open={openDeliveryId !== null}
-                onOpenChange={(next) => {
-                    if (!next) setOpenDeliveryId(null);
-                }}
-                canRedeliver={canRedeliver}
-                redelivering={redeliver.isPending}
-                onRedeliver={(deliveryId) =>
-                    redeliver.mutate(
-                        { endpointId, deliveryId },
-                        {
-                            onSuccess: () => {
-                                toast.success(
-                                    intl.formatMessage(messages.redelivered)
-                                );
-                                setOpenDeliveryId(null);
-                            },
-                            onError: () =>
-                                toast.error(
-                                    intl.formatMessage(messages.redeliverFailed)
-                                )
-                        }
-                    )
-                }
-            />
         </div>
     );
 }

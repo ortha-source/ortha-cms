@@ -178,6 +178,13 @@
    content, not a trap. A section that snapped shut after easing open would
    feel broken in the other direction.
 
+   **Padding and borders fold with the height.** The measured height is the
+   border box, and `height: 0` cannot shrink below an element's own padding
+   and border — so a content part carrying `py-4 border-t` (the entry form's
+   sections) stopped ~33px short of shut and then vanished in one jump at
+   unmount, which read as the fold stuttering. Each keyframe names only the
+   collapsed end; the other end is the element's own value.
+
    `overflow: hidden` is declared in the keyframes, not on the element: it holds
    only for as long as the animation runs, so focus rings and popovers inside
    an open section are never clipped.
@@ -185,6 +192,8 @@
 @keyframes ds-collapsible-open {
     from {
         height: 0;
+        padding-block: 0;
+        border-block-width: 0;
         opacity: 0;
         overflow: hidden;
     }
@@ -202,6 +211,8 @@
     }
     to {
         height: 0;
+        padding-block: 0;
+        border-block-width: 0;
         opacity: 0;
         overflow: hidden;
     }

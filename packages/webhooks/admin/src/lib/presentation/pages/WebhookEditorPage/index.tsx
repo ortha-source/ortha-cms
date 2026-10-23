@@ -8,6 +8,8 @@ import { useDocumentTitle } from '@orthacms/utils-admin';
 import {
     Alert,
     AlertDescription,
+    Badge,
+    BadgeDot,
     Button,
     Container,
     ContainerHeader,
@@ -23,7 +25,12 @@ import {
     useUpdateWebhook
 } from '../../../application/useWebhookMutations';
 import { serverMessageOf } from '../../../infrastructure/serverMessageOf';
-import { WebhookForm } from '../../components/WebhookForm';
+import {
+    WEBHOOK_FORM_SECTIONS,
+    WebhookForm
+} from '../../components/WebhookForm';
+import { WebhookPageNav } from '../../components/WebhookPageNav';
+import { WebhookStateBadge } from '../../components/WebhookStateBadge';
 import { RevealWebhookSecretDialog } from '../../components/RevealWebhookSecretDialog';
 import { WebhooksNoAccess } from '../../components/WebhooksNoAccess';
 
@@ -37,10 +44,13 @@ const messages = defineMessages({
         id: 'webhooks.editor.editTitle',
         defaultMessage: 'Edit webhook'
     },
-    subtitle: {
-        id: 'webhooks.editor.subtitle',
-        defaultMessage:
-            'Choose where deliveries go and which changes are worth sending.'
+    notSaved: {
+        id: 'webhooks.editor.notSaved',
+        defaultMessage: 'Not saved yet'
+    },
+    nothingSent: {
+        id: 'webhooks.editor.nothingSent',
+        defaultMessage: 'Nothing is sent until you create it.'
     },
     created: { id: 'webhooks.page.created', defaultMessage: 'Webhook created' },
     saved: { id: 'webhooks.detail.saved', defaultMessage: 'Webhook updated' },
@@ -192,13 +202,40 @@ export function WebhookEditorPage({
     return (
         <>
             <PageTopBar icon={Webhook} crumbs={crumbs} />
-            <Container>
-                <ContainerHeader
-                    title={title}
-                    subtitle={intl.formatMessage(messages.subtitle)}
-                />
-
-                <div className="mt-6">
+            <div className="mx-auto w-full max-w-[1032px] px-4 py-8 sm:px-10 lg:grid lg:grid-cols-[184px_minmax(0,720px)] lg:gap-12">
+                {/* First in the DOM so tabbing reaches the fields before the
+                    section list drawn beside them. */}
+                <div className="flex min-w-0 flex-col gap-6 lg:col-start-2 lg:row-start-1">
+                    <header className="flex flex-col gap-1.5">
+                        <h1 className="text-[28px] font-semibold leading-[34px] tracking-[-0.012em]">
+                            {title}
+                        </h1>
+                        <div className="flex min-w-0 flex-wrap items-center gap-2 text-[13px] text-muted-foreground">
+                            {isCreate || !endpoint ? (
+                                <>
+                                    <Badge variant="muted">
+                                        <BadgeDot />
+                                        {intl.formatMessage(messages.notSaved)}
+                                    </Badge>
+                                    <span>
+                                        {intl.formatMessage(
+                                            messages.nothingSent
+                                        )}
+                                    </span>
+                                </>
+                            ) : (
+                                <>
+                                    <WebhookStateBadge endpoint={endpoint} />
+                                    <span className="font-medium text-foreground">
+                                        {endpoint.name}
+                                    </span>
+                                    <span className="min-w-0 truncate font-mono text-xs">
+                                        {endpoint.url}
+                                    </span>
+                                </>
+                            )}
+                        </div>
+                    </header>
                     <WebhookForm
                         endpoint={isCreate ? undefined : endpoint}
                         events={events ?? []}
@@ -257,7 +294,15 @@ export function WebhookEditorPage({
                         }}
                     />
                 </div>
-            </Container>
+                <div className="hidden lg:col-start-1 lg:row-start-1 lg:block">
+                    <WebhookPageNav
+                        items={WEBHOOK_FORM_SECTIONS.map((section) => ({
+                            id: section.id,
+                            label: intl.formatMessage(section.title)
+                        }))}
+                    />
+                </div>
+            </div>
 
             <RevealWebhookSecretDialog
                 secret={created?.secret ?? null}

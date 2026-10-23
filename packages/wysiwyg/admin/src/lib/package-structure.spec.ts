@@ -433,7 +433,8 @@ describe('the style scope', () => {
     });
 
     it('is the same scope the two surfaces carry [wysiwyg:I-34]', () => {
-        // The preview and the editor surface must render identically, and
+        // The preview and the editor surfaces (the full view's panel and the
+        // in-place editor) must render identically, and
         // sharing one scope is what makes that structural instead of something
         // to keep in sync. Both take the class from the constant, so a rename
         // cannot leave one of them behind.
@@ -449,6 +450,13 @@ describe('the style scope', () => {
                 'presentation',
                 'components',
                 'WysiwygEditorPanel',
+                'index.tsx'
+            ),
+            join(
+                'lib',
+                'presentation',
+                'components',
+                'WysiwygInlineEditor',
                 'index.tsx'
             ),
             join(

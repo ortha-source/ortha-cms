@@ -1,5 +1,5 @@
+import { useId } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { AlertCircle } from 'lucide-react';
 import { Spinner } from '@orthacms/design-system';
 import type {
     ContentField,
@@ -9,7 +9,10 @@ import type {
 import { useContentSchema } from '../../../../../application/useContentSchema';
 import { RelationSyncMark } from './RelationSyncMark';
 import { fieldLabel } from '../../../../../domain/entryColumns';
+import { adminProps } from '../../../../../domain/adminProps';
 import { ChangedBadge } from '../../../ChangedBadge';
+import { RequiredMark } from '../../../EntryFieldInput/RequiredMark';
+import { SharedFieldMark } from '../../../EntryFieldInput/SharedFieldMark';
 import { RelationField } from '../RelationField';
 import { RelationFieldLive } from '../RelationFieldLive';
 
@@ -19,22 +22,9 @@ const messages = defineMessages({
         defaultMessage:
             '{count, plural, =0 {None} one {# linked} other {# linked}}'
     },
-    invalid: {
-        id: 'content.relations.section.invalid',
-        defaultMessage: 'This relation has an error'
-    },
     loadingCount: {
         id: 'content.relations.section.loadingCount',
         defaultMessage: 'Loading linked count…'
-    },
-    descSingle: {
-        id: 'content.relations.section.descSingle',
-        defaultMessage: 'Single relation — one record from {target}.'
-    },
-    descMany: {
-        id: 'content.relations.section.descMany',
-        defaultMessage:
-            'Ordered relation — drag to reorder, or use the arrows. Order is delivered as-is.'
     },
     descInverse: {
         id: 'content.relations.section.descInverse',
@@ -43,14 +33,22 @@ const messages = defineMessages({
 });
 
 /**
- * One relation field as a **titled card** in the editor's Relations tab: a
- * header (label + a derived description + — for a many relation — a right-aligned
- * "{n} linked" count + a "Changed" badge when edited) over the always-expanded
- * field editor. A **many/inverse** relation is edited by the staged {@link
- * RelationFieldLive} (its links are sent as a delta on Save); a **single**
- * relation uses the form-backed {@link RelationField}. `count` and `changed` are
- * supplied by the parent so the header reflects staged edits without this
- * component owning the data. An error tints the border and shows an alert icon.
+ * One relation field **in the entry form**, drawn with the same anatomy as
+ * every other field: a label row (label, required mark, how the link carries
+ * across locales, "Changed", and — for a many relation — "{n} linked"), the
+ * editor, then a short description. It used to be a titled card on a
+ * Relations tab of its own; a relation is just a field with its own control,
+ * so it sits in the schema's order beside the rest.
+ *
+ * A **many/inverse** relation is edited by the staged {@link RelationFieldLive}
+ * (its links are sent as a delta on Save); a **single** relation uses the
+ * form-backed {@link RelationField}. `count` and `changed` are supplied by the
+ * parent so the label row reflects staged edits without this component owning
+ * the data.
+ *
+ * The control is a **composite** (pick, reorder, remove), so the field is a
+ * `group` named by its label rather than a `<label for>` pointing at one
+ * button — a label would replace that button's own name.
  */
 export function RelationFieldSection({
     field,
@@ -64,7 +62,8 @@ export function RelationFieldSection({
     onBlur,
     initialRefs,
     staged,
-    onStagedChange
+    onStagedChange,
+    shared = false
 }: {
     field: ContentField;
     /**
@@ -90,8 +89,14 @@ export function RelationFieldSection({
     /** Staged link/unlink/reorder — the many/inverse path only. */
     staged?: StagedRelation;
     onStagedChange?: (next: StagedRelation) => void;
+    /**
+     * On a localized type, a relation whose links the server carries across the
+     * record's locales — so the field says "All locales" like a shared value.
+     */
+    shared?: boolean;
 }) {
     const intl = useIntl();
+    const labelId = useId();
 
     const many = !!field.relation?.many;
     const inverse = !!field.relation?.inverse;
@@ -102,64 +107,60 @@ export function RelationFieldSection({
     const { data: targetSchema } = useContentSchema(targetName, !!targetName);
     const targetLabel = targetSchema?.label ?? targetName;
 
-    const description = inverse
-        ? intl.formatMessage(messages.descInverse, { target: targetLabel })
-        : many
-          ? intl.formatMessage(messages.descMany)
-          : intl.formatMessage(messages.descSingle, { target: targetLabel });
+    // Only an inverse relation says where it comes from: its links are made
+    // on the other side. A single or many relation is drawn as what it is.
+    const description = intl.formatMessage(messages.descInverse, {
+        target: targetLabel
+    });
+
+    // The schema's own description, under the field like any field's.
+    const authored = adminProps(field).description;
 
     return (
         <div
-            className={`rounded-2xl border bg-card ${
-                error ? 'border-destructive/50' : ''
-            }`}
+            role="group"
+            aria-labelledby={labelId}
+            data-invalid={!!error || undefined}
+            data-testid={`relation-field-${field.name}`}
+            className="flex flex-col gap-2"
         >
-            <div className="flex items-start gap-2 px-4 pt-3.5">
-                <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                        {/* `<h2>` for the same reason as `FieldGroup`'s: a
-                            relation card is a top-level section under the
-                            editor's `<h1>`, so `<h3>` skipped a level. */}
-                        <h2 className="text-sm font-medium">
-                            {fieldLabel(field)}
-                        </h2>
-                        {/* Read off THIS field's own schema, not the target's
-                            i18n flag: what matters to the editor is whether a
-                            save here reaches the other locales, and only the
-                            server's derived mode answers that (an opted-out
-                            relation to a localized target reads `none`). It
-                            also saves waiting on the target schema fetch. */}
-                        <RelationSyncMark mode={field.relation?.localeSync} />
-                        {changed ? <ChangedBadge /> : null}
-                        {error ? (
-                            <AlertCircle
-                                className="size-4 shrink-0 text-destructive"
-                                aria-label={intl.formatMessage(
-                                    messages.invalid
-                                )}
-                            />
-                        ) : null}
-                    </div>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                        {description}
-                    </p>
-                </div>
+            <div className="flex min-h-5 items-center gap-2">
+                <span id={labelId} className="text-sm font-medium">
+                    {fieldLabel(field)}
+                    {field.required ? <RequiredMark /> : null}
+                </span>
                 {live ? (
                     count === null ? (
                         <Spinner
-                            className="mt-0.5 size-3.5 shrink-0 text-muted-foreground"
+                            className="size-3.5 shrink-0 text-muted-foreground"
                             aria-label={intl.formatMessage(
                                 messages.loadingCount
                             )}
                         />
                     ) : (
-                        <span className="mt-0.5 shrink-0 tabular-nums text-xs text-muted-foreground">
+                        <span className="shrink-0 tabular-nums text-xs text-muted-foreground">
                             {intl.formatMessage(messages.linked, { count })}
                         </span>
                     )
                 ) : null}
+                <span className="ml-auto flex shrink-0 items-center gap-1.5">
+                    {/* Where an inverse relation's links are made — they
+                        are read here, written on the other side. */}
+                    {inverse ? (
+                        <span className="text-xs text-muted-foreground">
+                            {description}
+                        </span>
+                    ) : null}
+                    {changed ? <ChangedBadge /> : null}
+                    {/* Read off THIS field's own schema, not the target's i18n
+                        flag: what matters is whether a save here reaches the
+                        other locales, and only the server's derived mode
+                        answers that. */}
+                    <RelationSyncMark mode={field.relation?.localeSync} />
+                    {shared ? <SharedFieldMark /> : null}
+                </span>
             </div>
-            <div className="px-4 pb-4 pt-3">
+            <div>
                 {live ? (
                     <RelationFieldLive
                         field={field}
@@ -187,6 +188,11 @@ export function RelationFieldSection({
                     />
                 )}
             </div>
+            {error || typeof authored !== 'string' || !authored ? null : (
+                <p className="text-[13px] leading-[18px] text-muted-foreground">
+                    {authored}
+                </p>
+            )}
         </div>
     );
 }

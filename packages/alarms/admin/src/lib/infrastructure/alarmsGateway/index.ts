@@ -57,6 +57,10 @@ export type AlarmsGateway = {
         entryIds: readonly string[]
     ): Promise<Record<string, AlarmFinding[]>>;
     /** Open counts for the workspace. */
-    summary(): Promise<AlarmSummary>;
+    /**
+     * Open finding counts — for the open workspace, or for `workspaceId` when
+     * given (Home, which sits outside any workspace, asks each in turn).
+     */
+    summary(workspaceId?: string): Promise<AlarmSummary>;
     /** Silences one finding. */
 };

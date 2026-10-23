@@ -1,13 +1,18 @@
 import { Suspense } from 'react';
 import { lazyPage } from '@orthacms/utils-admin';
 import type { AdminPlugin } from '@orthacms/bootstrap-admin';
-import { SIDEBAR_FOOTER_SLOT, SIDEBAR_NAV_SLOT } from '@orthacms/shell-admin';
+import {
+    HOME_SECTION_SLOT,
+    SIDEBAR_FOOTER_SLOT,
+    SIDEBAR_NAV_SLOT
+} from '@orthacms/shell-admin';
 import { Users } from 'lucide-react';
 import {
     InviteMemberPageSkeleton,
     MembersPageSkeleton
 } from '../components/MembersSkeleton';
 import { AccountMenu } from '../components/AccountMenu';
+import { InviteMemberHomeAction } from '../components/InviteMemberHomeAction';
 import { ThemeSync } from '../components/ThemeSync';
 import { PanelLayoutSync } from '../components/PanelLayoutSync';
 
@@ -114,6 +119,17 @@ export function UsersPlugin(): UsersAdminPlugin {
                         // won't deliver. The sibling plugins gate the same way
                         // (`activity:read`, `tokens:read`).
                         permission: 'users:read'
+                    }
+                ]
+            },
+            {
+                slot: HOME_SECTION_SLOT,
+                items: [
+                    {
+                        id: 'users.home.invite',
+                        region: 'action',
+                        order: 10,
+                        Component: InviteMemberHomeAction
                     }
                 ]
             },

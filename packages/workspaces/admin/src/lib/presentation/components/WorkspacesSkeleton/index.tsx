@@ -30,28 +30,12 @@ const messages = defineMessages({
     }
 });
 
-/** A single placeholder row mirroring {@link WorkspacesTable}'s row structure. */
-function WorkspaceRowSkeleton() {
-    return (
-        <div className="flex items-center gap-3 border-b px-4 py-3 last:border-b-0">
-            <Skeleton className="size-9 shrink-0 rounded-xl" />
-            <div className="min-w-0 flex-1 flex-col gap-1.5">
-                <Skeleton className="h-4 w-40" />
-                <Skeleton className="mt-1.5 h-3 w-64 max-w-full" />
-            </div>
-            <Skeleton className="h-4 w-20 shrink-0" />
-            <Skeleton className="h-5 w-16 shrink-0 rounded-xl" />
-        </div>
-    );
-}
-
 /**
- * The table placeholder shown while {@link useWorkspaces} resolves. Drops into
- * the page body in place of the real table (header + toolbar stay live), so it
- * owns the single `role="status"` announcement; the rows themselves are
- * `aria-hidden`.
+ * The grid placeholder shown while {@link useWorkspaces} resolves, in the
+ * cards' own frame so nothing reflows on swap. It owns the single
+ * `role="status"` announcement; the cards themselves are `aria-hidden`.
  */
-export function WorkspacesTableSkeleton({ count = 6 }: { count?: number }) {
+export function WorkspacesGridSkeleton({ count = 6 }: { count?: number }) {
     const intl = useIntl();
 
     return (
@@ -59,9 +43,24 @@ export function WorkspacesTableSkeleton({ count = 6 }: { count?: number }) {
             <span className="sr-only">
                 {intl.formatMessage(messages.loading)}
             </span>
-            <div aria-hidden>
+            <div
+                aria-hidden
+                className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"
+            >
                 {Array.from({ length: count }).map((_, index) => (
-                    <WorkspaceRowSkeleton key={index} />
+                    <div
+                        key={index}
+                        className="flex min-h-[176px] flex-col gap-3 rounded-xl border p-4"
+                    >
+                        <div className="flex items-start gap-3">
+                            <Skeleton className="size-9 shrink-0 rounded-[9px]" />
+                            <div className="flex flex-1 flex-col gap-1.5">
+                                <Skeleton className="h-4 w-32" />
+                                <Skeleton className="h-3 w-48 max-w-full" />
+                            </div>
+                        </div>
+                        <Skeleton className="mt-auto h-3 w-40" />
+                    </div>
                 ))}
             </div>
         </div>
@@ -72,11 +71,11 @@ export function WorkspacesTableSkeleton({ count = 6 }: { count?: number }) {
  * Full-page placeholder for the lazy-route `Suspense` fallback — before
  * {@link WorkspacesPage} mounts there is no header or toolbar yet, so this
  * sketches the whole page (header, toolbar, table) to hold the layout steady
- * while the chunk loads. Reuses {@link WorkspacesTableSkeleton} for the body.
+ * while the chunk loads. Reuses {@link WorkspacesGridSkeleton} for the body.
  */
 export function WorkspacesPageSkeleton() {
     return (
-        <Container width="full">
+        <Container>
             <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex flex-col gap-2">
                     <Skeleton className="h-8 w-48" />
@@ -91,7 +90,7 @@ export function WorkspacesPageSkeleton() {
                 <Skeleton className="ml-auto h-4 w-16" />
             </div>
 
-            <WorkspacesTableSkeleton />
+            <WorkspacesGridSkeleton />
         </Container>
     );
 }
@@ -202,7 +201,7 @@ export function WorkspaceSettingsPageSkeleton() {
     return (
         <>
             <WorkspaceSettingsTopBar />
-            <Container width="full" className="space-y-6 py-8" role="status">
+            <Container className="space-y-6 py-8" role="status">
                 <span className="sr-only">
                     {intl.formatMessage(messages.loadingSettings)}
                 </span>

@@ -24,6 +24,12 @@ export type SearchToolbarProps = {
      */
     actions?: React.ReactNode;
     /**
+     * Leading controls — quick filters a list leads with (the records page's
+     * status chips). When given they take the left edge and the search box
+     * moves to the right, beside `actions`.
+     */
+    leading?: React.ReactNode;
+    /**
      * Whether a request driven by this toolbar is in flight. Swaps the leading
      * magnifier for a spinner, so a list that keeps its previous rows while
      * refetching still shows that something is happening. Purely visual — the
@@ -52,6 +58,7 @@ export function SearchToolbar({
     searchLabel,
     searchPlaceholder,
     actions,
+    leading,
     busy = false,
     inputRef,
     className
@@ -67,7 +74,13 @@ export function SearchToolbar({
                     className
                 )}
             >
-                <InputGroup className="w-full shadow-none sm:max-w-[320px]">
+                {leading ? <div className="min-w-0">{leading}</div> : null}
+                <InputGroup
+                    className={cn(
+                        'w-full shadow-none sm:max-w-[320px]',
+                        leading && 'sm:ml-auto sm:w-[260px]'
+                    )}
+                >
                     <InputGroupAddon>
                         {busy ? (
                             <Spinner aria-hidden className="size-4" />
@@ -84,7 +97,9 @@ export function SearchToolbar({
                         placeholder={searchPlaceholder}
                     />
                 </InputGroup>
-                {actions ? <div className="ml-auto">{actions}</div> : null}
+                {actions ? (
+                    <div className={cn(!leading && 'ml-auto')}>{actions}</div>
+                ) : null}
             </div>
         </DensityProvider>
     );

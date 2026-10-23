@@ -13,7 +13,7 @@ import { useCurrentWorkspace } from '@orthacms/workspaces-admin';
 import { useContentTypes } from '../../../application/useContentTypes';
 import { ContentTopBar } from '../../components/ContentTopBar';
 import { ContentTypeView } from '../../components/ContentTypeView';
-import { ContentWelcome } from '../../components/ContentWelcome';
+import { ContentOverview } from '../../components/ContentOverview';
 import { ContentComingSoon } from '../../components/ContentComingSoon';
 import { ContentEntryRoute } from '../../components/ContentEntryRoute';
 import { ContentLibraryError } from '../../components/ContentLibraryError';
@@ -150,7 +150,14 @@ export function ContentLibraryPage() {
             <Routes>
                 <Route
                     index
-                    element={<ContentWelcome workspaceName={workspace.name} />}
+                    element={
+                        <ContentOverview
+                            workspaceId={workspace.id}
+                            workspaceName={workspace.name}
+                            types={scopedTypes}
+                            basePath={basePath}
+                        />
+                    }
                 />
                 <Route
                     path={HISTORY_SEGMENT}

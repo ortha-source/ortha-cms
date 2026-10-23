@@ -19,13 +19,53 @@ Four routes under one sidebar entry in the `directory` group, beside API tokens:
 **The editor is a page, not a dialog.** It asks eight questions across three
 filters, two of which open their own popovers; in a modal that meant a scrolling
 box with popovers portalled into it to survive the scroll lock. On a page the
-two halves — where deliveries go, and what is worth sending — sit side by side,
-the popovers need no `container` escape hatch, and the browser's back button is
-the way out. Creating still ends on the one-time secret: the reveal opens on the
-editor, and only when it is dismissed does the page move to the new endpoint.
+popovers need no `container` escape hatch, and the browser's back button is
+the way out. It is one 720px column of three framed sections
+(`WebhookForm/FormSection`) — **Endpoint**, **What it receives**, **Delivery**
+(the signing note, custom headers, the retry note) — under an `<h1>` and a meta
+line ("Not saved yet", or the endpoint's state and URL), with an **On this
+page** list beside it from 1024px (`WebhookPageNav`; drawn first, after the
+form in the DOM, and a pick focuses the section's heading). Cancel and
+Create / Save sit in the top bar (`PageActionsPortal`), so a refused URL's
+alert is drawn above the sections rather than beside buttons that moved.
+Creating still ends on the one-time secret: the reveal opens on the editor,
+and only when it is dismissed does the page move to the new endpoint.
 
 Deliveries is the default tab on purpose. "What does this send?" is asked once,
 when the endpoint is created; "did it arrive?" is asked every time afterwards.
+The page leads with the endpoint's name over its state and URL, Send test and
+Edit in the top bar, then a row of figures over the log
+(`WebhookDeliveriesPanel/DeliveryStats`: success rate, delivered, failed,
+median response, last delivery) taken over the **last 50 deliveries** — the
+window is in the label ("Succeeded, last 50"), so the rate never passes for an
+all-time number the API does not compute. Under them the log is **two panes**: the
+list on the left (`DeliveryRow` buttons grouped by day — an outcome dot, the
+event, the response and the time; picking one sets `aria-pressed`) and the
+picked delivery on the right (`DeliveryDetailPanel`: event and state, when it
+went and how it was answered, **Send again**, then **Request** — where it was
+posted and the body, verbatim — and **Response** tabs). With nothing picked
+the newest row on the page is shown, so the panel is never empty beside a
+log that is not. It replaced a sheet that covered the log it was explaining.
+
+## The list answers "is anything broken?"
+
+Each row is one endpoint: its name over its URL, what it sends in one line
+(an event or workspace is named while there are at most two / one of them,
+counted after), a strip of its **last 20 deliveries** with the success rate
+beside it, its state (`WebhookStateBadge`: Active / Paused / Stopped), and
+its last delivery (when, the status code, and the duration — or "after N
+failures" on a stopped one). Over the table, a segmented All / Healthy /
+Paused / Stopped filter with counts and a search over name and URL, both
+client-side over the one list read.
+
+- **Each row reads its own first log page** (`WebhookRow` →
+  `useWebhookDeliveries(id, { page: 1, pageSize: 20 })`), so it polls only
+  while one of those deliveries is in flight — decision 6 below, unchanged.
+- **The strip is decoration** (`aria-hidden`); the rate is said in words in an
+  `sr-only` sibling ("50% of the last 2 deliveries succeeded"). A rate over no
+  finished delivery is "—", not 100% (`domain/webhookHealth.successRate`).
+- **Stopped and paused stay apart** (`webhookState`), here and on Home's
+  attention card (`StoppedWebhooksAttention`, a `HOME_SECTION_SLOT` item).
 
 ## The decisions worth knowing before changing anything here
 
@@ -37,9 +77,20 @@ describe content an editor is already working on — even _reading_ this is
 withheld from contributors, because an endpoint reaches across every workspace
 it names and its rows hold a signing secret.
 
-### 2. "All …" is a toggle, not an empty picker
+### 2. "All …" is a choice, not an empty picker
 
-Each of the three filters is an "All …" checkbox over a multi-select. Turning one
+Each of the three filters asks "everything, or only these?" first: workspaces
+and events as two option cards (`WebhookForm/ScopeChoice`, a radio group —
+"All workspaces · including ones created later" / "Only these workspaces"),
+content types as an **All types / Only some** segmented control. Picking
+"only these" opens the picker: a multi-select for workspaces and types, and
+for events a **checklist** grouped by the catalogue's groups
+(`WebhookForm/EventChecklist`) — each group a full-width block with its events
+in a grid, so a group of seven reads as rows rather than one long column —
+each group with a box of its own that ticks
+or clears the lot and reads mixed in between; the kinds are saved in
+catalogue order. The endpoint's state is an **Active / Paused** segmented
+control (decision 4 still holds: pausing asks). Turning one
 on sends **no value** for that filter, which is how the server spells
 "everything, including what does not exist yet". Leaving it off with nothing
 selected is a different thing for workspaces — an endpoint that receives nothing
@@ -93,9 +144,10 @@ type it subscribes to exists. So:
 
 ### 4. Turning an endpoint off asks first
 
-The status control is a `Switch` reading **Enabled** / **Disabled**, not a
-"send deliveries" checkbox: an endpoint's state is a thing it _is_, and the old
-label read as an action. Turning it **off** opens a `ConfirmDialog`, because it
+The state control reads **Active** / **Paused** (a segmented control; it was a
+`Switch`), not a "send deliveries" checkbox: an endpoint's state is a thing it
+_is_, and the old label read as an action. Choosing **Paused** opens a
+`ConfirmDialog`, because it
 is the one control here whose cost is invisible — events that happen while the
 endpoint is off are never queued, so there is nothing to catch up on afterwards,
 and deliveries already waiting are closed as failed. Turning it back **on** asks
@@ -137,6 +189,7 @@ src/lib/
   domain/types/                   the view models
   domain/contentTypeChoices/      picker options + typed-in names (pure)
   domain/headerRules/             which custom headers an endpoint may set
+  domain/webhookHealth/           state (active/paused/stopped), success rate
   infrastructure/
     webhookGateway/               the port
     httpWebhookGateway/           the only place apiClient is used

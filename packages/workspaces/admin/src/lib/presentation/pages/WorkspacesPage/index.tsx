@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { useHasPermission } from '@orthacms/identity-admin';
-import { PageTopBar } from '@orthacms/shell-admin';
+import { PageActionsPortal, PageTopBar } from '@orthacms/shell-admin';
 import { Layers, Plus } from 'lucide-react';
 import {
     Alert,
@@ -13,8 +13,8 @@ import {
 } from '@orthacms/design-system';
 import { useDocumentTitle } from '@orthacms/utils-admin';
 import { useWorkspaces } from '../../../application/useWorkspaces';
-import { WorkspacesTable } from '../../components/WorkspacesTable';
-import { WorkspacesTableSkeleton } from '../../components/WorkspacesSkeleton';
+import { WorkspaceCards } from '../../components/WorkspaceCards';
+import { WorkspacesGridSkeleton } from '../../components/WorkspacesSkeleton';
 import { WorkspacesEmpty } from '../../components/WorkspacesEmpty';
 import {
     WorkspaceToolbar,
@@ -38,7 +38,7 @@ const messages = defineMessages({
     subtitle: {
         id: 'workspaces.page.subtitle',
         defaultMessage:
-            'Each workspace groups its own content, members, and plugins. Switch in to manage one, or spin up a new one.'
+            'Each workspace has its own content, members and settings. A shared one offers its published records to the others.'
     },
     newWorkspace: {
         id: 'workspaces.page.newWorkspace',
@@ -70,8 +70,8 @@ function matchesSearch(workspace: Workspace, query: string): boolean {
 }
 
 /**
- * The Workspaces management page: a searchable, status-filterable **table** of
- * workspaces with a create flow. Rendered at `/workspaces` inside the
+ * The Workspaces management page: a searchable, status-filterable **grid of
+ * cards**, one per workspace, with a create flow. Rendered at `/workspaces` inside the
  * authenticated shell.
  */
 export function WorkspacesPage() {
@@ -135,7 +135,15 @@ export function WorkspacesPage() {
                     }
                 ]}
             />
-            <Container width="full">
+            {canCreate ? (
+                <PageActionsPortal>
+                    <Button size="sm" onClick={openCreate}>
+                        <Plus />
+                        {intl.formatMessage(messages.newWorkspace)}
+                    </Button>
+                </PageActionsPortal>
+            ) : null}
+            <Container className="flex flex-col gap-5">
                 {/* A gated redirect landed here; say so, since the page simply
                     swapped under the user with no other signal. */}
                 <span role="status" aria-live="polite" className="sr-only">
@@ -144,16 +152,9 @@ export function WorkspacesPage() {
                         : ''}
                 </span>
                 <ContainerHeader
+                    className="mb-0"
                     title={intl.formatMessage(messages.title)}
                     subtitle={intl.formatMessage(messages.subtitle)}
-                    actions={
-                        canCreate ? (
-                            <Button onClick={openCreate}>
-                                <Plus />
-                                {intl.formatMessage(messages.newWorkspace)}
-                            </Button>
-                        ) : undefined
-                    }
                 />
 
                 <WorkspaceToolbar
@@ -167,12 +168,12 @@ export function WorkspacesPage() {
                 />
 
                 {isLoading ? (
-                    <WorkspacesTableSkeleton />
+                    <WorkspacesGridSkeleton />
                 ) : isError ? (
                     // A failed load gets its own state — never the empty-list
                     // "create your first workspace" copy, which would mislead the
                     // operator into thinking the account genuinely has none.
-                    <Alert variant="destructive" role="alert" className="mt-4">
+                    <Alert variant="destructive" role="alert">
                         <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
                             <span>{intl.formatMessage(messages.error)}</span>
                             <Button
@@ -198,7 +199,12 @@ export function WorkspacesPage() {
                         onCreate={openCreate}
                     />
                 ) : (
-                    <WorkspacesTable workspaces={filtered} />
+                    <WorkspaceCards
+                        workspaces={filtered}
+                        canCreate={
+                            canCreate && !search && status !== 'Archived'
+                        }
+                    />
                 )}
             </Container>
         </>

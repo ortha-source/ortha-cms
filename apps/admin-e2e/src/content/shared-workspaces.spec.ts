@@ -266,8 +266,8 @@ test.describe('Shared workspaces — content', () => {
                 'Brand hub'
             );
 
-            // Relations read, but offer nothing to change.
-            await contentLibraryPage.openEditorTab('Relations');
+            // Relations read — inline in the one form — but offer nothing
+            // to change.
             await expect(relationsEditorPage.section('Author')).toBeVisible();
             await expect(
                 relationsEditorPage.selectButton('Authors')
@@ -307,7 +307,7 @@ test.describe('Shared workspaces — content', () => {
             );
 
             await expect(
-                contentLibraryPage.editorTab('General')
+                contentLibraryPage.editorTab('Content')
             ).toHaveAttribute('aria-selected', 'true');
         });
 

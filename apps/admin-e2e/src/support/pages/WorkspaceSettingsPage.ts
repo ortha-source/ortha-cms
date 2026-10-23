@@ -3,26 +3,33 @@ import { BasePage } from './BasePage';
 
 /**
  * Page object for the workspace settings page at `/workspaces/:id/settings`
- * (from `@orthacms/workspaces-admin`). A left-rail page — General, Members,
- * Content, and Danger zone are nested routes reached from the side nav —
- * mounted inside the workspace shell. Backed by `mockWorkspaceSettingsApi` (the
+ * (from `@orthacms/workspaces-admin`). A left-rail page — General, Content
+ * types, Members, any contributed section and Danger zone are nested routes
+ * reached from the side nav — mounted inside the workspace shell. Backed by `mockWorkspaceSettingsApi` (the
  * stateful settings mock).
  */
 export class WorkspaceSettingsPage extends BasePage {
-    /** The page's `<h1>`. */
+    /** The open section's `<h1>` — "General", "Content types", … */
     readonly heading: Locator;
 
     constructor(page: Page) {
         super(page);
-        this.heading = page.getByRole('heading', {
-            name: 'Settings',
-            level: 1
-        });
+        this.heading = page.getByRole('heading', { level: 1 });
     }
 
     /** Navigate straight to a workspace's settings and wait for the heading. */
     async goto(workspaceId: string) {
         await this.page.goto(`/workspaces/${workspaceId}/settings`);
+        await this.settled();
+    }
+
+    /**
+     * Wait for the page itself rather than its lazy-route skeleton, which has
+     * an `<h1>` of its own ("Loading …"): the side nav renders only with the
+     * page, and the section's heading with it.
+     */
+    private async settled() {
+        await this.sectionNav.waitFor();
         await this.heading.waitFor();
     }
 
@@ -48,7 +55,7 @@ export class WorkspaceSettingsPage extends BasePage {
     /** Deep-link straight at one settings section, bypassing the tab bar. */
     async gotoSection(workspaceId: string, section: string) {
         await this.page.goto(`/workspaces/${workspaceId}/settings/${section}`);
-        await this.heading.waitFor();
+        await this.settled();
     }
 
     // --- gated-redirect arrival ---
@@ -110,8 +117,19 @@ export class WorkspaceSettingsPage extends BasePage {
         });
     }
 
+    /** General's Save — in the top bar, submitting the form by its id. */
     get saveButton(): Locator {
         return this.page.getByRole('button', { name: 'Save changes' });
+    }
+
+    /** General's Discard, beside Save while the form holds edits. */
+    get discardButton(): Locator {
+        return this.page.getByRole('button', { name: 'Discard', exact: true });
+    }
+
+    /** The top bar's "Unsaved changes" mark. */
+    get unsavedNotice(): Locator {
+        return this.page.getByText('Unsaved changes', { exact: true });
     }
 
     // --- members ---
@@ -140,14 +158,33 @@ export class WorkspaceSettingsPage extends BasePage {
 
     // --- content ---
 
-    /** The trigger that opens the add-collections dialog. */
-    get addCollectionsButton(): Locator {
-        return this.page.getByRole('button', { name: 'Add collections' });
+    /** The trigger that opens the add-content-types dialog. */
+    get addContentButton(): Locator {
+        return this.page.getByRole('button', { name: 'Add content types' });
     }
 
-    /** The trigger that opens the add-pages dialog. */
-    get addPagesButton(): Locator {
-        return this.page.getByRole('button', { name: 'Add pages' });
+    /** The add dialog's kind filter (All · Collections · Pages). */
+    addDialogKind(name: 'All' | 'Collections' | 'Pages'): Locator {
+        return this.dialog.getByRole('radio', { name, exact: true });
+    }
+
+    /** The section's own search over the granted types. */
+    get grantedSearch(): Locator {
+        return this.page
+            .getByRole('main')
+            .getByRole('searchbox', { name: 'Search content types' });
+    }
+
+    /**
+     * One source's group of granted types: this workspace's own (no source),
+     * or "From {workspace}". Scoped to `<main>`, so the add dialog's groups of
+     * the same name never answer.
+     */
+    grantGroup(source?: string): Locator {
+        return this.page.getByRole('main').getByRole('group', {
+            name: source ? `From ${source}` : 'This workspace’s own',
+            exact: true
+        });
     }
 
     /** The add dialog's search box. */
@@ -180,11 +217,16 @@ export class WorkspaceSettingsPage extends BasePage {
         return this.dialog.getByText(/Couldn’t load the shared workspaces/);
     }
 
-    /** One granted row by its label ("Tags" or "Tags · Travel Library"). */
+    /**
+     * One granted row by its label — "Tags" for the own grant, "Tags · Travel
+     * Library" for the grant from that shared workspace. The row shows the
+     * type alone; the group it sits in says the source.
+     */
     grantedRow(label: string): Locator {
-        return this.page
+        const [type, source] = label.split(' · ');
+        return this.grantGroup(source)
             .getByRole('listitem')
-            .filter({ has: this.page.getByText(label, { exact: true }) });
+            .filter({ has: this.page.getByText(type, { exact: true }) });
     }
 
     /** The add dialog's Save button (label reflects the selected count). */
@@ -232,6 +274,11 @@ export class WorkspaceSettingsPage extends BasePage {
             name: 'Unarchive',
             exact: true
         });
+    }
+
+    /** The Danger zone's sentence about what the workspace still holds. */
+    get stillHoldsNotice(): Locator {
+        return this.page.getByText(/^It still holds/);
     }
 
     get deleteButton(): Locator {

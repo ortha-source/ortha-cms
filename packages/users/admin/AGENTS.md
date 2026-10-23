@@ -58,6 +58,8 @@ React Query's structural sharing keeps working) rather than replacing it.
   `<Suspense>`), rendered in the shell's authenticated layout.
 - A `SIDEBAR_NAV_SLOT` entry (`group: 'directory'`, `order: 20`). The pages gate
   on the `users:read` permission via `useHasPermission`.
+- Home's top-bar **Invite member** action (`InviteMemberHomeAction`, a
+  `HOME_SECTION_SLOT` item in the `action` region, gated on `users:create`).
 - The sidebar-footer **account menu** (`AccountMenu`), contributed to the
   shell's `SIDEBAR_FOOTER_SLOT`: a full-width row (avatar + name + email) that
   opens a dropdown with **My profile** (→ their own `/users/:id` detail page)

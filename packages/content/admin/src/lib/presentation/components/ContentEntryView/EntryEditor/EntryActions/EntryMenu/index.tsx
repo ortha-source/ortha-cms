@@ -1,6 +1,6 @@
 import { Fragment, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { MoreHorizontal, Save, Send, Trash2, Undo2 } from 'lucide-react';
+import { MoreHorizontal, Trash2, Undo2 } from 'lucide-react';
 import {
     Button,
     ConfirmDialog,
@@ -26,11 +26,6 @@ const messages = defineMessages({
     actions: {
         id: 'content.sidebar.actions',
         defaultMessage: 'More actions'
-    },
-    saveDraft: { id: 'content.editor.saveDraft', defaultMessage: 'Save draft' },
-    publishAndSave: {
-        id: 'content.editor.publishAndSave',
-        defaultMessage: 'Save & publish'
     },
     unpublish: { id: 'content.editor.unpublish', defaultMessage: 'Unpublish' },
     deleteEntry: { id: 'content.editor.delete', defaultMessage: 'Delete' },
@@ -58,9 +53,14 @@ const messages = defineMessages({
 type Placed = EntryMenuEntry & { key: string; order: number };
 
 /**
- * The entry editor's **⋯ menu**: the built-in write actions plus whatever
+ * The entry editor's **⋯ menu**: the built-in record actions (Unpublish,
+ * Delete) plus whatever
  * `ENTRY_MENU_SLOT` contributes, laid out in {@link ENTRY_MENU_GROUP} sections
  * with a rule between them.
+ *
+ * It carries **no** Save draft or Save & publish: those are the buttons beside
+ * it, and a second spelling of one action in the menu was a door a publish
+ * guard's refusal could forget to close.
  *
  * It owns the contributions' hooks **and** their overlays, because those two
  * can't live apart: an item's dialog has to render *outside* `DropdownMenuContent`
@@ -77,13 +77,8 @@ export function EntryMenu({
     context,
     paranoid,
     busy,
-    showSaveDraft,
-    showPublish,
-    publishBlocked = false,
     showUnpublish,
     showDelete,
-    onSaveDraft,
-    onPublish,
     onUnpublish,
     onDelete
 }: {
@@ -93,17 +88,8 @@ export function EntryMenu({
     paranoid: boolean;
     /** Any write in flight — disables the trigger. */
     busy: boolean;
-    showSaveDraft: boolean;
-    showPublish: boolean;
-    /**
-     * Whether a publish guard refused with no way through. The primary button
-     * carries the reason; the menu item only must not be a second door past it.
-     */
-    publishBlocked?: boolean;
     showUnpublish: boolean;
     showDelete: boolean;
-    onSaveDraft: () => void;
-    onPublish: () => void;
     onUnpublish?: () => void;
     onDelete?: () => void;
 }) {
@@ -125,23 +111,6 @@ export function EntryMenu({
     };
 
     // Built-ins sort ahead of contributions in the same group (negative order).
-    if (showSaveDraft)
-        groups[ENTRY_MENU_GROUP.Save].push({
-            key: 'save-draft',
-            order: -2,
-            label: intl.formatMessage(messages.saveDraft),
-            icon: Save,
-            onSelect: onSaveDraft
-        });
-    if (showPublish)
-        groups[ENTRY_MENU_GROUP.Save].push({
-            key: 'save-publish',
-            order: -1,
-            label: intl.formatMessage(messages.publishAndSave),
-            icon: Send,
-            disabled: publishBlocked,
-            onSelect: () => onPublish()
-        });
     if (showUnpublish && onUnpublish)
         groups[ENTRY_MENU_GROUP.Publish].push({
             key: 'unpublish',

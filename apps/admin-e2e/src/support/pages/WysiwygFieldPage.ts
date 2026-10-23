@@ -1,5 +1,6 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { BasePage } from './BasePage';
+import { type BrowserGlobals } from '../browserGlobals';
 
 /**
  * Page object for the **rich-text field** — the WYSIWYG plugin's
@@ -29,7 +30,7 @@ export class WysiwygFieldPage extends BasePage {
     constructor(page: Page) {
         super(page);
         this.toolbar = page.getByRole('group', { name: 'Formatting' });
-        this.editorTabs = page.getByRole('tab', { name: 'General' });
+        this.editorTabs = page.getByRole('tab', { name: 'Content' });
         this.propertiesPanel = page.getByRole('complementary', {
             name: 'Properties'
         });
@@ -51,12 +52,20 @@ export class WysiwygFieldPage extends BasePage {
     }
 
     /**
-     * A rich-text field's control — the button laid over the preview, named
-     * "Edit {label}". This is the field's focusable element, so it is also what
-     * the field's `<label>` points at.
+     * What opens a rich-text field's **full view** for an author: the
+     * "Expand {label}" button on the in-place editor. (Since ADR-0022 the body
+     * is edited in the form itself; this used to be an "Edit {label}" button
+     * laid over a preview, which only a reader still gets — `viewControl`.)
      */
     control(label: string): Locator {
-        return this.page.getByRole('button', { name: `Edit ${label}` });
+        return this.page.getByRole('button', { name: `Expand ${label}` });
+    }
+
+    /** The body edited in place in the form (an author's editor). */
+    inlineSurface(label: string): Locator {
+        return this.page
+            .locator('[data-testid^="wysiwyg-inline-"]')
+            .getByRole('textbox', { name: `${label} content` });
     }
 
     /**
@@ -69,9 +78,10 @@ export class WysiwygFieldPage extends BasePage {
     }
 
     /**
-     * The rendered preview for a field, located by walking up from its control
-     * to the shared card. Used to assert the field shows *content* — a heading,
-     * a list — rather than the markup that produced it.
+     * The field's body as the form shows it — for an author, the in-place
+     * editor's scroll box (the Expand button's parent). Used to assert the
+     * field shows *content* — a heading, a list — rather than the markup that
+     * produced it.
      */
     preview(label: string): Locator {
         return this.control(label).locator('..');
@@ -86,13 +96,22 @@ export class WysiwygFieldPage extends BasePage {
     }
 
     /**
-     * What a link becomes in the collapsed preview: a `<span data-link>`. The
+     * What a link becomes in a **reader's** collapsed preview (an author edits
+     * the body in place, where a link is a link): a `<span data-link>`. The
      * preview sits under a full-bleed button, so a live `<a>` inside it would
      * be a tab stop the reader falls into on the way to that button — and
      * pressing it would navigate out of the record.
      */
     previewFlattenedLinks(label: string): Locator {
-        return this.preview(label).locator('[data-link]');
+        return this.viewPreview(label).locator('[data-link]');
+    }
+
+    /**
+     * The empty in-place editor's placeholder line — TipTap draws it from a
+     * `data-placeholder` attribute, so it is asserted as the attribute.
+     */
+    inlinePlaceholder(label: string): Locator {
+        return this.inlineSurface(label).locator('[data-placeholder]');
     }
 
     /**
@@ -109,6 +128,11 @@ export class WysiwygFieldPage extends BasePage {
 
     /** Expand a field into the work area, and wait for the editor to arrive. */
     async open(label: string): Promise<void> {
+        // Focus first: moving focus folds away another field's in-place
+        // toolbar, and the page shifts under the pointer. Clicked straight
+        // away, that shift lands between `mousedown` and `mouseup` and the
+        // click is lost; `click()` waits for the button to be stable again.
+        await this.control(label).focus();
         await this.control(label).click();
         await this.toolbar.waitFor();
         await this.waitForCaret(label);
@@ -158,8 +182,10 @@ export class WysiwygFieldPage extends BasePage {
     }
 
     /**
-     * **Every** editing surface currently mounted anywhere on the page, by the
-     * attributes the panel puts on its own document rather than by a name.
+     * **Every** full-view editing surface currently mounted anywhere on the
+     * page, by the attributes the panel puts on its own document rather than
+     * by a name. The in-place editors in the form are always mounted (since
+     * ADR-0022), so they are left out — the invariant is about the panel.
      *
      * The count is the assertion: the panel is mounted only while its field is
      * unfolded, and only one field is unfolded at a time — a panel kept alive
@@ -429,7 +455,9 @@ export class WysiwygFieldPage extends BasePage {
             .getByRole('button', { name: /^(Add alt text|Alt text)$/ })
             .click();
         await this.page.getByLabel('Describe this image').fill(text);
-        await this.page.getByRole('button', { name: 'Save' }).click();
+        await this.page
+            .getByRole('button', { name: 'Save', exact: true })
+            .click();
     }
 
     /** Open the alt popover, tick "Decorative", and save. */
@@ -438,7 +466,9 @@ export class WysiwygFieldPage extends BasePage {
             .getByRole('button', { name: /^(Add alt text|Alt text)$/ })
             .click();
         await this.page.getByRole('checkbox', { name: /^Decorative/ }).check();
-        await this.page.getByRole('button', { name: 'Save' }).click();
+        await this.page
+            .getByRole('button', { name: 'Save', exact: true })
+            .click();
     }
 
     /** Open the toolbar's link popover. */
@@ -504,7 +534,9 @@ export class WysiwygFieldPage extends BasePage {
 
     /** The editor's writing surface, as a plain element for content queries. */
     private get surfaceRoot(): Locator {
-        return this.page.locator('[role="textbox"][aria-multiline="true"]');
+        return this.page.locator(
+            '[role="textbox"][aria-multiline="true"]:not([data-testid^="wysiwyg-inline-"] *)'
+        );
     }
 
     /** An item inside an open toolbar dropdown. */
@@ -549,7 +581,27 @@ export class WysiwygFieldPage extends BasePage {
     /** Collapse back to the form via the editor's footer action. */
     async done(): Promise<void> {
         await this.exitButton('Done').click();
-        await this.toolbar.waitFor({ state: 'hidden' });
+        // Waits on the view going, not on "no toolbar": Done hands focus back
+        // to the field's in-place editor, whose own toolbar then shows.
+        await this.exitButton('Done').waitFor({ state: 'hidden' });
+        await this.waitForFocusRestored();
+    }
+
+    /**
+     * The end of leaving the full view: focus handed back to the field a
+     * frame after the view goes (`wysiwyg:I-37`). Until then the form is
+     * still re-rendering, and a click aimed at another field's Expand button
+     * can land on a node that is replaced before `mouseup` — focused, but
+     * never clicked.
+     */
+    private async waitForFocusRestored(): Promise<void> {
+        await this.page.waitForFunction(() => {
+            const { document } = globalThis as unknown as BrowserGlobals;
+            return (
+                document.activeElement !== null &&
+                document.activeElement !== document.body
+            );
+        });
     }
 
     /**
@@ -593,7 +645,10 @@ export class WysiwygFieldPage extends BasePage {
 
     /** Collapse back to the form via the editor's header link. */
     async backToFields(): Promise<void> {
-        await this.page.getByRole('button', { name: 'Back to fields' }).click();
-        await this.toolbar.waitFor({ state: 'hidden' });
+        await this.exitButton('Back to fields').click();
+        // As `done`: focus returns to the field's in-place editor, whose own
+        // toolbar then shows — so wait on the view going, not the toolbar.
+        await this.exitButton('Back to fields').waitFor({ state: 'hidden' });
+        await this.waitForFocusRestored();
     }
 }

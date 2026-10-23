@@ -9,8 +9,8 @@ const WORKSPACE_ID = 'ws_marketing';
 
 /**
  * The Media Library wired to the (mocked) media API: browsing seeded folders +
- * assets, uploading a file, creating a folder, the permission gate, and an axe
- * scan. Backend is stubbed at the network layer by `mockMediaApi`.
+ * assets, uploading a file, creating a folder, the type chips, the list view,
+ * the details panel's keyboard, the permission gate, and axe scans. Backend is stubbed at the network layer by `mockMediaApi`.
  */
 test.describe('Media Library', () => {
     test.beforeEach(async ({ page }) => {
@@ -96,6 +96,75 @@ test.describe('Media Library', () => {
         await expect(mediaLibraryPage.confirmDialog).not.toContainText(
             'everything inside'
         );
+    });
+
+    test('filters by type from the chips', async ({
+        page,
+        mediaLibraryPage
+    }) => {
+        await mockMediaApi(page);
+        await mediaLibraryPage.goto(WORKSPACE_ID);
+        await expect(mediaLibraryPage.assetTile('hero.png')).toBeVisible();
+
+        await mediaLibraryPage.typeChip('Documents').click();
+
+        await expect(mediaLibraryPage.typeChip('Documents')).toHaveAttribute(
+            'aria-pressed',
+            'true'
+        );
+        await expect(mediaLibraryPage.assetTile('report.pdf')).toBeVisible();
+        await expect(mediaLibraryPage.assetTile('hero.png')).toBeHidden();
+    });
+
+    test('shows the files as a table, and remembers the choice', async ({
+        page,
+        mediaLibraryPage,
+        makeAxe
+    }) => {
+        await mockMediaApi(page);
+        await mediaLibraryPage.goto(WORKSPACE_ID);
+        await expect(mediaLibraryPage.assetTile('hero.png')).toBeVisible();
+
+        await mediaLibraryPage.viewSwitch('List view').click();
+
+        const table = mediaLibraryPage.filesTable();
+        await expect(table).toContainText('hero.png');
+        await expect(table).toContainText('report.pdf');
+
+        // The header checkbox takes the whole page into the selection.
+        await table
+            .getByRole('checkbox', { name: 'Select all files on this page' })
+            .click();
+        await expect(mediaLibraryPage.selectionBar).toContainText('2 selected');
+        await expectNoA11yViolations(makeAxe());
+
+        await page.reload();
+        await expect(mediaLibraryPage.filesTable()).toBeVisible();
+    });
+
+    test('steps through files in the details panel and closes on Escape', async ({
+        page,
+        mediaLibraryPage
+    }) => {
+        await mockMediaApi(page);
+        await mediaLibraryPage.goto(WORKSPACE_ID);
+        await mediaLibraryPage.sortBy('Name A–Z');
+        await expect(mediaLibraryPage.assetTile('hero.png')).toBeVisible();
+
+        await mediaLibraryPage.openDetail('hero.png');
+        await expect(mediaLibraryPage.detailPanel('hero.png')).toBeVisible();
+        // Non-modal: the grid stays usable beside it.
+        await expect(mediaLibraryPage.assetTile('report.pdf')).toBeVisible();
+
+        await page.keyboard.press('ArrowRight');
+        await expect(mediaLibraryPage.detailPanel('report.pdf')).toBeVisible();
+        await page.keyboard.press('ArrowLeft');
+        await expect(mediaLibraryPage.detailPanel('hero.png')).toBeVisible();
+
+        await page.keyboard.press('Escape');
+        await expect(mediaLibraryPage.detailPanel('hero.png')).toBeHidden();
+        // Focus goes back to the tile that opened it.
+        await expect(mediaLibraryPage.assetTile('hero.png')).toBeFocused();
     });
 
     test('shows a no-access state without media:read', async ({

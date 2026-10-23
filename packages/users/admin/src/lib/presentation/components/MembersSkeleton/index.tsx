@@ -154,7 +154,7 @@ export function MembersPageSkeleton() {
         // `aria-busy` marks this as a loading placeholder so the host's route
         // announcer waits past the sr-only "Loading members" heading below and
         // reads the settled page name instead (see `RouteAnnouncer`).
-        <Container width="full" aria-busy="true">
+        <Container aria-busy="true">
             {/* The page's `<h1>`, visually hidden. A lazy route's `Suspense`
                 fallback is a whole page with no heading at all until the real
                 one mounts — and it is the state a slow connection sits in

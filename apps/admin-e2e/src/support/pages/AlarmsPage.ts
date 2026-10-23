@@ -146,6 +146,13 @@ export class AlarmsPage extends BasePage {
      * that drew one shape for all three severities would leave colour doing the
      * work alone, and that is invisible to any name-based locator.
      */
+    /** The figures over the page: open findings per severity, last check. */
+    summaryStrip(): Locator {
+        return this.page.locator('dl', {
+            has: this.page.getByText('Last checked', { exact: true })
+        });
+    }
+
     groupSeverityGlyph(name: string): Locator {
         return this.group(name).locator('svg').nth(1);
     }

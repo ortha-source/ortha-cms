@@ -245,17 +245,16 @@ test.describe('Entry editor — Media tab', () => {
         await mediaFieldPage.pickerTile('report.pdf').click();
         await mediaFieldPage.pickerConfirm.click();
 
-        expect(await mediaFieldPage.attachedNames('Gallery')).toEqual([
-            'hero.png',
-            'report.pdf'
-        ]);
+        // Polled: the tiles render a frame after the picker closes.
+        await expect
+            .poll(() => mediaFieldPage.attachedNames('Gallery'))
+            .toEqual(['hero.png', 'report.pdf']);
 
         // The order is the delivered order, so it has to be editable.
         await mediaFieldPage.moveAssetDown('hero.png').click();
-        expect(await mediaFieldPage.attachedNames('Gallery')).toEqual([
-            'report.pdf',
-            'hero.png'
-        ]);
+        await expect
+            .poll(() => mediaFieldPage.attachedNames('Gallery'))
+            .toEqual(['report.pdf', 'hero.png']);
 
         await mediaFieldPage.save.click();
         await expect.poll(() => saves.bodies.length).toBeGreaterThan(0);

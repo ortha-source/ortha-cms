@@ -1,6 +1,7 @@
 import { defineMessages, useIntl } from 'react-intl';
 import {
     Badge,
+    BadgeDot,
     Tooltip,
     TooltipContent,
     TooltipTrigger
@@ -61,7 +62,8 @@ const LABEL = ENTRY_STATUS_VIEW_LABEL;
 export function EntryStatusBadge({
     entry,
     isCreate = false,
-    explainModified = true
+    explainModified = true,
+    size
 }: {
     entry?: Pick<EntryRecord, 'status' | 'publishedAt'>;
     /**
@@ -83,11 +85,14 @@ export function EntryStatusBadge({
      * the reader acts on that record — its own editor and the records table.
      */
     explainModified?: boolean;
+    /** `xs` in a dense list, beside 13px text. */
+    size?: 'default' | 'xs';
 }) {
     const intl = useIntl();
     const view = isCreate ? ENTRY_STATUS_VIEW.New : entryStatusView(entry);
     const badge = (
-        <Badge variant={ENTRY_STATUS_VIEW_VARIANT[view]}>
+        <Badge variant={ENTRY_STATUS_VIEW_VARIANT[view]} size={size}>
+            <BadgeDot />
             {intl.formatMessage(LABEL[view])}
         </Badge>
     );

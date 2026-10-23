@@ -79,9 +79,7 @@ export function GlobalSidebar() {
                 <div className="flex items-center justify-between gap-2">
                     <span className="flex items-center gap-2">
                         <Logo showLabel={false} aria-hidden />
-                        <span className="text-sm font-semibold">
-                            Ortha CMS
-                        </span>
+                        <span className="text-sm font-semibold">Ortha CMS</span>
                     </span>
                     {/* In-header trigger, only reachable while the sidebar is
                         open — so it always *hides* (`ORT-159`). */}

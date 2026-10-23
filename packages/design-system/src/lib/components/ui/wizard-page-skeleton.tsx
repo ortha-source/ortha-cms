@@ -34,11 +34,8 @@ export function WizardPageSkeleton({
             <span className="sr-only">{label}</span>
 
             <div aria-hidden>
-                {/* No back link — the breadcrumb is the way back — and the
-                    header only below `md`: above it the page's header folds
-                    into the top bar, so a placeholder for it would hold space
-                    the loaded page never takes. */}
-                <div className="mb-6 flex flex-col gap-2 md:hidden">
+                {/* No back link — the breadcrumb is the way back. */}
+                <div className="mb-5 flex flex-col gap-1.5">
                     <Skeleton className="h-8 w-56" />
                     <Skeleton className="h-4 w-80 max-w-full" />
                 </div>

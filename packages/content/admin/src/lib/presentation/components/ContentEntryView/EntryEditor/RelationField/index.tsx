@@ -198,7 +198,7 @@ export function RelationField({
                     trashed={detail.trashed}
                     missing={detail.missing}
                     leading={
-                        <Avatar className="size-8 shrink-0">
+                        <Avatar className="size-7 shrink-0">
                             <AvatarFallback className="text-xs">
                                 {initialsOf(detailLabel)}
                             </AvatarFallback>
@@ -213,24 +213,29 @@ export function RelationField({
                 />
             ) : (
                 <>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-[13px] text-muted-foreground">
                         {intl.formatMessage(messages.empty)}
                     </p>
                     {/* An empty relation the reader can't fill: the sentence
-                        above is the whole story, so the dashed Select trigger
+                        above is the whole story, so the Select action
                         would be an invitation to an action that isn't theirs. */}
                     {readOnly ? null : (
-                        <Button
-                            type="button"
-                            variant="outline"
-                            className="w-full justify-center border-dashed shadow-none"
-                            onClick={() => setOpen(true)}
-                        >
-                            <Plus className="size-4" />
-                            {intl.formatMessage(messages.assign, {
-                                label: targetLabel
-                            })}
-                        </Button>
+                        // Its own box: the field stretches every child to
+                        // full width, and this is a quiet text action.
+                        <div>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="-ml-2 text-muted-foreground"
+                                onClick={() => setOpen(true)}
+                            >
+                                <Plus className="size-4" />
+                                {intl.formatMessage(messages.assign, {
+                                    label: targetLabel
+                                })}
+                            </Button>
+                        </div>
                     )}
                 </>
             )}

@@ -11,10 +11,22 @@ Layout: **layered** (`domain` omitted — see below), per ADR-0003.
 Nobody opens an alarms page to find out their article is broken. They open the
 article. So the primary contribution here is the **entry rail's checks block**
 (`ENTRY_SIDEBAR_WIDGET_SLOT`): an editor sees "Author is not published" beside
-the record, with a link to the author, without knowing a rule exists.
+the record, with a link to the author, without knowing a rule exists. The same
+findings are also **one status item** in the editor's header
+(`ENTRY_STATUS_ITEM_SLOT`, `hooks/useAlarmsStatusItem`) — "2 checks flagged",
+a warning when any is an error and info otherwise — so a flag is seen without
+opening the Properties panel. It shares the widget's query key, so it costs no
+request.
 
 The page is for the person who owns editorial policy — what is flagged across
-the workspace, grouped by alarm, and the alarms themselves.
+the workspace, grouped by alarm, and the alarms themselves. It leads with the
+shared `ContainerHeader` — `<h1>` and description, **New alarm** in the top bar — and a strip of
+figures (`AlarmSummaryStrip`): open findings per severity — the summary the
+nav badge reads — and when the alarms last checked, the newest `lastScanAt`.
+Each group's header is a severity **pill** (its glyph and its word, so colour
+is never alone — `alarms:I-32`), the alarm's name over its type and finding
+title, an "N open" count from the alarm itself, **Re-check** and **Edit
+alarm**.
 
 ## The user-facing noun is **alarm**; the code's is `rule`
 
@@ -334,3 +346,14 @@ locally is a hue nobody measured.
   in `support/api/auth.ts` had to gain `alarms:read` / `alarms:manage` first —
   without them this whole surface renders for nobody and no browser test can see
   it, which is why it shipped with a `window.prompt` in it.
+
+## On Home
+
+`AlarmsHomeAttention` fills `HOME_SECTION_SLOT`'s `attention` region: open
+findings summed across the reader's active workspaces, naming each one with a
+count, and linking to the workspace with the most. Home sits outside every
+workspace, so `useAlarmTotals` asks each with its own `X-Workspace-Id`
+(`httpAlarmsGateway.summary(workspaceId)`; `apiClient` keeps a header a
+request sets itself), keyed as `useAlarmSummary` so the two share cache. It
+shows at **0** too ("0 open findings — every alarm check passes"), and
+renders nothing without `alarms:read` or while the counts are in flight.

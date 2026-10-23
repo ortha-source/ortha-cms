@@ -94,7 +94,10 @@ function formatValue(
 /**
  * The resting summary of an applied filter, shown under the toolbar while the
  * builder panel is collapsed: one removable chip per condition
- * ("Author · Email contains @lilly ×") plus a "Clear all" action. Removing a
+ * ("Author · Email contains @lilly ×") plus a "Clear all" action. A chip is
+ * the soft **info** tint (blue), the field and value at medium weight and the
+ * operator lighter between them — set apart from the toolbar's outlined
+ * toggle chips, since these are conditions already applied, not choices. Removing a
  * chip re-commits the narrowed tree immediately, so the table re-runs at once.
  * Nested AND/OR structure is flattened here — the panel is where structure is
  * edited; this is a compact read-out.
@@ -132,21 +135,11 @@ export function QueryBuilderSummary({
                     <span
                         key={rule.id}
                         title={`${path} ${op}${value ? ` ${value}` : ''}`}
-                        className="inline-flex max-w-[16rem] items-center gap-1.5 rounded-xl border bg-card px-2.5 py-1 text-xs"
+                        className="inline-flex h-7 max-w-[18rem] items-center gap-1 rounded-[7px] bg-info-soft pl-2.5 pr-1 text-xs font-medium text-info-soft-foreground"
                     >
                         <span className="min-w-0 truncate">
-                            <span className="font-medium text-foreground">
-                                {path}
-                            </span>{' '}
-                            <span className="text-muted-foreground">{op}</span>
-                            {value ? (
-                                <>
-                                    {' '}
-                                    <span className="font-medium text-foreground">
-                                        {value}
-                                    </span>
-                                </>
-                            ) : null}
+                            {path} <span className="font-normal">{op}</span>
+                            {value ? <> {value}</> : null}
                         </span>
                         <button
                             type="button"
@@ -166,7 +159,7 @@ export function QueryBuilderSummary({
                                 focusAfterChipRemoval(event.currentTarget);
                                 remove(rule.id);
                             }}
-                            className="shrink-0 text-muted-foreground hover:text-foreground"
+                            className="flex size-5 shrink-0 items-center justify-center rounded opacity-80 transition-colors hover:bg-info-soft-foreground/10 hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         >
                             <X aria-hidden className="size-3.5" />
                         </button>

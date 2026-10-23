@@ -128,7 +128,7 @@ export function ApiTokensPageSkeleton() {
                     }
                 ]}
             />
-            <Container width="full">
+            <Container>
                 <ContainerHeader
                     title={intl.formatMessage(messages.title)}
                     subtitle={intl.formatMessage(messages.subtitle)}

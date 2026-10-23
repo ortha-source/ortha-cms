@@ -2,11 +2,13 @@ import { article, entry, typeDoc } from '../../../testing/document';
 import { generalTabLayout } from './index';
 
 describe('generalTabLayout', () => {
-    it('orders loose fields by control shape: inputs, choices, long text', () => {
+    it('orders loose fields by control shape: inputs, choices, long text, then links and media', () => {
         expect(generalTabLayout(article).loose.map((f) => f.name)).toEqual([
             'title',
             'kind',
-            'body'
+            'body',
+            'author',
+            'cover'
         ]);
     });
 
@@ -58,7 +60,7 @@ describe('generalTabLayout', () => {
         expect(generalTabLayout(type).loose.map((f) => f.name)).toEqual(['x']);
     });
 
-    it('leaves relations and media out of General, grouped or not', () => {
+    it('draws relations and media in the form, grouped or not', () => {
         const type = typeDoc({
             name: 't',
             groups: [{ key: 'g', label: 'G' }],
@@ -72,7 +74,7 @@ describe('generalTabLayout', () => {
             ]
         });
         const layout = generalTabLayout(type);
-        expect(layout.loose).toEqual([]);
-        expect(layout.groups[0].fields).toEqual([]);
+        expect(layout.loose.map((f) => f.name)).toEqual(['m']);
+        expect(layout.groups[0].fields.map((f) => f.name)).toEqual(['r']);
     });
 });

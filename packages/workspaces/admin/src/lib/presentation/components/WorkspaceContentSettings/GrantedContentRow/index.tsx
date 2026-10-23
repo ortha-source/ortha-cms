@@ -1,6 +1,7 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { FileText, Layers, Share2, TriangleAlert, X } from 'lucide-react';
+import { FileText, Layers, TriangleAlert, X } from 'lucide-react';
 import { Badge, Button, cn } from '@orthacms/design-system';
+import { useWorkspaceContentCount } from '../../../../application/useWorkspaceContentCount';
 import type { ContentType } from '../../../../domain/types/wizard';
 import type { SharedContentGrant } from '../../../../domain/types/workspace';
 import { isPage } from '..';
@@ -22,10 +23,6 @@ const messages = defineMessages({
         id: 'workspaces.settings.content.sharedLabel',
         defaultMessage: '{type} · {workspace}'
     },
-    sharedBadge: {
-        id: 'workspaces.settings.content.sharedBadge',
-        defaultMessage: 'Shared'
-    },
     unavailableBadge: {
         id: 'workspaces.settings.content.unavailableBadge',
         defaultMessage: 'Unavailable'
@@ -38,6 +35,10 @@ const messages = defineMessages({
     sharedHint: {
         id: 'workspaces.settings.content.sharedHint',
         defaultMessage: 'Read-only records from {workspace}.'
+    },
+    entries: {
+        id: 'workspaces.settings.content.entries',
+        defaultMessage: '{count, plural, one {# entry} other {# entries}}'
     }
 });
 
@@ -71,8 +72,8 @@ export type GrantedContentRowProps = {
     canRemove: boolean;
     /** Called when the remove control is pressed. */
     onRemove: () => void;
-    /** Show the kind badge; off under a Collections/Pages group heading. */
-    showKind?: boolean;
+    /** The workspace the grant belongs to — whose entries an own row counts. */
+    workspaceId: string;
     /** Extra classes for the row (the list's just-granted highlight). */
     className?: string;
 };
@@ -95,33 +96,52 @@ export function useGrantLabel(): (granted: GrantedContent) => string {
 }
 
 /**
- * One row in the granted-content list: an icon by kind, the grant's label, a
- * kind badge, and — when the user may manage content — a remove button. A
- * grant from a shared workspace reads "{Type} · {Workspace}" with a **Shared**
- * badge, and an **Unavailable** one while that workspace no longer shares.
+ * One row in the granted-content list: an icon tile by kind, the type's label
+ * over its kind (and, for a grant from a shared workspace, where its records
+ * come from), how many entries an **own** grant holds here, and — when the user
+ * may manage content — a remove button. The group the row sits in names the
+ * source, so the label is the type alone; the remove button still names both,
+ * since it is read out of context. An **Unavailable** badge marks a shared
+ * grant whose workspace no longer shares.
  */
 export function GrantedContentRow({
     granted,
     canRemove,
     onRemove,
-    showKind = true,
+    workspaceId,
     className
 }: GrantedContentRowProps) {
     const intl = useIntl();
     const grantLabel = useGrantLabel();
     const { type, shared } = granted;
     const label = grantLabel(granted);
+    const typeLabel = type?.label ?? type?.name ?? granted.slug;
     const isCollection = shared ? shared.kind !== 'single' : !isPage(type);
+    const kind = intl.formatMessage(
+        isCollection ? messages.collection : messages.single
+    );
     const hint = shared
         ? intl.formatMessage(
               shared.available ? messages.sharedHint : messages.unavailableHint,
               { workspace: shared.sourceWorkspaceName }
           )
         : type?.description;
+    // A shared grant's records live at the source; there is nothing to count.
+    const count = useWorkspaceContentCount(
+        workspaceId,
+        granted.slug,
+        !shared,
+        'summary'
+    );
 
     return (
-        <div className={cn('flex items-center gap-3 px-3 py-2', className)}>
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+        <div
+            className={cn(
+                'flex min-h-[52px] items-center gap-3 px-4 py-2',
+                className
+            )}
+        >
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
                 {isCollection ? (
                     <Layers className="size-4" aria-hidden />
                 ) : (
@@ -129,37 +149,33 @@ export function GrantedContentRow({
                 )}
             </span>
             <div className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate text-sm font-medium">{label}</span>
-                {hint ? (
-                    <span className="truncate text-xs text-muted-foreground">
-                        {hint}
+                <span className="flex min-w-0 items-center gap-2">
+                    <span className="truncate text-sm font-medium">
+                        {typeLabel}
                     </span>
-                ) : null}
+                    {shared && !shared.available ? (
+                        <Badge variant="warning" size="xs">
+                            <TriangleAlert className="size-3" aria-hidden />
+                            {intl.formatMessage(messages.unavailableBadge)}
+                        </Badge>
+                    ) : null}
+                </span>
+                <span className="truncate text-xs text-muted-foreground">
+                    {hint ? `${kind} · ${hint}` : kind}
+                </span>
             </div>
-            {shared ? (
-                <Badge variant="info">
-                    <Share2 className="size-3" aria-hidden />
-                    {intl.formatMessage(messages.sharedBadge)}
-                </Badge>
-            ) : null}
-            {shared && !shared.available ? (
-                <Badge variant="warning">
-                    <TriangleAlert className="size-3" aria-hidden />
-                    {intl.formatMessage(messages.unavailableBadge)}
-                </Badge>
-            ) : null}
-            {showKind ? (
-                <Badge variant="secondary">
-                    {intl.formatMessage(
-                        isCollection ? messages.collection : messages.single
-                    )}
-                </Badge>
+            {!shared && count.data !== undefined ? (
+                <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                    {intl.formatMessage(messages.entries, {
+                        count: count.data
+                    })}
+                </span>
             ) : null}
             {canRemove ? (
                 <Button
                     type="button"
                     variant="ghost"
-                    size="icon"
+                    size="icon-sm"
                     onClick={onRemove}
                     aria-label={intl.formatMessage(messages.remove, { label })}
                 >

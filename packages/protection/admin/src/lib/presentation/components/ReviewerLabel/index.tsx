@@ -1,6 +1,11 @@
 import { defineMessages, useIntl } from 'react-intl';
 import { useCurrentWorkspace } from '@orthacms/workspaces-admin';
-import { Avatar, AvatarFallback } from '@orthacms/design-system';
+import {
+    Avatar,
+    AvatarFallback,
+    avatarColorVar,
+    cn
+} from '@orthacms/design-system';
 
 const messages = defineMessages({
     unknown: {
@@ -24,12 +29,18 @@ const messages = defineMessages({
  */
 export function ReviewerLabel({
     userId,
-    currentUserId
+    currentUserId,
+    compact = false
 }: {
     /** The reviewer, as the API reports them. */
     userId: string;
     /** The signed-in person, so their own vote reads "You". */
     currentUserId?: string;
+    /**
+     * The avatar alone, for a row of several: the name stays in the
+     * accessibility tree (`sr-only`) and shows on hover (`title`).
+     */
+    compact?: boolean;
 }) {
     const intl = useIntl();
     const workspace = useCurrentWorkspace();
@@ -42,13 +53,33 @@ export function ReviewerLabel({
         : intl.formatMessage(messages.unknown);
 
     return (
-        <span className="flex min-w-0 items-center gap-2">
-            <Avatar className="size-6 shrink-0">
-                <AvatarFallback className="text-[0.625rem]">
+        <span
+            className="flex min-w-0 items-center gap-2"
+            title={compact ? name : undefined}
+        >
+            <Avatar
+                className={cn(
+                    'size-6 shrink-0',
+                    compact && 'ring-2 ring-background'
+                )}
+                style={
+                    member
+                        ? { backgroundColor: avatarColorVar(member.color) }
+                        : undefined
+                }
+            >
+                <AvatarFallback
+                    className={cn(
+                        'text-[0.625rem]',
+                        member && 'bg-transparent font-semibold text-white'
+                    )}
+                >
                     {member?.initials ?? '—'}
                 </AvatarFallback>
             </Avatar>
-            <span className="truncate text-sm">{name}</span>
+            <span className={cn('truncate text-sm', compact && 'sr-only')}>
+                {name}
+            </span>
         </span>
     );
 }

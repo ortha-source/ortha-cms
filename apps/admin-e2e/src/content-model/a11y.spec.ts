@@ -25,7 +25,7 @@ test.describe('Content model accessibility (axe, WCAG 2.1 A/AA)', () => {
     }) => {
         await mockSchemaDocument(page);
         await contentModelPage.goto('article');
-        await contentModelPage.tab('Media').waitFor();
+        await contentModelPage.tab('Content').waitFor();
         await expectNoA11yViolations(makeAxe());
     });
 

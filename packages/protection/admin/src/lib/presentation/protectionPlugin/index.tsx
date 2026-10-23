@@ -19,6 +19,8 @@ import {
     WORKSPACE_SETTINGS_TAB_SLOT
 } from '@orthacms/workspaces-admin';
 import { Shield, ShieldCheck } from 'lucide-react';
+import { HOME_SECTION_SLOT } from '@orthacms/shell-admin';
+import { ReviewsHomeAttention } from '../components/ReviewsHomeAttention';
 import { ProtectionSettings } from '../components/ProtectionSettings';
 import { ReviewsSkeleton } from '../components/ReviewsSkeleton';
 import { ReviewSection } from '../components/ReviewSection';
@@ -59,6 +61,19 @@ export function ProtectionPlugin(): ProtectionAdminPlugin {
     return {
         name: 'protection',
         slots: [
+            {
+                // Entries awaiting review across every workspace, on Home —
+                // at 0 too.
+                slot: HOME_SECTION_SLOT,
+                items: [
+                    {
+                        id: 'protection.home.reviews',
+                        region: 'attention',
+                        order: 20,
+                        Component: ReviewsHomeAttention
+                    }
+                ]
+            },
             {
                 slot: WORKSPACE_ROUTE_SLOT,
                 items: [
@@ -181,7 +196,10 @@ export function ProtectionPlugin(): ProtectionAdminPlugin {
                         id: 'protection',
                         path: 'protection',
                         labelId: 'protection.settings.tab',
-                        defaultLabel: 'Protection',
+                        defaultLabel: 'Publishing rules',
+                        descriptionId: 'protection.settings.tabDescription',
+                        defaultDescription:
+                            'Require approval before a type goes live. A rule holds the Publish button until enough reviewers approve the version on screen.',
                         icon: Shield,
                         order: 10,
                         // Administrator-only, and so is the list route it

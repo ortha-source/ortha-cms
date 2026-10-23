@@ -151,7 +151,7 @@ test.describe('Entry editor — Access tab', () => {
         // record, so it says so the same way.
         await expect(segmentsPage.accessChanged).toBeVisible();
         await expect(segmentsPage.accessSummary.first()).toHaveText(
-            'Restricted'
+            /^Readable only by/
         );
 
         await contentLibraryPage.editorSave.click();
@@ -243,7 +243,7 @@ test.describe('Entry editor — Access tab', () => {
         await openAccessTab(contentLibraryPage);
         await segmentsPage.setAccess('Acme Corp', 'Cannot see');
 
-        await contentLibraryPage.openEditorTab('General');
+        await contentLibraryPage.openEditorTab('Content');
         await contentLibraryPage.openEditorTab('Access');
 
         await expect(
@@ -274,13 +274,14 @@ test.describe('Entry editor — Access tab', () => {
         await expect(segmentsPage.accessControl('Audience 11')).toHaveCount(0);
         // And the control says what it is about to do in terms of the match
         // count, not the page's — 14, not 10.
+        await segmentsPage.openBulkMenu();
         await expect(
             page.getByText(
                 'Applies to all 14 audiences, not just the ones on this page.'
             )
         ).toBeVisible();
 
-        await segmentsPage.bulkAction('Can see').click();
+        await segmentsPage.bulkAction('All can see').click();
         await contentLibraryPage.editorSave.click();
 
         // Request-level, because the screen cannot answer for the rows it
@@ -313,8 +314,9 @@ test.describe('Entry editor — Access tab', () => {
         });
         await openAccessTab(contentLibraryPage);
 
-        await expect(segmentsPage.bulkAction('Can see')).toBeDisabled();
-        await expect(segmentsPage.bulkAction('Cannot see')).toBeDisabled();
+        await segmentsPage.openBulkMenu();
+        await expect(segmentsPage.bulkAction('All can see')).toBeDisabled();
+        await expect(segmentsPage.bulkAction('None can see')).toBeDisabled();
         await expect(segmentsPage.bulkAction('Clear all')).toBeDisabled();
         // Disabled, not hidden, and with the way out named in the same
         // sentence: the search is what narrows the match set back under the cap.
@@ -332,6 +334,7 @@ test.describe('Entry editor — Access tab', () => {
         await openAccessTab(contentLibraryPage);
 
         await segmentsPage.setAccess('Acme Corp', 'Can see');
+        await segmentsPage.openBulkMenu();
         await segmentsPage.bulkAction('Clear all').click();
 
         await expect(segmentsPage.accessSummary.first()).toHaveText(
@@ -373,7 +376,7 @@ test.describe('Entry editor — Access tab', () => {
         // here…
         await expect(segmentsPage.accessControl('Acme Corp')).toBeVisible();
         await expect(segmentsPage.accessSummary.first()).toHaveText(
-            'Restricted'
+            /^Readable only by/
         );
         // …but it is counted, so the editor is not told the entry is governed
         // only by what they can see.
@@ -422,8 +425,8 @@ test.describe('Entry editor — Access tab', () => {
         await expect(
             page.getByText(/needs the “segments:manage” permission/)
         ).toBeVisible();
-        // The bulk controls go entirely, rather than sitting there dead.
-        await expect(segmentsPage.bulkAction('Can see')).toHaveCount(0);
+        // The bulk control goes entirely, rather than sitting there dead.
+        await expect(segmentsPage.bulkMenu).toHaveCount(0);
     });
 
     test('says a decision covers every language, on a localized type', async ({

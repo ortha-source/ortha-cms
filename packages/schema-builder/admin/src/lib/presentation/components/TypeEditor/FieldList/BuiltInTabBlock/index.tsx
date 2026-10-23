@@ -4,12 +4,7 @@ import { Lock } from 'lucide-react';
 import type { BuiltInTab } from '../../../../../domain/builtInTab';
 
 const messages = defineMessages({
-    general: { id: 'schemaBuilder.tab.general', defaultMessage: 'General' },
-    relations: {
-        id: 'schemaBuilder.tab.relations',
-        defaultMessage: 'Relations'
-    },
-    media: { id: 'schemaBuilder.tab.media', defaultMessage: 'Media' },
+    general: { id: 'schemaBuilder.tab.general', defaultMessage: 'Content' },
     builtIn: {
         id: 'schemaBuilder.tab.builtIn',
         defaultMessage: 'built-in tab'

@@ -548,7 +548,7 @@ Statements that must always hold. Both a review list and a starting set of test 
 - **I-34** — Every style rule in the package hangs off `.orthacms-wysiwyg`: none can reach the rest of the admin UI, and the editor surface and the preview render the same markup identically.
 - **I-35** — Not one admin class name reaches the stored content: the custom nodes serialise into `data-` attributes.
 - **I-36** — The unfolded view declares a `lang` only for a field marked `localized`, and never for a shared one.
-- **I-37** — Leaving the unfolded view returns focus to the field's button (through a `requestAnimationFrame`) rather than dropping it onto `<body>`.
+- **I-37** — Leaving the unfolded view returns focus to the field — the element carrying its `id`, the in-place editor's document for an author — (through a `requestAnimationFrame`) rather than dropping it onto `<body>`.
 - **I-38** — `editorExtensions` holds no second copy of an extension StarterKit already brings (Link, Underline, TrailingNode): a duplicate name makes TipTap warn and resolve the extension set unpredictably.
 
 ## 10. Testing checklist

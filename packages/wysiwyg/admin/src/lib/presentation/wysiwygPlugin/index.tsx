@@ -30,6 +30,12 @@ const WysiwygFieldControl = lazy(() =>
     }))
 );
 
+const WysiwygInlineEditor = lazy(() =>
+    import('../components/WysiwygInlineEditor').then((module) => ({
+        default: module.WysiwygInlineEditor
+    }))
+);
+
 const WysiwygFieldFullView = lazy(() =>
     import('../components/WysiwygFieldFullView').then((module) => ({
         default: module.WysiwygFieldFullView
@@ -50,11 +56,19 @@ function WysiwygFullViewFallback() {
     return <Skeleton className="min-h-0 w-full flex-1 rounded-lg" />;
 }
 
-/** The slot's control: the real one, behind its own loading boundary. */
+/**
+ * The slot's control, behind its own loading boundary: the body **edited in
+ * place** for an author (ADR-0022), and the height-clamped preview that opens
+ * into a reading view for a reader, who has nothing to type.
+ */
 function LazyWysiwygFieldControl(context: EntryFieldControlContext) {
     return (
         <Suspense fallback={<WysiwygFieldFallback />}>
-            <WysiwygFieldControl {...context} />
+            {context.readOnly ? (
+                <WysiwygFieldControl {...context} />
+            ) : (
+                <WysiwygInlineEditor {...context} />
+            )}
         </Suspense>
     );
 }
@@ -101,8 +115,8 @@ export type WysiwygAdminPlugin = AdminPlugin;
  * groups.
  *
  * The contribution has two halves: the `Component` is the field as it sits in
- * the form (a preview of what's written), and the `FullView` is the editor it
- * expands into — rendered by `EntryEditor` in place of the tab strip, so the
+ * the form (the body edited in place, or a preview for a reader), and the
+ * `FullView` is the editor it expands into — rendered by `EntryEditor` in place of the tab strip, so the
  * record's chrome stays put instead of being covered by a modal.
  *
  * Register it **after** `ContentPlugin()`, whose slot it fills.

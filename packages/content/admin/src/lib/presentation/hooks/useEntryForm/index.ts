@@ -90,6 +90,24 @@ export type EntryFormState = {
      * successful save re-arms seeding (see the hook's note).
      */
     acceptSeed: () => void;
+    /**
+     * Says **this form's own write is in flight**. Until {@link endWrite} (or
+     * {@link acceptSeed}, which is how a landed write ends), a re-seed that
+     * arrives is taken for that write's echo and not reported as a conflict.
+     *
+     * Without it every update flashed the conflict notice: `useSaveEntry`
+     * primes the read-one cache with the write's response inside `onSuccess`,
+     * the dirty form refuses that seed and raises {@link seedRefused}, and
+     * only a moment later does the editor's `onWriteLanded` adopt it — long
+     * enough for "This record changed while you were editing" to paint, about
+     * the author's own save.
+     */
+    beginWrite: () => void;
+    /**
+     * The write ended **without landing** (refused, failed, or asked first).
+     * A seed that arrived meanwhile is judged again, as any other would be.
+     */
+    endWrite: () => void;
 };
 
 /**
@@ -173,6 +191,8 @@ export function useEntryForm(
     const [edited, setEdited] = useState(false);
     // Whether an incoming seed was turned away because of that.
     const [seedRefused, setSeedRefused] = useState(false);
+    // Whether this form's own write is in flight — see `beginWrite`.
+    const [writing, setWriting] = useState(false);
     // Saves/publishes turned back with errors — see `EntryFormState.refusals`.
     const [refusals, setRefusals] = useState(0);
 
@@ -209,9 +229,11 @@ export function useEntryForm(
         adopt();
         seededFrom = initialValues;
     } else if (seed.values !== initialValues) {
-        // The same record, read again with a different answer.
+        // The same record, read again with a different answer. While our own
+        // write is in flight that answer is most likely its echo, which the
+        // write's landing adopts; only once it ends unlanded is it a conflict.
         if (edited) {
-            if (!seedRefused) setSeedRefused(true);
+            if (!seedRefused && !writing) setSeedRefused(true);
         } else {
             adopt();
             seededFrom = initialValues;
@@ -264,11 +286,15 @@ export function useEntryForm(
 
     const acceptSeed = useCallback(() => {
         setEdited(false);
+        setWriting(false);
         // Park the latch rather than adopting here: the caller may be a promise
         // continuation, and the values to adopt are whatever the *next* render
         // is handed — which after a save is the record the server just wrote.
         setSeed((current) => ({ ...current, values: ADOPT_NEXT_RENDER }));
     }, []);
+
+    const beginWrite = useCallback(() => setWriting(true), []);
+    const endWrite = useCallback(() => setWriting(false), []);
 
     const touch = useCallback((name: string) => {
         setTouched((current) =>
@@ -330,6 +356,8 @@ export function useEntryForm(
         refusals,
         seedValues: seededFrom,
         seedRefused,
-        acceptSeed
+        acceptSeed,
+        beginWrite,
+        endWrite
     };
 }

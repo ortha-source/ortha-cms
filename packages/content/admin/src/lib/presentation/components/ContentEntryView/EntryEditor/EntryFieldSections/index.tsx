@@ -1,5 +1,4 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { Separator } from '@orthacms/design-system';
 import { orderGeneralTab } from '@orthacms/content-domain';
 import type {
     ContentField,
@@ -7,37 +6,24 @@ import type {
 } from '../../../../../domain/types/contentType';
 import { sectionFields } from '../../../../../domain/fieldSections';
 import type { EntryFormState } from '../../../../hooks/useEntryForm';
-import { FieldGroup } from './FieldGroup';
 import { FieldSection } from './FieldSection';
 import { FieldStack } from './FieldStack';
+import { BASICS_SECTION } from '../../../../../domain/pageSections';
 
 const messages = defineMessages({
-    translatedTitle: {
-        id: 'content.form.group.translatedTitle',
-        defaultMessage: 'Translated fields'
-    },
-    translatedBody: {
-        id: 'content.form.group.translatedBody',
-        defaultMessage: 'These hold a different value in each locale.'
-    },
-    sharedTitle: {
-        id: 'content.form.group.sharedTitle',
-        defaultMessage: 'Shared fields'
-    },
-    sharedBody: {
-        id: 'content.form.group.sharedBody',
-        defaultMessage:
-            'These are the same in every locale — editing one here changes it everywhere.'
-    },
     sharedPrefilled: {
         id: 'content.form.group.sharedPrefilled',
         defaultMessage:
-            'These were copied from the {locale} version and are still written in that language. Translate them here and they change in every locale.'
+            'The fields marked “All locales” were copied from the {locale} version and are still written in that language. Translate them here and they change in every locale.'
     },
     requiredLegend: {
         id: 'content.form.requiredLegend',
         defaultMessage:
             'Fields marked * are required before this entry can be published.'
+    },
+    requiredLegendLive: {
+        id: 'content.form.requiredLegendLive',
+        defaultMessage: 'Fields marked * are required.'
     }
 });
 
@@ -50,29 +36,39 @@ const messages = defineMessages({
  * here it is visible to everyone, announced once instead of on every field, and
  * there is nothing to hover.
  *
- * Rendered only when something on screen is actually marked.
+ * Rendered only when something on screen is actually marked, and worded for
+ * the type: a non-publishable type has no publishing to be required *for* — it
+ * refuses an incomplete save instead — so it is not told about one.
  */
-function RequiredLegend({ fields }: { fields: ContentField[] }) {
+function RequiredLegend({
+    fields,
+    publishable
+}: {
+    fields: ContentField[];
+    publishable: boolean;
+}) {
     const intl = useIntl();
     if (!fields.some((field) => field.required)) return null;
 
     return (
         <p className="text-muted-foreground text-xs">
-            {intl.formatMessage(messages.requiredLegend)}
+            {intl.formatMessage(
+                publishable
+                    ? messages.requiredLegend
+                    : messages.requiredLegendLive
+            )}
         </p>
     );
 }
 
 /**
- * The General tab body: every editable field in **one** flush block (no card
- * chrome — no border, background, or padding), ordered top-to-bottom by
- * control shape — simple inputs (text, number, dates) first, then choice
- * controls (select, boolean, multi-select), then the large fields (rich text,
- * JSON) last. No section headers: the order alone groups like with like. One
- * field per line — a single stacked column the user works through step by
- * step — except where the schema declared a row (`admin.row`); each lone field
- * is drawn at the width its value needs. See `FieldStack`.
- * Relation fields are handled by their own tab and excluded by the caller.
+ * The entry form: every field the reader may edit — relations and media
+ * included — in **one** flush block, drawn the way the schema lays it out:
+ * the fields above every section first (ordered by control shape, then
+ * relations and media), then each declared section in declaration order with
+ * its fields in the author's order. Pairing follows only `admin.width` /
+ * `admin.row` (see `FieldStack`). A relation is drawn by the editor through
+ * `EntryFieldResources.renderField`, since its links are staged there.
  */
 export function EntryFieldSections({
     fields,
@@ -81,7 +77,8 @@ export function EntryFieldSections({
     form,
     isChanged,
     contentLocale,
-    prefilledFromLocale
+    prefilledFromLocale,
+    publishable = true
 }: {
     fields: ContentField[];
     /** The type's declared form sections, when it has any. */
@@ -108,37 +105,59 @@ export function EntryFieldSections({
      * localization tool can have (WCAG 3.1.2).
      */
     contentLocale?: string;
+    /** Whether the type has a publish step — words the required legend. */
+    publishable?: boolean;
 }) {
     const intl = useIntl();
     // Field ordering by control shape — inputs, then choices, then large
-    // fields. The ranks live in content-domain so the schema builder shows the
-    // same order this form draws.
+    // fields, then relations and media. The ranks live in content-domain so the
+    // schema builder shows the same order this form draws. Inside a section the
+    // schema author's declaration order is kept instead.
     const ordered = orderGeneralTab(fields);
 
     if (ordered.length === 0) return null;
 
-    // A type that declares form sections is laid out by them instead of by
-    // locale scope: the schema author's arrangement wins, and a section will
-    // usually hold translated and shared fields together ("Schedule" has a
-    // localized title and a shared date). Nothing about locale scope is lost —
-    // each localized field keeps its globe mark and its own `lang`, and saving
-    // a shared field still asks before it changes every locale.
+    // One form: the fields above every section, then each declared section.
+    // It used to split a localized type into "Translated" and "Shared" runs;
+    // that put the schema's order second to a storage detail, so it is gone,
+    // and each field says its locale scope beside its own label instead (the
+    // globe, or "All locales" — `EntryFieldInput`). Each localized field keeps
+    // its own `lang`; a shared one holds one value for every locale and gets
+    // none, except on a fresh translation prefill (`sharedLang`).
     const { ungrouped, sections } = sectionFields(fields, groups);
-    if (sections.length > 0) {
-        // Fields above the sections keep the tab's shape ordering; each
-        // section keeps its own declaration order (see `sectionFields`).
-        const loose = new Set(ungrouped);
-        return (
-            <div className="flex flex-col gap-6" dir="auto">
-                <RequiredLegend fields={ordered} />
-                {ungrouped.length > 0 && (
+    const loose = new Set(ungrouped);
+    return (
+        <div className="flex flex-col gap-6" dir="auto">
+            <RequiredLegend fields={ordered} publishable={publishable} />
+            {prefilledFromLocale ? (
+                // A prefill is the one moment the shared values' language is
+                // known — they were copied verbatim from another row seconds
+                // ago — so it is marked and said out loud (WCAG 3.1.2, 508
+                // 504.3 — `ORT-87`). It stops being true the moment the author
+                // edits or saves, which is why nothing persists it.
+                <p
+                    data-testid="entry-shared-prefilled"
+                    className="rounded-md border border-dashed p-3 text-sm text-muted-foreground"
+                >
+                    {intl.formatMessage(messages.sharedPrefilled, {
+                        locale: prefilledFromLocale
+                    })}
+                </p>
+            ) : null}
+            {ungrouped.length > 0 && (
+                // Marked like a section, so "On this page" can find and
+                // highlight the run above the first one (Basics).
+                <div data-entry-section={BASICS_SECTION}>
                     <FieldStack
                         fields={ordered.filter((field) => loose.has(field))}
                         form={form}
                         isChanged={isChanged}
                         localizedLang={contentLocale}
+                        sharedLang={prefilledFromLocale}
                     />
-                )}
+                </div>
+            )}
+            {sections.length > 0 && (
                 <div className="flex flex-col gap-4">
                     {sections.map((section) => (
                         <FieldSection
@@ -148,90 +167,11 @@ export function EntryFieldSections({
                             form={form}
                             isChanged={isChanged}
                             localizedLang={contentLocale}
+                            sharedLang={prefilledFromLocale}
                         />
                     ))}
                 </div>
-            </div>
-        );
-    }
-
-    // On a localized type, per-locale and shared fields behave very differently
-    // on save — editing a shared field changes it for *every* locale — so they
-    // are split into two labelled runs rather than interleaved. Only i18n types
-    // ever mark a field `localized`, so a plain type keeps the flat, header-free
-    // layout below and is untouched by this.
-    const translated = ordered.filter((field) => field.localized);
-    const shared = ordered.filter((field) => !field.localized);
-
-    if (translated.length === 0 || shared.length === 0) {
-        return (
-            <div className="flex flex-col gap-5">
-                <RequiredLegend fields={ordered} />
-                <FieldStack
-                    fields={ordered}
-                    form={form}
-                    isChanged={isChanged}
-                />
-            </div>
-        );
-    }
-
-    return (
-        // `gap-6` rather than the `gap-8` this used before the rule: the gap is
-        // now paid **twice** (group → rule → group), so keeping 8 would have
-        // doubled the whitespace between the runs. Six leaves the rule centred
-        // between them and still clear of the `gap-5` between fields inside a
-        // group, so the stronger break reads as the group boundary.
-        <div className="flex flex-col gap-6">
-            <RequiredLegend fields={ordered} />
-            {/* Only the translated run carries the row's language: by
-                definition it holds this locale's text. A shared field holds one
-                value for every locale — usually still in the language it was
-                first written in — so claiming this locale for it would be a
-                worse assertion than making none. Both runs get `dir="auto"`,
-                which orders each field's own bidi text from its content rather
-                than from the admin's chrome. */}
-            <FieldGroup
-                title={intl.formatMessage(messages.translatedTitle)}
-                description={intl.formatMessage(messages.translatedBody)}
-                fields={translated}
-                form={form}
-                isChanged={isChanged}
-                lang={contentLocale}
-                dir="auto"
-            />
-            {/* The boundary between the two runs, drawn rather than left to
-                whitespace: which run a field is in decides whether editing it
-                changes every locale, and a gap alone did not say where one run
-                ended. Deliberately **decorative** — Radix renders `role="none"`,
-                so it adds nothing to the accessibility tree; the two group
-                headings are what name the runs for a screen reader, and a rule
-                announced as content would only be noise between them. */}
-            <Separator data-testid="entry-field-group-divider" />
-            {/* The shared run carries `lang` **only** on a fresh translation
-                prefill. #146 deliberately left it unmarked in general, and that
-                is right: a shared field holds one value for every locale, so
-                claiming this row's locale for it would be a worse assertion
-                than making none. A prefill is the one moment the language *is*
-                known — the values were copied verbatim from another row
-                seconds ago — so it is marked and said out loud (WCAG 3.1.2,
-                508 504.3 — `ORT-87`). It stops being true the moment the
-                author edits or saves, which is why nothing persists it. */}
-            <FieldGroup
-                title={intl.formatMessage(messages.sharedTitle)}
-                description={
-                    prefilledFromLocale
-                        ? intl.formatMessage(messages.sharedPrefilled, {
-                              locale: prefilledFromLocale
-                          })
-                        : intl.formatMessage(messages.sharedBody)
-                }
-                fields={shared}
-                form={form}
-                isChanged={isChanged}
-                {...(prefilledFromLocale ? { lang: prefilledFromLocale } : {})}
-                dir="auto"
-            />
+            )}
         </div>
     );
 }
