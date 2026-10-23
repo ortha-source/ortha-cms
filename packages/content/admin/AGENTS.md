@@ -689,18 +689,52 @@ locale). Served by `/api/views` (`packages/content/server/src/lib/views/`).
 **Where it lives.** `ViewSwitcher` is a **row of tabs above the toolbar**
 ("View controls" → a "Views" group): **All records** first, then each saved
 view (`ViewTab`, a toggle button — `aria-pressed`; a dot + sr-only "Modified"
-on the active one when it has drifted, an icon for shared / default), a
-**+ View** button ("New view from the current list") and an icon-only ⋯
-("Saved views") holding the full menu — every view row and the view actions,
-unchanged. The row ends with the collection's **Trash** tab on a paranoid
-type a user may delete from (`trashHref`, `RecordsTabLink`, `aria-current` on
-the trash page — where a banner says the trash isn't served and links are
-kept). A collection with no saved views still gets the row: All records +
-View, so the place to make one is always in sight. In the trash, on a shared
-source's list, or while views are loading or failed, the row is the two places
-alone — the list (`RecordsTabLink`) and Trash.
+on the active one when it has drifted, a star for your default, a people
+glyph for a shared view) and a **+ View** button ("New view from the current
+list"). The row ends with the collection's **Trash** tab on a paranoid type a
+user may delete from (`trashHref`, `RecordsTabLink`, `aria-current` on the
+trash page — where a banner says the trash isn't served and links are kept).
+A collection with no saved views still gets the row: All records + View, so
+the place to make one is always in sight. In the trash, on a shared source's
+list, or while views are loading or failed, the row is the two places alone —
+the list (`RecordsTabLink`) and Trash.
 
-It has lived in three other places. Leading `SearchToolbar`'s actions row it
+**Each view's actions are on its own tab** (`SavedViewTab`) — there is no ⋯
+"Saved views" menu at the end of the row any more; finding Delete or "Set as
+my default" used to mean knowing to look there.
+
+- The **selected** tab draws a ▾ ("Options for {name}"); clicking the
+  selected tab again opens the same menu (Notion's gesture — it is already
+  applied). **Right-click**, the context-menu key and **Shift+F10** open it on
+  any tab without switching to it. Only the selected tab draws the ▾: room
+  for one on every tab spread the row out with gaps, so elsewhere it is an
+  invisible anchor for the menu.
+- The menu: **Rename** (F2), **Duplicate**, **Copy link** · **Set / Clear my
+  default**, **Shared with workspace** (a `menuitemcheckbox`, owner +
+  `views:share`) · **Delete view…** (asks). Rename, sharing and delete are the
+  owner's; a colleague's shared view still offers Duplicate, its link and your
+  default. Duplicate saves a **personal** copy ("{name} (copy)") and opens it;
+  Copy link copies the list URL with `?view=<id>` alone, which the landing
+  ladder expands into the whole slice.
+- **Rename happens in the tab** (`TabRenameField`): F2, a double-click, or
+  the menu item turns the name into a field — Enter or leaving it saves,
+  Escape cancels, an empty or unchanged name sends nothing. A refused name (a
+  409 — you already have a view by that name) keeps the field open with what
+  was typed and says why in a toast. Focus goes back to the tab afterwards. A
+  tab's first click ignores `event.detail > 1`, so the second click of a
+  double-click is the rename's, not a re-select (or the menu's).
+- **Tabs that don't fit fold into "N more ▾"** (`ViewOverflowMenu`, a
+  `Popover` + `Command` so a menu's typeahead doesn't eat the search box's
+  keystrokes): searchable, grouped Yours / Shared, with **New view from the
+  current list** always offered. The fit is measured from the strip's width
+  (`ResizeObserver`) and the widths each tab had when last drawn; the selected
+  view always keeps its tab, in place of the last that would have fit. The
+  strip clips rather than scrolls.
+- The **dropped-columns notice** is drawn **under** the row, not above it:
+  above, it pushed the row down under the pointer the moment a stale view was
+  picked (and a double-click on the tab landed on empty page).
+
+Before the tabs it lived in three other places. Leading `SearchToolbar`'s actions row it
 was one control among Columns / Filters, its name truncated to fit. Under the
 `<h1>` (through a since-removed `titleAdornment` slot on `ContainerHeader`) a
 small pill read as a caption on the heading rather than a control. In
@@ -708,14 +742,13 @@ small pill read as a caption on the heading rather than a control. In
 buttons over two right-aligned rows. Tabs say what a view is — another slice of
 the same list — and make switching one click instead of two.
 
-The menu is `modal={false}`, like every other menu in this admin: a modal Radix
+Each tab's menu is `modal={false}`, like every other menu in this admin: a modal Radix
 menu `aria-hidden`s the page root, so `aria-hidden-focus` fires and the page —
 its `<h1>` included — drops out of the a11y tree while the menu is open.
 
-The **dropped-columns notice** is drawn by `LoadedRecordsView` under the header,
-not by the switcher: a wrapping sentence inside a right-aligned row of buttons
-would shove them around every time a stale view loads. It keeps the switcher's
-original message id, so its translations survive the move.
+The **dropped-columns notice** is drawn by `LoadedRecordsView` under the
+views row, not by the switcher. It keeps the switcher's original message id,
+so its translations survive the move.
 
 **`?view=` is a pointer, not the slice.** `filter`, `sort`, `pageSize` and the
 slot params stay in the URL as themselves; `?view=<id>` only names which saved
@@ -752,21 +785,16 @@ else's shared view — that one is theirs, and "Save as new" is the remedy.
 two consequential menu actions each get the treatment the _other_ one doesn't
 need:
 
-- **Delete** opens a `ConfirmDialog` naming the view, rendered outside
-  `DropdownMenuContent` (which unmounts the instant the menu closes — the same
-  rule `ENTRY_MENU_SLOT` overlays follow). A view holds no records, so nothing
-  is destroyed, but it is not undoable and a **shared** one is a colleague's
-  tool too — which is why the body has two variants. Confirm closes the dialog
-  and lets the outcome land as a toast, exactly like the entry editor's delete.
-  Focus is put back by hand (`onCloseAutoFocus`): the menu item that opened the
-  dialog is long gone, so Radix's restore would target a detached node. The
-  trigger it is put back on is always there — the switcher has **one shape**,
-  saved views or none. It used to collapse to a lone "Save current as view…"
-  button on an empty list, which spent the row's loudest secondary slot on an
-  action that only pays off _after_ the reader has changed something, and needed
-  a `justDeleted` ref to chase focus across the swap when deleting the last view
-  brought that button back. **Save current as view…** is a menu item now, beside
-  the rest of the view actions.
+- **Delete** opens a `ConfirmDialog` naming the view, rendered by the
+  switcher outside the tab's `DropdownMenuContent` (which unmounts the instant
+  the menu closes — the same rule `ENTRY_MENU_SLOT` overlays follow). A view
+  holds no records, so nothing is destroyed, but it is not undoable and a
+  **shared** one is a colleague's tool too — which is why the body has two
+  variants. Confirm closes the dialog and lets the outcome land as a toast,
+  exactly like the entry editor's delete. Focus is put back by hand
+  (`onCloseAutoFocus`): the menu item that opened the dialog is gone, and so is
+  its tab — so it lands on **All records** when the deleted view was the one
+  on screen (the list falls back to it), else on the selected tab.
 - **Set as my default** gets the toast instead, because a default decides the
   _next_ visit: nothing on this screen moves, so a silent success reads as a
   dead menu item. The message names the view, which also covers the

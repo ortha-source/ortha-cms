@@ -181,10 +181,10 @@ test.describe('Content Library accessibility (axe, WCAG 2.1 A/AA)', () => {
         await contentLibraryPage.expandGroup('Collections');
         await contentLibraryPage.typeLink('Blog posts').click();
         await contentLibraryPage.recordsTable('Blog posts').waitFor();
-        // The menu holds the two visibility sections, the tick column and the
-        // per-view actions — none of which exist until it is open.
-        await savedViewsPage.open();
-        await savedViewsPage.menuItem('Needs review').waitFor();
+        // The tab's menu — its heading, the view actions and the share
+        // checkbox item — none of which exist until it is open.
+        await savedViewsPage.open('Needs review');
+        await savedViewsPage.menuItem('Rename').waitFor();
         await expectNoA11yViolations(makeAxe());
     });
 
@@ -194,9 +194,8 @@ test.describe('Content Library accessibility (axe, WCAG 2.1 A/AA)', () => {
         makeAxe
     }) => {
         await mockSavedViews(page, [NEEDS_REVIEW_VIEW]);
-        // The amber trigger and the three inline actions only exist once the
-        // live state has drifted, and that trigger's contrast is the reason to
-        // scan it.
+        // The Modified dot and the three inline actions only exist once the
+        // live state has drifted.
         await savedViewsPage.goto(
             LIBRARY_WORKSPACE.id,
             'blog_post',
@@ -219,7 +218,7 @@ test.describe('Content Library accessibility (axe, WCAG 2.1 A/AA)', () => {
         );
         // A modal over a records page: its own name, and the page behind it
         // going `aria-hidden` while it is up, are what this scan is for.
-        await savedViewsPage.open();
+        await savedViewsPage.open('Needs review');
         await savedViewsPage.deleteItem().click();
         await savedViewsPage.confirmDeleteDialog().waitFor();
         await expectNoA11yViolations(makeAxe());

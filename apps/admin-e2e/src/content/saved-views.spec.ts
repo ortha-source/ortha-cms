@@ -18,6 +18,7 @@ import {
     spyDeleteView,
     spySaveView,
     spySetDefaultView,
+    spyUpdateView,
     type SavedViewSeed
 } from '../support/api/savedViews';
 
@@ -55,14 +56,10 @@ test.describe('Saved views', () => {
         await seed(page, []);
         await savedViewsPage.goto(RELATIONS_WORKSPACE.id, 'article');
 
-        // The switcher has one shape whether or not anything is saved: the
-        // trigger is here, and the way to create the first view is inside it
-        // rather than a second control taking its place in the row.
-        await expect(savedViewsPage.trigger()).toBeVisible();
-
-        await savedViewsPage.open();
-        await expect(savedViewsPage.saveAsItem()).toBeVisible();
-        await expect(savedViewsPage.menuItem('All records')).toBeVisible();
+        // The row has one shape whether or not anything is saved: All
+        // records, and "+ View" where the first one is made.
+        await expect(savedViewsPage.activeTab()).toContainText('All records');
+        await expect(savedViewsPage.newView()).toBeVisible();
     });
 
     test('renders the switcher when views exist, grouped by visibility', async ({
@@ -73,11 +70,8 @@ test.describe('Saved views', () => {
         await savedViewsPage.goto(RELATIONS_WORKSPACE.id, 'article');
 
         await expect(savedViewsPage.activeTab()).toContainText('All records');
-        await savedViewsPage.open();
-        await expect(savedViewsPage.menuItem('Needs review')).toBeVisible();
-        await expect(
-            savedViewsPage.menuItem('Editorial backlog')
-        ).toBeVisible();
+        await expect(savedViewsPage.tab('Needs review')).toBeVisible();
+        await expect(savedViewsPage.tab('Editorial backlog')).toBeVisible();
     });
 
     test('applying a view writes its params and the view pointer to the URL', async ({
@@ -86,8 +80,7 @@ test.describe('Saved views', () => {
     }) => {
         await seed(page, [NEEDS_REVIEW_VIEW]);
         await savedViewsPage.goto(RELATIONS_WORKSPACE.id, 'article');
-        await savedViewsPage.open();
-        await savedViewsPage.menuItem('Needs review').click();
+        await savedViewsPage.tab('Needs review').click();
 
         await expect(savedViewsPage.activeTab()).toContainText('Needs review');
         const url = new URL(page.url());
@@ -124,8 +117,7 @@ test.describe('Saved views', () => {
             'article',
             `?view=${NEEDS_REVIEW_VIEW.id}`
         );
-        await savedViewsPage.open();
-        await savedViewsPage.menuItem('All records').click();
+        await savedViewsPage.tab('All records').click();
 
         await expect(savedViewsPage.activeTab()).toContainText('All records');
         const url = new URL(page.url());
@@ -319,49 +311,46 @@ test.describe('Saved views', () => {
         // The records table is the page's job; views are an accessory to it,
         // so their outage must not take the collection down with them.
         await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-        await expect(savedViewsPage.trigger()).toHaveCount(0);
+        await expect(savedViewsPage.newView()).toHaveCount(0);
     });
 
     test.describe('keyboard', () => {
-        test('opens the menu, picks a view and returns focus to the trigger', async ({
+        test('opens the selected view’s menu from its ▾ and gives focus back', async ({
             page,
             savedViewsPage
         }) => {
             await seed(page, [NEEDS_REVIEW_VIEW]);
-            await savedViewsPage.goto(RELATIONS_WORKSPACE.id, 'article');
+            await savedViewsPage.goto(
+                RELATIONS_WORKSPACE.id,
+                'article',
+                `?view=${NEEDS_REVIEW_VIEW.id}`
+            );
 
-            await savedViewsPage.trigger().focus();
-            await expect(savedViewsPage.trigger()).toBeFocused();
-
+            await savedViewsPage.options('Needs review').focus();
             // Opening must land focus **inside** the menu, on its first item —
             // otherwise a keyboard user gets a visible menu and no way into it.
             await page.keyboard.press('Enter');
-            await expect(savedViewsPage.menuItem('Needs review')).toBeFocused();
+            await expect(savedViewsPage.menuItem('Rename')).toBeFocused();
 
-            await page.keyboard.press('Enter');
-            await expect(savedViewsPage.activeTab()).toContainText(
-                'Needs review'
-            );
-            // The menu is gone, so focus must be back on its trigger rather
-            // than dropped on the body.
-            await expect(savedViewsPage.trigger()).toBeFocused();
+            await page.keyboard.press('Escape');
+            await expect(savedViewsPage.menuItem('Rename')).toHaveCount(0);
+            await expect(savedViewsPage.options('Needs review')).toBeFocused();
         });
 
-        test('Escape closes the menu without applying anything', async ({
+        test('Shift+F10 on any tab opens its menu without applying it', async ({
             page,
             savedViewsPage
         }) => {
             await seed(page, [NEEDS_REVIEW_VIEW]);
             await savedViewsPage.goto(RELATIONS_WORKSPACE.id, 'article');
 
-            await savedViewsPage.open();
-            await expect(savedViewsPage.menuItem('Needs review')).toBeVisible();
-            await page.keyboard.press('Escape');
+            await savedViewsPage.tab('Needs review').focus();
+            await page.keyboard.press('Shift+F10');
 
-            await expect(savedViewsPage.menuItem('Needs review')).toHaveCount(
-                0
+            await expect(savedViewsPage.menuItem('Duplicate')).toBeVisible();
+            await expect(savedViewsPage.activeTab()).toContainText(
+                'All records'
             );
-            await expect(savedViewsPage.trigger()).toBeFocused();
             expect(new URL(page.url()).searchParams.get('view')).toBeNull();
         });
 
@@ -460,8 +449,7 @@ test.describe('Saved views', () => {
         await savedViewsPage.goto(RELATIONS_WORKSPACE.id, 'article');
         await expect(savedViewsPage.activeTab()).toContainText('Needs review');
 
-        await savedViewsPage.open();
-        await savedViewsPage.menuItem('All records').click();
+        await savedViewsPage.tab('All records').click();
 
         await expect(savedViewsPage.activeTab()).toContainText('All records');
         expect(new URL(page.url()).searchParams.get('view')).toBeNull();
@@ -480,7 +468,7 @@ test.describe('Saved views', () => {
                 `?view=${NEEDS_REVIEW_VIEW.id}`
             );
 
-            await savedViewsPage.open();
+            await savedViewsPage.open('Needs review');
             await savedViewsPage.deleteItem().click();
 
             // The menu item only asks — a view is somebody's saved work and
@@ -512,7 +500,7 @@ test.describe('Saved views', () => {
                 `?view=${NEEDS_REVIEW_VIEW.id}`
             );
 
-            await savedViewsPage.open();
+            await savedViewsPage.open('Needs review');
             await savedViewsPage.deleteItem().click();
             await savedViewsPage.confirmDelete().click();
 
@@ -522,10 +510,13 @@ test.describe('Saved views', () => {
             expect(spy.lastId).toBe(NEEDS_REVIEW_VIEW.id);
             expect(new URL(page.url()).searchParams.get('view')).toBeNull();
 
-            // The control that opened the dialog was a menu item, and it is
-            // gone — so focus has to be put back by hand or it lands on <body>.
-            // The trigger survives the list emptying, so it is what takes it.
-            await expect(savedViewsPage.trigger()).toBeFocused();
+            // The control that opened the dialog was a menu item on a tab that
+            // is gone — so focus has to be put back by hand or it lands on
+            // <body>. The selected tab always exists, so it is what takes it.
+            await expect(savedViewsPage.activeTab()).toBeFocused();
+            await expect(savedViewsPage.activeTab()).toContainText(
+                'All records'
+            );
         });
 
         test('keeps focus on the switcher when other views remain', async ({
@@ -533,8 +524,7 @@ test.describe('Saved views', () => {
             savedViewsPage
         }) => {
             // The common path, and the counterweight to the case above: with a
-            // view left the cluster does not swap, so the focus the dialog
-            // placed on the trigger must simply stay there.
+            // view left, focus still lands on the tab now selected.
             const mine = { ...SHARED_VIEW, isOwn: true };
             await seed(page, [NEEDS_REVIEW_VIEW, mine]);
             const spy = spyDeleteView(page, [NEEDS_REVIEW_VIEW, mine]);
@@ -544,12 +534,12 @@ test.describe('Saved views', () => {
                 `?view=${mine.id}`
             );
 
-            await savedViewsPage.open();
+            await savedViewsPage.open(mine.name);
             await savedViewsPage.deleteItem().click();
             await savedViewsPage.confirmDelete().click();
 
             expect(spy.count).toBe(1);
-            await expect(savedViewsPage.trigger()).toBeFocused();
+            await expect(savedViewsPage.activeTab()).toBeFocused();
             await expect(savedViewsPage.activeTab()).toContainText(
                 'All records'
             );
@@ -572,7 +562,7 @@ test.describe('Saved views', () => {
                 `?view=${ownShared.id}`
             );
 
-            await savedViewsPage.open();
+            await savedViewsPage.open(ownShared.name);
             await savedViewsPage.deleteItem().click();
 
             await expect(savedViewsPage.confirmDeleteDialog()).toContainText(
@@ -596,7 +586,7 @@ test.describe('Saved views', () => {
                 `?view=${NEEDS_REVIEW_VIEW.id}`
             );
 
-            await savedViewsPage.open();
+            await savedViewsPage.open('Needs review');
             await savedViewsPage.defaultItem().click();
 
             await expect(
@@ -606,7 +596,7 @@ test.describe('Saved views', () => {
             expect(spy.lastId).toBe(NEEDS_REVIEW_VIEW.id);
 
             // The list re-reads, so the menu now offers the way back out.
-            await savedViewsPage.open();
+            await savedViewsPage.open('Needs review');
             await savedViewsPage.defaultItem(true).click();
 
             await expect(
@@ -651,5 +641,166 @@ test.describe('Saved views', () => {
 
         await expect(savedViewsPage.activeTab()).toContainText('All records');
         expect(new URL(page.url()).searchParams.get('view')).toBeNull();
+    });
+    test.describe('the menu on each tab', () => {
+        test('renames a view in place with F2', async ({
+            page,
+            savedViewsPage
+        }) => {
+            await seed(page, [NEEDS_REVIEW_VIEW]);
+            const spy = spyUpdateView(page, [NEEDS_REVIEW_VIEW]);
+            await savedViewsPage.goto(RELATIONS_WORKSPACE.id, 'article');
+
+            await savedViewsPage.tab('Needs review').focus();
+            await page.keyboard.press('F2');
+            await expect(savedViewsPage.renameField()).toBeFocused();
+            await expect(savedViewsPage.renameField()).toHaveValue(
+                'Needs review'
+            );
+
+            await page.keyboard.type('Ready to edit');
+            await page.keyboard.press('Enter');
+
+            await expect(savedViewsPage.tab('Ready to edit')).toBeVisible();
+            await expect(savedViewsPage.tab('Ready to edit')).toBeFocused();
+            expect(spy.count).toBe(1);
+            expect(spy.lastBody).toEqual({ name: 'Ready to edit' });
+        });
+
+        test('Escape cancels a rename and sends nothing', async ({
+            page,
+            savedViewsPage
+        }) => {
+            await seed(page, [NEEDS_REVIEW_VIEW]);
+            const spy = spyUpdateView(page, [NEEDS_REVIEW_VIEW]);
+            await savedViewsPage.goto(RELATIONS_WORKSPACE.id, 'article');
+
+            await savedViewsPage.open('Needs review');
+            await savedViewsPage.menuItem('Rename').click();
+            await expect(savedViewsPage.renameField()).toBeFocused();
+            await page.keyboard.type('Never mind');
+            await page.keyboard.press('Escape');
+
+            await expect(savedViewsPage.renameField()).toHaveCount(0);
+            await expect(savedViewsPage.tab('Needs review')).toBeVisible();
+            expect(spy.count).toBe(0);
+        });
+
+        test('a taken name keeps the field open and says why', async ({
+            page,
+            savedViewsPage
+        }) => {
+            await seed(page, [NEEDS_REVIEW_VIEW]);
+            spyUpdateView(page, [NEEDS_REVIEW_VIEW], { taken: ['Taken'] });
+            await savedViewsPage.goto(RELATIONS_WORKSPACE.id, 'article');
+
+            await savedViewsPage.tab('Needs review').dblclick();
+            await savedViewsPage.renameField().fill('Taken');
+            await page.keyboard.press('Enter');
+
+            await expect(
+                savedViewsPage.toast('You already have a view called “Taken”.')
+            ).toBeVisible();
+            await expect(savedViewsPage.renameField()).toHaveValue('Taken');
+        });
+
+        test('someone else’s shared view offers no rename, share or delete', async ({
+            page,
+            savedViewsPage
+        }) => {
+            await seed(page, [SHARED_VIEW]);
+            await savedViewsPage.goto(RELATIONS_WORKSPACE.id, 'article');
+
+            await savedViewsPage.tab('Editorial backlog').click({
+                button: 'right'
+            });
+
+            await expect(savedViewsPage.menuItem('Duplicate')).toBeVisible();
+            await expect(savedViewsPage.menuItem('Copy link')).toBeVisible();
+            await expect(savedViewsPage.defaultItem()).toBeVisible();
+            await expect(savedViewsPage.menuItem('Rename')).toHaveCount(0);
+            await expect(savedViewsPage.deleteItem()).toHaveCount(0);
+            await expect(
+                page.getByRole('menuitemcheckbox', {
+                    name: 'Shared with workspace'
+                })
+            ).toHaveCount(0);
+        });
+
+        test('duplicates a view as a personal copy and opens it', async ({
+            page,
+            savedViewsPage
+        }) => {
+            await seed(page, [SHARED_VIEW]);
+            const spy = spySaveView(page);
+            await savedViewsPage.goto(RELATIONS_WORKSPACE.id, 'article');
+
+            await savedViewsPage.open('Editorial backlog');
+            await savedViewsPage.menuItem('Duplicate').click();
+
+            await expect.poll(() => spy.count).toBe(1);
+            expect(spy.lastBody).toMatchObject({
+                name: 'Editorial backlog (copy)',
+                visibility: 'private',
+                payload: SHARED_VIEW.payload
+            });
+            await expect(
+                savedViewsPage.toast(
+                    'Duplicated as “Editorial backlog (copy)”.'
+                )
+            ).toBeVisible();
+        });
+
+        test('shares an own view from its menu', async ({
+            page,
+            savedViewsPage
+        }) => {
+            await seed(page, [NEEDS_REVIEW_VIEW]);
+            const spy = spyUpdateView(page, [NEEDS_REVIEW_VIEW]);
+            await savedViewsPage.goto(RELATIONS_WORKSPACE.id, 'article');
+
+            await savedViewsPage.open('Needs review');
+            const share = page.getByRole('menuitemcheckbox', {
+                name: 'Shared with workspace'
+            });
+            await expect(share).toHaveAttribute('aria-checked', 'false');
+            await share.click();
+
+            await expect(
+                savedViewsPage.toast(
+                    '“Needs review” is shared with the workspace.'
+                )
+            ).toBeVisible();
+            expect(spy.lastBody).toEqual({ visibility: 'workspace' });
+        });
+
+        test('folds the tabs that don’t fit into “N more”, and brings a pick back', async ({
+            page,
+            savedViewsPage
+        }) => {
+            const many = Array.from({ length: 12 }, (_, n) => ({
+                ...NEEDS_REVIEW_VIEW,
+                id: `aaaaaaaa-aaaa-4aaa-8aaa-${String(n).padStart(12, '0')}`,
+                name: `A rather long view name ${n + 1}`
+            }));
+            await seed(page, many);
+            await savedViewsPage.goto(RELATIONS_WORKSPACE.id, 'article');
+
+            await expect(savedViewsPage.more()).toBeVisible();
+            await expect(
+                savedViewsPage.tab('A rather long view name 12')
+            ).toHaveCount(0);
+
+            await savedViewsPage.more().click();
+            await page.getByPlaceholder('Find a view').fill('name 12');
+            await page
+                .getByRole('option', { name: 'A rather long view name 12' })
+                .click();
+
+            // The selected view always keeps a tab.
+            await expect(savedViewsPage.activeTab()).toContainText(
+                'A rather long view name 12'
+            );
+        });
     });
 });

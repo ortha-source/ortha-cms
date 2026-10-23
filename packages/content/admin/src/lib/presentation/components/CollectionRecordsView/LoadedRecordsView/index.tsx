@@ -60,6 +60,7 @@ import {
     viewPayloadToParams
 } from '../../../../domain/viewPayload';
 import {
+    VIEW_NAME_MAX_LENGTH,
     VIEW_VISIBILITY,
     type SavedView
 } from '../../../../domain/types/savedView';
@@ -229,6 +230,46 @@ const messages = defineMessages({
     viewDefaultFailed: {
         id: 'content.records.viewDefaultFailed',
         defaultMessage: 'Couldn’t change your default view. Please try again.'
+    },
+    viewRenamed: {
+        id: 'content.records.viewRenamed',
+        defaultMessage: 'Renamed to “{name}”.'
+    },
+    viewNameTaken: {
+        id: 'content.records.viewNameTaken',
+        defaultMessage: 'You already have a view called “{name}”.'
+    },
+    viewRenameFailed: {
+        id: 'content.records.viewRenameFailed',
+        defaultMessage: 'Couldn’t rename the view. Please try again.'
+    },
+    viewCopyName: {
+        id: 'content.records.viewCopyName',
+        defaultMessage: '{name} (copy)'
+    },
+    viewDuplicated: {
+        id: 'content.records.viewDuplicated',
+        defaultMessage: 'Duplicated as “{name}”.'
+    },
+    viewDuplicateFailed: {
+        id: 'content.records.viewDuplicateFailed',
+        defaultMessage: 'Couldn’t duplicate the view. Please try again.'
+    },
+    viewLinkCopied: {
+        id: 'content.records.viewLinkCopied',
+        defaultMessage: 'Link to “{name}” copied.'
+    },
+    viewLinkFailed: {
+        id: 'content.records.viewLinkFailed',
+        defaultMessage: 'Couldn’t copy the link.'
+    },
+    viewShared: {
+        id: 'content.records.viewShared',
+        defaultMessage: '“{name}” is shared with the workspace.'
+    },
+    viewUnshared: {
+        id: 'content.records.viewUnshared',
+        defaultMessage: '“{name}” is only visible to you now.'
     },
     viewsError: {
         id: 'content.records.viewsError',
@@ -774,6 +815,120 @@ export function LoadedRecordsView({
         [setDefaultView, intl]
     );
 
+    /** A 409 from the views API: the name is already one of yours. */
+    const nameTaken = (error: unknown) => readStatus(error) === 409;
+
+    const handleRenameView = useCallback(
+        (view: SavedView, name: string) =>
+            updateView.mutateAsync({ id: view.id, name }).then(
+                () => {
+                    toast.success(
+                        intl.formatMessage(messages.viewRenamed, { name })
+                    );
+                    return true;
+                },
+                (error: unknown) => {
+                    toast.error(
+                        nameTaken(error)
+                            ? intl.formatMessage(messages.viewNameTaken, {
+                                  name
+                              })
+                            : intl.formatMessage(messages.viewRenameFailed)
+                    );
+                    return false;
+                }
+            ),
+        [updateView, intl]
+    );
+
+    // A copy is always personal: duplicating a colleague's shared view is how
+    // you make a version of it that is yours to change.
+    const handleDuplicateView = useCallback(
+        (view: SavedView) => {
+            const name = intl
+                .formatMessage(messages.viewCopyName, { name: view.name })
+                .slice(0, VIEW_NAME_MAX_LENGTH);
+            saveView.mutate(
+                {
+                    scope,
+                    name,
+                    visibility: VIEW_VISIBILITY.Private,
+                    payload: view.payload
+                },
+                {
+                    onSuccess: (created) => {
+                        applyView(created);
+                        toast.success(
+                            intl.formatMessage(messages.viewDuplicated, {
+                                name: created.name
+                            })
+                        );
+                    },
+                    onError: (error) =>
+                        toast.error(
+                            nameTaken(error)
+                                ? intl.formatMessage(messages.viewNameTaken, {
+                                      name
+                                  })
+                                : intl.formatMessage(
+                                      messages.viewDuplicateFailed
+                                  )
+                        )
+                }
+            );
+        },
+        [saveView, scope, applyView, intl]
+    );
+
+    // `?view=` alone is a complete address — the landing ladder applies the
+    // view's whole slice from it — so the link is the list's URL with only
+    // that. It keeps working after a rename.
+    const handleCopyLink = useCallback(
+        (view: SavedView) => {
+            const url = new URL(window.location.href);
+            url.search = new URLSearchParams({
+                [VIEW_PARAM]: view.id
+            }).toString();
+            void navigator.clipboard?.writeText(url.href).then(
+                () =>
+                    toast.success(
+                        intl.formatMessage(messages.viewLinkCopied, {
+                            name: view.name
+                        })
+                    ),
+                () => toast.error(intl.formatMessage(messages.viewLinkFailed))
+            );
+        },
+        [intl]
+    );
+
+    const handleShareView = useCallback(
+        (view: SavedView, shared: boolean) => {
+            updateView.mutate(
+                {
+                    id: view.id,
+                    visibility: shared
+                        ? VIEW_VISIBILITY.Workspace
+                        : VIEW_VISIBILITY.Private
+                },
+                {
+                    onSuccess: () =>
+                        toast.success(
+                            intl.formatMessage(
+                                shared
+                                    ? messages.viewShared
+                                    : messages.viewUnshared,
+                                { name: view.name }
+                            )
+                        ),
+                    onError: () =>
+                        toast.error(intl.formatMessage(messages.viewSaveFailed))
+                }
+            );
+        },
+        [updateView, intl]
+    );
+
     // Which view the reader lands on, resolved on every **arrival**:
     //
     //   1. `?view=<id>` with no competing slice params → apply that view. This
@@ -984,27 +1139,14 @@ export function LoadedRecordsView({
 
             {/* A view outlives the field it was saved over, so applying one
                 drops what no longer exists. Say so — a silently shorter table
-                reads as a bug in the view, not as a changed content type. It is
-                a full-width line under the header rather than part of the
-                switcher: a wrapping sentence inside a right-aligned row of
-                buttons would push them around every time a stale view loads. */}
+                reads as a bug in the view, not as a changed content type. That
+                line is drawn under the views row, below. */}
             {!ownAccess && !readOnly && !trashed ? (
                 <SharedOnlyNotice
                     type={type}
                     basePath={basePath}
                     className="mb-4"
                 />
-            ) : null}
-
-            {droppedColumns > 0 ? (
-                <p
-                    className="-mt-2 mb-4 text-sm text-muted-foreground"
-                    role="status"
-                >
-                    {intl.formatMessage(messages.viewDroppedColumns, {
-                        count: droppedColumns
-                    })}
-                </p>
             ) : null}
 
             {/* The slices of this list: the saved views as tabs, then the
@@ -1030,6 +1172,12 @@ export function LoadedRecordsView({
                             }
                             onSetDefault={handleSetDefault}
                             onDelete={handleDeleteView}
+                            onRename={handleRenameView}
+                            onDuplicate={handleDuplicateView}
+                            onCopyLink={handleCopyLink}
+                            onShare={
+                                canShareViews ? handleShareView : undefined
+                            }
                             trailing={trashTab}
                         />
                     ) : (
@@ -1048,6 +1196,19 @@ export function LoadedRecordsView({
                 </div>
             )}
 
+            {/* Under the tabs, not above them: drawn above, it pushed the row
+                down the moment a stale view was picked, under the pointer
+                that picked it. */}
+            {droppedColumns > 0 ? (
+                <p
+                    className="-mt-2 mb-4 text-sm text-muted-foreground"
+                    role="status"
+                >
+                    {intl.formatMessage(messages.viewDroppedColumns, {
+                        count: droppedColumns
+                    })}
+                </p>
+            ) : null}
             {trashed ? (
                 <p className="mb-4 flex items-center gap-2.5 rounded-xl border bg-muted/40 px-4 py-2.5 text-[13px] text-muted-foreground">
                     <Trash2 aria-hidden className="size-4 shrink-0" />
