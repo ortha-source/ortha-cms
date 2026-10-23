@@ -46,9 +46,9 @@ export function RecentEntriesCard({
                 {[0, 1, 2, 3].map((row) => (
                     <li
                         key={row}
-                        className="flex h-[52px] items-center gap-3 border-t px-4"
+                        className="flex h-11 items-center gap-2.5 border-t px-3.5"
                     >
-                        <Skeleton className="size-8 rounded-[9px]" />
+                        <Skeleton className="size-7 rounded-lg" />
                         <Skeleton className="h-4 flex-1" />
                     </li>
                 ))}
@@ -56,7 +56,7 @@ export function RecentEntriesCard({
         );
     } else if (isError || entries.length === 0) {
         body = (
-            <p className="border-t px-4 py-6 text-sm text-muted-foreground">
+            <p className="border-t px-3.5 py-5 text-[13px] text-muted-foreground">
                 {intl.formatMessage(isError ? messages.error : messages.empty)}
             </p>
         );
@@ -89,7 +89,7 @@ export function RecentEntriesCard({
         >
             <h2
                 id="content-overview-recent"
-                className="px-4 py-3 text-[15px] font-semibold leading-5"
+                className="px-3.5 py-2.5 text-sm font-semibold leading-5"
             >
                 {intl.formatMessage(messages.title)}
             </h2>

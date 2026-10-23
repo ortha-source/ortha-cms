@@ -102,12 +102,16 @@ export function ContentTypeCard({
     let summary;
     if (isSingle) {
         summary = !single ? (
-            <span className="text-xs text-muted-foreground">
+            <span className="text-[11px] text-muted-foreground">
                 {intl.formatMessage(messages.notCreated)}
             </span>
         ) : type.publishable ? (
             <span>
-                <EntryStatusBadge entry={single} explainModified={false} />
+                <EntryStatusBadge
+                    entry={single}
+                    explainModified={false}
+                    size="xs"
+                />
             </span>
         ) : null;
     } else if (split && total) {
@@ -115,7 +119,7 @@ export function ContentTypeCard({
             <>
                 <div
                     aria-hidden
-                    className="flex h-1.5 gap-px overflow-hidden rounded-full bg-muted"
+                    className="flex h-1 gap-px overflow-hidden rounded-full bg-muted"
                 >
                     {parts.map((part) => (
                         <i
@@ -125,7 +129,7 @@ export function ContentTypeCard({
                         />
                     ))}
                 </div>
-                <p className="text-xs tabular-nums text-muted-foreground">
+                <p className="text-[11px] tabular-nums text-muted-foreground">
                     {parts
                         .map((part) =>
                             intl.formatMessage(
@@ -139,7 +143,7 @@ export function ContentTypeCard({
         );
     } else if (total !== undefined) {
         summary = (
-            <p className="text-xs tabular-nums text-muted-foreground">
+            <p className="text-[11px] tabular-nums text-muted-foreground">
                 {intl.formatMessage(messages.records, { count: total })}
             </p>
         );
@@ -148,18 +152,20 @@ export function ContentTypeCard({
     return (
         <Link
             to={to}
-            className="flex flex-col gap-3 rounded-xl border bg-card p-4 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex flex-col gap-2.5 rounded-xl border bg-card p-3.5 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
             <div className="flex items-center gap-3">
                 <span
                     aria-hidden
-                    className="inline-flex size-8 shrink-0 items-center justify-center rounded-[9px] bg-muted"
+                    className="inline-flex size-7 shrink-0 items-center justify-center rounded-lg bg-muted"
                 >
-                    <Icon className="size-4" />
+                    <Icon className="size-3.5" />
                 </span>
                 <div className="flex min-w-0 flex-1 flex-col">
-                    <span className="truncate font-semibold">{type.label}</span>
-                    <div className="truncate text-xs text-muted-foreground">
+                    <span className="truncate text-[13px] leading-4 font-semibold">
+                        {type.label}
+                    </span>
+                    <div className="truncate text-[11px] leading-4 text-muted-foreground">
                         {total === undefined ? (
                             <Skeleton className="mt-0.5 h-3 w-24" />
                         ) : updatedAt ? (
@@ -172,7 +178,7 @@ export function ContentTypeCard({
                     </div>
                 </div>
                 {!isSingle && total !== undefined ? (
-                    <span className="text-lg font-semibold tabular-nums">
+                    <span className="text-[15px] font-semibold tabular-nums">
                         {intl.formatNumber(total)}
                     </span>
                 ) : null}

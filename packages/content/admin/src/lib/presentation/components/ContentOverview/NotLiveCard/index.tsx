@@ -55,21 +55,21 @@ export function NotLiveCard({ reachable, basePath }: NotLiveCardProps) {
     let body;
     if (isPending) {
         body = (
-            <div aria-hidden className="flex flex-col gap-2 px-4 pb-4">
+            <div aria-hidden className="flex flex-col gap-2 px-3.5 pb-3.5">
                 <Skeleton className="h-4 w-3/4" />
                 <Skeleton className="h-4 w-1/2" />
             </div>
         );
     } else if (isError || !data) {
         body = (
-            <p className="px-4 pb-4 text-sm text-muted-foreground">
+            <p className="px-3.5 pb-3.5 text-[13px] text-muted-foreground">
                 {intl.formatMessage(messages.error)}
             </p>
         );
     } else {
         body = (
             <>
-                <p className="px-4 pb-3 text-[13px] text-muted-foreground">
+                <p className="px-3.5 pb-2.5 text-xs text-muted-foreground">
                     {data.live === 0
                         ? intl.formatMessage(messages.nothingLive)
                         : data.modified === 0
@@ -85,12 +85,12 @@ export function NotLiveCard({ reachable, basePath }: NotLiveCardProps) {
                             <li key={type.name} className="border-t">
                                 <Link
                                     to={`${basePath}/${type.name}`}
-                                    className="flex h-11 items-center gap-3 px-4 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                                    className="flex h-9 items-center gap-2.5 px-3.5 text-[13px] transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
                                 >
                                     <span className="min-w-0 flex-1 truncate font-medium">
                                         {type.label}
                                     </span>
-                                    <Badge variant="warning">
+                                    <Badge variant="warning" size="xs">
                                         {intl.formatMessage(messages.modified, {
                                             count: type.modified
                                         })}
@@ -101,7 +101,7 @@ export function NotLiveCard({ reachable, basePath }: NotLiveCardProps) {
                     </ul>
                 ) : null}
                 {data.neverPublished > 0 ? (
-                    <p className="border-t px-4 py-3 text-xs text-muted-foreground">
+                    <p className="border-t px-3.5 py-2.5 text-[11px] text-muted-foreground">
                         {intl.formatMessage(messages.neverPublished, {
                             count: data.neverPublished
                         })}
@@ -118,7 +118,7 @@ export function NotLiveCard({ reachable, basePath }: NotLiveCardProps) {
         >
             <h2
                 id="content-overview-not-live"
-                className="px-4 pt-3 pb-1 text-[15px] font-semibold leading-5"
+                className="px-3.5 pt-2.5 pb-1 text-sm font-semibold leading-5"
             >
                 {intl.formatMessage(messages.title)}
             </h2>

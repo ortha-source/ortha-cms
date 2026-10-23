@@ -115,13 +115,13 @@ export function ContentOverview({
     const showLegend = collections.some((type) => type.publishable);
 
     return (
-        <div className="mx-auto flex w-full max-w-[1040px] flex-col gap-7 px-4 py-8 sm:px-10">
+        <div className="mx-auto flex w-full max-w-[1040px] flex-col gap-6 px-4 py-7 sm:px-10">
             <header className="flex flex-col gap-1.5">
                 {/* The page's `<h1>` while no type is picked (`ORT-167`). */}
-                <h1 className="text-[28px] font-semibold leading-[34px] tracking-[-0.012em]">
+                <h1 className="text-2xl font-semibold leading-8 tracking-[-0.01em]">
                     {workspaceName}
                 </h1>
-                <p className="flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground">
+                <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     {total !== undefined ? (
                         <>
                             <span>
@@ -162,7 +162,7 @@ export function ContentOverview({
                     <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
                         <h2
                             id="content-overview-collections"
-                            className="text-[15px] font-semibold leading-5"
+                            className="text-sm font-semibold leading-5"
                         >
                             {intl.formatMessage(messages.collections)}
                         </h2>
@@ -171,7 +171,7 @@ export function ContentOverview({
                             // counts in words under its bar.
                             <div
                                 aria-hidden
-                                className="flex gap-3 text-xs text-muted-foreground"
+                                className="flex gap-3 text-[11px] text-muted-foreground"
                             >
                                 <span className="inline-flex items-center gap-1.5">
                                     <span className="size-1.5 rounded-full bg-success" />
@@ -205,7 +205,7 @@ export function ContentOverview({
                 >
                     <h2
                         id="content-overview-pages"
-                        className="text-[15px] font-semibold leading-5"
+                        className="text-sm font-semibold leading-5"
                     >
                         {intl.formatMessage(messages.pages)}
                     </h2>

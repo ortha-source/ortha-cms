@@ -25,17 +25,19 @@ export function RecentEntryRow({ item, to }: RecentEntryRowProps) {
         <li className="border-t">
             <Link
                 to={to}
-                className="flex h-[52px] items-center gap-3 px-4 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                className="flex h-11 items-center gap-2.5 px-3.5 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
             >
                 <span
                     aria-hidden
-                    className="inline-flex size-8 shrink-0 items-center justify-center rounded-[9px] bg-muted"
+                    className="inline-flex size-7 shrink-0 items-center justify-center rounded-lg bg-muted"
                 >
-                    <Icon className="size-4" />
+                    <Icon className="size-3.5" />
                 </span>
                 <span className="flex min-w-0 flex-1 flex-col">
-                    <span className="truncate font-medium">{item.title}</span>
-                    <span className="truncate text-xs text-muted-foreground">
+                    <span className="truncate text-[13px] leading-4 font-medium">
+                        {item.title}
+                    </span>
+                    <span className="truncate text-[11px] leading-4 text-muted-foreground">
                         {item.locale
                             ? `${item.type.label} · ${item.locale.toUpperCase()}`
                             : item.type.label}
@@ -46,9 +48,10 @@ export function RecentEntryRow({ item, to }: RecentEntryRowProps) {
                     <EntryStatusBadge
                         entry={item.entry}
                         explainModified={false}
+                        size="xs"
                     />
                 ) : null}
-                <span className="w-20 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
+                <span className="w-16 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
                     {since(item.updatedAt)}
                 </span>
             </Link>
