@@ -1,4 +1,4 @@
-import { useEffect, useState, type RefObject } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { ListTree } from 'lucide-react';
 import {
@@ -149,7 +149,11 @@ export function EntryPageNav({
         );
     };
 
+    // A pick moves focus into the form; the menu's own focus restore on
+    // close would put it straight back on the "Sections" button.
+    const picked = useRef(false);
     const go = (key: string) => {
+        picked.current = true;
         setCurrent(key);
         onGo(key);
     };
@@ -168,7 +172,15 @@ export function EntryPageNav({
                         {intl.formatMessage(messages.sections)}
                     </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-60">
+                <DropdownMenuContent
+                    align="start"
+                    className="w-60"
+                    onCloseAutoFocus={(event) => {
+                        if (!picked.current) return;
+                        picked.current = false;
+                        event.preventDefault();
+                    }}
+                >
                     {sections.map((section) => (
                         <DropdownMenuItem
                             key={section.key}

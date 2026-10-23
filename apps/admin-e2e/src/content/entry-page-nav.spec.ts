@@ -66,6 +66,11 @@ test.describe('Entry editor — On this page', () => {
             await expect(
                 contentLibraryPage.pageNavItem('Pricing')
             ).toHaveAttribute('aria-current', 'location');
+            // Focus goes with the view — to the field the red row counts,
+            // so the next key press fixes it.
+            await expect(
+                contentLibraryPage.fieldSpinbutton('Price')
+            ).toBeFocused();
             await expect(contentLibraryPage.sectionsMenu).toHaveCount(0);
         });
 

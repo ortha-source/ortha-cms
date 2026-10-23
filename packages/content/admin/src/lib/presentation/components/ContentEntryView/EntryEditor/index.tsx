@@ -902,7 +902,7 @@ export function EntryEditor({
      * the conventional id, else the first focusable thing in its cell (a
      * relation's picker button, a media field's actions).
      */
-    const focusField = (name: string) => {
+    const focusField = (name: string, { scroll = true } = {}) => {
         const control = document.getElementById(`entry-field-${name}`);
         const cell = document.querySelector<HTMLElement>(
             `[data-entry-field="${CSS.escape(name)}"]`
@@ -910,9 +910,9 @@ export function EntryEditor({
         const target =
             control ??
             cell?.querySelector<HTMLElement>(
-                'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+                'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [contenteditable="true"], [tabindex]:not([tabindex="-1"])'
             );
-        (cell ?? control)?.scrollIntoView?.({ block: 'center' });
+        if (scroll) (cell ?? control)?.scrollIntoView?.({ block: 'center' });
         target?.focus({ preventScroll: true });
     };
 
@@ -1215,16 +1215,41 @@ export function EntryEditor({
         onGoToField: goToField
     };
 
-    /** Unfold a section, then bring it to the top of the view. */
+    /**
+     * Unfold a section and take the reader into it — focus moves with the
+     * view, so the next key press edits the section they picked rather than
+     * the list they picked it from. A section holding a blocking field goes
+     * straight to that field (the red row is an errand); any other to its
+     * first field, with the section brought to the top of the view.
+     */
     const goToSection = (key: string) => {
+        const fields =
+            sectionsOnPage.find((section) => section.key === key)?.fields ?? [];
+        const failing = fields.find((name) => issueNames.has(name));
+        const target = failing ?? fields[0];
         if (key !== BASICS_SECTION) revealSection(key);
-        requestAnimationFrame(() =>
-            requestAnimationFrame(() =>
-                paneRef.current
-                    ?.querySelector(`[data-entry-section="${CSS.escape(key)}"]`)
-                    ?.scrollIntoView?.({ block: 'start' })
-            )
-        );
+        // A folded section mounts its fields a render or two after the
+        // reveal, so wait for the target to exist rather than a fixed count.
+        const land = (framesLeft: number) => {
+            const mounted =
+                !target ||
+                paneRef.current?.querySelector(
+                    `[data-entry-field="${CSS.escape(target)}"]`
+                );
+            if (!mounted && framesLeft > 0) {
+                requestAnimationFrame(() => land(framesLeft - 1));
+                return;
+            }
+            if (failing) {
+                focusField(failing);
+                return;
+            }
+            paneRef.current
+                ?.querySelector(`[data-entry-section="${CSS.escape(key)}"]`)
+                ?.scrollIntoView?.({ block: 'start' });
+            if (target) focusField(target, { scroll: false });
+        };
+        requestAnimationFrame(() => land(12));
     };
     const pageNav = (variant: 'list' | 'menu') => (
         <EntryPageNav
