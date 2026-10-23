@@ -1,3 +1,14 @@
+## 0.12.0 (2026-10-23)
+
+### 🩹 Fixes
+
+- **admin:** no page cross-fade on entry tab switches, no square corners mid-fade ([30e55f2cf](https://github.com/ortha-source/ortha-cms/commit/30e55f2cf))
+
+### ❤️ Thank You
+
+- Claude Opus 5.5 (1M context)
+- pmknk
+
 ## 0.11.0 (2026-10-21)
 
 ### 🚀 Features
