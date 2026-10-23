@@ -33,6 +33,8 @@ export {
 // page that composes `TopBar` itself adds it as the bar's last child.
 export { PageActions } from './lib/components/PageActions';
 export { HOME_SECTION_SLOT } from './lib/slots/homeSlots';
+export { HomeAttentionCard } from './lib/components/HomeAttentionCard';
+export type { HomeAttentionTone } from './lib/components/HomeAttentionCard';
 export type { HomeSectionItem, HomeRegion } from './lib/slots/homeSlots';
 export { COMMAND_SLOT } from './lib/slots/commandSlots';
 export type {

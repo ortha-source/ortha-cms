@@ -156,7 +156,10 @@ from `@orthacms/utils-admin`):
   quick-list, from `workspaces-admin`).
 - `SIDEBAR_FOOTER_SLOT` — persistent footer widgets (the account menu, from
   `users-admin`).
-- `HOME_SECTION_SLOT` — the home dashboard's stat tiles + panels.
+- `HOME_SECTION_SLOT` — the home dashboard, in four regions: `action` (a
+  create button in the top bar), `attention` (a card shown only while
+  something is stuck — render a `HomeAttentionCard` or `null`), `stat` (an
+  overview tile) and `panel`.
 
 `AppSidebar` reads each sorted by `order`, so new nav/sections appear without
 editing the shell. There is **no top toolbar** — the old `NAVBAR_*` slots and
@@ -217,8 +220,13 @@ order, icon, permission? }`) — the primary nav slot; `group` is
   data-driven sections below the nav.
 - `SIDEBAR_FOOTER_SLOT` / `SidebarFooterItem` (`{ id, order, Component }`) — the
   persistent footer (account menu).
-- `HOME_SECTION_SLOT` / `HomeSectionItem` (`{ id, region: 'stat' | 'panel',
-order, Component }`) — the home dashboard's tiles + panels.
+- `HOME_SECTION_SLOT` / `HomeSectionItem` (`{ id, region: 'action' |
+'attention' | 'stat' | 'panel', order, Component }`) — the home dashboard.
+  The "Needs your attention" heading hides itself (CSS `:has()`) while every
+  `attention` item renders nothing, so a calm install shows no empty section.
+- `HomeAttentionCard` (`{ tone, icon, title, description, action, to }`) — the
+  one shape of an attention card: the whole card is a link to where the
+  problem is fixed.
 - `useSidebarContent(render, deps)` / `SidebarContentProvider` — the mechanism a
   route uses to take over the sidebar's contextual region.
 - `PageActionsPortal` / `RightPanelPortal` / `PageActions` / `useRightPanel` —
@@ -247,7 +255,8 @@ order, Component }`) — the home dashboard's tiles + panels.
   `AppShell` around the outlet) lets a descendant route replace the sidebar's
   contextual region via `useSidebarContent` — the workspace shell injects its
   per-workspace nav there. `HomePage` assembles the dashboard from
-  `HOME_SECTION_SLOT` (stat tiles + panels) the same way.
+  `HOME_SECTION_SLOT` (top-bar actions, attention cards, stat tiles, panels)
+  the same way.
 
 ## Conventions
 

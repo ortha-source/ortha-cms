@@ -75,7 +75,11 @@ case ADR-0003 says not to build a `domain/` layer for.
   it (the shell's `SidebarNavButton` honors the optional `permission` field).
   The page itself also gates on `useHasPermission('activity:read')`.
 - A `HOME_SECTION_SLOT` panel (`RecentActivityPanel`) — the latest events on the
-  home dashboard, reusing `useActivityLog` and gated on `activity:read`.
+  home dashboard, newest first and grouped by day (Today / Yesterday / a date),
+  reusing `useActivityLog` and gated on `activity:read`.
+- A `HOME_SECTION_SLOT` **attention** card (`DeadLettersAttention`) — "{n}
+  actions not recorded", the same count the log page's banner reads, linking
+  to `/activity`. Renders nothing while the dead-letter list is empty.
 - An `ENTRY_TIMELINE_SLOT` source (`hooks/useEntryActivityTimeline`) —
   **one entry's own trail**, drawn between the versions of the content
   editor's **History** timeline and picked out by its Activity filter

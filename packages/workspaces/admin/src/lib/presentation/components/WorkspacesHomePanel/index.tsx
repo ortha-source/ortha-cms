@@ -1,13 +1,7 @@
 import { Link } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { ChevronRight } from 'lucide-react';
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-    Skeleton
-} from '@orthacms/design-system';
+import { Skeleton } from '@orthacms/design-system';
 import { initialsOf } from '@orthacms/utils-admin';
 import { useWorkspaces } from '../../../application/useWorkspaces';
 import { isActiveWorkspace } from '../../../domain/isActiveWorkspace';
@@ -55,74 +49,84 @@ export function WorkspacesHomePanel() {
         .slice(0, PREVIEW_LIMIT);
 
     return (
-        <Card className="shadow-none">
-            <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
-                <CardTitle asChild className="text-base">
-                    <h2>{intl.formatMessage(messages.title)}</h2>
-                </CardTitle>
+        <section
+            aria-labelledby="home-workspaces"
+            className="flex flex-col rounded-xl border bg-card"
+        >
+            <div className="flex items-baseline gap-2 px-4 pb-2.5 pt-3.5">
+                <h2
+                    id="home-workspaces"
+                    className="text-[15px] font-semibold leading-5"
+                >
+                    {intl.formatMessage(messages.title)}
+                </h2>
                 <Link
                     to="/workspaces"
-                    className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                    className="ml-auto text-[13px] text-muted-foreground transition-colors hover:text-foreground"
                 >
                     {intl.formatMessage(messages.viewAll)}
                 </Link>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-1">
-                {isPending ? (
-                    Array.from({ length: 3 }).map((_, index) => (
-                        <div
-                            key={index}
-                            className="flex items-center gap-3 rounded-lg px-2 py-2"
-                        >
-                            <Skeleton className="size-9 shrink-0 rounded-lg" />
-                            <div className="flex flex-1 flex-col gap-1.5">
-                                <Skeleton className="h-4 w-32" />
-                                <Skeleton className="h-3 w-40" />
-                            </div>
-                        </div>
-                    ))
-                ) : isError ? (
-                    <p
-                        role="alert"
-                        className="px-2 py-6 text-center text-sm text-destructive"
+            </div>
+            {isPending ? (
+                Array.from({ length: 3 }).map((_, index) => (
+                    <div
+                        key={index}
+                        className="flex items-center gap-3 border-t px-4 py-3 first-of-type:border-t-0"
                     >
-                        {intl.formatMessage(messages.error)}
-                    </p>
-                ) : active.length === 0 ? (
-                    <p className="px-2 py-6 text-center text-sm text-muted-foreground">
-                        {intl.formatMessage(messages.empty)}
-                    </p>
-                ) : (
-                    active.map((workspace) => (
-                        <Link
+                        <Skeleton className="size-8 shrink-0 rounded-lg" />
+                        <div className="flex flex-1 flex-col gap-1.5">
+                            <Skeleton className="h-4 w-32" />
+                            <Skeleton className="h-3 w-40" />
+                        </div>
+                    </div>
+                ))
+            ) : isError ? (
+                <p
+                    role="alert"
+                    className="px-4 py-6 text-center text-sm text-destructive"
+                >
+                    {intl.formatMessage(messages.error)}
+                </p>
+            ) : active.length === 0 ? (
+                <p className="px-4 py-6 text-center text-sm text-muted-foreground">
+                    {intl.formatMessage(messages.empty)}
+                </p>
+            ) : (
+                <ul className="flex flex-col">
+                    {active.map((workspace) => (
+                        <li
                             key={workspace.id}
-                            to={`/workspaces/${workspace.id}`}
-                            className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            className="border-t first:border-t-0"
                         >
-                            <WorkspaceAvatar
-                                initials={initialsOf(workspace.name)}
-                                color={workspace.color}
-                                className="size-9 shrink-0 rounded-lg text-xs"
-                            />
-                            <span className="flex min-w-0 flex-1 flex-col">
-                                <span className="truncate text-sm font-medium">
-                                    {workspace.name}
+                            <Link
+                                to={`/workspaces/${workspace.id}`}
+                                className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                            >
+                                <WorkspaceAvatar
+                                    initials={initialsOf(workspace.name)}
+                                    color={workspace.color}
+                                    className="size-8 shrink-0 rounded-lg text-xs"
+                                />
+                                <span className="flex min-w-0 flex-1 flex-col">
+                                    <span className="truncate text-sm font-medium">
+                                        {workspace.name}
+                                    </span>
+                                    <span className="truncate text-xs text-muted-foreground">
+                                        {intl.formatMessage(messages.meta, {
+                                            members: workspace.members.length,
+                                            types: workspace.content.length
+                                        })}
+                                    </span>
                                 </span>
-                                <span className="truncate text-xs text-muted-foreground">
-                                    {intl.formatMessage(messages.meta, {
-                                        members: workspace.members.length,
-                                        types: workspace.content.length
-                                    })}
-                                </span>
-                            </span>
-                            <ChevronRight
-                                className="size-4 shrink-0 text-muted-foreground"
-                                aria-hidden
-                            />
-                        </Link>
-                    ))
-                )}
-            </CardContent>
-        </Card>
+                                <ChevronRight
+                                    className="size-4 shrink-0 text-muted-foreground"
+                                    aria-hidden
+                                />
+                            </Link>
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </section>
     );
 }

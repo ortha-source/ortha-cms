@@ -51,6 +51,27 @@ export class HomePage extends BasePage {
     }
 
     /**
+     * "Needs your attention" — the region of cards plugins render only while
+     * something is stuck. Hidden (heading included) while none is.
+     */
+    get attention(): Locator {
+        return this.page.getByRole('region', { name: 'Needs your attention' });
+    }
+
+    /** An attention card — each is one link, named by its title. */
+    attentionCard(title: RegExp | string): Locator {
+        return this.attention.getByRole('link', { name: title });
+    }
+
+    /**
+     * A create action in the top bar. Scoped to `<main>`: the sidebar's
+     * Workspaces group carries its own "New workspace" icon link.
+     */
+    topBarAction(name: string): Locator {
+        return this.page.getByRole('main').getByRole('link', { name });
+    }
+
+    /**
      * The branded root loader (`AppLoader`) — a `role="status"` region shown
      * while the auth probe (`GET /api/auth/me`) is still resolving, before the
      * gated shell renders. Seed it with `mockSignedIn(page, {}, { delayMs })`.

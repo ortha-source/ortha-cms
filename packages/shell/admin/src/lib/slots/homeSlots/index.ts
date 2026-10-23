@@ -3,10 +3,16 @@ import { createSlot } from '@orthacms/utils-admin';
 
 /**
  * Which region of the home dashboard a {@link HomeSectionItem} renders in.
- * `stat` items flow into the top metric row; `panel` items tile into the
- * two-column grid below it.
+ *
+ * - `action` — a button in the top bar (New workspace, Invite member).
+ * - `attention` — a card under "Needs your attention": something stuck that
+ *   the reader can unstick. Render a {@link HomeAttentionCard}, or `null`
+ *   when there is nothing to say — the section hides itself when every card
+ *   in it is empty, so a calm install shows no heading over nothing.
+ * - `stat` — a tile in the overview row.
+ * - `panel` — a panel in the two-column grid below it.
  */
-export type HomeRegion = 'stat' | 'panel';
+export type HomeRegion = 'action' | 'attention' | 'stat' | 'panel';
 
 /**
  * A section contributed to the home dashboard. It is an arbitrary component the

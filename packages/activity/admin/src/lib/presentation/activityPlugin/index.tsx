@@ -6,6 +6,7 @@ import { ENTRY_TIMELINE_SLOT } from '@orthacms/content-admin';
 import { Activity } from 'lucide-react';
 import { ActivityLogPageSkeleton } from '../components/ActivityLogSkeleton';
 import { RecentActivityPanel } from '../components/RecentActivityPanel';
+import { DeadLettersAttention } from '../components/DeadLettersAttention';
 import { useEntryActivityTimeline } from '../hooks/useEntryActivityTimeline';
 
 // Lazy-loaded so the Activity Log page is code-split into its own chunk,
@@ -92,6 +93,12 @@ export function ActivityPlugin(): ActivityAdminPlugin {
                 // Home dashboard: the recent-activity panel.
                 slot: HOME_SECTION_SLOT,
                 items: [
+                    {
+                        id: 'activity.home.deadLetters',
+                        region: 'attention',
+                        order: 40,
+                        Component: DeadLettersAttention
+                    },
                     {
                         id: 'activity.home.recent',
                         region: 'panel',

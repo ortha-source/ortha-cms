@@ -47,7 +47,8 @@ business truth (ADR-0003 frontend guidance).
 - `WorkspacesPlugin()` — factory returning an `AdminPlugin`: the lazy-loaded,
   private `/workspaces` (list) and `/workspaces/new` (create wizard) routes plus
   the `Layers` nav item (`group: 'directory'`, `order: 10`), the "Workspaces"
-  quick-list section, and the home stat tiles + workspaces panel — contributed
+  quick-list section, and the home stat tiles, workspaces panel and top-bar
+  **New workspace** action (`NewWorkspaceHomeAction`, gated on create) — contributed
   to the shell's `SIDEBAR_NAV_SLOT`, `SIDEBAR_SECTION_SLOT`, and
   `HOME_SECTION_SLOT`.
 - `useWorkspaces` / `workspacesKey` — TanStack Query list hook + its key.

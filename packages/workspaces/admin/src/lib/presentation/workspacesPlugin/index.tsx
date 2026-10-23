@@ -16,6 +16,7 @@ import {
 } from '../components/WorkspacesSkeleton';
 import { WorkspacesNavSection } from '../components/WorkspacesNavSection';
 import { WorkspaceStats } from '../components/WorkspaceStats';
+import { NewWorkspaceHomeAction } from '../components/NewWorkspaceHomeAction';
 import { WorkspacesHomePanel } from '../components/WorkspacesHomePanel';
 import { WorkspaceCommands } from '../components/WorkspaceCommands';
 import {
@@ -154,6 +155,12 @@ export function WorkspacesPlugin(): WorkspacesAdminPlugin {
                 // Home dashboard: the workspace stat tiles + a workspaces panel.
                 slot: HOME_SECTION_SLOT,
                 items: [
+                    {
+                        id: 'workspaces.home.new',
+                        region: 'action',
+                        order: 20,
+                        Component: NewWorkspaceHomeAction
+                    },
                     {
                         id: 'workspaces.home.stats',
                         region: 'stat',
