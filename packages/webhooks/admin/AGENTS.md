@@ -27,6 +27,26 @@ editor, and only when it is dismissed does the page move to the new endpoint.
 Deliveries is the default tab on purpose. "What does this send?" is asked once,
 when the endpoint is created; "did it arrive?" is asked every time afterwards.
 
+## The list answers "is anything broken?"
+
+Each row is one endpoint: its name over its URL, what it sends in one line
+(an event or workspace is named while there are at most two / one of them,
+counted after), a strip of its **last 20 deliveries** with the success rate
+beside it, its state (`WebhookStateBadge`: Active / Paused / Stopped), and
+its last delivery (when, the status code, and the duration — or "after N
+failures" on a stopped one). Over the table, a segmented All / Healthy /
+Paused / Stopped filter with counts and a search over name and URL, both
+client-side over the one list read.
+
+- **Each row reads its own first log page** (`WebhookRow` →
+  `useWebhookDeliveries(id, { page: 1, pageSize: 20 })`), so it polls only
+  while one of those deliveries is in flight — decision 6 below, unchanged.
+- **The strip is decoration** (`aria-hidden`); the rate is said in words in an
+  `sr-only` sibling ("50% of the last 2 deliveries succeeded"). A rate over no
+  finished delivery is "—", not 100% (`domain/webhookHealth.successRate`).
+- **Stopped and paused stay apart** (`webhookState`), here and on Home's
+  attention card (`StoppedWebhooksAttention`, a `HOME_SECTION_SLOT` item).
+
 ## The decisions worth knowing before changing anything here
 
 ### 1. Both permissions are administrator-only
@@ -137,6 +157,7 @@ src/lib/
   domain/types/                   the view models
   domain/contentTypeChoices/      picker options + typed-in names (pure)
   domain/headerRules/             which custom headers an endpoint may set
+  domain/webhookHealth/           state (active/paused/stopped), success rate
   infrastructure/
     webhookGateway/               the port
     httpWebhookGateway/           the only place apiClient is used

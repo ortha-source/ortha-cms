@@ -39,9 +39,9 @@ test.describe('Webhooks', () => {
             await webhooksPage.table.waitFor();
 
             for (const header of [
-                'Name',
-                'URL',
+                'Webhook',
                 'Sends',
+                'Last 20 deliveries',
                 'State',
                 'Last delivery'
             ]) {
@@ -65,18 +65,21 @@ test.describe('Webhooks', () => {
             // `allWorkspaces: true`. Rendering that as "0 events" would be the
             // exact inversion of what the subscription model means.
             const row = webhooksPage.row('Rebuild the storefront');
-            await expect(row).toContainText('All events');
-            await expect(row).toContainText('All workspaces');
+            await expect(row).toContainText('All events · all workspaces');
         });
 
-        test('counts a named filter', async ({ page, webhooksPage }) => {
+        test('names a narrow filter and counts a wider one', async ({
+            page,
+            webhooksPage
+        }) => {
             await mockWebhooksApi(page);
             await webhooksPage.goto();
             await webhooksPage.table.waitFor();
 
+            // One workspace reads as its name; the events, as their labels
+            // once the catalogue has them; the types, as a count.
             const row = webhooksPage.row('Search re-index');
-            await expect(row).toContainText('2 events');
-            await expect(row).toContainText('1 workspace');
+            await expect(row).toContainText('Marketing site');
             await expect(row).toContainText('1 type');
         });
 
@@ -94,8 +97,48 @@ test.describe('Webhooks', () => {
             await expect(webhooksPage.row('Search re-index')).toContainText(
                 'Paused'
             );
-            await expect(webhooksPage.row('Old staging preview')).toContainText(
-                'Stopped after failures'
+            const stopped = webhooksPage.row('Old staging preview');
+            await expect(stopped).toContainText('Stopped');
+            await expect(stopped).toContainText('404 · after 20 failures');
+        });
+
+        test('says how the recent deliveries went', async ({
+            page,
+            webhooksPage
+        }) => {
+            await mockWebhooksApi(page);
+            await webhooksPage.goto();
+            await webhooksPage.table.waitFor();
+
+            // The strip is decoration; the rate beside it is what a screen
+            // reader hears. The seed log holds one delivered and one dead.
+            await expect(
+                webhooksPage.row('Rebuild the storefront')
+            ).toContainText('50% of the last 2 deliveries succeeded');
+        });
+
+        test('filters by state and searches name and URL', async ({
+            page,
+            webhooksPage
+        }) => {
+            await mockWebhooksApi(page);
+            await webhooksPage.goto();
+            await webhooksPage.table.waitFor();
+
+            await webhooksPage.stateFilterButton(/Stopped/).click();
+            await expect(
+                webhooksPage.stateFilterButton(/Stopped/)
+            ).toHaveAttribute('aria-pressed', 'true');
+            await expect(webhooksPage.row('Old staging preview')).toBeVisible();
+            await expect(
+                webhooksPage.row('Rebuild the storefront')
+            ).toHaveCount(0);
+
+            await webhooksPage.stateFilterButton(/All/).click();
+            await webhooksPage.searchBox().fill('search.example');
+            await expect(webhooksPage.row('Search re-index')).toBeVisible();
+            await expect(webhooksPage.row('Old staging preview')).toHaveCount(
+                0
             );
         });
 

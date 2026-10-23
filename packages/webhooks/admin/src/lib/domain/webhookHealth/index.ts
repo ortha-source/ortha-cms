@@ -12,12 +12,16 @@ export type WebhookState = 'active' | 'paused' | 'stopped';
  * paused by someone. The two must read differently: one is a decision, the
  * other an outage nobody has noticed yet.
  */
-export function isStopped(endpoint: WebhookEndpoint): boolean {
+export function isStopped(
+    endpoint: Pick<WebhookEndpoint, 'enabled' | 'disabledReason'>
+): boolean {
     return !endpoint.enabled && !!endpoint.disabledReason;
 }
 
 /** The endpoint's state: active, paused by someone, or stopped by failures. */
-export function webhookState(endpoint: WebhookEndpoint): WebhookState {
+export function webhookState(
+    endpoint: Pick<WebhookEndpoint, 'enabled' | 'disabledReason'>
+): WebhookState {
     if (endpoint.enabled) return 'active';
     return isStopped(endpoint) ? 'stopped' : 'paused';
 }

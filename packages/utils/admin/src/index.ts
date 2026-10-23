@@ -34,3 +34,4 @@ export {
 } from './lib/documentTitle';
 export { lazyPage, preloadPages, type LazyPage } from './lib/lazyPage';
 export { markJustCreated, useJustCreated } from './lib/justCreated';
+export { relativeUnit, sinceParts, RELATIVE_DAYS } from './lib/relativeTime';

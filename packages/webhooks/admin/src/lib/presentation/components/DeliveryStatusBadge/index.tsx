@@ -1,6 +1,6 @@
 import { defineMessages, useIntl } from 'react-intl';
 import type { DeliveryStatus } from '../../../domain/types/webhook';
-import { Badge } from '@orthacms/design-system';
+import { Badge, BadgeDot } from '@orthacms/design-system';
 
 const messages = defineMessages({
     pending: { id: 'webhooks.status.pending', defaultMessage: 'Queued' },
@@ -20,13 +20,15 @@ const messages = defineMessages({
  */
 const LOOK: Record<
     DeliveryStatus,
-    { variant: 'default' | 'secondary' | 'destructive' | 'outline' }
+    {
+        variant: 'success' | 'warning' | 'destructive-soft' | 'muted' | 'info';
+    }
 > = {
-    pending: { variant: 'outline' },
-    delivering: { variant: 'secondary' },
-    succeeded: { variant: 'default' },
-    failed: { variant: 'secondary' },
-    dead: { variant: 'destructive' }
+    pending: { variant: 'muted' },
+    delivering: { variant: 'info' },
+    succeeded: { variant: 'success' },
+    failed: { variant: 'warning' },
+    dead: { variant: 'destructive-soft' }
 };
 
 /** The state of one delivery, as a chip. */
@@ -34,6 +36,7 @@ export function DeliveryStatusBadge({ status }: { status: DeliveryStatus }) {
     const intl = useIntl();
     return (
         <Badge variant={LOOK[status].variant}>
+            <BadgeDot />
             {intl.formatMessage(messages[status])}
         </Badge>
     );

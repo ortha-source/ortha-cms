@@ -53,6 +53,18 @@ export class WebhooksPage extends BasePage {
 
     // --- list --------------------------------------------------------------
 
+    /** A button of the list's All / Healthy / Paused / Stopped filter. */
+    stateFilterButton(name: RegExp): Locator {
+        return this.page
+            .getByRole('group', { name: 'Show' })
+            .getByRole('button', { name });
+    }
+
+    /** The list's search over name and URL. */
+    searchBox(): Locator {
+        return this.page.getByRole('searchbox', { name: 'Search webhooks' });
+    }
+
     /** One endpoint's row, found by its name. */
     row(name: string): Locator {
         return this.table.getByRole('row').filter({ hasText: name });

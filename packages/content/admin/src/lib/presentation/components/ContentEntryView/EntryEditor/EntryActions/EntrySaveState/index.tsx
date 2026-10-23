@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { cn } from '@orthacms/design-system';
-import { relativeUnit } from '../../../../../../domain/relativeTime';
+import { relativeUnit } from '@orthacms/utils-admin';
 
 const messages = defineMessages({
     unsaved: {

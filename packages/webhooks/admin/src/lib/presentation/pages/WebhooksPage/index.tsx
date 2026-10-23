@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Webhook } from 'lucide-react';
-import { PageTopBar } from '@orthacms/shell-admin';
+import { PageActionsPortal, PageTopBar } from '@orthacms/shell-admin';
 import { useHasPermission } from '@orthacms/identity-admin';
 import { useDocumentTitle } from '@orthacms/utils-admin';
 import {
@@ -12,6 +13,13 @@ import {
     ContainerHeader
 } from '@orthacms/design-system';
 import { useWebhookEndpoints } from '../../../application/useWebhookEndpoints';
+import { useWebhookEvents } from '../../../application/useWebhookEvents';
+import { useWorkspaceOptions } from '../../../application/useWorkspaceOptions';
+import { webhookState } from '../../../domain/webhookHealth';
+import {
+    WebhooksFilterBar,
+    type WebhookFilter
+} from '../../components/WebhooksFilterBar';
 import { WebhooksTable } from '../../components/WebhooksTable';
 import { WebhooksEmpty } from '../../components/WebhooksEmpty';
 import { WebhooksNoAccess } from '../../components/WebhooksNoAccess';
@@ -20,19 +28,20 @@ import { WebhooksSkeleton } from '../../components/WebhooksSkeleton';
 const messages = defineMessages({
     title: { id: 'webhooks.page.title', defaultMessage: 'Webhooks' },
     subtitle: {
-        id: 'webhooks.page.subtitle',
-        defaultMessage: 'Endpoints this CMS notifies when content changes.'
+        id: 'webhooks.page.description',
+        defaultMessage:
+            'Send content changes to your services. Each delivery is signed, queued and retried until it lands.'
+    },
+    noMatch: {
+        id: 'webhooks.page.noMatch',
+        defaultMessage: 'No webhook matches.'
     },
     create: { id: 'webhooks.page.create', defaultMessage: 'New webhook' },
     error: {
         id: 'webhooks.page.error',
         defaultMessage: 'Couldn’t load webhooks. Please try again.'
     },
-    retry: { id: 'webhooks.page.retry', defaultMessage: 'Retry' },
-    count: {
-        id: 'webhooks.page.count',
-        defaultMessage: '{count, plural, one {# webhook} other {# webhooks}}'
-    }
+    retry: { id: 'webhooks.page.retry', defaultMessage: 'Retry' }
 });
 
 /**
@@ -53,6 +62,27 @@ export function WebhooksPage() {
 
     const navigate = useNavigate();
     const { data, isPending, isError, refetch } = useWebhookEndpoints(canRead);
+    const { data: events } = useWebhookEvents(canRead);
+    const { data: workspaces } = useWorkspaceOptions(canRead);
+    const [filter, setFilter] = useState<WebhookFilter>('all');
+    const [query, setQuery] = useState('');
+
+    const endpoints = data ?? [];
+    const counts: Record<WebhookFilter, number> = {
+        all: endpoints.length,
+        active: 0,
+        paused: 0,
+        stopped: 0
+    };
+    for (const endpoint of endpoints) counts[webhookState(endpoint)] += 1;
+    const needle = query.trim().toLowerCase();
+    const shown = endpoints.filter(
+        (endpoint) =>
+            (filter === 'all' || webhookState(endpoint) === filter) &&
+            (!needle ||
+                endpoint.name.toLowerCase().includes(needle) ||
+                endpoint.url.toLowerCase().includes(needle))
+    );
 
     if (!canRead) {
         return (
@@ -90,19 +120,23 @@ export function WebhooksPage() {
                     }
                 ]}
             />
-            <Container width="full">
-                <ContainerHeader
-                    title={intl.formatMessage(messages.title)}
-                    subtitle={intl.formatMessage(messages.subtitle)}
-                    actions={
-                        canManage && (data?.length ?? 0) > 0 ? (
-                            <Button onClick={() => navigate('/webhooks/new')}>
-                                <Plus />
-                                {intl.formatMessage(messages.create)}
-                            </Button>
-                        ) : undefined
-                    }
-                />
+            {canManage && endpoints.length > 0 ? (
+                <PageActionsPortal>
+                    <Button size="sm" onClick={() => navigate('/webhooks/new')}>
+                        <Plus />
+                        {intl.formatMessage(messages.create)}
+                    </Button>
+                </PageActionsPortal>
+            ) : null}
+            <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-5 px-4 py-8 sm:px-10">
+                <header className="flex flex-col gap-1.5">
+                    <h1 className="text-[28px] font-semibold leading-[34px] tracking-[-0.012em]">
+                        {intl.formatMessage(messages.title)}
+                    </h1>
+                    <p className="max-w-[640px] text-[13px] text-muted-foreground">
+                        {intl.formatMessage(messages.subtitle)}
+                    </p>
+                </header>
 
                 {isPending ? <WebhooksSkeleton /> : null}
 
@@ -110,7 +144,7 @@ export function WebhooksPage() {
                     into "nothing configured yet" — the two look identical and
                     mean opposite things. */}
                 {isError ? (
-                    <Alert variant="destructive" role="alert" className="mt-4">
+                    <Alert variant="destructive" role="alert">
                         <AlertDescription className="flex items-center justify-between gap-4">
                             {intl.formatMessage(messages.error)}
                             <Button
@@ -136,15 +170,27 @@ export function WebhooksPage() {
 
                 {data && data.length > 0 ? (
                     <>
-                        <WebhooksTable endpoints={data} />
-                        <p className="mt-3 text-sm text-muted-foreground">
-                            {intl.formatMessage(messages.count, {
-                                count: data.length
-                            })}
-                        </p>
+                        <WebhooksFilterBar
+                            filter={filter}
+                            onFilterChange={setFilter}
+                            counts={counts}
+                            query={query}
+                            onQueryChange={setQuery}
+                        />
+                        {shown.length > 0 ? (
+                            <WebhooksTable
+                                endpoints={shown}
+                                events={events ?? []}
+                                workspaces={workspaces ?? []}
+                            />
+                        ) : (
+                            <p className="rounded-xl border px-4 py-8 text-center text-sm text-muted-foreground">
+                                {intl.formatMessage(messages.noMatch)}
+                            </p>
+                        )}
                     </>
                 ) : null}
-            </Container>
+            </div>
         </>
     );
 }

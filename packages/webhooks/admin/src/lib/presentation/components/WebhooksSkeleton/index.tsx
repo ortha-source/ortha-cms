@@ -2,8 +2,6 @@ import { defineMessages, useIntl } from 'react-intl';
 import { Webhook } from 'lucide-react';
 import { PageTopBar } from '@orthacms/shell-admin';
 import {
-    Container,
-    ContainerHeader,
     Skeleton,
     Table,
     TableBody,
@@ -17,8 +15,9 @@ import {
 const messages = defineMessages({
     title: { id: 'webhooks.page.title', defaultMessage: 'Webhooks' },
     subtitle: {
-        id: 'webhooks.page.subtitle',
-        defaultMessage: 'Endpoints this CMS notifies when content changes.'
+        id: 'webhooks.page.description',
+        defaultMessage:
+            'Send content changes to your services. Each delivery is signed, queued and retried until it lands.'
     },
     loading: {
         id: 'webhooks.skeleton.loading',
@@ -40,7 +39,7 @@ export function WebhooksSkeleton({ rows = 4 }: { rows?: number }) {
             <span className="sr-only">
                 {intl.formatMessage(messages.loading)}
             </span>
-            <div aria-hidden className="mt-4">
+            <div aria-hidden className="overflow-hidden rounded-xl border">
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -111,13 +110,17 @@ export function WebhooksPageSkeleton() {
                     }
                 ]}
             />
-            <Container width="full">
-                <ContainerHeader
-                    title={intl.formatMessage(messages.title)}
-                    subtitle={intl.formatMessage(messages.subtitle)}
-                />
+            <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-5 px-4 py-8 sm:px-10">
+                <header className="flex flex-col gap-1.5">
+                    <h1 className="text-[28px] font-semibold leading-[34px] tracking-[-0.012em]">
+                        {intl.formatMessage(messages.title)}
+                    </h1>
+                    <p className="max-w-[640px] text-[13px] text-muted-foreground">
+                        {intl.formatMessage(messages.subtitle)}
+                    </p>
+                </header>
                 <WebhooksSkeleton />
-            </Container>
+            </div>
         </>
     );
 }
