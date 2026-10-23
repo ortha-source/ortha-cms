@@ -137,11 +137,9 @@ export class MediaLibraryPage extends BasePage {
      */
     detailPanel(name?: string): Locator {
         if (name) return this.page.getByRole('region', { name, exact: true });
-        return this.page
-            .getByRole('region')
-            .filter({
-                has: this.page.getByRole('button', { name: 'Next file' })
-            });
+        return this.page.getByRole('region').filter({
+            has: this.page.getByRole('button', { name: 'Next file' })
+        });
     }
 
     /** The panel's alt-text input (present for an image with `media:update`). */
