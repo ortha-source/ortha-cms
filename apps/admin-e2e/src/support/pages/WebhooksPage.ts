@@ -65,6 +65,18 @@ export class WebhooksPage extends BasePage {
         return this.page.getByRole('searchbox', { name: 'Search webhooks' });
     }
 
+    /** A link of the editor's "On this page" list. */
+    pageNavLink(name: string): Locator {
+        return this.page
+            .getByRole('navigation', { name: 'On this page' })
+            .getByRole('link', { name });
+    }
+
+    /** An editor section's heading (`<h2>`). */
+    sectionHeading(name: string): Locator {
+        return this.page.getByRole('heading', { name, level: 2 });
+    }
+
     /** One endpoint's row, found by its name. */
     row(name: string): Locator {
         return this.table.getByRole('row').filter({ hasText: name });

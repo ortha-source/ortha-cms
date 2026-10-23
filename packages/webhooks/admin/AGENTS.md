@@ -19,10 +19,17 @@ Four routes under one sidebar entry in the `directory` group, beside API tokens:
 **The editor is a page, not a dialog.** It asks eight questions across three
 filters, two of which open their own popovers; in a modal that meant a scrolling
 box with popovers portalled into it to survive the scroll lock. On a page the
-two halves — where deliveries go, and what is worth sending — sit side by side,
-the popovers need no `container` escape hatch, and the browser's back button is
-the way out. Creating still ends on the one-time secret: the reveal opens on the
-editor, and only when it is dismissed does the page move to the new endpoint.
+popovers need no `container` escape hatch, and the browser's back button is
+the way out. It is one 720px column of three framed sections
+(`WebhookForm/FormSection`) — **Endpoint**, **What it receives**, **Delivery**
+(the signing note, custom headers, the retry note) — under an `<h1>` and a meta
+line ("Not saved yet", or the endpoint's state and URL), with an **On this
+page** list beside it from 1024px (`WebhookPageNav`; drawn first, after the
+form in the DOM, and a pick focuses the section's heading). Cancel and
+Create / Save sit in the top bar (`PageActionsPortal`), so a refused URL's
+alert is drawn above the sections rather than beside buttons that moved.
+Creating still ends on the one-time secret: the reveal opens on the editor,
+and only when it is dismissed does the page move to the new endpoint.
 
 Deliveries is the default tab on purpose. "What does this send?" is asked once,
 when the endpoint is created; "did it arrive?" is asked every time afterwards.

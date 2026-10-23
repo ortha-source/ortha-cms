@@ -207,6 +207,21 @@ test.describe('Webhooks', () => {
     });
 
     test.describe('creating one', () => {
+        test('"On this page" takes the reader to a section', async ({
+            page,
+            webhooksPage
+        }) => {
+            await mockWebhooksApi(page);
+            await webhooksPage.gotoNew();
+
+            await webhooksPage.pageNavLink('Delivery').click();
+            await expect(webhooksPage.sectionHeading('Delivery')).toBeFocused();
+            await expect(webhooksPage.pageNavLink('Delivery')).toHaveAttribute(
+                'aria-current',
+                'true'
+            );
+        });
+
         test('submits no filter values when "all" is chosen', async ({
             page,
             webhooksPage

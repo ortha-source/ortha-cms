@@ -32,15 +32,49 @@ import {
     parseContentTypeNames
 } from '../../../domain/contentTypeChoices';
 import type { SaveWebhookInput } from '../../../infrastructure/webhookGateway';
+import { PageActionsPortal } from '@orthacms/shell-admin';
+import { FormSection } from './FormSection';
 
 const messages = defineMessages({
-    target: {
-        id: 'webhooks.form.target',
-        defaultMessage: 'Where deliveries go'
+    endpointTitle: {
+        id: 'webhooks.form.section.endpoint',
+        defaultMessage: 'Endpoint'
     },
-    subscription: {
-        id: 'webhooks.form.subscription',
-        defaultMessage: 'What this endpoint receives'
+    endpointDescription: {
+        id: 'webhooks.form.section.endpointDescription',
+        defaultMessage: 'Where deliveries go.'
+    },
+    receivesTitle: {
+        id: 'webhooks.form.section.receives',
+        defaultMessage: 'What it receives'
+    },
+    receivesDescription: {
+        id: 'webhooks.form.section.receivesDescription',
+        defaultMessage:
+            'Changes in these workspaces, of these events and types.'
+    },
+    deliveryTitle: {
+        id: 'webhooks.form.section.delivery',
+        defaultMessage: 'Delivery'
+    },
+    deliveryDescription: {
+        id: 'webhooks.form.section.deliveryDescription',
+        defaultMessage: 'How each request is signed and what rides along.'
+    },
+    signingCreate: {
+        id: 'webhooks.form.signingCreate',
+        defaultMessage:
+            'A signing secret is generated when you create the webhook and shown once. Every request carries it in an {header} header.'
+    },
+    signingEdit: {
+        id: 'webhooks.form.signingEdit',
+        defaultMessage:
+            'Every request is signed with this webhook’s secret in an {header} header. Rotate it from Settings.'
+    },
+    retries: {
+        id: 'webhooks.form.retries',
+        defaultMessage:
+            'Failed deliveries are retried with backoff. After repeated failures in a row the webhook stops itself and says so on Home.'
     },
     name: { id: 'webhooks.form.name', defaultMessage: 'Name' },
     namePlaceholder: {
@@ -216,6 +250,13 @@ const messages = defineMessages({
             'Choose at least one workspace, or switch on “All workspaces”. As it stands this endpoint would receive nothing.'
     }
 });
+
+/** The editor's sections, in order — the anchors "On this page" links to. */
+export const WEBHOOK_FORM_SECTIONS = [
+    { id: 'webhook-section-endpoint', title: messages.endpointTitle },
+    { id: 'webhook-section-receives', title: messages.receivesTitle },
+    { id: 'webhook-section-delivery', title: messages.deliveryTitle }
+] as const;
 
 /** What the dialog is currently editing. */
 export type WebhookFormValues = {
@@ -461,14 +502,34 @@ export function WebhookForm({
     };
 
     return (
-        // Two columns on a wide screen, one on a narrow one. The split is the
-        // two questions an endpoint answers — where a delivery goes, and what
-        // is worth sending — which is also the order they are decided in.
-        <div className="grid max-w-5xl gap-x-12 gap-y-8 lg:grid-cols-2">
-            <section className="flex flex-col gap-4">
-                <h2 className="text-sm font-medium text-muted-foreground">
-                    {intl.formatMessage(messages.target)}
-                </h2>
+        // One column of three framed sections, in the order the questions
+        // are decided: where a delivery goes, what is worth sending, and how
+        // it is sent.
+        <div className="flex flex-col gap-6">
+            {/* Above the sections: a refused URL is about the form, and the
+                buttons that sent it are in the top bar. */}
+            {error ? (
+                <Alert variant="destructive" role="alert">
+                    <AlertDescription>{error}</AlertDescription>
+                </Alert>
+            ) : null}
+
+            <PageActionsPortal>
+                <Button size="sm" variant="ghost" onClick={onCancel}>
+                    {intl.formatMessage(messages.cancel)}
+                </Button>
+                <Button size="sm" onClick={submit} disabled={pending}>
+                    {intl.formatMessage(
+                        endpoint ? messages.save : messages.create
+                    )}
+                </Button>
+            </PageActionsPortal>
+
+            <FormSection
+                id={WEBHOOK_FORM_SECTIONS[0].id}
+                title={intl.formatMessage(messages.endpointTitle)}
+                description={intl.formatMessage(messages.endpointDescription)}
+            >
                 <InputField
                     id="webhook-name"
                     label={intl.formatMessage(messages.name)}
@@ -540,139 +601,13 @@ export function WebhookForm({
                         )}
                     </p>
                 </fieldset>
+            </FormSection>
 
-                <fieldset className="flex flex-col gap-2">
-                    <legend className="text-sm font-medium">
-                        {intl.formatMessage(messages.headers)}
-                    </legend>
-                    {values.headers.map((row, index) => (
-                        <div key={row.key} className="flex flex-col gap-1">
-                            <div className="flex items-center gap-2">
-                                <Label
-                                    htmlFor={`webhook-header-name-${row.key}`}
-                                    className="sr-only"
-                                >
-                                    {intl.formatMessage(messages.headerName)}
-                                </Label>
-                                <Input
-                                    id={`webhook-header-name-${row.key}`}
-                                    value={row.name}
-                                    placeholder={intl.formatMessage(
-                                        messages.headerNamePlaceholder
-                                    )}
-                                    className="font-mono text-sm"
-                                    aria-invalid={
-                                        headerErrors[index] !== null
-                                            ? true
-                                            : undefined
-                                    }
-                                    onChange={(event) =>
-                                        setHeaders(
-                                            values.headers.map((candidate) =>
-                                                candidate.key === row.key
-                                                    ? {
-                                                          ...candidate,
-                                                          name: event.target
-                                                              .value
-                                                      }
-                                                    : candidate
-                                            )
-                                        )
-                                    }
-                                />
-                                <Label
-                                    htmlFor={`webhook-header-value-${row.key}`}
-                                    className="sr-only"
-                                >
-                                    {intl.formatMessage(messages.headerValue)}
-                                </Label>
-                                <Input
-                                    id={`webhook-header-value-${row.key}`}
-                                    value={row.value}
-                                    placeholder={intl.formatMessage(
-                                        messages.headerValuePlaceholder
-                                    )}
-                                    className="font-mono text-sm"
-                                    onChange={(event) =>
-                                        setHeaders(
-                                            values.headers.map((candidate) =>
-                                                candidate.key === row.key
-                                                    ? {
-                                                          ...candidate,
-                                                          value: event.target
-                                                              .value
-                                                      }
-                                                    : candidate
-                                            )
-                                        )
-                                    }
-                                />
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    aria-label={intl.formatMessage(
-                                        messages.removeHeader,
-                                        {
-                                            name:
-                                                row.name.trim() ||
-                                                intl.formatMessage(
-                                                    messages.headerName
-                                                )
-                                        }
-                                    )}
-                                    onClick={() =>
-                                        setHeaders(
-                                            values.headers.filter(
-                                                (candidate) =>
-                                                    candidate.key !== row.key
-                                            )
-                                        )
-                                    }
-                                >
-                                    <X aria-hidden />
-                                </Button>
-                            </div>
-                            {headerErrors[index] ? (
-                                <p
-                                    role="alert"
-                                    className="text-xs text-destructive"
-                                >
-                                    {headerErrors[index]}
-                                </p>
-                            ) : null}
-                        </div>
-                    ))}
-                    <div>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                                setHeaders([
-                                    ...values.headers,
-                                    {
-                                        key: `row-${nextRowKey.current++}`,
-                                        name: '',
-                                        value: ''
-                                    }
-                                ])
-                            }
-                        >
-                            <Plus />
-                            {intl.formatMessage(messages.addHeader)}
-                        </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                        {intl.formatMessage(messages.headersHint)}
-                    </p>
-                </fieldset>
-            </section>
-
-            <section className="flex flex-col gap-4">
-                <h2 className="text-sm font-medium text-muted-foreground">
-                    {intl.formatMessage(messages.subscription)}
-                </h2>
+            <FormSection
+                id={WEBHOOK_FORM_SECTIONS[1].id}
+                title={intl.formatMessage(messages.receivesTitle)}
+                description={intl.formatMessage(messages.receivesDescription)}
+            >
                 <fieldset className="flex flex-col gap-2">
                     <legend className="text-sm font-medium">
                         {intl.formatMessage(messages.workspaces)}
@@ -880,28 +815,157 @@ export function WebhookForm({
                         </p>
                     ) : null}
                 </fieldset>
-            </section>
+            </FormSection>
 
-            {/* Full width under both columns: a refused URL is about the form,
-                not about one of its halves. */}
-            <div className="flex flex-col gap-4 lg:col-span-2">
-                {error ? (
-                    <Alert variant="destructive" role="alert">
-                        <AlertDescription>{error}</AlertDescription>
-                    </Alert>
-                ) : null}
-
-                <div className="flex items-center gap-2 border-t pt-4">
-                    <Button onClick={submit} disabled={pending}>
-                        {intl.formatMessage(
-                            endpoint ? messages.save : messages.create
-                        )}
-                    </Button>
-                    <Button variant="ghost" onClick={onCancel}>
-                        {intl.formatMessage(messages.cancel)}
-                    </Button>
-                </div>
-            </div>
+            <FormSection
+                id={WEBHOOK_FORM_SECTIONS[2].id}
+                title={intl.formatMessage(messages.deliveryTitle)}
+                description={intl.formatMessage(messages.deliveryDescription)}
+            >
+                <p className="rounded-lg bg-muted/60 px-3 py-2.5 text-[13px] text-muted-foreground">
+                    {intl.formatMessage(
+                        endpoint
+                            ? messages.signingEdit
+                            : messages.signingCreate,
+                        {
+                            header: (
+                                <code className="font-mono text-xs text-foreground">
+                                    X-Orthacms-Signature
+                                </code>
+                            )
+                        }
+                    )}
+                </p>
+                <fieldset className="flex flex-col gap-2">
+                    <legend className="text-sm font-medium">
+                        {intl.formatMessage(messages.headers)}
+                    </legend>
+                    {values.headers.map((row, index) => (
+                        <div key={row.key} className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                                <Label
+                                    htmlFor={`webhook-header-name-${row.key}`}
+                                    className="sr-only"
+                                >
+                                    {intl.formatMessage(messages.headerName)}
+                                </Label>
+                                <Input
+                                    id={`webhook-header-name-${row.key}`}
+                                    value={row.name}
+                                    placeholder={intl.formatMessage(
+                                        messages.headerNamePlaceholder
+                                    )}
+                                    className="font-mono text-sm"
+                                    aria-invalid={
+                                        headerErrors[index] !== null
+                                            ? true
+                                            : undefined
+                                    }
+                                    onChange={(event) =>
+                                        setHeaders(
+                                            values.headers.map((candidate) =>
+                                                candidate.key === row.key
+                                                    ? {
+                                                          ...candidate,
+                                                          name: event.target
+                                                              .value
+                                                      }
+                                                    : candidate
+                                            )
+                                        )
+                                    }
+                                />
+                                <Label
+                                    htmlFor={`webhook-header-value-${row.key}`}
+                                    className="sr-only"
+                                >
+                                    {intl.formatMessage(messages.headerValue)}
+                                </Label>
+                                <Input
+                                    id={`webhook-header-value-${row.key}`}
+                                    value={row.value}
+                                    placeholder={intl.formatMessage(
+                                        messages.headerValuePlaceholder
+                                    )}
+                                    className="font-mono text-sm"
+                                    onChange={(event) =>
+                                        setHeaders(
+                                            values.headers.map((candidate) =>
+                                                candidate.key === row.key
+                                                    ? {
+                                                          ...candidate,
+                                                          value: event.target
+                                                              .value
+                                                      }
+                                                    : candidate
+                                            )
+                                        )
+                                    }
+                                />
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    aria-label={intl.formatMessage(
+                                        messages.removeHeader,
+                                        {
+                                            name:
+                                                row.name.trim() ||
+                                                intl.formatMessage(
+                                                    messages.headerName
+                                                )
+                                        }
+                                    )}
+                                    onClick={() =>
+                                        setHeaders(
+                                            values.headers.filter(
+                                                (candidate) =>
+                                                    candidate.key !== row.key
+                                            )
+                                        )
+                                    }
+                                >
+                                    <X aria-hidden />
+                                </Button>
+                            </div>
+                            {headerErrors[index] ? (
+                                <p
+                                    role="alert"
+                                    className="text-xs text-destructive"
+                                >
+                                    {headerErrors[index]}
+                                </p>
+                            ) : null}
+                        </div>
+                    ))}
+                    <div>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                                setHeaders([
+                                    ...values.headers,
+                                    {
+                                        key: `row-${nextRowKey.current++}`,
+                                        name: '',
+                                        value: ''
+                                    }
+                                ])
+                            }
+                        >
+                            <Plus />
+                            {intl.formatMessage(messages.addHeader)}
+                        </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                        {intl.formatMessage(messages.headersHint)}
+                    </p>
+                </fieldset>
+                <p className="text-xs text-muted-foreground">
+                    {intl.formatMessage(messages.retries)}
+                </p>
+            </FormSection>
 
             <ConfirmDialog
                 open={confirmDisable}
