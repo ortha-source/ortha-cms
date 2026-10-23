@@ -404,8 +404,18 @@ Where the shipped code differs from the text above, and why:
   Details one inside the other read as a mistake. Its body is unchanged: the
   publish gate (the "Before you can publish" list in its existing form), Used
   in, Details, then the contributed widgets.
-- **The panel's toggle stays in the top bar while it is not pinned**, open or
-  closed, so the way in and the way out are the same control.
+- **Unpinned, the panel is a sheet over the whole window**, not a card
+  floating beside a live form: full height at the right edge, over a dark
+  scrim, sliding in on `translate` (the card's `transform` transition was
+  dropped by Tailwind v4, so it faded while its movement snapped). The page
+  under it is `inert`; Escape, the scrim or the panel's Hide closes it, and
+  focus returns to the top bar's toggle. Asked for after using the non-modal
+  card, which read as a second surface fighting the form for the same space.
+  Pinned, it is still the docked column.
+- **The save state is in the meta line, not the top bar.** "Saved 5 days
+  ago" / "● Unsaved changes" ends the line under the title, beside the
+  status badge — a sentence about the record among the others; the bar keeps
+  what a click does. On a phone it stays in the bottom bar.
 - **Overlay is opt-in per page.** `AppRightPanel`'s modes are reached through
   `RightPanelPortal overlay` rather than a global `mode`, so a page that never
   asked for an overlay keeps its column. The pin is per browser

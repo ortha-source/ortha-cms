@@ -68,10 +68,13 @@ const SIDEBAR_ID = 'app-sidebar';
  * drawer and has no edge to drag.
  */
 export function AppSidebar({
-    resize
+    resize,
+    inert
 }: {
     /** The width the handle drives; omitted, the panel is not resizable. */
     resize?: ResizablePanel['handleProps'];
+    /** Out of reach while an overlay covers the page. */
+    inert?: boolean;
 } = {}) {
     const intl = useIntl();
     const { isMobile } = useSidebar();
@@ -84,6 +87,7 @@ export function AppSidebar({
         // was there, but no consumer could translate it (`ORT-159`). Named for
         // what it holds rather than for the component that draws it.
         <Sidebar
+            inert={inert || undefined}
             variant="inset"
             collapsible="offcanvas"
             mobileTitle={intl.formatMessage(messages.mobileTitle)}

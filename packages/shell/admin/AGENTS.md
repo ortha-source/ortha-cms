@@ -61,11 +61,16 @@ does, from inside its own tree:
   **A page may ask for an overlay instead of a column**
   (`<RightPanelPortal overlay>`, the entry editor's Properties since
   [ADR-0022](../../../docs/adr/0022-entry-editor-one-form-properties-on-demand.md)).
-  Then on a desktop the panel is a card floating over the page's right edge,
-  opened on demand (it starts closed on every arrival), **non-modal**: Escape
-  or a click outside closes it — the outside click without stealing focus back
-  to the bar (`dismiss`), and never when the click lands in a layer the panel
-  opened (a menu, a dialog). A **Pin** control in its header docks it back into
+  Then on a desktop the panel is a **sheet**: the window's full height at its
+  right edge, over a dark scrim, opened on demand (it starts closed on every
+  arrival). It is modal while up — the inner wrapper is the `role="dialog"`
+  (an `<aside>` may not take that role, and swapping the tag would remount the
+  portal host), and `AppShell` makes the page, the sidebar and the footer
+  strip `inert`. Escape, a click on the scrim or the Hide button closes it,
+  all through `toggle`, so focus goes back to the top bar. It slides on
+  `translate` with `--ds-ease-drawer`; it was a floating card that animated
+  `transition-[opacity,transform]`, which Tailwind v4 does not apply to
+  `translate`, so it faded while its movement snapped. A **Pin** control in its header docks it back into
   the column; the pin is per browser (`orthacms:right-panel:pinned`), not in the
   synced layout. While it floats, its toggle **stays in the top bar**, open or
   closed ("Show / Hide {title}", `aria-expanded`): an overlay has no column to

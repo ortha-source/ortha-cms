@@ -185,19 +185,24 @@ describe('AppRightPanel — overlay', () => {
         expect(showDetails()).not.toBeNull();
     });
 
-    it('closes on a click outside, but not on one inside', () => {
+    // A sheet over a scrim: a click inside keeps it, a click on the scrim —
+    // everything outside it — closes it.
+    it('closes on a click on the scrim, but not on one inside', () => {
         render(
             <Chrome>
                 <PageWithOverlay />
-                <p>Form</p>
             </Chrome>
         );
         fireEvent.click(showDetails() as HTMLElement);
 
-        fireEvent.pointerDown(screen.getByText('Inside'));
+        fireEvent.click(screen.getByText('Inside'));
         expect(column().hasAttribute('inert')).toBe(false);
+        expect(screen.getByRole('dialog', { name: 'Details' })).toBeTruthy();
 
-        fireEvent.pointerDown(screen.getByText('Form'));
+        const scrim = document.querySelector<HTMLElement>(
+            '[data-slot="right-panel-scrim"]'
+        );
+        fireEvent.click(scrim as HTMLElement);
         expect(column().hasAttribute('inert')).toBe(true);
     });
 

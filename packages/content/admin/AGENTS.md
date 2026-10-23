@@ -41,10 +41,12 @@ short — and where an older paragraph further down disagrees, this wins:
   `SharedFieldMark`). `/relations`, `/media` and `/activity` are retired slugs
   that redirect (`RETIRED_ENTRY_TABS`, `content:I-60`).
 - **The record's title is the `<h1>`** (`EntryTitleBlock`, `content:I-61`),
-  over one meta line: status badge, locale, one sentence of history.
+  over one meta line: status badge, locale, one sentence of history, and the
+  save state ("● Unsaved changes" / "Saved 2 min ago" — `EntrySaveState`,
+  in the phone's bottom bar instead).
 - **Header actions follow the action matrix** (`EntryActions`,
-  `content:I-62`/`I-63`): a save state ("● Unsaved changes" / "Saved 2 min
-  ago"), **Save draft** + **Publish** / **Publish changes** (or one **Save**),
+  `content:I-62`/`I-63`): **Save draft** + **Publish** / **Publish changes**
+  (or one **Save**),
   a disabled "✓ Saved" / "✓ Published · up to date" when there is nothing to
   do, ⌘S / ⌘⇧P (`hooks/useEntryShortcuts`). The ⋯ menu keeps Unpublish,
   Delete and the contributed groups.
@@ -52,9 +54,9 @@ short — and where an older paragraph further down disagrees, this wins:
   leads the actions: the editor's own field issues (`field:<name>` items, one
   "N issues" chip), a guard's refusal, and what plugins report through
   **`ENTRY_STATUS_ITEM_SLOT`**; the chip rules are `domain/statusChips`.
-- **Properties opens over the form** (`RightPanelPortal overlay`, ⌘.),
-  non-modal, and pins back into the docked column per browser
-  (`content:I-67`). Its reopen button carries a dot while anything blocks
+- **Properties opens over the form** (`RightPanelPortal overlay`, ⌘.) as a
+  sheet over a scrim, the page inert behind it, and pins back into the
+  docked column per browser (`content:I-67`). Its reopen button carries a dot while anything blocks
   publishing (`attention`).
 - **History** (`HistoryTimeline`, `content:I-68`) is one timeline grouped by
   day — versions plus the rows **`ENTRY_TIMELINE_SLOT`** sources add (the

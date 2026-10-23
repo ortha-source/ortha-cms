@@ -384,14 +384,18 @@ export function EntryActions({
             )
         ) : null;
 
-    const saveState = canSave ? (
-        <EntrySaveState
-            dirty={dirty}
-            isCreate={isCreate}
-            updatedAt={entry?.updatedAt}
-            className={layout === 'bottom' ? undefined : 'hidden md:flex'}
-        />
-    ) : null;
+    // Only the phone's bar says it here; on a desktop the save state is part
+    // of the record's meta line under its title (`EntryTitleBlock`), beside
+    // its status, where a sentence about the record belongs — the top bar
+    // keeps what a click does.
+    const saveState =
+        canSave && layout === 'bottom' ? (
+            <EntrySaveState
+                dirty={dirty}
+                isCreate={isCreate}
+                updatedAt={entry?.updatedAt}
+            />
+        ) : null;
     const cluster = (
         <EntryStatusCluster items={statusItems} onGoToField={onGoToField} />
     );
@@ -428,7 +432,6 @@ export function EntryActions({
             ) : (
                 <>
                     {cluster}
-                    {saveState}
                     {saveButton}
                     {publishButton}
                 </>

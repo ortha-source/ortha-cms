@@ -413,7 +413,6 @@ describe('the action matrix', () => {
 
         expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy();
         expect(screen.queryByRole('button', { name: /publish/i })).toBeNull();
-        expect(screen.getByText('Unsaved changes')).toBeTruthy();
     });
 });
 

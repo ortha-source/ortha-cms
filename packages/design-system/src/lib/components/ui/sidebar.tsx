@@ -342,11 +342,19 @@ function InsetFooterEnd({ children }: { children: React.ReactNode }) {
  * Empty, it keeps only the frame's bottom gutter, so a deployment with nothing
  * to put there looks exactly as it did without one.
  */
-function InsetFooter({ className }: { className?: string }) {
+function InsetFooter({
+    className,
+    inert
+}: {
+    className?: string;
+    /** Out of reach while something covers the page. */
+    inert?: boolean;
+}) {
     const setHost = React.useContext(InsetFooterEndContext)?.setHost;
     return (
         <div
             data-slot="inset-footer"
+            inert={inert || undefined}
             className={cn(
                 'flex shrink-0 items-center justify-end gap-2 md:h-10 md:has-[[data-slot=inset-footer-end]:empty]:h-2',
                 className

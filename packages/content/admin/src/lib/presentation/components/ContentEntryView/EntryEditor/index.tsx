@@ -76,6 +76,7 @@ import { EntryPageNav } from './EntryPageNav';
 import { EntryFieldSections } from './EntryFieldSections';
 import { EntrySidebar, type PublishGateItem } from './EntrySidebar';
 import { EntryTabIssues } from './EntryTabIssues';
+import { EntrySaveState } from './EntryActions/EntrySaveState';
 import { EntryTitleBlock } from './EntryTitleBlock';
 import { HistoryTimeline } from './HistoryTimeline';
 import { ReadOnlyNotice } from './ReadOnlyNotice';
@@ -1441,6 +1442,18 @@ export function EntryEditor({
                                             isMobile
                                                 ? (headerControls ?? undefined)
                                                 : undefined
+                                        }
+                                        saveState={
+                                            readOnly || isMobile ? undefined : (
+                                                <EntrySaveState
+                                                    dirty={willWriteVersion}
+                                                    isCreate={isCreate}
+                                                    updatedAt={entry?.updatedAt}
+                                                    // Read as the meta line's
+                                                    // last clause.
+                                                    className="text-[13px] font-normal before:mr-2 before:text-muted-foreground before:content-['·']"
+                                                />
+                                            )
                                         }
                                         nav={
                                             showPageNav && !wideWorkArea
