@@ -41,6 +41,8 @@ export {
 } from './lib/types/filter-tree.type';
 
 export { countRules } from './lib/utils/countRules';
+export { defaultValueForOp } from './lib/utils/defaultValueForOp';
+export { newId } from './lib/utils/newId';
 export { OPS_FOR_TYPE, OP_LABELS, opsForField } from './lib/utils/operators';
 export {
     UI_TO_WIRE,

@@ -1,13 +1,6 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import {
-    Check,
-    ChevronDown,
-    LayoutList,
-    Pin,
-    PinOff,
-    Trash2
-} from 'lucide-react';
+import { Check, MoreHorizontal, Pin, PinOff, Plus, Trash2 } from 'lucide-react';
 import {
     Button,
     ConfirmDialog,
@@ -25,6 +18,7 @@ import {
     type SavedView
 } from '../../../domain/types/savedView';
 import { ViewRow } from './ViewRow';
+import { ViewTab } from './ViewTab';
 
 /** Intl descriptors for {@link ViewSwitcher}, co-located. */
 const messages = defineMessages({
@@ -56,9 +50,17 @@ const messages = defineMessages({
         id: 'content.views.switcher.saveAs',
         defaultMessage: 'Save current as view…'
     },
-    modified: {
-        id: 'content.views.switcher.modified',
-        defaultMessage: 'Modified'
+    tabs: {
+        id: 'content.views.switcher.tabs',
+        defaultMessage: 'Views'
+    },
+    newView: {
+        id: 'content.views.switcher.newView',
+        defaultMessage: 'View'
+    },
+    newViewLabel: {
+        id: 'content.views.switcher.newViewLabel',
+        defaultMessage: 'New view from the current list'
     },
     save: { id: 'content.views.switcher.save', defaultMessage: 'Save' },
     saveNew: {
@@ -124,27 +126,27 @@ export type ViewSwitcherProps = {
     onSetDefault: (view: SavedView, isDefault: boolean) => void;
     /** Deletes a view the caller owns. */
     onDelete: (view: SavedView) => void;
+    /** Drawn at the far end of the tab row — the Trash tab. */
+    trailing?: ReactNode;
 };
 
 /**
- * The saved-view picker, leading the records toolbar's action row — beside the
- * locale, column and filter controls, and above the table they all describe.
+ * The saved views as **tabs over the records table** — All records, then each
+ * view the reader may see, then **+ View** — the way Airtable and Notion make a
+ * view navigation rather than a hidden menu. The Trash tab, when the type has
+ * one, sits at the far end (`trailing`).
  *
- * It sits with those rather than in the header's action cluster because it
- * answers the same question they do: *which slice am I looking at*. The header
- * is left to the things you do **to** the collection (add a record, the ⋯).
+ * The tabs are the quick way between slices; the **⋯ "Saved views"** menu
+ * beside them keeps the whole list (grouped Personal / Shared, so a long list
+ * that scrolls out of the row is still one click away) and the actions on the
+ * active view: save the current list as a view, set or clear your default, and
+ * delete one you own.
  *
- * The trigger renders the same way whether or not anything is saved. It used to
- * collapse to a lone "Save current as view…" button when the list was empty,
- * which put the loudest secondary control on the page in service of an action
- * that is only useful *after* the reader has changed something — and gave the
- * control two shapes to learn instead of one. The save-as affordance is where
- * the rest of the view actions are: inside the menu.
- *
- * When the live state drifts from the saved payload the trigger says so and the
- * three resolutions appear inline beside it. Nothing autosaves: silently
- * rewriting a shared view would lose a colleague's work with no trace, and the
- * same rule for personal views keeps one mental model instead of two.
+ * When the live state drifts from the saved payload the active tab carries a
+ * dot and the three resolutions appear inline after the row. Nothing
+ * autosaves: silently rewriting a shared view would lose a colleague's work
+ * with no trace, and the same rule for personal views keeps one mental model
+ * instead of two.
  */
 export function ViewSwitcher({
     views,
@@ -156,7 +158,8 @@ export function ViewSwitcher({
     onSaveChanges,
     onReset,
     onSetDefault,
-    onDelete
+    onDelete,
+    trailing
 }: ViewSwitcherProps) {
     const intl = useIntl();
     const [open, setOpen] = useState(false);
@@ -190,8 +193,40 @@ export function ViewSwitcher({
         <div
             role="group"
             aria-label={intl.formatMessage(messages.group)}
-            className="flex flex-wrap items-center gap-2"
+            className="flex min-w-0 flex-1 items-center gap-1"
         >
+            <div
+                role="group"
+                aria-label={intl.formatMessage(messages.tabs)}
+                className="flex min-w-0 items-center gap-0.5 overflow-x-auto"
+            >
+                <ViewTab active={!active} onSelect={() => onSelect(null)}>
+                    {intl.formatMessage(messages.all)}
+                </ViewTab>
+                {views.map((view) => (
+                    <ViewTab
+                        key={view.id}
+                        active={active?.id === view.id}
+                        dirty={isDirty && active?.id === view.id}
+                        shared={view.visibility === VIEW_VISIBILITY.Workspace}
+                        isDefault={view.isDefault}
+                        onSelect={() => onSelect(view)}
+                    >
+                        {view.name}
+                    </ViewTab>
+                ))}
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="shrink-0 text-muted-foreground"
+                    aria-label={intl.formatMessage(messages.newViewLabel)}
+                    onClick={onSaveAs}
+                >
+                    <Plus aria-hidden />
+                    {intl.formatMessage(messages.newView)}
+                </Button>
+            </div>
+
             {/* `modal={false}`, like every other menu in the admin: a modal
                 Radix menu `aria-hidden`s the page root, which holds focusable
                 content, and axe's `aria-hidden-focus` fires on it (the whole
@@ -200,29 +235,12 @@ export function ViewSwitcher({
                 <DropdownMenuTrigger asChild>
                     <Button
                         ref={triggerRef}
-                        variant="outline"
+                        variant="ghost"
+                        size="icon-sm"
                         aria-label={intl.formatMessage(messages.trigger)}
-                        className={cn(
-                            'shadow-none',
-                            isDirty &&
-                                'border-amber-500/60 text-amber-700 dark:text-amber-400'
-                        )}
+                        className="shrink-0 text-muted-foreground"
                     >
-                        <LayoutList aria-hidden />
-                        <span className="max-w-[14rem] truncate">
-                            {active
-                                ? active.name
-                                : intl.formatMessage(messages.all)}
-                        </span>
-                        {isDirty ? (
-                            <>
-                                <span aria-hidden className="opacity-50">
-                                    ·
-                                </span>
-                                {intl.formatMessage(messages.modified)}
-                            </>
-                        ) : null}
-                        <ChevronDown aria-hidden className="opacity-60" />
+                        <MoreHorizontal aria-hidden />
                     </Button>
                 </DropdownMenuTrigger>
 
@@ -337,10 +355,11 @@ export function ViewSwitcher({
                 None of them is `variant="default"`: the header's one primary
                 button is "Add record", and a second would compete with it. */}
             {isDirty && active ? (
-                <>
+                <div className="ml-2 flex shrink-0 items-center gap-1.5">
                     {active.isOwn ? (
                         <Button
                             variant="secondary"
+                            size="sm"
                             className="shadow-none"
                             disabled={isSaving}
                             onClick={onSaveChanges}
@@ -351,15 +370,22 @@ export function ViewSwitcher({
                     ) : null}
                     <Button
                         variant="outline"
+                        size="sm"
                         className="shadow-none"
                         onClick={onSaveAs}
                     >
                         {intl.formatMessage(messages.saveNew)}
                     </Button>
-                    <Button variant="ghost" onClick={onReset}>
+                    <Button variant="ghost" size="sm" onClick={onReset}>
                         {intl.formatMessage(messages.reset)}
                     </Button>
-                </>
+                </div>
+            ) : null}
+
+            {trailing ? (
+                <div className="ml-auto flex shrink-0 items-center">
+                    {trailing}
+                </div>
             ) : null}
 
             {/* Outside `DropdownMenuContent`, which unmounts the instant the

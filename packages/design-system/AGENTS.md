@@ -123,6 +123,9 @@ hand-written):
   `SearchToolbar` sets the same density, so a list's search box and its
   Columns / Filters buttons take the top bar's 32px line too. Below the
   breakpoint, or with no bar, the actions stay beside the title.
+- **`SearchToolbar` takes `leading`** — controls drawn at the row's start (the
+  records table's status chips); with it the search box moves to the right, a
+  fixed 260px beside the actions, instead of stretching from the left edge.
 - **`Container` is 1120px wide, except one page.** `width="full"` belongs to a
   collection's records table alone — its columns are the reader's choice and
   can number a dozen. Every other page, tables included (members, tokens,

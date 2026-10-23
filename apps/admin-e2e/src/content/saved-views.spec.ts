@@ -72,7 +72,7 @@ test.describe('Saved views', () => {
         await seed(page, [NEEDS_REVIEW_VIEW, SHARED_VIEW]);
         await savedViewsPage.goto(RELATIONS_WORKSPACE.id, 'article');
 
-        await expect(savedViewsPage.trigger()).toContainText('All records');
+        await expect(savedViewsPage.activeTab()).toContainText('All records');
         await savedViewsPage.open();
         await expect(savedViewsPage.menuItem('Needs review')).toBeVisible();
         await expect(
@@ -89,7 +89,7 @@ test.describe('Saved views', () => {
         await savedViewsPage.open();
         await savedViewsPage.menuItem('Needs review').click();
 
-        await expect(savedViewsPage.trigger()).toContainText('Needs review');
+        await expect(savedViewsPage.activeTab()).toContainText('Needs review');
         const url = new URL(page.url());
         expect(url.searchParams.get('view')).toBe(NEEDS_REVIEW_VIEW.id);
         expect(url.searchParams.get('sort')).toBe('-updatedAt');
@@ -111,7 +111,7 @@ test.describe('Saved views', () => {
             `?view=${NEEDS_REVIEW_VIEW.id}`
         );
 
-        await expect(savedViewsPage.trigger()).toContainText('Needs review');
+        await expect(savedViewsPage.activeTab()).toContainText('Needs review');
     });
 
     test('clearing back to All records drops the filter and the pointer', async ({
@@ -127,7 +127,7 @@ test.describe('Saved views', () => {
         await savedViewsPage.open();
         await savedViewsPage.menuItem('All records').click();
 
-        await expect(savedViewsPage.trigger()).toContainText('All records');
+        await expect(savedViewsPage.activeTab()).toContainText('All records');
         const url = new URL(page.url());
         expect(url.searchParams.get('view')).toBeNull();
         expect(url.searchParams.get('filter')).toBeNull();
@@ -145,7 +145,7 @@ test.describe('Saved views', () => {
                 `?view=${NEEDS_REVIEW_VIEW.id}`
             );
 
-            await expect(savedViewsPage.trigger()).not.toContainText(
+            await expect(savedViewsPage.activeTab()).not.toContainText(
                 'Modified'
             );
             await expect(savedViewsPage.reset()).toHaveCount(0);
@@ -162,7 +162,7 @@ test.describe('Saved views', () => {
                 `?view=${NEEDS_REVIEW_VIEW.id}&q=anything`
             );
 
-            await expect(savedViewsPage.trigger()).not.toContainText(
+            await expect(savedViewsPage.activeTab()).not.toContainText(
                 'Modified'
             );
         });
@@ -178,7 +178,7 @@ test.describe('Saved views', () => {
                 `?view=${NEEDS_REVIEW_VIEW.id}&page=2`
             );
 
-            await expect(savedViewsPage.trigger()).not.toContainText(
+            await expect(savedViewsPage.activeTab()).not.toContainText(
                 'Modified'
             );
         });
@@ -194,10 +194,10 @@ test.describe('Saved views', () => {
                 `?view=${NEEDS_REVIEW_VIEW.id}&sort=text`
             );
 
-            await expect(savedViewsPage.trigger()).toContainText('Modified');
+            await expect(savedViewsPage.activeTab()).toContainText('Modified');
             await savedViewsPage.reset().click();
 
-            await expect(savedViewsPage.trigger()).not.toContainText(
+            await expect(savedViewsPage.activeTab()).not.toContainText(
                 'Modified'
             );
             expect(new URL(page.url()).searchParams.get('sort')).toBe(
@@ -216,7 +216,7 @@ test.describe('Saved views', () => {
                 `?view=${SHARED_VIEW.id}&sort=text`
             );
 
-            await expect(savedViewsPage.trigger()).toContainText('Modified');
+            await expect(savedViewsPage.activeTab()).toContainText('Modified');
             // Their view stays theirs — the remedy is a copy, not a rewrite.
             await expect(savedViewsPage.saveChanges()).toHaveCount(0);
             await expect(savedViewsPage.saveAsNew()).toBeVisible();
@@ -339,7 +339,7 @@ test.describe('Saved views', () => {
             await expect(savedViewsPage.menuItem('Needs review')).toBeFocused();
 
             await page.keyboard.press('Enter');
-            await expect(savedViewsPage.trigger()).toContainText(
+            await expect(savedViewsPage.activeTab()).toContainText(
                 'Needs review'
             );
             // The menu is gone, so focus must be back on its trigger rather
@@ -409,7 +409,7 @@ test.describe('Saved views', () => {
         await expect(
             page.getByText(/column in this view no longer exists/)
         ).toBeVisible();
-        await expect(savedViewsPage.trigger()).not.toContainText('Modified');
+        await expect(savedViewsPage.activeTab()).not.toContainText('Modified');
     });
 
     test('lands on the reader’s default view from a bare URL', async ({
@@ -419,7 +419,7 @@ test.describe('Saved views', () => {
         await seed(page, [{ ...NEEDS_REVIEW_VIEW, isDefault: true }]);
         await savedViewsPage.goto(RELATIONS_WORKSPACE.id, 'article');
 
-        await expect(savedViewsPage.trigger()).toContainText('Needs review');
+        await expect(savedViewsPage.activeTab()).toContainText('Needs review');
         const url = new URL(page.url());
         expect(url.searchParams.get('view')).toBe(NEEDS_REVIEW_VIEW.id);
         expect(url.searchParams.get('filter')).toBe(
@@ -439,11 +439,11 @@ test.describe('Saved views', () => {
         // plain list came back.
         await seed(page, [{ ...NEEDS_REVIEW_VIEW, isDefault: true }]);
         await savedViewsPage.goto(RELATIONS_WORKSPACE.id, 'article');
-        await expect(savedViewsPage.trigger()).toContainText('Needs review');
+        await expect(savedViewsPage.activeTab()).toContainText('Needs review');
 
         await contentLibraryPage.typeLink('Articles').click();
 
-        await expect(savedViewsPage.trigger()).toContainText('Needs review');
+        await expect(savedViewsPage.activeTab()).toContainText('Needs review');
         expect(new URL(page.url()).searchParams.get('view')).toBe(
             NEEDS_REVIEW_VIEW.id
         );
@@ -458,12 +458,12 @@ test.describe('Saved views', () => {
         // would make "All records" un-pickable.
         await seed(page, [{ ...NEEDS_REVIEW_VIEW, isDefault: true }]);
         await savedViewsPage.goto(RELATIONS_WORKSPACE.id, 'article');
-        await expect(savedViewsPage.trigger()).toContainText('Needs review');
+        await expect(savedViewsPage.activeTab()).toContainText('Needs review');
 
         await savedViewsPage.open();
         await savedViewsPage.menuItem('All records').click();
 
-        await expect(savedViewsPage.trigger()).toContainText('All records');
+        await expect(savedViewsPage.activeTab()).toContainText('All records');
         expect(new URL(page.url()).searchParams.get('view')).toBeNull();
     });
 
@@ -495,7 +495,7 @@ test.describe('Saved views', () => {
 
             await expect(savedViewsPage.confirmDeleteDialog()).toHaveCount(0);
             expect(spy.count).toBe(0);
-            await expect(savedViewsPage.trigger()).toContainText(
+            await expect(savedViewsPage.activeTab()).toContainText(
                 'Needs review'
             );
         });
@@ -550,7 +550,9 @@ test.describe('Saved views', () => {
 
             expect(spy.count).toBe(1);
             await expect(savedViewsPage.trigger()).toBeFocused();
-            await expect(savedViewsPage.trigger()).toContainText('All records');
+            await expect(savedViewsPage.activeTab()).toContainText(
+                'All records'
+            );
         });
 
         test('says a shared view is being removed for everyone', async ({
@@ -647,7 +649,7 @@ test.describe('Saved views', () => {
             '?q=gdansk'
         );
 
-        await expect(savedViewsPage.trigger()).toContainText('All records');
+        await expect(savedViewsPage.activeTab()).toContainText('All records');
         expect(new URL(page.url()).searchParams.get('view')).toBeNull();
     });
 });

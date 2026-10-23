@@ -4,11 +4,11 @@ import { MoreHorizontal, Send, Trash2, Undo2 } from 'lucide-react';
 import { useHasPermission } from '@orthacms/identity-admin';
 import {
     Button,
+    cn,
     ConfirmDialog,
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
-    DropdownMenuSeparator,
     DropdownMenuTrigger,
     Spinner,
     toast
@@ -98,17 +98,17 @@ type Placed = {
 };
 
 /**
- * The bulk actions for the current selection, in a **⋯ menu** at the end of the
- * selection bar. In the live view: **Publish** (opens the dry-run
- * {@link BulkPublishDialog}), **Unpublish**, and **Delete** (confirm). In the
- * **trash** view: **Restore** and **Delete permanently** (confirm). All gated
- * by permission and scoped to the current selection; each clears the selection
- * (`onDone`) after it succeeds.
+ * The bulk actions for the current selection, as buttons on the dark selection
+ * bar. In the live view: **Publish** (opens the dry-run
+ * {@link BulkPublishDialog}), **Unpublish**, then — at the far end — **Delete**
+ * (confirm). In the **trash** view: **Restore**, and **Delete permanently**
+ * (confirm). All gated by permission and scoped to the current selection; each
+ * clears the selection (`onDone`) after it succeeds.
  *
- * A menu rather than a row of buttons because the row grew with every
- * contribution and pushed the count off the other side of the bar. The one
- * control that stays outside it is **Clear**, which the selection bar renders
- * itself — see its JSDoc for why.
+ * Contributions (`RECORDS_BULK_ACTION_SLOT` — transfer's **Export**) go in a
+ * **⋯ menu** after the built-ins rather than as more buttons: that row is
+ * what grew with every plugin and used to push the count off the bar. The
+ * **Clear** control is the selection bar's own.
  *
  * The dialogs are rendered **outside** `DropdownMenuContent`, which unmounts
  * the moment the menu closes — exactly when a dialog opened from an item is
@@ -262,58 +262,73 @@ export function CollectionRecordsBulkActions({
         }
     }
 
-    primary.push(...extras);
-    const sections = [primary, danger].filter((rows) => rows.length > 0);
-
-    // With no permission and no contribution there is nothing to open onto, so
-    // the trigger goes too — but the overlays stay, as an array rather than a
-    // lone-child fragment: an open dialog has to survive its item ceasing to
-    // apply.
-    if (sections.length === 0) return extraOverlays;
+    // On the dark selection bar: the built-ins are buttons of their own, the
+    // contributions (Export) sit in the ⋯ after them, and the destructive ones
+    // are pushed to the far end, away from Publish.
+    const barButton = (row: Placed) => {
+        const Icon = row.icon;
+        return (
+            <Button
+                key={row.key}
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={row.disabled}
+                onClick={row.onSelect}
+                className={cn(
+                    'shrink-0 text-background hover:bg-background/10 hover:text-background',
+                    row.destructive &&
+                        'text-red-300 hover:text-red-200 dark:text-red-600 dark:hover:text-red-700'
+                )}
+            >
+                {Icon ? <Icon aria-hidden /> : null}
+                {row.label}
+            </Button>
+        );
+    };
 
     return (
         <>
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="size-8 shrink-0 shadow-none"
-                        aria-label={intl.formatMessage(messages.trigger)}
-                    >
-                        <MoreHorizontal aria-hidden />
-                    </Button>
-                </DropdownMenuTrigger>
-                {/* Aligned to the trigger's right edge — the bar puts it at the
-                    end of the row, so a left-aligned panel would open off the
-                    side. */}
-                <DropdownMenuContent align="end" className="w-56">
-                    {sections.map((rows, index) => (
-                        <Fragment key={rows[0].key}>
-                            {index > 0 && <DropdownMenuSeparator />}
-                            {rows.map((row) => {
-                                const Icon = row.icon;
-                                return (
-                                    <DropdownMenuItem
-                                        key={row.key}
-                                        disabled={row.disabled}
-                                        className={
-                                            row.destructive
-                                                ? 'text-destructive focus:text-destructive'
-                                                : undefined
-                                        }
-                                        onSelect={row.onSelect}
-                                    >
-                                        {Icon ? <Icon aria-hidden /> : null}
-                                        {row.label}
-                                    </DropdownMenuItem>
-                                );
-                            })}
-                        </Fragment>
-                    ))}
-                </DropdownMenuContent>
-            </DropdownMenu>
+            {primary.map(barButton)}
+            {extras.length > 0 ? (
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            className="shrink-0 text-background hover:bg-background/10 hover:text-background"
+                            aria-label={intl.formatMessage(messages.trigger)}
+                        >
+                            <MoreHorizontal aria-hidden />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-56">
+                        {extras.map((row) => {
+                            const Icon = row.icon;
+                            return (
+                                <DropdownMenuItem
+                                    key={row.key}
+                                    disabled={row.disabled}
+                                    className={
+                                        row.destructive
+                                            ? 'text-destructive focus:text-destructive'
+                                            : undefined
+                                    }
+                                    onSelect={row.onSelect}
+                                >
+                                    {Icon ? <Icon aria-hidden /> : null}
+                                    {row.label}
+                                </DropdownMenuItem>
+                            );
+                        })}
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            ) : null}
+            {danger.length > 0 ? (
+                <span aria-hidden className="ml-auto" />
+            ) : null}
+            {danger.map(barButton)}
 
             {extraOverlays}
 

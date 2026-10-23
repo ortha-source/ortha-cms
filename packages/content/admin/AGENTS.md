@@ -219,7 +219,25 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   to it, over the table; Apply commits and closes it, and the applied
   conditions read out as a `QueryBuilderSummary` row of removable chips under
   the toolbar. The **Columns** trigger beside it is icon-only too
-  (`Columns3`, `aria-label` + `Tooltip`). `useContentEntries`
+  (`Columns3`, `aria-label` + `Tooltip`).
+  **Field-first filtering**: a **"+ Filter"** (`AddFilterButton`, "Add a
+  filter") ends the summary row — a searchable list of the filterable fields,
+  grouped by relation path; picking one opens the same popover with a fresh
+  rule for that field already in place (the pick is deferred to the next frame
+  from `onCloseAutoFocus`, or the closing list's focus return dismisses the
+  popover it just opened). On a publishable type the server's surface accepts
+  `publishedAt` but the served picker omits it (copilot unions SQL fields), so
+  `LoadedRecordsView` appends a **Published at** field after Status.
+  **Status chips** (`RecordsStatusChips`, "Show by status") lead the toolbar on
+  a publishable type outside the trash: Published · Modified · Draft, each one
+  click, with the type's counts from `useStatusCounts` (insights' pipeline;
+  hidden on an i18n type, whose insights count every locale). A chip is a pair
+  of ordinary conditions (`presentation/statusQuickFilter`: published =
+  `status = published`; modified = `status = draft` + `publishedAt` is not
+  empty; draft = + `publishedAt` is empty), ANDed beside whatever else is
+  applied — picking another swaps it, pressing the lit one clears it — and the
+  summary row hides the chip's own rules so they aren't drawn twice.
+  `SearchToolbar` takes a `leading` slot for them (search moves right). `useContentEntries`
   fetches `GET /api/content/:name` with `{ search, filter, sort, page, pageSize }`
   → the `{ items, total, page, pageSize }` envelope; the **server** runs search →
   query-builder filter → sort → pagination (this hook owns no row logic). The
@@ -246,7 +264,11 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   schema, and re-seeded when the open type changes. Row selection is local
   component state (a `Set<string>` by id)
   in `LoadedRecordsView`, surfaced through the table's leading checkbox column
-  and the `CollectionRecordsSelectionBar`. **It belongs to one list**:
+  and the `CollectionRecordsSelectionBar` — a dark bar that **takes the
+  toolbar's place** while anything is selected ("{n} selected of {total}", the
+  built-in actions as buttons, the destructive ones at the far end, ✕ to
+  clear), so the table never jumps down a row. **The table itself is
+  untouched** — the redesign moved everything around it, not its cells. **It belongs to one list**:
   `CollectionRecordsView` keys `LoadedRecordsView` by type, trash-or-live and
   shared source. Without the key, moving to a collection whose schema was
   cached skipped the skeleton, React kept the view mounted, and a bulk action
@@ -658,29 +680,33 @@ here".
 
 Pinned by `apps/admin-e2e/src/content/per-source-grants.spec.ts`.
 
-## Saved views — the switcher in the records toolbar
+## Saved views — tabs over the records toolbar
 
 A saved view is a named slice of a collection's records list: the filter, the
 sort, the visible columns, the page size, and the slot-owned params (i18n's
 locale). Served by `/api/views` (`packages/content/server/src/lib/views/`).
 
-**Where it lives.** `ViewSwitcher` **leads `SearchToolbar`'s actions row**,
-before the locale switcher, Columns and Filters. The page's two right-aligned
-rows are split by the question they answer: the header carries what you do _to_
-the collection (**Add record**, the **⋯**), the toolbar carries what changes
-_which records you are looking at_. A saved view is the broadest of those, so it
-goes first in that row.
+**Where it lives.** `ViewSwitcher` is a **row of tabs above the toolbar**
+("View controls" → a "Views" group): **All records** first, then each saved
+view (`ViewTab`, a toggle button — `aria-pressed`; a dot + sr-only "Modified"
+on the active one when it has drifted, an icon for shared / default), a
+**+ View** button ("New view from the current list") and an icon-only ⋯
+("Saved views") holding the full menu — every view row and the view actions,
+unchanged. The row ends with the collection's **Trash** tab on a paranoid
+type a user may delete from (`trashHref`, `RecordsTabLink`, `aria-current` on
+the trash page — where a banner says the trash isn't served and links are
+kept). A collection with no saved views still gets the row: All records +
+View, so the place to make one is always in sight. In the trash, on a shared
+source's list, or while views are loading or failed, the row is the two places
+alone — the list (`RecordsTabLink`) and Trash.
 
-It has lived in two other places, and the reasons both moved are worth keeping.
-Under the `<h1>` (through a `titleAdornment` slot on `ContainerHeader`, since
-removed with its last caller) a small pill read as a caption on the heading
-rather than a control, and pushed the record count down on every collection. In
+It has lived in three other places. Leading `SearchToolbar`'s actions row it
+was one control among Columns / Filters, its name truncated to fit. Under the
+`<h1>` (through a since-removed `titleAdornment` slot on `ContainerHeader`) a
+small pill read as a caption on the heading rather than a control. In
 `ContainerHeader`'s `actions` cluster it was one of six near-identical outline
-buttons spread over two right-aligned rows with nothing to say which row was
-which — the argument for it there ("it says which slice the actions beside it
-would act on") stopped holding once those actions were the ones that moved away.
-Both rows stay `flex-wrap`: a `shrink-0` row of controls ran off the right edge
-on a narrow viewport.
+buttons over two right-aligned rows. Tabs say what a view is — another slice of
+the same list — and make switching one click instead of two.
 
 The menu is `modal={false}`, like every other menu in this admin: a modal Radix
 menu `aria-hidden`s the page root, so `aria-hidden-focus` fires and the page —
@@ -716,7 +742,8 @@ Seeding during render instead means the two fight and the columns flicker back
 to the type's defaults.
 
 **Nothing autosaves.** When the live state drifts from the saved payload the
-trigger says "Modified" and offers Save / Save as new / Reset inline beside it.
+active tab carries the Modified dot and the row offers Save / Save as new /
+Reset inline after the tabs.
 None of the three is `variant="default"` — the header's one primary button is
 **Add record**, and a second would compete with it. Save is absent on someone
 else's shared view — that one is theirs, and "Save as new" is the remedy.
@@ -1255,33 +1282,27 @@ fetching internally.
     - It is a **menu** and not more header buttons because what belongs here is
       the occasional whole-collection operation, and those should not take the
       header's one primary slot from **Add record**.
-    - **`CollectionRecordsMenu` contributes one item itself**: **Trash**, via a
-      `trashHref` prop (`paranoid && canDelete`, the pair that used to gate the
-      header button). It is here because it is a _destination_, not an action,
-      so it read oddly among buttons that do something — and because the menu
-      otherwise held exactly one contributed item, making the ⋯ a button that
-      hid a button.
-    - **The trigger renders only when something resolves** — a contributed item
-      or `trashHref` — so an install with neither sees no ⋯ opening onto
-      nothing.
+    - **Trash is no longer in it.** It moved to a tab at the end of the views
+      row (see _Saved views_): a destination, beside the other ways of picking
+      which records you are looking at.
+    - **The trigger renders only when a contributed item resolves**, so an
+      install with none sees no ⋯ opening onto nothing.
     - `@orthacms/transfer-admin` fills it with **Import…**.
 - **`RECORDS_BULK_ACTION_SLOT`** — an item in the records **selection bar's**
-  ⋯ menu, after the built-in Publish / Unpublish / Delete (and, in the trash,
-  Restore / Delete permanently). `useItem` receives the selected `ids` and
-  `trashed`, plus `onDone` to clear the selection.
-    - The bar's own layout is **count · Clear · ⋯**: everything the bar can do
-      to the selection lives in the menu, and **Clear** stays outside it,
-      because it is the way _out_ of a selection the user may have made by
-      accident — burying that behind the same menu as Delete would be the wrong
-      shape. Contributions sort after the built-ins and above the separator the
-      destructive actions sit below.
+  ⋯ menu ("Bulk actions"). The built-ins are buttons of their own on the bar —
+  Publish / Unpublish (Restore in the trash) first, Delete (Delete permanently)
+  pushed to the far end — and the ⋯ holding the contributions sits after the
+  first group. `useItem` receives the selected `ids` and `trashed`, plus
+  `onDone` to clear the selection.
+    - The bar's own layout is **count · actions · ⋯ · … · Delete · ✕**: the
+      ✕ (**Clear selection**) stays last and outside every menu, because it is
+      the way _out_ of a selection the user may have made by accident.
     - Its `overlay` is rendered outside `DropdownMenuContent` for the same
       reason `RECORDS_MENU_SLOT`'s is — the menu content unmounts the instant
       the menu closes. On top of that, the bar unmounts as soon as the selection
       is empty, taking the overlay with it — so an action whose dialog must stay
       open calls `onDone` on success, never on open.
-    - **The trigger renders only when an item resolves** — a viewer with neither
-      publish nor delete, and no contribution, sees no ⋯ button.
+    - **The ⋯ renders only when a contribution resolves**.
     - `@orthacms/transfer-admin` fills it with **Export**.
 - **`RECORDS_COLUMN_SLOT`** — an extension table column (`COLUMN_KIND.Extension`)
   that joins the column picker like any column (non-sortable header); optional

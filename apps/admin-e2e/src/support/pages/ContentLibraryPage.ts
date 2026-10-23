@@ -1403,14 +1403,22 @@ export class ContentLibraryPage extends BasePage {
 
     /* --- Bulk actions + the publish pre-flight dialog --------------------- */
 
-    /** The selection bar's "Bulk actions" dropdown trigger. */
+    /** The dark selection bar that takes the toolbar's place. */
+    get selectionBar(): Locator {
+        return this.page.getByRole('group', { name: 'Selection' });
+    }
+
+    /** The selection bar's ⋯ — the plugins' bulk actions (Export). */
     get bulkActions(): Locator {
         return this.page.getByRole('button', { name: 'Bulk actions' });
     }
 
-    /** One item of the open bulk-actions menu. */
+    /** One built-in bulk action — a button on the selection bar. */
     bulkAction(label: string): Locator {
-        return this.page.getByRole('menuitem', { name: label, exact: true });
+        return this.selectionBar.getByRole('button', {
+            name: label,
+            exact: true
+        });
     }
 
     /** The bulk-publish pre-flight modal. */

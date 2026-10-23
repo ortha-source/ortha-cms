@@ -27,9 +27,27 @@ export class SavedViewsPage extends BasePage {
         return this.page.getByRole('group', { name: 'View controls' });
     }
 
-    /** The switcher button. Its label is the applied view's name, or "All records". */
+    /** The ⋯ "Saved views" menu beside the tabs — the whole list and the view actions. */
     trigger(): Locator {
         return this.page.getByRole('button', { name: 'Saved views' });
+    }
+
+    /**
+     * The pressed view tab — the slice on screen: a view's name, or "All
+     * records". A modified view's tab also says "Modified" (to a screen
+     * reader; a dot on screen).
+     */
+    activeTab(): Locator {
+        return this.group()
+            .getByRole('group', { name: 'Views' })
+            .getByRole('button', { pressed: true });
+    }
+
+    /** One view tab, by its name. */
+    tab(name: string): Locator {
+        return this.group()
+            .getByRole('group', { name: 'Views' })
+            .getByRole('button', { name });
     }
 
     /** Open the switcher menu. */

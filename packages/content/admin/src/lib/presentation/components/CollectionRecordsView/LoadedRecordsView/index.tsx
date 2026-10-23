@@ -8,12 +8,19 @@ import {
 import { defineMessages, useIntl } from 'react-intl';
 import { FileText, Plus, Table2, Trash2 } from 'lucide-react';
 import {
+    COMBINATOR,
+    FIELD_TYPE,
     QueryBuilderPopover,
     QueryBuilderSummary,
     countRules,
+    defaultValueForOp,
     jsonFilterToTree,
+    newId,
+    opsForField,
     treeToJsonFilter,
-    type FilterGroup
+    type FilterField,
+    type FilterGroup,
+    type FilterRule
 } from '@orthacms/query-builder-admin';
 import { useTableUrlState } from '@orthacms/utils-admin';
 import { useCurrentWorkspace } from '@orthacms/workspaces-admin';
@@ -68,6 +75,16 @@ import { useUpdateView } from '../../../../application/useUpdateView';
 import { useDeleteView } from '../../../../application/useDeleteView';
 import { useSetDefaultView } from '../../../../application/useSetDefaultView';
 import { ViewSwitcher } from '../../ViewSwitcher';
+import { RecordsTabLink } from '../RecordsTabLink';
+import { RecordsStatusChips } from '../RecordsStatusChips';
+import { AddFilterButton } from '../AddFilterButton';
+import { useStatusCounts } from '../../../hooks/useStatusCounts';
+import {
+    PUBLISHED_AT_FIELD,
+    STATUS_FIELD,
+    activeQuickStatus,
+    withQuickStatus
+} from '../../../statusQuickFilter';
 import { SaveViewDialog } from '../../ViewSwitcher/SaveViewDialog';
 import { useContentEntries } from '../../../../application/useContentEntries';
 import { useEntryColumns } from '../../../hooks/useEntryColumns';
@@ -98,6 +115,23 @@ import { SharedSourceBadge } from '../../SharedSourceBadge';
 
 /** Intl descriptors for {@link LoadedRecordsView}, co-located. */
 const messages = defineMessages({
+    allRecords: {
+        id: 'content.records.tabs.all',
+        defaultMessage: 'All records'
+    },
+    trashTab: {
+        id: 'content.records.tabs.trash',
+        defaultMessage: 'Trash'
+    },
+    trashBanner: {
+        id: 'content.records.trashBanner',
+        defaultMessage:
+            'Records in the trash aren’t served. Links to them are kept, and Restore brings a record back as it was.'
+    },
+    publishedAtField: {
+        id: 'content.records.filter.publishedAt',
+        defaultMessage: 'Published at'
+    },
     subtitle: {
         id: 'content.records.subtitle',
         defaultMessage:
@@ -429,7 +463,27 @@ export function LoadedRecordsView({
     const slotFilterFields = RECORDS_FILTER_FIELDS_SLOT.getItems().flatMap(
         (item) => item.useFields(schema)
     );
-    const filterFields = [...schemaFilterFields, ...slotFilterFields];
+    // `publishedAt` is filterable on the server but not in the served picker:
+    // it is what tells **Modified** (live content behind a draft) from a
+    // never-published **Draft**, so the status chips need it as a field, and
+    // so does a reader asking for "published since Monday". Placed after
+    // Status, and only while the served list has nothing by that id.
+    const filterFields: FilterField[] = [...schemaFilterFields];
+    if (
+        publishable &&
+        schemaFilterFields.length > 0 &&
+        !schemaFilterFields.some((field) => field.id === PUBLISHED_AT_FIELD)
+    ) {
+        const at = schemaFilterFields.findIndex(
+            (field) => field.id === STATUS_FIELD
+        );
+        filterFields.splice(at + 1, 0, {
+            id: PUBLISHED_AT_FIELD,
+            label: messages.publishedAtField,
+            type: FIELD_TYPE.Date
+        });
+    }
+    filterFields.push(...slotFilterFields);
     const appliedFilter = useMemo(
         () => jsonFilterToTree(filterParam),
         [filterParam]
@@ -539,6 +593,39 @@ export function LoadedRecordsView({
             updateParams({ filter: treeToJsonFilter(next) ?? undefined });
         },
         [updateParams]
+    );
+
+    // **+ Filter** picks the field first and opens the builder with a new
+    // condition on it. The builder re-reads `value` each time it opens, so the
+    // condition is handed over as part of the value it opens on — closing
+    // without Apply drops it, like any other draft.
+    const [filterOpen, setFilterOpen] = useState(false);
+    const [seedRule, setSeedRule] = useState<FilterRule | null>(null);
+    const builderValue = useMemo(
+        () => (seedRule ? appendRule(appliedFilter, seedRule) : appliedFilter),
+        [appliedFilter, seedRule]
+    );
+    const addFilterOn = (field: FilterField) => {
+        const op = opsForField(field)[0];
+        setSeedRule({
+            id: newId(),
+            fieldId: field.id,
+            op,
+            value: defaultValueForOp(op)
+        });
+        setFilterOpen(true);
+    };
+
+    // The status chips own their two conditions; the applied-filter chips
+    // under the toolbar show everything else, and a change there keeps the
+    // chip's conditions in place.
+    const quickStatus = publishable ? activeQuickStatus(appliedFilter) : null;
+    const summaryTree = quickStatus
+        ? withQuickStatus(appliedFilter, null, newId)
+        : appliedFilter;
+    const statusCounts = useStatusCounts(
+        type.name,
+        publishable && !schema.i18n && !readOnly
     );
 
     // The live slice, in the same shape a stored payload has — one object both
@@ -821,6 +908,19 @@ export function LoadedRecordsView({
         navigate(`${typePath}/${NEW_SEGMENT}${entryQuery}`);
     };
 
+    // The trash is a tab at the end of the views row — it used to be an item
+    // in the header's ⋯ menu, a destination filed among actions.
+    const trashTab =
+        paranoid && canDelete && ownAccess ? (
+            <RecordsTabLink
+                to={`${typePath}/${TRASH_SEGMENT}`}
+                active={trashed}
+            >
+                <Trash2 aria-hidden />
+                {intl.formatMessage(messages.trashTab)}
+            </RecordsTabLink>
+        ) : null;
+
     return (
         <Container width="full" className="p-6 sm:p-6">
             <ContainerHeader
@@ -893,11 +993,6 @@ export function LoadedRecordsView({
                                     schema={schema}
                                     workspaceId={workspace.id}
                                     trashed={trashed}
-                                    trashHref={
-                                        paranoid && canDelete
-                                            ? `${typePath}/${TRASH_SEGMENT}`
-                                            : undefined
-                                    }
                                 />
                             ) : null}
                         </div>
@@ -930,88 +1025,160 @@ export function LoadedRecordsView({
                 </p>
             ) : null}
 
-            <SearchToolbar
-                value={searchInput}
-                onValueChange={setSearchInput}
-                busy={searchPending || (isFetching && !isPending)}
-                searchLabel={intl.formatMessage(messages.searchLabel)}
-                searchPlaceholder={intl.formatMessage(
-                    messages.searchPlaceholder
-                )}
-                actions={
-                    <div className="flex flex-wrap items-center justify-end gap-2">
-                        {/* The switcher leads the row: it says *which slice* the
-                            controls beside it are narrowing. Rendered only once
-                            the views request has settled — a control that says
-                            "All records" before we know whether any views exist
-                            flashes a label that may be about to change, and on
-                            an error there is nothing truthful to show. */}
-                        {viewsEnabled && !viewsPending && !viewsError ? (
-                            <ViewSwitcher
-                                views={views}
-                                active={activeView}
-                                isDirty={viewIsDirty}
-                                isSaving={updateView.isPending}
-                                onSelect={applyView}
-                                onSaveAs={() => {
-                                    setSaveViewError(null);
-                                    setSaveViewOpen(true);
-                                }}
-                                onSaveChanges={handleSaveChanges}
-                                onReset={() =>
-                                    activeView
-                                        ? applyView(activeView)
-                                        : undefined
-                                }
-                                onSetDefault={handleSetDefault}
-                                onDelete={handleDeleteView}
-                            />
-                        ) : null}
-                        {toolbarItems.map((item) => (
-                            <item.Component
-                                key={item.id}
-                                schema={schema}
-                                workspaceId={workspace.id}
-                                params={slotParams}
-                                updateParams={updateParams}
-                            />
-                        ))}
-                        <CollectionRecordsColumnPicker
-                            columns={columns}
-                            visible={visible}
-                            isVisible={isVisible}
-                            onToggle={toggle}
-                            onReorder={reorder}
-                            visibleCount={visible.length}
+            {/* The slices of this list: the saved views as tabs, then the
+                Trash at the far end — a place, not a slice. In the trash (and
+                on a shared source's list) there are no views, so the row is
+                the two places alone. */}
+            {readOnly ? null : (
+                <div className="mb-4 flex min-h-9 items-center gap-1 border-b">
+                    {viewsEnabled && !viewsPending && !viewsError ? (
+                        <ViewSwitcher
+                            views={views}
+                            active={activeView}
+                            isDirty={viewIsDirty}
+                            isSaving={updateView.isPending}
+                            onSelect={applyView}
+                            onSaveAs={() => {
+                                setSaveViewError(null);
+                                setSaveViewOpen(true);
+                            }}
+                            onSaveChanges={handleSaveChanges}
+                            onReset={() =>
+                                activeView ? applyView(activeView) : undefined
+                            }
+                            onSetDefault={handleSetDefault}
+                            onDelete={handleDeleteView}
+                            trailing={trashTab}
                         />
-                        {/* The filter builder, in a popover anchored to an
-                            icon-only "Filters" button. It owns its trigger,
-                            open state and staged draft; the applied conditions
-                            read out as removable chips below the toolbar. */}
-                        <QueryBuilderPopover
-                            fields={filterFields}
-                            value={appliedFilter}
-                            onApply={applyFilter}
-                            onApplied={() => setApplying(true)}
-                            fieldsPending={filterFieldsPending}
-                            fieldsError={filterFieldsError}
-                            onRetryFields={refetchFilterFields}
-                            renderRelationValue={(props) => (
-                                <RelationValuePicker {...props} />
-                            )}
-                        />
-                    </div>
-                }
-            />
+                    ) : (
+                        <>
+                            <RecordsTabLink
+                                to={`${typePath}${entryQuery}`}
+                                active={!trashed}
+                            >
+                                {intl.formatMessage(messages.allRecords)}
+                            </RecordsTabLink>
+                            {trashTab ? (
+                                <div className="ml-auto">{trashTab}</div>
+                            ) : null}
+                        </>
+                    )}
+                </div>
+            )}
 
-            {appliedFilter && ruleCount > 0 ? (
-                <QueryBuilderSummary
-                    className="mb-4"
-                    tree={appliedFilter}
-                    fields={filterFields}
-                    onChange={applyFilter}
-                />
+            {trashed ? (
+                <p className="mb-4 flex items-center gap-2.5 rounded-xl border bg-muted/40 px-4 py-2.5 text-[13px] text-muted-foreground">
+                    <Trash2 aria-hidden className="size-4 shrink-0" />
+                    {intl.formatMessage(messages.trashBanner)}
+                </p>
             ) : null}
+
+            {/* While rows are selected the bulk bar takes the toolbar's place
+                rather than pushing the table down. */}
+            {selectedIds.size > 0 && !readOnly ? (
+                <CollectionRecordsSelectionBar
+                    count={selectedIds.size}
+                    total={total}
+                    onClear={clearSelection}
+                    actions={
+                        <CollectionRecordsBulkActions
+                            typeName={type.name}
+                            schema={schema}
+                            workspaceId={workspace.id}
+                            ids={[...selectedIds]}
+                            publishable={publishable}
+                            paranoid={paranoid}
+                            trashed={trashed}
+                            onDone={clearSelection}
+                        />
+                    }
+                />
+            ) : (
+                <SearchToolbar
+                    value={searchInput}
+                    onValueChange={setSearchInput}
+                    busy={searchPending || (isFetching && !isPending)}
+                    searchLabel={intl.formatMessage(messages.searchLabel)}
+                    searchPlaceholder={intl.formatMessage(
+                        messages.searchPlaceholder
+                    )}
+                    className="mb-2"
+                    leading={
+                        publishable && !trashed ? (
+                            <RecordsStatusChips
+                                tree={appliedFilter}
+                                counts={statusCounts}
+                                onChange={applyFilter}
+                            />
+                        ) : undefined
+                    }
+                    actions={
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                            {toolbarItems.map((item) => (
+                                <item.Component
+                                    key={item.id}
+                                    schema={schema}
+                                    workspaceId={workspace.id}
+                                    params={slotParams}
+                                    updateParams={updateParams}
+                                />
+                            ))}
+                            {/* The filter builder, in a popover anchored to an
+                                icon-only "Filters" button — the full builder,
+                                AND / OR groups included. **+ Filter** below
+                                opens the same popover on a new condition. */}
+                            <QueryBuilderPopover
+                                fields={filterFields}
+                                value={builderValue}
+                                onApply={applyFilter}
+                                onApplied={() => setApplying(true)}
+                                fieldsPending={filterFieldsPending}
+                                fieldsError={filterFieldsError}
+                                onRetryFields={refetchFilterFields}
+                                open={filterOpen}
+                                onOpenChange={(next) => {
+                                    setFilterOpen(next);
+                                    if (!next) setSeedRule(null);
+                                }}
+                                renderRelationValue={(props) => (
+                                    <RelationValuePicker {...props} />
+                                )}
+                            />
+                            <CollectionRecordsColumnPicker
+                                columns={columns}
+                                visible={visible}
+                                isVisible={isVisible}
+                                onToggle={toggle}
+                                onReorder={reorder}
+                                visibleCount={visible.length}
+                            />
+                        </div>
+                    }
+                />
+            )}
+
+            {/* The applied conditions as removable chips, and **+ Filter** —
+                the field-first way to add one. */}
+            <div className="mb-4 flex min-h-7 flex-wrap items-center gap-2">
+                {summaryTree && countRules(summaryTree) > 0 ? (
+                    <QueryBuilderSummary
+                        tree={summaryTree}
+                        fields={filterFields}
+                        onChange={(next) =>
+                            applyFilter(
+                                quickStatus
+                                    ? withQuickStatus(next, quickStatus, newId)
+                                    : next
+                            )
+                        }
+                    />
+                ) : null}
+                <AddFilterButton
+                    fields={filterFields}
+                    disabled={filterFieldsPending || filterFieldsError}
+                    onPick={addFilterOn}
+                />
+            </div>
 
             {/* Always-mounted live region so a search/filter/sort that updates
                 the table without a navigation is actually announced — a region
@@ -1064,24 +1231,6 @@ export function LoadedRecordsView({
                 />
             ) : (
                 <>
-                    {selectedIds.size > 0 && !readOnly && (
-                        <CollectionRecordsSelectionBar
-                            count={selectedIds.size}
-                            onClear={clearSelection}
-                            actions={
-                                <CollectionRecordsBulkActions
-                                    typeName={type.name}
-                                    schema={schema}
-                                    workspaceId={workspace.id}
-                                    ids={[...selectedIds]}
-                                    publishable={publishable}
-                                    paranoid={paranoid}
-                                    trashed={trashed}
-                                    onDone={clearSelection}
-                                />
-                            }
-                        />
-                    )}
                     <CollectionRecordsTable
                         label={schema.label}
                         entries={entries}
@@ -1170,4 +1319,15 @@ function hasAnyListParams(params: URLSearchParams): boolean {
 function readStatus(error: unknown): number | null {
     const status = (error as { status?: unknown } | null)?.status;
     return typeof status === 'number' ? status : null;
+}
+
+/** The tree with one more condition at its root (wrapping an OR root). */
+function appendRule(tree: FilterGroup | null, rule: FilterRule): FilterGroup {
+    if (!tree) {
+        return { id: newId(), combinator: COMBINATOR.And, children: [rule] };
+    }
+    if (tree.combinator === COMBINATOR.And) {
+        return { ...tree, children: [...tree.children, rule] };
+    }
+    return { id: newId(), combinator: COMBINATOR.And, children: [tree, rule] };
 }
