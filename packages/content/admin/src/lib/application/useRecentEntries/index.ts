@@ -14,11 +14,12 @@ import { httpContentGateway } from '../../infrastructure/httpContentGateway';
 const PER_TYPE = 5;
 
 /**
- * The most types the overview asks about. One list read per type is fine for
- * a workspace's handful; a catalogue of dozens would fan out a request each
- * on every visit to the library's landing.
+ * The most types the overview reads. Every own type gets one small list read
+ * — its count and last save live in it, and a card without them would sit on
+ * a skeleton — so this is only a guard against a pathological catalogue; a
+ * type past it shows its card without figures rather than loading forever.
  */
-export const RECENT_TYPE_LIMIT = 12;
+export const RECENT_TYPE_LIMIT = 60;
 
 const PARAMS: ContentEntriesParams = {
     sort: '-updatedAt',
@@ -38,23 +39,28 @@ export type RecentEntry = {
 };
 
 /** What the overview knows about one type from its newest page of records. */
-export type TypeActivity = {
-    /** Every record of the type in this workspace. */
-    total: number;
-    /** When its newest record was last saved, or `null` with none. */
-    updatedAt: string | null;
-    /** A single's one record, for its status. */
-    first: EntryRecord | null;
-};
+export type TypeActivity =
+    | { state: 'pending' }
+    | {
+          state: 'ready';
+          /** Every record of the type in this workspace. */
+          total: number;
+          /** When its newest record was last saved, or `null` with none. */
+          updatedAt: string | null;
+          /** A single's one record, for its status. */
+          first: EntryRecord | null;
+      };
 
 /**
  * The workspace's most recently saved records across its own types, newest
  * first — plus, per type, its record count and last save, which the same
  * reads answer.
  *
- * One `?sort=-updatedAt` page per type (capped at {@link RECENT_TYPE_LIMIT}),
- * keyed exactly as the records table keys its lists so they share cache, plus
- * each type's schema for the titles (shared with the table too).
+ * One `?sort=-updatedAt` page per own type (up to {@link RECENT_TYPE_LIMIT}),
+ * keyed as the records table keys its lists. Schemas — needed only to title a
+ * row — are read for the types that actually reach the list, not for every
+ * type in the catalogue. A type whose read failed is simply absent from
+ * `byType`: its card shows no figures rather than a skeleton that never ends.
  */
 export function useRecentEntries(types: readonly ContentType[], limit = 6) {
     const workspace = useCurrentWorkspace();
@@ -67,41 +73,52 @@ export function useRecentEntries(types: readonly ContentType[], limit = 6) {
             staleTime: STALE_TIME.Standard
         }))
     });
-    const schemas = useQueries({
-        queries: asked.map((type) => ({
-            queryKey: contentSchemaKey(type.name),
-            queryFn: () => httpContentGateway.getSchema(type.name),
-            staleTime: STALE_TIME.Standard
-        }))
-    });
 
     const byType = new Map<string, TypeActivity>();
-    const entries: RecentEntry[] = [];
+    const candidates: { type: ContentType; item: EntryRecord }[] = [];
     asked.forEach((type, index) => {
-        const result = lists[index].data;
+        const query = lists[index];
+        if (query.isPending) {
+            byType.set(type.name, { state: 'pending' });
+            return;
+        }
+        const result = query.data;
         if (!result) return;
         const [first = null] = result.items;
         byType.set(type.name, {
+            state: 'ready',
             total: result.total,
             updatedAt: first?.updatedAt ?? null,
             first
         });
-        const fields = schemas[index].data?.fields ?? [];
-        for (const item of result.items) {
-            entries.push({
-                id: item.id,
-                type,
-                title: relationLabel(item.values, fields, item.id),
-                updatedAt: item.updatedAt,
-                locale: item.locale,
-                entry: item
-            });
-        }
+        for (const item of result.items) candidates.push({ type, item });
     });
-    entries.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    candidates.sort((a, b) => b.item.updatedAt.localeCompare(a.item.updatedAt));
+    const shown = candidates.slice(0, limit);
+
+    // Only the types on screen need their fields, for the titles.
+    const titled = [...new Set(shown.map(({ type }) => type.name))];
+    const schemas = useQueries({
+        queries: titled.map((name) => ({
+            queryKey: contentSchemaKey(name),
+            queryFn: () => httpContentGateway.getSchema(name),
+            staleTime: STALE_TIME.Standard
+        }))
+    });
+    const fieldsOf = (name: string) =>
+        schemas[titled.indexOf(name)]?.data?.fields;
+
+    const entries: RecentEntry[] = shown.map(({ type, item }) => ({
+        id: item.id,
+        type,
+        title: relationLabel(item.values, fieldsOf(type.name) ?? [], item.id),
+        updatedAt: item.updatedAt,
+        locale: item.locale,
+        entry: item
+    }));
 
     return {
-        entries: entries.slice(0, limit),
+        entries,
         byType,
         isPending:
             lists.some((query) => query.isPending) ||

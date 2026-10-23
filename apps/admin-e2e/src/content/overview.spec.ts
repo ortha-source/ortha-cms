@@ -2,6 +2,7 @@ import { test, expect } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
 import { mockWorkspaces } from '../support/api/workspaces';
 import {
+    CONTENT_SCHEMA_SEED,
     LIBRARY_WORKSPACE,
     mockContentSchema,
     mockContentSchemaDetail,
@@ -113,5 +114,47 @@ test.describe('Content Library overview', () => {
         await expect(
             contentLibraryPage.overviewSection('Not live yet')
         ).toContainText('Everything saved is live.');
+    });
+
+    test('every collection gets its figures, however many there are', async ({
+        contentLibraryPage,
+        page
+    }) => {
+        // The reads used to stop at twelve types, and every card after the
+        // twelfth sat on a skeleton for good.
+        const extra = Array.from({ length: 14 }, (_, index) => ({
+            name: `extra_${index + 1}`,
+            kind: 'collection' as const,
+            label: `Extra ${String(index + 1).padStart(2, '0')}`
+        }));
+        await page.unrouteAll({ behavior: 'ignoreErrors' });
+        await mockSignedIn(page);
+        await mockWorkspaces(page, [
+            {
+                ...LIBRARY_WORKSPACE,
+                content: [
+                    ...LIBRARY_WORKSPACE.content,
+                    ...extra.map((type) => type.name)
+                ]
+            }
+        ]);
+        await mockContentSchema(page, {
+            types: [...CONTENT_SCHEMA_SEED, ...extra]
+        });
+        await mockContentSchemaDetail(page);
+        await mockContentEntries(page, {
+            entries: Object.fromEntries(extra.map((type) => [type.name, []]))
+        });
+        await mockInsightsApi(page);
+        await contentLibraryPage.goto(LIBRARY_WORKSPACE.id);
+
+        await expect(
+            contentLibraryPage.overviewTypeCard('Collections', 'Extra 14')
+        ).toContainText('0 records');
+        // The total is every type's count, not the first twelve's.
+        await expect(
+            page.getByRole('heading', { level: 1, name: 'Library demo' })
+        ).toBeVisible();
+        await expect(page.getByRole('main')).toContainText('92 records');
     });
 });

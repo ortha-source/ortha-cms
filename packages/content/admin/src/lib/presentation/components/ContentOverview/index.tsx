@@ -76,10 +76,17 @@ export function ContentOverview({
     const unshipped = useContentUnshipped();
     const reachable = new Set(own.map((type) => type.name));
 
-    const known = [...recent.byType.values()];
+    // The record count only once every read has answered — a sum of the
+    // types that happened to answer first would be a number that grows.
+    const activities = [...recent.byType.values()];
     const total =
-        known.length > 0
-            ? known.reduce((sum, type) => sum + type.total, 0)
+        activities.length > 0 &&
+        activities.every((activity) => activity.state === 'ready')
+            ? activities.reduce(
+                  (sum, activity) =>
+                      activity.state === 'ready' ? sum + activity.total : sum,
+                  0
+              )
             : undefined;
 
     const splitOf = (type: ContentType): StatusSplit | null => {
@@ -98,15 +105,17 @@ export function ContentOverview({
 
     const card = (type: ContentType) => {
         const activity = recent.byType.get(type.name);
+        const ready = activity?.state === 'ready' ? activity : undefined;
         return (
             <li key={type.name}>
                 <ContentTypeCard
                     type={type}
                     to={`${basePath}/${type.name}`}
-                    total={activity?.total}
-                    updatedAt={activity?.updatedAt ?? null}
+                    pending={activity?.state === 'pending'}
+                    total={ready?.total}
+                    updatedAt={ready?.updatedAt ?? null}
                     split={splitOf(type)}
-                    single={activity?.first ?? null}
+                    single={ready?.first ?? null}
                 />
             </li>
         );

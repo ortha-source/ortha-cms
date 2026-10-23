@@ -300,9 +300,12 @@ number counted against something else.
 
 ## The Home card
 
-`ReviewsHomeAttention` sums each active workspace's queue `total` (a one-row
-window per workspace, asked with its own `X-Workspace-Id` through
-`listQueue(params, workspaceId)`) and links to the workspace with the most
-waiting. It stays on Home at **0** — an empty queue said as a number, not a
+`ReviewsHomeAttention` counts what waits on **the reader** in each active
+workspace — the same window, key and `splitQueue` as the Reviews page, so the
+number is the page's default tab (asked with its own `X-Workspace-Id` through
+`listQueue(params, workspaceId)`) — and links to the workspace with the most.
+It used to sum the queue's `total`, which counted the reader's own asks too and
+led to a page with nothing waiting on them; those are said separately now
+("You are waiting on reviewers for N"). It stays on Home at **0** — an empty queue said as a number, not a
 card that vanished — and renders nothing without `content:read` or while the
 counts are in flight.

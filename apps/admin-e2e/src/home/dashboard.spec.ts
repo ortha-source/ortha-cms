@@ -106,8 +106,8 @@ test.describe('Home dashboard', () => {
             'Every alarm check passes'
         );
         await expect(
-            homePage.attentionCard(/0 entries await review/)
-        ).toContainText('Nothing is waiting on a reviewer');
+            homePage.attentionCard(/0 entries await your review/)
+        ).toContainText('Nothing is waiting on your review');
     });
 
     test('open findings are counted across workspaces and lead to them', async ({
@@ -124,5 +124,25 @@ test.describe('Home dashboard', () => {
             '/workspaces/ws_marketing/alarms'
         );
         await expect(card).toContainText('Marketing site (3)');
+    });
+
+    test('reviews count what waits on me, not what I asked for', async ({
+        homePage,
+        page
+    }) => {
+        // The Reviews page's default tab is "Waiting on me": an ask I made
+        // waits on somebody else, so counting it led to an empty page.
+        const me = '00000000-0000-0000-0000-000000000001';
+        await mockReviewQueue(page, [
+            { id: 'q1', requestedBy: me, reviewerIds: ['someone-else'] },
+            { id: 'q2', requestedBy: 'someone-else', reviewerIds: [me] }
+        ]);
+        await homePage.goto();
+
+        // The mock serves the same queue to every workspace: one ask each
+        // names me, and the four I made are left out of the count.
+        const card = homePage.attentionCard(/4 entries await your review/);
+        await expect(card).toBeVisible();
+        await expect(card).toContainText('Marketing site (1)');
     });
 });

@@ -563,9 +563,13 @@ published · modified · drafts bar stated in words under it) and per **page**
 - **One list read per own type**, `?sort=-updatedAt&pageSize=5`, through
   `application/useRecentEntries` — keyed with `contentEntriesKey` and the
   schema with `contentSchemaKey`, so it shares cache with the records table.
-  The same reads answer each type's total and last save. Capped at
-  `RECENT_TYPE_LIMIT` types so a large catalogue does not fan out a request
-  per type on every landing.
+  The same reads answer each type's total and last save, so **every** own
+  type is read (`RECENT_TYPE_LIMIT`, 60, is only a guard): a cap of twelve
+  left every card after the twelfth on a skeleton for good. Schemas, needed
+  only to title a row, are read for the types that reach the list. A card
+  shows a skeleton only while its read is in flight (`TypeActivity.state`);
+  a failed read leaves it with its name and link and no figures, and the
+  header's record count waits for every read to answer.
 - **The split is two insights reads joined**: `pipeline` counts `draft`
   including modified, `unshipped` counts modified, so drafts = drafts −
   modified. Rows for types the workspace is not granted are dropped.

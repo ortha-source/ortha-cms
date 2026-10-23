@@ -51,7 +51,12 @@ export type StatusSplit = {
 type ContentTypeCardProps = {
     type: ContentType;
     to: string;
-    /** `undefined` while its list read is in flight. */
+    /** Its list read is in flight — the only time the card shows a skeleton. */
+    pending: boolean;
+    /**
+     * `undefined` while pending, and when the read failed or the type was not
+     * read at all: the card then shows its name and link, no figures.
+     */
     total: number | undefined;
     updatedAt: string | null;
     /** A publishable collection's split; `null` when there is none to draw. */
@@ -68,6 +73,7 @@ type ContentTypeCardProps = {
 export function ContentTypeCard({
     type,
     to,
+    pending,
     total,
     updatedAt,
     split,
@@ -101,19 +107,21 @@ export function ContentTypeCard({
 
     let summary;
     if (isSingle) {
-        summary = !single ? (
-            <span className="text-[11px] text-muted-foreground">
-                {intl.formatMessage(messages.notCreated)}
-            </span>
-        ) : type.publishable ? (
-            <span>
-                <EntryStatusBadge
-                    entry={single}
-                    explainModified={false}
-                    size="xs"
-                />
-            </span>
-        ) : null;
+        // Unknown is not "not created": say nothing until the read answers.
+        summary =
+            total === undefined ? null : !single ? (
+                <span className="text-[11px] text-muted-foreground">
+                    {intl.formatMessage(messages.notCreated)}
+                </span>
+            ) : type.publishable ? (
+                <span>
+                    <EntryStatusBadge
+                        entry={single}
+                        explainModified={false}
+                        size="xs"
+                    />
+                </span>
+            ) : null;
     } else if (split && total) {
         summary = (
             <>
@@ -166,9 +174,9 @@ export function ContentTypeCard({
                         {type.label}
                     </span>
                     <div className="truncate text-[11px] leading-4 text-muted-foreground">
-                        {total === undefined ? (
+                        {pending ? (
                             <Skeleton className="mt-0.5 h-3 w-24" />
-                        ) : updatedAt ? (
+                        ) : total === undefined ? null : updatedAt ? (
                             intl.formatMessage(messages.updated, {
                                 ago: since(updatedAt)
                             })
