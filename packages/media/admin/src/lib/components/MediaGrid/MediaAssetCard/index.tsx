@@ -1,26 +1,33 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { Checkbox, cn } from '@orthacms/design-system';
+import { Badge, Checkbox, cn } from '@orthacms/design-system';
+import { MEDIA_KIND } from '../../../constants';
 import type { MediaAsset } from '../../../types/mediaAsset';
 import { formatBytes } from '../../../utils/formatBytes';
 import { buildAssetHandlers } from '../../../utils/assetHandlers';
+import { fileExtension } from '../../../utils/fileExtension';
 import { AssetActionsMenu, type AssetActionKind } from '../../AssetActionsMenu';
 import { MediaThumbnail } from '../../MediaThumbnail';
 
 /** Intl descriptors for {@link MediaAssetCard}, co-located. */
 const messages = defineMessages({
     open: { id: 'media.assetCard.open', defaultMessage: 'Open {name}' },
-    select: { id: 'media.assetCard.select', defaultMessage: 'Select {name}' }
+    select: { id: 'media.assetCard.select', defaultMessage: 'Select {name}' },
+    noAlt: { id: 'media.assetCard.noAlt', defaultMessage: 'No alt text' }
 });
 
 /**
- * An asset tile in the grid — a gradient thumbnail with a hover ⋯ menu and a
+ * An asset tile in the grid — a 4:3 thumbnail with a hover ⋯ menu and a
  * selection checkbox (always visible once selected), over the name and a
- * size/dimensions line. Clicking the thumbnail or name opens the detail drawer;
- * the checkbox toggles selection. A selected tile gets a primary ring.
+ * dimensions · size line. A file with no picture shows its
+ * extension ("PDF", "MP4") under the kind glyph, and an image with no alt text
+ * says so on the tile, since that is the gap a library is usually swept for.
+ * Clicking the thumbnail or name opens the details panel; the checkbox toggles
+ * selection. A selected tile, and the one open in the panel, get a ring.
  */
 export function MediaAssetCard({
     asset,
     selected,
+    active = false,
     onToggleSelect,
     onAction,
     canCreate,
@@ -30,6 +37,8 @@ export function MediaAssetCard({
 }: {
     asset: MediaAsset;
     selected: boolean;
+    /** The tile's file is the one open in the details panel. */
+    active?: boolean;
     /**
      * The asset was just uploaded: the tile rises into its slot. Not
      * `ds-flash` — its keyframes animate `background-color` to transparent,
@@ -44,12 +53,25 @@ export function MediaAssetCard({
 }) {
     const intl = useIntl();
     const handlers = buildAssetHandlers(asset, onAction);
+    const isImage = asset.kind === MEDIA_KIND.Image;
+    const extension = isImage ? null : fileExtension(asset.name);
+    const missingAlt = isImage && !asset.alt?.trim();
+    const meta = [
+        // A clip's duration is already on its thumbnail.
+        asset.dimensions
+            ? `${asset.dimensions.width}×${asset.dimensions.height}`
+            : null,
+        formatBytes(asset.size)
+    ]
+        .filter(Boolean)
+        .join(' · ');
 
     return (
         <div
+            aria-current={active ? 'true' : undefined}
             className={cn(
                 'group relative overflow-hidden rounded-xl border bg-card transition-shadow hover:shadow-md',
-                selected && 'ring-2 ring-primary ring-offset-1',
+                (selected || active) && 'ring-2 ring-primary ring-offset-1',
                 justUploaded && 'ds-item-enter'
             )}
         >
@@ -65,6 +87,7 @@ export function MediaAssetCard({
                     <MediaThumbnail
                         asset={asset}
                         className="aspect-[4/3] w-full"
+                        label={extension}
                     />
                 </button>
 
@@ -92,9 +115,19 @@ export function MediaAssetCard({
                         canDelete={canDelete}
                     />
                 </div>
+
+                {missingAlt ? (
+                    <Badge
+                        variant="warning"
+                        size="xs"
+                        className="pointer-events-none absolute bottom-2 left-2 shadow-sm"
+                    >
+                        {intl.formatMessage(messages.noAlt)}
+                    </Badge>
+                ) : null}
             </div>
 
-            <div className="p-3">
+            <div className="px-3 py-2.5">
                 <button
                     type="button"
                     onClick={() => onAction('open', asset)}
@@ -104,10 +137,7 @@ export function MediaAssetCard({
                     {asset.name}
                 </button>
                 <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                    {formatBytes(asset.size)}
-                    {asset.dimensions
-                        ? ` · ${asset.dimensions.width}×${asset.dimensions.height}`
-                        : null}
+                    {meta}
                 </p>
             </div>
         </div>

@@ -1,6 +1,6 @@
 import { defineMessages, useIntl } from 'react-intl';
 import { Button, cn } from '@orthacms/design-system';
-import { FolderPlus, Home, Images } from 'lucide-react';
+import { Home, Plus } from 'lucide-react';
 import { ROOT_FOLDER_ID } from '../../constants';
 import type { MediaFolder } from '../../types/mediaFolder';
 import { MediaFolderTreeItem } from './MediaFolderTreeItem';
@@ -8,7 +8,7 @@ import { MediaFolderTreeItem } from './MediaFolderTreeItem';
 /** Intl descriptors for {@link MediaFoldersNav}, co-located. */
 const messages = defineMessages({
     nav: { id: 'media.nav.nav', defaultMessage: 'Folders' },
-    heading: { id: 'media.nav.heading', defaultMessage: 'Library' },
+    heading: { id: 'media.nav.heading', defaultMessage: 'Folders' },
     allMedia: { id: 'media.nav.allMedia', defaultMessage: 'All media' },
     allCount: {
         id: 'media.nav.allCount',
@@ -21,10 +21,11 @@ const messages = defineMessages({
  * The Media Library's folder sidebar — a **flat** nav region sitting flush on the
  * page background (mirroring the Content Library sidebar), not a bordered island.
  * The page supplies the divider (`lg:border-r`) via `className`, so the mobile
- * drawer copy renders without one. An "All media" root entry sits above the
- * folder tree, where any folder with sub-folders is collapsible; a New folder
- * action closes the list. Highlights the open folder and dispatches navigation /
- * create up to the page.
+ * drawer copy renders without one. A "Folders" header carries a + (New folder);
+ * an "All media" root entry sits above the folder tree, where any folder with
+ * sub-folders is collapsible and every folder has its ⋯ menu (Rename / Delete)
+ * — the tree is the one place folders are drawn. Highlights the open folder and
+ * dispatches navigation / create / rename / delete up to the page.
  */
 export function MediaFoldersNav({
     folders,
@@ -33,7 +34,11 @@ export function MediaFoldersNav({
     rootCount,
     onNavigate,
     onNewFolder,
+    onRenameFolder,
+    onDeleteFolder,
     canCreate,
+    canUpdate,
+    canDelete,
     className
 }: {
     folders: MediaFolder[];
@@ -43,7 +48,11 @@ export function MediaFoldersNav({
     rootCount: number;
     onNavigate: (folderId: string) => void;
     onNewFolder: () => void;
+    onRenameFolder: (folder: MediaFolder) => void;
+    onDeleteFolder: (folder: MediaFolder) => void;
     canCreate: boolean;
+    canUpdate: boolean;
+    canDelete: boolean;
     className?: string;
 }) {
     const intl = useIntl();
@@ -51,6 +60,13 @@ export function MediaFoldersNav({
         .filter((f) => f.parentId === ROOT_FOLDER_ID)
         .sort((a, b) => a.name.localeCompare(b.name));
     const rootActive = currentFolderId === ROOT_FOLDER_ID;
+    const actions = {
+        onNavigate,
+        onRename: onRenameFolder,
+        onDelete: onDeleteFolder,
+        canUpdate,
+        canDelete
+    };
 
     return (
         <nav
@@ -60,11 +76,21 @@ export function MediaFoldersNav({
                 className
             )}
         >
-            <div className="flex items-center gap-2 p-2">
-                <Images className="size-4 text-muted-foreground" aria-hidden />
-                <h2 className="text-sm font-semibold tracking-[-0.01em]">
+            <div className="flex h-10 items-center gap-2 pl-3 pr-2">
+                <h2 className="flex-1 text-xs font-medium text-muted-foreground">
                     {intl.formatMessage(messages.heading)}
                 </h2>
+                {canCreate ? (
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-6 shadow-none"
+                        onClick={onNewFolder}
+                        aria-label={intl.formatMessage(messages.newFolder)}
+                    >
+                        <Plus aria-hidden />
+                    </Button>
+                ) : null}
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto px-2">
@@ -107,25 +133,11 @@ export function MediaFoldersNav({
                             folders={folders}
                             currentFolderId={currentFolderId}
                             counts={counts}
-                            onNavigate={onNavigate}
+                            actions={actions}
                         />
                     ))}
                 </ul>
             </div>
-
-            {canCreate ? (
-                <div className="p-2">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full justify-start shadow-none"
-                        onClick={onNewFolder}
-                    >
-                        <FolderPlus aria-hidden />
-                        {intl.formatMessage(messages.newFolder)}
-                    </Button>
-                </div>
-            ) : null}
         </nav>
     );
 }

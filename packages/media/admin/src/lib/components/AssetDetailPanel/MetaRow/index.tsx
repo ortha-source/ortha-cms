@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
 
 /**
- * One label/value line in the detail drawer's metadata list — a muted term on
+ * One label/value line in the details panel’s metadata list — a muted term on
  * the left and its value on the right, aligned as a `dt`/`dd` pair. Purely
- * presentational; the drawer supplies localized labels and formatted values.
+ * presentational; the panel supplies localized labels and formatted values.
  */
 export function MetaRow({
     label,

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { Button, Progress } from '@orthacms/design-system';
-import { UploadCloud, X } from 'lucide-react';
+import { Button, Progress, cn } from '@orthacms/design-system';
+import { ChevronDown, UploadCloud, X } from 'lucide-react';
 import { UPLOAD_STATUS } from '../../constants';
 import type { UploadItem, UploadSummary } from '../../types/upload';
 import { MediaUploadRow } from './MediaUploadRow';
@@ -33,6 +33,10 @@ const messages = defineMessages({
         defaultMessage: 'Overall upload progress'
     },
     dismiss: { id: 'media.uploadBanner.dismiss', defaultMessage: 'Dismiss' },
+    collapse: {
+        id: 'media.uploadBanner.collapse',
+        defaultMessage: 'Show the files'
+    },
     /** Announced when one file in a batch fails — the row itself is silent. */
     failureAnnouncement: {
         id: 'media.uploadBanner.failureAnnouncement',
@@ -41,11 +45,13 @@ const messages = defineMessages({
 });
 
 /**
- * The upload progress banner — the batch headline ("Uploading 3 of 5 · 47%"), an
- * overall size-weighted bar while anything is running, and one
- * {@link MediaUploadRow} per file. It sits above the browser rather than inside
- * the upload dialog, so the dialog can close on submit and the user keeps
- * browsing (and can queue more) while bytes move.
+ * The upload tray — a small card pinned to the **bottom-right** of the window
+ * with the batch headline ("Uploading 3 of 5 · 47%"), an overall size-weighted
+ * bar while anything is running, and one {@link MediaUploadRow} per file (the
+ * chevron folds the list away, leaving the headline). It floats outside the
+ * upload dialog and over the browser rather than pushing the grid down, so the
+ * dialog can close on submit and the user keeps browsing, selecting and
+ * queueing more while bytes move.
  *
  * `role="status"` sits on the **headline alone**, not the whole banner: a polite
  * live region re-announces its entire contents on every change, so wrapping the
@@ -69,6 +75,7 @@ export function MediaUploadBanner({
     onDismiss: () => void;
 }) {
     const intl = useIntl();
+    const [open, setOpen] = useState(true);
 
     // Failures are announced from their own region. The headline's counts move
     // when a file fails, but "3 of 5" never says *which* file or why — and the
@@ -122,7 +129,7 @@ export function MediaUploadBanner({
     return (
         <section
             aria-label={intl.formatMessage(messages.region)}
-            className="mb-4 rounded-xl border bg-muted/40 px-4 py-3"
+            className="fixed bottom-4 right-4 z-30 w-80 max-w-[calc(100vw-2rem)] rounded-xl border bg-popover px-4 py-3 text-popover-foreground shadow-lg"
         >
             <div className="flex items-center gap-2">
                 <UploadCloud
@@ -132,6 +139,22 @@ export function MediaUploadBanner({
                 <p className="min-w-0 flex-1 text-sm font-medium" role="status">
                     {headline}
                 </p>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-7 shrink-0 shadow-none"
+                    aria-label={intl.formatMessage(messages.collapse)}
+                    aria-expanded={open}
+                    onClick={() => setOpen((value) => !value)}
+                >
+                    <ChevronDown
+                        aria-hidden
+                        className={cn(
+                            'transition-transform duration-(--ds-duration-base) motion-reduce:transition-none',
+                            !open && 'rotate-180'
+                        )}
+                    />
+                </Button>
                 {/* Dismiss only once the batch is over — clearing mid-flight
                     would hide rows that are still uploading. */}
                 {summary.active ? null : (
@@ -159,7 +182,12 @@ export function MediaUploadBanner({
                 {failureNotice}
             </p>
 
-            <ul className="mt-1 max-h-48 divide-y overflow-auto">
+            <ul
+                className={cn(
+                    'mt-1 max-h-48 divide-y overflow-auto',
+                    !open && 'hidden'
+                )}
+            >
                 {items.map((item) => (
                     <MediaUploadRow
                         key={item.id}

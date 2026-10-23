@@ -3,7 +3,7 @@
 The **Media Library feature plugin** for the Ortha CMS admin UI. It mounts
 **inside a workspace** at `/workspaces/:id/media` and ships the asset-management
 experience: a folders sidebar beside a searchable/filterable/sortable asset
-browser (grid **and** list views), an asset detail drawer, and the
+browser (grid **and** list views), a non-modal details panel, and the
 create-folder / upload / rename / move / duplicate / delete flows — now **wired
 to `@orthacms/media-server`** over `apiClient`.
 
@@ -51,7 +51,8 @@ of the server's RBAC, which is the real enforcer).
 
 - **Header** — a sticky **`MediaTopBar`** (the shared design-system
   `TopBar`/`TopBarIcon`: the teal `Image` tile matching the plugin's workspace-nav
-  entry, plus a breadcrumb Media Library › ancestor folders › open folder). It
+  entry, plus a breadcrumb Media Library › ancestor folders › open folder, and
+  **New folder / Upload** in its `TopBarActions`, `media:create`-gated). It
   spans **both** panes at the top of the page, the same page-context header every
   other admin page carries. Unlike the Content Library's bar it is **not**
   route-derived — folder navigation here is component state, not a URL segment —
@@ -59,13 +60,17 @@ of the server's RBAC, which is the real enforcer).
   `BreadcrumbLink`s over real `<button>`s, since a control that changes view
   without changing location is a button. It **replaced** the old in-page
   `MediaBreadcrumbs` (deleted), which would otherwise duplicate the path.
-- **Browse** — a left **`MediaFoldersNav`** (folder tree headed by "All media",
-  a New-folder action, a storage meter). On `lg` and up it is a **resizable**
+- **Browse** — a left **`MediaFoldersNav`**: a "Folders" header with a +
+  (New folder), then the tree headed by "All media". **The tree is the only
+  place folders are drawn** — the grid holds files alone — so every tree row
+  carries the folder's ⋯ (`FolderActionsMenu`: Open / Rename / Delete, shown on
+  hover or focus, left out when the user may do neither). On `lg` and up it is a **resizable**
   column: a design-system `ResizeHandle` on its right edge drags its width
   (`MEDIA_FOLDERS_PANEL` in `constants/` — 240px by default, 192–384px, at most
   20% of the viewport), remembered per user in the shell's panel layout. It does
   not collapse; below `lg` the folders open in a drawer and have no handle.
-  The main pane shows a title/count, the **`MediaToolbar`**, and the content.
+  The main pane shows the `<h1>` (the open folder, "Media Library" at the
+  root) over "N files", the **`MediaToolbar`**, and the content.
 - **Flush layout, no island.** Both panes render directly on the page background
   (no muted board, no bordered/rounded/shadowed card), mirroring the Content
   Library's `ContentPane`; a hairline `lg:border-r` divides the sidebar from the
@@ -74,22 +79,39 @@ of the server's RBAC, which is the real enforcer).
   `svh` calc — one viewport measurement in the chain, so no phantom scrollbar at
   non-100% zoom. Component-level cards (asset tiles, the table, the selection
   bar) stay bordered; only the page chrome is flat.
-- **One view — the grid.** **`MediaGrid`** (tiles; images render their real
-  preview via `asset.url`, other kinds a gradient + glyph). The `grid`/`list`
-  toggle and the `MediaTable` list view were **removed**; there is no `MEDIA_VIEW`
-  constant and the store holds no `view` state. Select-all went with the table
-  (it lived in that table's header) — selection is per-tile plus the selection
-  bar's Clear.
-- **Find** — a search box (name + tags), a **type filter**, and a **sort** select.
-- **Select + bulk-act** — checkboxes + a header select-all feed a
-  **`MediaSelectionBar`** (Download / Duplicate / Move / Delete / Clear).
+- **Two views — grid and list.** **`MediaGrid`** (4:3 tiles; images render
+  their real preview, other kinds a gradient + glyph over their **extension**
+  — "PDF", "MP4" — and an image with no alt text says **No alt text** on the
+  tile) or **`MediaAssetTable`** (the design-system `Table` **used as-is**, no
+  restyled cells: thumb + name, type, size, dimensions, uploader, date, ⋯,
+  with a header select-all for the page). The Grid / List switch is a
+  `SegmentedControl` in the toolbar; the choice is `MEDIA_VIEW`, remembered
+  per browser in `localStorage` (`MEDIA_VIEW_STORAGE_KEY`, read and written
+  inside `try`). The grid's columns follow the **pane** (a container query),
+  so the details panel opening beside it drops a column instead of squeezing
+  every tile.
+- **Find** — **type chips** (All · Images · Video · Audio · Documents ·
+  Archives, the same pill as the records table's status chips, one pressed),
+  then a search box (name + tags) and a **sort** select.
+- **Select + bulk-act** — tile / row checkboxes (and the table's select-all)
+  raise **`MediaSelectionBar`**, the records table's dark bar: "{n} selected of
+  {total}", Move to… / Download / Duplicate, Delete at the far end, ✕ to clear.
 - **Per-asset actions** — the shared **`AssetActionsMenu`** (Download, Copy link,
   Duplicate, Rename, Move, Delete), routed through one dispatcher. It carries
-  **no "Open" item**: in the drawer that re-opened the drawer already on screen,
+  **no "Open" item**: in the details panel it re-opened the panel already on screen,
   and on the tile it tripled up with the thumbnail and the filename, which are
   both already buttons dispatching `'open'`. The `'open'` action kind remains —
   only the menu entry is gone.
-- **Detail drawer** — **`AssetDetailDrawer`** (preview, actions, metadata, alt, tags).
+- **Details panel** — **`AssetDetailPanel`**: a **non-modal** third column
+  from `lg` (laid over the page below it), so the files stay visible and
+  clickable while it is open — clicking another one just shows that file. A
+  labelled region (`<section>`, not `<aside>`: a complementary landmark inside
+  `main` fails axe), named after the file. Previous / Next step through the
+  files on screen (also ← / →) and Close (also Esc); the keys are ignored while
+  focus is in a field, a select or an open menu / dialog, whose own Escape
+  must close it. Opening moves focus to the panel; closing hands it back to
+  the control that opened it. Preview, Download / Copy link / ⋯, alt text
+  (with a **Missing** badge), metadata, tags.
 - **Dialogs** — **`NewFolderDialog`**, **`UploadDialog`**, **`RenameDialog`**,
   **`MoveAssetsDialog`**, and `ConfirmDialog`.
 - **Deleting a folder takes its contents with it**, so the confirmation says so:
@@ -98,8 +120,8 @@ of the server's RBAC, which is the real enforcer).
   read) and the prompt reads "Delete “X” and everything inside?" over "…also
   deletes 3 assets and 1 subfolder". An empty folder gets the plain wording
   instead — reciting an inventory of nothing is just noise. The per-folder ⋯
-  trigger is named after its folder ("Actions for Images"), so a grid of folders
-  isn't a row of identical "Folder actions" buttons.
+  trigger is named after its folder ("Actions for Images"), so a tree of folders
+  isn't a column of identical "Folder actions" buttons.
 - **Upload — stage, preview, then watch it go.** `UploadDialog` takes multiple
   files (drag-and-drop _and_ a `multiple` picker, accumulating across drops) and
   stages them as **`StagedFileRow`**s: images get a real thumbnail from a local
@@ -107,7 +129,9 @@ of the server's RBAC, which is the real enforcer).
   otherwise leak for the tab's life), other kinds a MIME-derived glyph. Confirm
   closes the dialog and hands the `File`s to **`hooks/useUploadQueue`**, which
   uploads at most `UPLOAD_CONCURRENCY` (3) at a time, **one request per file**,
-  and drives the **`MediaUploadBanner`** above the browser: a size-weighted
+  and drives the **`MediaUploadBanner`** — a tray pinned to the window's
+  bottom-right (its list folds away under a chevron), so it never pushes the
+  grid down: a size-weighted
   overall bar plus a `MediaUploadRow` per file (live %, retry on failure, cancel
   in flight via `AbortController`). One file per request is the point — the old
   `Promise.all` lost a whole batch to a single rejection. The queue keeps `File`s
@@ -137,7 +161,7 @@ of the server's RBAC, which is the real enforcer).
   alt-coverage card counted it. Now: an optional **Alt text** input per staged
   **image** in `UploadDialog` (opt-in via `collectAlt` — a caller that would drop
   the value, like a media field, must not ask for one), sent as the `alt` part of
-  the upload; and an editable field in `AssetDetailDrawer` behind `media:update`,
+  the upload; and an editable field in `AssetDetailPanel` behind `media:update`,
   through the gateway's `updateAsset`. Neither blocks anything: skipping alt
   uploads exactly as before, and a blank value is never sent.
 - **No size is quoted in the upload copy.** The cap is
@@ -369,7 +393,7 @@ messages namespaced `media.<area>.<key>`; UI from `@orthacms/design-system` only
 Image assets carry server-generated WebP derivatives — `thumbUrl` (~320px) and
 `previewUrl` (~1280px), mapped from the API's `variants` by `mediaMapper`.
 `MediaThumbnail` renders the `thumb` in grid + picker tiles and the `preview` in
-the detail drawer (`size` prop), falling back to the full `url` when a derivative
+the details panel (`size` prop), falling back to the full `url` when a derivative
 is absent (an SVG, or an image too small to derive).
 
 The **field tiles** follow the same rule from the other side of the wire:
@@ -379,7 +403,7 @@ The **field tiles** follow the same rule from the other side of the wire:
 link. A staged upload puts its local object URL in the same slot, so the tile
 renders one way regardless of where the image came from.
 
-Every asset `<img>` (grid and picker tiles, the drawer preview, field tiles,
+Every asset `<img>` (grid and picker tiles, the panel preview, field tiles,
 staged-upload thumbnails) is a **`FadeInImage`**: it starts at `opacity-0` over
 the tile's own gradient / muted fill and fades in on `load`, so nothing shifts
 and nothing paints top-down. It is revealed on `error` too (a broken image with
@@ -416,8 +440,14 @@ nothing uploads when an existing asset is chosen.
 
 ## Not yet (follow-ups)
 
-A keyboard suite for the field and the library; tag editing in the drawer
-(read-only today — alt text is editable). Server-side pagination **is** done;
+A keyboard suite for the field (the library's details panel has its keys
+pinned in `media-library.spec.ts`); tag editing in the panel (read-only today —
+alt text is editable). **No usage data yet**: the mockups' "Used in N entries"
+(panel and table), the **Missing alt text** / **Unused** quick filters and the
+delete warning naming the entries a file is used in all need a server read
+that doesn't exist (`media-server` has no asset-usage query and the list has
+no `alt` / `unused` filter). Paging stays the numbered `MediaPagination`
+rather than "Load more". Server-side pagination **is** done;
 `useMediaLibrary` sends search, kind, sort, page and page size to the API.
 
 ## Unit cover

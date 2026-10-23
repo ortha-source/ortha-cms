@@ -1,11 +1,15 @@
 import { type Locator, type Page } from '@playwright/test';
 import { BasePage } from './BasePage';
 
+/** Escapes a string for use inside a `RegExp`. */
+const escapeRegExp = (value: string) =>
+    value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 /**
  * Page object for the Media Library at `/workspaces/:id/media` (from
- * `@orthacms/media-admin`) — the folders sidebar, the asset browser (grid), and
- * the New-folder / Upload flows. Seed it with `mockSignedIn`, `mockWorkspaces`,
- * and `mockMediaApi`.
+ * `@orthacms/media-admin`) — the folder tree, the file browser (grid or list),
+ * the details panel, and the New-folder / Upload flows. Seed it with
+ * `mockSignedIn`, `mockWorkspaces`, and `mockMediaApi`.
  */
 export class MediaLibraryPage extends BasePage {
     constructor(page: Page) {
@@ -27,9 +31,48 @@ export class MediaLibraryPage extends BasePage {
         return this.page.getByRole('button', { name: `Open ${name}` });
     }
 
-    /** A folder tile by name (its "Open folder {name}" button). */
+    /**
+     * A folder's row in the tree, by name. Folders are drawn in the tree
+     * alone (the grid shows files), and the row's button reads "{name} {n}
+     * items" — anchored so a folder called "Images" doesn't also match its
+     * "Toggle Images" chevron or a sibling named "Images 2".
+     */
     folderTile(name: string): Locator {
-        return this.page.getByRole('button', { name: `Open folder ${name}` });
+        return this.page
+            .getByRole('navigation', { name: 'Folders' })
+            .getByRole('button', {
+                name: new RegExp(`^${escapeRegExp(name)}\\s*\\d+ items?$`)
+            });
+    }
+
+    // --- browse controls ---
+
+    /** A type chip ("All", "Images", "Documents", …). */
+    typeChip(label: string): Locator {
+        return this.page
+            .getByRole('group', { name: 'Filter by type' })
+            .getByRole('button', { name: label, exact: true });
+    }
+
+    /** Pick a sort order from the toolbar's select. */
+    async sortBy(label: string) {
+        await this.page.getByRole('combobox', { name: 'Sort' }).click();
+        await this.page.getByRole('option', { name: label }).click();
+    }
+
+    /** The Grid / List switch's item ("Grid view" / "List view"). */
+    viewSwitch(label: 'Grid view' | 'List view'): Locator {
+        return this.page.getByLabel(label, { exact: true });
+    }
+
+    /** The list view's table. */
+    filesTable(): Locator {
+        return this.page.getByRole('table', { name: 'Files' });
+    }
+
+    /** The dark bar raised by a selection. */
+    get selectionBar(): Locator {
+        return this.page.getByRole('group', { name: 'Selection' });
     }
 
     /** The no-access message shown without `media:read`. */
@@ -81,19 +124,32 @@ export class MediaLibraryPage extends BasePage {
         await this.confirmDelete();
     }
 
-    // --- detail drawer ---
+    // --- details panel ---
 
-    /** Open an asset's detail drawer from its tile. */
+    /** Open an asset's details panel from its tile (or list row). */
     async openDetail(name: string) {
         await this.assetTile(name).click();
     }
 
-    /** The drawer's alt-text input (present for an image with `media:update`). */
+    /**
+     * The details panel, a region named after the file it shows. Pass no name
+     * for whichever file is open.
+     */
+    detailPanel(name?: string): Locator {
+        if (name) return this.page.getByRole('region', { name, exact: true });
+        return this.page
+            .getByRole('region')
+            .filter({
+                has: this.page.getByRole('button', { name: 'Next file' })
+            });
+    }
+
+    /** The panel's alt-text input (present for an image with `media:update`). */
     altInput(): Locator {
         return this.page.getByRole('textbox', { name: 'Alt text' });
     }
 
-    /** Save the drawer's alt text. */
+    /** Save the panel's alt text. */
     async saveAlt(text: string) {
         await this.altInput().fill(text);
         await this.page.getByRole('button', { name: 'Save alt text' }).click();
@@ -101,7 +157,7 @@ export class MediaLibraryPage extends BasePage {
 
     // --- upload banner ---
 
-    /** The upload progress banner. */
+    /** The upload tray (bottom-right). */
     uploadBanner(): Locator {
         return this.page.getByRole('region', { name: 'Uploads' });
     }
@@ -120,9 +176,12 @@ export class MediaLibraryPage extends BasePage {
         return this.page.locator('input[type="file"]');
     }
 
-    /** Open the upload dialog. */
+    /** Open the upload dialog (the top bar's Upload). */
     async openUpload() {
-        await this.page.getByRole('button', { name: 'Upload' }).first().click();
+        await this.page
+            .getByRole('button', { name: 'Upload', exact: true })
+            .first()
+            .click();
     }
 
     /** Stage a file and confirm the upload, optionally describing it first. */
@@ -140,9 +199,10 @@ export class MediaLibraryPage extends BasePage {
     // --- folder actions ---
 
     /**
-     * The per-folder "⋯" menu trigger. Named after its folder ("Actions for
-     * Images"), so it needs no positional scoping — and a screen-reader user
-     * isn't handed a row of identical "Folder actions" buttons.
+     * The per-folder "⋯" menu trigger on the folder's tree row. Named after
+     * its folder ("Actions for Images"), so it needs no positional scoping —
+     * and a screen-reader user isn't handed a row of identical "Folder
+     * actions" buttons.
      */
     folderActions(name: string): Locator {
         return this.page.getByRole('button', { name: `Actions for ${name}` });

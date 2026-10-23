@@ -10,24 +10,28 @@ import { MediaKindIcon } from '../MediaKindIcon';
 /**
  * The visual preview for an asset. Image assets render a real thumbnail served
  * from the media API — the small `thumb` derivative by default, or the larger
- * `preview` when `size="preview"` (the detail drawer) — falling back to the
+ * `preview` when `size="preview"` (the details panel) — falling back to the
  * original when no derivative exists (e.g. SVG). A deterministic gradient tile
  * sits underneath as the backdrop / loading state — the image fades in over it
  * once loaded (`FadeInImage`) — and non-image kinds show it with a centred kind
- * glyph. Video/audio get a play affordance and a duration pill.
- * Sized entirely by the parent via `className` (aspect + radius), so it serves
- * tiles, list rows, and the drawer.
+ * glyph, over a short `label` (the grid passes the file's extension, so a PDF
+ * and a DOCX don't look alike). Video/audio get a play affordance and a
+ * duration pill. Sized entirely by the parent via `className` (aspect +
+ * radius), so it serves tiles, list rows, and the panel.
  */
 export function MediaThumbnail({
     asset,
     className,
     iconClassName,
+    label,
     size = 'thumb'
 }: {
     asset: MediaAsset;
     className?: string;
     iconClassName?: string;
-    /** Which derivative to prefer — the grid uses `thumb`, the drawer `preview`. */
+    /** Text under a non-image's glyph, e.g. `PDF`. Ignored for images. */
+    label?: string | null;
+    /** Which derivative to prefer — the grid uses `thumb`, the panel `preview`. */
     size?: 'thumb' | 'preview';
 }) {
     const isImage = asset.kind === MEDIA_KIND.Image;
@@ -57,13 +61,23 @@ export function MediaThumbnail({
                     className="absolute inset-0 size-full object-cover"
                 />
             ) : (
-                <MediaKindIcon
-                    kind={asset.kind}
-                    className={cn(
-                        'relative size-8 text-white/90 drop-shadow-sm',
-                        iconClassName
-                    )}
-                />
+                <span className="relative flex flex-col items-center gap-1.5">
+                    <MediaKindIcon
+                        kind={asset.kind}
+                        className={cn(
+                            'size-8 text-white/90 drop-shadow-sm',
+                            iconClassName
+                        )}
+                    />
+                    {label ? (
+                        <span
+                            className="text-xs font-semibold tracking-wide text-white drop-shadow-sm"
+                            aria-hidden
+                        >
+                            {label}
+                        </span>
+                    ) : null}
+                </span>
             )}
             {isPlayable ? (
                 <span className="absolute bottom-1.5 right-1.5 inline-flex items-center gap-1 rounded-md bg-black/55 px-1.5 py-0.5 text-[11px] font-medium text-white">
