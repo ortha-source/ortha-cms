@@ -69,7 +69,7 @@ exists on the current version or it does not.
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | A contributor writing an entry | A **Review** block in the properties rail headed by a "Needs review · 0 of 2" chip, a Publish button held with the reason, and a way to ask named people to look               |
 | A reviewer                     | The workspace's **Reviews** page (an ask arrives against whichever type someone was editing, so no single collection's list can hold it), plus an Approve control on the entry |
-| An administrator               | The workspace settings **Protection** tab, where a rule is written; and a confirmed bypass on a held entry                                                                     |
+| An administrator               | The workspace settings **Publishing rules** section, where a rule is written; and a confirmed bypass on a held entry                                                           |
 | A viewer                       | `content:approve` is withheld from them, so they read the state but never vote                                                                                                 |
 | A reader of the public API     | **Nothing.** No status is added, and no review state is readable through REST, GraphQL, MCP or a webhook payload                                                               |
 

@@ -62,8 +62,8 @@ function seed(): WorkspaceView {
 /**
  * **Per-source content grants** on the workspace settings Content tab and in
  * the create wizard (`@orthacms/workspaces-admin`): a grant from a shared
- * workspace is its own row ("{Type} · {Workspace}", Shared badge, Unavailable
- * while inert), added through the same dialog under "From {workspace}" and
+ * workspace is its own row, under a "From {workspace}" group with a Shared
+ * badge (Unavailable on the row while inert), added through the same dialog under "From {workspace}" and
  * removed with `?source=` — never taking the own grant with it.
  */
 test.describe('Shared content grants — settings', () => {
@@ -83,7 +83,12 @@ test.describe('Shared content grants — settings', () => {
             'Blog posts · Travel Library'
         );
         await expect(shared).toBeVisible();
-        await expect(shared.getByText('Shared', { exact: true })).toBeVisible();
+        // The group says where its rows come from, once, above them.
+        await expect(
+            workspaceSettingsPage
+                .grantGroup('Travel Library')
+                .getByText('Shared', { exact: true })
+        ).toBeVisible();
         await expect(shared.getByText('Unavailable')).toHaveCount(0);
 
         const inert = workspaceSettingsPage.grantedRow(
@@ -107,7 +112,7 @@ test.describe('Shared content grants — settings', () => {
         const grants = spyContentGrants(page);
         await workspaceSettingsPage.gotoSection(WORKSPACE_ID, 'content');
 
-        await workspaceSettingsPage.addCollectionsButton.click();
+        await workspaceSettingsPage.addContentButton.click();
         const group = workspaceSettingsPage.addDialogGroup(
             'From Travel Library'
         );
@@ -204,7 +209,7 @@ test.describe('Shared content grants — settings', () => {
             .waitFor();
         await expectNoA11yViolations(makeAxe());
 
-        await workspaceSettingsPage.addPagesButton.click();
+        await workspaceSettingsPage.addContentButton.click();
         await workspaceSettingsPage
             .addDialogGroup('From Travel Library')
             .waitFor();

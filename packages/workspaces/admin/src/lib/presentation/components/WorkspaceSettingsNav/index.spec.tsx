@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Shield } from 'lucide-react';
 import { WORKSPACE_SETTINGS_TAB_SLOT } from '../../slots/workspaceSlots';
-import { WorkspaceSettingsTabs } from './index';
+import { WorkspaceSettingsNav } from './index';
 
 const hasPermission = vi.fn((_permission: string) => true);
 
@@ -13,24 +13,28 @@ vi.mock('@orthacms/identity-admin', () => ({
 }));
 
 /** The three built-ins every workspace has, in the order they are declared. */
-const BUILT_IN = ['General', 'Members', 'Content'];
+const BUILT_IN = ['General', 'Content types', 'Members'];
 
-function renderTabs(showDanger = false) {
+function renderNav(showDanger = false) {
     render(
         <IntlProvider locale="en">
             <MemoryRouter initialEntries={['/workspaces/w1/settings/general']}>
-                <WorkspaceSettingsTabs
+                <WorkspaceSettingsNav
                     workspaceId="w1"
                     showDanger={showDanger}
+                    contentCount={3}
+                    memberCount={2}
                 />
             </MemoryRouter>
         </IntlProvider>
     );
 }
 
-/** Every tab label currently rendered, in DOM order. */
+/** Every entry's label currently rendered, in DOM order, without its count. */
 const labels = () =>
-    screen.getAllByRole('link').map((link) => link.textContent?.trim());
+    screen
+        .getAllByRole('link')
+        .map((link) => link.textContent?.replace(/\d+$/, '').trim());
 
 afterEach(() => {
     WORKSPACE_SETTINGS_TAB_SLOT._reset();
@@ -41,23 +45,23 @@ afterEach(() => {
 /**
  * The slot was added for one plugin, and the state it will spend almost all of
  * its life in is the one nobody will think to check again: empty. It is pinned
- * here, in the package that owns the tab bar, rather than in the plugin that
+ * here, in the package that owns the section nav, rather than in the plugin that
  * fills it — after this commit nothing else records that "an empty slot changes
  * nothing" was a decision rather than an accident.
  */
 describe('with no contribution in the settings-tab slot', () => {
     it('renders exactly the built-in tabs, in their original order', () => {
-        renderTabs();
+        renderNav();
         expect(labels()).toEqual(BUILT_IN);
     });
 
     it('keeps Danger zone last when it is shown', () => {
-        renderTabs(true);
+        renderNav(true);
         expect(labels()).toEqual([...BUILT_IN, 'Danger zone']);
     });
 
     it('asks about no permission, so an empty slot costs nothing', () => {
-        renderTabs(true);
+        renderNav(true);
         expect(hasPermission).not.toHaveBeenCalled();
     });
 });
@@ -78,15 +82,15 @@ describe('with a contributed tab', () => {
         element: <div />
     };
 
-    it('renders it between Content and Danger zone', () => {
+    it('renders it between Members and Danger zone', () => {
         WORKSPACE_SETTINGS_TAB_SLOT._register([tab]);
-        renderTabs(true);
+        renderNav(true);
         expect(labels()).toEqual([...BUILT_IN, 'Protection', 'Danger zone']);
     });
 
     it('links to the section under the workspace settings base', () => {
         WORKSPACE_SETTINGS_TAB_SLOT._register([tab]);
-        renderTabs();
+        renderNav();
         expect(
             screen
                 .getByRole('link', { name: 'Protection' })
@@ -102,7 +106,7 @@ describe('with a contributed tab', () => {
     it('hides it from somebody who lacks the permission it named', () => {
         hasPermission.mockReturnValue(false);
         WORKSPACE_SETTINGS_TAB_SLOT._register([tab]);
-        renderTabs(true);
+        renderNav(true);
         expect(labels()).toEqual([...BUILT_IN, 'Danger zone']);
     });
 
@@ -111,7 +115,7 @@ describe('with a contributed tab', () => {
         WORKSPACE_SETTINGS_TAB_SLOT._register([
             { ...tab, permission: undefined }
         ]);
-        renderTabs();
+        renderNav();
         expect(labels()).toEqual([...BUILT_IN, 'Protection']);
     });
 
@@ -126,7 +130,7 @@ describe('with a contributed tab', () => {
             },
             { ...tab, id: 'a', labelId: 'x.a', defaultLabel: 'Alpha', order: 5 }
         ]);
-        renderTabs();
+        renderNav();
         expect(labels()).toEqual([...BUILT_IN, 'Alpha', 'Beta']);
     });
 });

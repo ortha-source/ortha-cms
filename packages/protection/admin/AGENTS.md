@@ -35,16 +35,16 @@ Layered per [ADR-0003](../../../docs/adr/0003-tactical-ddd-inside-plugins.md).
 
 ## What it contributes
 
-| Surface         | Where                         | What it says                                                                         |
-| --------------- | ----------------------------- | ------------------------------------------------------------------------------------ |
-| Review block    | `ENTRY_SIDEBAR_WIDGET_SLOT`   | "Needs review · 0 of 2" in its heading, who was asked, who approved, and the actions |
-| Publish verdict | `ENTRY_PUBLISH_GUARD_SLOT`    | whether Publish is held, and why                                                     |
-| Protection tab  | `WORKSPACE_SETTINGS_TAB_SLOT` | which types are protected, and how                                                   |
-| Review column   | `RECORDS_COLUMN_SLOT`         | where each row stands, one request per page                                          |
-| `reviewState`   | `RECORDS_FILTER_FIELDS_SLOT`  | waiting on review / not requested                                                    |
-| Insights card   | `INSIGHTS_WIDGET_SLOT`        | how much review is outstanding                                                       |
-| Reviews page    | `WORKSPACE_ROUTE_SLOT` + nav  | what is waiting, and on whom                                                         |
-| Home card       | `HOME_SECTION_SLOT`           | entries awaiting review across workspaces — "0" when none                            |
+| Surface          | Where                         | What it says                                                                         |
+| ---------------- | ----------------------------- | ------------------------------------------------------------------------------------ |
+| Review block     | `ENTRY_SIDEBAR_WIDGET_SLOT`   | "Needs review · 0 of 2" in its heading, who was asked, who approved, and the actions |
+| Publish verdict  | `ENTRY_PUBLISH_GUARD_SLOT`    | whether Publish is held, and why                                                     |
+| Publishing rules | `WORKSPACE_SETTINGS_TAB_SLOT` | which types are protected, and how                                                   |
+| Review column    | `RECORDS_COLUMN_SLOT`         | where each row stands, one request per page                                          |
+| `reviewState`    | `RECORDS_FILTER_FIELDS_SLOT`  | waiting on review / not requested                                                    |
+| Insights card    | `INSIGHTS_WIDGET_SLOT`        | how much review is outstanding                                                       |
+| Reviews page     | `WORKSPACE_ROUTE_SLOT` + nav  | what is waiting, and on whom                                                         |
+| Home card        | `HOME_SECTION_SLOT`           | entries awaiting review across workspaces — "0" when none                            |
 
 **The three entry contributions render nothing on an unprotected type** and on a
 non-publishable one. `reviewScopeOf` is the single place that decides, so the
@@ -186,7 +186,13 @@ name beside a vote costs no request. Somebody who has left is named as such
 rather than given a fabricated label: a vote records who looked, and inventing a
 name over a gap in the roster misreports the one fact the row carries.
 
-## The settings tab
+## The settings section (Publishing rules)
+
+Listed in the workspace settings side nav as **Publishing rules**; the page
+draws its `<h1>` and description from the slot item, and the section is one
+framed list — each publishable type with its rule in one line (the count, then
+each exception), a Protected / Not protected / Switched off badge, and
+Configure — with rules on types no longer granted in a second list under it.
 
 **The list is the workspace's content grants, not its rules.** A rule is
 addressed by `(workspace, kind, slug)` — the same pair `workspace_content`

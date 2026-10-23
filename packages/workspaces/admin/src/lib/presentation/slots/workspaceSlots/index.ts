@@ -78,9 +78,9 @@ export type WorkspaceSectionItem = {
 };
 
 /**
- * One contributed tab in the **workspace settings** page — a section another
- * plugin owns, rendered under the same underline tab bar as General, Members
- * and Content.
+ * One contributed section of the **workspace settings** page — a section another
+ * plugin owns, listed in the same side nav as General, Content types and
+ * Members, under the same `<h1>` + description header.
  *
  * Contributed tabs sit **between Content and Danger zone**, which is a fixed
  * position rather than an `order` among the built-ins: Danger zone is last
@@ -100,6 +100,14 @@ export type WorkspaceSettingsTab = {
     labelId: string;
     /** Fallback label when no translation is available. */
     defaultLabel: string;
+    /**
+     * react-intl message id for the one-line description under the section's
+     * `<h1>`. The page draws the heading for every section, contributed or
+     * not, so a contribution renders its body only.
+     */
+    descriptionId?: string;
+    /** Fallback description when no translation is available. */
+    defaultDescription?: string;
     /** Leading icon (e.g. a lucide-react icon). */
     icon: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
     /** Sort order **among the contributed tabs**; lower appears first. */
@@ -153,7 +161,7 @@ export const WORKSPACE_ROUTE_SLOT =
  * `@orthacms/protection-admin` is the first contributor (the Protection tab
  * and its rule editor). With nothing registered the tab bar and its routes are
  * byte for byte what they were before the slot existed, which
- * `WorkspaceSettingsTabs`' own spec pins — an empty slot is the state this
+ * `WorkspaceSettingsNav`' own spec pins — an empty slot is the state this
  * seam spends almost all of its life in, and nothing else would record that
  * the default was a decision.
  */

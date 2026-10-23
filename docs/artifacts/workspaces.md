@@ -464,7 +464,7 @@ There are workspaces but the current view hid them → “nothing found” and �
 
 > **The gate stands on both the tab and the route**
 >
-> Danger zone is excluded from the tab bar **and** its nested route redirects to `general` when the permission is missing. Hiding the tab alone would not be enough: a direct link would go around it. The redirect carries a `state.redirectNotice`, and `useRedirectNotice` at the landing site does three things — it moves focus to `<main>` (already focusable for the skip link's sake), returns the message key **once** for rendering in a `role="status"`, and erases the router state so that a reload or a “back” does not replay the announcement. Without that, a `<Navigate replace>` is the SPA equivalent of a silent redirect: focus falls onto `<body>`, the next Tab starts from the very top of the document, and a screen-reader user hears silence.
+> Danger zone is excluded from the side nav **and** its nested route redirects to `general` when the permission is missing. Hiding the tab alone would not be enough: a direct link would go around it. The redirect carries a `state.redirectNotice`, and `useRedirectNotice` at the landing site does three things — it moves focus to `<main>` (already focusable for the skip link's sake), returns the message key **once** for rendering in a `role="status"`, and erases the router state so that a reload or a “back” does not replay the announcement. Without that, a `<Navigate replace>` is the SPA equivalent of a silent redirect: focus falls onto `<body>`, the next Tab starts from the very top of the document, and a screen-reader user hears silence.
 
 ### Data and caching
 
@@ -744,7 +744,7 @@ The wording is “action → expected result”, so items can go into a test cas
 - **Delete an empty workspace** → a toast, a move to the list, and **no** flash of the “no access” screen on the way.
 - **Delete an entry and open the dialog again** → the count is recomputed, not taken from the cache.
 - **Revoke a grant for a type with entries through the interface** → the “Remove” button is disabled with an explanation; the server's 409 is never reached.
-- **The add-content dialogs** → there are two — “Add collections” and “Add pages” — each showing only the ungranted types of its kind.
+- **The add-content dialog** → one, “Add content types”, listing the ungranted types of both kinds with an All · Collections · Pages filter.
 - **Remove a member from the keyboard** → after the dialog closes, focus is on the row that took the removed one's place, or on the roster's heading.
 - **Remove the last member through the interface** → the server answers 409; today a **generic** “couldn't remove that member” toast is shown — see section 15.
 - **A viewer on the settings page** → read-only fields and no Danger zone tab; a direct link to `settings/danger` leads to `general` with an announcement.

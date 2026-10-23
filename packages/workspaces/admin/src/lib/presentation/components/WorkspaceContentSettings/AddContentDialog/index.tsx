@@ -14,12 +14,30 @@ import {
     InputGroup,
     InputGroupAddon,
     InputGroupInput,
+    SegmentedControl,
+    SegmentedControlItem,
     Spinner
 } from '@orthacms/design-system';
 import type { ContentType } from '../../../../domain/types/wizard';
 import { isPage } from '..';
 
 const messages = defineMessages({
+    kind: {
+        id: 'workspaces.settings.content.addDialog.kind',
+        defaultMessage: 'Show'
+    },
+    kindAll: {
+        id: 'workspaces.settings.content.addDialog.kindAll',
+        defaultMessage: 'All'
+    },
+    kindCollections: {
+        id: 'workspaces.settings.content.addDialog.kindCollections',
+        defaultMessage: 'Collections'
+    },
+    kindPages: {
+        id: 'workspaces.settings.content.addDialog.kindPages',
+        defaultMessage: 'Pages'
+    },
     searchPlaceholder: {
         id: 'workspaces.settings.content.addDialog.searchPlaceholder',
         defaultMessage: 'Search content types'
@@ -89,8 +107,16 @@ export type SharedChoiceGroup = {
     items: { slug: string; label: string; kind: 'collection' | 'single' }[];
 };
 
+/** Which kinds the list shows. */
+type KindFilter = 'all' | 'collection' | 'single';
+
 /** A rendered row: its selection key, its label and its kind. */
 type ChoiceRow = { key: string; label: string; isCollection: boolean };
+
+/** Whether a row of this kind passes the kind filter. */
+function kindMatches(kind: KindFilter, isCollection: boolean): boolean {
+    return kind === 'all' || (kind === 'collection') === isCollection;
+}
 
 /** Whether any of `fields` contains the (lower-cased) query; empty matches all. */
 function matchesQuery(q: string, ...fields: (string | undefined)[]): boolean {
@@ -107,11 +133,11 @@ export type AddContentDialogProps = {
     title: string;
     /** Localized supporting copy. */
     description: string;
-    /** Content types not yet granted — the selectable list (already one kind). */
+    /** Content types not yet granted — the selectable list, both kinds. */
     available: ContentType[];
     /**
      * Types shared workspaces offer that are not yet granted from them, one
-     * group per source (already one kind). Empty when nothing is shared.
+     * group per source. Empty when nothing is shared.
      */
     sharedGroups?: SharedChoiceGroup[];
     /** The shared-sources read failed — say so rather than list nothing. */
@@ -123,10 +149,10 @@ export type AddContentDialogProps = {
 };
 
 /**
- * A search + multi-select dialog for granting content types of a **single kind**
- * (collections or pages — the caller pre-filters `available` and labels it via
- * `title`): type to filter, tick any number, then Add them in one go. Selection
- * + query reset each time the dialog opens.
+ * A search + multi-select dialog for granting content types, collections and
+ * pages alike: narrow by kind (All · Collections · Pages) or by typing, tick
+ * any number, then Add them in one go. Selection, kind and query reset each
+ * time the dialog opens. A ticked row hidden by the filter stays ticked.
  *
  * Besides this workspace's own types it lists what **shared workspaces** offer,
  * grouped "From {workspace}", each row "{Type} · {Workspace}" — a separate
@@ -146,12 +172,14 @@ export function AddContentDialog({
     const intl = useIntl();
     const headingId = useId();
     const [query, setQuery] = useState('');
+    const [kind, setKind] = useState<KindFilter>('all');
     const [selected, setSelected] = useState<Set<string>>(new Set());
 
-    // Reset the query + selection whenever the dialog (re)opens.
+    // Reset the query, kind + selection whenever the dialog (re)opens.
     useEffect(() => {
         if (open) {
             setQuery('');
+            setKind('all');
             setSelected(new Set());
         }
     }, [open]);
@@ -161,15 +189,17 @@ export function AddContentDialog({
     const ownRows = useMemo<ChoiceRow[]>(
         () =>
             available
-                .filter((type) =>
-                    matchesQuery(q, type.label, type.name, type.path)
+                .filter(
+                    (type) =>
+                        kindMatches(kind, !isPage(type)) &&
+                        matchesQuery(q, type.label, type.name, type.path)
                 )
                 .map((type) => ({
                     key: type.name,
                     label: type.label ?? type.name,
                     isCollection: !isPage(type)
                 })),
-        [available, q]
+        [available, q, kind]
     );
 
     const sharedRows = useMemo(
@@ -178,13 +208,15 @@ export function AddContentDialog({
                 .map((group) => ({
                     group,
                     rows: group.items
-                        .filter((item) =>
-                            matchesQuery(
-                                q,
-                                item.label,
-                                item.slug,
-                                group.workspaceName
-                            )
+                        .filter(
+                            (item) =>
+                                kindMatches(kind, item.kind !== 'single') &&
+                                matchesQuery(
+                                    q,
+                                    item.label,
+                                    item.slug,
+                                    group.workspaceName
+                                )
                         )
                         .map(
                             (item): ChoiceRow => ({
@@ -201,7 +233,7 @@ export function AddContentDialog({
                         )
                 }))
                 .filter(({ rows }) => rows.length > 0),
-        [sharedGroups, q, intl]
+        [sharedGroups, q, kind, intl]
     );
 
     const totalAvailable =
@@ -306,6 +338,26 @@ export function AddContentDialog({
                         autoComplete="off"
                     />
                 </InputGroup>
+
+                <SegmentedControl
+                    variant="muted"
+                    className="w-fit justify-self-start"
+                    aria-label={intl.formatMessage(messages.kind)}
+                    value={kind}
+                    onValueChange={(next) => {
+                        if (next) setKind(next as KindFilter);
+                    }}
+                >
+                    <SegmentedControlItem value="all">
+                        {intl.formatMessage(messages.kindAll)}
+                    </SegmentedControlItem>
+                    <SegmentedControlItem value="collection">
+                        {intl.formatMessage(messages.kindCollections)}
+                    </SegmentedControlItem>
+                    <SegmentedControlItem value="single">
+                        {intl.formatMessage(messages.kindPages)}
+                    </SegmentedControlItem>
+                </SegmentedControl>
 
                 {sharedError ? (
                     <p className="text-sm text-muted-foreground" role="status">

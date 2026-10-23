@@ -1,14 +1,21 @@
-import { Separator, cn } from '@orthacms/design-system';
+import type { ReactNode } from 'react';
+import { cn } from '@orthacms/design-system';
 import { GrantedContentRow, type GrantedContent } from '../GrantedContentRow';
 
 /** Props for {@link GrantedContentGroup}. */
 export type GrantedContentGroupProps = {
-    /** Section heading (e.g. "Collections"). */
-    heading: string;
-    /** The granted items in this section. */
+    /** The group's name — "This workspace's own", or the source workspace. */
+    label: string;
+    /** What leads the header strip (the label, with a badge or a tile). */
+    heading: ReactNode;
+    /** A fact on the right of the header strip ("4 collections · 2 pages"). */
+    aside?: string;
+    /** The granted items in this group. */
     items: GrantedContent[];
-    /** Copy shown when the section has no grants. */
-    emptyLabel: string;
+    /** Copy shown when the group has no grants. */
+    emptyLabel?: string;
+    /** The workspace the grants belong to. */
+    workspaceId: string;
     /** Whether remove controls should be offered. */
     canRemove: boolean;
     /** Called with the item to remove. */
@@ -18,40 +25,45 @@ export type GrantedContentGroupProps = {
 };
 
 /**
- * One kind's slice of the granted-content list — a heading with a count over a
- * bordered list of rows (or an empty hint). The heading conveys the kind, so the
- * rows drop their kind badge. Backs the Collections / Pages split.
+ * One source's slice of the granted-content list: a tinted header strip naming
+ * where the records come from, over a framed list of rows (or an empty line).
+ * The group is labelled by the same name, so a screen reader hears which
+ * source a row belongs to.
  */
 export function GrantedContentGroup({
+    label,
     heading,
+    aside,
     items,
     emptyLabel,
+    workspaceId,
     canRemove,
     onRemove,
     isJustGranted
 }: GrantedContentGroupProps) {
     return (
-        <div className="flex flex-col gap-1">
-            <span className="text-sm font-medium">
+        <div
+            role="group"
+            aria-label={label}
+            className="overflow-hidden rounded-xl border bg-card"
+        >
+            <div className="flex items-center gap-2 border-b bg-muted/40 px-4 py-2 text-xs font-medium text-muted-foreground">
                 {heading}
-                <span className="ml-1.5 text-xs font-normal text-muted-foreground">
-                    {items.length}
-                </span>
-            </span>
+                {aside ? <span className="ml-auto">{aside}</span> : null}
+            </div>
             {items.length === 0 ? (
-                <p className="rounded-xl border px-3 py-4 text-sm text-muted-foreground">
+                <p className="px-4 py-4 text-sm text-muted-foreground">
                     {emptyLabel}
                 </p>
             ) : (
-                <ul className="rounded-xl border">
-                    {items.map((item, index) => (
+                <ul className="divide-y">
+                    {items.map((item) => (
                         <li
                             key={item.key}
                             className={cn(
                                 isJustGranted?.(item.key) && 'ds-item-enter'
                             )}
                         >
-                            {index > 0 ? <Separator /> : null}
                             <GrantedContentRow
                                 // Both classes set `animation`, so the flash
                                 // goes on the row inside the item.
@@ -59,8 +71,8 @@ export function GrantedContentGroup({
                                     isJustGranted?.(item.key) && 'ds-flash'
                                 )}
                                 granted={item}
+                                workspaceId={workspaceId}
                                 canRemove={canRemove}
-                                showKind={false}
                                 onRemove={() => onRemove(item)}
                             />
                         </li>

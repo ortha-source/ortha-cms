@@ -1,16 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-    ConfirmDialog,
-    Separator,
-    cn,
-    toast
-} from '@orthacms/design-system';
+import { useAuth } from '@orthacms/identity-admin';
+import { ConfirmDialog, cn, toast } from '@orthacms/design-system';
 import { useJustCreated } from '@orthacms/utils-admin';
 import type {
     Workspace,
@@ -27,14 +18,10 @@ import { MemberDirectorySearch } from './MemberDirectorySearch';
 import { MemberListRow } from './MemberListRow';
 
 const messages = defineMessages({
-    title: {
-        id: 'workspaces.settings.members.title',
-        defaultMessage: 'Members'
-    },
-    description: {
-        id: 'workspaces.settings.members.description',
+    rolesNote: {
+        id: 'workspaces.settings.members.rolesNote',
         defaultMessage:
-            'People with access to this workspace. A member’s permissions come from their global role, not from the workspace.'
+            'A person’s role is set once for the whole CMS, on their page under Members. The last member can’t be removed — a workspace with nobody in it can’t be opened.'
     },
     rosterLabel: {
         id: 'workspaces.settings.members.rosterLabel',
@@ -89,8 +76,10 @@ export type WorkspaceMembersSettingsProps = {
 };
 
 /**
- * The Members settings tab: assign existing directory users and remove members
- * with a confirmation. Access is purely permission-based — every control is
+ * The Members settings section: a directory search over the roster (assign
+ * existing users), then the roster as one framed list — avatar, name, "You" on
+ * the signed-in person, email — and remove behind a confirmation. Roles are
+ * not shown or changed here: a role is global, set on the person's page. Access is purely permission-based — every control is
  * gated on `workspaces:update`, and no member is special; without the permission
  * the roster is read-only.
  */
@@ -99,6 +88,7 @@ export function WorkspaceMembersSettings({
     canUpdate
 }: WorkspaceMembersSettingsProps) {
     const intl = useIntl();
+    const { user } = useAuth();
     const addMember = useAddWorkspaceMember();
     const removeMember = useRemoveWorkspaceMember();
     const isJustAdded = useJustCreated(workspaceMembersScope(workspace.id));
@@ -182,65 +172,60 @@ export function WorkspaceMembersSettings({
     };
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle asChild>
-                    <h2>{intl.formatMessage(messages.title)}</h2>
-                </CardTitle>
-                <CardDescription>
-                    {intl.formatMessage(messages.description)}
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
-                {canUpdate ? (
-                    <MemberDirectorySearch
-                        excludeIds={excludeIds}
-                        onSelect={onSelect}
-                        busy={addMember.isPending}
-                    />
-                ) : (
-                    <p className="text-sm text-muted-foreground">
-                        {intl.formatMessage(messages.readOnly)}
-                    </p>
-                )}
+        <>
+            {canUpdate ? (
+                <MemberDirectorySearch
+                    excludeIds={excludeIds}
+                    onSelect={onSelect}
+                    busy={addMember.isPending}
+                />
+            ) : (
+                <p className="text-sm text-muted-foreground">
+                    {intl.formatMessage(messages.readOnly)}
+                </p>
+            )}
 
-                <div className="flex flex-col gap-1">
+            <div className="overflow-hidden rounded-xl border bg-card">
+                <div className="flex items-center border-b bg-muted/40 px-4 py-2">
                     <span
                         ref={rosterLabelRef}
                         tabIndex={-1}
-                        className="text-sm font-medium focus-visible:outline-none"
+                        className="text-xs font-medium text-muted-foreground focus-visible:outline-none"
                     >
                         {intl.formatMessage(messages.rosterLabel, {
                             count: workspace.members.length
                         })}
                     </span>
-                    <ul ref={rosterRef} className="rounded-xl border">
-                        {workspace.members.map((member, index) => (
-                            <li
-                                key={member.id}
-                                className={cn(
-                                    isJustAdded(member.id) && 'ds-item-enter'
-                                )}
-                            >
-                                {index > 0 ? <Separator /> : null}
-                                <MemberListRow
-                                    // Both classes set `animation`, so the
-                                    // flash goes on the row inside the item.
-                                    className={cn(
-                                        isJustAdded(member.id) && 'ds-flash'
-                                    )}
-                                    member={member}
-                                    canRemove={canUpdate}
-                                    onRemove={() => {
-                                        dismissedId.current = member.id;
-                                        setPendingRemoval(member);
-                                    }}
-                                />
-                            </li>
-                        ))}
-                    </ul>
                 </div>
-            </CardContent>
+                <ul ref={rosterRef} className="divide-y">
+                    {workspace.members.map((member) => (
+                        <li
+                            key={member.id}
+                            className={cn(
+                                isJustAdded(member.id) && 'ds-item-enter'
+                            )}
+                        >
+                            <MemberListRow
+                                // Both classes set `animation`, so the
+                                // flash goes on the row inside the item.
+                                className={cn(
+                                    isJustAdded(member.id) && 'ds-flash'
+                                )}
+                                member={member}
+                                isYou={member.id === user?.id}
+                                canRemove={canUpdate}
+                                onRemove={() => {
+                                    dismissedId.current = member.id;
+                                    setPendingRemoval(member);
+                                }}
+                            />
+                        </li>
+                    ))}
+                </ul>
+            </div>
+            <p className="text-[13px] text-muted-foreground">
+                {intl.formatMessage(messages.rolesNote)}
+            </p>
 
             <ConfirmDialog
                 open={pendingRemoval !== null}
@@ -276,6 +261,6 @@ export function WorkspaceMembersSettings({
                     button.focus();
                 }}
             />
-        </Card>
+        </>
     );
 }

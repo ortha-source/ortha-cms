@@ -1,4 +1,4 @@
-import { useRef, type KeyboardEvent } from 'react';
+import { useRef, type KeyboardEvent, type ReactNode } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Check } from 'lucide-react';
 import {
@@ -25,6 +25,8 @@ export type ColorSwatchRowProps = {
     value: AvatarColor;
     /** Called when a swatch is chosen. */
     onChange: (color: AvatarColor) => void;
+    /** Drawn before the swatches on their line — the settings page's preview tile. */
+    leading?: ReactNode;
 };
 
 /**
@@ -39,7 +41,11 @@ export type ColorSwatchRowProps = {
  * arrow keys that did nothing for the screen-reader users the role tells to
  * reach for them.
  */
-export function ColorSwatchRow({ value, onChange }: ColorSwatchRowProps) {
+export function ColorSwatchRow({
+    value,
+    onChange,
+    leading
+}: ColorSwatchRowProps) {
     const intl = useIntl();
     const label = intl.formatMessage(messages.label);
     const refs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -81,39 +87,47 @@ export function ColorSwatchRow({ value, onChange }: ColorSwatchRowProps) {
     return (
         <div className="flex flex-col gap-2">
             <span className="text-sm font-medium leading-snug">{label}</span>
-            <div
-                role="radiogroup"
-                aria-label={label}
-                className="flex flex-wrap gap-2"
-            >
-                {AVATAR_COLORS.map((color, i) => {
-                    const selected = value === color;
-                    return (
-                        <button
-                            key={color}
-                            ref={(node) => {
-                                refs.current[i] = node;
-                            }}
-                            type="button"
-                            role="radio"
-                            aria-checked={selected}
-                            tabIndex={i === activeIndex ? 0 : -1}
-                            aria-label={intl.formatMessage(messages.swatch, {
-                                color
-                            })}
-                            onClick={() => onChange(color)}
-                            onKeyDown={(event) => onKeyDown(event, i)}
-                            className={cn(
-                                'flex size-9 items-center justify-center rounded-xl text-white transition-colors',
-                                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-                                selected && 'ring-2 ring-ring ring-offset-2'
-                            )}
-                            style={{ backgroundColor: avatarColorVar(color) }}
-                        >
-                            {selected ? <Check className="size-4" /> : null}
-                        </button>
-                    );
-                })}
+            <div className="flex items-center gap-4">
+                {leading}
+                <div
+                    role="radiogroup"
+                    aria-label={label}
+                    className="flex flex-wrap gap-2"
+                >
+                    {AVATAR_COLORS.map((color, i) => {
+                        const selected = value === color;
+                        return (
+                            <button
+                                key={color}
+                                ref={(node) => {
+                                    refs.current[i] = node;
+                                }}
+                                type="button"
+                                role="radio"
+                                aria-checked={selected}
+                                tabIndex={i === activeIndex ? 0 : -1}
+                                aria-label={intl.formatMessage(
+                                    messages.swatch,
+                                    {
+                                        color
+                                    }
+                                )}
+                                onClick={() => onChange(color)}
+                                onKeyDown={(event) => onKeyDown(event, i)}
+                                className={cn(
+                                    'flex size-9 items-center justify-center rounded-xl text-white transition-colors',
+                                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                                    selected && 'ring-2 ring-ring ring-offset-2'
+                                )}
+                                style={{
+                                    backgroundColor: avatarColorVar(color)
+                                }}
+                            >
+                                {selected ? <Check className="size-4" /> : null}
+                            </button>
+                        );
+                    })}
+                </div>
             </div>
         </div>
     );

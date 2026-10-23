@@ -112,42 +112,56 @@ exist", mirroring the API's flat 403.
 
 ## Settings page (`/workspaces/:id/settings/*`)
 
-- A **tabbed** page (`pages/WorkspaceSettingsPage`) mirroring the user-detail
-  layout: a shared-width `Container`, a header, then the
-  `components/WorkspaceSettingsTabs` underline tab bar (design-system `TabNav`
-  of absolute-path `NavLink`s) above the active section, each a **nested
-  route** (`settings/general` · `/members` · `/content` · `/danger`; the index
-  redirects to `general`). Mounted at `settings/*` so the page owns those child
-  routes (same shape as the content library's `content/*`).
-- The sections: **General** (name / description / avatar color; TanStack Form +
-  the `useWorkspaceProfileSchema` Zod hook, the slug shown read-only since it's
-  immutable, plus a **copyable workspace id** — `WorkspaceIdField`, an
-  `InputGroup` with a copy button, since the id is what the public content API's
-  `X-Workspace-Id` header takes and was otherwise only readable off the address
-  bar. Unlike the slug it is `readOnly` but **not** `disabled`: a disabled input
-  can't be focused, so it could be neither selected nor copied by keyboard.
-  Clipboard failure — insecure origin, denied permission — falls back to an
-  error toast telling the user to select the id manually), **Members** (a directory typeahead that assigns **existing** users
-  — no invite-by-email, since the add endpoint links a real id — plus a roster
-  where a member is removed behind a `ConfirmDialog`. Access is purely
-  permission-based, so no member is privileged — but the **last** one cannot go:
-  a workspace with nobody in it is unreachable, and the server answers 409
-  `LastMemberError`. The dialog narrows that status with `isConflict` and says
-  what would help, the way the content-revoke and delete dialogs already do,
-  **Content** (the granted types shown as two titled groups — **Collections** and
-  **Pages** (`GrantedContentGroup`, each row its title + description), granted
-  through a **separate search + multi-select popup per kind** — two
-  `AddContentDialog` instances, "Add collections" / "Add pages", each listing
-  only that kind's ungranted types and synced with the grants; revoke through
-  `RemoveContentDialog`, which reads
-  `GET /workspaces/:id/content/:slug/entry-count` on open and **blocks** the
-  Remove button with a warning while the type still has entries, so the server
-  `409` is only a safety net), and a **Danger zone**
-  (archive/unarchive behind a confirm; permanent delete through
-  `DeleteWorkspaceDialog`, which reads `GET /workspaces/:id/entry-count` on open
-  and **blocks** Delete with a warning until the workspace holds no content at
-  all — the same block-before-you-act pattern as content revoke, with the server
-  `409` as the safety net; delete returns to the list).
+- A **side-nav** page (`pages/WorkspaceSettingsPage`) in the webhook editor's
+  shape: `components/WorkspaceSettingsNav` (a 184px column of absolute-path
+  `NavLink`s — General, Content types and Members with their counts, the
+  contributed sections, then a ruled-off red Danger zone; a scrolling row above
+  the column below `lg`) beside one 720px column. Each section is a **nested
+  route** (`settings/general` · `/content` · `/members` · `/danger`; the index
+  redirects to `general`), and the column opens on that section's `<h1>` and
+  one-line subtitle (`useSectionHeader`; a contributed section supplies its own
+  through the slot's `descriptionId`). Mounted at `settings/*` so the page owns
+  those child routes (same shape as the content library's `content/*`). Inside
+  a section, framed blocks are `SettingsSection` (an `<h2>` and a sentence over
+  the fields).
+- The sections:
+    - **General** — **Identity** (the avatar color with a preview tile, name,
+      description; TanStack Form + the `useWorkspaceProfileSchema` Zod hook, a
+      "Changed" badge on an edited field), **Address and API** (the slug,
+      locked, and a **copyable workspace id** — `WorkspaceIdField`, an
+      `InputGroup` with a copy button, since the id is what the public content
+      API's `X-Workspace-Id` header takes; both `readOnly`, not `disabled`, so
+      they can be selected and copied by keyboard; clipboard failure falls back
+      to an error toast telling the user to select the id manually) and
+      **Sharing** (below). **Save is in the top bar** (`PageActionsPortal`), the
+      way the entry editor's is: "● Unsaved changes · Discard · Save changes"
+      while the form holds edits, a disabled Save when it doesn't; the button
+      submits the `<form>` through its `form` attribute.
+    - **Content types** — every grant in **one list**, grouped by source
+      (`GrantedContentGroup`, a labelled `role="group"`): this workspace's own
+      (collections, then pages; "N collections · M pages"), then one group per
+      shared workspace ("From {workspace}" + Shared, "Read-only here"). Each
+      own row says how many entries the type holds here
+      (`useWorkspaceContentCount(…, 'summary')`). A search narrows the list;
+      **one** `AddContentDialog` grants both kinds, with an All · Collections ·
+      Pages filter. Revoke through `RemoveContentDialog`, which reads
+      `GET /workspaces/:id/content/:slug/entry-count` on open (its own `check`
+      key, never the row's answer) and **blocks** Remove while the type still
+      has entries, so the server `409` is only a safety net.
+    - **Members** — a directory typeahead that assigns **existing** users (no
+      invite-by-email, since the add endpoint links a real id) over the roster,
+      one framed list with "You" on the signed-in person; a member is removed
+      behind a `ConfirmDialog`. Roles are not shown: a role is global, and the
+      membership wire carries none. Access is purely permission-based — but the
+      **last** member cannot go: the server answers 409 `LastMemberError`, and
+      the toast says what would help.
+    - **Danger zone** — archive/unarchive behind a confirm and permanent delete
+      through `DeleteWorkspaceDialog`, as rows of one red-ruled card. While the
+      workspace still holds entries the Delete row **says so on the page**
+      (`useWorkspaceEntryCount(…, 'summary')`: how many, and a link to
+      Content); the dialog still reads `GET /workspaces/:id/entry-count` itself
+      and **blocks** Delete until the workspace holds no content, with the
+      server `409` as the safety net; delete returns to the list.
 - **Permission-gated end to end** via `useHasPermission`: `workspaces:update`
   drives every edit (a viewer sees a read-only page with the controls hidden),
   `workspaces:delete` gates delete; the Danger tab entry **and** its route only
@@ -157,23 +171,25 @@ exist", mirroring the API's flat 403.
   one-off parts nested inside).
 - **A plugin adds a settings section through `WORKSPACE_SETTINGS_TAB_SLOT`.**
   A contribution names a `path`, a label (`labelId` + `defaultLabel`), an
-  `icon`, an `order` and the `element` to render; `WorkspaceSettingsTabs` links
+  `icon`, an `order`, optionally a description (`descriptionId` +
+  `defaultDescription`, shown under the section's `<h1>`) and the `element` to
+  render; `WorkspaceSettingsNav` links
   to it and `WorkspaceSettingsPage` mounts it as a nested route.
   `@orthacms/protection-admin` is the first contributor. Three rules worth
   knowing:
-    - **Contributed tabs sit between Content and Danger zone**, and `order`
+    - **Contributed sections sit between Members and Danger zone**, and `order`
       sorts them only against each other. Danger zone is last because it is
       where a workspace is destroyed; a plugin that could sort past it would put
       a routine setting beyond the point everything else treats as the end.
     - **A tab's `permission` hides the entry, and the route stays mounted.**
-      `SettingsTabLink` does the check, as a component rather than a
+      `SettingsNavLink` does the check, as a component rather than a
       `useHasPermission` inside the parent's `.map` — slot items are frozen at
       boot so the list cannot actually move, but writing it the other way makes
       the next contributor's change a rules-of-hooks bug rather than an
       addition. The route is left mounted deliberately: a deep link reaching a
       section that explains the refusal beats a redirect somewhere nobody asked
       for.
-    - **An empty slot changes nothing**, and `WorkspaceSettingsTabs`' spec pins
+    - **An empty slot changes nothing**, and `WorkspaceSettingsNav`' spec pins
       it — that is the state the seam spends almost all of its life in, and
       nothing else would record that the default was a decision.
 - **Sharing** (`components/WorkspaceSharingSettings`, mounted by the page on the
@@ -198,9 +214,9 @@ exist", mirroring the API's flat 403.
 - **Per-source content grants.** A type is granted as the workspace's **own**
   records (`Workspace.content`) and/or **from a shared workspace**
   (`Workspace.sharedContent`, one row per type and source, mapped `?? []`;
-  its `available` flag reads absent as available). The Content tab lists a shared grant as its own row, "{Type} ·
-  {Workspace}" with a **Shared** badge and an **Unavailable** one while the
-  source no longer shares; the Add dialogs group what
+  its `available` flag reads absent as available). The Content types section lists a shared grant as its own row, under a
+  "From {workspace}" group with a **Shared** badge, and an **Unavailable** one
+  on the row while the source no longer shares; the Add dialog groups what
   `GET /workspaces/:id/shared-sources` (`useSharedSources`, fetched only with
   `workspaces:update`) offers under "From {workspace}", minus grants already
   held from that source, and post `{ slug, sourceWorkspaceId }`. Removal picks

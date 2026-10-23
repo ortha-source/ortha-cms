@@ -135,9 +135,9 @@ test.describe('Workspaces keyboard accessibility', () => {
             // stop and Enter follows it. Asserting the run in order is what
             // would catch a stray focusable slipped between two tabs.
             //
-            // **Protection is a plugin's tab**, contributed through
+            // **Publishing rules is a plugin's section**, contributed through
             // `WORKSPACE_SETTINGS_TAB_SLOT`, and it is in this list because
-            // contributed tabs land between Content and Danger zone — Danger
+            // contributed sections land between Members and Danger zone — Danger
             // zone stays last, because it is where a workspace is destroyed.
             // A second contributor would extend this run rather than reorder
             // it.
@@ -147,9 +147,9 @@ test.describe('Workspaces keyboard accessibility', () => {
             ).toBeFocused();
 
             for (const next of [
+                'Content types',
                 'Members',
-                'Content',
-                'Protection',
+                'Publishing rules',
                 'Danger zone'
             ]) {
                 await page.keyboard.press('Tab');

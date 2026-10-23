@@ -1,43 +1,63 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useForm } from '@tanstack/react-form';
 import { defineMessages, useIntl } from 'react-intl';
+import { Lock } from 'lucide-react';
 import {
+    Badge,
     Button,
-    Card,
-    CardContent,
-    CardDescription,
-    CardFooter,
-    CardHeader,
-    CardTitle,
     Field,
     FieldDescription,
     FieldError,
     FieldGroup,
     FieldLabel,
     Input,
+    InputGroup,
+    InputGroupAddon,
+    InputGroupInput,
     Spinner,
     Textarea,
     toast,
     type AvatarColor
 } from '@orthacms/design-system';
+import { PageActionsPortal } from '@orthacms/shell-admin';
 import { initialsOf } from '@orthacms/utils-admin';
 import type { Workspace } from '../../../domain/types/workspace';
 import { useWorkspaceProfileSchema } from '../../hooks/useWorkspaceProfileSchema';
 import { useUpdateWorkspace } from '../../../application/useUpdateWorkspace';
 import { DESCRIPTION_MAX, NAME_MAX } from '../../../domain/workspaceLimits';
 import { ColorSwatchRow } from '../ColorSwatchRow';
+import { SettingsSection } from '../SettingsSection';
 import { WorkspaceAvatar } from '../WorkspaceAvatar';
 import { WorkspaceIdField } from './WorkspaceIdField';
 
 const messages = defineMessages({
-    title: {
-        id: 'workspaces.settings.general.title',
-        defaultMessage: 'General'
+    identityTitle: {
+        id: 'workspaces.settings.general.identityTitle',
+        defaultMessage: 'Identity'
     },
-    description: {
-        id: 'workspaces.settings.general.description',
-        defaultMessage:
-            'Your workspace name, description, and avatar color. These are visible to everyone with access.'
+    identityDescription: {
+        id: 'workspaces.settings.general.identityDescription',
+        defaultMessage: 'Shown in the sidebar, the switcher and on every card.'
+    },
+    addressTitle: {
+        id: 'workspaces.settings.general.addressTitle',
+        defaultMessage: 'Address and API'
+    },
+    addressDescription: {
+        id: 'workspaces.settings.general.addressDescription',
+        defaultMessage: 'Fixed when the workspace was created.'
+    },
+    changed: {
+        id: 'workspaces.settings.general.changed',
+        defaultMessage: 'Changed'
+    },
+    unsaved: {
+        id: 'workspaces.settings.general.unsaved',
+        defaultMessage: 'Unsaved changes'
+    },
+    discard: {
+        id: 'workspaces.settings.general.discard',
+        defaultMessage: 'Discard'
     },
     nameLabel: {
         id: 'workspaces.settings.general.nameLabel',
@@ -53,7 +73,7 @@ const messages = defineMessages({
     },
     descriptionHint: {
         id: 'workspaces.settings.general.descriptionHint',
-        defaultMessage: 'Optional. What this workspace is for.'
+        defaultMessage: 'Optional. Shown on the workspace card.'
     },
     slugLabel: {
         id: 'workspaces.settings.general.slugLabel',
@@ -62,7 +82,7 @@ const messages = defineMessages({
     slugHint: {
         id: 'workspaces.settings.general.slugHint',
         defaultMessage:
-            'The workspace’s stable identifier. It can’t be changed after creation.'
+            'Part of every link into this workspace. It can’t change, so links keep working.'
     },
     readOnly: {
         id: 'workspaces.settings.general.readOnly',
@@ -96,18 +116,25 @@ export type WorkspaceGeneralSettingsProps = {
 };
 
 /**
- * The General settings tab: edit the workspace name, description, and avatar
- * color. Name/description use TanStack Form + the localized
- * {@link useWorkspaceProfileSchema}; the color is a small piece of local state
- * (a radio row, not a text field). The slug is shown read-only (it's immutable).
- * When the user lacks `workspaces:update` the fields are disabled and the save
- * action is hidden.
+ * The General section's form: **Identity** (the avatar color with a preview
+ * tile, the name, the description) and **Address and API** (the slug and the
+ * workspace id — read-only, since neither can change). Name/description use
+ * TanStack Form + the localized {@link useWorkspaceProfileSchema}; the color is
+ * a small piece of local state (a radio row, not a text field).
+ *
+ * **Save lives in the top bar**, the way the entry editor's does: "● Unsaved
+ * changes · Discard · Save changes" while the form holds edits, a disabled Save
+ * when it doesn't. The button sits outside the `<form>` in the DOM, so it
+ * submits it through the `form` attribute rather than by nesting. Without
+ * `workspaces:update` the fields are disabled, Save is absent and a line says
+ * why.
  */
 export function WorkspaceGeneralSettings({
     workspace,
     canUpdate
 }: WorkspaceGeneralSettingsProps) {
     const intl = useIntl();
+    const formId = useId();
     const schema = useWorkspaceProfileSchema();
     const update = useUpdateWorkspace();
     const [color, setColor] = useState<AvatarColor>(workspace.color);
@@ -144,17 +171,16 @@ export function WorkspaceGeneralSettings({
         }
     });
 
+    const changedBadge = (
+        <Badge variant="warning" size="xs" className="ml-auto">
+            {intl.formatMessage(messages.changed)}
+        </Badge>
+    );
+
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle asChild>
-                    <h2>{intl.formatMessage(messages.title)}</h2>
-                </CardTitle>
-                <CardDescription>
-                    {intl.formatMessage(messages.description)}
-                </CardDescription>
-            </CardHeader>
+        <>
             <form
+                id={formId}
                 noValidate
                 onSubmit={(event) => {
                     event.preventDefault();
@@ -162,181 +188,235 @@ export function WorkspaceGeneralSettings({
                     form.handleSubmit();
                 }}
             >
-                <CardContent>
-                    <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
+                <SettingsSection
+                    id={`${formId}-identity`}
+                    title={intl.formatMessage(messages.identityTitle)}
+                    description={intl.formatMessage(
+                        messages.identityDescription
+                    )}
+                >
+                    <FieldGroup>
                         <form.Subscribe selector={(state) => state.values.name}>
                             {(name) => (
-                                <div className="flex shrink-0 justify-center sm:pt-1">
-                                    <WorkspaceAvatar
-                                        className="size-16 text-lg"
-                                        initials={initialsOf(name) || '—'}
-                                        color={color}
-                                    />
-                                </div>
-                            )}
-                        </form.Subscribe>
-
-                        <FieldGroup className="flex-1">
-                            <form.Field name="name">
-                                {(field) => {
-                                    const invalid =
-                                        field.state.meta.isTouched &&
-                                        field.state.meta.errors.length > 0;
-                                    return (
-                                        <Field data-invalid={invalid}>
-                                            <FieldLabel htmlFor="settings-name">
-                                                {intl.formatMessage(
-                                                    messages.nameLabel
-                                                )}
-                                            </FieldLabel>
-                                            <Input
-                                                id="settings-name"
-                                                value={field.state.value}
-                                                onChange={(event) =>
-                                                    field.handleChange(
-                                                        event.target.value
-                                                    )
-                                                }
-                                                onBlur={field.handleBlur}
-                                                maxLength={NAME_MAX}
-                                                disabled={!canUpdate}
-                                                aria-invalid={invalid}
-                                            />
-                                            {invalid ? (
-                                                <FieldError
-                                                    errors={
-                                                        field.state.meta.errors
-                                                    }
-                                                />
-                                            ) : (
-                                                <FieldDescription>
-                                                    {intl.formatMessage(
-                                                        messages.nameHint
-                                                    )}
-                                                </FieldDescription>
-                                            )}
-                                        </Field>
-                                    );
-                                }}
-                            </form.Field>
-
-                            <form.Field name="description">
-                                {(field) => {
-                                    const invalid =
-                                        field.state.meta.isTouched &&
-                                        field.state.meta.errors.length > 0;
-                                    return (
-                                        <Field data-invalid={invalid}>
-                                            <FieldLabel htmlFor="settings-description">
-                                                {intl.formatMessage(
-                                                    messages.descriptionLabel
-                                                )}
-                                            </FieldLabel>
-                                            <Textarea
-                                                id="settings-description"
-                                                value={field.state.value}
-                                                onChange={(event) =>
-                                                    field.handleChange(
-                                                        event.target.value
-                                                    )
-                                                }
-                                                onBlur={field.handleBlur}
-                                                maxLength={DESCRIPTION_MAX}
-                                                rows={3}
-                                                disabled={!canUpdate}
-                                                aria-invalid={invalid}
-                                            />
-                                            {invalid ? (
-                                                <FieldError
-                                                    errors={
-                                                        field.state.meta.errors
-                                                    }
-                                                />
-                                            ) : (
-                                                <FieldDescription>
-                                                    {intl.formatMessage(
-                                                        messages.descriptionHint
-                                                    )}
-                                                </FieldDescription>
-                                            )}
-                                        </Field>
-                                    );
-                                }}
-                            </form.Field>
-
-                            <ColorSwatchRow
-                                value={color}
-                                onChange={(next) => canUpdate && setColor(next)}
-                            />
-
-                            <Field>
-                                <FieldLabel htmlFor="settings-slug">
-                                    {intl.formatMessage(messages.slugLabel)}
-                                </FieldLabel>
-                                {/* `readOnly` but NOT `disabled`, matching
-                                    `WorkspaceIdField` below: a disabled input
-                                    can't be focused, so the slug could be
-                                    neither selected nor copied by keyboard, and
-                                    screen readers skip disabled controls in
-                                    browse mode — the label was reachable but the
-                                    value never was. The slug is the workspace's
-                                    stable public identifier, not decoration. */}
-                                <Input
-                                    id="settings-slug"
-                                    value={workspace.slug}
-                                    readOnly
-                                    className="bg-muted text-muted-foreground"
-                                />
-                                <FieldDescription>
-                                    {intl.formatMessage(messages.slugHint)}
-                                </FieldDescription>
-                            </Field>
-
-                            <WorkspaceIdField workspaceId={workspace.id} />
-                        </FieldGroup>
-                    </div>
-                </CardContent>
-
-                {canUpdate ? (
-                    <CardFooter className="justify-end border-t pt-6">
-                        <form.Subscribe
-                            selector={(state) => ({
-                                canSubmit: state.canSubmit,
-                                isDirty: state.isDirty,
-                                isSubmitting: state.isSubmitting
-                            })}
-                        >
-                            {({ canSubmit, isDirty, isSubmitting }) => (
-                                <Button
-                                    type="submit"
-                                    disabled={
-                                        !canSubmit ||
-                                        (!isDirty && !colorDirty) ||
-                                        isSubmitting
+                                <ColorSwatchRow
+                                    value={color}
+                                    onChange={(next) =>
+                                        canUpdate && setColor(next)
                                     }
-                                >
-                                    {isSubmitting ? (
-                                        <>
-                                            <Spinner />
-                                            {intl.formatMessage(
-                                                messages.saving
-                                            )}
-                                        </>
-                                    ) : (
-                                        intl.formatMessage(messages.save)
-                                    )}
-                                </Button>
+                                    leading={
+                                        <WorkspaceAvatar
+                                            className="size-10 text-sm"
+                                            initials={initialsOf(name) || '—'}
+                                            color={color}
+                                        />
+                                    }
+                                />
                             )}
                         </form.Subscribe>
-                    </CardFooter>
-                ) : (
-                    <CardFooter className="border-t pt-6">
-                        <p className="text-sm text-muted-foreground">
-                            {intl.formatMessage(messages.readOnly)}
-                        </p>
-                    </CardFooter>
-                )}
+
+                        <form.Field name="name">
+                            {(field) => {
+                                const invalid =
+                                    field.state.meta.isTouched &&
+                                    field.state.meta.errors.length > 0;
+                                return (
+                                    <Field data-invalid={invalid}>
+                                        <FieldLabel
+                                            htmlFor="settings-name"
+                                            className="w-full"
+                                        >
+                                            {intl.formatMessage(
+                                                messages.nameLabel
+                                            )}
+                                            {field.state.meta.isDirty
+                                                ? changedBadge
+                                                : null}
+                                        </FieldLabel>
+                                        <Input
+                                            id="settings-name"
+                                            value={field.state.value}
+                                            onChange={(event) =>
+                                                field.handleChange(
+                                                    event.target.value
+                                                )
+                                            }
+                                            onBlur={field.handleBlur}
+                                            maxLength={NAME_MAX}
+                                            disabled={!canUpdate}
+                                            aria-invalid={invalid}
+                                        />
+                                        {invalid ? (
+                                            <FieldError
+                                                errors={field.state.meta.errors}
+                                            />
+                                        ) : (
+                                            <FieldDescription>
+                                                {intl.formatMessage(
+                                                    messages.nameHint
+                                                )}
+                                            </FieldDescription>
+                                        )}
+                                    </Field>
+                                );
+                            }}
+                        </form.Field>
+
+                        <form.Field name="description">
+                            {(field) => {
+                                const invalid =
+                                    field.state.meta.isTouched &&
+                                    field.state.meta.errors.length > 0;
+                                return (
+                                    <Field data-invalid={invalid}>
+                                        <FieldLabel
+                                            htmlFor="settings-description"
+                                            className="w-full"
+                                        >
+                                            {intl.formatMessage(
+                                                messages.descriptionLabel
+                                            )}
+                                            {field.state.meta.isDirty
+                                                ? changedBadge
+                                                : null}
+                                        </FieldLabel>
+                                        <Textarea
+                                            id="settings-description"
+                                            value={field.state.value}
+                                            onChange={(event) =>
+                                                field.handleChange(
+                                                    event.target.value
+                                                )
+                                            }
+                                            onBlur={field.handleBlur}
+                                            maxLength={DESCRIPTION_MAX}
+                                            rows={3}
+                                            disabled={!canUpdate}
+                                            aria-invalid={invalid}
+                                        />
+                                        {invalid ? (
+                                            <FieldError
+                                                errors={field.state.meta.errors}
+                                            />
+                                        ) : (
+                                            <FieldDescription>
+                                                {intl.formatMessage(
+                                                    messages.descriptionHint
+                                                )}
+                                            </FieldDescription>
+                                        )}
+                                    </Field>
+                                );
+                            }}
+                        </form.Field>
+
+                        {canUpdate ? null : (
+                            <p className="text-sm text-muted-foreground">
+                                {intl.formatMessage(messages.readOnly)}
+                            </p>
+                        )}
+                    </FieldGroup>
+                </SettingsSection>
             </form>
-        </Card>
+
+            <SettingsSection
+                id={`${formId}-address`}
+                title={intl.formatMessage(messages.addressTitle)}
+                description={intl.formatMessage(messages.addressDescription)}
+            >
+                <FieldGroup>
+                    <Field>
+                        <FieldLabel htmlFor="settings-slug">
+                            {intl.formatMessage(messages.slugLabel)}
+                        </FieldLabel>
+                        {/* `readOnly` but NOT `disabled`, matching
+                            `WorkspaceIdField` below: a disabled input can't be
+                            focused, so the slug could be neither selected nor
+                            copied by keyboard, and screen readers skip disabled
+                            controls in browse mode. The lock says why it
+                            doesn't take typing. */}
+                        <InputGroup className="bg-muted">
+                            <InputGroupAddon>
+                                <Lock aria-hidden />
+                            </InputGroupAddon>
+                            <InputGroupInput
+                                id="settings-slug"
+                                value={workspace.slug}
+                                readOnly
+                                className="text-muted-foreground"
+                            />
+                        </InputGroup>
+                        <FieldDescription>
+                            {intl.formatMessage(messages.slugHint)}
+                        </FieldDescription>
+                    </Field>
+
+                    <WorkspaceIdField workspaceId={workspace.id} />
+                </FieldGroup>
+            </SettingsSection>
+
+            {canUpdate ? (
+                <PageActionsPortal>
+                    <form.Subscribe
+                        selector={(state) => ({
+                            canSubmit: state.canSubmit,
+                            isDirty: state.isDirty,
+                            isSubmitting: state.isSubmitting
+                        })}
+                    >
+                        {({ canSubmit, isDirty, isSubmitting }) => {
+                            const dirty = isDirty || colorDirty;
+                            return (
+                                <>
+                                    {dirty ? (
+                                        <>
+                                            <span className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-xs font-medium text-warning-soft-foreground">
+                                                <span
+                                                    aria-hidden
+                                                    className="size-1.5 rounded-full bg-current"
+                                                />
+                                                {intl.formatMessage(
+                                                    messages.unsaved
+                                                )}
+                                            </span>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                disabled={isSubmitting}
+                                                onClick={() => {
+                                                    form.reset();
+                                                    setColor(savedColor);
+                                                }}
+                                            >
+                                                {intl.formatMessage(
+                                                    messages.discard
+                                                )}
+                                            </Button>
+                                        </>
+                                    ) : null}
+                                    <Button
+                                        type="submit"
+                                        form={formId}
+                                        disabled={
+                                            !canSubmit || !dirty || isSubmitting
+                                        }
+                                    >
+                                        {isSubmitting ? (
+                                            <>
+                                                <Spinner />
+                                                {intl.formatMessage(
+                                                    messages.saving
+                                                )}
+                                            </>
+                                        ) : (
+                                            intl.formatMessage(messages.save)
+                                        )}
+                                    </Button>
+                                </>
+                            );
+                        }}
+                    </form.Subscribe>
+                </PageActionsPortal>
+            ) : null}
+        </>
     );
 }

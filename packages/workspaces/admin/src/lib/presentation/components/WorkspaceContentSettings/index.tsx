@@ -1,14 +1,13 @@
 import { useMemo, useRef, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { Plus } from 'lucide-react';
+import { Plus, Search, Share2, TriangleAlert } from 'lucide-react';
 import { useJustCreated } from '@orthacms/utils-admin';
 import {
+    Badge,
     Button,
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
+    InputGroup,
+    InputGroupAddon,
+    InputGroupInput,
     Spinner,
     toast
 } from '@orthacms/design-system';
@@ -37,48 +36,52 @@ import {
 } from './GrantedContentRow';
 
 const messages = defineMessages({
-    title: {
-        id: 'workspaces.settings.content.title',
-        defaultMessage: 'Content types'
+    ownGroup: {
+        id: 'workspaces.settings.content.ownGroup',
+        defaultMessage: 'This workspace’s own'
     },
-    description: {
-        id: 'workspaces.settings.content.description',
+    ownSummary: {
+        id: 'workspaces.settings.content.ownSummary',
         defaultMessage:
-            'The collections and pages this workspace can work with. Its Content Library is scoped to these.'
+            '{collections, plural, one {# collection} other {# collections}} · {pages, plural, one {# page} other {# pages}}'
     },
-    collections: {
-        id: 'workspaces.settings.content.collections',
-        defaultMessage: 'Collections'
+    ownEmpty: {
+        id: 'workspaces.settings.content.ownEmpty',
+        defaultMessage: 'No content types granted yet.'
     },
-    pages: {
-        id: 'workspaces.settings.content.pages',
-        defaultMessage: 'Pages'
+    sharedGroup: {
+        id: 'workspaces.settings.content.sharedGroup',
+        defaultMessage: 'From {workspace}'
     },
-    collectionsEmpty: {
-        id: 'workspaces.settings.content.collectionsEmpty',
-        defaultMessage: 'No collections granted yet.'
+    sharedBadge: {
+        id: 'workspaces.settings.content.sharedBadge',
+        defaultMessage: 'Shared'
     },
-    pagesEmpty: {
-        id: 'workspaces.settings.content.pagesEmpty',
-        defaultMessage: 'No pages granted yet.'
+    readOnlyHere: {
+        id: 'workspaces.settings.content.readOnlyHere',
+        defaultMessage: 'Read-only here'
     },
-    addCollections: {
-        id: 'workspaces.settings.content.addCollections',
-        defaultMessage: 'Add collections'
+    search: {
+        id: 'workspaces.settings.content.search',
+        defaultMessage: 'Search content types'
     },
-    addPages: {
-        id: 'workspaces.settings.content.addPages',
-        defaultMessage: 'Add pages'
+    noMatches: {
+        id: 'workspaces.settings.content.noMatches',
+        defaultMessage: 'No granted content type matches your search.'
     },
-    addCollectionsBody: {
-        id: 'workspaces.settings.content.addCollectionsBody',
+    add: {
+        id: 'workspaces.settings.content.add',
+        defaultMessage: 'Add content types'
+    },
+    addBody: {
+        id: 'workspaces.settings.content.addBody',
         defaultMessage:
-            'Search and select the multi-entry collections to grant this workspace.'
+            'Search and select the collections and pages to grant this workspace.'
     },
-    addPagesBody: {
-        id: 'workspaces.settings.content.addPagesBody',
+    removalNote: {
+        id: 'workspaces.settings.content.removalNote',
         defaultMessage:
-            'Search and select the standalone pages to grant this workspace.'
+            'Removing a type that still has entries is blocked. Move or delete its entries first — the remove dialog says how many are left.'
     },
     readOnly: {
         id: 'workspaces.settings.content.readOnly',
@@ -130,14 +133,13 @@ const isPageGrant = (granted: GrantedContent) =>
     granted.shared ? granted.shared.kind === 'single' : isPage(granted.type);
 
 /**
- * What each shared workspace still offers of one kind: its types minus the
+ * What each shared workspace still offers: its types minus the
  * ones already granted **from it** (an own grant of the same type doesn't
  * count — that is a different grant). Sources left with nothing drop out.
  */
 function sharedChoices(
     sources: readonly SharedSource[],
     workspace: Workspace,
-    kind: 'collection' | 'single',
     labelOf: (slug: string) => string
 ): SharedChoiceGroup[] {
     const granted = new Set(
@@ -153,7 +155,6 @@ function sharedChoices(
             items: source.content
                 .filter(
                     (type) =>
-                        type.kind === kind &&
                         !granted.has(grantKey(type.slug, source.workspaceId))
                 )
                 .map((type) => ({
@@ -173,17 +174,27 @@ export type WorkspaceContentSettingsProps = {
     canUpdate: boolean;
 };
 
+/** One source's grants, in the order the list draws them. */
+type GrantGroup = {
+    /** `own`, or the source workspace's id. */
+    key: string;
+    /** The source workspace's name; absent for the own group. */
+    sourceName?: string;
+    items: GrantedContent[];
+};
+
 /**
- * The Content-types settings tab: the granted collections and pages shown as
- * two titled groups (each row with its title + description), granted through a
- * **separate search + multi-select dialog per kind** (Add collections / Add
- * pages), and revoked through a dialog that **blocks** the action while the type
- * still holds entries. Gated on `workspaces:update`.
+ * The Content types settings section: every grant in **one list**, grouped by
+ * where its records come from — this workspace's own first (collections, then
+ * pages), then one group per shared workspace — with a search over them, one
+ * **Add content types** dialog for both kinds, and a remove that **blocks**
+ * while an own type still holds entries. Each own row says how many it holds.
+ * Gated on `workspaces:update`.
  *
  * Grants are **per source**: a type granted as this workspace's own ("Tags")
- * and from a shared workspace ("Tags · Travel Library") are two rows, added and
- * removed independently — the shared one carries a Shared badge, plus an
- * Unavailable one while its source no longer shares.
+ * and from a shared workspace ("Tags" under "From Travel Library") are two
+ * rows, added and removed independently — the shared one carries an
+ * Unavailable badge while its source no longer shares.
  */
 export function WorkspaceContentSettings({
     workspace,
@@ -192,17 +203,17 @@ export function WorkspaceContentSettings({
     const intl = useIntl();
     const grantLabel = useGrantLabel();
     const catalog = useContentTypes();
-    // Only someone who can grant ever opens the dialogs that list sources.
+    // Only someone who can grant ever opens the dialog that lists sources.
     const sources = useSharedSources(workspace.id, canUpdate);
     const addContent = useAddWorkspaceContent();
     const removeContent = useRemoveWorkspaceContent();
     const isJustGranted = useJustCreated(workspaceContentScope(workspace.id));
-    const headingRef = useRef<HTMLHeadingElement>(null);
+    const searchRef = useRef<HTMLInputElement>(null);
     // Set once a revoke lands: the row whose X opened the dialog is gone, so
     // Radix's focus restore would drop to `<body>`.
     const removedRef = useRef(false);
-    const [addCollectionsOpen, setAddCollectionsOpen] = useState(false);
-    const [addPagesOpen, setAddPagesOpen] = useState(false);
+    const [addOpen, setAddOpen] = useState(false);
+    const [query, setQuery] = useState('');
     const [pendingRemoval, setPendingRemoval] = useState<GrantedContent | null>(
         null
     );
@@ -215,41 +226,61 @@ export function WorkspaceContentSettings({
     }, [types]);
 
     const grantedSet = new Set(workspace.content);
-    const granted: GrantedContent[] = [
-        ...workspace.content.map((slug) => ({
-            key: grantKey(slug),
-            slug,
-            type: byName.get(slug)
-        })),
-        // Each grant from a shared workspace is its own row, after the own
-        // ones, labelled "{Type} · {Workspace}".
-        ...workspace.sharedContent.map((shared) => ({
+    const own: GrantedContent[] = workspace.content.map((slug) => ({
+        key: grantKey(slug),
+        slug,
+        type: byName.get(slug)
+    }));
+    // Collections first, then pages; an unknown (stale) slug can't be classed
+    // by kind and falls with the collections, the default bucket.
+    const ownSorted = [
+        ...own.filter((g) => !isPageGrant(g)),
+        ...own.filter((g) => isPageGrant(g))
+    ];
+    const ownPages = own.filter((g) => isPageGrant(g)).length;
+
+    const q = query.trim().toLowerCase();
+    const matches = (granted: GrantedContent) =>
+        !q ||
+        [
+            granted.type?.label,
+            granted.type?.name,
+            granted.slug,
+            granted.shared?.sourceWorkspaceName
+        ].some((field) => field?.toLowerCase().includes(q));
+
+    const sharedGroups = new Map<string, GrantGroup>();
+    for (const shared of workspace.sharedContent) {
+        const group = sharedGroups.get(shared.sourceWorkspaceId) ?? {
+            key: shared.sourceWorkspaceId,
+            sourceName: shared.sourceWorkspaceName,
+            items: []
+        };
+        group.items.push({
             key: grantKey(shared.slug, shared.sourceWorkspaceId),
             slug: shared.slug,
             type: byName.get(shared.slug),
             shared
-        }))
+        });
+        sharedGroups.set(shared.sourceWorkspaceId, group);
+    }
+    const groups: GrantGroup[] = [
+        { key: 'own', items: ownSorted.filter(matches) },
+        ...[...sharedGroups.values()]
+            .map((group) => ({ ...group, items: group.items.filter(matches) }))
+            .filter((group) => group.items.length > 0)
     ];
-    // An unknown (stale) slug can't be classed by kind — it falls under
-    // Collections, the default bucket.
-    const grantedCollections = granted.filter((g) => !isPageGrant(g));
-    const grantedPages = granted.filter((g) => isPageGrant(g));
-    const availableCollections = types.filter(
-        (type) => !isPage(type) && !grantedSet.has(type.name)
-    );
-    const availablePages = types.filter(
-        (type) => isPage(type) && !grantedSet.has(type.name)
-    );
+    const nothingMatches =
+        q !== '' && groups.every((group) => group.items.length === 0);
+
+    const available = types.filter((type) => !grantedSet.has(type.name));
     const labelOf = (slug: string) =>
         byName.get(slug)?.label ?? byName.get(slug)?.name ?? slug;
-    const sourceList = sources.data ?? [];
-    const sharedCollections = sharedChoices(
-        sourceList,
+    const sharedChoiceGroups = sharedChoices(
+        sources.data ?? [],
         workspace,
-        'collection',
         labelOf
     );
-    const sharedPages = sharedChoices(sourceList, workspace, 'single', labelOf);
 
     /** Grants the chosen types; returns whether it succeeded (to close on ok). */
     const grant = async (choices: ContentGrantChoice[]): Promise<boolean> => {
@@ -320,117 +351,142 @@ export function WorkspaceContentSettings({
 
     const removalLabel = pendingRemoval ? grantLabel(pendingRemoval) : '';
 
-    // The removed row took its X with it; land on the card heading instead of
-    // `<body>`. A cancelled dialog keeps Radix's own restore to the X.
+    // The removed row took its X with it; land on the search box above the
+    // list instead of `<body>`. A cancelled dialog keeps Radix's own restore
+    // to the X.
     const onRemovalCloseAutoFocus = (event: Event) => {
         if (!removedRef.current) return;
         removedRef.current = false;
         event.preventDefault();
-        headingRef.current?.focus();
+        searchRef.current?.focus();
     };
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle asChild>
-                    <h2
-                        ref={headingRef}
-                        tabIndex={-1}
-                        className="focus-visible:outline-none"
-                    >
-                        {intl.formatMessage(messages.title)}
-                    </h2>
-                </CardTitle>
-                <CardDescription>
-                    {intl.formatMessage(messages.description)}
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-5">
-                {catalog.isError ? (
-                    <p className="text-sm text-destructive">
-                        {intl.formatMessage(messages.loadError)}
-                    </p>
-                ) : null}
+        <>
+            {catalog.isError ? (
+                <p className="text-sm text-destructive">
+                    {intl.formatMessage(messages.loadError)}
+                </p>
+            ) : null}
 
+            <div className="flex flex-wrap items-center gap-2">
+                <InputGroup className="w-full sm:max-w-[320px]">
+                    <InputGroupAddon>
+                        <Search />
+                    </InputGroupAddon>
+                    <InputGroupInput
+                        ref={searchRef}
+                        type="search"
+                        value={query}
+                        onChange={(event) => setQuery(event.target.value)}
+                        placeholder={intl.formatMessage(messages.search)}
+                        aria-label={intl.formatMessage(messages.search)}
+                        autoComplete="off"
+                    />
+                </InputGroup>
                 {canUpdate ? (
-                    <div className="flex flex-wrap gap-2">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setAddCollectionsOpen(true)}
-                            disabled={catalog.isPending || catalog.isError}
-                        >
-                            <Plus className="size-4" />
-                            {intl.formatMessage(messages.addCollections)}
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setAddPagesOpen(true)}
-                            disabled={catalog.isPending || catalog.isError}
-                        >
-                            <Plus className="size-4" />
-                            {intl.formatMessage(messages.addPages)}
-                        </Button>
-                    </div>
-                ) : (
-                    <p className="text-sm text-muted-foreground">
-                        {intl.formatMessage(messages.readOnly)}
-                    </p>
-                )}
+                    <Button
+                        type="button"
+                        variant="outline"
+                        className="ml-auto"
+                        onClick={() => setAddOpen(true)}
+                        disabled={catalog.isPending || catalog.isError}
+                    >
+                        <Plus className="size-4" />
+                        {intl.formatMessage(messages.add)}
+                    </Button>
+                ) : null}
+            </div>
 
-                {catalog.isPending && granted.length === 0 ? (
-                    <p className="flex items-center gap-2 rounded-xl border px-3 py-4 text-sm text-muted-foreground">
-                        <Spinner className="size-4" />
-                    </p>
-                ) : (
-                    <>
+            {canUpdate ? null : (
+                <p className="text-sm text-muted-foreground">
+                    {intl.formatMessage(messages.readOnly)}
+                </p>
+            )}
+
+            {catalog.isPending && own.length + sharedGroups.size === 0 ? (
+                <p className="flex items-center gap-2 rounded-xl border px-3 py-4 text-sm text-muted-foreground">
+                    <Spinner className="size-4" />
+                </p>
+            ) : nothingMatches ? (
+                <p className="rounded-xl border px-4 py-6 text-center text-sm text-muted-foreground">
+                    {intl.formatMessage(messages.noMatches)}
+                </p>
+            ) : (
+                groups.map((group) =>
+                    group.sourceName === undefined ? (
+                        group.items.length > 0 || !q ? (
+                            <GrantedContentGroup
+                                key={group.key}
+                                label={intl.formatMessage(messages.ownGroup)}
+                                heading={intl.formatMessage(messages.ownGroup)}
+                                aside={intl.formatMessage(messages.ownSummary, {
+                                    collections: own.length - ownPages,
+                                    pages: ownPages
+                                })}
+                                items={group.items}
+                                emptyLabel={intl.formatMessage(
+                                    messages.ownEmpty
+                                )}
+                                workspaceId={workspace.id}
+                                canRemove={canUpdate}
+                                onRemove={setPendingRemoval}
+                                isJustGranted={isJustGranted}
+                            />
+                        ) : null
+                    ) : (
                         <GrantedContentGroup
-                            heading={intl.formatMessage(messages.collections)}
-                            items={grantedCollections}
-                            emptyLabel={intl.formatMessage(
-                                messages.collectionsEmpty
-                            )}
+                            key={group.key}
+                            label={intl.formatMessage(messages.sharedGroup, {
+                                workspace: group.sourceName
+                            })}
+                            heading={
+                                <>
+                                    {intl.formatMessage(messages.sharedGroup, {
+                                        workspace: group.sourceName
+                                    })}
+                                    <Badge variant="info" size="xs">
+                                        <Share2
+                                            className="size-3"
+                                            aria-hidden
+                                        />
+                                        {intl.formatMessage(
+                                            messages.sharedBadge
+                                        )}
+                                    </Badge>
+                                </>
+                            }
+                            aside={intl.formatMessage(messages.readOnlyHere)}
+                            items={group.items}
+                            workspaceId={workspace.id}
                             canRemove={canUpdate}
                             onRemove={setPendingRemoval}
                             isJustGranted={isJustGranted}
                         />
-                        <GrantedContentGroup
-                            heading={intl.formatMessage(messages.pages)}
-                            items={grantedPages}
-                            emptyLabel={intl.formatMessage(messages.pagesEmpty)}
-                            canRemove={canUpdate}
-                            onRemove={setPendingRemoval}
-                            isJustGranted={isJustGranted}
-                        />
-                    </>
-                )}
-            </CardContent>
+                    )
+                )
+            )}
+
+            {canUpdate ? (
+                <p className="flex gap-2.5 rounded-xl bg-warning-soft px-3 py-2.5 text-[13px] text-warning-soft-foreground">
+                    <TriangleAlert
+                        className="mt-0.5 size-4 shrink-0"
+                        aria-hidden
+                    />
+                    {intl.formatMessage(messages.removalNote)}
+                </p>
+            ) : null}
 
             <AddContentDialog
-                open={addCollectionsOpen}
-                onOpenChange={setAddCollectionsOpen}
-                title={intl.formatMessage(messages.addCollections)}
-                description={intl.formatMessage(messages.addCollectionsBody)}
-                available={availableCollections}
-                sharedGroups={sharedCollections}
+                open={addOpen}
+                onOpenChange={setAddOpen}
+                title={intl.formatMessage(messages.add)}
+                description={intl.formatMessage(messages.addBody)}
+                available={available}
+                sharedGroups={sharedChoiceGroups}
                 sharedError={sources.isError}
                 onConfirm={async (choices) => {
-                    if (await grant(choices)) setAddCollectionsOpen(false);
-                }}
-                busy={addContent.isPending}
-            />
-
-            <AddContentDialog
-                open={addPagesOpen}
-                onOpenChange={setAddPagesOpen}
-                title={intl.formatMessage(messages.addPages)}
-                description={intl.formatMessage(messages.addPagesBody)}
-                available={availablePages}
-                sharedGroups={sharedPages}
-                sharedError={sources.isError}
-                onConfirm={async (choices) => {
-                    if (await grant(choices)) setAddPagesOpen(false);
+                    if (await grant(choices)) setAddOpen(false);
                 }}
                 busy={addContent.isPending}
             />
@@ -460,6 +516,6 @@ export function WorkspaceContentSettings({
                 onCloseAutoFocus={onRemovalCloseAutoFocus}
                 busy={removeContent.isPending}
             />
-        </Card>
+        </>
     );
 }

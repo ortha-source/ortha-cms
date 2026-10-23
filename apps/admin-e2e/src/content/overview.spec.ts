@@ -133,7 +133,7 @@ test.describe('Content Library overview', () => {
             {
                 ...LIBRARY_WORKSPACE,
                 content: [
-                    ...LIBRARY_WORKSPACE.content,
+                    ...(LIBRARY_WORKSPACE.content ?? []),
                     ...extra.map((type) => type.name)
                 ]
             }

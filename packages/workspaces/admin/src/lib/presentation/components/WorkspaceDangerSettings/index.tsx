@@ -1,32 +1,29 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
-import {
-    Button,
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-    ConfirmDialog,
-    Separator,
-    toast
-} from '@orthacms/design-system';
+import { TriangleAlert } from 'lucide-react';
+import { Button, ConfirmDialog, toast } from '@orthacms/design-system';
 import type { Workspace } from '../../../domain/types/workspace';
 import { useSetWorkspaceStatus } from '../../../application/useSetWorkspaceStatus';
 import { useDeleteWorkspace } from '../../../application/useDeleteWorkspace';
+import { useWorkspaceEntryCount } from '../../../application/useWorkspaceEntryCount';
 import { isConflict } from '../../../infrastructure/isConflict';
 import { DeleteWorkspaceDialog } from './DeleteWorkspaceDialog';
 
 const messages = defineMessages({
-    title: {
-        id: 'workspaces.settings.danger.title',
-        defaultMessage: 'Danger zone'
-    },
-    description: {
-        id: 'workspaces.settings.danger.description',
+    stillHolds: {
+        id: 'workspaces.settings.danger.stillHolds',
         defaultMessage:
-            'Archiving hides a workspace from everyday use; deleting is permanent. Proceed carefully.'
+            '{count, plural, one {It still holds # entry.} other {It still holds # entries.}}'
+    },
+    stillHoldsBody: {
+        id: 'workspaces.settings.danger.stillHoldsBody',
+        defaultMessage:
+            'Delete or move them first — the delete stays blocked until then.'
+    },
+    openContent: {
+        id: 'workspaces.settings.danger.openContent',
+        defaultMessage: 'Open Content'
     },
     archiveHeading: {
         id: 'workspaces.settings.danger.archiveHeading',
@@ -35,7 +32,7 @@ const messages = defineMessages({
     archiveBody: {
         id: 'workspaces.settings.danger.archiveBody',
         defaultMessage:
-            'Mark this workspace archived. Its content and members are kept; you can unarchive it any time.'
+            'Hides it from everyday use. Records, members and settings stay; unarchive it any time.'
     },
     unarchiveHeading: {
         id: 'workspaces.settings.danger.unarchiveHeading',
@@ -60,7 +57,7 @@ const messages = defineMessages({
     deleteBody: {
         id: 'workspaces.settings.danger.deleteBody',
         defaultMessage:
-            'Permanently delete this workspace, its memberships, and its content grants. This cannot be undone.'
+            'Removes the workspace, its members’ access and its settings for good.'
     },
     deleteAction: {
         id: 'workspaces.settings.danger.deleteAction',
@@ -114,8 +111,10 @@ export type WorkspaceDangerSettingsProps = {
 };
 
 /**
- * The Danger-zone settings tab: archive/unarchive (`workspaces:update`) and
- * permanently delete (`workspaces:delete`), each behind a typed confirmation.
+ * The Danger zone: archive/unarchive (`workspaces:update`) and permanently
+ * delete (`workspaces:delete`) as rows of one red-ruled card, each behind a
+ * confirmation. While the workspace still holds entries the Delete row says
+ * so — how many, and where to go — before anybody opens the dialog.
  * On delete the user is sent back to the workspaces grid (the shell route is
  * gone).
  */
@@ -132,6 +131,11 @@ export function WorkspaceDangerSettings({
     const [confirmingDelete, setConfirmingDelete] = useState(false);
 
     const isArchived = workspace.status === 'Archived';
+    // Said on the page, before anyone presses Delete: the dialog still runs
+    // its own check (a count can change in between), this only spares a
+    // click that was never going to work. Unread or failed, it says nothing.
+    const holdings = useWorkspaceEntryCount(workspace.id, canDelete, 'summary');
+    const stillHolds = holdings.data ?? 0;
 
     const toggleArchive = async () => {
         try {
@@ -171,33 +175,25 @@ export function WorkspaceDangerSettings({
     };
 
     return (
-        <Card className="border-destructive/40">
-            <CardHeader>
-                <CardTitle asChild className="text-destructive">
-                    <h2>{intl.formatMessage(messages.title)}</h2>
-                </CardTitle>
-                <CardDescription>
-                    {intl.formatMessage(messages.description)}
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
+        <>
+            <div className="overflow-hidden rounded-xl border border-destructive/35 bg-card">
                 {canUpdate ? (
-                    <div className="flex items-start justify-between gap-4">
-                        <div className="flex flex-col">
-                            <span className="text-sm font-medium">
+                    <div className="flex items-start gap-4 p-4">
+                        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                            <h2 className="text-sm font-medium">
                                 {intl.formatMessage(
                                     isArchived
                                         ? messages.unarchiveHeading
                                         : messages.archiveHeading
                                 )}
-                            </span>
-                            <span className="text-sm text-muted-foreground">
+                            </h2>
+                            <p className="text-[13px] text-muted-foreground">
                                 {intl.formatMessage(
                                     isArchived
                                         ? messages.unarchiveBody
                                         : messages.archiveBody
                                 )}
-                            </span>
+                            </p>
                         </div>
                         <Button
                             type="button"
@@ -223,22 +219,47 @@ export function WorkspaceDangerSettings({
                     </div>
                 ) : null}
 
-                {canUpdate && canDelete ? <Separator /> : null}
-
                 {canDelete ? (
-                    <div className="flex items-start justify-between gap-4">
-                        <div className="flex flex-col">
-                            <span className="text-sm font-medium">
+                    <div className="flex items-start gap-4 border-t border-destructive/20 p-4 first:border-t-0">
+                        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                            <h2 className="text-sm font-medium">
                                 {intl.formatMessage(messages.deleteHeading)}
-                            </span>
-                            <span className="text-sm text-muted-foreground">
+                            </h2>
+                            <p className="text-[13px] text-muted-foreground">
                                 {intl.formatMessage(messages.deleteBody)}
-                            </span>
+                            </p>
+                            {stillHolds > 0 ? (
+                                <p className="mt-2 flex gap-2.5 rounded-xl bg-warning-soft px-3 py-2.5 text-[13px] text-warning-soft-foreground">
+                                    <TriangleAlert
+                                        className="mt-0.5 size-4 shrink-0"
+                                        aria-hidden
+                                    />
+                                    <span>
+                                        <span className="font-medium">
+                                            {intl.formatMessage(
+                                                messages.stillHolds,
+                                                { count: stillHolds }
+                                            )}
+                                        </span>{' '}
+                                        {intl.formatMessage(
+                                            messages.stillHoldsBody
+                                        )}{' '}
+                                        <Link
+                                            to={`/workspaces/${workspace.id}/content`}
+                                            className="underline underline-offset-2"
+                                        >
+                                            {intl.formatMessage(
+                                                messages.openContent
+                                            )}
+                                        </Link>
+                                    </span>
+                                </p>
+                            ) : null}
                         </div>
                         <Button
                             type="button"
-                            variant="destructive"
-                            className="shrink-0"
+                            variant="outline"
+                            className="shrink-0 border-destructive/40 text-destructive hover:bg-destructive-soft hover:text-destructive"
                             disabled={remove.isPending}
                             onClick={() => setConfirmingDelete(true)}
                         >
@@ -246,7 +267,7 @@ export function WorkspaceDangerSettings({
                         </Button>
                     </div>
                 ) : null}
-            </CardContent>
+            </div>
 
             <ConfirmDialog
                 open={confirmingArchive}
@@ -266,6 +287,6 @@ export function WorkspaceDangerSettings({
                 onConfirm={confirmDelete}
                 busy={remove.isPending}
             />
-        </Card>
+        </>
     );
 }

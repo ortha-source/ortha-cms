@@ -1,11 +1,6 @@
 import { useId, useRef, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
     ConfirmDialog,
     Field,
     FieldContent,
@@ -16,6 +11,7 @@ import {
 } from '@orthacms/design-system';
 import type { Workspace } from '../../../domain/types/workspace';
 import { useSetWorkspaceSharing } from '../../../application/useSetWorkspaceSharing';
+import { SettingsSection } from '../SettingsSection';
 
 const messages = defineMessages({
     title: {
@@ -24,8 +20,7 @@ const messages = defineMessages({
     },
     description: {
         id: 'workspaces.settings.sharing.description',
-        defaultMessage:
-            'Let other workspaces link to records in this workspace.'
+        defaultMessage: 'Offer published records to other workspaces.'
     },
     label: {
         id: 'workspaces.settings.sharing.label',
@@ -76,7 +71,7 @@ export type WorkspaceSharingSettingsProps = {
 };
 
 /**
- * The **Sharing** card on the General settings tab: one switch deciding
+ * The **Sharing** section of the General settings: one switch deciding
  * whether this workspace's published records can be linked from other
  * workspaces granted the same content type.
  *
@@ -122,41 +117,38 @@ export function WorkspaceSharingSettings({
     };
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle asChild>
-                    <h2>{intl.formatMessage(messages.title)}</h2>
-                </CardTitle>
-                <CardDescription>
-                    {intl.formatMessage(messages.description)}
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Field orientation="horizontal">
-                    <FieldContent>
-                        <FieldLabel htmlFor={switchId}>
-                            {intl.formatMessage(messages.label)}
-                        </FieldLabel>
-                        <FieldDescription id={hintId}>
-                            {intl.formatMessage(messages.hint)}
-                        </FieldDescription>
-                    </FieldContent>
-                    <Switch
-                        ref={switchRef}
-                        id={switchId}
-                        aria-describedby={hintId}
-                        checked={checked}
-                        disabled={!canUpdate || sharing.isPending}
-                        onCheckedChange={(next) => {
-                            if (next) {
-                                apply(true);
-                            } else {
-                                setConfirmingOff(true);
-                            }
-                        }}
-                    />
-                </Field>
-            </CardContent>
+        <SettingsSection
+            id={`${switchId}-title`}
+            title={intl.formatMessage(messages.title)}
+            description={intl.formatMessage(messages.description)}
+        >
+            {/* Switch first, as the canvas draws it: the control leads
+                    its sentence, so the state is read before the reason. */}
+            <Field orientation="horizontal" className="items-start">
+                <Switch
+                    ref={switchRef}
+                    id={switchId}
+                    aria-describedby={hintId}
+                    checked={checked}
+                    disabled={!canUpdate || sharing.isPending}
+                    className="mt-0.5"
+                    onCheckedChange={(next) => {
+                        if (next) {
+                            apply(true);
+                        } else {
+                            setConfirmingOff(true);
+                        }
+                    }}
+                />
+                <FieldContent>
+                    <FieldLabel htmlFor={switchId}>
+                        {intl.formatMessage(messages.label)}
+                    </FieldLabel>
+                    <FieldDescription id={hintId}>
+                        {intl.formatMessage(messages.hint)}
+                    </FieldDescription>
+                </FieldContent>
+            </Field>
 
             <ConfirmDialog
                 open={confirmingOff}
@@ -178,6 +170,6 @@ export function WorkspaceSharingSettings({
                 }}
                 onConfirm={() => apply(false)}
             />
-        </Card>
+        </SettingsSection>
     );
 }

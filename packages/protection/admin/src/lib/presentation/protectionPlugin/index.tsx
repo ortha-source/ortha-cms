@@ -196,7 +196,10 @@ export function ProtectionPlugin(): ProtectionAdminPlugin {
                         id: 'protection',
                         path: 'protection',
                         labelId: 'protection.settings.tab',
-                        defaultLabel: 'Protection',
+                        defaultLabel: 'Publishing rules',
+                        descriptionId: 'protection.settings.tabDescription',
+                        defaultDescription:
+                            'Require approval before a type goes live. A rule holds the Publish button until enough reviewers approve the version on screen.',
                         icon: Shield,
                         order: 10,
                         // Administrator-only, and so is the list route it

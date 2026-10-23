@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import { FileText, Layers } from 'lucide-react';
 import { defineMessages, useIntl } from 'react-intl';
 import { useHasPermission } from '@orthacms/identity-admin';
 import { useCurrentWorkspace } from '@orthacms/workspaces-admin';
@@ -9,29 +10,15 @@ import {
     AlertTitle,
     Badge,
     Button,
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
     SkeletonRegion,
     Skeleton
 } from '@orthacms/design-system';
 import { protectedTypeRows } from '../../../domain/protectedTypeRows';
-import type { ProtectedTypeRow } from '../../../domain/types';
+import type { ProtectedTypeRow, ProtectionRule } from '../../../domain/types';
 import { useProtectionRules } from '../../../application/hooks';
 import { RuleEditorDialog } from './RuleEditorDialog';
 
 const messages = defineMessages({
-    title: {
-        id: 'protection.settings.title',
-        defaultMessage: 'Publication protection'
-    },
-    description: {
-        id: 'protection.settings.description',
-        defaultMessage:
-            'A protected type needs approvals before an entry can be published. Drafts are edited freely — publication is protected, not the record.'
-    },
     loading: {
         id: 'protection.settings.loading',
         defaultMessage: 'Loading protection rules'
@@ -85,6 +72,38 @@ const messages = defineMessages({
         id: 'protection.settings.orphanTitle',
         defaultMessage: 'Rules on types this workspace no longer has'
     },
+    listHeading: {
+        id: 'protection.settings.listHeading',
+        defaultMessage: 'Publishable types'
+    },
+    protectedCount: {
+        id: 'protection.settings.protectedCount',
+        defaultMessage: '{protected} of {total} protected'
+    },
+    protectedBadge: {
+        id: 'protection.settings.protectedBadge',
+        defaultMessage: 'Protected'
+    },
+    directly: {
+        id: 'protection.settings.directly',
+        defaultMessage: 'Publishes without review'
+    },
+    otherPerson: {
+        id: 'protection.settings.summary.otherPerson',
+        defaultMessage: 'the author can’t approve'
+    },
+    staleApprovals: {
+        id: 'protection.settings.summary.staleApprovals',
+        defaultMessage: 'earlier approvals count'
+    },
+    adminBypass: {
+        id: 'protection.settings.summary.adminBypass',
+        defaultMessage: 'admins may bypass'
+    },
+    tokenPublish: {
+        id: 'protection.settings.summary.tokenPublish',
+        defaultMessage: 'API tokens may publish'
+    },
     orphanBody: {
         id: 'protection.settings.orphanBody',
         defaultMessage:
@@ -93,7 +112,11 @@ const messages = defineMessages({
 });
 
 /**
- * The workspace settings **Protection** tab.
+ * The workspace settings **Publishing rules** section: every publishable type
+ * the workspace holds in one framed list — its rule in a line (the count,
+ * then each exception), a Protected / Not protected / Switched off badge, and
+ * Configure — then any rule left on a type the workspace no longer has. The
+ * settings page draws the `<h1>` and description from the slot item.
  *
  * **The list is the workspace's content grants, not its rules.** A rule is
  * addressed by `(workspace, kind, slug)` — the same pair `workspace_content`
@@ -165,127 +188,166 @@ export function ProtectionSettings() {
         );
     }
 
+    const protectedTotal = rows.filter((row) => row.rule?.enabled).length;
+
+    /** The rule in one line: the count, then each exception it makes. */
+    const summarize = (rule: ProtectionRule) =>
+        [
+            intl.formatMessage(messages.approvals, {
+                count: rule.requiredApprovals
+            }),
+            rule.requireOtherPerson && intl.formatMessage(messages.otherPerson),
+            rule.countStaleApprovals &&
+                intl.formatMessage(messages.staleApprovals),
+            rule.adminBypass && intl.formatMessage(messages.adminBypass),
+            rule.allowTokenPublish && intl.formatMessage(messages.tokenPublish)
+        ]
+            .filter(Boolean)
+            .join(' · ');
+
     return (
         <>
-            <Card>
-                <CardHeader>
-                    <CardTitle>{intl.formatMessage(messages.title)}</CardTitle>
-                    <CardDescription>
-                        {intl.formatMessage(messages.description)}
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="p-0">
-                    {rows.length === 0 ? (
-                        <div className="p-6">
-                            <p className="text-sm font-medium">
-                                {intl.formatMessage(messages.emptyTitle)}
-                            </p>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                                {intl.formatMessage(messages.emptyBody)}
-                            </p>
-                        </div>
-                    ) : (
-                        <ul className="divide-y">
-                            {rows.map((row) => (
-                                <li
-                                    key={row.slug}
-                                    className="flex items-center justify-between gap-4 px-6 py-4"
+            <div className="overflow-hidden rounded-xl border bg-card">
+                <div className="flex items-center gap-2 border-b bg-muted/40 px-4 py-2 text-xs font-medium text-muted-foreground">
+                    {intl.formatMessage(messages.listHeading)}
+                    {rows.length > 0 ? (
+                        <span className="ml-auto">
+                            {intl.formatMessage(messages.protectedCount, {
+                                protected: protectedTotal,
+                                total: rows.length
+                            })}
+                        </span>
+                    ) : null}
+                </div>
+                {rows.length === 0 ? (
+                    <div className="px-4 py-5">
+                        <p className="text-sm font-medium">
+                            {intl.formatMessage(messages.emptyTitle)}
+                        </p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            {intl.formatMessage(messages.emptyBody)}
+                        </p>
+                    </div>
+                ) : (
+                    <ul
+                        aria-label={intl.formatMessage(messages.listHeading)}
+                        className="divide-y"
+                    >
+                        {rows.map((row) => (
+                            <li
+                                key={row.slug}
+                                className="flex min-h-[52px] items-center gap-3 px-4 py-2"
+                            >
+                                <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                                    {row.kind === 'single' ? (
+                                        <FileText
+                                            className="size-4"
+                                            aria-hidden
+                                        />
+                                    ) : (
+                                        <Layers
+                                            className="size-4"
+                                            aria-hidden
+                                        />
+                                    )}
+                                </span>
+                                <div className="flex min-w-0 flex-1 flex-col">
+                                    <span className="truncate text-sm font-medium">
+                                        {row.label}
+                                    </span>
+                                    <span className="truncate text-xs text-muted-foreground">
+                                        {row.rule?.enabled
+                                            ? summarize(row.rule)
+                                            : intl.formatMessage(
+                                                  messages.directly
+                                              )}
+                                    </span>
+                                </div>
+                                {/* Text, never colour alone. */}
+                                <Badge
+                                    variant={
+                                        row.rule?.enabled ? 'success' : 'muted'
+                                    }
                                 >
-                                    <div className="min-w-0">
-                                        <div className="truncate text-sm font-medium">
-                                            {row.label}
-                                        </div>
-                                        <div className="truncate font-mono text-xs text-muted-foreground">
-                                            {row.slug} · {row.kind}
-                                        </div>
-                                    </div>
-                                    <div className="flex flex-none items-center gap-3">
-                                        {/* Text, never colour alone. */}
-                                        <Badge
-                                            variant={
-                                                row.rule?.enabled
-                                                    ? 'default'
-                                                    : 'secondary'
-                                            }
-                                        >
-                                            {row.rule?.enabled
-                                                ? intl.formatMessage(
-                                                      messages.approvals,
-                                                      {
-                                                          count: row.rule
-                                                              .requiredApprovals
-                                                      }
-                                                  )
-                                                : intl.formatMessage(
-                                                      row.rule
-                                                          ? messages.off
-                                                          : messages.unprotected
-                                                  )}
-                                        </Badge>
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={(event) => {
-                                                trigger.current =
-                                                    event.currentTarget;
-                                                setEditing(row);
-                                            }}
-                                            aria-label={intl.formatMessage(
-                                                messages.configureFor,
-                                                { label: row.label }
-                                            )}
-                                        >
-                                            {intl.formatMessage(
-                                                messages.configure
-                                            )}
-                                        </Button>
-                                    </div>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                </CardContent>
-            </Card>
+                                    {intl.formatMessage(
+                                        row.rule?.enabled
+                                            ? messages.protectedBadge
+                                            : row.rule
+                                              ? messages.off
+                                              : messages.unprotected
+                                    )}
+                                </Badge>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={(event) => {
+                                        trigger.current = event.currentTarget;
+                                        setEditing(row);
+                                    }}
+                                    aria-label={intl.formatMessage(
+                                        messages.configureFor,
+                                        { label: row.label }
+                                    )}
+                                >
+                                    {intl.formatMessage(messages.configure)}
+                                </Button>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </div>
 
             {orphans.length > 0 ? (
-                <Alert className="mt-6">
-                    <AlertTitle>
-                        {intl.formatMessage(messages.orphanTitle)}
-                    </AlertTitle>
-                    <AlertDescription>
-                        <p>{intl.formatMessage(messages.orphanBody)}</p>
-                        <ul className="mt-2 space-y-2">
-                            {orphans.map((rule) => (
-                                <li
-                                    key={rule.id}
-                                    className="flex items-center justify-between gap-3"
-                                >
-                                    <span className="font-mono text-xs">
-                                        {rule.slug} · {rule.kind}
+                <div className="overflow-hidden rounded-xl border bg-card">
+                    <div className="flex flex-col gap-0.5 border-b bg-muted/40 px-4 py-2">
+                        <span className="text-xs font-medium text-muted-foreground">
+                            {intl.formatMessage(messages.orphanTitle)}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                            {intl.formatMessage(messages.orphanBody)}
+                        </span>
+                    </div>
+                    <ul
+                        aria-label={intl.formatMessage(messages.orphanTitle)}
+                        className="divide-y"
+                    >
+                        {orphans.map((rule) => (
+                            <li
+                                key={rule.id}
+                                className="flex min-h-[52px] items-center gap-3 px-4 py-2"
+                            >
+                                <div className="flex min-w-0 flex-1 flex-col">
+                                    <span className="truncate font-mono text-sm">
+                                        {rule.slug}
                                     </span>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={(event) => {
-                                            trigger.current =
-                                                event.currentTarget;
-                                            setEditing({
-                                                slug: rule.slug,
-                                                kind: rule.kind,
-                                                label: rule.slug,
-                                                rule
-                                            });
-                                        }}
-                                    >
-                                        {intl.formatMessage(messages.configure)}
-                                    </Button>
-                                </li>
-                            ))}
-                        </ul>
-                    </AlertDescription>
-                </Alert>
+                                    <span className="truncate text-xs text-muted-foreground">
+                                        {rule.kind} ·{' '}
+                                        {rule.enabled
+                                            ? summarize(rule)
+                                            : intl.formatMessage(messages.off)}
+                                    </span>
+                                </div>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={(event) => {
+                                        trigger.current = event.currentTarget;
+                                        setEditing({
+                                            slug: rule.slug,
+                                            kind: rule.kind,
+                                            label: rule.slug,
+                                            rule
+                                        });
+                                    }}
+                                >
+                                    {intl.formatMessage(messages.configure)}
+                                </Button>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
             ) : null}
 
             {editing ? (
