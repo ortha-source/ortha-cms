@@ -74,12 +74,17 @@ export function RequestAge({
         <time
             dateTime={createdAt}
             className={cn(
-                'text-sm',
                 overdue
-                    ? 'text-warning-soft-foreground'
-                    : 'text-muted-foreground'
+                    ? 'inline-flex h-5 items-center gap-1.5 rounded-md bg-destructive-soft px-1.5 text-xs font-medium whitespace-nowrap text-destructive-soft-foreground'
+                    : 'text-sm text-muted-foreground'
             )}
         >
+            {overdue ? (
+                <span
+                    aria-hidden
+                    className="size-1.5 shrink-0 rounded-full bg-current"
+                />
+            ) : null}
             {overdue
                 ? `${waited} — ${intl.formatMessage(messages.overdue)}`
                 : waited}

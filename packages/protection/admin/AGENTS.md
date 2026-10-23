@@ -245,13 +245,21 @@ though anyone with `content:approve` may still approve it. The narrower reading
 the queue line carries the tally but not who approved. The table has a
 _Reviewers_ column naming who each ask is waiting on.
 
-**It looks like every other list.** The table sits in the same bordered card
-as the members, tokens and webhooks tables, names each record by its title and
+**It looks like every other list.** It is the same plain design-system table
+as the members, tokens and webhooks tables, under the page's own `<h1>`, names each record by its title and
 its type by its label — both sent by the queue route, one read per line of a
 bounded page — and loads behind a skeleton of the same shape. A record with no
 title to show falls back to a fragment of its id, as "Open 1a2b3c4d".
 
-**The age says "overdue" in words, not only in colour.** A greyscale screen, a
+**A row reads like the canvas draws it**: the record's title over its type
+(one column, not two), who asked, the reviewers as overlapping avatars
+(`ReviewerLabel compact` — the names stay in the list as `sr-only` text and
+on hover), the approvals as pips beside "1 of 2" (with an `sr-only`
+"approvals", so the tally is still a sentence), and a **Review** button —
+a duplicate of the title link, so it is taken out of the tab order.
+
+**The age says "overdue" in words, not only in colour** — and an overdue one
+is a badge. A greyscale screen, a
 colour-blind reader and a screen reader all have to get the same fact — the rule
 a queue breaks most easily, because "this one is old" feels like something red
 says by itself. The exact moment rides `<time datetime>` so nothing is lost to
