@@ -39,7 +39,7 @@ export function WebhooksSkeleton({ rows = 4 }: { rows?: number }) {
             <span className="sr-only">
                 {intl.formatMessage(messages.loading)}
             </span>
-            <div aria-hidden className="overflow-hidden rounded-xl border">
+            <div aria-hidden>
                 <Table>
                     <TableHeader>
                         <TableRow>

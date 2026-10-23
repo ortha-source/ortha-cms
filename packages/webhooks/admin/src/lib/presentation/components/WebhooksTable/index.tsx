@@ -50,7 +50,7 @@ export function WebhooksTable({
     const intl = useIntl();
 
     return (
-        <div className="overflow-hidden rounded-xl border">
+        <div>
             <Table className="min-w-[860px] table-fixed">
                 <caption className="sr-only">
                     {intl.formatMessage(messages.caption)}
@@ -62,7 +62,7 @@ export function WebhooksTable({
                     <col className="w-[110px]" />
                     <col className="w-[150px]" />
                 </colgroup>
-                <TableHeader className="bg-muted/40">
+                <TableHeader>
                     <TableRow>
                         <TableHead>
                             {intl.formatMessage(messages.name)}

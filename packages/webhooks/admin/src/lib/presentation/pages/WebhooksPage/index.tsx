@@ -184,7 +184,7 @@ export function WebhooksPage() {
                                 workspaces={workspaces ?? []}
                             />
                         ) : (
-                            <p className="rounded-xl border px-4 py-8 text-center text-sm text-muted-foreground">
+                            <p className="px-4 py-8 text-center text-sm text-muted-foreground">
                                 {intl.formatMessage(messages.noMatch)}
                             </p>
                         )}
