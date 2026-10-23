@@ -77,9 +77,18 @@ describe content an editor is already working on — even _reading_ this is
 withheld from contributors, because an endpoint reaches across every workspace
 it names and its rows hold a signing secret.
 
-### 2. "All …" is a toggle, not an empty picker
+### 2. "All …" is a choice, not an empty picker
 
-Each of the three filters is an "All …" checkbox over a multi-select. Turning one
+Each of the three filters asks "everything, or only these?" first: workspaces
+and events as two option cards (`WebhookForm/ScopeChoice`, a radio group —
+"All workspaces · including ones created later" / "Only these workspaces"),
+content types as an **All types / Only some** segmented control. Picking
+"only these" opens the picker: a multi-select for workspaces and types, and
+for events a **checklist** grouped by the catalogue's groups
+(`WebhookForm/EventChecklist`), each group with a box of its own that ticks
+or clears the lot and reads mixed in between; the kinds are saved in
+catalogue order. The endpoint's state is an **Active / Paused** segmented
+control (decision 4 still holds: pausing asks). Turning one
 on sends **no value** for that filter, which is how the server spells
 "everything, including what does not exist yet". Leaving it off with nothing
 selected is a different thing for workspaces — an endpoint that receives nothing
@@ -133,9 +142,10 @@ type it subscribes to exists. So:
 
 ### 4. Turning an endpoint off asks first
 
-The status control is a `Switch` reading **Enabled** / **Disabled**, not a
-"send deliveries" checkbox: an endpoint's state is a thing it _is_, and the old
-label read as an action. Turning it **off** opens a `ConfirmDialog`, because it
+The state control reads **Active** / **Paused** (a segmented control; it was a
+`Switch`), not a "send deliveries" checkbox: an endpoint's state is a thing it
+_is_, and the old label read as an action. Choosing **Paused** opens a
+`ConfirmDialog`, because it
 is the one control here whose cost is invisible — events that happen while the
 endpoint is off are never queued, so there is nothing to catch up on afterwards,
 and deliveries already waiting are closed as failed. Turning it back **on** asks

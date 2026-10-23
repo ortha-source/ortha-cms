@@ -254,6 +254,39 @@ test.describe('Webhooks', () => {
             });
         });
 
+        test('a group box ticks its events and sends them in catalogue order', async ({
+            page,
+            webhooksPage
+        }) => {
+            await mockWebhooksApi(page);
+            await webhooksPage.gotoNew();
+            const posted = page.waitForRequest(
+                (request) =>
+                    request.url().endsWith('/api/webhooks') &&
+                    request.method() === 'POST'
+            );
+
+            await webhooksPage.nameField().fill('Cache purge');
+            await webhooksPage.urlField().fill('https://cdn.example.com/hooks');
+            await webhooksPage.allWorkspacesToggle().click();
+            await webhooksPage.openEventPicker();
+            await webhooksPage.eventCheckbox('Entry deleted').click();
+            // One of three picked: the group box reads mixed, and ticking it
+            // takes the rest.
+            const group = webhooksPage.eventCheckbox('All content events');
+            await expect(group).toHaveAttribute('data-state', 'indeterminate');
+            await group.click();
+            await webhooksPage.submitButton().click();
+
+            expect((await posted).postDataJSON()).toMatchObject({
+                eventKinds: [
+                    'entry.created',
+                    'entry.published',
+                    'entry.deleted'
+                ]
+            });
+        });
+
         test('reveals the signing secret exactly once', async ({
             page,
             webhooksPage
@@ -331,8 +364,8 @@ test.describe('Webhooks', () => {
             await webhooksPage.gotoNew();
             await webhooksPage.editorHeading('New webhook').waitFor();
 
-            await expect(webhooksPage.enabledSwitch()).toBeChecked();
-            await webhooksPage.enabledSwitch().click();
+            await expect(webhooksPage.stateChoice('Active')).toBeChecked();
+            await webhooksPage.stateChoice('Paused').click();
 
             // What happens while an endpoint is off is not recorded anywhere,
             // so the switch says so before it moves. Declining leaves it on —
@@ -341,11 +374,11 @@ test.describe('Webhooks', () => {
             await expect(webhooksPage.disableConfirm()).toBeVisible();
             await webhooksPage.keepEnabledButton().click();
             await expect(webhooksPage.disableConfirm()).toBeHidden();
-            await expect(webhooksPage.enabledSwitch()).toBeChecked();
+            await expect(webhooksPage.stateChoice('Active')).toBeChecked();
 
-            await webhooksPage.enabledSwitch().click();
+            await webhooksPage.stateChoice('Paused').click();
             await webhooksPage.disableConfirmButton().click();
-            await expect(webhooksPage.enabledSwitch()).not.toBeChecked();
+            await expect(webhooksPage.stateChoice('Paused')).toBeChecked();
         });
 
         test('turns an endpoint back on without asking', async ({
@@ -357,12 +390,12 @@ test.describe('Webhooks', () => {
             await webhooksPage.gotoEdit('wh_paused');
             await webhooksPage.editorHeading('Edit webhook').waitFor();
 
-            await expect(webhooksPage.enabledSwitch()).not.toBeChecked();
-            await webhooksPage.enabledSwitch().click();
+            await expect(webhooksPage.stateChoice('Paused')).toBeChecked();
+            await webhooksPage.stateChoice('Active').click();
 
             // Turning it on loses nothing, so there is nothing to confirm.
             await expect(webhooksPage.disableConfirm()).toBeHidden();
-            await expect(webhooksPage.enabledSwitch()).toBeChecked();
+            await expect(webhooksPage.stateChoice('Active')).toBeChecked();
         });
 
         test('sends a custom header with the endpoint', async ({
@@ -434,13 +467,13 @@ test.describe('Webhooks', () => {
             await webhooksPage.table.waitFor();
 
             await webhooksPage.newWebhookButton.click();
-            // The picker only exists once "Every event" is switched off.
+            // The checklist only exists once "Only these events" is picked.
             await webhooksPage.openEventPicker();
 
             await expect(
-                webhooksPage.eventOption('Entry published')
+                webhooksPage.eventCheckbox('Entry published')
             ).toBeVisible();
-            await expect(webhooksPage.eventOption('Test ping')).toBeHidden();
+            await expect(webhooksPage.eventCheckbox('Test ping')).toBeHidden();
         });
 
         test('does not ask about types before a workspace is chosen', async ({

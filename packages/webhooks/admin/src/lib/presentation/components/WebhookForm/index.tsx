@@ -4,13 +4,13 @@ import {
     Alert,
     AlertDescription,
     Button,
-    Checkbox,
     ConfirmDialog,
     Input,
     InputField,
     Label,
     MultiSelect,
-    Switch
+    SegmentedControl,
+    SegmentedControlItem
 } from '@orthacms/design-system';
 import type {
     WebhookEndpoint,
@@ -33,7 +33,9 @@ import {
 } from '../../../domain/contentTypeChoices';
 import type { SaveWebhookInput } from '../../../infrastructure/webhookGateway';
 import { PageActionsPortal } from '@orthacms/shell-admin';
+import { EventChecklist } from './EventChecklist';
 import { FormSection } from './FormSection';
+import { ScopeChoice } from './ScopeChoice';
 
 const messages = defineMessages({
     endpointTitle: {
@@ -97,8 +99,20 @@ const messages = defineMessages({
         defaultMessage: 'Workspaces'
     },
     allWorkspaces: {
-        id: 'webhooks.form.allWorkspaces',
-        defaultMessage: 'All workspaces, including ones created later'
+        id: 'webhooks.form.allWorkspacesTitle',
+        defaultMessage: 'All workspaces'
+    },
+    allWorkspacesHint: {
+        id: 'webhooks.form.allWorkspacesHint',
+        defaultMessage: 'Including ones created later.'
+    },
+    someWorkspaces: {
+        id: 'webhooks.form.someWorkspaces',
+        defaultMessage: 'Only these workspaces'
+    },
+    someHint: {
+        id: 'webhooks.form.someHint',
+        defaultMessage: 'Pick one or more.'
     },
     workspacesHint: {
         id: 'webhooks.form.workspacesHint',
@@ -111,20 +125,32 @@ const messages = defineMessages({
     },
     events: { id: 'webhooks.form.events', defaultMessage: 'Events' },
     allEvents: {
-        id: 'webhooks.form.allEvents',
-        defaultMessage: 'Every event, including ones added later'
+        id: 'webhooks.form.allEventsTitle',
+        defaultMessage: 'Every event'
     },
-    eventsPlaceholder: {
-        id: 'webhooks.form.eventsPlaceholder',
-        defaultMessage: 'Choose events'
+    allEventsHint: {
+        id: 'webhooks.form.allEventsHint',
+        defaultMessage: 'Including ones added later.'
+    },
+    someEvents: {
+        id: 'webhooks.form.someEvents',
+        defaultMessage: 'Only these events'
     },
     contentTypes: {
         id: 'webhooks.form.contentTypes',
         defaultMessage: 'Content types'
     },
-    allContentTypes: {
-        id: 'webhooks.form.allContentTypes',
-        defaultMessage: 'Every content type, including ones added later'
+    contentTypesScope: {
+        id: 'webhooks.form.contentTypesScope',
+        defaultMessage: 'Which content types'
+    },
+    allTypes: {
+        id: 'webhooks.form.allTypes',
+        defaultMessage: 'All types'
+    },
+    someTypes: {
+        id: 'webhooks.form.someTypes',
+        defaultMessage: 'Only some'
     },
     contentTypesPlaceholder: {
         id: 'webhooks.form.contentTypesPlaceholder',
@@ -166,16 +192,16 @@ const messages = defineMessages({
         id: 'webhooks.form.contentTypesScoped',
         defaultMessage: 'Listing only what the chosen workspaces were granted.'
     },
-    status: { id: 'webhooks.form.status', defaultMessage: 'Status' },
-    enabled: { id: 'webhooks.form.enabled', defaultMessage: 'Enabled' },
-    disabled: { id: 'webhooks.form.disabled', defaultMessage: 'Disabled' },
+    status: { id: 'webhooks.form.state', defaultMessage: 'State' },
+    enabled: { id: 'webhooks.form.active', defaultMessage: 'Active' },
+    disabled: { id: 'webhooks.form.paused', defaultMessage: 'Paused' },
     enabledHint: {
         id: 'webhooks.form.enabledHint',
         defaultMessage: 'Deliveries are sent as content changes.'
     },
     disabledHint: {
         id: 'webhooks.form.disabledHint',
-        defaultMessage: 'Nothing is sent while this is off.'
+        defaultMessage: 'Paused keeps the webhook and sends nothing.'
     },
     disableTitle: {
         id: 'webhooks.form.disableTitle',
@@ -373,13 +399,10 @@ export function WebhookForm({
         setTouched(false);
     }, [endpointId]);
 
-    const eventOptions = useMemo(
-        () =>
-            events
-                // `ping` is what the Send-test button produces; it is not
-                // something an endpoint subscribes to.
-                .filter((event) => event.kind !== 'ping')
-                .map((event) => ({ value: event.kind, label: event.label })),
+    // `ping` is what the Send-test button produces; it is not something an
+    // endpoint subscribes to.
+    const subscribableEvents = useMemo(
+        () => events.filter((event) => event.kind !== 'ping'),
         [events]
     );
 
@@ -560,39 +583,40 @@ export function WebhookForm({
                     }
                 />
 
-                <fieldset className="flex flex-col gap-2">
-                    <legend className="text-sm font-medium">
+                <div className="flex flex-col gap-2">
+                    <span
+                        id="webhook-state-label"
+                        className="text-sm font-medium"
+                    >
                         {intl.formatMessage(messages.status)}
-                    </legend>
-                    <div className="flex items-center gap-3">
-                        <Switch
-                            id="webhook-enabled"
-                            checked={values.enabled}
-                            onCheckedChange={(checked) => {
-                                // Turning it on is harmless and immediate;
-                                // turning it off loses whatever happens next,
-                                // so only that direction asks.
-                                if (checked) {
-                                    setValues((prev) => ({
-                                        ...prev,
-                                        enabled: true
-                                    }));
-                                    return;
-                                }
-                                setConfirmDisable(true);
-                            }}
-                        />
-                        <Label
-                            htmlFor="webhook-enabled"
-                            className="text-sm font-normal"
-                        >
-                            {intl.formatMessage(
-                                values.enabled
-                                    ? messages.enabled
-                                    : messages.disabled
-                            )}
-                        </Label>
-                    </div>
+                    </span>
+                    <SegmentedControl
+                        variant="muted"
+                        aria-labelledby="webhook-state-label"
+                        value={values.enabled ? 'active' : 'paused'}
+                        onValueChange={(next) => {
+                            if (!next) return;
+                            // Resuming is harmless and immediate; pausing
+                            // loses whatever happens next, so only that
+                            // direction asks.
+                            if (next === 'active') {
+                                setValues((prev) => ({
+                                    ...prev,
+                                    enabled: true
+                                }));
+                                return;
+                            }
+                            if (values.enabled) setConfirmDisable(true);
+                        }}
+                        className="self-start"
+                    >
+                        <SegmentedControlItem value="active">
+                            {intl.formatMessage(messages.enabled)}
+                        </SegmentedControlItem>
+                        <SegmentedControlItem value="paused">
+                            {intl.formatMessage(messages.disabled)}
+                        </SegmentedControlItem>
+                    </SegmentedControl>
                     <p className="text-xs text-muted-foreground">
                         {intl.formatMessage(
                             values.enabled
@@ -600,7 +624,7 @@ export function WebhookForm({
                                 : messages.disabledHint
                         )}
                     </p>
-                </fieldset>
+                </div>
             </FormSection>
 
             <FormSection
@@ -608,40 +632,30 @@ export function WebhookForm({
                 title={intl.formatMessage(messages.receivesTitle)}
                 description={intl.formatMessage(messages.receivesDescription)}
             >
-                <fieldset className="flex flex-col gap-2">
-                    <legend className="text-sm font-medium">
+                <fieldset className="flex flex-col gap-2.5">
+                    <legend className="mb-2 text-sm font-medium">
                         {intl.formatMessage(messages.workspaces)}
                     </legend>
-                    <div className="flex items-center gap-2">
-                        {/* The design-system Checkbox is a Radix button
-                                (`role="checkbox"`), not a native input, so a
-                                wrapping <label> would not name it — it needs an
-                                id and an explicit `htmlFor`. */}
-                        <Checkbox
-                            id="webhook-all-workspaces"
-                            checked={values.allWorkspaces}
-                            onCheckedChange={(checked) =>
-                                setValues((prev) => ({
-                                    ...prev,
-                                    allWorkspaces: checked === true
-                                }))
-                            }
-                        />
-                        <Label
-                            htmlFor="webhook-all-workspaces"
-                            className="text-sm font-normal"
-                        >
-                            {intl.formatMessage(messages.allWorkspaces)}
-                        </Label>
-                    </div>
+                    <ScopeChoice
+                        id="webhook-workspaces-scope"
+                        label={intl.formatMessage(messages.workspaces)}
+                        value={values.allWorkspaces ? 'all' : 'some'}
+                        onChange={(next) =>
+                            setValues((prev) => ({
+                                ...prev,
+                                allWorkspaces: next === 'all'
+                            }))
+                        }
+                        allLabel={intl.formatMessage(messages.allWorkspaces)}
+                        allHint={intl.formatMessage(messages.allWorkspacesHint)}
+                        someLabel={intl.formatMessage(messages.someWorkspaces)}
+                        someHint={intl.formatMessage(messages.someHint)}
+                    />
                     {!values.allWorkspaces ? (
                         <>
                             {/* The trigger is a `Button role="combobox"`
-                                    showing its own selection, so it has no name
-                                    of its own — and a <legend> names the group,
-                                    not the control inside it. Without this it
-                                    is an unnamed button to a screen reader (axe
-                                    `button-name`). */}
+                                showing its own selection, so it has no name
+                                of its own (axe `button-name`). */}
                             <Label
                                 htmlFor="webhook-workspaces"
                                 className="sr-only"
@@ -674,48 +688,36 @@ export function WebhookForm({
                     ) : null}
                 </fieldset>
 
-                <fieldset className="flex flex-col gap-2">
-                    <legend className="text-sm font-medium">
+                <fieldset className="flex flex-col gap-2.5">
+                    <legend className="mb-2 text-sm font-medium">
                         {intl.formatMessage(messages.events)}
                     </legend>
-                    <div className="flex items-center gap-2">
-                        <Checkbox
-                            id="webhook-all-events"
-                            checked={values.allEvents}
-                            onCheckedChange={(checked) =>
+                    <ScopeChoice
+                        id="webhook-events-scope"
+                        label={intl.formatMessage(messages.events)}
+                        value={values.allEvents ? 'all' : 'some'}
+                        onChange={(next) =>
+                            setValues((prev) => ({
+                                ...prev,
+                                allEvents: next === 'all'
+                            }))
+                        }
+                        allLabel={intl.formatMessage(messages.allEvents)}
+                        allHint={intl.formatMessage(messages.allEventsHint)}
+                        someLabel={intl.formatMessage(messages.someEvents)}
+                        someHint={intl.formatMessage(messages.someHint)}
+                    />
+                    {!values.allEvents ? (
+                        <EventChecklist
+                            events={subscribableEvents}
+                            value={values.eventKinds}
+                            onChange={(next) =>
                                 setValues((prev) => ({
                                     ...prev,
-                                    allEvents: checked === true
+                                    eventKinds: next
                                 }))
                             }
                         />
-                        <Label
-                            htmlFor="webhook-all-events"
-                            className="text-sm font-normal"
-                        >
-                            {intl.formatMessage(messages.allEvents)}
-                        </Label>
-                    </div>
-                    {!values.allEvents ? (
-                        <>
-                            <Label htmlFor="webhook-events" className="sr-only">
-                                {intl.formatMessage(messages.events)}
-                            </Label>
-                            <MultiSelect
-                                id="webhook-events"
-                                options={eventOptions}
-                                value={values.eventKinds}
-                                onChange={(next) =>
-                                    setValues((prev) => ({
-                                        ...prev,
-                                        eventKinds: next
-                                    }))
-                                }
-                                placeholder={intl.formatMessage(
-                                    messages.eventsPlaceholder
-                                )}
-                            />
-                        </>
                     ) : null}
                 </fieldset>
 
@@ -731,24 +733,28 @@ export function WebhookForm({
                         </p>
                     ) : null}
                     {contentTypesAnswerable ? (
-                        <div className="flex items-center gap-2">
-                            <Checkbox
-                                id="webhook-all-content-types"
-                                checked={values.allContentTypes}
-                                onCheckedChange={(checked) =>
-                                    setValues((prev) => ({
-                                        ...prev,
-                                        allContentTypes: checked === true
-                                    }))
-                                }
-                            />
-                            <Label
-                                htmlFor="webhook-all-content-types"
-                                className="text-sm font-normal"
-                            >
-                                {intl.formatMessage(messages.allContentTypes)}
-                            </Label>
-                        </div>
+                        <SegmentedControl
+                            variant="muted"
+                            aria-label={intl.formatMessage(
+                                messages.contentTypesScope
+                            )}
+                            value={values.allContentTypes ? 'all' : 'some'}
+                            onValueChange={(next) => {
+                                if (!next) return;
+                                setValues((prev) => ({
+                                    ...prev,
+                                    allContentTypes: next === 'all'
+                                }));
+                            }}
+                            className="self-start"
+                        >
+                            <SegmentedControlItem value="all">
+                                {intl.formatMessage(messages.allTypes)}
+                            </SegmentedControlItem>
+                            <SegmentedControlItem value="some">
+                                {intl.formatMessage(messages.someTypes)}
+                            </SegmentedControlItem>
+                        </SegmentedControl>
                     ) : null}
                     {contentTypesAnswerable && !values.allContentTypes ? (
                         <>
