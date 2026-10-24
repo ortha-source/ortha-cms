@@ -145,7 +145,7 @@ function currentOrigin(): string {
  * three mirror the equivalent one-time invite link in `users/admin`
  * (`InviteLinkPanel` / `InviteLinkDialog`):
  *
- * - the secret is a focusable, labelled `readOnly` input that selects itself on
+ * - the secret is a focusable, labelled `readOnly` field that selects itself on
  *   focus, so a keyboard or screen-reader user can read and copy it **without**
  *   the Copy button;
  * - the clipboard write is wrapped, because `navigator.clipboard.writeText`
@@ -262,7 +262,7 @@ export function RevealSecretDialog({
                 requestClose();
             }}
         >
-            <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-[580px]">
+            <DialogContent className="max-h-[calc(100dvh-2rem)] grid-cols-[minmax(0,1fr)] overflow-y-auto sm:max-w-[580px]">
                 <DialogHeader>
                     <DialogTitle>
                         {intl.formatMessage(messages.title)}
@@ -275,17 +275,20 @@ export function RevealSecretDialog({
                 {/* `min-w-0` on the row is load-bearing: `DialogContent` is a
                     grid, whose items default to `min-width: auto`, so without it
                     the unbreakable token string widens this row past the
-                    dialog and the copy button lands outside the panel. With it
-                    the row can shrink and the field scrolls its own value
-                    instead. The button is `shrink-0` so the field — not the
-                    control — gives up the space. */}
-                <div className="flex min-w-0 items-center gap-2">
-                    <input
+                    dialog and the copy button lands outside the panel. The
+                    secret is longer than the field is wide, so it wraps onto
+                    a second line (`break-all`) rather than scrolling sideways:
+                    the whole credential stays readable at once. The button is
+                    `shrink-0` so the field — not the control — gives up the
+                    space. */}
+                <div className="flex min-w-0 items-start gap-2">
+                    <textarea
                         readOnly
+                        rows={2}
                         value={secret ?? ''}
                         aria-label={intl.formatMessage(messages.secretLabel)}
                         onFocus={(event) => event.currentTarget.select()}
-                        className="h-10 min-w-0 flex-1 truncate rounded-lg border border-dashed bg-muted/40 px-3 font-mono text-[13px] outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/15"
+                        className="min-w-0 flex-1 resize-none overflow-hidden break-all rounded-lg border border-dashed bg-muted/40 px-3 py-2 font-mono text-[13px] leading-5 outline-none [field-sizing:content] focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/15"
                     />
                     <Button
                         type="button"
@@ -336,14 +339,14 @@ export function RevealSecretDialog({
                             {intl.formatMessage(messages.copyRequest)}
                         </Button>
                     </div>
-                    {/* A focusable, named group: on a narrow screen the command
-                        scrolls sideways, and a scroll region a keyboard cannot
-                        reach is one it cannot read. */}
+                    {/* A focusable, named group. Long lines (a real origin, a
+                        uuid workspace id) wrap instead of scrolling sideways,
+                        so the dialog never grows a horizontal scrollbar. */}
                     <pre
                         role="group"
                         aria-labelledby={tryItId}
                         tabIndex={0}
-                        className="min-w-0 overflow-x-auto rounded-lg border bg-muted/40 px-3 py-2.5 font-mono text-xs leading-5 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="min-w-0 whitespace-pre-wrap break-all rounded-lg border bg-muted/40 px-3 py-2.5 font-mono text-xs leading-5 outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                         <code>{shownRequest}</code>
                     </pre>
@@ -366,7 +369,7 @@ export function RevealSecretDialog({
                 ) : null}
 
                 <DialogFooter className="items-center gap-2 border-t pt-4 sm:justify-between">
-                    <p className="min-w-0 truncate text-xs text-muted-foreground">
+                    <p className="min-w-0 max-w-full text-center text-xs text-muted-foreground sm:truncate sm:text-left">
                         {summary}
                     </p>
                     <div className="flex shrink-0 justify-end gap-2">
