@@ -14,6 +14,7 @@ import { GetWorkspaceContentCountController } from './workspace/http/controllers
 import { GetWorkspaceEntryCountController } from './workspace/http/controllers/get-workspace-entry-count.controller';
 import { ListContentTypesController } from './workspace/http/controllers/list-content-types.controller';
 import { ListSharedSourcesController } from './workspace/http/controllers/list-shared-sources.controller';
+import { GetWorkspaceArchiveImpactController } from './workspace/http/controllers/get-workspace-archive-impact.controller';
 import { WorkspaceGuard } from './workspace/http/guards/workspace.guard';
 import { WorkspaceMemberGuard } from './workspace/http/guards/workspace-member.guard';
 import { OptionalWorkspaceGuard } from './workspace/http/guards/optional-workspace.guard';
@@ -30,6 +31,7 @@ import { SHARED_CONTENT_SOURCES } from './workspace/application/ports/shared-con
 import { SharedContentSourcesQuery } from './workspace/infrastructure/queries/shared-content-sources.query';
 import { ContentCatalogReader } from './workspace/application/content/content-catalog.reader';
 import { ContentEntryCounterReader } from './workspace/application/content/content-entry-counter.reader';
+import { ContentEntryStatsReader } from './workspace/application/content/content-entry-stats.reader';
 import { WorkspacePurgeRegistry } from './workspace/application/workspace-purge.registry';
 import { ApiTokenGrantsPurger } from './workspace/infrastructure/purge/api-token-grants.purger';
 import { MEMBER_PROVISIONER } from './workspace/application/ports/member-provisioner.port';
@@ -46,6 +48,7 @@ import { SlugAvailabilityQuery } from './workspace/infrastructure/queries/slug-a
 import { MemberLookupQuery } from './workspace/infrastructure/queries/member-lookup.query';
 import { MembershipCheckQuery } from './workspace/infrastructure/queries/membership-check.query';
 import { WorkspaceExistenceQuery } from './workspace/infrastructure/queries/workspace-existence.query';
+import { ArchiveImpactQuery } from './workspace/infrastructure/queries/archive-impact.query';
 
 /**
  * NestJS module for the workspaces plugin — the tenancy bounded context,
@@ -81,7 +84,8 @@ export class WorkspacesModule {
                 GetWorkspaceContentCountController,
                 GetWorkspaceEntryCountController,
                 ListContentTypesController,
-                ListSharedSourcesController
+                ListSharedSourcesController,
+                GetWorkspaceArchiveImpactController
             ],
             providers: [
                 // Application — use cases (one per state-changing operation).
@@ -97,6 +101,7 @@ export class WorkspacesModule {
                 // Application — content-context readers (optional ports inside).
                 ContentCatalogReader,
                 ContentEntryCounterReader,
+                ContentEntryStatsReader,
                 // Application — the cross-plugin delete fan-out. Contributors
                 // in other plugins register themselves; see WorkspacePurger.
                 WorkspacePurgeRegistry,
@@ -129,6 +134,7 @@ export class WorkspacesModule {
                 SlugAvailabilityQuery,
                 MemberLookupQuery,
                 MembershipCheckQuery,
+                ArchiveImpactQuery,
                 // Binds identity's WORKSPACE_DIRECTORY port, so minting an API
                 // token can reject a bucket naming a workspace that does not
                 // exist. `api_token_workspaces` carries no cross-plugin FK

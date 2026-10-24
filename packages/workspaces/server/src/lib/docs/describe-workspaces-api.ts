@@ -99,6 +99,13 @@ const ROUTES: Record<string, Record<string, OperationSpec>> = {
             description:
                 'Total entries the workspace holds across every content type. `0` when no content plugin is registered.'
         }
+    },
+    '/{id}/archive-impact': {
+        get: {
+            schema: 'WorkspaceArchiveImpact',
+            description:
+                'What archiving the workspace would touch: its records and members (both stay) and how many workspaces link its shared records.'
+        }
     }
 };
 

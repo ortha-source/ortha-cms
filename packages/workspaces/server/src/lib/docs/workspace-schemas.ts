@@ -52,9 +52,15 @@ export function buildWorkspaceSchemas(): Record<string, OpenApiSchema> {
                     type: 'string',
                     format: 'email',
                     description: 'Email address.'
+                },
+                status: {
+                    type: 'string',
+                    enum: ['pending', 'active', 'disabled'],
+                    description:
+                        'The account’s directory status. `pending` is someone invited by email who has not accepted yet.'
                 }
             },
-            required: ['id', 'name', 'email']
+            required: ['id', 'name', 'email', 'status']
         },
         Workspace: {
             type: 'object',
@@ -106,6 +112,31 @@ export function buildWorkspaceSchemas(): Record<string, OpenApiSchema> {
                     items: ref('WorkspaceSharedContent'),
                     description:
                         'Its **shared** grants (ADR-0019): read-and-link access to one shared workspace’s records of a type each.'
+                },
+                recordCount: {
+                    type: 'integer',
+                    minimum: 0,
+                    description:
+                        'Content entries the workspace holds across every type. `0` when no content plugin is registered — a display figure, not proof of emptiness.'
+                },
+                recordCountByType: {
+                    type: 'object',
+                    additionalProperties: { type: 'integer', minimum: 1 },
+                    description:
+                        '`recordCount` split by content-type machine name; a type holding no entries is absent.'
+                },
+                createdAt: { type: 'string', format: 'date-time' },
+                lastEditedAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    description:
+                        'The later of the workspace’s own last write and its newest entry’s last edit.'
+                },
+                archivedAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    nullable: true,
+                    description: 'When it was archived; null while active.'
                 }
             },
             required: [
@@ -118,8 +149,38 @@ export function buildWorkspaceSchemas(): Record<string, OpenApiSchema> {
                 'isShared',
                 'members',
                 'content',
-                'sharedContent'
+                'sharedContent',
+                'recordCount',
+                'recordCountByType',
+                'createdAt',
+                'lastEditedAt',
+                'archivedAt'
             ]
+        },
+        WorkspaceArchiveImpact: {
+            type: 'object',
+            title: 'WorkspaceArchiveImpact',
+            description:
+                'What archiving the workspace would touch. Archiving deletes nothing: records and members stay, and only workspaces linking its shared records notice.',
+            properties: {
+                records: {
+                    type: 'integer',
+                    minimum: 0,
+                    description: 'Content entries the workspace holds.'
+                },
+                members: {
+                    type: 'integer',
+                    minimum: 0,
+                    description: 'Members, who keep their accounts.'
+                },
+                linkedWorkspaces: {
+                    type: 'integer',
+                    minimum: 0,
+                    description:
+                        'Other workspaces with a live shared grant from this one; they will see its records as unavailable. Names none of them.'
+                }
+            },
+            required: ['records', 'members', 'linkedWorkspaces']
         },
         WorkspaceSharedContent: {
             type: 'object',

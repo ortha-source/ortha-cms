@@ -25,7 +25,8 @@ function scannedDocument(): OpenApiDocument {
             '/api/workspaces/{id}/content/{slug}/entry-count': {
                 get: scanned('200')
             },
-            '/api/workspaces/{id}/entry-count': { get: scanned('200') }
+            '/api/workspaces/{id}/entry-count': { get: scanned('200') },
+            '/api/workspaces/{id}/archive-impact': { get: scanned('200') }
         }
     };
 }
@@ -65,7 +66,7 @@ describe('describeWorkspacesApi', () => {
                 target.push(`${method} ${route}`);
             }
         }
-        expect(described).toHaveLength(11);
+        expect(described).toHaveLength(12);
         // The two deletes answer 204; a body would be a lie, not an omission.
         expect(bare).toEqual([
             'delete /api/workspaces/{id}',

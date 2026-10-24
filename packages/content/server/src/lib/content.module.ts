@@ -2,6 +2,7 @@ import { DynamicModule, Module } from '@nestjs/common';
 import {
     CONTENT_CATALOG,
     CONTENT_ENTRY_COUNTER,
+    CONTENT_ENTRY_STATS,
     type ContentCatalog
 } from '@orthacms/workspaces-server';
 import { CONTENT_REGISTRY } from './content.tokens';
@@ -170,6 +171,12 @@ export class ContentModule {
                     provide: CONTENT_ENTRY_COUNTER,
                     useExisting: EntryCounterService
                 },
+                // The batched, display-only sibling: record counts and the
+                // newest edit per workspace for the workspace cards.
+                {
+                    provide: CONTENT_ENTRY_STATS,
+                    useExisting: EntryCounterService
+                },
                 EntryValidationService,
                 WorkspaceGrantsQuery,
                 // Holds the read scopes a downstream plugin registers. Provided
@@ -273,6 +280,7 @@ export class ContentModule {
                 CONTENT_REGISTRY,
                 CONTENT_CATALOG,
                 CONTENT_ENTRY_COUNTER,
+                CONTENT_ENTRY_STATS,
                 EntryValidationService,
                 // The public API's collaborators, exported so another plugin can
                 // put a SECOND PROTOCOL in front of the same surface without

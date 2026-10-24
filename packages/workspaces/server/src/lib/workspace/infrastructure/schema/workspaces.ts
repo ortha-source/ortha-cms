@@ -44,6 +44,13 @@ export const workspaces = pgTable('workspaces', {
      * regardless of this flag.
      */
     isShared: boolean('is_shared').notNull().default(false),
+    /**
+     * When the workspace was last archived; `null` while it is active. Written
+     * by the repository whenever the status changes (stamped on archive,
+     * cleared on unarchive), so the admin can say "Archived Sep 2" without
+     * reading the audit log. Presentation data only — nothing gates on it.
+     */
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
     /** Row creation timestamp. */
     createdAt: timestamp('created_at', { withTimezone: true })
         .notNull()
