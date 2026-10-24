@@ -40,7 +40,7 @@ test.describe('reduced motion', () => {
         await mockSignedOut(page);
         // Held open so the skeleton is on screen long enough to inspect.
         await mockInvite(page, undefined, { delayMs: 3000 });
-        await acceptInvitePage.goto('tok_reduced_motion');
+        await acceptInvitePage.goto();
 
         await expect(acceptInvitePage.loadingStatus()).toBeVisible();
         const block = acceptInvitePage.skeletonBlocks().first();
@@ -60,7 +60,7 @@ test.describe('reduced motion', () => {
         await page.emulateMedia({ reducedMotion: 'no-preference' });
         await mockSignedOut(page);
         await mockInvite(page, undefined, { delayMs: 3000 });
-        await acceptInvitePage.goto('tok_default_motion');
+        await acceptInvitePage.goto();
 
         await expect(acceptInvitePage.loadingStatus()).toBeVisible();
         const block = acceptInvitePage.skeletonBlocks().first();

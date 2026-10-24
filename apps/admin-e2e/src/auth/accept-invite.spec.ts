@@ -10,6 +10,12 @@ import {
 const GOOD_PASSWORD = 'correct horse battery staple';
 
 /**
+ * Tokens with the shape the server mints (64 hex characters). Anything else is
+ * caught in the browser as an incomplete link and never reaches the mocks.
+ */
+const token = (pair: string) => pair.repeat(32);
+
+/**
  * The accept-invite screen at `/identity/accept-invite?token=…` — the only way
  * an invited person turns a pending account into one they can sign in with.
  *
@@ -23,7 +29,7 @@ test.describe('accept an invite', () => {
         await mockSignedOut(page);
     });
 
-    test('shows who the invite is for and asks only for a password', async ({
+    test('shows what the invite is for and asks only for a password', async ({
         page,
         acceptInvitePage
     }) => {
@@ -48,8 +54,49 @@ test.describe('accept an invite', () => {
             ''
         );
 
+        // What the invite grants comes first — the role and the workspaces —
+        // and never who sent it: the page is public (R7).
+        await expect(acceptInvitePage.scope).toHaveText(
+            'as a Contributor in Marketing site and Support hub'
+        );
+        await expect(page.getByText(/\S+ invited you$/)).toHaveCount(0);
+
+        // One password field, with a meter and a reveal toggle instead of a
+        // second blind copy.
         await expect(acceptInvitePage.password).toBeEditable();
-        await expect(acceptInvitePage.confirmPassword).toBeEditable();
+        await expect(page.locator('input[type="password"]')).toHaveCount(1);
+        await expect(
+            page.getByText('At least 12 characters', { exact: true })
+        ).toBeVisible();
+    });
+
+    test('rates the password as it is typed and can show it', async ({
+        page,
+        acceptInvitePage
+    }) => {
+        await mockInvite(page);
+        await acceptInvitePage.goto();
+
+        await acceptInvitePage.password.fill(GOOD_PASSWORD);
+        await expect(
+            page.getByText('Strong · at least 12 characters')
+        ).toBeVisible();
+
+        await acceptInvitePage.revealPassword.click();
+        await expect(acceptInvitePage.password).toHaveAttribute('type', 'text');
+    });
+
+    test('leaves out what the server could not say', async ({
+        page,
+        acceptInvitePage
+    }) => {
+        // An older server sends only email and name: the heading stands on
+        // its own and nothing reads "as a undefined".
+        await mockInvite(page, { email: 'ada@orthacms.dev', name: 'Ada' });
+        await acceptInvitePage.goto();
+
+        await expect(acceptInvitePage.heading).toBeVisible();
+        await expect(acceptInvitePage.scope).toHaveCount(0);
     });
 
     test('each read-only field explains why it cannot be edited', async ({
@@ -100,7 +147,7 @@ test.describe('accept an invite', () => {
     }) => {
         await mockInvite(page);
         const accept = await spyAcceptInvite(page);
-        await acceptInvitePage.goto('tok_from_the_link');
+        await acceptInvitePage.goto(token('a7'));
         await expect(acceptInvitePage.heading).toBeVisible();
 
         // Accepting activates the account and sets the session cookie, so the
@@ -114,10 +161,11 @@ test.describe('accept an invite', () => {
         await expect(homePage.heading).toBeVisible();
 
         expect(accept.count).toBe(1);
+        // One password, no confirmation: the server checks a confirmation
+        // only when one is sent.
         expect(accept.bodies[0]).toEqual({
-            token: 'tok_from_the_link',
-            password: GOOD_PASSWORD,
-            confirmPassword: GOOD_PASSWORD
+            token: token('a7'),
+            password: GOOD_PASSWORD
         });
     });
 
@@ -137,21 +185,7 @@ test.describe('accept an invite', () => {
         expect(accept.count).toBe(0);
     });
 
-    test('blocks a mismatched confirmation, sending no request', async ({
-        page,
-        acceptInvitePage
-    }) => {
-        await mockInvite(page);
-        const accept = await spyAcceptInvite(page);
-        await acceptInvitePage.goto();
-
-        await acceptInvitePage.setPassword(GOOD_PASSWORD, `${GOOD_PASSWORD}!`);
-
-        await expect(acceptInvitePage.fieldError(/don’t match/)).toBeVisible();
-        expect(accept.count).toBe(0);
-    });
-
-    test('flags both empty fields on submit', async ({
+    test('flags the empty field on submit', async ({
         page,
         acceptInvitePage
     }) => {
@@ -163,9 +197,6 @@ test.describe('accept an invite', () => {
 
         await expect(
             acceptInvitePage.fieldError(/Choose a password/)
-        ).toBeVisible();
-        await expect(
-            acceptInvitePage.fieldError(/Type your password once more/)
         ).toBeVisible();
         expect(accept.count).toBe(0);
     });
@@ -185,9 +216,6 @@ test.describe('accept an invite', () => {
         await expect(acceptInvitePage.fieldErrorRegion('password')).toHaveText(
             'Choose a password to finish setting up your account'
         );
-        await expect(
-            acceptInvitePage.fieldErrorRegion('confirm-password')
-        ).toHaveText('Type your password once more to confirm it');
     });
 
     test('explains a link that died while the form was open', async ({
@@ -254,7 +282,7 @@ test.describe('accept an invite', () => {
     }) => {
         await mockInvite(page);
         await spyAcceptInvite(page, { status: 400 });
-        await acceptInvitePage.goto('tok_retry');
+        await acceptInvitePage.goto(token('b8'));
         await acceptInvitePage.setPassword(GOOD_PASSWORD);
         await expect(acceptInvitePage.errorBanner).toBeVisible();
 
@@ -280,7 +308,7 @@ test.describe('accept an invite', () => {
         // and Back has a real destination to prefer.
         await loginPage.goto();
         await expect(loginPage.heading).toBeVisible();
-        await acceptInvitePage.goto('tok_secret_in_the_url');
+        await acceptInvitePage.goto(token('c9'));
         await expect(acceptInvitePage.heading).toBeVisible();
 
         await mockSignedIn(page, { email: DEFAULT_INVITE.email });
@@ -311,7 +339,7 @@ test.describe('accept an invite', () => {
         });
         await mockInvite(page);
         await spyAcceptInvite(page);
-        await acceptInvitePage.goto('tok_takeover');
+        await acceptInvitePage.goto(token('d0'));
         await expect(acceptInvitePage.heading).toBeVisible();
 
         await mockSignedIn(page, {
@@ -334,23 +362,53 @@ test.describe('accept an invite', () => {
         acceptInvitePage
     }) => {
         await mockInvite(page, DEFAULT_INVITE, { status: 404 });
-        await acceptInvitePage.goto('expired-token');
+        await acceptInvitePage.goto(token('e1'));
 
         await expect(acceptInvitePage.unavailableHeading()).toBeVisible();
+        // Says what is true of every reason the server folds into one 404,
+        // and the next step — naming nobody: the link is dead, so whoever
+        // holds it may not be the invitee.
+        await expect(
+            page.getByText(/Invites work once, and only for a limited time/)
+        ).toBeVisible();
+        await expect(page.getByText(/Ask whoever invited you/)).toBeVisible();
         // No form to fill — there is nothing to accept.
         await expect(acceptInvitePage.password).toHaveCount(0);
         await expect(acceptInvitePage.signInLink()).toBeVisible();
     });
 
-    test('tells a truncated link apart from a dead one', async ({
+    test('tells a link with no token apart from a dead one', async ({
         page,
         acceptInvitePage
     }) => {
         await mockInvite(page);
         await acceptInvitePage.gotoWithoutToken();
 
-        await expect(acceptInvitePage.unavailableHeading()).toBeVisible();
-        await expect(page.getByText(/missing its invite code/)).toBeVisible();
+        await expect(acceptInvitePage.incompleteHeading()).toBeVisible();
+        await expect(
+            page.getByText(/Part of it may have been cut off/)
+        ).toBeVisible();
+        await expect(acceptInvitePage.unavailableHeading()).toHaveCount(0);
+        await expect(acceptInvitePage.signInLink()).toBeVisible();
+    });
+
+    test('calls a token cut short incomplete without asking the server', async ({
+        page,
+        acceptInvitePage
+    }) => {
+        // The realistic break: a chat app wrapped the long link and only the
+        // first half was copied. It cannot be valid, so nothing is sent.
+        const lookups: string[] = [];
+        page.on('request', (request) => {
+            if (request.url().includes('/api/auth/invite/')) {
+                lookups.push(request.url());
+            }
+        });
+        await mockInvite(page);
+        await acceptInvitePage.goto(token('f2').slice(0, 40));
+
+        await expect(acceptInvitePage.incompleteHeading()).toBeVisible();
+        expect(lookups).toEqual([]);
     });
 
     test('tells a server outage apart from a dead link', async ({
@@ -386,24 +444,32 @@ test.describe('accept an invite', () => {
         );
     });
 
-    test('renders a name with markup in it as literal text', async ({
+    test('renders a name, role and workspace with markup in them as literal text', async ({
         page,
         acceptInvitePage
     }) => {
-        // The name is whatever the inviting admin typed. React escapes it, and
-        // the description interpolates it — assert both places show the
-        // characters rather than acting on them (EC-10).
+        // The name is whatever the inviting admin typed, and a workspace name
+        // whatever someone called it. React escapes both — assert the
+        // characters show rather than act (EC-10).
         const name = '<script>alert(1)</script>';
-        await mockInvite(page, { email: 'script@orthacms.dev', name });
+        await mockInvite(page, {
+            email: 'script@orthacms.dev',
+            name,
+            role: 'Editor',
+            workspaces: ['<b>Docs</b>']
+        });
         await acceptInvitePage.goto();
 
         await expect(acceptInvitePage.heading).toBeVisible();
         await expect(acceptInvitePage.nameField()).toHaveValue(name);
-        await expect(
-            page.getByText(`Welcome, ${name}. Your account is ready`)
-        ).toBeVisible();
+        await expect(acceptInvitePage.scope).toHaveText(
+            'as an Editor in <b>Docs</b>'
+        );
         // Escaped, not parsed: nothing from the invite became an element.
         await expect(page.locator('#root script')).toHaveCount(0);
+        await expect(page.locator('#root b', { hasText: 'Docs' })).toHaveCount(
+            0
+        );
     });
 
     test('renders an RTL name without disturbing the copy around it', async ({
@@ -415,21 +481,19 @@ test.describe('accept an invite', () => {
         await acceptInvitePage.goto();
 
         await expect(acceptInvitePage.nameField()).toHaveValue(name);
-        // The surrounding sentence keeps its own order — no mojibake, and the
-        // English around the name still reads left to right (EC-09).
-        await expect(
-            page.getByText(`Welcome, ${name}. Your account is ready`)
-        ).toBeVisible();
+        // The heading keeps its own order — no mojibake, and the English
+        // around it still reads left to right (EC-09).
+        await expect(acceptInvitePage.heading).toBeVisible();
     });
 
-    test('transports a token with reserved characters intact', async ({
+    test('never sends a token that is not token-shaped', async ({
         page,
         acceptInvitePage
     }) => {
-        // Real tokens are 64 hex characters, but the gateway percent-encodes
-        // whatever it is handed, so a token can never break out of the path
-        // segment or lose bytes on the way (EC-07, EC-11).
-        const token = `${'a'.repeat(200)}%#&/?`;
+        // Reserved characters cannot be in a real token (64 hex characters),
+        // so such a link is incomplete by definition and is never put in a
+        // URL. The gateway's own escaping is pinned by its unit spec
+        // (EC-07, EC-11).
         const urls: string[] = [];
         await page.route('**/api/auth/invite/*', async (route) => {
             urls.push(route.request().url());
@@ -440,11 +504,10 @@ test.describe('accept an invite', () => {
             });
         });
 
-        await acceptInvitePage.goto(token);
+        await acceptInvitePage.goto(`${'a'.repeat(200)}%#&/?`);
 
-        await expect(acceptInvitePage.heading).toBeVisible();
-        expect(urls).toHaveLength(1);
-        expect(urls[0]).toContain(encodeURIComponent(token));
+        await expect(acceptInvitePage.incompleteHeading()).toBeVisible();
+        expect(urls).toHaveLength(0);
     });
 
     test('announces the lookup while it is in flight', async ({

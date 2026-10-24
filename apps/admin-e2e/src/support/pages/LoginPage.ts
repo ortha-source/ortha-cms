@@ -11,11 +11,21 @@ export class LoginPage extends BasePage {
     readonly password: Locator;
     readonly submit: Locator;
     /**
-     * The credential-error banner. Both this banner and field errors render
-     * `role="alert"`, so it is anchored on the banner's constant title rather
-     * than the bare role.
+     * The banner for a failure that is not about what was typed — a throttled
+     * attempt, a provider sign-in that did not complete, an outage. Both this
+     * banner and field errors render `role="alert"`, so it is anchored on the
+     * banner's constant title rather than the bare role.
      */
     readonly errorBanner: Locator;
+    /**
+     * The wrong-credentials answer, said under the password field (R7: errors
+     * at the field). One message for an unknown address and a wrong password.
+     */
+    readonly credentialsError: Locator;
+    /** "Forgot it?" on the password's label row. */
+    readonly forgotPassword: Locator;
+    /** The password field's show/hide toggle. */
+    readonly revealPassword: Locator;
     /**
      * The standing explanation shown when this page was reached by a **forced**
      * sign-out — the session was revoked or expired and the app replaced the
@@ -32,33 +42,45 @@ export class LoginPage extends BasePage {
     /** The error boundary's recovery action — a full reload fetches the new build. */
     readonly chunkErrorReload: Locator;
     /**
-     * The "or continue with" divider above the single-sign-on links. Present
-     * only when the deployment registers at least one provider, so it is also
-     * how a suite asserts the block is absent.
+     * The "or with email" divider between the single-sign-on links (which
+     * lead) and the password form. Present only when the deployment registers
+     * at least one provider, so it is also how a suite asserts the block is
+     * absent.
      */
     readonly ssoSeparator: Locator;
 
     constructor(page: Page) {
         super(page);
-        this.heading = page.getByRole('heading', { name: 'Welcome back' });
+        this.heading = page.getByRole('heading', {
+            name: 'Sign in',
+            exact: true
+        });
         this.chunkErrorHeading = page.getByRole('heading', {
             name: /didn’t finish loading/
         });
         this.chunkErrorReload = page.getByRole('button', {
             name: 'Reload the page'
         });
-        this.email = page.getByLabel('Email');
-        this.password = page.getByLabel('Password');
+        this.email = page.getByLabel('Email', { exact: true });
+        // Exact: the reveal toggle is named "Show password".
+        this.password = page.getByLabel('Password', { exact: true });
         // The button's accessible name flips to "Signing in…" while submitting,
         // so match either state to keep one stable handle to the submit control.
-        this.submit = page.getByRole('button', { name: /Login|Signing in/ });
+        this.submit = page.getByRole('button', {
+            name: /^(Sign in|Signing in…)$/
+        });
         this.errorBanner = page
             .getByRole('alert')
-            .filter({ hasText: 'Authentication failed' });
+            .filter({ hasText: 'Couldn’t sign you in' });
+        this.credentialsError = page.locator('#login-password-error');
+        this.forgotPassword = page.getByRole('link', { name: 'Forgot it?' });
+        this.revealPassword = page.getByRole('button', {
+            name: 'Show password'
+        });
         this.sessionEndedNotice = page
             .getByRole('alert')
-            .filter({ hasText: /Your session has ended/ });
-        this.ssoSeparator = page.getByText('or continue with');
+            .filter({ hasText: /Your session ended/ });
+        this.ssoSeparator = page.getByText('or with email', { exact: true });
     }
 
     /**
@@ -69,7 +91,7 @@ export class LoginPage extends BasePage {
      * what stops that from silently regressing into a scripted click.
      */
     ssoLink(label: string): Locator {
-        return this.page.getByRole('link', { name: `Sign in with ${label}` });
+        return this.page.getByRole('link', { name: `Continue with ${label}` });
     }
 
     async goto() {

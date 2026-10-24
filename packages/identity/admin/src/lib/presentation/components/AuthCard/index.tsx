@@ -30,6 +30,14 @@ type AuthCardProps = {
      */
     lead?: ReactNode;
     /**
+     * The id of an element inside {@link lead} that describes the heading.
+     * The lead sits *above* the `<h1>`, where the board draws it, but focus
+     * lands on the `<h1>` on arrival — so a reader continuing from there
+     * would never meet it. Pointing the heading's `aria-describedby` at it
+     * makes it part of what is announced when the heading takes focus.
+     */
+    leadId?: string;
+    /**
      * Replaces the default heading block entirely, for a screen whose heading
      * is not a plain title (the invitation's "who and what" row). It must
      * still contain the screen's one `<h1>`.
@@ -59,6 +67,7 @@ export function AuthCard({
     icon,
     tone = 'muted',
     lead,
+    leadId,
     header,
     children,
     className
@@ -84,7 +93,10 @@ export function AuthCard({
             )}
             {header ?? (
                 <div className="flex flex-col gap-1">
-                    <h1 className="text-[22px] font-semibold leading-7 tracking-tight">
+                    <h1
+                        aria-describedby={leadId}
+                        className="text-[22px] font-semibold leading-7 tracking-tight"
+                    >
                         {title}
                     </h1>
                     {description && (

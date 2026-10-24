@@ -1,6 +1,9 @@
 import { type Locator, type Page } from '@playwright/test';
 import { BasePage } from './BasePage';
 
+/** A token with the shape the server mints: 64 hex characters. */
+export const INVITE_TOKEN = 'a1b2c3d4'.repeat(8);
+
 /**
  * Page object for the accept-invite screen at
  * `/identity/accept-invite?token=…` (from `@orthacms/identity-admin`). Owns
@@ -14,10 +17,12 @@ import { BasePage } from './BasePage';
 export class AcceptInvitePage extends BasePage {
     /** The page's `<h1>` on the happy path. */
     readonly heading: Locator;
-    /** The password field. */
+    /** The password field — the only one since R7 (a reveal toggle, not a confirm box). */
     readonly password: Locator;
-    /** The re-typed password field. */
-    readonly confirmPassword: Locator;
+    /** The password field's show/hide toggle. */
+    readonly revealPassword: Locator;
+    /** The line under the heading: "as a Contributor in …". */
+    readonly scope: Locator;
     /** The submit control; its label flips while submitting. */
     readonly submit: Locator;
     /**
@@ -26,26 +31,29 @@ export class AcceptInvitePage extends BasePage {
      */
     readonly errorBanner: Locator;
     /**
-     * The "or accept with" divider above the single-sign-on links. Present only
-     * when the deployment registers at least one provider, so it is also how a
-     * suite asserts the block is absent.
+     * The "or" divider above the single-sign-on links. Present only when the
+     * deployment registers at least one provider, so it is also how a suite
+     * asserts the block is absent.
      */
     readonly ssoSeparator: Locator;
 
     constructor(page: Page) {
         super(page);
         this.heading = page.getByRole('heading', {
-            name: 'Set your password'
+            name: 'You’re invited to Ortha CMS'
         });
         this.password = page.getByLabel('Password', { exact: true });
-        this.confirmPassword = page.getByLabel('Confirm password');
+        this.revealPassword = page.getByRole('button', {
+            name: 'Show password'
+        });
+        this.scope = page.getByText(/^(as an? |in )/);
         this.submit = page.getByRole('button', {
             name: /Create my account|Setting up your account/
         });
         this.errorBanner = page
             .getByRole('alert')
             .filter({ hasText: 'Couldn’t finish setting up' });
-        this.ssoSeparator = page.getByText('or accept with');
+        this.ssoSeparator = page.locator('[data-slot="sso-separator"]');
     }
 
     /**
@@ -56,11 +64,15 @@ export class AcceptInvitePage extends BasePage {
      * regressing into a scripted click.
      */
     ssoLink(label: string): Locator {
-        return this.page.getByRole('link', { name: `Continue with ${label}` });
+        return this.page.getByRole('link', { name: `Accept with ${label}` });
     }
 
-    /** Open the accept page with `token` in the query string. */
-    async goto(token = 'invite-token-abc123') {
+    /**
+     * Open the accept page with `token` in the query string. The default has
+     * the shape a real token has (64 hex characters): anything else is caught
+     * in the browser as an incomplete link and never reaches the mock.
+     */
+    async goto(token = INVITE_TOKEN) {
         await this.page.goto(
             `/identity/accept-invite?token=${encodeURIComponent(token)}`
         );
@@ -71,10 +83,9 @@ export class AcceptInvitePage extends BasePage {
         await this.page.goto('/identity/accept-invite');
     }
 
-    /** Fill both password fields and submit. */
-    async setPassword(password: string, confirmation = password) {
+    /** Fill the password and submit. */
+    async setPassword(password: string) {
         await this.password.fill(password);
-        await this.confirmPassword.fill(confirmation);
         await this.submit.click();
     }
 
@@ -99,14 +110,21 @@ export class AcceptInvitePage extends BasePage {
      * field announces at once: stacked messages render as a list inside this
      * one region.
      */
-    fieldErrorRegion(field: 'password' | 'confirm-password'): Locator {
+    fieldErrorRegion(field: 'password'): Locator {
         return this.page.locator(`#accept-invite-${field}-error`);
     }
 
-    /** The dead-link state's heading. */
+    /** The dead-link (server `404`) state's heading. */
     unavailableHeading(): Locator {
         return this.page.getByRole('heading', {
-            name: 'This invite link no longer works'
+            name: 'This invite has expired'
+        });
+    }
+
+    /** The truncated-link state's heading — decided in the browser. */
+    incompleteHeading(): Locator {
+        return this.page.getByRole('heading', {
+            name: 'This link isn’t complete'
         });
     }
 

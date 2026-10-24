@@ -139,7 +139,7 @@ export function LoginPage() {
                 isPending={isPending}
                 error={errorMessage}
                 credentialsError={credentialsError}
-                onEdit={error ? reset : undefined}
+                onEdit={credentialsError ? reset : undefined}
                 notice={
                     sessionEnded
                         ? intl.formatMessage(messages.sessionEnded)

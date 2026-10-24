@@ -5,6 +5,7 @@ import {
     mockSsoProvidersUnavailable
 } from '../support/api/auth';
 import { mockInvite } from '../support/api/invites';
+import { INVITE_TOKEN } from '../support/pages/AcceptInvitePage';
 
 /**
  * The single-sign-on block on the sign-in card.
@@ -37,10 +38,10 @@ test.describe('Single sign-on on the sign-in page', () => {
         }) => {
             await expect(loginPage.ssoSeparator).toBeVisible();
 
-            const links = page.getByRole('link', { name: /^Sign in with / });
+            const links = page.getByRole('link', { name: /^Continue with / });
             await expect(links).toHaveText([
-                'Sign in with Google',
-                'Sign in with Microsoft'
+                'Continue with Google',
+                'Continue with Microsoft'
             ]);
         });
 
@@ -57,20 +58,27 @@ test.describe('Single sign-on on the sign-in page', () => {
             );
         });
 
-        test('keeps the password form as the primary path', async ({
+        test('leads: the providers come first, then the password form', async ({
             page,
             loginPage
         }) => {
-            // The credential fields come first in the tab order: the form is
-            // what every deployment has, and a visitor who came to type a
-            // password should not tab past a list of providers to reach it.
-            await loginPage.email.focus();
-            await page.keyboard.press('Tab');
-            await expect(loginPage.password).toBeFocused();
-            await page.keyboard.press('Tab');
-            await expect(loginPage.submit).toBeFocused();
+            // R7: single sign-on leads where a deployment has it — it is how
+            // most people there are expected to come in — and the password
+            // form follows under "or with email". The heading has focus on
+            // arrival, so the first Tab reaches the first provider.
             await page.keyboard.press('Tab');
             await expect(loginPage.ssoLink('Google')).toBeFocused();
+            await page.keyboard.press('Tab');
+            await expect(loginPage.ssoLink('Microsoft')).toBeFocused();
+            await page.keyboard.press('Tab');
+            await expect(loginPage.email).toBeFocused();
+
+            // And the rule sits between them on screen too.
+            const separator = await loginPage.ssoSeparator.boundingBox();
+            const lastLink = await loginPage.ssoLink('Microsoft').boundingBox();
+            const email = await loginPage.email.boundingBox();
+            expect(separator!.y).toBeGreaterThan(lastLink!.y);
+            expect(email!.y).toBeGreaterThan(separator!.y);
         });
 
         test('is reachable and activatable by keyboard', async ({
@@ -120,7 +128,7 @@ test.describe('Single sign-on on the sign-in page', () => {
 
             await expect(loginPage.ssoSeparator).toBeHidden();
             await expect(
-                page.getByRole('link', { name: /^Sign in with / })
+                page.getByRole('link', { name: /^Continue with / })
             ).toHaveCount(0);
         });
     });
@@ -164,7 +172,7 @@ test.describe('Single sign-on on the sign-in page', () => {
     });
 
     test.describe('accepting an invitation with a work account', () => {
-        const TOKEN = 'invite-token-abc123';
+        const TOKEN = INVITE_TOKEN;
 
         test.beforeEach(async ({ page }) => {
             await mockInvite(page, {
@@ -189,7 +197,7 @@ test.describe('Single sign-on on the sign-in page', () => {
             );
         });
 
-        test('keeps the password fields as the primary path', async ({
+        test('keeps the password field as the primary path', async ({
             acceptInvitePage
         }) => {
             await acceptInvitePage.goto(TOKEN);

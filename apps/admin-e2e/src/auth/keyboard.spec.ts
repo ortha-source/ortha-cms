@@ -5,6 +5,11 @@ import {
     mockPasswordReset,
     spyResetPassword
 } from '../support/api/passwordReset';
+import {
+    mockPasswordRecoveryAvailability,
+    spyPasswordRecovery
+} from '../support/api/passwordRecovery';
+import { ForgotPasswordPage } from '../support/pages/ForgotPasswordPage';
 
 /**
  * Keyboard operability of the login flow — the part axe can't check: the form
@@ -25,7 +30,7 @@ test.describe('keyboard accessibility', () => {
         await expect(loginPage.email).toBeFocused();
     });
 
-    test('tabbing through the form hits credentials then submit, with no dead stop between', async ({
+    test('tabbing through the form hits every control in reading order, with no dead stop', async ({
         page,
         loginPage
     }) => {
@@ -33,14 +38,35 @@ test.describe('keyboard accessibility', () => {
         await loginPage.goto();
         await expect(loginPage.heading).toBeVisible();
 
-        // The "Forgot your password?" placeholder used to sit in the label row
-        // above the password box, i.e. between the two credential fields.
+        // A "Forgot your password?" placeholder used to sit in the label row
+        // and do nothing. R7 puts a live one there ("Forgot it?" → the
+        // recovery screen), so it comes before the field in reading and tab
+        // order alike; the reveal toggle sits inside the field, after it.
         await page.keyboard.press('Tab');
         await expect(loginPage.email).toBeFocused();
         await page.keyboard.press('Tab');
+        await expect(loginPage.forgotPassword).toBeFocused();
+        await page.keyboard.press('Tab');
         await expect(loginPage.password).toBeFocused();
         await page.keyboard.press('Tab');
+        await expect(loginPage.revealPassword).toBeFocused();
+        await page.keyboard.press('Tab');
         await expect(loginPage.submit).toBeFocused();
+    });
+
+    test('the reveal toggle works from the keyboard', async ({
+        page,
+        loginPage
+    }) => {
+        await mockSignedOut(page);
+        await loginPage.goto();
+        await loginPage.password.fill('SecurePass123!');
+
+        await loginPage.revealPassword.focus();
+        await page.keyboard.press('Space');
+        await expect(loginPage.password).toHaveAttribute('type', 'text');
+        await page.keyboard.press('Enter');
+        await expect(loginPage.password).toHaveAttribute('type', 'password');
     });
 
     test('login can be completed and submitted by keyboard alone', async ({
@@ -69,17 +95,13 @@ test.describe('keyboard accessibility', () => {
         await mockSignedOut(page);
         await mockInvite(page);
         const accept = await spyAcceptInvite(page);
-        await acceptInvitePage.goto('tok_keyboard');
+        await acceptInvitePage.goto();
         // Lazy-loaded behind Suspense — wait for the form before typing.
         await expect(acceptInvitePage.heading).toBeVisible();
 
         await acceptInvitePage.password.focus();
         await acceptInvitePage.password.pressSequentially('a-long-enough-pass');
-        await acceptInvitePage.confirmPassword.focus();
-        await acceptInvitePage.confirmPassword.pressSequentially(
-            'a-long-enough-pass'
-        );
-        await acceptInvitePage.confirmPassword.press('Enter');
+        await acceptInvitePage.password.press('Enter');
 
         await expect.poll(() => accept.count).toBe(1);
     });
@@ -94,7 +116,7 @@ test.describe('keyboard accessibility', () => {
         await mockSignedOut(page);
         await mockPasswordReset(page);
         const reset = await spyResetPassword(page);
-        await resetPasswordPage.goto('tok_keyboard');
+        await resetPasswordPage.goto();
         // Lazy-loaded behind Suspense — wait for the form before typing.
         await expect(resetPasswordPage.heading).toBeVisible();
 
@@ -102,11 +124,7 @@ test.describe('keyboard accessibility', () => {
         await resetPasswordPage.password.pressSequentially(
             'a-long-enough-pass'
         );
-        await resetPasswordPage.confirmPassword.focus();
-        await resetPasswordPage.confirmPassword.pressSequentially(
-            'a-long-enough-pass'
-        );
-        await resetPasswordPage.confirmPassword.press('Enter');
+        await resetPasswordPage.password.press('Enter');
 
         await expect.poll(() => reset.count).toBe(1);
         await expect(resetPasswordPage.doneHeading()).toBeVisible();
@@ -121,16 +139,13 @@ test.describe('keyboard accessibility', () => {
         await resetPasswordPage.goto();
         await expect(resetPasswordPage.heading).toBeVisible();
 
-        // The prefilled email is `readOnly`, not `disabled`, so it stays in the
-        // tab order: somebody has to be able to reach and read *which account*
-        // they are about to set a password on, since the link decides that and
-        // they cannot change it.
-        await page.keyboard.press('Tab');
-        await expect(resetPasswordPage.emailField()).toBeFocused();
+        // Which account the link resets is said under the heading, which has
+        // focus on arrival — read before the first Tab. Then the one field,
+        // its reveal toggle and the button.
         await page.keyboard.press('Tab');
         await expect(resetPasswordPage.password).toBeFocused();
         await page.keyboard.press('Tab');
-        await expect(resetPasswordPage.confirmPassword).toBeFocused();
+        await expect(resetPasswordPage.revealPassword).toBeFocused();
         await page.keyboard.press('Tab');
         await expect(resetPasswordPage.submit).toBeFocused();
     });
@@ -172,6 +187,34 @@ test.describe('keyboard accessibility', () => {
         await page.keyboard.press('Tab');
         await expect(acceptInvitePage.password).toBeFocused();
         await page.keyboard.press('Tab');
-        await expect(acceptInvitePage.confirmPassword).toBeFocused();
+        await expect(acceptInvitePage.revealPassword).toBeFocused();
+        await page.keyboard.press('Tab');
+        await expect(acceptInvitePage.submit).toBeFocused();
+    });
+
+    test('the forgot-password request can be made by keyboard alone', async ({
+        page,
+        loginPage
+    }) => {
+        await mockSignedOut(page);
+        await mockPasswordRecoveryAvailability(page, true);
+        const recovery = await spyPasswordRecovery(page);
+        await loginPage.goto();
+        await expect(loginPage.heading).toBeVisible();
+
+        await loginPage.forgotPassword.focus();
+        await page.keyboard.press('Enter');
+        const forgot = new ForgotPasswordPage(page);
+        await expect(forgot.heading).toBeVisible();
+
+        // Focus is on the heading on arrival; the field is one Tab away.
+        await page.keyboard.press('Tab');
+        await expect(forgot.email).toBeFocused();
+        await page.keyboard.type('ada@orthacms.dev');
+        await page.keyboard.press('Enter');
+
+        await expect(forgot.sentHeading).toBeVisible();
+        await expect(forgot.sentHeading).toBeFocused();
+        expect(recovery.count).toBe(1);
     });
 });

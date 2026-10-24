@@ -165,9 +165,14 @@ export function LoginForm({
                 }
                 // Above the heading, and never focused: the notice explains
                 // why the page changed under the visitor, which is context for
-                // the whole screen. AuthLayout has already put focus on the
-                // heading, so stealing it here would fight the arrival.
-                lead={notice ? <AuthNotice message={notice} /> : undefined}
+                // the whole screen. AuthLayout puts focus on the heading, which
+                // is described by the notice, so it is read on arrival.
+                lead={
+                    notice ? (
+                        <AuthNotice id="login-notice" message={notice} />
+                    ) : undefined
+                }
+                leadId={notice ? 'login-notice' : undefined}
             >
                 {/* Mounted only when there is a message: AuthAlert takes focus
                     as it appears, so it must not sit mounted-and-empty. */}
