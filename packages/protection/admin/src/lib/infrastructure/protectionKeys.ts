@@ -85,6 +85,14 @@ export const newEntryProtectionKey = (workspaceId: string, typeName: string) =>
 export const rulesKey = (workspaceId: string) =>
     ['protection', 'rules', workspaceId] as const;
 
+/** Every cached window of one workspace's queue — what an approval refreshes. */
+export const queuePrefix = (workspaceId: string) =>
+    ['protection', 'queue', workspaceId] as const;
+
+/** What the caller approved lately, in one workspace. */
+export const recentlyApprovedKey = (workspaceId: string) =>
+    ['protection', 'recently-approved', workspaceId] as const;
+
 /**
  * One page of the reviewer queue.
  *

@@ -48,6 +48,35 @@ export const PROTECTION_INSIGHTS_SCHEMA = 'ProtectionInsights';
 /** Component name for a page of the reviewer queue. */
 export const REVIEW_QUEUE_SCHEMA = 'ReviewQueue';
 
+/** Component name for the "Recently approved" tab. */
+export const RECENTLY_APPROVED_SCHEMA = 'RecentlyApproved';
+
+/**
+ * Where a queue line's entry stands against its live version — shared by both
+ * tabs, so the two cannot describe one shape two ways.
+ */
+const ENTRY_CHANGES_PROPERTIES: Record<string, OpenApiSchema> = {
+    headRevisionNumber: {
+        type: 'integer',
+        nullable: true,
+        description:
+            'The entry’s current version number, or null when its revisions have gone.'
+    },
+    liveRevisionNumber: {
+        type: 'integer',
+        nullable: true,
+        description:
+            'The live version’s number, or null when the entry has never been published.'
+    },
+    fieldsChanged: {
+        type: 'integer',
+        nullable: true,
+        example: 3,
+        description:
+            'How many fields the current version changed since the live one — every filled field for an entry never published. Null when it could not be computed.'
+    }
+};
+
 /**
  * The schema for `ProtectionRuleView`.
  *
@@ -146,6 +175,7 @@ export function buildProtectionSchemas(): Record<string, OpenApiSchema> {
                 'headPublished',
                 'callerWroteHead',
                 'callerApprovedHead',
+                'countsStaleApprovals',
                 'approvals',
                 'request'
             ],
@@ -208,6 +238,11 @@ export function buildProtectionSchemas(): Record<string, OpenApiSchema> {
                     type: 'boolean',
                     description:
                         'Whether the caller has already approved the current version.'
+                },
+                countsStaleApprovals: {
+                    type: 'boolean',
+                    description:
+                        'Whether the rule keeps approvals across saves. False on an unprotected type — and then any save after an approval asks again.'
                 },
                 approvals: {
                     type: 'array',
@@ -417,7 +452,10 @@ export function buildProtectionSchemas(): Record<string, OpenApiSchema> {
                             'reviewerIds',
                             'required',
                             'given',
-                            'createdAt'
+                            'createdAt',
+                            'headRevisionNumber',
+                            'liveRevisionNumber',
+                            'fieldsChanged'
                         ],
                         properties: {
                             id: { type: 'string', format: 'uuid' },
@@ -460,7 +498,91 @@ export function buildProtectionSchemas(): Record<string, OpenApiSchema> {
                                 format: 'date-time',
                                 description:
                                     'When the review was asked for — the age the page sorts and colours by.'
-                            }
+                            },
+                            ...ENTRY_CHANGES_PROPERTIES
+                        }
+                    }
+                }
+            }
+        },
+        [RECENTLY_APPROVED_SCHEMA]: {
+            type: 'object',
+            required: ['items', 'windowDays'],
+            properties: {
+                windowDays: {
+                    type: 'integer',
+                    example: 30,
+                    description: 'How many days back the list looks.'
+                },
+                items: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        required: [
+                            'id',
+                            'contentType',
+                            'contentTypeLabel',
+                            'entryId',
+                            'entryTitle',
+                            'requestedBy',
+                            'reviewerIds',
+                            'required',
+                            'given',
+                            'approvedAt',
+                            'approvalCurrent',
+                            'headPublished',
+                            'headRevisionNumber',
+                            'liveRevisionNumber',
+                            'fieldsChanged'
+                        ],
+                        properties: {
+                            id: {
+                                type: 'string',
+                                format: 'uuid',
+                                description:
+                                    'The entry id — one line per entry, however many of its versions the caller approved.'
+                            },
+                            contentType: { type: 'string', example: 'article' },
+                            contentTypeLabel: {
+                                type: 'string',
+                                example: 'Articles'
+                            },
+                            entryId: { type: 'string', format: 'uuid' },
+                            entryTitle: { type: 'string', nullable: true },
+                            requestedBy: {
+                                type: 'string',
+                                format: 'uuid',
+                                nullable: true,
+                                description:
+                                    'Who asked for the entry’s newest review request, open or closed; null when nobody asked.'
+                            },
+                            reviewerIds: {
+                                type: 'array',
+                                items: { type: 'string', format: 'uuid' }
+                            },
+                            required: { type: 'integer' },
+                            given: {
+                                type: 'integer',
+                                description:
+                                    'Distinct approvals on the current version — the same hint the queue gives.'
+                            },
+                            approvedAt: {
+                                type: 'string',
+                                format: 'date-time',
+                                description:
+                                    'The caller’s newest approval of the entry.'
+                            },
+                            approvalCurrent: {
+                                type: 'boolean',
+                                description:
+                                    'Whether the caller’s approval is on the current version, and so still counts.'
+                            },
+                            headPublished: {
+                                type: 'boolean',
+                                description:
+                                    'Whether the current version is the live one.'
+                            },
+                            ...ENTRY_CHANGES_PROPERTIES
                         }
                     }
                 }

@@ -135,6 +135,33 @@ export class ReviewRequestRepository {
     }
 
     /**
+     * The newest request on each named entry — open **or** resolved — keyed by
+     * entry id: who asked and whom, for a line about an entry whose ask may
+     * already have closed (the "Recently approved" tab lists what the reader
+     * approved, and most of that has since been published).
+     *
+     * One query for the whole page (`distinct on (entry_id)`), and an entry
+     * nobody ever asked about is simply absent.
+     */
+    async latestByEntries(
+        workspaceId: string,
+        entryIds: readonly string[]
+    ): Promise<Map<string, StoredReviewRequest>> {
+        if (!entryIds.length) return new Map();
+        const rows = await this.exec
+            .selectDistinctOn([reviewRequests.entryId])
+            .from(reviewRequests)
+            .where(
+                and(
+                    eq(reviewRequests.workspaceId, workspaceId),
+                    inArray(reviewRequests.entryId, [...entryIds])
+                )
+            )
+            .orderBy(reviewRequests.entryId, desc(reviewRequests.createdAt));
+        return new Map(rows.map((row) => [row.entryId, toRequest(row)]));
+    }
+
+    /**
      * Opens the request, or updates the one already open.
      *
      * `onConflictDoUpdate` on the partial unique index rather than

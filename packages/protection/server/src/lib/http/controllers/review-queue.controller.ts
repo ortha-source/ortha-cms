@@ -10,7 +10,10 @@ import {
 import { CurrentWorkspace, WorkspaceGuard } from '@orthacms/workspaces-server';
 import { ReviewQueueService } from '../../application/review-queue.service';
 import { ReviewQueueQueryDto } from '../../application/dto/review-queue-query.dto';
-import type { ReviewQueueView } from '../../types/protection-views';
+import type {
+    RecentlyApprovedView,
+    ReviewQueueView
+} from '../../types/protection-views';
 
 /**
  * The reviewer's queue: `GET /api/protection/queue`.
@@ -25,6 +28,31 @@ import type { ReviewQueueView } from '../../types/protection-views';
 @Controller('protection/queue')
 export class ReviewQueueController {
     constructor(private readonly queue: ReviewQueueService) {}
+
+    /**
+     * What the caller approved lately: `GET /api/protection/queue/approved`.
+     *
+     * Declared **before** the bare `GET` only for reading order — the two
+     * paths are distinct literals. `content:read` like the queue: it lists the
+     * caller's own votes, which only somebody who could approve has, and a
+     * caller with none is told so by an empty list rather than a 403.
+     */
+    @ApiOperation({
+        summary: 'List what the caller approved recently',
+        description:
+            'The entries the caller approved in the last 30 days, newest ' +
+            'first, one line per entry — the Reviews page’s “Recently ' +
+            'approved” tab. Each line says whether the approval is still on ' +
+            'the current version and whether that version is live.'
+    })
+    @RequirePermissions(PERMISSIONS.CONTENT_READ)
+    @Get('approved')
+    approved(
+        @CurrentWorkspace() workspaceId: string,
+        @CurrentUser() user: PublicUser
+    ): Promise<RecentlyApprovedView> {
+        return this.queue.recentlyApproved(workspaceId, user.id);
+    }
 
     /** Open review requests in the workspace, newest first. */
     @ApiOperation({

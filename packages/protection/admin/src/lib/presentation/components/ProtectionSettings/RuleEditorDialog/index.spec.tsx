@@ -116,8 +116,8 @@ describe('the one-member warning', () => {
         renderDialog({ memberCount: 1 });
         fireEvent.click(toggle());
         fireEvent.click(
-            screen.getByRole('checkbox', {
-                name: /author cannot approve their own version/
+            screen.getByRole('switch', {
+                name: /author can’t approve their own changes/
             })
         );
         expect(screen.queryByText(/Nobody could publish/)).toBeNull();
@@ -183,10 +183,24 @@ describe('saving', () => {
         expect(rule.enabled).toBe(true);
     });
 
-    it('clamps a count typed below the minimum', async () => {
+    it('sends the preset that was picked', async () => {
         renderDialog();
+        fireEvent.click(screen.getByRole('radio', { name: '3' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+        await waitFor(() => expect(saveRule).toHaveBeenCalledTimes(1));
+        expect(saveRule.mock.calls[0][1].requiredApprovals).toBe(3);
+    });
+
+    it('reveals a number input behind Other…, and clamps what is typed', async () => {
+        renderDialog();
+        expect(
+            screen.queryByRole('spinbutton', { name: 'Number of approvals' })
+        ).toBeNull();
+
+        fireEvent.click(screen.getByRole('radio', { name: 'Other…' }));
         fireEvent.change(
-            screen.getByRole('spinbutton', { name: 'Approvals needed' }),
+            screen.getByRole('spinbutton', { name: 'Number of approvals' }),
             { target: { value: '0' } }
         );
         fireEvent.click(screen.getByRole('button', { name: 'Save' }));
@@ -195,10 +209,86 @@ describe('saving', () => {
         expect(saveRule.mock.calls[0][1].requiredApprovals).toBe(1);
     });
 
+    it('opens on Other… for a count beyond the presets', () => {
+        renderDialog({
+            row: {
+                ...row,
+                rule: {
+                    ...DEFAULT_PROTECTION_RULE,
+                    enabled: true,
+                    requiredApprovals: 5,
+                    id: 'r1',
+                    kind: 'collection',
+                    slug: 'article'
+                }
+            }
+        });
+        expect(
+            screen
+                .getByRole('radio', { name: 'Other…' })
+                .getAttribute('aria-checked')
+        ).toBe('true');
+        expect(
+            (
+                screen.getByRole('spinbutton', {
+                    name: 'Number of approvals'
+                }) as HTMLInputElement
+            ).value
+        ).toBe('5');
+    });
+
     it('offers Remove only for a type that already holds a rule', () => {
         renderDialog();
         expect(
             screen.queryByRole('button', { name: 'Remove rule' })
         ).toBeNull();
+    });
+});
+
+/**
+ * The rule read back as one sentence — the redesign's point: what the switches
+ * do together, which no single switch says.
+ */
+describe('the In short sentence', () => {
+    const sentence = () =>
+        screen.getByText('In short:').parentElement?.textContent ?? '';
+
+    it('says a type with the rule off publishes without review', () => {
+        renderDialog();
+        expect(sentence()).toBe(
+            'In short: a record in Articles publishes without review.'
+        );
+    });
+
+    it('reads the board’s rule back: two approvals from others, admins override', () => {
+        renderDialog();
+        fireEvent.click(toggle());
+        fireEvent.click(screen.getByRole('radio', { name: '2' }));
+        expect(sentence()).toBe(
+            'In short: a record in Articles needs 2 approvals from people other than its author; admins can override.'
+        );
+    });
+
+    it('follows every switch as it moves', () => {
+        renderDialog();
+        fireEvent.click(toggle());
+        fireEvent.click(
+            screen.getByRole('switch', {
+                name: /author can’t approve their own changes/
+            })
+        );
+        fireEvent.click(
+            screen.getByRole('switch', {
+                name: 'Keep approvals across new saves'
+            })
+        );
+        fireEvent.click(
+            screen.getByRole('switch', {
+                name: 'Admins may publish without review'
+            })
+        );
+        expect(sentence()).toBe(
+            'In short: a record in Articles needs 1 approval; its author’s own approval counts; approvals stay after a new save.'
+        );
     });
 });

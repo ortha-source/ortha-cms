@@ -166,3 +166,22 @@ export { RequiredMark } from './lib/presentation/components/EntryFieldInput/Requ
 // Exported so the alarms rule editor offers the same picker the records list
 // does rather than that.
 export { RelationValuePicker } from './lib/presentation/components/RelationValuePicker';
+
+// The revision comparison History draws, exported so a plugin showing what
+// changed between two versions (protection's review panel: the live version
+// against the one waiting for approval) compares and renders it the same way —
+// `diffRevision` is the rule `diffSnapshots` mirrors on the server, so a count
+// the server sends and the rows drawn here cannot disagree about what changed.
+export {
+    diffRevision,
+    type RevisionFieldDiff
+} from './lib/domain/revisionDiff';
+export { useRevisionDetail } from './lib/application/useRevisionDetail';
+export { fieldLabel } from './lib/domain/entryColumns';
+export { formatRevisionValue } from './lib/presentation/components/ContentEntryView/EntryEditor/RevisionList/RevisionPreviewDialog/formatRevisionValue';
+export { RelationRefList } from './lib/presentation/components/ContentEntryView/EntryEditor/RevisionList/RevisionPreviewDialog/RelationRefList';
+export { MediaRefList } from './lib/presentation/components/ContentEntryView/EntryEditor/RevisionList/RevisionPreviewDialog/MediaRefList';
+export type {
+    RevisionDetail,
+    RevisionSnapshot
+} from './lib/domain/types/contentType';

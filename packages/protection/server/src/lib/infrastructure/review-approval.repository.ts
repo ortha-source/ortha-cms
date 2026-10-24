@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, sql } from 'drizzle-orm';
 import { UnitOfWork, type Database } from '@orthacms/database';
 import type { Approval } from '@orthacms/protection-domain';
 import { reviewApprovals } from './schema/review-approvals';
@@ -17,6 +17,14 @@ export interface CastVoteInput {
     entryId: string;
     revisionId: string;
     userId: string;
+}
+
+/** One entry this person approved recently, and when they last did. */
+export interface RecentApproval {
+    contentType: string;
+    entryId: string;
+    /** Their newest approval of any version of the entry. */
+    approvedAt: Date;
 }
 
 /**
@@ -153,6 +161,49 @@ export class ReviewApprovalRepository {
             )
             .returning({ id: reviewApprovals.id });
         return removed.length > 0;
+    }
+
+    /**
+     * The entries this person approved since `since`, newest first — one line
+     * per entry however many of its versions they approved, the "Recently
+     * approved" tab's question: *did I already approve that?*
+     *
+     * One grouped query over the denormalised `entry_id`, served by the
+     * `(workspace_id, user_id, created_at)` index. Which version they approved,
+     * and whether it is still the head, is the caller's to work out against the
+     * head it reads — the same reason every read here returns votes rather
+     * than verdicts.
+     */
+    async recentByUser(
+        workspaceId: string,
+        userId: string,
+        since: Date,
+        limit: number
+    ): Promise<RecentApproval[]> {
+        const approvedAt = sql<Date>`max(${reviewApprovals.createdAt})`;
+        const rows = await this.exec
+            .select({
+                contentType: reviewApprovals.contentType,
+                entryId: reviewApprovals.entryId,
+                approvedAt
+            })
+            .from(reviewApprovals)
+            .where(
+                and(
+                    eq(reviewApprovals.workspaceId, workspaceId),
+                    eq(reviewApprovals.userId, userId),
+                    gte(reviewApprovals.createdAt, since)
+                )
+            )
+            .groupBy(reviewApprovals.contentType, reviewApprovals.entryId)
+            .orderBy(desc(approvedAt))
+            .limit(limit);
+        return rows.map((row) => ({
+            contentType: row.contentType,
+            entryId: row.entryId,
+            // A raw `max()` arrives as text from `pg`, not as a Date.
+            approvedAt: new Date(row.approvedAt as unknown as string)
+        }));
     }
 
     /**

@@ -14,6 +14,7 @@ const review = (given: number, required: number): EntryReview => ({
     headPublished: false,
     callerWroteHead: false,
     callerApprovedHead: false,
+    countsStaleApprovals: false,
     approvals: [],
     request: null
 });
