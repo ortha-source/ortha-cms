@@ -1,88 +1,43 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { Link } from 'react-router-dom';
-import {
-    Button,
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle
-} from '@orthacms/design-system';
+import { AuthCard } from '../AuthCard';
+import { BackToSignIn } from '../BackToSignIn';
+import { ClockIcon } from '../AuthIcons';
 
 /** Intl descriptors for {@link InviteUnavailable}, co-located with the component. */
 const messages = defineMessages({
     title: {
         id: 'identity.acceptInvite.unavailable.title',
-        defaultMessage: 'This invite link no longer works'
+        defaultMessage: 'This invite has expired'
     },
     description: {
         id: 'identity.acceptInvite.unavailable.description',
         defaultMessage:
-            'Invite links are single-use and expire after a while, so this one has most likely already been accepted, been replaced by a newer invite, or simply timed out.'
-    },
-    whatToDo: {
-        id: 'identity.acceptInvite.unavailable.whatToDo',
-        defaultMessage:
-            'Ask whoever invited you to send a fresh one. If you have already set your password, sign in instead — the link is not needed after that.'
-    },
-    missingToken: {
-        id: 'identity.acceptInvite.unavailable.missingToken',
-        defaultMessage:
-            'This address is missing its invite code, so there is nothing to accept. Open the link from your invite exactly as you received it — some chat apps cut long links in half.'
-    },
-    signIn: {
-        id: 'identity.acceptInvite.unavailable.signIn',
-        defaultMessage: 'Go to sign in'
+            'Invites work once, and only for a limited time. Ask whoever invited you to send a new one — the old link can’t be renewed. Already set your password? Sign in instead.'
     }
 });
 
-/** Props for {@link InviteUnavailable}. */
-type InviteUnavailableProps = {
-    /**
-     * Whether the URL carried no token at all, as opposed to one the server
-     * rejected. The two are different mistakes and deserve different advice —
-     * a truncated link is fixable by the invitee, a dead one is not.
-     */
-    missingToken?: boolean;
-};
-
 /**
- * The dead-end state of the accept-invite screen: the link is missing its
- * token, or the server would not honour it. The server deliberately does not
- * say *why* a token failed (unknown, expired, and already-used are one generic
- * 404, so the endpoint can't be used to probe for live invites), so this
- * explains the likely causes and gives the one action that always helps —
- * asking for a fresh invite.
+ * The accept-invite screen's dead-link state: the server would not honour the
+ * token. It answers one generic `404` for unknown, expired, already-accepted
+ * and revoked alike (identity:I-04), so this says what is true of all four —
+ * an invite works once and for a limited time — and the one action that
+ * always helps.
+ *
+ * **It names nobody.** The board drew "Ask Ada Lovelace to send a new one";
+ * this says "whoever invited you". The page is public and the link is dead, so
+ * whoever holds it may well not be the invitee — a stale link from a forwarded
+ * email or a log must not hand them an administrator's name.
  */
-export function InviteUnavailable({
-    missingToken = false
-}: InviteUnavailableProps) {
+export function InviteUnavailable() {
     const intl = useIntl();
-
     return (
-        <Card>
-            <CardHeader className="text-center">
-                <CardTitle asChild className="text-xl">
-                    <h1>{intl.formatMessage(messages.title)}</h1>
-                </CardTitle>
-                <CardDescription>
-                    {intl.formatMessage(
-                        missingToken
-                            ? messages.missingToken
-                            : messages.description
-                    )}
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-6">
-                <p className="text-center text-sm text-muted-foreground">
-                    {intl.formatMessage(messages.whatToDo)}
-                </p>
-                <Button asChild variant="outline" className="w-full">
-                    <Link to="/identity/signin">
-                        {intl.formatMessage(messages.signIn)}
-                    </Link>
-                </Button>
-            </CardContent>
-        </Card>
+        <AuthCard
+            icon={<ClockIcon />}
+            tone="warning"
+            title={intl.formatMessage(messages.title)}
+            description={intl.formatMessage(messages.description)}
+        >
+            <BackToSignIn />
+        </AuthCard>
     );
 }

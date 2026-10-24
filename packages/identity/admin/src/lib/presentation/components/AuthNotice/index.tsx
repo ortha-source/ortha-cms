@@ -1,4 +1,5 @@
 import { Alert, AlertDescription } from '@orthacms/design-system';
+import { InfoIcon } from '../AuthIcons';
 
 /** Props for the {@link AuthNotice} component. */
 type AuthNoticeProps = {
@@ -19,8 +20,9 @@ type AuthNoticeProps = {
  *   on ordering (a child's runs first, so the layout would win anyway and the
  *   notice would be skipped past). A reader continuing from the heading meets
  *   this next in DOM order, which is where the explanation belongs.
- * - **It is not destructive.** Nothing the visitor just did failed. It is
- *   `warning`, the same tint the toast that announced it uses.
+ * - **It is not destructive.** Nothing the visitor just did failed. It is the
+ *   `info` callout, and it sits **above** the heading, as the first thing the
+ *   card says — it explains the whole screen, not one field on it.
  *
  * `Alert` carries `role="alert"`, so it is announced if it appears while the
  * page is already up. Mounted at arrival it is usually the focused heading's
@@ -30,8 +32,14 @@ type AuthNoticeProps = {
  */
 export function AuthNotice({ message }: AuthNoticeProps) {
     return (
-        <Alert variant="warning">
-            <AlertDescription>{message}</AlertDescription>
+        <Alert
+            variant="info"
+            className="rounded-[10px] border-0 px-3 py-2.5 text-[13px] leading-[18px] [&>svg]:left-3 [&>svg]:top-3 [&>svg~*]:pl-6"
+        >
+            <InfoIcon />
+            <AlertDescription className="text-[13px]">
+                {message}
+            </AlertDescription>
         </Alert>
     );
 }

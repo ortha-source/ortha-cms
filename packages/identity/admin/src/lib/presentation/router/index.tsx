@@ -34,6 +34,16 @@ const ResetPasswordPage = lazyPage(
 );
 
 /**
+ * "Forgot it?" — the request form on a deployment that sends mail, or the
+ * "ask an admin" card on one that does not. Split like the other two: reached
+ * rarely, and only by someone who is already locked out.
+ */
+const ForgotPasswordPage = lazyPage(
+    () => import('../pages/ForgotPasswordPage'),
+    'ForgotPasswordPage'
+);
+
+/**
  * Identity plugin router. Renders the auth sub-routes; mounted by the plugin
  * under the `/identity` base path (see {@link IdentityPlugin}). The lazy pages
  * are wrapped in a `Suspense` boundary that shows the {@link LoginSkeleton}
@@ -61,6 +71,10 @@ export function IdentityRouter() {
                     <Route
                         path="reset-password"
                         element={<ResetPasswordPage />}
+                    />
+                    <Route
+                        path="forgot-password"
+                        element={<ForgotPasswordPage />}
                     />
                     {/*
                      * Anything else under `/identity`. Without this the subtree

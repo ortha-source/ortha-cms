@@ -4,6 +4,7 @@ import type {
     CurrentUser,
     InviteDetails,
     LoginCredentials,
+    PasswordRecoveryAvailability,
     PasswordResetDetails,
     ResetPasswordInput,
     SsoProviderSummary
@@ -89,6 +90,29 @@ export const httpAuthGateway: AuthGateway = {
     async resetPassword(input: ResetPasswordInput): Promise<void> {
         try {
             await apiClient.post('/auth/reset', input);
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async passwordRecoveryAvailable(): Promise<boolean> {
+        try {
+            const { data } = await apiClient.get<PasswordRecoveryAvailability>(
+                '/auth/password-recovery'
+            );
+            return data.available === true;
+        } catch (error) {
+            const apiError = toApiError(error);
+            if (apiError.status === HTTP_STATUS.NOT_FOUND) {
+                return false;
+            }
+            throw apiError;
+        }
+    },
+
+    async requestPasswordRecovery(email: string): Promise<void> {
+        try {
+            await apiClient.post('/auth/password-recovery', { email });
         } catch (error) {
             throw toApiError(error);
         }

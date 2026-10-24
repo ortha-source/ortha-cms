@@ -10,6 +10,7 @@ vi.mock('@orthacms/utils-admin', async (importOriginal) => ({
 }));
 
 const get = vi.mocked(apiClient.get);
+const post = vi.mocked(apiClient.post);
 
 /**
  * A failure shaped the way axios rejects: `isAxiosError` recognizes it, so
@@ -138,6 +139,55 @@ describe('httpAuthGateway', () => {
 
             expect(error).toBeInstanceOf(ApiError);
             expect((error as ApiError).status).toBe(404);
+        });
+    });
+
+    describe('passwordRecoveryAvailable', () => {
+        it('reads the deployment’s answer', async () => {
+            get.mockResolvedValue({ data: { available: true } });
+
+            await expect(
+                httpAuthGateway.passwordRecoveryAvailable()
+            ).resolves.toBe(true);
+            expect(get).toHaveBeenCalledWith('/auth/password-recovery');
+        });
+
+        it('reads a 404 as "no recovery here" — a server from before the route', async () => {
+            get.mockRejectedValue(respondedWith(404));
+
+            await expect(
+                httpAuthGateway.passwordRecoveryAvailable()
+            ).resolves.toBe(false);
+        });
+
+        it('throws on anything else, so the page can fall back deliberately', async () => {
+            get.mockRejectedValue(neverReachedTheServer());
+
+            await expect(
+                httpAuthGateway.passwordRecoveryAvailable()
+            ).rejects.toBeInstanceOf(ApiError);
+        });
+    });
+
+    describe('requestPasswordRecovery', () => {
+        it('posts only the address', async () => {
+            post.mockResolvedValue({ data: { ok: true } });
+
+            await httpAuthGateway.requestPasswordRecovery('ada@orthacms.dev');
+
+            expect(post).toHaveBeenCalledWith('/auth/password-recovery', {
+                email: 'ada@orthacms.dev'
+            });
+        });
+
+        it('passes a throttled answer through as an ApiError', async () => {
+            post.mockRejectedValue(respondedWith(429));
+
+            const error = await httpAuthGateway
+                .requestPasswordRecovery('ada@orthacms.dev')
+                .catch((thrown: unknown) => thrown);
+
+            expect((error as ApiError).status).toBe(429);
         });
     });
 });
