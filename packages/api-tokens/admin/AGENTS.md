@@ -12,7 +12,8 @@ API those tokens are spent against lives in `@orthacms/content-server`
 Layered per ADR-0003, mirroring `@orthacms/users-admin`:
 
 ```
-domain/types/           view-model contracts (ApiToken, WorkspaceOption) — pure TS
+domain/types/           view-model contracts (ApiToken, ApiTokenSummary, WorkspaceOption) — pure TS
+domain/apiTokenExpiry/  expiry presets, the 30-day expiring-soon window, days-until — pure TS
 infrastructure/
   apiTokenGateway/      the PORT the presentation talks to
   httpApiTokenGateway/  the impl — the ONLY apiClient user
@@ -23,12 +24,36 @@ application/
   useWorkspaceOptions/  workspace-selector data (GET /api/workspaces)
   useApiTokensMutation/ create + revoke mutations (invalidate apiTokensKeys.all)
 presentation/
-  pages/ApiTokensPage/  the routed page (list/create/revoke/reveal + states)
-  components/           table, create dialog, reveal-secret dialog, empty/skeleton/no-access
+  pages/ApiTokensPage/  the routed page (chips/search/list/create/revoke/reveal + states)
+  components/           table, status chips, create dialog (WorkspacePicker, AccessChoice),
+                        reveal-secret dialog, revoke dialog, empty/no-match/skeleton/no-access
   apiTokensPlugin/      the AdminPlugin factory (route + SIDEBAR_NAV_SLOT item)
 ```
 
 ## Key behaviours
+
+- **The list (R7 redesign).** Each row names who created the token
+  (`createdBy.name`, falling back to the email) and when; the workspace bucket
+  is shown as initials tiles (named in `sr-only` text and `title`); a live token
+  expiring within **30 days** (`EXPIRING_SOON_DAYS`, mirroring the server) reads
+  "Expires soon" with an "in N days" countdown. **Active / Expired / Revoked**
+  chips filter server-side (`?status=`), Active is the default, and each chip
+  counts from the response's `summary` (which ignores the status and search
+  filters). The search box filters by name or display prefix (`?q=`). Page,
+  status and search all live in the URL (`useTableUrlState`). The subtitle reads
+  the summary: "N active, M expires in D days". An empty _view_ of a deployment
+  that has tokens gets `ApiTokensNoMatch` (per status, or "No tokens match …"
+  with Clear search) — never the first-token `ApiTokensEmpty`. **New token**
+  lives in the top bar (`PageActionsPortal`).
+- **Create.** Workspaces are chips with a remove button plus an "Add a
+  workspace…" combobox (`WorkspacePicker`, the plugin's own — its popover is
+  named by the field label); access is two radio cards (`AccessChoice`); the
+  expiry is a `SegmentedControl` preset (**30 days by default**) whose hint
+  turns it into a date. The name is capped at the server's 120 characters.
+- **Revoke** is a page-owned `RevokeApiTokenDialog` that says what will break:
+  when the token was last used, on which workspaces, and — for a full-access
+  token — that writes stop too. It stays open with a busy confirm until the
+  request settles.
 
 - **Global, not workspace-scoped.** The page lives in `SIDEBAR_NAV_SLOT`
   (`group: 'directory'`, `order: 30`), gated on `tokens:read`. The token's target
@@ -40,8 +65,12 @@ presentation/
   consumer names which workspace a request targets with `X-Workspace-Id`; a
   single-workspace token needs no header.
 - **Reveal-once secret.** The create response carries the plaintext `secret`
-  exactly once; `RevealSecretDialog` shows it with copy-to-clipboard and a
-  "won't be shown again" warning. Four things about it are load-bearing, and
+  exactly once; `RevealSecretDialog` shows it with copy-to-clipboard, a
+  ready-to-run **Try it** request (`curl <origin>/api/v1/content-types` with the
+  `Authorization` and `X-Workspace-Id` headers; the secret shown elided, the
+  full command copied by **Copy request**, which also counts as copying the
+  secret), a one-line summary of what was minted, and a "can't be shown again"
+  callout. Four things about it are load-bearing, and
   each mirrors the equivalent one-time invite link in `users/admin`
   (`InviteLinkPanel` / `InviteLinkDialog`):
     - the secret is a **labelled, focusable `readOnly` input** that selects
@@ -67,8 +96,12 @@ presentation/
 
 ## Server contract this plugin depends on
 
-- `GET /api/api-tokens?page=&pageSize=&workspaceId=` → `{ items, total, page, pageSize }`
-  (`workspaceId` matches tokens whose bucket _contains_ it)
+- `GET /api/api-tokens?page=&pageSize=&workspaceId=&status=&q=` →
+  `{ items, total, page, pageSize, summary }` (`workspaceId` matches tokens whose
+  bucket _contains_ it; `status` is `active|expired|revoked`; `q` searches the
+  name and display prefix; every item carries `createdBy`; `summary` is
+  `{ active, expired, revoked, expiringSoon, nextExpiresAt }` over the workspace
+  filter only)
 - `POST /api/api-tokens` `{ name, workspaceIds, scope, expiresAt? }` → token + one-time `secret`
 - `DELETE /api/api-tokens/:id` → 204
 - `GET /api/workspaces` → `{ id, name, description, color }[]`

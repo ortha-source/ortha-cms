@@ -320,6 +320,15 @@ The server supports `GET /api/api-tokens?workspaceId=…`: the filter is a **set
 >
 > The `ApiTokensListParams` type declares it, the gateway passes it, the server understands it and e2e checks it — but the page calls `useApiTokens({ page, pageSize })` and never sends `workspaceId`. There is no control for it in the interface. So the capability exists at every level except the last; for a tester that means the filter can only be exercised through the API.
 
+### 6.7a The R7 redesign — what the page shows now
+
+1. **Who made it.** Every row names its creator under the token name ("by Ada Lovelace · Aug 2"), from `createdBy` on the list response; a member with no display name is named by email. The column already existed (`api_tokens.created_by`), so this needed no migration — only the view, a batched `users` read, and the OpenAPI schema.
+2. **What is about to break.** A live token whose expiry is within 30 days reads **Expires soon** with "in N days" in its Expires cell, and the subtitle sums it up ("4 active, 1 expires in 12 days") from the response's `summary`.
+3. **Old tokens out of the way.** Active / Expired / Revoked chips filter on the server (`?status=`); Active is the default view and each chip carries its count. A search box filters by name or display prefix (`?q=`). Both live in the URL with the page number.
+4. **Create** takes workspaces as removable chips, access as two cards that say what each allows, and an expiry preset — **30 days by default** (it used to be Never) — shown as the date it lands on. The name is capped at 120 characters in the field, closing the "generic toast for an over-long name" gap noted in section 14.
+5. **Reveal** adds a ready request — `curl <origin>/api/v1/content-types` with `Authorization: Bearer …` and `X-Workspace-Id: <first workspace>` — shown with the secret elided and copied whole by **Copy request**, plus a summary line (name · access · workspaces · expiry).
+6. **Revoke** says what breaks: when the token was last used and on which workspaces, and for a full-access token that writes stop too. The dialog stays open with a busy confirm until the request settles, which makes the double-submit guard real (section 14 noted it was unobservable before).
+
 ### 6.8 Audit
 
 1. **Issue and revoke put a domain event into the transactional outbox** — in the same transaction as the write itself. Either there is both a token and an event, or there is neither.
@@ -427,7 +436,7 @@ This package has no configuration at all: `ApiTokensPlugin()` takes no arguments
 
 | Quantity                     | Value                        | Where it is declared                      | Meaning                                                                                                    |
 | ---------------------------- | ---------------------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| TOKEN_PREFIX                 | `orthacms_`                  | identity-server                           | A human-readable prefix: the string is recognisable as an Ortha CMS key in somebody else's config              |
+| TOKEN_PREFIX                 | `orthacms_`                  | identity-server                           | A human-readable prefix: the string is recognisable as an Ortha CMS key in somebody else's config          |
 | TOKEN_ENTROPY_BYTES          | `32` (256 bits)              | identity-server                           | The random part of the secret, in base64url                                                                |
 | LOOKUP_PREFIX_LENGTH         | `15` = 9 + 6                 | identity-server                           | How many characters of the raw token are kept as a non-secret label                                        |
 | LAST_USED_TOUCH_INTERVAL_MS  | `60 000`                     | identity-server                           | Throttling of the `last_used_at` write: a burst of calls must not write a row per request                  |
@@ -513,6 +522,11 @@ Statements that must always hold. This doubles as a review list and as a startin
 - **I-23** — A list load error and an empty list are different screen states; a workspace load error in the dialog is likewise separated from "there are no workspaces".
 - **I-24** — The page number lives in the URL, an invalid value collapses to the first page, and a page beyond the list is clamped to the last.
 - **I-25** — Revocation does not leave focus on `<body>`: it is moved to a live element if Radix's restoration lost it.
+- **I-26** — The list's status filter and the summary derive status by the same rule as **I-10** (revocation first, then expiry), at one instant shared by the page and the summary.
+- **I-27** — The `summary` (per-status totals, expiring-soon count and soonest expiry) is narrowed by the workspace filter only — never by `status` or `q` — so each chip says how many tokens it would show.
+- **I-28** — An empty filtered view of a deployment that has tokens never shows the first-token empty state; that state is reserved for a deployment with none at all (extends **I-23**).
+- **I-29** — `createdBy` is attribution only: it names the minting member (id, name, email — never a credential column) and never takes part in an access decision (extends **I-16**).
+- **I-30** — Copying the reveal dialog's example request counts as copying the secret (it carries the whole secret), while the request **shown** on screen carries it elided; both vanish with the dialog (**I-03**).
 
 ## 12. Testing checklist
 
@@ -621,12 +635,12 @@ Phrased as "action → expected result". The server side is exercised with `curl
 ### What the product still does not have
 
 - **A workspace filter in the UI** — the server, the parameter type and the gateway support it; there is no control.
-- **Search and sorting in the list** — the order is always newest first, and there is no search by name.
+- **Sorting in the list** — the order is always newest first. (Search by name or display prefix, and status filtering, arrived with the R7 redesign.)
 - **Editing a token** — not the name, not the scope, not the workspace set, not the expiry.
 - **Rotation and "issue a replacement"** — no such single action exists.
 - **A token detail screen** — all the information is in the table row; there is no usage history beyond the single `last_used_at` stamp.
 - **Bulk operations** — revocation is one at a time.
-- **Showing which surfaces the chosen scope opens** — the table in section 3 exists only in the code and in this document, while the issue form offers two options with no explanation.
+- **Showing every surface the chosen scope opens** — the issue form's two cards now say in one line what each allows (published reads vs create/update/publish), but the full permission table in section 3 still exists only in the code and in this document.
 
 ## 14. Discrepancies between code and documentation
 

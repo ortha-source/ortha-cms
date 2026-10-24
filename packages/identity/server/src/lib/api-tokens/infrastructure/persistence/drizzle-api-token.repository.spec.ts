@@ -222,3 +222,187 @@ describe('DrizzleApiTokenRepository.list', () => {
         ).toEqual([]);
     });
 });
+
+/** The bound parameters a recorded statement renders with. */
+function paramsOf(statement: Statement): unknown[] {
+    return new PgDialect().sqlToQuery(statement.select.getSQL()).params;
+}
+
+const NOW = new Date('2026-10-24T12:00:00.000Z');
+
+describe('DrizzleApiTokenRepository.list — status and search', () => {
+    it('renders `revoked` as a bare revocation test, whatever the expiry', async () => {
+        const { repo, statements } = fakeUow(bothWorkspaces);
+
+        await repo.list({ status: 'revoked', now: NOW, limit: 20, offset: 0 });
+
+        const page = sqlOf(only(statements, 'api_tokens', false));
+        const where = page.slice(page.indexOf(' where '));
+        expect(where).toContain('"api_tokens"."revoked_at" is not null');
+        expect(where).not.toContain('"expires_at"');
+    });
+
+    it('renders `active` as not revoked and not yet expired [api-tokens:I-10]', async () => {
+        const { repo, statements } = fakeUow(bothWorkspaces);
+
+        await repo.list({ status: 'active', now: NOW, limit: 20, offset: 0 });
+
+        const page = only(statements, 'api_tokens', false);
+        const sql = sqlOf(page);
+        expect(sql).toContain('"api_tokens"."revoked_at" is null');
+        expect(sql).toContain(
+            '("api_tokens"."expires_at" is null or "api_tokens"."expires_at" > $1)'
+        );
+        // Measured at the instant the service passed in, not at whatever the
+        // database clock says — so the page and the summary agree.
+        expect(paramsOf(page)[0]).toBe(NOW.toISOString());
+    });
+
+    it('renders `expired` as not revoked and past its expiry', async () => {
+        const { repo, statements } = fakeUow(bothWorkspaces);
+
+        await repo.list({ status: 'expired', now: NOW, limit: 20, offset: 0 });
+
+        const sql = sqlOf(only(statements, 'api_tokens', false));
+        expect(sql).toContain('"api_tokens"."revoked_at" is null');
+        expect(sql).toContain('"api_tokens"."expires_at" is not null');
+        expect(sql).toContain('"api_tokens"."expires_at" <= $1');
+    });
+
+    it('searches the name and the display prefix, matching wildcards literally', async () => {
+        const { repo, statements } = fakeUow(bothWorkspaces);
+
+        await repo.list({ search: ' 50%_off ', limit: 20, offset: 0 });
+
+        const page = only(statements, 'api_tokens', false);
+        const sql = sqlOf(page);
+        expect(sql).toContain('"api_tokens"."name" ilike $1');
+        expect(sql).toContain('"api_tokens"."lookup_prefix" ilike $2');
+        // A `%` typed into the box is a percent sign, not "anything".
+        expect(paramsOf(page).slice(0, 2)).toEqual([
+            '%50\\%\\_off%',
+            '%50\\%\\_off%'
+        ]);
+    });
+
+    it('ignores a blank search instead of filtering on `%%`', async () => {
+        const { repo, statements } = fakeUow(bothWorkspaces);
+
+        await repo.list({ search: '   ', limit: 20, offset: 0 });
+
+        expect(sqlOf(only(statements, 'api_tokens', false))).not.toContain(
+            'where'
+        );
+    });
+
+    it('filters the count with every filter the page uses', async () => {
+        const { repo, statements } = fakeUow(bothWorkspaces);
+
+        await repo.list({
+            workspaceId: WORKSPACE_A,
+            status: 'active',
+            search: 'ci',
+            now: NOW,
+            limit: 20,
+            offset: 0
+        });
+
+        const predicate = (sql: string) => sql.slice(sql.indexOf(' where '));
+        const total = sqlOf(only(statements, 'api_tokens', true));
+        const page = sqlOf(only(statements, 'api_tokens', false));
+        expect(predicate(total)).toBe(
+            predicate(page).replace(/ order by .*$/, '')
+        );
+    });
+});
+
+describe('DrizzleApiTokenRepository.summarize', () => {
+    it('counts every status and the expiring-soon window in one statement', async () => {
+        const { repo, statements } = fakeUow((table) =>
+            table === 'api_tokens'
+                ? [
+                      {
+                          active: 3,
+                          expired: 1,
+                          revoked: 1,
+                          expiringSoon: 1,
+                          nextExpiresAt: new Date('2026-11-05T00:00:00Z')
+                      }
+                  ]
+                : []
+        );
+
+        const summary = await repo.summarize({ now: NOW });
+
+        expect(summary).toEqual({
+            active: 3,
+            expired: 1,
+            revoked: 1,
+            expiringSoon: 1,
+            nextExpiresAt: new Date('2026-11-05T00:00:00Z')
+        });
+        const statement = only(statements, 'api_tokens', true);
+        const sql = sqlOf(statement);
+        expect(sql.match(/count\(\*\) filter \(where/g)).toHaveLength(4);
+        expect(sql).toContain('min("expires_at") filter (where');
+        // No status or search predicate narrows the totals: each chip has to
+        // say how many tokens it would reveal.
+        expect(sql).not.toContain(' where "');
+        // The window ends thirty days after the instant passed in.
+        expect(paramsOf(statement)).toContain(
+            new Date('2026-11-23T12:00:00.000Z').toISOString()
+        );
+    });
+
+    it('narrows the totals by workspace, as the list does', async () => {
+        const { repo, statements } = fakeUow(() => []);
+
+        await repo.summarize({ workspaceId: WORKSPACE_A, now: NOW });
+
+        expect(sqlOf(only(statements, 'api_tokens', true))).toContain(
+            '"api_tokens"."id" in (select "token_id" from "api_token_workspaces"'
+        );
+    });
+
+    it('reads an empty table as all zeros', async () => {
+        const { repo } = fakeUow(() => []);
+
+        await expect(repo.summarize({ now: NOW })).resolves.toEqual({
+            active: 0,
+            expired: 0,
+            revoked: 0,
+            expiringSoon: 0,
+            nextExpiresAt: null
+        });
+    });
+});
+
+describe('DrizzleApiTokenRepository.creatorsFor', () => {
+    const ADA = { id: 'user-1', name: 'Ada Lovelace', email: 'ada@x.dev' };
+
+    it('reads every creator on a page in one batched, deduplicated query', async () => {
+        const { repo, statements } = fakeUow((table) =>
+            table === 'users' ? [ADA] : []
+        );
+
+        const creators = await repo.creatorsFor(['user-1', 'user-1']);
+
+        const reads = statements.filter(
+            (statement) => statement.table === 'users'
+        );
+        expect(reads).toHaveLength(1);
+        expect(sqlOf(reads[0])).toContain('"users"."id" in ($1)');
+        // Only what the list shows — never the password hash.
+        expect(sqlOf(reads[0])).not.toContain('password');
+        expect(creators.get('user-1')).toEqual(ADA);
+    });
+
+    it('skips the read entirely for an empty page', async () => {
+        const { repo, statements } = fakeUow(() => []);
+
+        const creators = await repo.creatorsFor([]);
+
+        expect(creators.size).toBe(0);
+        expect(statements).toEqual([]);
+    });
+});

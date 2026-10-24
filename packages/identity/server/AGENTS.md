@@ -287,7 +287,16 @@ error, and type the barrel exports keeps its path, so no consumer import moved.
       secret or its hash, since `api_tokens` stores only a SHA-256 precisely so
       no other table yields a usable credential. A replayed (idempotent) revoke
       appends nothing, because only the call that actually killed a live token
-      is an event. `verify` rejects unknown, revoked,
+      is an event. The management list (`GET /api/api-tokens`) names each
+      token's creator (`createdBy: { id, name, email }`, one batched `users`
+      read per page — attribution only), filters by a derived `status`
+      (`active|expired|revoked`, rendered from `revoked_at`/`expires_at` by
+      `statusPredicate`, revocation first) and a `q` search over the name and
+      display prefix (LIKE wildcards escaped), and returns a `summary` — the
+      per-status totals plus active tokens expiring within
+      `EXPIRING_SOON_DAYS` (30) and the soonest such expiry — computed in **one**
+      statement of filtered aggregates over the workspace filter only, at the
+      same instant as the page. `verify` rejects unknown, revoked,
       and expired tokens identically (no enumeration signal) and refreshes
       `last_used_at` fire-and-forget on a 60s throttle. The guard that
       authenticates `Authorization: Bearer` ships with the public content API it

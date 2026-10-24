@@ -381,7 +381,7 @@ test.describe('Entry editor — the author’s own update', () => {
 
         await title.fill('Second draft');
         await contentLibraryPage.saveDraft();
-        await expect(contentLibraryPage.toast('Changes saved.')).toBeVisible();
+        await expect(contentLibraryPage.savedToast).toBeVisible();
         await expect(title).toHaveValue('Second draft');
 
         expect(

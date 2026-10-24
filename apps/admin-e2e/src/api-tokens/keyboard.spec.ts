@@ -2,7 +2,11 @@ import { test, expect } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
 import { mockWorkspaces } from '../support/api/workspaces';
 import { mockApiTokensApi, REVEALED_SECRET } from '../support/api/apiTokens';
-import type { BrowserGlobals, EvalInput } from '../support/browserGlobals';
+import type {
+    BrowserGlobals,
+    EvalInput,
+    EvalScrollable
+} from '../support/browserGlobals';
 
 /**
  * Keyboard operability for the API tokens page — the half axe cannot see. Two
@@ -78,17 +82,24 @@ test.describe('API tokens keyboard operability', () => {
         await apiTokensPage.createToken('Full value');
         await apiTokensPage.secretField().waitFor();
 
-        // The field is visually truncated by design, so the value — not the
-        // rendered text — is what assistive tech and Ctrl+C have to carry.
+        // On a phone the field wraps onto more lines (`break-all`) instead
+        // of scrolling sideways, so the whole credential is on screen — and
+        // the value, not the rendered text, is what assistive tech and
+        // Ctrl+C have to carry.
         await expect(apiTokensPage.secretField()).toHaveValue(REVEALED_SECRET);
+        await page.setViewportSize({ width: 360, height: 800 });
         const clipped = await page.evaluate(() => {
             const { document } = globalThis as unknown as BrowserGlobals;
-            const input = document.querySelector(
-                'input[readonly]'
-            ) as EvalInput | null;
-            return input ? input.scrollWidth > input.clientWidth : false;
+            const field = document.querySelector('textarea[readonly]') as
+                | (EvalInput & EvalScrollable)
+                | null;
+            return field
+                ? field.scrollWidth > field.clientWidth ||
+                      field.scrollHeight > field.clientHeight
+                : true;
         });
-        expect(clipped).toBe(true);
+        expect(clipped).toBe(false);
+        await expect(apiTokensPage.secretField()).toHaveValue(REVEALED_SECRET);
     });
 
     test('a revoke lands focus somewhere real instead of on the body [api-tokens:I-25]', async ({
@@ -104,9 +115,8 @@ test.describe('API tokens keyboard operability', () => {
         await apiTokensPage.confirmDialog().waitFor();
         await apiTokensPage.confirmRevokeButton().press('Enter');
 
-        await expect(apiTokensPage.rowStatus('Production website')).toHaveText(
-            'Revoked'
-        );
+        // The revoked token leaves the Active view, kebab and all.
+        await expect(apiTokensPage.row('Production website')).toHaveCount(0);
         // Radix restores focus to the kebab, which this mutation just unmounted
         // — so without an anchor the next Tab restarts above the app sidebar
         // (WCAG 2.4.3).
@@ -136,6 +146,70 @@ test.describe('API tokens keyboard operability', () => {
         await expect
             .poll(() => apiTokensPage.focusedDescription())
             .not.toBe('BODY');
+    });
+
+    test('the status chips are buttons a keyboard can press', async ({
+        apiTokensPage,
+        page
+    }) => {
+        await apiTokensPage.goto();
+        await apiTokensPage.table.waitFor();
+
+        await apiTokensPage.statusChip('Expired').focus();
+        await page.keyboard.press('Enter');
+
+        await expect(apiTokensPage.statusChip('Expired')).toHaveAttribute(
+            'aria-pressed',
+            'true'
+        );
+        await expect(apiTokensPage.row('Old preview build')).toBeVisible();
+        // The chip keeps focus: the list swapped under it, the control did not.
+        await expect(apiTokensPage.statusChip('Expired')).toBeFocused();
+    });
+
+    test('access and expiry are arrow-key radio groups', async ({
+        apiTokensPage,
+        page
+    }) => {
+        await apiTokensPage.goto();
+        await apiTokensPage.table.waitFor();
+        await apiTokensPage.openCreate();
+
+        // Held, not pressed: Radix moves roving focus a tick after the
+        // keydown and only checks the radio it lands on while the arrow is
+        // still down — as it is for a person, and is not for an instant
+        // `press`.
+        await apiTokensPage.accessCard('Read-only').focus();
+        await page.keyboard.down('ArrowRight');
+        await expect(apiTokensPage.accessCard('Full access')).toBeChecked();
+        await page.keyboard.up('ArrowRight');
+
+        await apiTokensPage.expiryOption('30 days').focus();
+        await page.keyboard.press('ArrowRight');
+        await expect(apiTokensPage.expiryOption('90 days')).toBeFocused();
+        await page.keyboard.press('Space');
+        await expect(apiTokensPage.expiryOption('90 days')).toHaveAttribute(
+            'aria-checked',
+            'true'
+        );
+    });
+
+    test('a picked workspace’s chip can be removed from the keyboard', async ({
+        apiTokensPage,
+        page
+    }) => {
+        await apiTokensPage.goto();
+        await apiTokensPage.table.waitFor();
+        await apiTokensPage.openCreate();
+        await apiTokensPage.pickWorkspace('Marketing site');
+
+        await apiTokensPage.removeWorkspaceChip('Marketing site').focus();
+        await page.keyboard.press('Enter');
+
+        await expect(
+            apiTokensPage.removeWorkspaceChip('Marketing site')
+        ).toHaveCount(0);
+        await expect(apiTokensPage.createDialog()).toBeVisible();
     });
 
     test('the kebab is named per row, so a menu is never ambiguous', async ({

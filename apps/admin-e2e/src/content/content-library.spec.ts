@@ -112,7 +112,12 @@ test.describe('Content Library', () => {
         await contentLibraryPage.expandGroup('Pages');
         await contentLibraryPage.typeLink('Home').click();
 
-        await expect(contentLibraryPage.viewHeading('Home')).toBeVisible();
+        // The `<h1>` is the record's own title (`content:I-61`), so the
+        // type's label is in the breadcrumb, not the heading.
+        await expect(
+            contentLibraryPage.viewHeading('Heading 01')
+        ).toBeVisible();
+        await expect(contentLibraryPage.breadcrumbLink('Home')).toBeVisible();
         // A single opens straight into its one-entry editor (its Save action).
         await expect(contentLibraryPage.editorSave).toBeVisible();
         await expect(page).toHaveURL(/\/content\/home$/);
