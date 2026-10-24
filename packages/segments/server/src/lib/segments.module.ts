@@ -13,6 +13,7 @@ import { SEGMENTS_CONFIG } from './segments.tokens';
 import type { SegmentsPluginConfig } from './types/segments-config';
 import { SegmentCatalogService } from './application/segment-catalog.service';
 import { SegmentsService } from './application/segments.service';
+import { SegmentUsageService } from './application/segment-usage.service';
 import { EntryAccessService } from './application/entry-access.service';
 import { EntryAccessWorkspacePurger } from './infrastructure/purge/entry-access-workspace.purger';
 import { ReaderStore } from './application/reader.store';
@@ -24,6 +25,7 @@ import { ReaderMiddleware } from './http/reader.middleware';
 import { PrincipalMiddleware } from './http/principal.middleware';
 import { copilotAppliersRegistrar } from '@orthacms/copilot-server';
 import { SegmentsController } from './http/segments.controller';
+import { SegmentUsageController } from './http/segment-usage.controller';
 import { EntryAccessController } from './http/entry-access.controller';
 import { PublicEntryAccessController } from './http/public-entry-access.controller';
 import { SegmentsToolProvider } from './tools/segments-tool.provider';
@@ -49,6 +51,7 @@ export class SegmentsModule implements NestModule {
             global: true,
             controllers: [
                 SegmentsController,
+                SegmentUsageController,
                 EntryAccessController,
                 // The same decision over a bearer token, at the public API's own
                 // `/v1/content/:typeName/:id/access`. The admin route above
@@ -59,6 +62,7 @@ export class SegmentsModule implements NestModule {
                 { provide: SEGMENTS_CONFIG, useValue: config },
                 SegmentCatalogService,
                 SegmentsService,
+                SegmentUsageService,
                 EntryAccessService,
                 // Removes this workspace's per-entry audience rows on delete;
                 // `entry_access.workspace_id` carries no FK and the other

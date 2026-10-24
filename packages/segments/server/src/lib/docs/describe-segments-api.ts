@@ -1,7 +1,7 @@
 /**
  * The segments plugin's pass over the host's OpenAPI document.
  *
- * Nine operations across three controllers, and the scanner could describe none
+ * Ten operations across four controllers, and the scanner could describe none
  * of them: every one answers a framework-free `interface`, which is erased at
  * compile time and carries no metadata for `@nestjs/swagger` to read.
  *
@@ -29,7 +29,8 @@ import {
     ENTRY_ACCESS_SCHEMA,
     PUBLIC_ENTRY_ACCESS_SCHEMA,
     SEGMENT_PAGE_SCHEMA,
-    SEGMENT_SCHEMA
+    SEGMENT_SCHEMA,
+    SEGMENT_USAGE_SCHEMA
 } from './segments-schemas';
 
 /** What one operation answers, and the sentence describing it. */
@@ -73,6 +74,12 @@ const SEGMENT_ROUTES: Record<string, Record<string, Payload>> = {
         get: one(SEGMENT_SCHEMA, 'The segment.'),
         patch: one(SEGMENT_SCHEMA, 'The updated segment.')
     },
+    '/{id}/usage': {
+        get: one(
+            SEGMENT_USAGE_SCHEMA,
+            'The entries of this workspace that name the audience, each marked `allow` or `deny`. Workspace-scoped — another workspace’s entries are never named.'
+        )
+    },
     '/entries/{entryId}': {
         get: one(
             ENTRY_ACCESS_SCHEMA,
@@ -99,7 +106,7 @@ const PUBLIC_ACCESS_ROUTE: Record<string, Payload> = {
 
 /**
  * Matches `<prefix>/segments<rest>`, anchored at both ends: the tail is one of
- * the four shapes the two admin controllers serve, and the head is
+ * the five shapes the three admin controllers serve, and the head is
  * `^/<one segment>/`, so another plugin's `/api/<something>/segments` cannot be
  * caught by it.
  *
@@ -108,7 +115,7 @@ const PUBLIC_ACCESS_ROUTE: Record<string, Payload> = {
  * rather than the wrong one — the direction to fail in.
  */
 const SEGMENT_ROUTE_RE =
-    /^\/[^/]+\/segments((?:\/lookup)|(?:\/\{id\})|(?:\/entries\/\{entryId\}))?$/;
+    /^\/[^/]+\/segments((?:\/lookup)|(?:\/\{id\}(?:\/usage)?)|(?:\/entries\/\{entryId\}))?$/;
 
 /** Matches the public `<prefix>/v1/content/{typeName}/{id}/access`. */
 const PUBLIC_ACCESS_ROUTE_RE = /\/v1\/content\/\{typeName\}\/\{id\}\/access$/;
