@@ -127,12 +127,13 @@ test.describe('Workspaces page', () => {
         await expect(
             docs.getByRole('img', { name: /^5 members: Grace Hopper/ })
         ).toBeVisible();
-        // …and when it last moved.
+        // …and when it last moved (the seed is stamped relative to the run,
+        // so the minutes may have ticked on since).
         await expect(docs.getByText('Edited 1 hr. ago')).toBeVisible();
         await expect(
             workspacesPage
                 .card('Marketing site')
-                .getByText('Edited 12 min. ago')
+                .getByText(/^Edited 1\d min\. ago$/)
         ).toBeVisible();
     });
 

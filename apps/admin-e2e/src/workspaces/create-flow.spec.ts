@@ -40,7 +40,7 @@ test.describe('Create workspace flow', () => {
                 createWorkspacePage.slugStatus('Available')
             ).toBeVisible();
             await expect(createWorkspacePage.descriptionCounter()).toHaveText(
-                '48 / 2000'
+                '47 / 2000'
             );
 
             const preview = createWorkspacePage.preview;

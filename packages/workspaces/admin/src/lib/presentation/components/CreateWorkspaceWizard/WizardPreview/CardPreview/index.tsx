@@ -50,7 +50,9 @@ export function CardPreview({
     const intl = useIntl();
     const title = name.trim() || intl.formatMessage(messages.untitled);
     const bold = (chunks: ReactNode[]) => (
-        <b key="b" className="font-semibold text-foreground">{chunks}</b>
+        <b key="b" className="font-semibold text-foreground">
+            {chunks}
+        </b>
     );
 
     return (

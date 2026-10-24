@@ -69,6 +69,8 @@ export type ArchiveWorkspaceDialogProps = {
     onConfirm: () => void;
     /** Whether the archive is in flight. */
     busy?: boolean;
+    /** Where focus goes when it closes (Radix's `onCloseAutoFocus`). */
+    onCloseAutoFocus?: (event: Event) => void;
 };
 
 /**
@@ -82,7 +84,8 @@ export function ArchiveWorkspaceDialog({
     workspace,
     onClose,
     onConfirm,
-    busy = false
+    busy = false,
+    onCloseAutoFocus
 }: ArchiveWorkspaceDialogProps) {
     const intl = useIntl();
     const open = workspace !== null;
@@ -95,7 +98,10 @@ export function ArchiveWorkspaceDialog({
                 if (!next && !busy) onClose();
             }}
         >
-            <DialogContent className="sm:max-w-[460px]">
+            <DialogContent
+                className="sm:max-w-[460px]"
+                onCloseAutoFocus={onCloseAutoFocus}
+            >
                 <DialogHeader>
                     <DialogTitle>
                         {intl.formatMessage(messages.title, {

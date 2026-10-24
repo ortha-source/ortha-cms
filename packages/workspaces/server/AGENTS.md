@@ -27,14 +27,15 @@ application/     # orchestration — one use case per state change
   queries/workspace.view.ts        # read-model view types
   content/                         # catalogue + entry-counter readers, content-selection resolver
   ports/                           # secondary ports (CONTENT_CATALOG, CONTENT_ENTRY_COUNTER,
-                                   #                  MEMBER_PROVISIONER, WorkspacePurger)
+                                   #                  CONTENT_ENTRY_STATS, MEMBER_PROVISIONER,
+                                   #                  WorkspacePurger)
   workspace-purge.registry.ts      # the cross-plugin delete fan-out
   dto/                             # class-validator DTOs (shape checks only)
 infrastructure/  # adapters — the only layer that knows Drizzle/pg
   persistence/  # DrizzleWorkspaceRepository, WorkspaceMapper, DrizzleMemberProvisioner, workspace-lock
   purge/        # ApiTokenGrantsPurger — identity's rows, purged from this side (see below)
   queries/      # read models (WorkspaceViewQuery — membership-scoped list, SlugAvailabilityQuery,
-                #              MemberLookupQuery, MembershipCheckQuery)
+                #              MemberLookupQuery, MembershipCheckQuery, ArchiveImpactQuery)
   schema/       # Drizzle tables + external-refs stub
   content/      # the mock catalogue fallback
 http/            # thin controllers + the two workspace guards + @CurrentWorkspace
@@ -187,6 +188,15 @@ which would be a policy decision this has no standing to make.
 - `CONTENT_CATALOG` / `CONTENT_ENTRY_COUNTER`: secondary ports **this context
   owns** and `content-server` binds — the acyclic inversion (content depends on
   workspaces for its route guards, so workspaces must not depend on content).
+- `CONTENT_ENTRY_STATS`: the **batched, display-only** sibling of the counter
+  (`entryStats(workspaceIds)` → per `(workspace, type)` count and newest
+  `updated_at`), also bound by `content-server` (to the same
+  `EntryCounterService`, one grouped query per content type). It feeds
+  `WorkspaceView.recordCount` / `recordCountByType` / `lastEditedAt`
+  (`application/content/entry-stats.summary.ts` folds the rows, pure and
+  unit-tested). Unbound it answers `[]` — every card reads "0 records" — so
+  **nothing destructive may read it**; the delete and revoke guards keep the
+  counter and its `isBound` check.
 - `WORKSPACE_DIRECTORY` → `WorkspaceExistenceQuery`: the same inversion pointing
   the other way. **Identity** owns this port (this package depends on identity,
   so identity cannot depend back), and binds it here so minting an API token can
@@ -240,6 +250,25 @@ records), and a workspace is never its own source. Eligibility of a source
 `InvalidSharedSourceError` → 422. No lock is taken there: a source unshared a
 moment later only makes the grant inert (`WorkspaceView.sharedContent[].available`
 is `false`), which every read re-checks.
+
+## Card and archive read models
+
+`WorkspaceView` carries what the admin's cards say: `recordCount`,
+`recordCountByType`, `createdAt`, `lastEditedAt` (the later of the row's
+`updated_at` and its newest entry edit) and `archivedAt`; each member carries
+its directory `status`, so a pending invite can be told from a teammate (still
+no role — I-07). `workspaces.archived_at` (migration `0003`, backfilled from
+`updated_at`) is stamped and cleared by `DrizzleWorkspaceRepository.save` on a
+status change — a persistence fact like `updated_at`, not aggregate state.
+
+`GET /workspaces/:id/archive-impact` (`ArchiveImpactQuery`) answers
+`{ records, members, linkedWorkspaces }` for the archive confirmation, gated
+like the archive it precedes (`workspaces:update` + `WorkspaceMemberGuard`,
+I-30). `linkedWorkspaces` counts other workspaces holding a **live** shared
+grant from this one (source shared, active, still holding its own grant — the
+same `available` rule as the view); it is a count only and names none of them.
+Archiving still gates nothing on the workspace's own routes, which is why the
+admin copy promises "nothing is deleted", not "read-only".
 
 ## Schema note
 

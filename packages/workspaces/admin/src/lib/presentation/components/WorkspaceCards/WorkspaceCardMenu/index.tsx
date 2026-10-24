@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { Archive, Ellipsis, RotateCcw } from 'lucide-react';
@@ -37,8 +38,12 @@ export type WorkspaceCardMenuProps = {
     archived: boolean;
     /** Whether the user may archive/restore (`workspaces:update`). */
     canUpdate: boolean;
-    /** Asks to archive — the caller opens the confirmation. */
-    onArchive: () => void;
+    /**
+     * Asks to archive — the caller opens the confirmation, and is handed the
+     * trigger so focus can come back to it when the confirmation closes (the
+     * menu item that opened it no longer exists by then).
+     */
+    onArchive: (trigger: HTMLButtonElement | null) => void;
     /** Restores an archived workspace. */
     onRestore: () => void;
 };
@@ -56,11 +61,13 @@ export function WorkspaceCardMenu({
     onRestore
 }: WorkspaceCardMenuProps) {
     const intl = useIntl();
+    const trigger = useRef<HTMLButtonElement>(null);
 
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
                 <Button
+                    ref={trigger}
                     type="button"
                     variant="ghost"
                     size="icon"
@@ -88,7 +95,9 @@ export function WorkspaceCardMenu({
                                 {intl.formatMessage(messages.restore)}
                             </DropdownMenuItem>
                         ) : (
-                            <DropdownMenuItem onSelect={onArchive}>
+                            <DropdownMenuItem
+                                onSelect={() => onArchive(trigger.current)}
+                            >
                                 <Archive aria-hidden />
                                 {intl.formatMessage(messages.archive)}
                             </DropdownMenuItem>

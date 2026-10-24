@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { Plus } from 'lucide-react';
@@ -58,6 +58,9 @@ export function WorkspaceCards({
     const isJustCreated = useJustCreated(WORKSPACES_SCOPE);
     const setStatus = useSetWorkspaceStatus();
     const [archiving, setArchiving] = useState<Workspace | null>(null);
+    // The ⋯ trigger the confirmation was opened from: Radix would restore
+    // focus to the menu item, which is gone by then, and land on <body>.
+    const returnFocus = useRef<HTMLButtonElement | null>(null);
 
     const change = async (
         workspace: Workspace,
@@ -94,7 +97,10 @@ export function WorkspaceCards({
                         workspace={workspace}
                         justCreated={isJustCreated(workspace.id)}
                         canUpdate={canUpdate}
-                        onArchive={() => setArchiving(workspace)}
+                        onArchive={(trigger) => {
+                            returnFocus.current = trigger;
+                            setArchiving(workspace);
+                        }}
                         onRestore={() => change(workspace, 'Active')}
                         statusPending={
                             setStatus.isPending &&
@@ -123,6 +129,13 @@ export function WorkspaceCards({
             <ArchiveWorkspaceDialog
                 workspace={archiving}
                 busy={setStatus.isPending}
+                onCloseAutoFocus={(event) => {
+                    const trigger = returnFocus.current;
+                    if (trigger?.isConnected) {
+                        event.preventDefault();
+                        trigger.focus();
+                    }
+                }}
                 onClose={() => setArchiving(null)}
                 onConfirm={async () => {
                     if (!archiving) return;

@@ -57,8 +57,8 @@ export type WorkspaceCardProps = {
     justCreated: boolean;
     /** Whether the user may archive/restore (`workspaces:update`). */
     canUpdate: boolean;
-    /** Asks to archive this workspace (the list confirms). */
-    onArchive: () => void;
+    /** Asks to archive this workspace (the list confirms), from `trigger`. */
+    onArchive: (trigger: HTMLButtonElement | null) => void;
     /** Restores this archived workspace. */
     onRestore: () => void;
     /** Whether a status change for this workspace is in flight. */
@@ -87,7 +87,9 @@ export function WorkspaceCard({
     const archived = !isActiveWorkspace(workspace);
     const to = `/workspaces/${workspace.id}`;
     const bold = (chunks: ReactNode[]) => (
-        <b key="b" className="font-semibold text-foreground">{chunks}</b>
+        <b key="b" className="font-semibold text-foreground">
+            {chunks}
+        </b>
     );
 
     const when = archived ? workspace.archivedAt : workspace.lastEditedAt;
