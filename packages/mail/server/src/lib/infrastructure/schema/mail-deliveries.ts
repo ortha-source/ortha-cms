@@ -31,7 +31,8 @@ export const mailDeliveries = pgTable(
     {
         id: uuid('id').primaryKey().defaultRandom(),
         /**
-         * What this message is — `invite`, `invite_resent`, `password_reset`.
+         * What this message is — `invite`, `invite_resent`, `password_reset`,
+         * `password_recovery`.
          * Text rather than an enum: a new message kind should be a template and
          * a use case, not a migration.
          */

@@ -58,7 +58,8 @@ describe('AcceptInviteUseCase', () => {
             tokenId: TOKEN_ID,
             userId: USER_ID,
             email: EMAIL,
-            name: 'Ada Lovelace'
+            name: 'Ada Lovelace',
+            role: 'Contributor'
         };
     }
 

@@ -18,6 +18,7 @@ import { LoginController } from './auth/controllers/login.controller';
 import { SsoController } from './auth/controllers/sso.controller';
 import { InviteController } from './auth/controllers/invite.controller';
 import { PasswordResetController } from './auth/controllers/password-reset.controller';
+import { PasswordRecoveryController } from './auth/controllers/password-recovery.controller';
 import { MeController } from './auth/controllers/me.controller';
 import { LogoutController } from './auth/controllers/logout.controller';
 import { UserSessionsController } from './auth/controllers/user-sessions.controller';
@@ -52,6 +53,8 @@ import { AcceptInviteUseCase } from './application/use-cases/accept-invite.use-c
 import { DescribeInviteUseCase } from './application/use-cases/describe-invite.use-case';
 import { DescribePasswordResetUseCase } from './application/use-cases/describe-password-reset.use-case';
 import { ResetPasswordUseCase } from './application/use-cases/reset-password.use-case';
+import { RequestPasswordRecoveryUseCase } from './application/use-cases/request-password-recovery.use-case';
+import { PasswordRecoveryRegistry } from './application/password-recovery.registry';
 import { LogoutUseCase } from './application/use-cases/logout.use-case';
 import { RevokeUserSessionUseCase } from './application/use-cases/revoke-user-session.use-case';
 import { RefreshSessionUseCase } from './application/use-cases/refresh-session.use-case';
@@ -135,6 +138,7 @@ export class IdentityModule {
                 LoginController,
                 InviteController,
                 PasswordResetController,
+                PasswordRecoveryController,
                 MeController,
                 LogoutController,
                 UserSessionsController,
@@ -184,6 +188,10 @@ export class IdentityModule {
                 AcceptInviteUseCase,
                 DescribePasswordResetUseCase,
                 ResetPasswordUseCase,
+                // Self-service recovery: identity owns the public route and its
+                // limits; the users plugin registers the issuer behind it.
+                RequestPasswordRecoveryUseCase,
+                PasswordRecoveryRegistry,
                 StartSsoUseCase,
                 CompleteSsoUseCase,
                 SsoBackchannelLogoutUseCase,
@@ -255,7 +263,11 @@ export class IdentityModule {
                 // Exported so a plugin that renders or audits the SSO surface
                 // can read what is registered without reaching for the host's
                 // composition root.
-                SSO_REGISTRY
+                SSO_REGISTRY,
+                // Exported so the users plugin — not global, exporting nothing —
+                // can register the self-service reset issuer from its own
+                // injector.
+                PasswordRecoveryRegistry
             ]
         };
     }

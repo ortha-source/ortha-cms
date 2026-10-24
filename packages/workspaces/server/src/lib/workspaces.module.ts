@@ -1,5 +1,8 @@
 import { DynamicModule, Module } from '@nestjs/common';
-import { WORKSPACE_DIRECTORY } from '@orthacms/identity-server';
+import {
+    INVITE_WORKSPACE_DIRECTORY,
+    WORKSPACE_DIRECTORY
+} from '@orthacms/identity-server';
 import { CreateWorkspaceController } from './workspace/http/controllers/create-workspace.controller';
 import { ListWorkspacesController } from './workspace/http/controllers/list-workspaces.controller';
 import { CheckSlugController } from './workspace/http/controllers/check-slug.controller';
@@ -45,6 +48,7 @@ import { WorkspaceViewQuery } from './workspace/infrastructure/queries/workspace
 import { SlugAvailabilityQuery } from './workspace/infrastructure/queries/slug-availability.query';
 import { MemberLookupQuery } from './workspace/infrastructure/queries/member-lookup.query';
 import { MembershipCheckQuery } from './workspace/infrastructure/queries/membership-check.query';
+import { InviteWorkspacesQuery } from './workspace/infrastructure/queries/invite-workspaces.query';
 import { WorkspaceExistenceQuery } from './workspace/infrastructure/queries/workspace-existence.query';
 
 /**
@@ -139,6 +143,12 @@ export class WorkspacesModule {
                     provide: WORKSPACE_DIRECTORY,
                     useClass: WorkspaceExistenceQuery
                 },
+                // Binds identity's INVITE_WORKSPACE_DIRECTORY port — the
+                // accept-invite screen names the workspaces an invitee joins.
+                {
+                    provide: INVITE_WORKSPACE_DIRECTORY,
+                    useClass: InviteWorkspacesQuery
+                },
                 // Resolved by `@UseGuards(WorkspaceGuard)` on workspace-scoped
                 // routes in other plugins; injectable everywhere since this
                 // module is global (same pattern as identity's PermissionsGuard).
@@ -161,6 +171,8 @@ export class WorkspacesModule {
                 // Exported so identity's `ApiTokenService` — constructed in the
                 // identity module's injector — resolves the optional port.
                 WORKSPACE_DIRECTORY,
+                // …and `DescribeInviteUseCase` resolves this one the same way.
+                INVITE_WORKSPACE_DIRECTORY,
                 WorkspaceGuard,
                 WorkspaceMemberGuard,
                 OptionalWorkspaceGuard

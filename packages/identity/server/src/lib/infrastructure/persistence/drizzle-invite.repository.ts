@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { and, eq, gt, isNull } from 'drizzle-orm';
 import { UnitOfWork } from '@orthacms/database';
-import { tokens, users } from '../../schema';
+import { roles, tokens, users } from '../../schema';
 import type {
     InviteRepository,
     PendingInvite
@@ -27,10 +27,14 @@ export class DrizzleInviteRepository implements InviteRepository {
                 tokenId: tokens.id,
                 userId: users.id,
                 email: users.email,
-                name: users.name
+                name: users.name,
+                role: roles.name
             })
             .from(tokens)
             .innerJoin(users, eq(users.id, tokens.userId))
+            // Left, not inner: the role is what the screen *says*, and a
+            // missing label must not turn a live invite into a dead link.
+            .leftJoin(roles, eq(roles.id, users.roleId))
             .where(
                 and(
                     eq(tokens.tokenHash, tokenHash),
