@@ -19,8 +19,7 @@ const messages = defineMessages({
     },
     addCondition: {
         id: 'alarms.preview.addCondition',
-        defaultMessage:
-            'Add a condition to see which records it would flag.'
+        defaultMessage: 'Add a condition to see which records it would flag.'
     },
     checking: {
         id: 'alarms.preview.checking',
@@ -235,7 +234,10 @@ export function AlarmPreviewPanel({
                     look.chip
                 )}
             >
-                <look.Icon aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+                <look.Icon
+                    aria-hidden="true"
+                    className="mt-0.5 size-4 shrink-0"
+                />
                 <span className="min-w-0">
                     <b className="block font-semibold">
                         {findingTitle.trim() ||

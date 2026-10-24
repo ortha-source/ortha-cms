@@ -26,10 +26,11 @@ const rule = (
     value: FilterRule['value'] = null
 ): FilterRule => ({ id, fieldId, op, value });
 
-const group = (
-    id: string,
-    children: FilterGroup['children']
-): FilterGroup => ({ id, combinator: 'and', children });
+const group = (id: string, children: FilterGroup['children']): FilterGroup => ({
+    id,
+    combinator: 'and',
+    children
+});
 
 const label = (descriptor: FilterField['label']) =>
     String(descriptor.defaultMessage ?? descriptor.id);

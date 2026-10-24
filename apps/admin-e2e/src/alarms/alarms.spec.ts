@@ -107,11 +107,12 @@ test.describe('The alarms page', () => {
         await expect(strip).toContainText('Last checked');
     });
 
-    test('does not load a collapsed group’s records', async ({
+    test('opens the worst group and loads no collapsed group’s records', async ({
         page,
         alarmsPage
     }) => {
-        // Two alarms, so neither opens by default.
+        // Two alarms at the same level: the bigger pile is "worse", so it
+        // leads and opens; the other stays shut until asked for.
         const second = {
             ...CONTAINS_RULE,
             id: 'rule-2',
@@ -128,17 +129,36 @@ test.describe('The alarms page', () => {
         });
 
         await alarmsPage.goto(WORKSPACE_ID);
-        await expect(alarmsPage.group(second.name)).toBeVisible();
+        await expect(alarmsPage.group(CONTAINS_RULE.name)).toBeVisible();
+        await expect(alarmsPage.group(second.name)).toHaveAttribute(
+            'aria-expanded',
+            'true'
+        );
+        await expect(alarmsPage.group(CONTAINS_RULE.name)).toHaveAttribute(
+            'aria-expanded',
+            'false'
+        );
 
         // A workspace with twenty alarms must not fire twenty list requests to
-        // draw a screen on which nineteen of them are shut.
-        expect(listed).toHaveLength(0);
-
-        await alarmsPage.openGroup(second.name);
+        // draw a screen on which nineteen of them are shut: only the open one
+        // has asked.
         await expect
             .poll(() => listed.length, { timeout: 5000 })
             .toBeGreaterThan(0);
-        expect(listed[0]).toContain(`ruleId=${second.id}`);
+        expect(listed.every((url) => url.includes(`ruleId=${second.id}`))).toBe(
+            true
+        );
+
+        await alarmsPage.openGroup(CONTAINS_RULE.name);
+        await expect
+            .poll(
+                () =>
+                    listed.some((url) =>
+                        url.includes(`ruleId=${CONTAINS_RULE.id}`)
+                    ),
+                { timeout: 5000 }
+            )
+            .toBe(true);
     });
 
     test('re-checks one alarm from its group header', async ({
@@ -222,9 +242,7 @@ test.describe('Muting', () => {
         );
         // The Muted tab went with it; the strip is Flagged and Alarms.
         await expect(alarmsPage.tab('Flagged')).toBeVisible();
-        await expect(page.getByRole('radio', { name: /^Muted/ })).toHaveCount(
-            0
-        );
+        await expect(page.getByRole('tab', { name: /^Muted/ })).toHaveCount(0);
     });
 });
 
@@ -270,6 +288,9 @@ test.describe('The rule editor', () => {
         // button, and nothing that said what the rule actually looked for.
         await expect(alarmsPage.conditionChip(/Text/)).toBeVisible();
         await expect(alarmsPage.conditionChip(/QWERT/)).toBeVisible();
+        await expect(alarmsPage.conditionChip(/Status/)).toContainText(
+            'published'
+        );
         // The builder itself stays collapsed until asked for.
         await expect(alarmsPage.conditionToggle()).toHaveAccessibleName(
             'Edit conditions'
@@ -286,8 +307,9 @@ test.describe('The rule editor', () => {
         // "3 of 312" is the one number that says whether a rule means what its
         // author thinks, and it used to appear only if you knew to press a
         // button labelled "Count matches".
-        await expect(alarmsPage.matchCount()).toContainText('3 record');
-        await expect(alarmsPage.matchCount()).toContainText('312');
+        await expect(alarmsPage.matchCount()).toHaveText(
+            /^3\s*of 312 articles would be flagged$/
+        );
     });
 
     test('warns when a condition matches the entire collection', async ({
@@ -299,8 +321,8 @@ test.describe('The rule editor', () => {
 
         // A rule that flags everything is almost always inverted, and the
         // denominator is what makes that visible at a glance.
-        await expect(alarmsPage.matchCount()).toContainText(
-            'every record in the collection'
+        await expect(alarmsPage.invertedHint()).toHaveText(
+            'That is every record in articles — the condition is probably inverted.'
         );
     });
 
@@ -320,9 +342,7 @@ test.describe('The rule editor', () => {
         // the records toolbar — which is exactly the moment the page and the
         // stored rule diverge.
         await alarmsPage
-            .conditionChips()
-            .first()
-            .locator('[data-qb-chip-remove]')
+            .chipRemove(alarmsPage.conditionChips().first())
             .click();
         await expect(alarmsPage.unsavedNotice()).toBeVisible();
     });

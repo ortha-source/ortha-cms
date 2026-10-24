@@ -147,9 +147,7 @@ export function FindingGroupList({
                     // matter most, and the rest are a summary to drill into.
                     // An alarm card's "N flagged" opens its own group instead.
                     defaultOpen={
-                        focusRuleId
-                            ? rule.id === focusRuleId
-                            : index === 0
+                        focusRuleId ? rule.id === focusRuleId : index === 0
                     }
                     canManage={canManage}
                     onRescan={onRescan}

@@ -13,13 +13,8 @@ export function useTypeLabels(enabled = true): (name: string) => string {
     const types = useContentTypes(enabled);
     const labels = useMemo(
         () =>
-            new Map(
-                (types.data ?? []).map((type) => [type.name, type.label])
-            ),
+            new Map((types.data ?? []).map((type) => [type.name, type.label])),
         [types.data]
     );
-    return useCallback(
-        (name: string) => labels.get(name) ?? name,
-        [labels]
-    );
+    return useCallback((name: string) => labels.get(name) ?? name, [labels]);
 }

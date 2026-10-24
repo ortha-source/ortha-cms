@@ -645,7 +645,9 @@ export function AlarmRuleEditorPage({
                                             variant="ghost"
                                             size="sm"
                                             className="h-7 shrink-0 text-muted-foreground"
-                                            disabled={!canManage || !watchedType}
+                                            disabled={
+                                                !canManage || !watchedType
+                                            }
                                             aria-label={intl.formatMessage(
                                                 messages.editCondition
                                             )}

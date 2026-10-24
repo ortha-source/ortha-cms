@@ -177,7 +177,9 @@ export function AlarmsPage() {
                     else
                         toast.success(
                             intl.formatMessage(
-                                enabled ? messages.turnedOn : messages.turnedOff,
+                                enabled
+                                    ? messages.turnedOn
+                                    : messages.turnedOff,
                                 { name: rule.name }
                             )
                         );
@@ -238,7 +240,9 @@ export function AlarmsPage() {
                     }}
                     className="flex flex-col gap-4"
                 >
-                    <TabsList aria-label={intl.formatMessage(messages.tabsLabel)}>
+                    <TabsList
+                        aria-label={intl.formatMessage(messages.tabsLabel)}
+                    >
                         <TabsTrigger value="open">
                             {intl.formatMessage(messages.tabOpen)}{' '}
                             <span className="text-xs font-normal tabular-nums text-muted-foreground">

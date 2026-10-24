@@ -19,14 +19,27 @@ opening the Properties panel. It shares the widget's query key, so it costs no
 request.
 
 The page is for the person who owns editorial policy — what is flagged across
-the workspace, grouped by alarm, and the alarms themselves. It leads with the
-shared `ContainerHeader` — `<h1>` and description, **New alarm** in the top bar — and a strip of
-figures (`AlarmSummaryStrip`): open findings per severity — the summary the
-nav badge reads — and when the alarms last checked, the newest `lastScanAt`.
-Each group's header is a severity **pill** (its glyph and its word, so colour
-is never alone — `alarms:I-32`), the alarm's name over its type and finding
-title, an "N open" count from the alarm itself, **Re-check** and **Edit
-alarm**.
+the workspace, grouped by alarm, and the alarms themselves (the R7 boards
+AlarmsFlagged / AlarmsRules). It leads with the shared `ContainerHeader` —
+`<h1>` and description, **New alarm** in the top bar — a strip of figures
+(`AlarmSummaryStrip`): open findings per severity — the summary the nav badge
+reads — and when the alarms last checked, the newest `lastScanAt`; then two
+underlined `Tabs`, **Flagged N** and **Alarms N**.
+
+- **Flagged** — one group per alarm, worst first, the worst one open. Its
+  header is a severity **pill** (glyph and word, so colour is never alone —
+  `alarms:I-32`), the alarm's name over "Articles · shows editors “…”",
+  "**N** open" from the alarm itself, **Re-check** and **Edit**. Each row is
+  the record **by title** (`FindingRow`), its collection, "flagged 2 weeks
+  ago" and **Open**; the footer says "3 of 3" and links **Show all in
+  Records** — the records list with the alarm's own condition as `?filter=`.
+- **Alarms** — one `RuleCard` per alarm: severity badge, name · collection,
+  the condition as read-only `ConditionChips`, "**N** flagged" (opens that
+  alarm's group) or "Nothing flagged", "checked 8 min ago", an **on/off
+  `Switch`** and a **…** menu (Edit, Re-check, Delete). Pausing is the switch,
+  not a delete; switching back on rescans server-side and the toast says what
+  it found. A broken alarm says which field went missing, inline
+  (`utils/brokenReason`).
 
 ## The user-facing noun is **alarm**; the code's is `rule`
 
@@ -67,6 +80,18 @@ the route param. The two forms _are_ the same form; the only genuine difference
 is whether the collection is chosen or already fixed, and an alarm's type is
 fixed on purpose — changing it would not edit the alarm, it would silently
 repurpose every finding it has already opened.
+
+The R7 boards (AlarmsNew / AlarmsEdit) lay the form out in two columns: the
+form card on the left — **What to watch** (a select; disabled when editing),
+**Alarm name**, **What editors will see**, **Level** (`SeverityPicker`, a
+segmented control with the severity glyphs), **Flag a record when…** (chips +
+"**+ Condition**") — and **Right now** on the right (`AlarmPreviewPanel`):
+the live count, up to four matching records by title, "and N more · updates as
+you edit", and the finding as **editors will see** it, in its level's tint.
+Creating ends with Create alarm / Cancel; editing saves from the top bar and
+stays on the page, and the toast reports the save's rescan ("checked 842, 38
+flagged, 2 cleared"). There is no Notes field any more (the boards have none);
+the editor never sends `description`, so an existing one is preserved.
 
 Two fields on both forms look redundant and are not:
 
@@ -112,9 +137,14 @@ re-runs. The rule editor has no table, so committing a condition changed nothing
 a person could see and Apply read as a dead button. Both halves of the fix are
 on screen at rest rather than behind another click:
 
-- The committed conditions render as **`QueryBuilderSummary` chips**, so Apply
-  visibly moves the edit out of the builder and into the alarm. Removing a chip
-  re-commits immediately, exactly as in the records toolbar.
+- The committed conditions render as **`ConditionChips`**, so Apply visibly
+  moves the edit out of the builder and into the alarm. Removing a chip
+  re-commits immediately, exactly as in the records toolbar. Its own component
+  rather than the builder's `QueryBuilderSummary`, because the alarm cards
+  need a read-only mode and the editor needs a per-chip tone: when the preview
+  says "the condition is probably inverted", the chips that differ from the
+  stored condition (`utils/conditions.changedConditionIds`) turn red with an
+  `sr-only` "(changed — check this one)".
 - The **match count re-runs on its own** whenever those conditions change. It
   used to sit behind a button labelled "Count matches" — the one number that
   says whether the alarm means what its author thinks, available only if you
@@ -154,20 +184,21 @@ claim implemented.
   empty list with the pager hidden, now once per group.
 - **Ordered loudest first, then biggest.** Someone scanning this wants the
   errors and the pile-ups at the top, not whatever order the API returned.
-- **One group opens on arrival**; more than one and everything starts closed, so
-  the page is a summary you drill into. An alarm card's "N records flagged" no
-  longer _filters_ the list — it opens that alarm's group and leaves the rest
-  visible, which is strictly more information for the same click.
+- **The worst group opens on arrival** (the board shows it open); the rest
+  start closed, so only one list request fires on load. An alarm card's
+  "N flagged" no longer _filters_ the list — it opens that alarm's group and
+  leaves the rest visible, which is strictly more information for the same
+  click.
 - **A grouped row is one dense line**, indented under the header: which record
   and how long. The alarm, the sentence editors read and the severity are all on
   the header, so repeating them per row is the noise this exists to remove. It
   carries no action either — see muting, below.
 
-**A finding can only name its record by id.** There is no display-field concept
-on the server for the store to join, so the row shows `contentType` + the entry
-id in tabular figures and links it. That is the honest identifier available
-today; giving a finding a human title is a server change worth making and not
-one to fake client-side.
+**A finding names its record by title.** The paged findings list carries
+`entryTitle` (the server applies content's own `entryTitle` rule, one read per
+content type on the page). A record with no title-eligible value comes back
+`null` and the row names it by id, in tabular figures, rather than inventing a
+label. The preview's sample is named the same way.
 
 ## The one non-obvious call in the code
 
@@ -196,6 +227,9 @@ src/lib/
   application/               # TanStack hooks over the gateway
     useAlarmRules, useAlarmFindings, useFindingsByEntry, useAlarmSummary
     useAlarmRuleMutations
+    useConditionFields       # the full filterable surface (server + slots)
+    useTypeLabels            # `article` → "Articles"
+  utils/conditions, utils/brokenReason, utils/previewVerdict  # pure, unit-tested
   infrastructure/
     alarmsGateway/           # the port the presentation layer depends on
     httpAlarmsGateway/       # its impl — the only file importing apiClient
@@ -204,7 +238,13 @@ src/lib/
   presentation/
     severityLook/            # severity → icon + classes (the one place)
     pages/AlarmsPage, pages/AlarmRuleEditorPage  # the editor serves create + edit
+    relativeTime/            # "checked 8 min ago", "flagged 2 weeks ago"
+    scanMessage/             # "checked 842, 38 flagged, 2 cleared." — one sentence
     components/…             # SeverityBadge, RuleList, the slots
+      ConditionChips/        # a condition as chips; read-only or removable
+      AlarmPreviewPanel/     # the editor's "Right now" + "Editors will see"
+      SeverityPicker/        # Level, as a segmented control
+      Callout/               # the boards' one-line tinted note
       FindingGroupList/      # one collapsible group per alarm, + FindingGroup
       FindingRow/            # one record, inside its alarm's group
       FindingsPager/         # previous/next, one per open group
@@ -335,8 +375,10 @@ locally is a hue nobody measured.
 ## Commands
 
 - `npx nx run-many -t typecheck -p @orthacms/alarms-admin`
-- `npx nx test @orthacms/alarms-admin` — `toolOutput` is unit-tested
-  (`testEnvironment: 'node'`, as in copilot-admin: the tested code is pure)
+- `npx nx test @orthacms/alarms-admin` — `toolOutput`, `utils/conditions`,
+  `utils/brokenReason` and `utils/previewVerdict` are unit-tested
+  (`testEnvironment: 'node'`, as in copilot-admin: the tested code is pure;
+  the components are pinned in `admin-e2e`, `alarms-redesign.spec.ts`)
 - `npx eslint packages/alarms/admin`
 - `npx nx e2e admin-e2e -- --project=chromium src/alarms` — the browser suite
   (`apps/admin-e2e/src/alarms`, seeded by `support/api/alarms.ts`). It covers the

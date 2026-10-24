@@ -19,7 +19,15 @@ export interface AlarmRuleSeed {
     enabled: boolean;
     brokenReason: string | null;
     lastScanAt: string | null;
+    /** Who created it, by user id; the editor resolves it on the roster. */
+    createdBy?: string | null;
     openCount: number;
+}
+
+/** One record the rule preview samples, as `POST /rules/preview` lists it. */
+export interface AlarmPreviewSampleSeed {
+    id: string;
+    title: string | null;
 }
 
 /** One finding as `GET /api/alarms/findings` returns it. */
@@ -34,6 +42,8 @@ export interface AlarmFindingSeed {
     detail: Record<string, unknown> | null;
     firstSeenAt: string;
     lastSeenAt: string;
+    /** The record's display title, as the paged list names it. */
+    entryTitle?: string | null;
 }
 
 /**
@@ -64,6 +74,8 @@ export const CONTAINS_RULE: AlarmRuleSeed = {
     enabled: true,
     brokenReason: null,
     lastScanAt: '2026-08-25T09:00:00.000Z',
+    // Ada Lovelace, in the default workspace seed's roster.
+    createdBy: 'u_ada',
     openCount: 1
 };
 
@@ -80,6 +92,17 @@ export const OPEN_FINDING: AlarmFindingSeed = {
     firstSeenAt: '2026-08-25T09:00:00.000Z',
     lastSeenAt: '2026-08-25T09:00:00.000Z'
 };
+
+/**
+ * The records the rule preview samples by default — the editor lists up to
+ * four of them under its count, with "and N more" beneath.
+ */
+export const PREVIEW_SAMPLE: AlarmPreviewSampleSeed[] = [
+    { id: 'entry-11', title: 'Spring launch — what changed' },
+    { id: 'entry-12', title: 'Pricing FAQ' },
+    { id: 'entry-13', title: 'The editor, redesigned' },
+    { id: 'entry-14', title: null }
+];
 
 /**
  * The filterable paths `GET /api/content-schema/:name/filter-fields` returns.
@@ -219,6 +242,11 @@ export interface AlarmsApiOptions {
     /** How many records the collection holds, per the preview call. */
     previewTotal?: number;
     /**
+     * The records the preview samples, by title. Defaults to
+     * {@link PREVIEW_SAMPLE} cut to `previewMatched`.
+     */
+    previewSample?: AlarmPreviewSampleSeed[];
+    /**
      * Fail `GET /alarms/rules`, so the page must say the request failed rather
      * than draw the empty state. "No alarms" and "could not ask" render as the
      * same blank page unless something tells them apart.
@@ -262,6 +290,8 @@ export interface AlarmsApiRecorder {
     updates: Record<string, unknown>[];
     /** Rule ids passed to `POST /api/alarms/rules/:id/rescan`. */
     rescans: string[];
+    /** Bodies of `POST /api/alarms/rules/preview`, in order. */
+    previews: Record<string, unknown>[];
     /**
      * The `entryIds` parameter of every `GET /alarms/findings/by-entry`.
      *
@@ -356,6 +386,7 @@ export async function mockAlarmsSlots(
         findings = [OPEN_FINDING],
         previewMatched = 3,
         previewTotal = 312,
+        previewSample = PREVIEW_SAMPLE.slice(0, previewMatched),
         rulesFailing = false,
         findingsFailing = false,
         byEntry = {},
@@ -368,6 +399,7 @@ export async function mockAlarmsSlots(
         creates: [],
         updates: [],
         rescans: [],
+        previews: [],
         byEntryRequests: []
     };
 
@@ -459,21 +491,49 @@ export async function mockAlarmsSlots(
     await page.route('**/api/alarms/rules/*', async (route) => {
         const request = route.request();
         if (request.method() === 'PATCH') {
-            recorder.updates.push(
-                (request.postDataJSON() ?? {}) as Record<string, unknown>
+            const body = (request.postDataJSON() ?? {}) as Record<
+                string,
+                unknown
+            >;
+            recorder.updates.push(body);
+            const id = new URL(request.url()).pathname.split('/').pop() ?? '';
+            const current = rules.find((rule) => rule.id === id) ?? rules[0];
+            const next = { ...current, ...body };
+            // The server rescans a changed filter or a rule switched back on,
+            // and says what the scan did; anything else answers `scan: null`.
+            const rescanned =
+                next.enabled &&
+                ('filter' in body ||
+                    (body.enabled === true && !current.enabled));
+            await route.fulfill(
+                json({
+                    ...next,
+                    scan: rescanned
+                        ? {
+                              ruleId: current.id,
+                              scanned: previewTotal,
+                              opened: previewMatched,
+                              resolved: 2,
+                              open: previewMatched
+                          }
+                        : null
+                })
             );
-            await route.fulfill(json(rules[0]));
             return;
         }
         await route.fulfill(json({ ok: true }));
     });
 
     await page.route('**/api/alarms/rules/preview', async (route) => {
+        recorder.previews.push(
+            (route.request().postDataJSON() ?? {}) as Record<string, unknown>
+        );
         await route.fulfill(
             json({
                 matched: previewMatched,
                 total: previewTotal,
-                sampleIds: []
+                sampleIds: previewSample.map((entry) => entry.id),
+                sample: previewSample
             })
         );
     });

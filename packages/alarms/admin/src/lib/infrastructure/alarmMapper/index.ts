@@ -183,9 +183,7 @@ export function toAlarmRulePreview(
         total: dto.total,
         sampleIds: dto.sampleIds,
         // An older server sends ids only; they stand in, untitled.
-        sample:
-            dto.sample ??
-            dto.sampleIds.map((id) => ({ id, title: null }))
+        sample: dto.sample ?? dto.sampleIds.map((id) => ({ id, title: null }))
     };
 }
 

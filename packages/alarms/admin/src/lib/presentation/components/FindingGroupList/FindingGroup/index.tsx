@@ -51,8 +51,7 @@ const messages = defineMessages({
     },
     shown: {
         id: 'alarms.group.shown',
-        defaultMessage:
-            '{first, number}–{last, number} of {count, number}'
+        defaultMessage: '{first, number}–{last, number} of {count, number}'
     },
     shownAll: {
         id: 'alarms.group.shownAll',
