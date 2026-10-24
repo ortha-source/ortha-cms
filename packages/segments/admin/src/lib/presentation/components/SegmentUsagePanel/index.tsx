@@ -273,7 +273,7 @@ function UsageRow({
                 aria-hidden
             />
             <span className="flex min-w-0 flex-1 flex-col">
-                <Link to={entryHref(item)} className="truncate hover:underline">
+                <Link to={entryHref(item)} className="break-words hover:underline">
                     {title}
                 </Link>
                 {hasMeta ? (

@@ -26,8 +26,10 @@ export class SegmentsPage extends BasePage {
 
     constructor(page: Page) {
         super(page);
+        // The page is about audiences; "Segments" is the section's name in
+        // the nav and the crumb.
         this.heading = page.getByRole('heading', {
-            name: 'Segments',
+            name: 'Audiences',
             level: 1
         });
         this.createLink = page.getByRole('link', { name: 'New audience' });
@@ -42,6 +44,7 @@ export class SegmentsPage extends BasePage {
         // own `fieldTextbox` defaults to the same reading for the same reason.
         this.nameField = page.getByRole('textbox', { name: 'Name' });
         this.keyField = page.getByRole('textbox', { name: 'Key' });
+        // The chip input's text box — what a tag is typed into.
         this.tagsField = page.getByRole('textbox', { name: 'Reader tags' });
         this.submit = page.getByRole('button', {
             name: /Create audience|^Save$/
@@ -74,10 +77,31 @@ export class SegmentsPage extends BasePage {
     async deleteAudience(name: string): Promise<void> {
         await this.rowMenu(name).click();
         await this.page.getByRole('menuitem', { name: 'Delete' }).click();
-        await this.page
-            .getByRole('dialog')
-            .getByRole('button', { name: 'Delete' })
-            .click();
+        await this.confirmDelete.click();
+    }
+
+    /** The delete confirmation. */
+    get deleteDialog(): Locator {
+        return this.page.getByRole('dialog');
+    }
+
+    /** The confirmation's destructive button. */
+    get confirmDelete(): Locator {
+        return this.deleteDialog.getByRole('button', {
+            name: 'Delete audience'
+        });
+    }
+
+    /** The "Used by" cell's link for one audience. */
+    usageLink(name: string): Locator {
+        return this.row(name).getByRole('link', {
+            name: new RegExp(`see where ${name} is used`)
+        });
+    }
+
+    /** The line under the table saying what an audience is. */
+    get modelNote(): Locator {
+        return this.page.getByText(/A reader arrives with tags from your site/);
     }
 
     /** The pager's "Page X of Y" readout — drawn only past one page. */
@@ -114,9 +138,57 @@ export class SegmentsPage extends BasePage {
             .getByRole('checkbox');
     }
 
-    /** The "Offered in" summary badge on the editor page. */
-    get offeredInBadge(): Locator {
-        return this.page.getByText(/Every workspace|\d+ workspaces?/).first();
+    /** One of the two "Offered in" cards: "Every workspace" or "Some workspaces". */
+    offeredInChoice(choice: 'Every workspace' | 'Some workspaces'): Locator {
+        return this.page.getByRole('radio', { name: new RegExp(`^${choice}`) });
+    }
+
+    // --- tags as chips ----------------------------------------------------
+
+    /** Type one tag and commit it as a chip. */
+    async addTag(tag: string): Promise<void> {
+        await this.tagsField.fill(tag);
+        await this.tagsField.press('Enter');
+    }
+
+    /** One chip's remove button — the chip, as a control. */
+    tagChip(tag: string): Locator {
+        // Exact: "Remove tag acme" is a prefix of "Remove tag acme-legacy".
+        return this.page.getByRole('button', {
+            name: `Remove tag ${tag}`,
+            exact: true
+        });
+    }
+
+    // --- beside the form ---------------------------------------------------
+
+    /** "Try a reader" — the tester's input. */
+    get tester(): Locator {
+        return this.page.getByRole('textbox', { name: 'Try a reader' });
+    }
+
+    /** The tester's verdict ("In …" / "Not in …"). */
+    get testerVerdict(): Locator {
+        return this.page
+            .getByRole('status')
+            .filter({ hasText: /^(In|Not in) / });
+    }
+
+    /** The "Used by N entries" panel beside the edit form. */
+    get usagePanel(): Locator {
+        return this.page.getByRole('region', {
+            name: /^Used by|^Not used yet/
+        });
+    }
+
+    /** One entry row of the usage panel. */
+    usageRow(title: string): Locator {
+        return this.usagePanel.getByRole('listitem').filter({ hasText: title });
+    }
+
+    /** The edit page's "Delete…" button. */
+    get deleteButton(): Locator {
+        return this.page.getByRole('button', { name: 'Delete…' });
     }
 
     /** The field-level error for one message. */
