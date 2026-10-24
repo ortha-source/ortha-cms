@@ -31,43 +31,84 @@ export const CONTENT_STALE_SEED = {
         { id: 'd365', count: 189 },
         { id: 'older', count: 156 }
     ],
-    total: 1284
+    total: 1284,
+    olderTopType: { name: 'article', label: 'Article' }
 };
 
 /** Draft/published split per type, biggest first as the server sorts them. */
 export const CONTENT_PIPELINE_SEED = {
     types: [
-        { name: 'article', label: 'Article', published: 412, drafts: 88 },
-        { name: 'changelog', label: 'Changelog', published: 401, drafts: 93 },
+        {
+            name: 'article',
+            label: 'Article',
+            published: 412,
+            drafts: 88,
+            modified: 51
+        },
+        {
+            name: 'changelog',
+            label: 'Changelog',
+            published: 401,
+            drafts: 93,
+            modified: 28
+        },
         {
             name: 'landing_page',
             label: 'Landing page',
             published: 96,
-            drafts: 41
+            drafts: 41,
+            modified: 15
         },
-        { name: 'case_study', label: 'Case study', published: 74, drafts: 12 },
-        { name: 'author', label: 'Author', published: 63, drafts: 4 }
+        {
+            name: 'case_study',
+            label: 'Case study',
+            published: 74,
+            drafts: 12,
+            modified: 0
+        },
+        {
+            name: 'author',
+            label: 'Author',
+            published: 63,
+            drafts: 4,
+            modified: 0
+        }
     ]
 };
 
-/** Weekly publishing velocity — twelve buckets, ending on the highest. */
-export const CONTENT_VELOCITY_SEED = {
-    granularity: 'week' as const,
-    points: [
-        { bucket: '2026-03-02', value: 18 },
-        { bucket: '2026-03-09', value: 24 },
-        { bucket: '2026-03-16', value: 21 },
-        { bucket: '2026-03-23', value: 32 },
-        { bucket: '2026-03-30', value: 27 },
-        { bucket: '2026-04-06', value: 35 },
-        { bucket: '2026-04-13', value: 29 },
-        { bucket: '2026-04-20', value: 41 },
-        { bucket: '2026-04-27', value: 38 },
-        { bucket: '2026-05-04', value: 33 },
-        { bucket: '2026-05-11', value: 46 },
-        { bucket: '2026-05-18', value: 52 }
-    ]
-};
+/**
+ * Publishing velocity for a window, shaped as the server shapes it: daily
+ * buckets up to 31 days, weekly beyond — **relative to today**, because the
+ * widget lays the series over the real window and fills the quiet days in.
+ * Sparse on purpose (every third bucket is empty and left out), and the last
+ * bucket is the highest, 52.
+ */
+export function contentVelocitySeed(days: number, now: Date = new Date()) {
+    const DAY = 86_400_000;
+    const daily = days <= 31;
+    const step = daily ? 1 : 7;
+    const count = Math.floor(days / step);
+    const start = (index: number) => {
+        const at = new Date(now.getTime() - (count - 1 - index) * step * DAY);
+        if (!daily) {
+            const sinceMonday = (at.getUTCDay() + 6) % 7;
+            at.setTime(at.getTime() - sinceMonday * DAY);
+        }
+        return at.toISOString().slice(0, 10);
+    };
+    const points = Array.from({ length: count }, (_, index) => ({
+        bucket: start(index),
+        value: index === count - 1 ? 52 : 10 + ((index * 7) % 30)
+    })).filter((_, index) => index === count - 1 || index % 3 !== 1);
+    return {
+        granularity: daily ? ('day' as const) : ('week' as const),
+        points,
+        busiestWeekday: 4
+    };
+}
+
+/** The 30-day velocity — what the page opens on. */
+export const CONTENT_VELOCITY_SEED = contentVelocitySeed(30);
 
 /**
  * Live records carrying unpublished edits.
@@ -211,7 +252,8 @@ export const CONTENT_PUNCHCARD_SEED = {
         [7, 15, 1]
     ].map(([weekday, hour, count]) => ({ weekday, hour, count })),
     max: 9,
-    total: 196
+    total: 196,
+    timeZone: 'UTC'
 };
 
 /**
@@ -252,6 +294,77 @@ export const MEDIA_ALT_SEED = {
     missing: 794
 };
 
+/** Records behind "Gone quiet" — two types, so the panel links each one. */
+export const CONTENT_STALE_RECORDS_SEED = {
+    total: 156,
+    types: [
+        { name: 'article', label: 'Article', count: 101 },
+        { name: 'changelog', label: 'Changelog', count: 55 }
+    ],
+    records: [
+        {
+            id: 'e0000001-0000-4000-8000-000000000001',
+            type: 'article',
+            typeLabel: 'Article',
+            title: 'A guide to content modelling',
+            updatedAt: '2024-08-12T10:00:00Z',
+            editorId: 'u_ada'
+        },
+        {
+            id: 'e0000002-0000-4000-8000-000000000002',
+            type: 'changelog',
+            typeLabel: 'Changelog',
+            title: null,
+            updatedAt: '2024-09-02T10:00:00Z',
+            editorId: null
+        }
+    ]
+};
+
+/** Records behind "Waiting to go live" — one type, so one "Open all". */
+export const CONTENT_UNSHIPPED_RECORDS_SEED = {
+    total: 94,
+    types: [{ name: 'article', label: 'Article', count: 94 }],
+    records: [
+        {
+            id: 'e0000003-0000-4000-8000-000000000003',
+            type: 'article',
+            typeLabel: 'Article',
+            title: 'Pricing FAQ',
+            updatedAt: '2026-09-30T10:00:00Z',
+            editorId: 'u_ada'
+        }
+    ]
+};
+
+/** The images behind the alt-text line. */
+export const MEDIA_ALT_MISSING_SEED = {
+    total: 794,
+    assets: [
+        {
+            id: 'a0000001-0000-4000-8000-000000000001',
+            name: 'hero-banner.jpg',
+            folderId: null,
+            uploadedBy: 'u_grace',
+            createdAt: '2025-03-04T10:00:00Z'
+        }
+    ]
+};
+
+/** Open review requests, one overdue — "1 overdue — Pricing FAQ, 5 days". */
+export const PROTECTION_REVIEWS_SEED = {
+    open: 4,
+    overdue: 1,
+    overdueAfterDays: 3,
+    oldestOpen: {
+        contentType: 'article',
+        contentTypeLabel: 'Article',
+        entryId: 'e0000003-0000-4000-8000-000000000003',
+        entryTitle: 'Pricing FAQ',
+        waitingDays: 5
+    }
+};
+
 /** Every Insights route, keyed by the suffix after `/api/insights/`. */
 const SEEDS: Record<string, unknown> = {
     'content/totals': CONTENT_TOTALS_SEED,
@@ -263,7 +376,11 @@ const SEEDS: Record<string, unknown> = {
     'media/storage': MEDIA_STORAGE_SEED,
     'media/uploads': MEDIA_UPLOADS_SEED,
     'media/alt': MEDIA_ALT_SEED,
-    'i18n/coverage': I18N_COVERAGE_SEED
+    'i18n/coverage': I18N_COVERAGE_SEED,
+    'content/stale/records': CONTENT_STALE_RECORDS_SEED,
+    'content/unshipped/records': CONTENT_UNSHIPPED_RECORDS_SEED,
+    'media/alt/missing': MEDIA_ALT_MISSING_SEED,
+    'protection/reviews': PROTECTION_REVIEWS_SEED
 };
 
 /** The empty answer each route gives for a workspace with nothing in it. */
@@ -277,10 +394,23 @@ const EMPTY: Record<string, unknown> = {
         entriesHistory: [],
         publishedHistory: []
     },
-    'content/stale': { buckets: [], total: 0 },
+    'content/stale': { buckets: [], total: 0, olderTopType: null },
+    'content/stale/records': { total: 0, types: [], records: [] },
+    'content/unshipped/records': { total: 0, types: [], records: [] },
+    'media/alt/missing': { total: 0, assets: [] },
+    'protection/reviews': {
+        open: 0,
+        overdue: 0,
+        overdueAfterDays: 3,
+        oldestOpen: null
+    },
     'content/pipeline': { types: [] },
-    'content/velocity': { granularity: 'week', points: [] },
-    'content/punchcard': { cells: [], max: 0, total: 0 },
+    'content/velocity': {
+        granularity: 'day',
+        points: [],
+        busiestWeekday: null
+    },
+    'content/punchcard': { cells: [], max: 0, total: 0, timeZone: 'UTC' },
     'content/unshipped': {
         types: [],
         modified: 0,
@@ -315,6 +445,8 @@ export interface InsightsSpy {
     readonly requested: string[];
     /** The `days` query value seen per route suffix, latest wins. */
     readonly days: Record<string, string | null>;
+    /** Every query param seen per route suffix, latest wins. */
+    readonly params: Record<string, Record<string, string>>;
 }
 
 /** Options for {@link mockInsightsApi}. */
@@ -351,7 +483,7 @@ export async function mockInsightsApi(
         overrides = {}
     }: InsightsApiOptions = {}
 ): Promise<InsightsSpy> {
-    const spy: InsightsSpy = { requested: [], days: {} };
+    const spy: InsightsSpy = { requested: [], days: {}, params: {} };
 
     await page.route('**/api/insights/**', async (route) => {
         const url = new URL(route.request().url());
@@ -359,6 +491,7 @@ export async function mockInsightsApi(
 
         spy.requested.push(suffix);
         spy.days[suffix] = url.searchParams.get('days');
+        spy.params[suffix] = Object.fromEntries(url.searchParams);
 
         if (delayMs) {
             await new Promise((resolve) => setTimeout(resolve, delayMs));
@@ -373,9 +506,26 @@ export async function mockInsightsApi(
             return;
         }
 
-        const body =
+        let body =
             overrides[suffix] ??
             (empty.includes(suffix) ? EMPTY[suffix] : SEEDS[suffix]);
+        // Shaped by the request, as the server's are: velocity's buckets
+        // follow the window, and the punchcard names the zone it was asked.
+        if (
+            suffix === 'content/velocity' &&
+            !overrides[suffix] &&
+            !empty.includes(suffix)
+        ) {
+            body = contentVelocitySeed(
+                Number(url.searchParams.get('days') ?? 30)
+            );
+        }
+        if (suffix === 'content/punchcard' && body && !overrides[suffix]) {
+            body = {
+                ...(body as object),
+                timeZone: url.searchParams.get('tz') ?? 'UTC'
+            };
+        }
         if (body === undefined) {
             await route.fulfill({ status: 404, body: '{}' });
             return;

@@ -35,12 +35,18 @@ test.describe('Insights announcements and outline', () => {
         await mockInsightsApi(page, { delayMs: 2000 });
         await insightsPage.goto(WORKSPACE_ID);
 
-        const skeleton = insightsPage.cardSkeleton('Gone quiet');
+        const skeleton = insightsPage.cardSkeleton('Publishing velocity');
         await expect(skeleton).toBeVisible();
         await expect(skeleton).toHaveRole('status');
         // Named, because nine of these announce at once and "Loading…" nine
         // times says nothing about which card is which.
-        await expect(skeleton).toContainText('Loading Gone quiet');
+        await expect(skeleton).toContainText('Loading Publishing velocity');
+        // A Needs-attention line announces itself the same way.
+        await expect(
+            insightsPage
+                .signalLine('content.stale')
+                .getByTestId('signal-skeleton')
+        ).toContainText('Loading Gone quiet');
     });
 
     /**
@@ -54,16 +60,16 @@ test.describe('Insights announcements and outline', () => {
         insightsPage
     }) => {
         await mockInsightsApi(page, {
-            empty: ['content/stale'],
-            failing: ['media/alt']
+            empty: ['content/pipeline'],
+            failing: ['content/velocity']
         });
         await insightsPage.goto(WORKSPACE_ID);
 
-        await expect(insightsPage.cardEmpty('Gone quiet')).toHaveRole('status');
+        await expect(insightsPage.cardEmpty('By type')).toHaveRole('status');
         // The failing neighbour still announces assertively, so the pair really
         // is distinguishable rather than both having been made polite.
         await expect(
-            insightsPage.cardError('Images missing alt text')
+            insightsPage.cardError('Publishing velocity')
         ).toContainText("This didn't load");
     });
 
@@ -97,7 +103,7 @@ test.describe('Insights announcements and outline', () => {
     }) => {
         await mockInsightsApi(page);
         await insightsPage.goto(WORKSPACE_ID);
-        await expect(insightsPage.card('When the work happens')).toBeVisible();
+        await expect(insightsPage.card('Publishing velocity')).toBeVisible();
         await expect(insightsPage.anySkeleton()).toHaveCount(0);
 
         const main = page.getByRole('main');
@@ -155,6 +161,7 @@ test.describe('Insights announcements and outline', () => {
     }) => {
         await mockInsightsApi(page);
         await insightsPage.goto(WORKSPACE_ID);
+        await insightsPage.openTab('Team');
 
         const card = insightsPage.card('When the work happens');
         await expect(card).toBeVisible();

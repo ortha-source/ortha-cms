@@ -189,6 +189,32 @@ describe('Media insights (/api/insights/media)', () => {
             const res = await agent.get('/api/insights/media/alt').expect(200);
             expect(res.body.images).toBe(1);
         });
+
+        it('lists the images behind the missing count, oldest upload first', async () => {
+            const agent = await login();
+            await asset({ name: 'described.png', kind: 'image', alt: 'A cat' });
+            const newer = await asset({ name: 'newer.png', kind: 'image' });
+            const older = await asset({
+                name: 'older.png',
+                kind: 'image',
+                alt: '  '
+            });
+            await asset({ name: 'doc.pdf', kind: 'document' });
+            await getDatabase().execute(
+                sql`update media_asset
+                    set created_at = now() - make_interval(days => 10)
+                    where id = ${older.id}::uuid`
+            );
+
+            const res = await agent
+                .get('/api/insights/media/alt/missing?limit=5')
+                .expect(200);
+            // The same rows as `/alt`'s `missing`, so the two never disagree.
+            expect(res.body.total).toBe(2);
+            expect(
+                res.body.assets.map((entry: { id: string }) => entry.id)
+            ).toEqual([older.id, newer.id]);
+        });
     });
 
     describe('GET /uploads', () => {

@@ -191,51 +191,55 @@ Insights does not change at all in the process. That is precisely the test of wh
 
 ## 04. The full widget registry
 
-This is the artifact's central section: the only place where what the Insights page actually consists of is gathered together. No such list exists in the code — and cannot, because every row below is declared in _somebody else's_ package. Today there are **three** suppliers and **thirteen** widgets.
+This is the artifact's central section: the only place where what the Insights page actually consists of is gathered together. No such list exists in the code — and cannot, because every row below is declared in _somebody else's_ package. Today there are **four** suppliers, **eleven** widgets and **four** Needs-attention lines.
+
+Each section is a **tab** (`?tab=<section id>`, the first tab left out of the URL). Only the open tab is mounted, so only its widgets ask for data.
 
 Permission legend: `content:read` and `media:read` — the permission is checked twice, on the slot item and inside the data hook. Range: `period` — the request depends on the chosen window, `snapshot` — it does not.
 
-| Widget                                                                                  | Package       | Section  | What it shows                                                                                                                                                                                        | Data route                                                                   | Permission     |
-| --------------------------------------------------------------------------------------- | ------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | -------------- |
-| **Entries**<br>`insights.content.entries`<br>order 10 · size xs                         | content-admin | overview | Total entries in the workspace, the "+N in the period" delta and a history sparkline. A `StatWidget` tile                                                                                            | GET /api/insights/content/totals<br>`period` `?days=`                        | `content:read` |
-| **Published**<br>`insights.content.published`<br>order 20 · size xs                     | content-admin | overview | Published entries, the delta for the period, a sparkline. A `StatWidget` tile                                                                                                                        | GET /api/insights/content/totals<br>`period` the same request                | `content:read` |
-| **Drafts**<br>`insights.content.drafts`<br>order 30 · size xs                           | content-admin | overview | Drafts, and instead of a delta, "N% of all entries": a draft has no meaningful delta for a period                                                                                                    | GET /api/insights/content/totals<br>`period` the same request                | `content:read` |
-| **Media storage**<br>`insights.media.storage`<br>order 40 · size xs                     | media-admin   | overview | Storage used (the number and the unit are separated so the figure stays in tabular figures) and "N assets". Delta tone `flat`                                                                        | GET /api/insights/media/storage<br>`snapshot`                                | `media:read`   |
-| **Gone quiet**<br>`insights.content.stale`<br>order 10 · size md                        | content-admin | content  | Published entries by time since the last edit: five buckets — up to 30 days, 31–90, 91–180, 181–365, more than a year. `BarRows` along the `q0…q5` ladder plus a warning chip, "N older than a year" | GET /api/insights/content/stale<br>`snapshot`                                | `content:read` |
-| **Draft and published, by type**<br>`insights.content.pipeline`<br>order 20 · size md   | content-admin | content  | Where the workspace's weight sits: for each content type, how much is published and how much is in drafts. A two-segment `BarRows` (`series-1`/`series-2`)                                           | GET /api/insights/content/pipeline<br>`snapshot`                             | `content:read` |
-| **Publishing velocity**<br>`insights.content.velocity`<br>order 30 · size lg            | content-admin | content  | Publications per time bucket within the window. The server picks the granularity itself (`day` / `week` / `month`), and the card's caption follows it. `AreaTrend` plus a chip with the period total | GET /api/insights/content/velocity<br>`period` `?days=`                      | `content:read` |
-| **Waiting to go live**<br>`insights.content.unshipped`<br>order 40 · size sm            | content-admin | content  | Published entries carrying unpublished edits, by type and in total. An `ok` chip, "everything shipped", or a `warn` one, "N% of the live ones"                                                       | GET /api/insights/content/unshipped<br>`snapshot`                            | `content:read` |
-| **Translation coverage**<br>`insights.i18n.coverage`<br>order 5 · size full             | i18n-admin    | reach    | How far each language has got. A cut switcher inside the card: "By language" / "By type". Three totals — fully localised, not started, started but incomplete                                        | GET /api/insights/i18n/coverage<br>`snapshot`                                | `content:read` |
-| **What's using the storage**<br>`insights.media.storageBreakdown`<br>order 10 · size sm | media-admin   | reach    | Bytes and asset counts by kind: image, video, audio, document, archive. `BarRows`                                                                                                                    | GET /api/insights/media/storage<br>`snapshot` the same request as the tile's | `media:read`   |
-| **Uploads**<br>`insights.media.uploads`<br>order 20 · size sm                           | media-admin   | reach    | How many assets were added per time bucket. `ColumnTrend` — columns rather than a line: these are discrete counts, and a line between them would imply intermediate values nobody measured           | GET /api/insights/media/uploads<br>`period` `?days=`                         | `media:read`   |
-| **Images missing alt text**<br>`insights.media.alt`<br>order 30 · size sm               | media-admin   | reach    | The library's accessibility debt: how many images have alt text and how many do not, and the uncovered share. An `ok` chip, "all covered", or a `warn` one, "N% without alt"                         | GET /api/insights/media/alt<br>`snapshot`                                    | `media:read`   |
-| **When the work happens**<br>`insights.content.punchcard`<br>order 10 · size full       | content-admin | team     | Saves by day of week and hour (UTC). A 7×24 `HeatGrid` plus a "quiet → busy" `RampLegend`                                                                                                            | GET /api/insights/content/punchcard<br>`period` `?days=`                     | `content:read` |
+| Widget                                                                                  | Package       | Section  | What it shows                                                                                                                                                                                         | Data route                                                                   | Permission     |
+| --------------------------------------------------------------------------------------- | ------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | -------------- |
+| **Entries**<br>`insights.content.entries`<br>order 10 · size xs                         | content-admin | overview | Total entries, "+N this month" (the period named by the range) and a history sparkline. A `StatWidget` cell of the stat strip                                                                       | GET /api/insights/content/totals<br>`period` `?days=`                        | `content:read` |
+| **Published**<br>`insights.content.published`<br>order 20 · size xs                     | content-admin | overview | Published entries, "+N this month", a sparkline                                                                                                                                                       | GET /api/insights/content/totals<br>`period` the same request                | `content:read` |
+| **Drafts**<br>`insights.content.drafts`<br>order 30 · size xs                           | content-admin | overview | Drafts, and instead of a delta, "N% of all entries": a draft has no meaningful delta for a period                                                                                                     | GET /api/insights/content/totals<br>`period` the same request                | `content:read` |
+| **Media storage**<br>`insights.media.storage`<br>order 40 · size xs                     | media-admin   | overview | Storage used and "N assets" — there is no storage quota in the system to compare against                                                                                                              | GET /api/insights/media/storage<br>`snapshot`                                | `media:read`   |
+| **Publishing velocity**<br>`insights.content.velocity`<br>order 50 · size md            | content-admin | overview | Publications per bucket as columns (`ColumnTrend`, `full` size, table view), every bucket of the window present; header "N publishes · busiest Thursday"                                             | GET /api/insights/content/velocity<br>`period` `?days=`                      | `content:read` |
+| **By type**<br>`insights.content.pipeline`<br>order 60 · size md                        | content-admin | overview | Each type split into published (`series-1`) · modified (`series-2`) · draft (`neutral`, the remainder); legend in the header                                                                          | GET /api/insights/content/pipeline<br>`snapshot`                             | `content:read` |
+| **Gone quiet**<br>`insights.content.stale`<br>order 10 · size md                        | content-admin | content  | Published entries by time since the last edit: five buckets along the `q0…q5` ladder                                                                                                                  | GET /api/insights/content/stale<br>`snapshot`                                | `content:read` |
+| **Waiting to go live**<br>`insights.content.unshipped`<br>order 20 · size md            | content-admin | content  | Published entries carrying unpublished edits, by type and in total                                                                                                                                   | GET /api/insights/content/unshipped<br>`snapshot`                            | `content:read` |
+| **Translation coverage**<br>`insights.i18n.coverage`<br>order 5 · size full             | i18n-admin    | reach    | Per language (or per type): a bar of what is done and "86% · 118 missing"; header "of N localized records"                                                                                           | GET /api/insights/i18n/coverage<br>`snapshot`                                | `content:read` |
+| **Storage**<br>`insights.media.storageBreakdown`<br>order 10 · size md                  | media-admin   | reach    | Bytes and asset counts by kind. `BarRows`                                                                                                                                                             | GET /api/insights/media/storage<br>`snapshot` the same request as the tile's | `media:read`   |
+| **Uploads**<br>`insights.media.uploads`<br>order 20 · size md                           | media-admin   | reach    | How many assets were added per time bucket. `ColumnTrend`                                                                                                                                             | GET /api/insights/media/uploads<br>`period` `?days=`                         | `media:read`   |
+| **When the work happens**<br>`insights.content.punchcard`<br>order 10 · size full       | content-admin | team     | Saves by weekday and hour, **in the reader's time zone** (`?tz=`), all 24 hours. `HeatGrid` + `RampLegend`                                                                                            | GET /api/insights/content/punchcard<br>`period` `?days=&tz=`                 | `content:read` |
+
+### The Needs-attention lines (`INSIGHTS_SIGNAL_SLOT`)
+
+The first tab leads with one card listing every count that asks for somebody's work; each line opens a side panel (`?signal=<id>`) with the records behind it, oldest first, and a way out to the full list.
+
+| Line                                         | Package          | Count / comparison                                                    | Drill-down route                                          | Way out                                                         | Permission     |
+| -------------------------------------------- | ---------------- | --------------------------------------------------------------------- | --------------------------------------------------------- | --------------------------------------------------------------- | -------------- |
+| **Waiting to go live**<br>`content.unshipped` · 10 | content-admin    | modified records · "N% of live"                                       | GET /api/insights/content/unshipped/records               | per type: the records table on the **Modified** chip's filter   | `content:read` |
+| **Waiting on review**<br>`protection.reviews` · 20 | protection-admin | open requests · "1 overdue — Pricing FAQ, 5 days" (`oldestOpen`)      | GET /api/protection/queue (the Reviews page's own read)   | "Open all N in Reviews"                                         | `content:read` |
+| **Gone quiet**<br>`content.stale` · 30       | content-admin    | the `older` bucket · "most in {type}" (`olderTopType`)                | GET /api/insights/content/stale/records?age=recent\|months\|year | per type: Published + `updatedAt` edges of the band            | `content:read` |
+| **Images missing alt text**<br>`media.alt` · 40 | media-admin      | images without alt · "N% of M images"                                 | GET /api/insights/media/alt/missing                       | "Open Media Library" (the library has no alt filter to land on) | `media:read`   |
+
+Records tables are per content type, so a drill-down whose records span several types links each type's table ("Open 70 in Guides", "Open 42 in Articles"); a set in one type gets the single "Open all N in Records".
 
 ### Summary by supplier
 
-#### content-admin — 8
-
-Three tiles in Overview, four cards in Content, one in Team. All on `content:read`. The data comes from `content-server`, six routes under `/api/insights/content/*`.
-
-#### media-admin — 4
-
-A tile in Overview and three cards in Reach. All on `media:read`. The data comes from `media-server`, three routes under `/api/insights/media/*`.
-
-#### i18n-admin — 1
-
-One full-width card in Reach. The data comes from `i18n-server`, `/api/insights/i18n/coverage`.
+content-admin — seven widgets and two lines; media-admin — three widgets and one line; i18n-admin — one widget; protection-admin — one line. The data comes from each owner's server package (`/api/insights/content/*`, `/api/insights/media/*`, `/api/insights/i18n/coverage`, `/api/insights/protection/reviews`).
 
 > **Why translation coverage is an i18n card and not a content one**
 >
-> This card is worth reading as the model case. It is contributed by the package that owns the **question**, not the table. Coverage is a statement about the _configured locale set_, which `content-server` deliberately does not know. A card assembled there could say which languages occur in the data, but never which are missing. The rule: if a widget's honest answer requires a fact owned by exactly one package, the widget belongs to that package.
+> This card is worth reading as the model case. It is contributed by the package that owns the **question**, not the table. Coverage is a statement about the _configured locale set_, which `content-server` deliberately does not know. The rule: if a widget's honest answer requires a fact owned by exactly one package, the widget belongs to that package.
 
-> **How each band fills up**
+> **How each tab fills up**
 >
-> **overview** — four `xs` tiles, exactly one row of twelfths (3+3+3+3). **content** — `md`+`md`, then `lg`+`sm` (8+4): which is precisely why "Publishing velocity" is declared `lg` and not `full` — otherwise "Waiting to go live" would move to a row of its own. **reach** — a `full` at the top (order 5, ahead of media's tens) and three `sm` beneath it (4+4+4). **team** — one `full` card. No band is assembled "however it came out": the numbers are picked so that each row closes exactly.
+> **overview** — the `xs` tiles in one stat strip, then the Needs-attention card on the left with the band's other widgets stacked on the right (their `size` is not used there). **content** — `md`+`md`. **reach** — a `full` at the top (order 5) and two `md` beneath it. **team** — one `full` card.
 
 ### Saving requests inside the registry
 
-Thirteen widgets — but **ten** data routes and fewer network requests than widgets. The three content tiles (`Entries`, `Published`, `Drafts`) read the same `totals` and share one `queryKey`, so TanStack Query collapses them into **one** request. The same goes for media: the `Media storage` tile and the `What's using the storage` card read the same `storage`. Each still stays a separate widget with its own loading state and its own error — independent indicators without three round trips for one aggregate.
+Fewer network requests than widgets. The three content tiles (`Entries`, `Published`, `Drafts`) read the same `totals` and share one `queryKey`, so TanStack Query collapses them into **one** request. The same goes for media: the `Media storage` tile and the `Storage` card read the same `storage`, and each Needs-attention line shares its count's query with the card on its tab. Each still stays a separate widget with its own loading state and its own error — independent indicators without three round trips for one aggregate.
 
 > **What the registry lacks, and why**
 >
@@ -249,8 +253,10 @@ There is exactly one screen. Inside a workspace, with no entry in the global nav
 
 | Path                               | What it is                                                                                                                                                                      | How to get there                                                                               |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| /workspaces/:id/insights           | The Insights page: a top bar with the breadcrumb and the range picker, the heading, the subtitle "What changed in _{workspace}_, and what's gone quiet", then the section bands | The "Insights" button in the workspace rail (`order: 30`, the bar-chart icon, an amber accent) |
+| /workspaces/:id/insights           | The Insights page: a top bar with the breadcrumb and the range picker, the heading, the subtitle "What changed in _{workspace}_ over the last _{range}_, and what needs you.", then the section tabs | The "Insights" button in the workspace rail (`order: 30`, the bar-chart icon, an amber accent) |
 | /workspaces/:id/insights?range=90d | The same screen with an explicit window; the link can be forwarded                                                                                                              | A choice in the segmented control; the URL is written with `replace`, not `push`               |
+| /workspaces/:id/insights?tab=team  | The same screen on another tab; the first tab is never written                                                                                                                 | A tab; `replace`, merged with `range`                                                          |
+| /workspaces/:id/insights?signal=content.stale | The same screen with a line's drill-down panel open                                                                                                                    | A Needs-attention line; closing the panel removes the param                                    |
 
 The route is declared as `insights/*` and loads lazily: until the chunk arrives, `InsightsPageSkeleton` is shown — a full page placeholder (the bar, the heading, three bands of placeholders) rather than blank space. The tab name is set through `useDocumentTitle`, otherwise a private route would simply be called "Admin" (WCAG 2.4.2).
 
@@ -262,11 +268,15 @@ None of them belongs to Insights — they all live in the owners' server package
 | ----------------------------------- | -------------- | ---------- | -------------- | --------------------------------------- |
 | GET /api/insights/content/totals    | content-server | `days`     | `content:read` | Entries, Published, Drafts              |
 | GET /api/insights/content/stale     | content-server | —          | `content:read` | Gone quiet                              |
-| GET /api/insights/content/pipeline  | content-server | —          | `content:read` | Draft and published, by type            |
+| GET /api/insights/content/pipeline  | content-server | —          | `content:read` | By type                                 |
 | GET /api/insights/content/velocity  | content-server | `days`     | `content:read` | Publishing velocity                     |
 | GET /api/insights/content/unshipped | content-server | —          | `content:read` | Waiting to go live                      |
-| GET /api/insights/content/punchcard | content-server | `days`     | `content:read` | When the work happens                   |
-| GET /api/insights/media/storage     | media-server   | —          | `media:read`   | Media storage, What's using the storage |
+| GET /api/insights/content/punchcard | content-server | `days`, `tz` | `content:read` | When the work happens                 |
+| GET /api/insights/content/stale/records | content-server | `age`, `limit` | `content:read` | Gone quiet drill-down             |
+| GET /api/insights/content/unshipped/records | content-server | `limit` | `content:read` | Waiting to go live drill-down     |
+| GET /api/insights/media/storage     | media-server   | —          | `media:read`   | Media storage, Storage                  |
+| GET /api/insights/media/alt/missing | media-server   | `limit`    | `media:read`   | Images missing alt text drill-down      |
+| GET /api/insights/protection/reviews | protection-server | —      | `content:read` | Waiting on review                       |
 | GET /api/insights/media/uploads     | media-server   | `days`     | `media:read`   | Uploads                                 |
 | GET /api/insights/media/alt         | media-server   | —          | `media:read`   | Images missing alt text                 |
 | GET /api/insights/i18n/coverage     | i18n-server    | —          | `content:read` | Translation coverage                    |
@@ -497,8 +507,14 @@ Statements that must always hold. This doubles as a review list and as a startin
 - **I-21** — All width and palette classes are written as **whole literals**: Tailwind will not emit an interpolated class name, and the bars would render transparent.
 - **I-22** — A zero `BarRows` segment is not drawn but **is named** in the track's `aria-label`.
 - **I-23** — No caption for the `q0…q5` ladder describes colour ("darker", "lighter") — only magnitude: the ladder's direction flips between themes.
-- **I-24** — The heading structure has no gaps: `h1` for the page, `h2` for a section band, `h3` for a card (the error boundary's placeholder included).
+- **I-24** — The heading structure has no gaps: `h1` for the page (via `ContainerHeader`), `h2` for a section band (visually hidden — its tab shows the name), `h3` for a card and for the Needs-attention card (the error boundary's placeholder included).
 - **I-25** — The package owns no database table, has no server half, and ships no migrations.
+- **I-26** — Every section is a tab; the tab lives in `?tab=`, the first tab is never written, an unknown or forbidden tab opens the first one, and the write uses `replace` and merges with `range`.
+- **I-27** — Only the open tab is mounted: a tab nobody opened makes no request.
+- **I-28** — The Needs-attention card leads the first tab and lists only lines whose `permission` the reader holds; with none, there is no card.
+- **I-29** — A line that failed shows no count and no button — "couldn't load", never a zero; each line sits in its own boundary.
+- **I-30** — A line's drill-down mounts only while open (`?signal=`, `replace`); an unknown or forbidden signal opens nothing. The panel owns the same four-branch ladder as `WidgetCard`.
+- **I-31** — A drill-down's total is the true count behind the line, and its rows are the oldest first; when fewer rows are listed than the total, the panel says so.
 
 ## 12. Testing checklist
 

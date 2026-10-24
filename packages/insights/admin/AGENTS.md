@@ -72,6 +72,51 @@ correctly-wired page is a bug worth asserting against.
 A band with no visible widgets renders nothing at all, heading included — so an
 install without `media-admin` simply has no "Localisation & media" band.
 
+## Sections are tabs
+
+The page renders its bands as **tabs** (design-system `Tabs`), one per band
+with at least one visible widget. The tab lives in the URL like the range:
+`?tab=<section id>`, the first tab never written, an unknown or forbidden tab
+falling back to the first, `replace` and merged with the other params
+(`utils/insightsView`, `hooks/useInsightsView`). Only the open tab is mounted
+(Radix's default), so **a tab nobody opens makes no request**. With a single
+visible band there is no tab strip at all. The band's `h2` stays, visually
+hidden, so the outline is still `h1` → `h2` → `h3`.
+
+The Overview band's `xs` widgets sit side by side in one bordered
+`StatStrip` (each a `StatWidget` cell, no card of its own). `xs` is therefore
+for stat tiles only.
+
+## Needs attention — the signal slot
+
+```ts
+export const INSIGHTS_SIGNAL_SLOT = createSlot<InsightsSignal>('insights.signal');
+```
+
+An `InsightsSignal` is `{ id, order?, permission?, titleId, defaultTitle,
+Component, Drill }`. The first tab leads with a **Needs attention** card
+listing every visible line (`resolveInsightsSignals` — permission filter and
+stable order, the same rules as widgets), with the band's other widgets
+stacked beside it: what needs someone first, charts second.
+
+- `Component` receives `{ onOpen, isOpen }` and renders a `SignalRow` — icon in
+  a status tone (`warn` / `info` / `bad`, never a series colour), the count,
+  the title and a hint saying what it is compared against. `SignalRow` owns the
+  ladder: pending (named skeleton), error (no count, no button), loaded (one
+  button, `aria-haspopup="dialog"`, `aria-expanded`).
+- `Drill` mounts only while its panel is open (`?signal=<id>`, `replace`) and
+  renders a `SignalDrill` — the sheet's title "{title} · N records", an
+  optional filter, `DrillRecordRow`s (the person resolved from the workspace
+  roster, no request) and the way out to the full list. `SignalDrill` owns the
+  same four-branch ladder as `WidgetCard`.
+
+The page owns the sheet (`SignalDrillSheet`), opening, closing and focus; each
+line and each panel sits in its own `WidgetBoundary`.
+
+Who contributes lines today: `content-admin` — Waiting to go live (10), Gone
+quiet (30); `protection-admin` — Waiting on review (20); `media-admin` —
+Images missing alt text (40).
+
 ## The rules live in a pure function
 
 `utils/resolveInsightsLayout` owns every rule that could quietly lose a
@@ -136,8 +181,13 @@ Recharts is ~500 KB and brings its own reconciliation for marks that are a few
 rest of the admin, so they follow the theme instead of needing a parallel
 styling system.
 
-Exported for contributors: `BarRows`, `AreaTrend`, `ColumnTrend`, `HeatGrid`,
-`RampLegend`, `StatWidget`, `Sparkline`, plus `WidgetCard` / `WidgetChip`.
+Exported for contributors: `BarRows`, `AreaTrend`, `ColumnTrend` (a
+`compact` card form and a `full` headline form with a table view), `HeatGrid`,
+`RampLegend`, `StatWidget`, `Sparkline`, plus `WidgetCard` / `WidgetChip` and
+the signal pieces `SignalRow` / `SignalDrill` / `DrillRecordRow`.
+
+`WidgetCard` has one header row: the title at the left, the `description` —
+what the figure is compared against — at the right, over a rule.
 
 ### The colour rules a contributed widget must follow
 
@@ -149,6 +199,9 @@ addressed through `ChartTone` roles rather than by colour name.
   and the dark card (`#19191f`). Blue + violet — the obvious next choice — fails
   at ΔE 1.9 under protanopia in dark mode. A widget needing a third category
   needs a different chart, not a third colour.
+- **`neutral` is the remainder, not a category** — the grey a split bar ends
+  in ("draft" after published and modified). Name it in the legend and in the
+  segment labels like any series.
 - **`q0`…`q5` are a sequential ramp**, for magnitude only. Never use ramp steps
   to distinguish categories; readers infer an ordering that isn't there.
 - **The ramp's direction flips between themes** — low sits near the surface and
@@ -217,10 +270,11 @@ apply from the `lg` breakpoint up; below that widgets collapse toward full
 width, because a heat grid in a third of a phone screen is not a smaller
 dashboard, it is a broken one.
 
-**Who contributes what today.** `content-admin`: three Overview stat tiles, Gone
-quiet, Draft/published by type, Publishing velocity, Waiting to go live, and the
-Team punchcard. `media-admin`: the storage stat tile, storage by kind, Uploads,
-and alt-text coverage. `i18n-admin`: Translation coverage. Their endpoints live
+**Who contributes what today.** `content-admin`: three Overview stat tiles,
+Publishing velocity and By type (Overview), Gone quiet and Waiting to go live
+(Content), and the Team punchcard. `media-admin`: the storage stat tile,
+Storage and Uploads. `i18n-admin`: Translation coverage. The Needs-attention
+lines are listed above. Their endpoints live
 in `content-server` (`/api/insights/content/*`), `media-server`
 (`/api/insights/media/*`) and `i18n-server` (`/api/insights/i18n/coverage`) —
 **live aggregates, no projection**; the seam to change that later is those query
