@@ -72,8 +72,13 @@ export function ModeTiles({ value, onChange, total }: ModeTilesProps) {
             {tiles.map((tile) => {
                 const selected = value === tile.value;
                 return (
-                    <label
+                    // A div, not a <label>: a label re-dispatches the click
+                    // Radix fires when an arrow key moves focus, and the
+                    // selection never followed the focus. The radio keeps its
+                    // own name; the tile is a larger pointer target.
+                    <div
                         key={tile.value}
+                        onClick={() => onChange(tile.value)}
                         className={cn(
                             'flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition-colors',
                             selected
@@ -94,7 +99,7 @@ export function ModeTiles({ value, onChange, total }: ModeTilesProps) {
                                 {tile.description}
                             </span>
                         </span>
-                    </label>
+                    </div>
                 );
             })}
         </RadioGroup>
