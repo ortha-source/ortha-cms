@@ -14,6 +14,8 @@ export type ActivityEventResponse = {
     kind: string;
     subjectType: string;
     subjectId: string;
+    /** Optional on the wire: a server older than the column sends none. */
+    subjectLabel?: string | null;
     actorId: string | null;
     actorType: string | null;
     actorEmail: string | null;
@@ -41,6 +43,7 @@ export function toActivityEvent(dto: ActivityEventResponse): ActivityEvent {
         kind: dto.kind as ActivityKind,
         subjectType: dto.subjectType,
         subjectId: dto.subjectId,
+        subjectLabel: dto.subjectLabel ?? null,
         actor: dto.actorId
             ? {
                   id: dto.actorId,

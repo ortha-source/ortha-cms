@@ -1,5 +1,6 @@
 import { apiClient, toApiError } from '@orthacms/utils-admin';
 import type { ActivityList } from '../../types/activityEvent';
+import type { ActivityExport } from '../../types/activityExport';
 import type { DeadLetterList, RetriedDeadLetter } from '../../types/deadLetter';
 import { toActivityEvent, type ActivityEventResponse } from '../activityMapper';
 import {
@@ -9,7 +10,23 @@ import {
     type RetriedDeadLetterResponse
 } from '../deadLetterMapper';
 import type { ActivityListParams } from '../activityKeys';
-import type { ActivityGateway } from '../activityGateway';
+import type { ActivityExportParams, ActivityGateway } from '../activityGateway';
+
+/** The few fields of `GET /api/workspaces` the feed needs. */
+type WorkspaceNameResponse = { id: string; name: string };
+
+/** Fallback file name when the server's `Content-Disposition` names none. */
+const DEFAULT_EXPORT_NAME = 'activity.csv';
+
+/**
+ * The file name out of a `Content-Disposition` header, or the default. Only
+ * the plain `filename="…"` form the export route writes is read.
+ */
+export function exportFileName(disposition: unknown): string {
+    if (typeof disposition !== 'string') return DEFAULT_EXPORT_NAME;
+    const match = /filename="([^"]+)"/.exec(disposition);
+    return match?.[1] ?? DEFAULT_EXPORT_NAME;
+}
 
 /** The paginated envelope returned by `GET /api/activity`. */
 type ActivityListResponse = {
@@ -40,6 +57,39 @@ export const httpActivityGateway: ActivityGateway = {
                 page: data.page,
                 pageSize: data.pageSize
             };
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async exportCsv(params: ActivityExportParams): Promise<ActivityExport> {
+        try {
+            const { data, headers } = await apiClient.get<Blob>(
+                '/activity/export',
+                { params, responseType: 'blob' }
+            );
+            const total = Number(headers['x-total-count']);
+            return {
+                blob: data,
+                fileName: exportFileName(headers['content-disposition']),
+                total: Number.isFinite(total) ? total : 0,
+                truncated: headers['x-export-truncated'] === 'true'
+            };
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async workspaceNames(): Promise<ReadonlyMap<string, string>> {
+        try {
+            const { data } =
+                await apiClient.get<WorkspaceNameResponse[]>('/workspaces');
+            return new Map(
+                (Array.isArray(data) ? data : []).map((workspace) => [
+                    workspace.id,
+                    workspace.name
+                ])
+            );
         } catch (error) {
             throw toApiError(error);
         }

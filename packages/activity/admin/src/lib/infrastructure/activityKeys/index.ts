@@ -1,7 +1,16 @@
 /** Parameters accepted by `GET /api/activity` — the log's search and paging. */
 export type ActivityListParams = {
+    /**
+     * Free-text search over people, records and actions (the server's `?q=`:
+     * actor email, the subject's recorded name and id, subject type, kind).
+     */
+    q?: string;
     /** Case-insensitive actor-email substring; omit for no filter. */
     actorEmail?: string;
+    /** Inclusive lower bound on the event time (ISO 8601) — the time range. */
+    from?: string;
+    /** Inclusive upper bound on the event time (ISO 8601). */
+    to?: string;
     /** Query-builder filter tree as a JSON string; omit for no structured filter. */
     filter?: string;
     /** 1-based page number; the server defaults to 1. */
@@ -46,6 +55,14 @@ export const activityKeys = {
     all: ['activity'] as const,
     /** One list page for the given params. */
     list: (params: ActivityListParams) => ['activity', 'list', params] as const,
+    /**
+     * Workspace id → name, for the feed's "in Marketing site". Under this
+     * plugin's own root rather than `workspaces-admin`'s `['workspaces']`: the
+     * two caches hold different shapes of the same list, and sharing a key
+     * between two `queryFn`s means whichever ran last decides what the other
+     * reads.
+     */
+    workspaceNames: ['activity', 'workspace-names'] as const,
     /** Every dead-letter page, whatever its limit — what a retry invalidates. */
     deadLettersRoot: DEAD_LETTERS_ROOT,
     /**
