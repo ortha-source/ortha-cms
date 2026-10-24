@@ -504,11 +504,17 @@ error, and type the barrel exports keeps its path, so no consumer import moved.
 - **Email / SMTP** — identity emits events / exposes a port; the host delivers
   (#11). Until then nothing sends an invite **or reset** link: `users-server`
   returns the raw token from the mint endpoints and the admin hands the link
-  over. This is also why there is no self-service "forgot password" route — a
-  public form that mints a link has nowhere to send it, and returning the token
-  to whoever asked would hand any anonymous caller a takeover link for any email
-  they can name. The recovery path therefore runs through an admin, who can be
-  asked to vouch for the person, until a mailer exists.
+  over. Self-service recovery (`GET`/`POST /api/auth/password-recovery`,
+  `PasswordRecoveryController`) exists only with a mailer: the token is never
+  returned to the caller, the POST answers `202` before any lookup
+  (`RequestPasswordRecoveryUseCase.submit`), the per-source limit is the route's
+  `ThrottlerGuard` and the per-address one a silent `RateLimiter` bucket keyed
+  on a digest. The issuer (token rotation, member rules, the message) is the
+  users plugin's, registered through `PasswordRecoveryRegistry` because that
+  plugin is not global and exports nothing. Without a registered, mail-backed
+  issuer the POST is a `404`. `GET /api/auth/invite/:token` also returns the
+  `role` and `workspaces` (via the `INVITE_WORKSPACE_DIRECTORY` port the
+  workspaces plugin binds) — never the inviter.
 - **CLI** — root-admin bootstrap is env/config-driven (`RootAdminService.ensure`
   takes no argv/prompts/console output, run by `RootAdminSeeder` on boot). An
   interactive CLI / break-glass command is not provided here.

@@ -193,9 +193,9 @@ were first written; the tests that pin one name it in a comment.
 - **I-07** A row past `expires_at` is never sent.
 - **I-08** A permanent provider error stops the row without consuming the
   remaining attempt budget.
-- **I-09** _(phase 2)_ The recovery route's response does not vary with whether
+- **I-09** The recovery route's response does not vary with whether
   the address exists, and writes no row for an unknown one.
-- **I-10** _(phase 2)_ A disabled member receives no recovery message.
+- **I-10** A disabled member receives no recovery message.
 - **I-11** Links are built from `appUrl`; no request header reaches a URL in a
   message.
 - **I-12** No tool in the registry can send mail or reveal a link.
@@ -231,9 +231,11 @@ were first written; the tests that pin one name it in a comment.
 - **The webhooks URL policy does not apply.** A mail host is operator
   configuration, not user input. Stated so nobody copies the policy
   defensively.
-- **Not built (phase 2):** `POST /api/auth/password-recovery` with its four
-  rules, the `GET /api/mail/dead-letters` surface, the `mail.delivery_failed`
-  event, and the Resend and Postmark adapters.
+- **Built (phase 2, first slice):** `POST /api/auth/password-recovery` with its
+  four rules — identity owns the public route, the users plugin registers the
+  issuer, and the `password_recovery` kind and template ship in `mail-domain`.
+  **Not built:** the `GET /api/mail/dead-letters` surface, the
+  `mail.delivery_failed` event, and the Resend and Postmark adapters.
 - **Built (phase 3):** the `create-orthacms-app` question. The scaffolder's
   fifth question is single-choice with **"Do not configure"** as its default;
   picking SMTP installs `mail-server` and `mail-provider-smtp` and writes

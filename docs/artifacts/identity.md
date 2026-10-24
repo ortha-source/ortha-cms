@@ -62,7 +62,7 @@ Lives by an API token: read-only or full content CRUD, only in the permitted wor
 The boundaries matter more than the capabilities — they explain why the interface lacks things people expect of it:
 
 - **It is not user management.** The member list, inviting, disabling and issuing a reset link are the `users` plugin. Identity owns only the _redemption_ of one-time links and the account model itself.
-- **It is not email.** Sending belongs to `mail` ([ADR-0018](../adr/0018-mail-provider.md)), and issuing the links belongs to `users`; identity only _redeems_ them. On a deployment that configures no provider the links are still returned to the administrator in the API response and passed on by hand. **Self-service "forgot your password?" is still absent** — it needs a public route with its own rules about enumeration and rate limiting, which is phase 2 of that record — but the reason has changed: there is now somewhere to send it.
+- **It is not email.** Sending belongs to `mail` ([ADR-0018](../adr/0018-mail-provider.md)), and issuing the links belongs to `users`; identity only _redeems_ them. On a deployment that configures no provider the links are still returned to the administrator in the API response and passed on by hand. **Self-service "forgot your password?" exists when a mail provider does** (ADR-0018 phase 2, R7): identity owns the public route `POST /api/auth/password-recovery` and its rules (one `202` for every address, the work done after the response, a per-source throttle and a per-address limit keyed on a digest); the users plugin registers the issuer behind it through `PasswordRecoveryRegistry`. Without a provider the route answers `404` and the "Forgot it?" screen says who can make a link instead.
 - **It is not workspaces.** Permissions are global to a role; workspace membership is checked by a separate plugin.
 - **It is not the audit log.** Identity produces events; the log rows are written by the `activity` plugin.
 
@@ -342,12 +342,13 @@ A live server serves the generated OpenAPI at `/reference` (raw JSON at `/refere
 
 The admin plugin contributes **one** route template, `/identity/*`, marked `public`, with its own nested router inside it. Every page loads lazily (`React.lazy`), because a logged-in user never needs them.
 
-| Route                            | Screen              | What it does                                                                      |
-| -------------------------------- | ------------------- | --------------------------------------------------------------------------------- |
-| /identity                        | —                   | A redirect to `signin`                                                            |
-| /identity/signin                 | `LoginPage`         | The sign-in form plus the SSO provider block plus the "your session ended" banner |
-| /identity/accept-invite?token=…  | `AcceptInvitePage`  | Accepting an invitation; ends up **inside** the application                       |
-| /identity/reset-password?token=… | `ResetPasswordPage` | Changing a password by link; ends with **a confirmation and a move to sign-in**   |
+| Route                            | Screen               | What it does                                                                                                                                                |
+| -------------------------------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| /identity                        | —                    | A redirect to `signin`                                                                                                                                      |
+| /identity/signin                 | `LoginPage`          | The sign-in form plus the SSO provider block plus the "your session ended" banner                                                                           |
+| /identity/accept-invite?token=…  | `AcceptInvitePage`   | Accepting an invitation; ends up **inside** the application                                                                                                 |
+| /identity/reset-password?token=… | `ResetPasswordPage`  | Changing a password by link; ends with **a confirmation and a move to sign-in**                                                                             |
+| /identity/forgot-password        | `ForgotPasswordPage` | "Forgot it?": the request form → "Check your email" with a mail provider; otherwise who can make a link (Members → name → Sessions & access), naming nobody |
 
 ### Four authorisation states, not three
 
@@ -382,20 +383,20 @@ This happens regularly: an administrator disabled the account, the term expired,
 
 ### The states of the invitation and reset screens
 
-| State                | When                             | What is shown                                                                                                                                                                                        |
-| -------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| No token             | There is no `?token=` in the URL | A "this link does not work" card with its own text about the missing token                                                                                                                           |
-| Loading              | The link probe is in flight      | A skeleton plus a visually hidden `<h1>` and `role="status"`; **focus is not moved to the heading** (`focusHeading={false}`), or it would land on a heading about to be replaced                     |
-| A dead link          | A `404` response                 | An "ask for a new link" card. One refusal shape, because the server returns one 404 for every cause                                                                                                  |
-| A connection failure | An error that is **not** a 404   | A failure card with a "retry" button. The token is fine — the server is not; sending the person for a new link would be harmful, all the more so since a new one would kill the existing one         |
-| The form             | The link is described            | Invitation: email and name `readOnly` plus the password twice. Reset: the account's address plus the password twice                                                                                  |
-| Done (reset only)    | The mutation succeeded           | A confirmation with a link to sign-in. Checked **before** the link states: the token is by definition already spent, and a refetch would replace the congratulation with "this link no longer works" |
+| State                | When                                                                       | What is shown                                                                                                                                                                                                                                                                          |
+| -------------------- | -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Incomplete link      | No `?token=`, or one that is not 64 hex characters (`isCompleteLinkToken`) | "This link isn't complete" — decided in the browser, no request; says the link was probably cut off when copied                                                                                                                                                                        |
+| Loading              | The link probe is in flight                                                | A skeleton plus a visually hidden `<h1>` and `role="status"`; **focus is not moved to the heading** (`focusHeading={false}`), or it would land on a heading about to be replaced                                                                                                       |
+| A dead link          | A `404` response                                                           | "This invite has expired" / "This reset link has expired": what is true of every cause the server folds into one 404, and the next step. **Names nobody** — the board's "Ask Ada Lovelace" became "whoever invited you"                                                                |
+| A connection failure | An error that is **not** a 404                                             | A failure card with a "retry" button. The token is fine — the server is not; sending the person for a new link would be harmful, all the more so since a new one would kill the existing one                                                                                           |
+| The form             | The link is described                                                      | Invitation: "You're invited to Ortha CMS — as a {role} in {workspaces}" (never the inviter), email and name `readOnly`, **one** password with a strength meter and a reveal toggle. Reset: "for {email}", one password, "You'll be signed out on every other device" before the button |
+| Done (reset only)    | The mutation succeeded                                                     | A confirmation with a link to sign-in. Checked **before** the link states: the token is by definition already spent, and a refetch would replace the congratulation with "this link no longer works"                                                                                   |
 
 ### The SSO block on the sign-in page
 
 - **These are links, not buttons with handlers.** Signing in through a provider is a full-page navigation to `/api/auth/sso/:name/start`, which answers with a 302. The anchor _is_ the navigation: the middle mouse button and "open in a new tab" work, and no JavaScript stands between the person and the redirect. The e2e suite checks for the `link` role precisely so this does not degrade into a scripted click.
 - **Nothing is rendered** while loading, on an error, and for an empty list. The password form _is_ the sign-in page, and this is an addition to it: a spinner would make everybody wait for a feature most of them do not have.
-- **The block comes after the form** in the DOM and in tab order: somebody who came to type a password should not have to tab past a provider list.
+- **The block leads** (R7): where a deployment has SSO it is how most people come in, so the provider links come first in the DOM and tab order, then "or with email" and the password form. On the invitation they follow the form under "or".
 - **The destination address travels on the link itself** (`?redirect=/workspaces`) rather than in router state: SSO leads out of the application, so the target has to leave with it. The server validates it as a same-origin path.
 
 ### One tab, one identity
@@ -516,6 +517,7 @@ Statements that must always hold. This doubles as a review list and as a startin
 - **I-30** — A change of identity in a tab clears the whole query cache except the `auth` namespace, and runs every `SESSION_RESET_SLOT` contribution — the state a plugin keeps outside the cache (the copilot's chats and their in-flight runs) goes with it. A session lost to a `401` runs the contributions too, without waiting for the next sign-in.
 - **I-31** — The rate limit's buckets live in `throttle_buckets`, not in the process: every instance counts against one limit, and each request is counted by a single upsert rather than a read followed by a write.
 - **I-32** — `PUT /api/preferences` is a partial patch: a field it does not name keeps its stored value, and `layout` is merged per panel by the upsert itself, never read-modify-written; the merged map never holds more than 64 panels.
+- **I-33** — The password-recovery route answers the same status and body for every address and does its work after responding; its per-address limit is keyed on a digest and refuses silently, and nothing on the public auth screens names an administrator or member other than the link holder's own account.
 
 ## 12. Testing checklist
 
