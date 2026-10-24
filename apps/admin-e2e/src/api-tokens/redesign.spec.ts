@@ -144,6 +144,38 @@ test.describe('API tokens — redesigned list', () => {
         );
     });
 
+    test('the search spinner runs for a search, not for a status chip', async ({
+        page,
+        apiTokensPage
+    }) => {
+        // Hold every list response so the refetch is observable.
+        await mockApiTokensApi(page, { delayMs: 1500 });
+        await apiTokensPage.goto();
+        await apiTokensPage.table.waitFor();
+        const spinner = page.locator(
+            '[data-slot="input-group"]:has([type="search"]) .ds-spinner'
+        );
+
+        // A chip refetches the list, but nothing was searched.
+        const refetch = page.waitForRequest(
+            (request) =>
+                request.url().includes('/api/api-tokens') &&
+                request.url().includes('status=expired')
+        );
+        await apiTokensPage.statusChip('Expired').click();
+        await refetch;
+        // The response is held for 1.5s: this looks mid-refetch. A one-shot
+        // count, not `toHaveCount(0)` — that retries until the fetch settles
+        // and the spinner goes anyway.
+        await page.waitForTimeout(300);
+        expect(await spinner.count()).toBe(0);
+
+        // Typing a term is a search: the field says it is running.
+        await apiTokensPage.searchBox().fill('docs');
+        await expect(spinner).toBeVisible();
+        await expect(spinner).toHaveCount(0, { timeout: 10_000 });
+    });
+
     test('a search with no match says so and offers the way back', async ({
         page,
         apiTokensPage

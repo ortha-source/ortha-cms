@@ -166,6 +166,18 @@ export function ApiTokensPage() {
 
     const { data, isPending, isError, isFetching, isPlaceholderData, refetch } =
         useApiTokens(params, canRead);
+    // The search field's spinner answers "is my search running?", so it
+    // tracks only fetches the search caused — switching a status chip or a
+    // page refetches too, and lighting the search field then reads as if the
+    // chip had started a search. `searchedFor` is the term the list on screen
+    // was last fetched with; the field is busy until the list catches up.
+    const [searchedFor, setSearchedFor] = useState(searchParam);
+    useEffect(() => {
+        if (!isFetching) setSearchedFor(searchParam);
+    }, [isFetching, searchParam]);
+    const searchBusy =
+        searchPending ||
+        (isFetching && !isPending && searchParam !== searchedFor);
     // Workspace names and tiles for the table, the reveal summary and the
     // revoke confirmation; the create dialog reuses the same cached query.
     const { data: workspaces = [] } = useWorkspaceOptions(canRead);
@@ -354,7 +366,7 @@ export function ApiTokensPage() {
                     <SearchToolbar
                         value={searchInput}
                         onValueChange={setSearchInput}
-                        busy={searchPending || (isFetching && !isPending)}
+                        busy={searchBusy}
                         searchLabel={intl.formatMessage(messages.searchLabel)}
                         searchPlaceholder={intl.formatMessage(
                             messages.searchLabel

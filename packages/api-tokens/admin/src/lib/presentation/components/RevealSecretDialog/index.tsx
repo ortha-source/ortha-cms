@@ -262,7 +262,7 @@ export function RevealSecretDialog({
                 requestClose();
             }}
         >
-            <DialogContent className="max-h-[calc(100dvh-2rem)] grid-cols-[minmax(0,1fr)] overflow-y-auto sm:max-w-[580px]">
+            <DialogContent className="max-h-[calc(100dvh-2rem)] grid-cols-[minmax(0,1fr)] overflow-y-auto sm:max-w-[620px]">
                 <DialogHeader>
                     <DialogTitle>
                         {intl.formatMessage(messages.title)}
