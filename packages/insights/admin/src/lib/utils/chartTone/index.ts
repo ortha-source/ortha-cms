@@ -10,6 +10,10 @@
  *   because two is how many hues clear colourblind separation against both the
  *   light and the dark card. A widget that needs a third category needs a
  *   different chart, not a third colour.
+ * - `neutral` is **the remainder**, not a category: the grey a split bar ends
+ *   in for "the rest" (drafts after published and modified). It carries no
+ *   hue, so it never competes with the two series, and a widget drawing it
+ *   must still name it in its legend and its segment labels.
  * - `q0`…`q5` are a **sequential ramp**: one thing that differs in amount
  *   (older, busier, fuller). Never use a ramp step to distinguish categories —
  *   readers will infer an ordering that isn't there.
@@ -17,6 +21,7 @@
 export type ChartTone =
     | 'series-1'
     | 'series-2'
+    | 'neutral'
     | 'q0'
     | 'q1'
     | 'q2'
@@ -34,6 +39,7 @@ export type ChartTone =
 const TONE_BACKGROUND: Record<ChartTone, string> = {
     'series-1': 'bg-chart-1',
     'series-2': 'bg-chart-2',
+    neutral: 'bg-chart-axis',
     q0: 'bg-chart-q0',
     q1: 'bg-chart-q1',
     q2: 'bg-chart-q2',
