@@ -5,6 +5,19 @@ export const DEFAULT_PAGE_SIZE = 25;
 export const MAX_PAGE_SIZE = 100;
 
 /**
+ * The most rows one `GET /api/activity/export` file carries.
+ *
+ * A cap rather than a stream, and stated on the response: the log has no
+ * retention and grows without bound, so "export everything" is not a request
+ * this route can promise to answer in one file. Newest first under the default
+ * sort, so a capped file keeps the most recent rows, and the response's
+ * `X-Total-Count` / `X-Export-Truncated` headers say when it is not the whole
+ * answer — the caller narrows the range rather than mistaking a truncated audit
+ * export for a complete one.
+ */
+export const EXPORT_MAX_ROWS = 10_000;
+
+/**
  * Max length of the raw `?filter=` JSON string — a coarse first guard against
  * oversized payloads, ahead of the filter engine's own budgets.
  *

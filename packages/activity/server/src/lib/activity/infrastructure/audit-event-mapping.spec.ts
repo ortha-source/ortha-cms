@@ -8,6 +8,9 @@ import { IDENTITY_ACTIVITY_KINDS } from '@orthacms/identity-server';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
+    SUBJECT_LABEL_KEYS,
+    SUBJECT_LABEL_MAX_LENGTH,
+    subjectLabelOf,
     AUDIT_KINDS,
     AUDIT_SUBJECT_TYPES,
     AUDITED_EVENT_KINDS,
@@ -71,10 +74,19 @@ function event(
  */
 function base(): Pick<
     AuditRow,
-    'id' | 'actorId' | 'actorType' | 'actorEmail' | 'workspaceId' | 'at'
+    | 'id'
+    | 'subjectLabel'
+    | 'actorId'
+    | 'actorType'
+    | 'actorEmail'
+    | 'workspaceId'
+    | 'at'
 > {
     return {
         id: EVENT_ID,
+        // Overridden by every case whose meta names its subject; `null` is the
+        // honest default for a kind that carries nothing nameable.
+        subjectLabel: null,
         actorId: ACTOR.id,
         actorType: 'user',
         actorEmail: ACTOR.email,
@@ -148,6 +160,7 @@ describe('toAuditRow — event → audit-row parity', () => {
                 kind: IDENTITY_ACTIVITY_KINDS.WORKSPACE_CREATED,
                 subjectType: 'workspace',
                 subjectId: WORKSPACE_ID,
+                subjectLabel: 'Marketing',
                 meta: { name: 'Marketing', slug: 'marketing' }
             });
         });
@@ -216,6 +229,7 @@ describe('toAuditRow — event → audit-row parity', () => {
                 kind: IDENTITY_ACTIVITY_KINDS.WORKSPACE_MEMBER_ADDED,
                 subjectType: 'user',
                 subjectId: TARGET_USER_ID,
+                subjectLabel: 'bob@example.com',
                 meta: { workspaceId: WORKSPACE_ID, email: 'bob@example.com' }
             });
         });
@@ -306,6 +320,7 @@ describe('toAuditRow — event → audit-row parity', () => {
                 kind: 'user.invited',
                 subjectType: 'user',
                 subjectId: MEMBER_ID,
+                subjectLabel: 'ada@example.com',
                 meta: { email: 'ada@example.com' }
             });
         });
@@ -444,6 +459,7 @@ describe('toAuditRow — event → audit-row parity', () => {
                 kind: IDENTITY_ACTIVITY_KINDS.USER_SIGNED_IN,
                 subjectType: 'user',
                 subjectId: TARGET_USER_ID,
+                subjectLabel: null,
                 actorId: TARGET_USER_ID,
                 actorType: 'user',
                 workspaceId: null,
@@ -474,6 +490,7 @@ describe('toAuditRow — event → audit-row parity', () => {
                 kind: 'user.password_changed',
                 subjectType: 'user',
                 subjectId: TARGET_USER_ID,
+                subjectLabel: null,
                 actorId: TARGET_USER_ID,
                 actorType: 'user',
                 workspaceId: null,
@@ -516,6 +533,7 @@ describe('toAuditRow — event → audit-row parity', () => {
                 kind: 'user.activated',
                 subjectType: 'user',
                 subjectId: TARGET_USER_ID,
+                subjectLabel: null,
                 actorId: TARGET_USER_ID,
                 actorType: 'user',
                 workspaceId: null,
@@ -543,6 +561,7 @@ describe('toAuditRow — event → audit-row parity', () => {
                 kind: IDENTITY_ACTIVITY_KINDS.USER_SIGNED_OUT,
                 subjectType: 'user',
                 subjectId: TARGET_USER_ID,
+                subjectLabel: null,
                 actorId: TARGET_USER_ID,
                 actorType: 'user',
                 workspaceId: null,
@@ -614,6 +633,7 @@ describe('toAuditRow — event → audit-row parity', () => {
                 kind: 'token.created',
                 subjectType: 'api_token',
                 subjectId: TOKEN_ID,
+                subjectLabel: 'CI',
                 actorId: TARGET_USER_ID,
                 actorType: 'user',
                 workspaceId: null,
@@ -727,6 +747,7 @@ describe('toAuditRow — event → audit-row parity', () => {
                 kind: 'media.asset.uploaded',
                 subjectType: 'media_asset',
                 subjectId: ASSET_ID,
+                subjectLabel: 'hero.png',
                 meta: { name: 'hero.png', kind: 'image', folderId: null }
             });
         });
@@ -791,6 +812,7 @@ describe('toAuditRow — event → audit-row parity', () => {
                 kind: 'media.folder.created',
                 subjectType: 'media_folder',
                 subjectId: FOLDER_ID,
+                subjectLabel: 'Campaign',
                 meta: { name: 'Campaign', parentId: null }
             });
         });
@@ -1343,5 +1365,88 @@ describe('toAuditRow — event → audit-row parity', () => {
             // while proving nothing.
             expect(declaredKinds().length).toBeGreaterThan(40);
         });
+    });
+});
+
+/**
+ * The frozen subject name that makes the log searchable by what a reader calls
+ * a record, without putting the open `meta` on the queryable surface
+ * (`activity:I-16`). The migration backfills older rows with the same key
+ * order, so the order is pinned here rather than left to drift.
+ */
+describe('subjectLabelOf — the searchable subject name [activity:I-39]', () => {
+    it('reads the keys in the documented order', () => {
+        expect([...SUBJECT_LABEL_KEYS]).toEqual([
+            'title',
+            'name',
+            'label',
+            'email',
+            'key',
+            'slug'
+        ]);
+        // An entry's title wins over anything else in its meta.
+        expect(
+            subjectLabelOf({ contentType: 'article', title: 'Spring launch' })
+        ).toBe('Spring launch');
+        // An audience is named by its label before its key.
+        expect(subjectLabelOf({ key: 'members', label: 'Members' })).toBe(
+            'Members'
+        );
+        expect(subjectLabelOf({ slug: 'author', kind: 'collection' })).toBe(
+            'author'
+        );
+    });
+
+    it('skips a transition: `{ name: { from, to } }` is not a name', () => {
+        expect(
+            subjectLabelOf({ name: { from: 'Ada L', to: 'Ada B' } })
+        ).toBeNull();
+        expect(
+            subjectLabelOf({
+                name: { from: 'a', to: 'b' },
+                email: 'ada@example.com'
+            })
+        ).toBe('ada@example.com');
+    });
+
+    it('is null for no meta, an empty one, or blank strings', () => {
+        expect(subjectLabelOf(null)).toBeNull();
+        expect(subjectLabelOf({})).toBeNull();
+        expect(subjectLabelOf({ title: '   ', name: '' })).toBeNull();
+        expect(subjectLabelOf({ from: 'viewer', to: 'admin' })).toBeNull();
+    });
+
+    it('trims and caps the label', () => {
+        expect(subjectLabelOf({ title: '  Pricing FAQ  ' })).toBe(
+            'Pricing FAQ'
+        );
+        const long = 'x'.repeat(SUBJECT_LABEL_MAX_LENGTH + 50);
+        expect(subjectLabelOf({ title: long })).toHaveLength(
+            SUBJECT_LABEL_MAX_LENGTH
+        );
+    });
+
+    it('lands on the row, and `via` never becomes the name', () => {
+        const row = toAuditRow(
+            event(
+                'entry.published',
+                'content_entry',
+                TARGET_USER_ID,
+                { contentType: 'article', title: 'Spring launch' },
+                { ...ACTOR, via: { kind: 'copilot', name: 'Copilot run' } }
+            )
+        );
+        expect(row?.subjectLabel).toBe('Spring launch');
+    });
+
+    it('stays in step with the migration that backfills it', () => {
+        const sql = readFileSync(
+            join(__dirname, '../../../../migrations/0002_subject_label.sql'),
+            'utf8'
+        );
+        const order = [...sql.matchAll(/"meta"->>'(\w+)'/g)].map(
+            (match) => match[1]
+        );
+        expect(order).toEqual([...SUBJECT_LABEL_KEYS]);
     });
 });

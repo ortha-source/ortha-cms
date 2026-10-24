@@ -139,6 +139,32 @@ export class ListActivityQueryDto {
     actorEmail?: string;
 
     /**
+     * Free-text search — the Activity page's one search box, which promises to
+     * find "people, records, actions". A case-insensitive substring match over
+     * the frozen, readable columns only: the actor's email (or a token's
+     * label), the subject's name at the time of the event (`subjectLabel`) and
+     * its id, the subject type, and the kind — so "published" finds
+     * `entry.published` and "role changed" finds `user.role_changed` (spaces in
+     * the needle also match the kind's underscores).
+     *
+     * One clause, OR-ed inside and AND-ed with every other filter
+     * (`activity:I-15`). **`meta` is not searched** (`activity:I-16`): the
+     * readable name a reader types is lifted into `subject_label` at write
+     * time instead.
+     */
+    @ApiPropertyOptional({
+        type: String,
+        maxLength: 255,
+        example: 'spring launch',
+        description:
+            'Free-text search: a case-insensitive substring over the actor email, the subject’s recorded name and id, the subject type and the kind (spaces also match underscores). AND-ed with the other params; `meta` is never searched.'
+    })
+    @IsOptional()
+    @IsString()
+    @MaxLength(255)
+    q?: string;
+
+    /**
      * Structured filter tree as a JSON string (`?filter=<json>`), produced by
      * the admin query builder and validated against the activity filter schema
      * by `parseFilterTree`. Length-capped here as a first line of defence; the

@@ -15,6 +15,13 @@
       "when": 1788000197229,
       "tag": "0001_actor_type_and_workspace",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792841565765,
+      "tag": "0002_subject_label",
+      "breakpoints": true
     }
   ]
 }

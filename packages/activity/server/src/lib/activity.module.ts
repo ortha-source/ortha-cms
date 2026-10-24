@@ -1,6 +1,7 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import { ACTIVITY_RECORDER } from '@orthacms/identity-server';
 import { ListActivityController } from './activity/controllers/list-activity.controller';
+import { ExportActivityController } from './activity/controllers/export-activity.controller';
 import { DeadLettersController } from './activity/controllers/dead-letters.controller';
 import { RetryDeadLetterController } from './activity/controllers/retry-dead-letter.controller';
 import { EntryActivityController } from './activity/controllers/entry-activity.controller';
@@ -10,7 +11,8 @@ import { ActivityCopilotToolProvider } from './copilot/activity-tool.provider';
 
 /**
  * NestJS module for the activity plugin. Mounts the API under `/api/activity`
- * — three reads plus the dead-letter retry, the one route here that writes
+ * — four reads (the log, its CSV export, one entry's trail, the dead letters)
+ * plus the dead-letter retry, the one route here that writes
  * anything, and it writes `outbox_events` rather than this plugin's own table
  * — provides {@link ActivityService}, and provides the
  * {@link AuditEventSubscriber} — the **live** audit writer, which self-registers
@@ -39,6 +41,8 @@ export class ActivityModule {
                 // as the pattern set grows.
                 EntryActivityController,
                 ListActivityController,
+                // The list's own answer as a CSV file, under the same key.
+                ExportActivityController,
                 DeadLettersController,
                 // The plugin's one writing route. Declared after the list it
                 // belongs to, and separate from it because the two carry
