@@ -8,6 +8,7 @@ import { ResizablePanelsPage } from './pages/ResizablePanelsPage';
 import { WorkspacesPage } from './pages/WorkspacesPage';
 import { WorkspaceSettingsPage } from './pages/WorkspaceSettingsPage';
 import { CreateWorkspacePage } from './pages/CreateWorkspacePage';
+import { WorkspaceReadyPage } from './pages/WorkspaceReadyPage';
 import { MembersPage } from './pages/MembersPage';
 import { UserDetailPage } from './pages/UserDetailPage';
 import { ActivityLogPage } from './pages/ActivityLogPage';
@@ -102,6 +103,7 @@ interface Fixtures {
     workspacesPage: WorkspacesPage;
     workspaceSettingsPage: WorkspaceSettingsPage;
     createWorkspacePage: CreateWorkspacePage;
+    workspaceReadyPage: WorkspaceReadyPage;
     membersPage: MembersPage;
     userDetailPage: UserDetailPage;
     activityLogPage: ActivityLogPage;
@@ -228,6 +230,9 @@ export const test = base.extend<Fixtures>({
     },
     workspaceSettingsPage: async ({ page }, use) => {
         await use(new WorkspaceSettingsPage(page));
+    },
+    workspaceReadyPage: async ({ page }, use) => {
+        await use(new WorkspaceReadyPage(page));
     },
     createWorkspacePage: async ({ page }, use) => {
         await use(new CreateWorkspacePage(page));

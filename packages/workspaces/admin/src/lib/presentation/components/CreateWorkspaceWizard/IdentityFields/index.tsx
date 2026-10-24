@@ -1,7 +1,6 @@
 import { defineMessages, useIntl } from 'react-intl';
 import {
     Field,
-    FieldDescription,
     FieldError,
     FieldGroup,
     FieldLabel,
@@ -11,9 +10,8 @@ import {
 import { useBasicsSchema } from '../../../hooks/useBasicsSchema';
 import type { UseSlugResult } from '../../../hooks/useSlug';
 import type { WizardData } from '../../../../domain/types/wizard';
-import { DESCRIPTION_MAX, NAME_MAX } from '../../../../domain/workspaceLimits';
+import { DESCRIPTION_MAX } from '../../../../domain/workspaceLimits';
 import { ColorSwatchRow } from '../../ColorSwatchRow';
-import { Monogram } from '../Monogram';
 import { SlugField } from '../SlugField';
 
 const messages = defineMessages({
@@ -21,35 +19,33 @@ const messages = defineMessages({
         id: 'workspaces.create.basics.nameLabel',
         defaultMessage: 'Workspace name'
     },
+    required: {
+        id: 'workspaces.create.basics.required',
+        defaultMessage: 'required'
+    },
     namePlaceholder: {
         id: 'workspaces.create.basics.namePlaceholder',
         defaultMessage: 'e.g. Marketing site'
     },
-    nameHelp: {
-        id: 'workspaces.create.basics.nameHelp',
-        defaultMessage:
-            'Shown to team members in lists and navigation. You can change it later.'
+    colorLabel: {
+        id: 'workspaces.create.basics.colourLabel',
+        defaultMessage: 'Colour'
     },
     descriptionLabel: {
         id: 'workspaces.create.basics.descriptionLabel',
         defaultMessage: 'Description'
     },
     descriptionOptional: {
-        id: 'workspaces.create.basics.descriptionOptional',
-        defaultMessage: 'Optional'
+        id: 'workspaces.create.basics.descriptionOptionalHint',
+        defaultMessage: '· optional'
     },
     descriptionPlaceholder: {
         id: 'workspaces.create.basics.descriptionPlaceholder',
         defaultMessage: 'What is this workspace for?'
     },
-    descriptionHelp: {
-        id: 'workspaces.create.basics.descriptionHelp',
-        defaultMessage:
-            'A short note to help members recognise the workspace. Shown on the workspace card.'
-    },
     counter: {
-        id: 'workspaces.create.basics.counter',
-        defaultMessage: '{count}/{max}'
+        id: 'workspaces.create.basics.counterOf',
+        defaultMessage: '{count} / {max}'
     }
 });
 
@@ -64,8 +60,10 @@ export type IdentityFieldsProps = {
 };
 
 /**
- * The basics step body: a live workspace monogram beside the name, the accent
- * color picker, the slug field with availability, and an optional description.
+ * The basics step body: the name (the only required field), the address it
+ * makes with availability inline, the colour, and an optional description
+ * with its length. The live card beside the step shows them as people will
+ * see them in the list.
  */
 export function IdentityFields({ data, update, slug }: IdentityFieldsProps) {
     const intl = useIntl();
@@ -88,47 +86,27 @@ export function IdentityFields({ data, update, slug }: IdentityFieldsProps) {
     const descriptionError = issueFor('description');
 
     return (
-        <FieldGroup>
+        <FieldGroup className="gap-5">
             <Field data-invalid={!!nameError}>
                 <FieldLabel htmlFor="workspace-name">
                     {intl.formatMessage(messages.nameLabel)}
-                </FieldLabel>
-                <div className="flex items-center gap-3">
-                    <Monogram name={data.name} color={data.color} />
-                    <Input
-                        id="workspace-name"
-                        value={data.name}
-                        onChange={(event) =>
-                            slug.onNameChange(event.target.value)
-                        }
-                        placeholder={intl.formatMessage(
-                            messages.namePlaceholder
-                        )}
-                        autoComplete="off"
-                        aria-invalid={!!nameError}
-                    />
-                </div>
-                <div className="flex items-start justify-between gap-3">
-                    {nameError ? (
-                        <FieldError errors={[{ message: nameError }]} />
-                    ) : (
-                        <FieldDescription>
-                            {intl.formatMessage(messages.nameHelp)}
-                        </FieldDescription>
-                    )}
-                    <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                        {intl.formatMessage(messages.counter, {
-                            count: data.name.length,
-                            max: NAME_MAX
-                        })}
+                    <span aria-hidden className="text-destructive">
+                        *
                     </span>
-                </div>
+                </FieldLabel>
+                <Input
+                    id="workspace-name"
+                    value={data.name}
+                    onChange={(event) => slug.onNameChange(event.target.value)}
+                    placeholder={intl.formatMessage(messages.namePlaceholder)}
+                    autoComplete="off"
+                    required
+                    aria-invalid={!!nameError}
+                />
+                {nameError ? (
+                    <FieldError errors={[{ message: nameError }]} />
+                ) : null}
             </Field>
-
-            <ColorSwatchRow
-                value={data.color}
-                onChange={(color) => update({ color })}
-            />
 
             <SlugField
                 value={data.slug}
@@ -139,16 +117,23 @@ export function IdentityFields({ data, update, slug }: IdentityFieldsProps) {
                 error={slugError}
             />
 
+            <ColorSwatchRow
+                label={intl.formatMessage(messages.colorLabel)}
+                size="sm"
+                value={data.color}
+                onChange={(color) => update({ color })}
+            />
+
             <Field data-invalid={!!descriptionError}>
                 <FieldLabel htmlFor="workspace-description">
                     {intl.formatMessage(messages.descriptionLabel)}
-                    <span className="ml-1 text-xs font-normal text-muted-foreground">
-                        ({intl.formatMessage(messages.descriptionOptional)})
+                    <span className="text-xs font-normal text-muted-foreground">
+                        {intl.formatMessage(messages.descriptionOptional)}
                     </span>
                 </FieldLabel>
                 <Textarea
                     id="workspace-description"
-                    className="shadow-none"
+                    className="min-h-16 shadow-none"
                     value={data.description}
                     onChange={(event) =>
                         update({ description: event.target.value })
@@ -162,9 +147,7 @@ export function IdentityFields({ data, update, slug }: IdentityFieldsProps) {
                     {descriptionError ? (
                         <FieldError errors={[{ message: descriptionError }]} />
                     ) : (
-                        <FieldDescription>
-                            {intl.formatMessage(messages.descriptionHelp)}
-                        </FieldDescription>
+                        <span />
                     )}
                     <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
                         {intl.formatMessage(messages.counter, {

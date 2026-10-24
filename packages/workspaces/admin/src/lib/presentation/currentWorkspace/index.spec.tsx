@@ -20,7 +20,12 @@ const workspace: Workspace = {
     members: [],
     content: [],
     isShared: false,
-    sharedContent: []
+    sharedContent: [],
+    recordCount: 0,
+    recordCountByType: {},
+    createdAt: null,
+    lastEditedAt: null,
+    archivedAt: null
 };
 
 /**
