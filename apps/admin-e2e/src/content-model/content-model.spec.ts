@@ -55,10 +55,15 @@ test.describe('Content Model', () => {
 
             await expect(contentModelPage.rail).toBeVisible();
             await expect(contentModelPage.loading).toHaveCount(0);
-            // The chrome is shared by the skeleton and the page: it must not move.
-            expect(await contentModelPage.heading.boundingBox()).toEqual(
-                before
-            );
+            // The skeleton draws its `<h1>` where the type's will be: it must
+            // not move (it names the type now, so only its width may change).
+            // (Assigned inside the retried block, which TypeScript cannot see.)
+            const start = before as unknown as { x: number; y: number };
+            const after = await contentModelPage.heading.boundingBox();
+            expect({ x: after?.x, y: after?.y }).toEqual({
+                x: start.x,
+                y: start.y
+            });
         });
     });
 
@@ -188,11 +193,11 @@ test.describe('Content Model', () => {
             await mockSchemaDocument(page);
             await contentModelPage.goto('article');
 
-            await expect(contentModelPage.tab('Content')).toBeVisible();
+            await expect(contentModelPage.fields()).toBeVisible();
             // Declared body, title, kind; drawn inputs → choices → long text,
             // then the relation and the media field (ADR-0022), then the
             // group's field.
-            expect(await contentModelPage.fieldNames('Content')).toEqual([
+            expect(await contentModelPage.fieldNames()).toEqual([
                 'title',
                 'kind',
                 'body',
@@ -200,8 +205,8 @@ test.describe('Content Model', () => {
                 'cover',
                 'slug'
             ]);
-            await expect(contentModelPage.tab('Relations')).toHaveCount(0);
-            await expect(contentModelPage.tab('Media')).toHaveCount(0);
+            await expect(contentModelPage.block('Relations')).toHaveCount(0);
+            await expect(contentModelPage.block('Media')).toHaveCount(0);
         });
 
         test('draws a group as an accordion that folds', async ({
@@ -214,11 +219,11 @@ test.describe('Content Model', () => {
             const trigger = contentModelPage.groupTrigger('SEO');
             await expect(trigger).toHaveAttribute('aria-expanded', 'true');
             await expect(
-                contentModelPage.tab('Content').getByText('starts folded')
+                contentModelPage.fields().getByText('starts folded')
             ).toBeVisible();
             await trigger.click();
             await expect(trigger).toHaveAttribute('aria-expanded', 'false');
-            expect(await contentModelPage.fieldNames('Content')).toEqual([
+            expect(await contentModelPage.fieldNames()).toEqual([
                 'title',
                 'kind',
                 'body',
@@ -233,9 +238,9 @@ test.describe('Content Model', () => {
         }) => {
             await mockSchemaDocument(page);
             await contentModelPage.goto('home');
-            await expect(contentModelPage.tab('Content')).toBeVisible();
-            await expect(contentModelPage.tab('Relations')).toHaveCount(0);
-            await expect(contentModelPage.tab('Media')).toHaveCount(0);
+            await expect(contentModelPage.fields()).toBeVisible();
+            await expect(contentModelPage.block('Relations')).toHaveCount(0);
+            await expect(contentModelPage.block('Media')).toHaveCount(0);
         });
 
         test('names relation targets and the field an inverse mirrors', async ({
@@ -245,9 +250,7 @@ test.describe('Content Model', () => {
             await mockSchemaDocument(page);
             await contentModelPage.goto('author');
             await expect(
-                contentModelPage
-                    .tab('Content')
-                    .getByText('mirrors article.author')
+                contentModelPage.fields().getByText('mirrors article.author')
             ).toBeVisible();
         });
     });

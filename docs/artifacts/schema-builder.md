@@ -83,7 +83,7 @@ regenerated manifest and a drizzle-kit migration, ready to commit.
 | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `schema-builder-domain` | Framework-free kernel: the `SchemaDocument`, the diff, the fingerprint, change classification, code generation, the two-phase split, the manifest renderer |
 | `schema-builder-server` | The plugin: document / plan / apply / operations routes, the source tree, drizzle-kit and prettier as child processes, the lock, the operation log         |
-| `schema-builder-admin`  | The `/content-model` page: type rail, field list, field sheet, groups sheet, the review page with its steps, grant dialog                                  |
+| `schema-builder-admin`  | The `/content-model` page: type rail, type header and field list, field panel, kind picker, groups sheet, the one-page review, apply progress, grant card  |
 
 `@orthacms/content-domain` holds the **schema rules** (one rule per file, `checkTypes`) and the
 General-tab ordering table. The DSL, the builder server and the builder admin all run that
@@ -246,15 +246,18 @@ right by hand.
 `GET /document`. `LoadDocumentUseCase` turns the running registry into a document, reads each
 type file's first line for `origin`, and reads the capabilities: production wins over the
 flag; no manifest means no source tree; a manifest without the marker is hand-written. The
-admin draws the rail, one type per URL (`/content-model/:typeName`), and its fields under the
-built-in tabs, General in the order the entry editor uses (`orderGeneralTab`).
+admin draws the rail, one type per URL (`/content-model/:typeName`), the type as the page's
+heading, and its fields first, in the order the entry editor's one form uses
+(`orderGeneralTab`), groups as sections of the same list.
 
 ### 7.2 An author adds a type and a field
 
 Every edit is an action on a reducer over the served document (`useSchemaDraft`); the diff
 and `checkTypes` run on every change, so a broken rule shows under the field as it is typed,
-in the DSL's own words. The rail marks a changed type; leaving the page asks first, moving
-between types does not.
+in the DSL's own words. A type starts from a dialog (name, kind as two cards, blank or a
+template's fields, its features); a field from a kind picker, then the same panel that edits
+one, with a preview of the field as editors will see it. The rail marks a changed type;
+leaving the page asks first, moving between types does not.
 
 ### 7.3 Review
 
@@ -262,10 +265,11 @@ between types does not.
 freshness (`409 schema-builder.stale` if the model moved), the rules (`422 invalid`) and
 ownership (`422 not-owned`); classifies with live facts (row counts, grants, references);
 renders every file into `.orthacms/plan/<uuid>/`, prettier-formats it, and runs drizzle-kit
-against a copy of the migrations folder to get the SQL. The admin opens the review as a page
-with steps (`?review` on the same page, so the draft is the editor's and Back returns to it):
-a skeleton for those seconds, then the changes with their confirmations, then the files and
-the SQL, then the migration name and Apply.
+against a copy of the migrations folder to get the SQL. The admin opens the review as one
+page (`?review` on the same page, so the draft is the editor's and Back returns to it): a
+skeleton for those seconds, then the changes grouped by type with their risk and their
+confirmations, the files and the SQL folded under "Technical details", and a bar at the foot
+with the migration name and Apply.
 
 ### 7.4 Apply
 
@@ -273,14 +277,16 @@ Apply stays disabled, with the reason on screen, until nothing is blocked, every
 change is ticked on its own, and the migration name matches `^[a-z][a-z0-9_]{0,59}$`. The
 server re-runs every check under the lock, saves the operation and answers `202
 { operationId, bootId }`. The admin polls the operation, then the document route until the
-**boot id** changes — a `200` from the old process is not the restart. Then it puts the new
-document in the cache, invalidates every query derived from the registry, and the draft
-starts over from it.
+**boot id** changes — a `200` from the old process is not the restart. Meanwhile it shows
+the operation's own steps (generate, migrate, publish), then the restart and ready, each with
+the time this tab saw it take. Then it puts the new document in the cache, invalidates every
+query derived from the registry, and the draft starts over from it.
 
 ### 7.5 The grant offer
 
-A type the apply created is offered to the active workspaces (`POST /workspaces/:id/content`),
-with "Not now" as an equal answer. Nothing is granted implicitly (I-11).
+A type the apply created is offered to the active workspaces (`POST /workspaces/:id/content`)
+on the applied page itself, not in a modal over it, with "Not now" as an equal answer.
+Nothing is granted implicitly (I-11).
 
 ### 7.6 A second apply, or a stale tab
 
@@ -327,17 +333,19 @@ Errors carry `{ statusCode, code, message, details? }`:
 `/content-model` and `/content-model/:typeName`, in the global sidebar's directory group
 (order 50), gated on `content:read`. Global because types are the same in every workspace.
 
-| Element        | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Header         | "N unsaved changes", Discard, Review changes (off while the draft breaks a rule)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| Type rail      | Every type, its origin, a dot for a changed one; New content type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| Type editor    | Settings and flags, the issues, the field list under General (loose fields by rank, then group accordions), Relations, Media                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| Add-field page | `?addField`, a stepper and one card: the kind (each says what it is for; "Long text" is rich text with the textarea widget) → basics (relation: target and how many) → rules and display; joins the draft only on Add                                                                                                                                                                                                                                                                                                                                                     |
-| Field sheet    | General (label, machine name, required, localized, lang, a select's options above the default value picked from them (renaming the option the default names carries it along), the default value with a hint that it only prefills a new entry's form — not on relations and media; for a relation its target and Many-to-one / One-to-one / Many-to-many, each explained), Validation (only the rules the type takes), Display (help text, placeholder, width, group, hidden — no control picker, the kind is the control; no row key, two adjacent halves share a line) |
-| Groups sheet   | General's accordion blocks — never sections, never tabs; each block's own menu edits or removes it in a sheet of its own                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| Review page    | `?review` on the same page, a stepper and one card: changes and confirmations → files and SQL → migration name and Apply                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| Apply progress | The review card after Apply: three steps in one `role="status"`, then the outcome; a failure is an alert that says the draft is kept                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| Grant dialog   | Active workspaces as searchable tiles with their monograms, "Select all shown", Grant / Not now                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| Element         | What it does                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Top bar         | Content Model › the type; "N unsaved changes", "N problems", Discard, Review changes (off while the draft breaks a rule)                                                                                                                                                                                                                                                                                                              |
+| Type rail       | A column the height of the work area: "Find a type", collections then pages, each with its field count, a dot for a changed one and a badge only when it is not the builder's (`code`, `new`); New content type at its foot                                                                                                                                                                                                           |
+| Type header     | The type as the `<h1>`, over its machine name, kind, the flags that are on as pills, path and field count; Settings opens a sheet with label, machine name, path, description and the flags; ⋯ removes the type                                                                                                                                                                                                                       |
+| Field list      | Fields first: label leading, machine name under it, badges only for what changes behaviour, the type in words; groups as section headers inside the list (an empty one tinted and flagged); Add field and Group at its foot                                                                                                                                                                                                           |
+| New type dialog | Name and machine name, the kind as two cards with an example of each, Start from (Blank, Article, Event, FAQ — fields of the DSL only), Features as checkboxes, and one line on what is fixed once applied                                                                                                                                                                                                                            |
+| Kind picker     | "Add a field to {Type}": the kinds grouped Text / Numbers and dates / Choices / Links, searchable by name and example; arrow keys move, Enter or a double-click continues to the field's panel                                                                                                                                                                                                                                        |
+| Field panel     | The same for a field in the draft and one being added. A preview of the field as editors see it, then General (label and machine name, required, localized, lang, a select's options above the default picked from them, the default; a relation's target and how many), Validation (only the rules the type takes), Display (help text, placeholder, width, group, hidden). Footer: Remove field + Done, or Another kind + Add field |
+| Groups sheet    | General's groups — never sections of their own, never tabs; each group's own menu edits or removes it in a sheet of its own                                                                                                                                                                                                                                                                                                           |
+| Review page     | `?review` on the same page: changes grouped by type with their risk, each destructive one confirmed on its own; Technical details (files, SQL) folded; a bar at the foot with what still blocks Apply, the migration name and "Apply N changes"                                                                                                                                                                                       |
+| Apply progress  | Generating the migration, Running the migration, Writing files, Restarting the server, Ready — each with its time, one spinning, in one `role="status"`; a failure stops at its step and says the draft is kept                                                                                                                                                                                                                       |
+| Applied page    | What was applied (changes, migration, restart time); for a created type, the grant card — active workspaces as tiles, a search past six, Grant to N / Not now — and Open {Type} in the model                                                                                                                                                                                                                                          |
 
 ### States
 
@@ -460,7 +468,7 @@ keep their titles (`[schema-builder:I-05]`).
 - Loading, error and no-access states are distinct; the skeleton sits in the page's grid.
 - Keyboard reorder announces field names; a cross-rank move is refused.
 - Apply is disabled with a reason until confirmations and the name are right.
-- After an apply the draft is empty, the rail shows the new type, the grant dialog offers only
+- After an apply the draft is empty, the rail shows the new type, the grant card offers only
   active workspaces, and "Not now" grants nothing.
 
 ## 14. Boundaries of responsibility

@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { ChevronRight } from 'lucide-react';
 import {
-    Badge,
     cn,
     Collapsible,
     CollapsibleContent,
@@ -23,6 +22,10 @@ const messages = defineMessages({
         id: 'schemaBuilder.group.count',
         defaultMessage: '{count, plural, one {# field} other {# fields}}'
     },
+    emptyFlag: {
+        id: 'schemaBuilder.group.emptyFlag',
+        defaultMessage: 'Empty group'
+    },
     empty: {
         id: 'schemaBuilder.group.empty',
         defaultMessage: 'No fields — the schema refuses an empty group.'
@@ -35,12 +38,13 @@ const messages = defineMessages({
 });
 
 /**
- * A group as the entry editor draws it: an accordion block inside General.
- * Open here whatever `collapsed` says — this page is about what is inside —
- * with the flag shown as a badge instead. Its fields are one list of the
- * General tab's sortable scope, so a field can be dragged in — an empty group
- * included — or out. While editing, `handle` drags the block itself and its
- * menu edits or removes the group.
+ * A group as a section header inside the field list, its fields under it,
+ * indented. Open here whatever `collapsed` says — this page is about what is
+ * inside — with the flag said in words instead. Its fields are one list of
+ * the General tab's sortable scope, so a field can be dragged in — an empty
+ * group included — or out. An empty group is tinted and says why it blocks
+ * the review. While editing, `handle` drags the whole section and its menu
+ * edits or removes the group.
  */
 export function GroupAccordion({
     group,
@@ -57,63 +61,71 @@ export function GroupAccordion({
     className?: string;
 }) {
     const intl = useIntl();
+    const empty = list.fields.length === 0;
     return (
         <Collapsible
             defaultOpen
             role="group"
             aria-label={group.label}
-            className={cn('mx-4 my-3 rounded-lg border bg-card', className)}
+            className={cn('border-t bg-card', className)}
         >
-            <div className="flex items-start">
-                {handle && <span className="flex pl-3 pt-3">{handle}</span>}
+            <div
+                className={cn(
+                    'flex items-center gap-1 pr-2',
+                    empty ? 'bg-destructive-soft/40' : 'bg-muted/40'
+                )}
+            >
+                {handle && <span className="flex pl-4">{handle}</span>}
                 <CollapsibleTrigger
                     className={cn(
-                        'group flex min-w-0 flex-1 items-start gap-2 rounded-lg px-3 py-2.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                        handle && 'pl-2'
+                        'group flex min-w-0 flex-1 items-center gap-2 px-3 py-2.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+                        handle ? 'pl-2' : 'pl-4'
                     )}
                 >
                     <ChevronRight
-                        className="mt-0.5 size-4 shrink-0 transition-transform group-data-[state=open]:rotate-90"
+                        className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-90"
                         aria-hidden
                     />
-                    <span className="flex min-w-0 flex-col">
-                        <span className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                    <span className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                        <span className="text-sm font-semibold">
                             {group.label}
-                            <span className="font-mono text-xs font-normal text-muted-foreground">
-                                {group.key}
-                            </span>
-                            {group.collapsed && (
-                                <Badge
-                                    variant="outline"
-                                    className="font-normal"
-                                >
-                                    {intl.formatMessage(messages.collapsed)}
-                                </Badge>
-                            )}
                         </span>
-                        {group.description && (
+                        <span className="font-mono text-xs text-muted-foreground">
+                            {group.key}
+                        </span>
+                        {empty ? (
+                            <span className="text-xs font-medium text-destructive">
+                                {intl.formatMessage(messages.emptyFlag)}
+                            </span>
+                        ) : (
                             <span className="text-xs text-muted-foreground">
-                                {group.description}
+                                {[
+                                    group.description,
+                                    group.collapsed &&
+                                        intl.formatMessage(messages.collapsed)
+                                ]
+                                    .filter(Boolean)
+                                    .join(' · ')}
                             </span>
                         )}
                     </span>
-                    <span className="ml-auto shrink-0 text-xs text-muted-foreground">
-                        {intl.formatMessage(messages.count, {
-                            count: list.fields.length
-                        })}
-                    </span>
+                    {!empty && (
+                        <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+                            {intl.formatMessage(messages.count, {
+                                count: list.fields.length
+                            })}
+                        </span>
+                    )}
                 </CollapsibleTrigger>
                 {editing && (
-                    <span className="flex pr-2 pt-2">
-                        <GroupMenu
-                            label={group.label}
-                            onEdit={() => editing.onEditGroup(group.key)}
-                            onRemove={() => editing.onRemoveGroup(group.key)}
-                        />
-                    </span>
+                    <GroupMenu
+                        label={group.label}
+                        onEdit={() => editing.onEditGroup(group.key)}
+                        onRemove={() => editing.onRemoveGroup(group.key)}
+                    />
                 )}
             </div>
-            <CollapsibleContent className="border-t">
+            <CollapsibleContent className="border-t pl-6">
                 <FieldRows
                     list={list}
                     editing={editing}

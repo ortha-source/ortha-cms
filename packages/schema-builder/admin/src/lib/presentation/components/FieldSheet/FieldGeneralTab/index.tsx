@@ -28,6 +28,14 @@ const messages = defineMessages({
         id: 'schemaBuilder.sheet.localized',
         defaultMessage: 'Different in each locale'
     },
+    localizedOn: {
+        id: 'schemaBuilder.sheet.localizedOn',
+        defaultMessage: 'On: each language has its own value.'
+    },
+    localizedOff: {
+        id: 'schemaBuilder.sheet.localizedOff',
+        defaultMessage: 'Off: one value shared by every language.'
+    },
     lang: {
         id: 'schemaBuilder.sheet.lang',
         defaultMessage: 'Language of the value'
@@ -45,6 +53,8 @@ type Props = {
     document: SchemaDocument;
     /** Why the machine name cannot be used — the "Add a field" page checks it as it is typed. */
     nameError?: string;
+    /** Puts the cursor in the label — a field being added starts there. */
+    autoFocusLabel?: boolean;
 };
 
 /**
@@ -52,35 +62,51 @@ type Props = {
  * relation, what it links to. The options come before the default because the
  * default is picked from them.
  */
-export function FieldGeneralTab({ editor, type, document, nameError }: Props) {
+export function FieldGeneralTab({
+    editor,
+    type,
+    document,
+    nameError,
+    autoFocusLabel
+}: Props) {
     const intl = useIntl();
     const { entry } = editor;
     const spec = entry.spec;
     const isRelation = spec.type === 'relation';
     const inverse = isRelation && 'inverseOf' in spec;
+    const isNew = entry.key.startsWith('new:');
     return (
         <div className="flex flex-col gap-4">
-            <InputField
-                id="field-label"
-                label={intl.formatMessage(messages.label)}
-                value={spec.admin?.label ?? ''}
-                onChange={(event) =>
-                    editor.setAdmin({ label: event.target.value })
-                }
-            />
-            <InputField
-                id="field-name"
-                label={intl.formatMessage(messages.name)}
-                description={
-                    entry.key.startsWith('new:')
-                        ? undefined
-                        : intl.formatMessage(messages.nameHint)
-                }
-                className="font-mono"
-                error={nameError}
-                value={entry.name}
-                onChange={(event) => editor.setName(event.target.value)}
-            />
+            <div className="flex flex-col gap-2">
+                <div className="grid gap-3 sm:grid-cols-2">
+                    <InputField
+                        id="field-label"
+                        label={intl.formatMessage(messages.label)}
+                        value={spec.admin?.label ?? ''}
+                        autoFocus={autoFocusLabel}
+                        onChange={(event) =>
+                            editor.setAdmin({ label: event.target.value })
+                        }
+                    />
+                    <InputField
+                        id="field-name"
+                        label={intl.formatMessage(messages.name)}
+                        className="font-mono"
+                        error={nameError}
+                        aria-describedby={isNew ? undefined : 'field-name-hint'}
+                        value={entry.name}
+                        onChange={(event) => editor.setName(event.target.value)}
+                    />
+                </div>
+                {!isNew && (
+                    <p
+                        id="field-name-hint"
+                        className="text-xs text-muted-foreground"
+                    >
+                        {intl.formatMessage(messages.nameHint)}
+                    </p>
+                )}
+            </div>
             {!inverse && (
                 <SwitchField
                     id="field-required"
@@ -97,6 +123,11 @@ export function FieldGeneralTab({ editor, type, document, nameError }: Props) {
                 <SwitchField
                     id="field-localized"
                     label={intl.formatMessage(messages.localized)}
+                    description={intl.formatMessage(
+                        spec.localized
+                            ? messages.localizedOn
+                            : messages.localizedOff
+                    )}
                     checked={Boolean(spec.localized)}
                     onChange={(localized) =>
                         editor.setSpec({ localized: localized || undefined })

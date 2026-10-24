@@ -22,7 +22,7 @@ const messages = defineMessages({
     }
 });
 
-/** Why Apply is off, in one line — next to the button it explains. */
+/** Why Apply is off, in one line — on the bar, beside the button it explains. */
 export function ReadinessHint({
     readiness,
     id
@@ -33,7 +33,10 @@ export function ReadinessHint({
     const intl = useIntl();
     if (!readiness || readiness.ok) return null;
     return (
-        <p id={id} className="text-xs text-muted-foreground">
+        <p
+            id={id}
+            className="inline-flex rounded-md bg-warning-soft px-2 py-1 text-xs text-warning-soft-foreground"
+        >
             {readiness.reason === 'unconfirmed'
                 ? intl.formatMessage(messages.unconfirmed, {
                       count: readiness.missing.length

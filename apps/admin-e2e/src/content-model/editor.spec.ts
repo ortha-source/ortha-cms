@@ -102,14 +102,14 @@ test.describe('Content model editor', () => {
         });
     });
 
-    test('adds a field in steps: the kind by keyboard, the name from the label, then the rules', async ({
+    test('adds a field: the kind in a dialog by keyboard, then its panel — the name from the label, a live preview, the rules', async ({
         page,
         contentModelPage
     }) => {
         await contentModelPage.goto('article');
         await contentModelPage.addFieldButton().click();
-        await expect(contentModelPage.addFieldHeading()).toBeVisible();
-        await expect(page).toHaveURL(/\/content-model\/article\?addField/);
+        const kinds = contentModelPage.addFieldDialog();
+        await expect(kinds).toHaveAccessibleName('Add a field to Articles');
 
         await contentModelPage.fieldKind('Short text').focus();
         await page.keyboard.press('ArrowRight');
@@ -118,23 +118,49 @@ test.describe('Content model editor', () => {
             'true'
         );
         await expect(contentModelPage.fieldKind('Long text')).toBeFocused();
-        await contentModelPage.reviewAction('Continue').click();
+        await page.keyboard.press('Enter');
 
-        await page.getByLabel('Label').fill('Summary text');
-        await expect(page.getByLabel('Machine name')).toHaveValue(
+        await contentModelPage
+            .newFieldSheet()
+            .getByLabel('Label')
+            .fill('Summary text');
+        // The panel is named by the field now, and previews it as editors see it.
+        const panel = contentModelPage.fieldSheet('Summary text');
+        await expect(panel.getByLabel('Machine name')).toHaveValue(
             'summaryText'
         );
-        await contentModelPage.reviewAction('Continue').click();
         await expect(
-            page.getByRole('heading', { level: 3, name: 'Validation' })
+            panel.getByRole('region', { name: 'Preview — how editors see it' })
+        ).toContainText('Summary text');
+        await expect(
+            panel.getByRole('tab', { name: 'Validation' })
         ).toBeVisible();
-        await contentModelPage.reviewAction('Add field').click();
+        await expect(contentModelPage.changeCount()).toBeHidden();
+        await panel.getByRole('button', { name: 'Add field' }).click();
 
         await expect(contentModelPage.changeCount()).toHaveText(
             '1 unsaved change'
         );
-        await expect(page).toHaveURL(/\/content-model\/article$/);
         await expect(contentModelPage.editField('summaryText')).toBeVisible();
+    });
+
+    test('finds a kind of field by what it holds', async ({
+        page,
+        contentModelPage
+    }) => {
+        await contentModelPage.goto('article');
+        await contentModelPage.addFieldButton().click();
+        await contentModelPage
+            .addFieldDialog()
+            .getByRole('searchbox')
+            .fill('image');
+        await expect(
+            contentModelPage.addFieldDialog().getByRole('radio')
+        ).toHaveCount(1);
+        await expect(contentModelPage.fieldKind('Media')).toBeVisible();
+        // Enter picks the one left.
+        await page.keyboard.press('Enter');
+        await expect(contentModelPage.newFieldSheet()).toContainText('Media');
     });
 
     test('a relation is asked what it links to and how many, as roomy cards', async ({
@@ -168,17 +194,22 @@ test.describe('Content model editor', () => {
         ).toBeChecked();
     });
 
-    test('leaving the add-field page keeps nothing half-made', async ({
+    test('leaving the new field’s panel keeps nothing half-made', async ({
         page,
         contentModelPage
     }) => {
         await contentModelPage.goto('article');
         await contentModelPage.addFieldButton().click();
         await contentModelPage.reviewAction('Continue').click();
-        await page.getByLabel('Label').fill('Subtitle');
-        await page.goBack();
-        await expect(contentModelPage.addFieldButton()).toBeVisible();
+        await contentModelPage
+            .newFieldSheet()
+            .getByLabel('Label')
+            .fill('Subtitle');
+        await page.keyboard.press('Escape');
+        await expect(contentModelPage.newFieldSheet()).toBeHidden();
+        await expect(contentModelPage.fieldSheet('Subtitle')).toBeHidden();
         await expect(contentModelPage.changeCount()).toBeHidden();
+        await expect(contentModelPage.editField('subtitle')).toHaveCount(0);
     });
 
     test('edits validation in the sheet, with a preset and a live tester', async ({
@@ -286,7 +317,7 @@ test.describe('Content model editor', () => {
         );
     });
 
-    test('adding a select asks for its options on Basics, then a default from them', async ({
+    test('adding a select asks for its options in the panel, then a default from them', async ({
         page,
         contentModelPage
     }) => {
@@ -295,22 +326,28 @@ test.describe('Content model editor', () => {
         await contentModelPage.fieldKind('One of a list').click();
         await contentModelPage.reviewAction('Continue').click();
 
-        await page.getByLabel('Label').fill('Stage');
-        const fresh = page.getByRole('textbox', { name: 'New option' });
+        const sheet = contentModelPage.newFieldSheet();
+        await sheet.getByLabel('Label').fill('Stage');
+        const panel = contentModelPage.fieldSheet('Stage');
+        const fresh = panel.getByRole('textbox', { name: 'New option' });
         await fresh.fill('draft');
         await fresh.press('Enter');
         await fresh.fill('final');
         await fresh.press('Enter');
-        await page.getByLabel('Default value').click();
+        await panel.getByLabel('Default value').click();
         await contentModelPage.option('final').click();
-        await expect(page.getByLabel('Default value')).toContainText('final');
-
-        await contentModelPage.reviewAction('Continue').click();
+        await expect(panel.getByLabel('Default value')).toContainText('final');
+        // The preview shows the default the form will start from.
         await expect(
-            page.getByRole('heading', { level: 3, name: 'Validation' })
+            panel.getByRole('region', { name: 'Preview — how editors see it' })
+        ).toContainText('final');
+
+        await expect(
+            panel.getByRole('tab', { name: 'Validation' })
         ).toHaveCount(0);
-        await contentModelPage.reviewAction('Add field').click();
+        await panel.getByRole('button', { name: 'Add field' }).click();
         await expect(contentModelPage.editField('stage')).toBeVisible();
+        await expect(page.getByRole('dialog')).toHaveCount(0);
     });
 
     test('reorders within one rank by keyboard, and refuses a move across ranks', async ({
@@ -318,12 +355,12 @@ test.describe('Content model editor', () => {
     }) => {
         await contentModelPage.goto('venue');
         await expect
-            .poll(() => contentModelPage.fieldNames('Content'))
+            .poll(() => contentModelPage.fieldNames())
             .toEqual(['name', 'city', 'open']);
 
         await contentModelPage.moveFieldUp('city');
         await expect
-            .poll(() => contentModelPage.fieldNames('Content'))
+            .poll(() => contentModelPage.fieldNames())
             .toEqual(['city', 'name', 'open']);
 
         // A boolean is a choice, ranked after inputs: the editor would put it back.
@@ -332,7 +369,7 @@ test.describe('Content model editor', () => {
             contentModelPage.announcement(/open stays where it is/)
         ).toBeAttached();
         await expect
-            .poll(() => contentModelPage.fieldNames('Content'))
+            .poll(() => contentModelPage.fieldNames())
             .toEqual(['city', 'name', 'open']);
     });
 
@@ -365,7 +402,7 @@ test.describe('Content model editor', () => {
         }) => {
             await contentModelPage.goto('place');
             await expect
-                .poll(() => contentModelPage.fieldNames('Content'))
+                .poll(() => contentModelPage.fieldNames())
                 .toEqual(['name', 'open', 'city']);
 
             await contentModelPage.dragField(
@@ -382,7 +419,7 @@ test.describe('Content model editor', () => {
                 contentModelPage.groupTrigger('Location')
             ).toContainText('2 fields');
             await expect
-                .poll(() => contentModelPage.fieldNames('Content'))
+                .poll(() => contentModelPage.fieldNames())
                 .toEqual(['open', 'name', 'city']);
             await expect(contentModelPage.changeCount()).toBeVisible();
 
@@ -411,7 +448,7 @@ test.describe('Content model editor', () => {
                 contentModelPage.emptyGroupDropZone('Extra')
             ).toHaveCount(0);
             await expect
-                .poll(() => contentModelPage.fieldNames('Content'))
+                .poll(() => contentModelPage.fieldNames())
                 .toEqual(['name', 'city', 'open']);
         });
 
@@ -430,7 +467,7 @@ test.describe('Content model editor', () => {
                 )
             ).toBeAttached();
             await expect
-                .poll(() => contentModelPage.fieldNames('Content'))
+                .poll(() => contentModelPage.fieldNames())
                 .toEqual(['city', 'name', 'open']);
             // The group it left is empty now, and says so.
             await expect(
@@ -477,7 +514,7 @@ test.describe('Content model editor', () => {
                 contentModelPage.groupTrigger('Location')
             ).toContainText('2 fields');
             await expect
-                .poll(() => contentModelPage.fieldNames('Content'))
+                .poll(() => contentModelPage.fieldNames())
                 .toEqual(['name', 'open', 'city']);
         });
     });
@@ -590,7 +627,7 @@ test.describe('Content model editor', () => {
                 0
             );
             await expect
-                .poll(() => contentModelPage.fieldNames('Content'))
+                .poll(() => contentModelPage.fieldNames())
                 .toEqual(['name', 'city', 'open']);
         });
     });
@@ -601,17 +638,57 @@ test.describe('Content model editor', () => {
     }) => {
         await contentModelPage.goto();
         await contentModelPage.newTypeButton().click();
-        const dialog = page.getByRole('dialog', { name: 'New content type' });
-        await dialog.getByLabel('Label').fill('Events');
-        await dialog.getByLabel('Page').check();
-        await dialog.getByRole('button', { name: 'Add type' }).click();
+        const dialog = contentModelPage.newTypeDialog();
+        await dialog.getByLabel('Name', { exact: true }).fill('Events');
+        await expect(dialog.getByLabel('Machine name')).toHaveValue('events');
+        // The kind is two cards, each with an example of what it is.
+        const asPage = dialog.getByRole('radio', { name: 'Page' });
+        await expect(asPage).toHaveAccessibleDescription(/One entry/);
+        await asPage.click();
+        await expect(asPage).toHaveAttribute('aria-checked', 'true');
+        await dialog.getByRole('button', { name: 'Create type' }).click();
         await expect(page).toHaveURL(/\/content-model\/events$/);
         await expect(contentModelPage.typeHeading('Events')).toBeVisible();
         await expect(contentModelPage.railLink('Events')).toBeVisible();
-        // A new type starts empty, and says how to begin.
+        // A blank type starts empty, and says how to begin.
         await expect(page.getByText('No fields yet')).toBeVisible();
         await expect(contentModelPage.addFirstFieldButton()).toBeVisible();
         await expect(contentModelPage.reviewButton()).toBeDisabled();
+    });
+
+    test('starts a type from a template, with the features it picked', async ({
+        contentModelPage
+    }) => {
+        await contentModelPage.goto();
+        await contentModelPage.newTypeButton().click();
+        const dialog = contentModelPage.newTypeDialog();
+        await dialog.getByLabel('Name', { exact: true }).fill('News');
+        await dialog.getByRole('radio', { name: /^Article/ }).click();
+        await dialog.getByRole('checkbox', { name: 'Localized' }).click();
+        await dialog.getByRole('button', { name: 'Create type' }).click();
+
+        await expect(contentModelPage.typeHeading('News')).toBeVisible();
+        await expect
+            .poll(() => contentModelPage.fieldNames())
+            .toEqual(['title', 'slug', 'body', 'cover']);
+        // Settings shows what was picked; a new type's flags stay changeable.
+        await contentModelPage.settingsButton().click();
+        const settings = contentModelPage.settingsSheet();
+        await expect(
+            settings.getByRole('switch', { name: 'Localized' })
+        ).toBeChecked();
+        await expect(
+            settings.getByRole('switch', { name: 'Localized' })
+        ).toBeEnabled();
+    });
+
+    test('finds a type in the rail by its name', async ({
+        contentModelPage
+    }) => {
+        await contentModelPage.goto();
+        await contentModelPage.railSearch().fill('ven');
+        await expect(contentModelPage.railLink('Venues')).toBeVisible();
+        await expect(contentModelPage.railLink('Articles')).toHaveCount(0);
     });
 
     test('discards the draft back to the served model', async ({
@@ -625,7 +702,7 @@ test.describe('Content model editor', () => {
         );
         await contentModelPage.discardButton().click();
         await expect
-            .poll(() => contentModelPage.fieldNames('Content'))
+            .poll(() => contentModelPage.fieldNames())
             .toEqual(['name', 'city', 'open']);
         await expect(contentModelPage.changeCount()).toHaveCount(0);
     });
@@ -652,23 +729,38 @@ test.describe('Content model editor', () => {
             await expectNoA11yViolations(makeAxe());
         });
 
-        test('the add-field page, each step', async ({
-            page,
+        test('adding a field: the kind picker, then the new field’s panel', async ({
             contentModelPage,
             makeAxe
         }) => {
             await contentModelPage.goto('article');
             await contentModelPage.addFieldButton().click();
-            await contentModelPage.addFieldHeading().waitFor();
+            await contentModelPage.addFieldDialog().waitFor();
             await expectNoA11yViolations(makeAxe());
 
             await contentModelPage.fieldKind('Relation').click();
             await contentModelPage.reviewAction('Continue').click();
-            await page.getByLabel('Label').fill('Editor');
+            await contentModelPage
+                .newFieldSheet()
+                .getByLabel('Label')
+                .fill('Editor');
+            await contentModelPage.fieldSheet('Editor').waitFor();
             await expectNoA11yViolations(makeAxe());
+        });
 
-            await contentModelPage.reviewAction('Continue').click();
-            await contentModelPage.stepHeading('Rules and display').waitFor();
+        test('the new type dialog and the type’s settings', async ({
+            page,
+            contentModelPage,
+            makeAxe
+        }) => {
+            await contentModelPage.goto('article');
+            await contentModelPage.newTypeButton().click();
+            await contentModelPage.newTypeDialog().waitFor();
+            await expectNoA11yViolations(makeAxe());
+            await page.keyboard.press('Escape');
+
+            await contentModelPage.settingsButton().click();
+            await contentModelPage.settingsSheet().waitFor();
             await expectNoA11yViolations(makeAxe());
         });
 

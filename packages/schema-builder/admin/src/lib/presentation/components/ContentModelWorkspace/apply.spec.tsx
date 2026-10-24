@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import '../../../../testing/jsdomShims';
 import {
     QueryClient,
@@ -22,7 +23,12 @@ import type {
 import { useHasPermission } from '@orthacms/identity-admin';
 import { useWorkspaces } from '@orthacms/workspaces-admin';
 import { ApiError } from '@orthacms/utils-admin';
-import { article, author, envelopeOf } from '../../../../testing/document';
+import {
+    article,
+    author,
+    envelopeOf,
+    typeDoc
+} from '../../../../testing/document';
 import { httpSchemaGateway } from '../../../infrastructure/httpSchemaGateway';
 import { schemaKeys } from '../../../infrastructure/schemaKeys';
 import { ContentModelWorkspace } from './index';
@@ -41,7 +47,10 @@ vi.mock('../../../application/polling', () => ({
     sleep: () => Promise.resolve()
 }));
 vi.mock('@orthacms/identity-admin', () => ({ useHasPermission: vi.fn() }));
-vi.mock('@orthacms/shell-admin', () => ({ PageTopBar: () => null }));
+vi.mock('@orthacms/shell-admin', () => ({
+    PageTopBar: () => null,
+    PageActionsPortal: ({ children }: { children: ReactNode }) => children
+}));
 vi.mock('@orthacms/workspaces-admin', () => ({
     useWorkspaces: vi.fn(),
     WorkspaceAvatar: () => null,
@@ -58,6 +67,18 @@ const envelope = envelopeOf(
     ],
     editable
 );
+
+/** What the restarted server serves: the model with the new type in it. */
+const restarted = {
+    ...envelopeOf(
+        [
+            ...envelope.document.types,
+            typeDoc({ name: 'events', label: 'Events', origin: 'builder' })
+        ],
+        editable
+    ),
+    bootId: 'boot-2'
+};
 
 const change = (
     over: Partial<ClassifiedChange> & Pick<ClassifiedChange, 'change'>
@@ -138,43 +159,31 @@ function renderWorkspace() {
     return client;
 }
 
-/** Makes a draft change (a new type), then opens the review page. */
+/** Makes a draft change (a new type with a field), then opens the review page. */
 function addTypeAndReview() {
     fireEvent.click(screen.getByRole('button', { name: 'New content type' }));
     const dialog = screen.getByRole('dialog', { name: 'New content type' });
-    fireEvent.change(within(dialog).getByLabelText('Label'), {
+    fireEvent.change(within(dialog).getByLabelText('Name'), {
         target: { value: 'Events' }
     });
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Add type' }));
-    // A type needs a field before it can be reviewed: add the first one.
+    // A type needs a field before it can be reviewed: start from a template.
+    fireEvent.click(within(dialog).getByRole('radio', { name: /^Event/ }));
     fireEvent.click(
-        screen.getByRole('button', { name: 'Add the first field' })
+        within(dialog).getByRole('button', { name: 'Create type' })
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-    fireEvent.change(screen.getByLabelText('Label'), {
-        target: { value: 'Title' }
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Add field' }));
     fireEvent.click(screen.getByRole('button', { name: 'Review changes' }));
     expect(
-        screen.getByRole('heading', { level: 1, name: 'Review changes' })
+        screen.getByRole('heading', { level: 1, name: /^Review/ })
     ).toBeTruthy();
 }
 
-const button = (name: string) =>
+const button = (name: string | RegExp) =>
     screen.getByRole('button', { name }) as HTMLButtonElement;
+const applyButton = () => button(/^Apply \d/);
 
-/** Waits for the plan, then walks to the last step. */
-async function toApplyStep() {
-    await waitFor(() =>
-        expect(button('Continue to files').disabled).toBe(false)
-    );
-    fireEvent.click(button('Continue to files'));
-    fireEvent.click(button('Continue to apply'));
-    expect(
-        screen.getByRole('heading', { level: 2, name: 'Apply' })
-    ).toBeTruthy();
+/** Waits for the plan, then for Apply to be on. */
+async function toApply() {
+    await waitFor(() => expect(applyButton().disabled).toBe(false));
 }
 
 describe('ContentModelWorkspace — review and apply', () => {
@@ -189,7 +198,7 @@ describe('ContentModelWorkspace — review and apply', () => {
         for (const fn of Object.values(gateway)) fn.mockReset();
     });
 
-    it('opens a page with steps: a skeleton while the plan is made, then the changes, the files and the SQL', async () => {
+    it('reviews on one page: a skeleton while the plan is made, then the changes by type, the files and SQL folded, and Apply at the foot', async () => {
         let answer: (plan: SchemaPlan) => void = () => undefined;
         gateway.plan.mockReturnValue(
             new Promise((resolve) => (answer = resolve))
@@ -198,7 +207,7 @@ describe('ContentModelWorkspace — review and apply', () => {
         addTypeAndReview();
 
         expect(screen.getByText('Checking your changes…')).toBeTruthy();
-        expect(button('Continue to files').disabled).toBe(true);
+        expect(screen.queryByRole('button', { name: /^Apply \d/ })).toBeNull();
         // The plan is made against the draft and the fingerprint it started from.
         await waitFor(() =>
             expect(gateway.plan).toHaveBeenCalledWith(
@@ -212,53 +221,60 @@ describe('ContentModelWorkspace — review and apply', () => {
         );
 
         answer(planOf([addEvent]));
-        const list = await screen.findByRole('list', { name: 'Changes' });
-        expect(within(list).getByText('Safe')).toBeTruthy();
-
-        fireEvent.click(button('Continue to files'));
+        const events = await screen.findByRole('region', { name: 'Events' });
+        expect(within(events).getByText('New collection')).toBeTruthy();
+        expect(within(events).getByText('Safe')).toBeTruthy();
         expect(
-            screen.getByRole('heading', { level: 2, name: 'Files and SQL' })
+            screen.getByRole('heading', { level: 1, name: 'Review 1 change' })
         ).toBeTruthy();
+
+        fireEvent.click(button(/Technical details/));
         expect(
             screen.getByText('src/content/collections/events.ts')
         ).toBeTruthy();
         fireEvent.mouseDown(screen.getByRole('tab', { name: 'SQL' }));
         expect(await screen.findByText(/CREATE TABLE "events"/)).toBeTruthy();
 
-        fireEvent.click(button('Continue to apply'));
         expect(
             (screen.getByLabelText('Migration name') as HTMLInputElement).value
         ).toMatch(/^[a-z][a-z0-9_]*$/);
-        expect(button('Apply').disabled).toBe(false);
+        expect(applyButton().disabled).toBe(false);
+        expect(applyButton().textContent).toBe('Apply 1 change');
         expect(gateway.apply).not.toHaveBeenCalled();
     });
 
-    it('holds the first step until every change that deletes data is confirmed, one by one', async () => {
+    it('holds Apply until every change that deletes data is confirmed, one by one', async () => {
         gateway.plan.mockResolvedValue(planOf([addEvent, dropAuthor]));
         renderWorkspace();
         addTypeAndReview();
         const confirm = await screen.findByRole('checkbox', {
             name: 'I understand this deletes data'
         });
+        // The card of the type it deletes says so.
+        expect(
+            within(screen.getByRole('region', { name: 'author' })).getByText(
+                'Deletes data'
+            )
+        ).toBeTruthy();
 
-        expect(button('Continue to files').disabled).toBe(true);
+        expect(applyButton().disabled).toBe(true);
         expect(
             screen.getByText('Confirm the change that deletes data.')
         ).toBeTruthy();
         fireEvent.click(confirm);
-        expect(button('Continue to files').disabled).toBe(false);
+        expect(applyButton().disabled).toBe(false);
     });
 
     it('refuses a migration name drizzle-kit would not take', async () => {
         gateway.plan.mockResolvedValue(planOf([addEvent]));
         renderWorkspace();
         addTypeAndReview();
-        await toApplyStep();
+        await toApply();
 
         fireEvent.change(screen.getByLabelText('Migration name'), {
             target: { value: 'Add Events!' }
         });
-        expect(button('Apply').disabled).toBe(true);
+        expect(applyButton().disabled).toBe(true);
         expect(screen.getByText(/lowercase letters/)).toBeTruthy();
     });
 
@@ -284,13 +300,13 @@ describe('ContentModelWorkspace — review and apply', () => {
         renderWorkspace();
         addTypeAndReview();
 
-        expect(await screen.findByText('Not applied')).toBeTruthy();
+        expect((await screen.findAllByText('Not applied')).length).toBe(2);
         expect(
             screen.getByText(
                 'Some changes cannot be applied. Undo them to continue.'
             )
         ).toBeTruthy();
-        expect(button('Continue to files').disabled).toBe(true);
+        expect(applyButton().disabled).toBe(true);
     });
 
     it('asks for a reload when the model changed under the draft', async () => {
@@ -311,17 +327,15 @@ describe('ContentModelWorkspace — review and apply', () => {
         renderWorkspace();
         addTypeAndReview();
 
-        fireEvent.click(
-            screen.getByRole('link', { name: 'Back to the Content Model' })
-        );
+        fireEvent.click(screen.getByRole('link', { name: 'Back to editing' }));
         expect(
-            screen.getByRole('heading', { level: 1, name: 'Content Model' })
+            screen.getByRole('heading', { level: 1, name: 'Events' })
         ).toBeTruthy();
         expect(screen.getByText('1 unsaved change')).toBeTruthy();
         expect(button('Review changes')).toBeTruthy();
     });
 
-    it('applies, follows the restart, offers the new type to workspaces, then returns to the editor', async () => {
+    it('applies, follows the steps and the restart, offers the new type to workspaces on the page, then returns to the editor', async () => {
         gateway.plan.mockResolvedValue(planOf([addEvent]));
         gateway.apply.mockResolvedValue({
             operationId: 'op-1',
@@ -329,23 +343,36 @@ describe('ContentModelWorkspace — review and apply', () => {
         });
         gateway.operation
             .mockResolvedValueOnce(operation({ step: 'migrate' }))
-            .mockResolvedValue(operation({ status: 'succeeded', step: null }));
+            .mockResolvedValue(
+                operation({
+                    status: 'succeeded',
+                    step: null,
+                    migrations: ['0007_add_events.sql']
+                })
+            );
         // The old process answers once, then is gone, then the new one answers.
         gateway.document
             .mockResolvedValueOnce(envelope)
             .mockRejectedValueOnce(new Error('ECONNREFUSED'))
-            .mockResolvedValue({ ...envelope, bootId: 'boot-2' });
+            .mockResolvedValue(restarted);
         gateway.grant.mockResolvedValue(undefined);
         const client = renderWorkspace();
         const invalidate = vi.spyOn(client, 'invalidateQueries');
         addTypeAndReview();
-        await toApplyStep();
+        await toApply();
 
-        fireEvent.click(button('Apply'));
+        fireEvent.click(applyButton());
+        expect(
+            screen.getByRole('heading', { level: 1, name: 'Applying 1 change' })
+        ).toBeTruthy();
+        expect(
+            within(screen.getByRole('status')).getAllByRole('listitem')
+        ).toHaveLength(5);
 
-        const grant = await screen.findByRole('dialog', {
-            name: 'Use the new type in workspaces'
-        });
+        expect(
+            await screen.findByRole('heading', { level: 1, name: 'Applied' })
+        ).toBeTruthy();
+        expect(screen.getByText(/migration 0007_add_events\.sql/)).toBeTruthy();
         expect(gateway.apply).toHaveBeenCalledWith(
             expect.objectContaining({
                 baseFingerprint: envelope.fingerprint,
@@ -353,57 +380,57 @@ describe('ContentModelWorkspace — review and apply', () => {
             })
         );
         expect(gateway.document).toHaveBeenCalledTimes(3);
-        // Behind the modal grant offer, the card reports the outcome.
-        expect(
-            screen.getByText('The content model is live', { exact: false })
-        ).toBeTruthy();
         expect(invalidate).toHaveBeenCalledWith(
             expect.objectContaining({ predicate: expect.any(Function) })
         );
 
-        // Searchable: a query narrows the tiles, and says so when nothing matches.
-        fireEvent.change(within(grant).getByRole('searchbox'), {
-            target: { value: 'zzz' }
-        });
-        expect(
-            within(grant).getByText('No workspace matches “zzz”.')
-        ).toBeTruthy();
-        fireEvent.change(within(grant).getByRole('searchbox'), {
-            target: { value: 'mark' }
+        // The grant is on the page, not in a modal over it.
+        const grant = screen.getByRole('region', {
+            name: 'Use Events in workspaces'
         });
         // Only active workspaces are offered.
-        expect(within(grant).queryByLabelText('Old site')).toBeNull();
-        const grantButton = within(grant).getByRole('button', {
-            name: 'Grant'
-        }) as HTMLButtonElement;
-        expect(grantButton.disabled).toBe(true);
+        expect(
+            within(grant).queryByRole('checkbox', { name: 'Old site' })
+        ).toBeNull();
+        expect(
+            (
+                within(grant).getByRole('button', {
+                    name: 'Grant'
+                }) as HTMLButtonElement
+            ).disabled
+        ).toBe(true);
         const marketing = within(grant).getByRole('checkbox', {
             name: 'Marketing'
         });
         fireEvent.click(marketing);
         expect(marketing.getAttribute('aria-checked')).toBe('true');
-        expect(within(grant).getByText('1 selected')).toBeTruthy();
-        fireEvent.click(grantButton);
-        await waitFor(() =>
-            expect(
-                screen.queryByRole('dialog', {
-                    name: 'Use the new type in workspaces'
-                })
-            ).toBeNull()
+        fireEvent.click(
+            within(grant).getByRole('button', { name: 'Grant to 1 workspace' })
         );
+        expect(
+            await screen.findByText('Events can be used in 1 workspace now.')
+        ).toBeTruthy();
         expect(gateway.grant).toHaveBeenCalledWith('ws-1', 'events');
 
         fireEvent.click(button('Back to the Content Model'));
-        // The restarted server's model is the page's now: nothing left to review.
+        // Back where the review was opened from — the new type, served now:
+        // nothing left to review.
         expect(
-            screen.getByRole('heading', { level: 1, name: 'Content Model' })
+            screen.getByRole('heading', { level: 1, name: 'Events' })
         ).toBeTruthy();
         expect(
             screen.queryByRole('button', { name: 'Review changes' })
         ).toBeNull();
     });
 
-    it('grants nothing when the author says not now', async () => {
+    it('offers a search over many workspaces, and grants nothing when the author says not now', async () => {
+        vi.mocked(useWorkspaces).mockReturnValue({
+            data: Array.from({ length: 8 }, (_, index) => ({
+                id: `ws-${index}`,
+                name: `Site ${index}`,
+                status: 'Active'
+            }))
+        } as unknown as ReturnType<typeof useWorkspaces>);
         gateway.plan.mockResolvedValue(planOf([addEvent]));
         gateway.apply.mockResolvedValue({
             operationId: 'op-1',
@@ -412,26 +439,36 @@ describe('ContentModelWorkspace — review and apply', () => {
         gateway.operation.mockResolvedValue(
             operation({ status: 'succeeded', step: null })
         );
-        gateway.document.mockResolvedValue({ ...envelope, bootId: 'boot-2' });
+        gateway.document.mockResolvedValue(restarted);
         renderWorkspace();
         addTypeAndReview();
-        await toApplyStep();
-        fireEvent.click(button('Apply'));
+        await toApply();
+        fireEvent.click(applyButton());
 
-        const grant = await screen.findByRole('dialog', {
-            name: 'Use the new type in workspaces'
+        const grant = await screen.findByRole('region', {
+            name: 'Use Events in workspaces'
         });
+        fireEvent.change(within(grant).getByRole('searchbox'), {
+            target: { value: 'zzz' }
+        });
+        expect(
+            within(grant).getByText('No workspace matches “zzz”.')
+        ).toBeTruthy();
         fireEvent.click(within(grant).getByRole('button', { name: 'Not now' }));
 
         expect(
-            screen.queryByRole('dialog', {
-                name: 'Use the new type in workspaces'
-            })
+            screen.queryByRole('region', { name: 'Use Events in workspaces' })
         ).toBeNull();
+        expect(screen.getByText(/Not granted/)).toBeTruthy();
         expect(gateway.grant).not.toHaveBeenCalled();
+        // The new type is a click away.
+        fireEvent.click(button('Open Events in the model'));
+        expect(
+            screen.getByRole('heading', { level: 1, name: 'Events' })
+        ).toBeTruthy();
     });
 
-    it('reports a failed apply and goes back to the review with the draft kept', async () => {
+    it('reports a failed apply at its step and goes back to the review with the draft kept', async () => {
         gateway.plan.mockResolvedValue(planOf([addEvent]));
         gateway.apply.mockResolvedValue({
             operationId: 'op-1',
@@ -449,22 +486,26 @@ describe('ContentModelWorkspace — review and apply', () => {
         );
         renderWorkspace();
         addTypeAndReview();
-        await toApplyStep();
-        fireEvent.click(button('Apply'));
+        await toApply();
+        fireEvent.click(applyButton());
 
         const alert = await screen.findByRole('alert');
         expect(
             within(alert).getByText(/relation "event" already exists/)
         ).toBeTruthy();
+        expect(
+            screen.getByRole('heading', {
+                level: 1,
+                name: 'The change was not applied'
+            })
+        ).toBeTruthy();
         expect(gateway.document).not.toHaveBeenCalled();
 
         fireEvent.click(button('Back to the review'));
         expect(screen.queryByRole('alert')).toBeNull();
-        // Back on the step the apply started from, ready to try again.
-        expect(button('Apply').disabled).toBe(false);
-        fireEvent.click(
-            screen.getByRole('link', { name: 'Back to the Content Model' })
-        );
+        // Back on the review, ready to try again.
+        expect(applyButton().disabled).toBe(false);
+        fireEvent.click(screen.getByRole('link', { name: 'Back to editing' }));
         expect(screen.getByText('1 unsaved change')).toBeTruthy();
     });
 });

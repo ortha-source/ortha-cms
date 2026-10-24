@@ -53,7 +53,7 @@ const VALUES: Record<AccessReason, Record<string, ReactNode>> = {
 export function ReadOnlyNotice({ reason }: { reason?: AccessReason }) {
     if (!reason) return null;
     return (
-        <p className="mt-6 flex items-start gap-2 rounded-lg border bg-muted/40 p-3 text-sm">
+        <p className="flex items-start gap-2 rounded-lg border bg-muted/40 p-3 text-sm">
             <Lock className="mt-0.5 size-4 shrink-0" aria-hidden />
             <span>
                 <FormattedMessage

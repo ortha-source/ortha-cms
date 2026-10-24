@@ -45,28 +45,45 @@ const FLAG: Partial<Record<FieldFact['kind'], MessageDescriptor>> = {
     multiple: messages.multiple
 };
 
-/** The row's facts: flags as outline badges, the rest as quiet text. */
-export function FieldFactList({ facts }: { facts: FieldFact[] }) {
+/**
+ * The row's facts, in two parts: the `flags` — what changes behaviour — as
+ * quiet badges after the name, and the `details` of the type — options, a
+ * relation's target — as text after the type in words, each led by a dot.
+ */
+export function FieldFactList({
+    facts,
+    part
+}: {
+    facts: FieldFact[];
+    part: 'flags' | 'details';
+}) {
     const intl = useIntl();
-    if (facts.length === 0) return null;
+    const shown = facts.filter((fact) =>
+        part === 'flags' ? FLAG[fact.kind] : !FLAG[fact.kind]
+    );
+    if (shown.length === 0) return null;
+    if (part === 'flags')
+        return (
+            <span className="flex min-w-0 flex-wrap items-center gap-1.5">
+                {shown.map((fact) => (
+                    <Badge
+                        key={fact.kind}
+                        variant="muted"
+                        size="xs"
+                        className="font-normal text-foreground/80"
+                    >
+                        {intl.formatMessage(FLAG[fact.kind] ?? messages.hidden)}
+                    </Badge>
+                ))}
+            </span>
+        );
     return (
-        <span className="flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-            {facts.map((fact) => {
-                const flag = FLAG[fact.kind];
-                if (flag) {
-                    return (
-                        <Badge
-                            key={fact.kind}
-                            variant="outline"
-                            className="font-normal"
-                        >
-                            {intl.formatMessage(flag)}
-                        </Badge>
-                    );
-                }
+        <>
+            {shown.map((fact) => {
                 if (fact.kind === 'options') {
                     return (
                         <span key="options">
+                            <span aria-hidden>· </span>
                             {intl.formatMessage(messages.options, {
                                 count: fact.count
                             })}
@@ -75,7 +92,8 @@ export function FieldFactList({ facts }: { facts: FieldFact[] }) {
                 }
                 if (fact.kind !== 'target') return null;
                 return (
-                    <span key="target" className="font-mono">
+                    <span key="target">
+                        <span aria-hidden>· </span>
                         {fact.inverseOf
                             ? intl.formatMessage(messages.inverse, {
                                   to: fact.to,
@@ -88,6 +106,6 @@ export function FieldFactList({ facts }: { facts: FieldFact[] }) {
                     </span>
                 );
             })}
-        </span>
+        </>
     );
 }

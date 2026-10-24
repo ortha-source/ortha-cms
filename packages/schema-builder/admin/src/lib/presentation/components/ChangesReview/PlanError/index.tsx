@@ -23,7 +23,7 @@ export function PlanError({ error, onRetry }: Props) {
     const intl = useIntl();
     const stale = error instanceof ApiError && error.status === 409;
     return (
-        <Alert variant="destructive" role="alert" className="my-3">
+        <Alert variant="destructive" role="alert">
             <AlertDescription className="flex flex-col gap-2">
                 {stale
                     ? intl.formatMessage(messages.stale)

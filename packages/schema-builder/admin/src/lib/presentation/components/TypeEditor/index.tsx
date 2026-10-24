@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type {
     BuilderCapabilities,
@@ -13,34 +13,44 @@ import { moveGroup } from '../../../domain/moveGroup';
 import type { TypePatch } from '../../../domain/schemaDraftAction';
 import { typeEditability } from '../../../domain/typeEditability';
 import { FieldSheet } from '../FieldSheet';
+import { AddFieldFlow } from './AddFieldFlow';
 import { GeneralGroupsSheet } from '../GeneralGroupsSheet';
 import { GroupSheet } from '../GroupSheet';
 import { FieldList } from './FieldList';
 import type { FieldListEditing } from './FieldList/fieldListEditing';
 import { HandWrittenNotice } from './HandWrittenNotice';
-import { RemoveTypeButton } from './RemoveTypeButton';
 import { TypeIssues } from './TypeIssues';
-import { TypeSettings } from './TypeSettings';
-import { TypeSummary } from './TypeSummary';
+import { TypeHeader } from './TypeHeader';
 
 type Props = {
     type: TypeDoc;
     capabilities: BuilderCapabilities;
     access: BuilderAccess;
     draft: SchemaDraftState;
+    /** A page-wide notice, drawn under the header (why the page is read-only). */
+    notice?: ReactNode;
 };
 
 /**
- * The selected type: read-only, or — when this person may change it on this
- * server and the builder owns its file — its settings, its fields and the
- * sheets that edit them. Every edit lands in the draft at once.
+ * The selected type: its header (the page's `<h1>`), then its fields first —
+ * read-only, or, when this person may change it on this server and the
+ * builder owns its file, with the sheets that edit them. Its own settings
+ * sit behind the header's Settings button. Every edit lands in the draft at
+ * once.
  */
-export function TypeEditor({ type, capabilities, access, draft }: Props) {
+export function TypeEditor({
+    type,
+    capabilities,
+    access,
+    draft,
+    notice
+}: Props) {
     const navigate = useNavigate();
     const editable = typeEditability(type, capabilities, access.canManage).ok;
     const [fieldKey, setFieldKey] = useState<string | null>(null);
     const [groupsOpen, setGroupsOpen] = useState(false);
     const [groupKey, setGroupKey] = useState<string | null>(null);
+    const [adding, setAdding] = useState(false);
     const setGroups = (groups: GroupDoc[]) =>
         draft.dispatch({ type: 'groups.set', typeName: type.name, groups });
     const group = type.groups.find((candidate) => candidate.key === groupKey);
@@ -81,12 +91,8 @@ export function TypeEditor({ type, capabilities, access, draft }: Props) {
               onEditGroup: setGroupKey,
               onRemoveGroup: (key) =>
                   setGroups(type.groups.filter((entry) => entry.key !== key)),
-              // Adding a field is a page with steps over the same draft (`?addField`).
-              onAddField: () =>
-                  navigate(
-                      { search: '?addField' },
-                      { state: { fromEditor: true } }
-                  ),
+              // A dialog for the kind, then the field's own panel.
+              onAddField: () => setAdding(true),
               onManageGroups: () => setGroupsOpen(true),
               issuesOf: (field) =>
                   fieldIssues(draft.issues, type.name, field).length
@@ -94,7 +100,28 @@ export function TypeEditor({ type, capabilities, access, draft }: Props) {
         : undefined;
 
     return (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-5">
+            <TypeHeader
+                type={type}
+                editing={
+                    editable
+                        ? {
+                              served: draft.base.types.find(
+                                  (candidate) => candidate.name === type.name
+                              ),
+                              onChange: patchType,
+                              onRemove: () => {
+                                  draft.dispatch({
+                                      type: 'type.remove',
+                                      name: type.name
+                                  });
+                                  navigate('/content-model', { replace: true });
+                              }
+                          }
+                        : undefined
+                }
+            />
+            {notice}
             {capabilities.editable && type.origin === 'code' && (
                 <HandWrittenNotice type={type} />
             )}
@@ -106,32 +133,9 @@ export function TypeEditor({ type, capabilities, access, draft }: Props) {
                     )}
                 />
             )}
-            {editable ? (
-                <TypeSettings
-                    type={type}
-                    served={draft.base.types.find(
-                        (candidate) => candidate.name === type.name
-                    )}
-                    onChange={patchType}
-                />
-            ) : (
-                <TypeSummary type={type} />
-            )}
             <FieldList type={type} editing={editing} />
             {editable && (
                 <>
-                    <div className="flex justify-end">
-                        <RemoveTypeButton
-                            type={type}
-                            onRemove={() => {
-                                draft.dispatch({
-                                    type: 'type.remove',
-                                    name: type.name
-                                });
-                                navigate('/content-model', { replace: true });
-                            }}
-                        />
-                    </div>
                     <FieldSheet
                         editor={editor}
                         type={type}
@@ -146,7 +150,31 @@ export function TypeEditor({ type, capabilities, access, draft }: Props) {
                                 : []
                         }
                         onClose={() => setFieldKey(null)}
+                        onRemove={() => {
+                            if (editor)
+                                draft.dispatch({
+                                    type: 'field.remove',
+                                    typeName: type.name,
+                                    key: editor.entry.key
+                                });
+                            setFieldKey(null);
+                        }}
                     />
+                    {adding && (
+                        <AddFieldFlow
+                            type={type}
+                            document={draft.document}
+                            onCancel={() => setAdding(false)}
+                            onAdded={(entry) => {
+                                draft.dispatch({
+                                    type: 'field.add',
+                                    typeName: type.name,
+                                    entry
+                                });
+                                setAdding(false);
+                            }}
+                        />
+                    )}
                     <GeneralGroupsSheet
                         type={groupsOpen ? type : null}
                         onChange={setGroups}

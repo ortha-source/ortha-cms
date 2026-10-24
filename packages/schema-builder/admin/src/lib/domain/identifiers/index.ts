@@ -38,3 +38,13 @@ export function uniqueName(base: string, taken: Iterable<string>): string {
 /** A key for a field that does not exist yet — never mistaken for a loaded one. */
 export const newFieldKey = (): string =>
     `new:${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
+
+/** A label from a machine name: `publishDate` / `publish_date` → `Publish date`. */
+export function toLabel(name: string): string {
+    const spaced = name
+        .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+        .replace(/[_-]+/g, ' ')
+        .trim()
+        .toLowerCase();
+    return spaced ? spaced[0].toUpperCase() + spaced.slice(1) : name;
+}

@@ -34,7 +34,7 @@ const messages = defineMessages({
 export function NoFields({ onAdd }: { onAdd?: () => void }) {
     const intl = useIntl();
     return (
-        <Empty className="border-t py-10">
+        <Empty className="py-10">
             <EmptyHeader>
                 <EmptyMedia variant="icon">
                     <ListPlus />
