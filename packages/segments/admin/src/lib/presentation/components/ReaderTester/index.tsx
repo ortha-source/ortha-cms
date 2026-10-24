@@ -1,4 +1,4 @@
-import { useId, useState, type ReactNode } from 'react';
+import { Children, useId, useState, type ReactNode } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Check, X } from 'lucide-react';
 import { Card, Input, cn } from '@orthacms/design-system';
@@ -117,11 +117,13 @@ export function ReaderTester({ name, tags }: ReaderTesterProps) {
                         )}
                         <span className="flex flex-col gap-1">
                             <span>
-                                {intl.formatMessage(
-                                    result.inAudience
-                                        ? messages.inAudience
-                                        : messages.notInAudience,
-                                    { name: audience, b: bold }
+                                {Children.toArray(
+                                    intl.formatMessage(
+                                        result.inAudience
+                                            ? messages.inAudience
+                                            : messages.notInAudience,
+                                        { name: audience, b: bold }
+                                    )
                                 )}
                             </span>
                             {result.nearMiss ? (
@@ -138,20 +140,22 @@ export function ReaderTester({ name, tags }: ReaderTesterProps) {
 
             <p className="text-xs leading-relaxed text-muted-foreground">
                 {tags.length
-                    ? intl.formatMessage(messages.explain, {
-                          name: audience,
-                          tags: intl.formatList(
-                              tags.map((tag) => (
-                                  <code
-                                      key={tag}
-                                      className="font-mono text-foreground"
-                                  >
-                                      {tag}
-                                  </code>
-                              )),
-                              { type: 'disjunction' }
-                          )
-                      })
+                    ? Children.toArray(
+                          intl.formatMessage(messages.explain, {
+                              name: audience,
+                              tags: intl.formatList(
+                                  tags.map((tag) => (
+                                      <code
+                                          key={tag}
+                                          className="font-mono text-foreground"
+                                      >
+                                          {tag}
+                                      </code>
+                                  )),
+                                  { type: 'disjunction' }
+                              )
+                          })
+                      )
                     : intl.formatMessage(messages.noTags)}
             </p>
         </Card>

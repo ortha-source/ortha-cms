@@ -211,6 +211,9 @@ export function SegmentsPage() {
     }, [data, isPlaceholderData, page, pageCount]);
 
     const [pending, setPending] = useState<Segment | null>(null);
+    // The row whose menu opened the dialog — where focus goes back to on a
+    // cancel. After a delete that row is gone, and the search box takes it.
+    const [returnTo, setReturnTo] = useState<string | null>(null);
     const remove = useDeleteSegment();
 
     const bar = (
@@ -368,7 +371,10 @@ export function SegmentsPage() {
                                             stale={isPlaceholderData}
                                             canManage={canManage}
                                             isJustCreated={isJustCreated}
-                                            onDelete={setPending}
+                                            onDelete={(segment) => {
+                                                setReturnTo(segment.id);
+                                                setPending(segment);
+                                            }}
                                         />
                                     </div>
 
@@ -406,6 +412,22 @@ export function SegmentsPage() {
                     if (!open) setPending(null);
                 }}
                 busy={remove.isPending}
+                onCloseAutoFocus={(event) => {
+                    // A delete removes the very control that opened the menu,
+                    // so restoration would land on `<body>`.
+                    event.preventDefault();
+                    const trigger = returnTo
+                        ? document.querySelector<HTMLElement>(
+                              `[data-segment-actions="${returnTo}"]`
+                          )
+                        : null;
+                    (
+                        trigger ??
+                        document.querySelector<HTMLElement>(
+                            'input[type="search"]'
+                        )
+                    )?.focus();
+                }}
                 onConfirm={() => {
                     if (pending) {
                         // No page arithmetic here: the clamp above settles
@@ -543,6 +565,7 @@ function SegmentsTable({
                                             variant="ghost"
                                             size="icon"
                                             className="ml-auto size-7"
+                                            data-segment-actions={segment.id}
                                             aria-label={intl.formatMessage(
                                                 messages.menu,
                                                 { name: segment.label }

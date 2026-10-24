@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ShieldCheck, Trash2 } from 'lucide-react';
@@ -276,6 +276,9 @@ export function SegmentEditorPage() {
     const [blurred, setBlurred] = useState<Record<string, boolean>>({});
     const [submitted, setSubmitted] = useState(false);
     const [deleting, setDeleting] = useState<Segment | null>(null);
+    // The dialog has no Radix trigger, so on a cancel focus would fall to
+    // `<body>`; it goes back to the button that opened it instead.
+    const deleteButton = useRef<HTMLButtonElement>(null);
     // The key the server refused with a 409 — one somebody else took a moment
     // ago. Held as the key rather than a flag so the message clears itself the
     // moment a different one is typed.
@@ -688,6 +691,7 @@ export function SegmentEditorPage() {
                                                 )}
                                             </p>
                                             <Button
+                                                ref={deleteButton}
                                                 type="button"
                                                 variant="outline"
                                                 size="sm"
@@ -747,6 +751,10 @@ export function SegmentEditorPage() {
                     if (!open) setDeleting(null);
                 }}
                 onConfirm={confirmDelete}
+                onCloseAutoFocus={(event) => {
+                    event.preventDefault();
+                    deleteButton.current?.focus();
+                }}
             />
         </>
     );

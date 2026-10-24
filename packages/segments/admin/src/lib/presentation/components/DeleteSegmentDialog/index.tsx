@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { Children, type ReactNode } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import {
     Button,
@@ -141,7 +141,9 @@ export function DeleteSegmentDialog({
         if (rest > 0) {
             named.push(intl.formatMessage(messages.more, { count: rest }));
         }
-        return intl.formatList(named, { type: 'conjunction' });
+        return Children.toArray(
+            intl.formatList(named, { type: 'conjunction' })
+        );
     };
 
     // Past the per-workspace page the usage read lists, entries are counted
@@ -187,21 +189,25 @@ export function DeleteSegmentDialog({
                 <ul className="flex flex-col gap-1 rounded-lg border bg-muted/50 px-3 py-2.5 text-sm text-muted-foreground">
                     {allowed.length ? (
                         <li className="ml-4 list-disc">
-                            {intl.formatMessage(
-                                allowed.length === 1
-                                    ? messages.allowedOne
-                                    : messages.allowed,
-                                { entries: entries(allowed), name }
+                            {Children.toArray(
+                                intl.formatMessage(
+                                    allowed.length === 1
+                                        ? messages.allowedOne
+                                        : messages.allowed,
+                                    { entries: entries(allowed), name }
+                                )
                             )}
                         </li>
                     ) : null}
                     {denied.length ? (
                         <li className="ml-4 list-disc">
-                            {intl.formatMessage(messages.denied, {
-                                entries: entries(denied),
-                                name,
-                                count: denied.length
-                            })}
+                            {Children.toArray(
+                                intl.formatMessage(messages.denied, {
+                                    entries: entries(denied),
+                                    name,
+                                    count: denied.length
+                                })
+                            )}
                         </li>
                     ) : null}
                     {unlisted > 0 ? (
