@@ -369,25 +369,33 @@ export function RevealSecretDialog({
                     </Alert>
                 ) : null}
 
-                <DialogFooter className="items-center gap-2 border-t pt-4 sm:justify-between">
+                <DialogFooter className="items-stretch gap-2 border-t pt-4 sm:items-center sm:justify-between">
                     <p className="min-w-0 max-w-full text-center text-xs text-muted-foreground sm:truncate sm:text-left">
                         {summary}
                     </p>
-                    <div className="flex shrink-0 justify-end gap-2">
+                    <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:justify-end">
                         {confirmingClose ? (
                             <>
                                 <Button
                                     variant="outline"
+                                    className="w-full sm:w-auto"
                                     onClick={() => setConfirmingClose(false)}
                                 >
                                     {intl.formatMessage(messages.keepOpen)}
                                 </Button>
-                                <Button variant="destructive" onClick={close}>
+                                <Button
+                                    variant="destructive"
+                                    className="w-full sm:w-auto"
+                                    onClick={close}
+                                >
                                     {intl.formatMessage(messages.closeAnyway)}
                                 </Button>
                             </>
                         ) : (
-                            <Button onClick={requestClose}>
+                            <Button
+                                className="w-full sm:w-auto"
+                                onClick={requestClose}
+                            >
                                 {intl.formatMessage(messages.done)}
                             </Button>
                         )}
