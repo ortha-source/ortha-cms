@@ -431,6 +431,13 @@ export function CopilotPanel({
                     // surface — starting a drag from Close would mean the panel
                     // walks across the screen on the way to being dismissed.
                     if ((event.target as HTMLElement).closest('button')) return;
+                    // React bubbles through portals: a press on the history
+                    // menu (portalled to `<body>`) arrives here too, and a drag
+                    // started from it captures the pointer, so the menu item
+                    // never gets its click.
+                    if (!event.currentTarget.contains(event.target as Node)) {
+                        return;
+                    }
                     frame.startMove(event);
                 }}
                 {...frame.handleProps}

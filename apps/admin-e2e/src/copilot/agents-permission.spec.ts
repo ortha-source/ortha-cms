@@ -49,10 +49,6 @@ test.describe('Agents view — asking before a write', () => {
         // Grouped under the record, Was → Now.
         await expect(card).toContainText('Spring launch — what changed');
         await expect(card).toContainText('Everything that shipped in spring.');
-        // Three records, then the rest behind Show all.
-        await expect(card).not.toContainText('Our design principles');
-        await card.getByRole('button', { name: 'Show all' }).click();
-        await expect(card).toContainText('Our design principles');
 
         const prompt = page.getByRole('group', {
             name: 'Ortha CMS AI wants to save 23 records as drafts'
@@ -61,10 +57,17 @@ test.describe('Agents view — asking before a write', () => {
         await expect(prompt).toHaveAccessibleDescription(
             'Published versions stay live until someone publishes the drafts.'
         );
-        // The one answer that stops a write before it happens has focus.
+        // The one answer that stops a write before it happens has focus —
+        // checked before Show all, whose click takes focus for itself.
         await expect(
             prompt.getByRole('button', { name: 'Allow once' })
         ).toBeFocused();
+
+        // Three records, then the rest behind Show all.
+        await expect(card).not.toContainText('Our design principles');
+        await card.getByRole('button', { name: 'Show all' }).click();
+        await expect(card).toContainText('Our design principles');
+
         await expect(
             prompt.getByRole('button', { name: 'Allow for this chat' })
         ).toBeVisible();

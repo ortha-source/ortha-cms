@@ -555,6 +555,10 @@ test.describe('Ortha CMS AI dock — regressions', () => {
         // A held-open run, so the reader has a window in which to scroll away
         // while the answer is still coming.
         await mockCopilotApi(page, { runDelayMs: 1_500 });
+        // A short viewport, so the panel (capped at `100vh - 5rem`) is short
+        // too: since the R7 steps became quiet lines the seeded thread only
+        // just overflows a full-height window.
+        await page.setViewportSize({ width: 1280, height: 560 });
         await contentLibraryPage.goto(WORKSPACE_ID);
 
         await copilotDockPage.startChat();
