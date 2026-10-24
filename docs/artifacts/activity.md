@@ -547,7 +547,7 @@ Paging only: the subject is the URL, the workspace is the header, and every othe
 
 #### `/dead-letters/:id/retry` — the one thing this package writes
 
-> **R7 dialog.** The admin's dead-letter dialog is a list of the parked events, each named with the log's own action label (the outbox kind mapped onto its audit kind), its time, attempts and `last_error`. A retried row stays in the dialog marked **Queued** until it closes. **Retry all** is a client-side pass over the rows the dialog *shows*, sent one at a time through this same per-row route and stopped at the first refusal that is not 404/409 (`I-42`). There is still **no bulk route**: each request awaits its drain before the next row is reset, and nothing reaches a row the operator has not seen.
+> **R7 dialog.** The admin's dead-letter dialog is a list of the parked events, each named with the log's own action label (the outbox kind mapped onto its audit kind), its time, attempts and `last_error`. A retried row stays in the dialog marked **Queued** until it closes. **Retry all** is a client-side pass over the rows the dialog _shows_, sent one at a time through this same per-row route and stopped at the first refusal that is not 404/409 (`I-42`). There is still **no bulk route**: each request awaits its drain before the next row is reset, and nothing reaches a row the operator has not seen.
 
 `POST`, `activity:manage`, `OriginGuard`, one event at a time. It resets that row **in place** — `attempts = 0`, `next_attempt_at = NULL`, `last_error` kept — and answers with the row as it now stands. The id never changes: it is the idempotency key every subscriber deduplicates on, so a copy would be a second fact and a partly-succeeded delivery would be applied twice.
 
