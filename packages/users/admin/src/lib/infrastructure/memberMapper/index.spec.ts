@@ -3,6 +3,7 @@ import {
     toInvitedMember,
     toMember,
     toMemberWithResetToken,
+    toRoleCatalog,
     type MemberResponse
 } from './index';
 
@@ -159,5 +160,60 @@ describe('toMemberWithResetToken', () => {
 
         expect(member.status).toBe('active');
         expect(member.email).toBe('grace@example.com');
+    });
+});
+
+describe('lastActiveAt', () => {
+    it('parses the newest session use into a Date', () => {
+        const member = toMember(
+            response({ lastActiveAt: '2026-10-20T09:30:00.000Z' })
+        );
+        expect(member.lastActiveAt).toEqual(
+            new Date('2026-10-20T09:30:00.000Z')
+        );
+    });
+
+    it('reads a missing or null value as never, not as now', () => {
+        expect(toMember(response({ lastActiveAt: null })).lastActiveAt).toBe(
+            null
+        );
+        expect(toMember(response()).lastActiveAt).toBeNull();
+    });
+});
+
+describe('link expiries', () => {
+    it('carries the invite expiry through, and null when absent', () => {
+        const invited = toInvitedMember({
+            ...response(),
+            inviteToken: 'tok',
+            inviteExpiresAt: '2026-10-31T00:00:00.000Z'
+        });
+        expect(invited.inviteExpiresAt).toEqual(
+            new Date('2026-10-31T00:00:00.000Z')
+        );
+        expect(toInvitedMember(response()).inviteExpiresAt).toBeNull();
+    });
+
+    it('carries the reset expiry through', () => {
+        const reset = toMemberWithResetToken({
+            ...response(),
+            resetToken: 'tok',
+            resetExpiresAt: '2026-10-24T11:00:00.000Z'
+        });
+        expect(reset.resetExpiresAt).toEqual(
+            new Date('2026-10-24T11:00:00.000Z')
+        );
+    });
+});
+
+describe('toRoleCatalog', () => {
+    it('keeps the assignable roles and drops anything else', () => {
+        expect(
+            toRoleCatalog([
+                { key: 'admin', name: 'Administrator', permissions: ['a'] },
+                { key: 'editor', name: 'Editor', permissions: ['b'] },
+                { key: 'viewer', name: 'Viewer', permissions: [] }
+            ]).map((role) => role.key)
+        ).toEqual(['admin', 'viewer']);
     });
 });

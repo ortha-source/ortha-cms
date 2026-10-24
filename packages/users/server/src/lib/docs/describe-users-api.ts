@@ -96,7 +96,8 @@ const MEMBER_SCHEMA: OpenApiSchema = {
         'status',
         'createdAt',
         'isLastAdmin',
-        'workspaces'
+        'workspaces',
+        'lastActiveAt'
     ],
     properties: {
         id: UUID,
@@ -129,6 +130,13 @@ const MEMBER_SCHEMA: OpenApiSchema = {
             type: 'array',
             items: ref('MemberWorkspace'),
             description: 'The workspaces this member belongs to, name-ordered.'
+        },
+        lastActiveAt: {
+            type: 'string',
+            format: 'date-time',
+            nullable: true,
+            description:
+                'The last authenticated request from any of the member’s sessions, or null if they never signed in.'
         }
     }
 };
@@ -152,6 +160,12 @@ const INVITED_MEMBER_SCHEMA: OpenApiSchema = {
                     type: 'string',
                     description:
                         'The raw invite token — the secret half of the invite link, shown to the inviting admin exactly once.'
+                },
+                inviteExpiresAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    description:
+                        'When the invite link stops working. Present on invite (single and batch), absent on resend.'
                 }
             }
         }
@@ -170,16 +184,91 @@ const PASSWORD_RESET_MEMBER_SCHEMA: OpenApiSchema = {
                     type: 'string',
                     description:
                         'The raw reset token, shown to the issuing admin exactly once. Issuing rotates it, so any outstanding link is already dead.'
+                },
+                resetExpiresAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    description: 'When the reset link stops working.'
                 }
             }
         }
     ]
 };
 
+/** Directory-wide head counts behind the roster's quick filters. */
+const MEMBER_COUNTS_SCHEMA: OpenApiSchema = {
+    type: 'object',
+    required: ['everyone', 'active', 'admins', 'invited', 'disabled'],
+    description:
+        'Counts over every member — not narrowed by the request’s search, status, role or filter.',
+    properties: {
+        everyone: { type: 'integer', minimum: 0 },
+        active: { type: 'integer', minimum: 0 },
+        admins: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Members holding the admin role, in any status.'
+        },
+        invited: { type: 'integer', minimum: 0 },
+        disabled: { type: 'integer', minimum: 0 }
+    }
+};
+
+/** The batch invite's response. */
+const INVITED_MEMBER_BATCH_SCHEMA: OpenApiSchema = {
+    type: 'object',
+    required: ['items'],
+    properties: {
+        items: {
+            type: 'array',
+            items: ref('InvitedMember'),
+            description: 'One entry per invited address, in request order.'
+        }
+    }
+};
+
+/** One assignable role and its grants. */
+const ROLE_CATALOG_SCHEMA: OpenApiSchema = {
+    type: 'object',
+    required: ['items'],
+    properties: {
+        items: {
+            type: 'array',
+            items: {
+                type: 'object',
+                required: ['key', 'name', 'permissions'],
+                properties: {
+                    key: { type: 'string', enum: [...ASSIGNABLE_ROLE_KEYS] },
+                    name: { type: 'string' },
+                    permissions: {
+                        type: 'array',
+                        items: { type: 'string' },
+                        description: 'Every permission key the role grants.'
+                    }
+                }
+            }
+        }
+    }
+};
+
+/** How a member can sign in. */
+const MEMBER_SIGN_IN_SCHEMA: OpenApiSchema = {
+    type: 'object',
+    required: ['hasPassword', 'ssoProviders'],
+    properties: {
+        hasPassword: { type: 'boolean' },
+        ssoProviders: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Registered names of the linked SSO providers.'
+        }
+    }
+};
+
 /** One page of members. */
 const MEMBER_PAGE_SCHEMA: OpenApiSchema = {
     type: 'object',
-    required: ['items', 'total', 'page', 'pageSize'],
+    required: ['items', 'total', 'page', 'pageSize', 'counts'],
     properties: {
         items: { type: 'array', items: ref('Member') },
         total: {
@@ -192,7 +281,8 @@ const MEMBER_PAGE_SCHEMA: OpenApiSchema = {
             minimum: 1,
             description: '1-based, echoed back.'
         },
-        pageSize: { type: 'integer', minimum: 1 }
+        pageSize: { type: 'integer', minimum: 1 },
+        counts: ref('MemberCounts')
     }
 };
 
@@ -203,7 +293,11 @@ const USERS_SCHEMAS: Record<string, OpenApiSchema> = {
     MemberWorkspace: MEMBER_WORKSPACE_SCHEMA,
     MemberPage: MEMBER_PAGE_SCHEMA,
     InvitedMember: INVITED_MEMBER_SCHEMA,
-    PasswordResetMember: PASSWORD_RESET_MEMBER_SCHEMA
+    PasswordResetMember: PASSWORD_RESET_MEMBER_SCHEMA,
+    MemberCounts: MEMBER_COUNTS_SCHEMA,
+    InvitedMemberBatch: INVITED_MEMBER_BATCH_SCHEMA,
+    RoleCatalog: ROLE_CATALOG_SCHEMA,
+    MemberSignIn: MEMBER_SIGN_IN_SCHEMA
 };
 
 /** An operation answering one named component schema. */
@@ -230,7 +324,25 @@ const MEMBER_ROUTES: Record<string, Record<string, OperationSpec>> = {
             'The new pending member, plus the raw `inviteToken` — the admin’s only chance to capture the link, since no mailer sends it yet.'
         )
     },
+    '/invites/batch': {
+        post: answers(
+            'InvitedMemberBatch',
+            'Every new pending member, each with its `inviteToken` when no mailer sends it.'
+        )
+    },
+    '/roles': {
+        get: answers(
+            'RoleCatalog',
+            'The assignable system roles and the permissions each grants.'
+        )
+    },
     '/{id}': { get: MEMBER, patch: MEMBER },
+    '/{id}/sign-in': {
+        get: answers(
+            'MemberSignIn',
+            'Whether the member has a password, and which SSO providers are linked.'
+        )
+    },
     '/{id}/disable': { post: MEMBER },
     '/{id}/enable': { post: MEMBER },
     '/{id}/invites/resend': {

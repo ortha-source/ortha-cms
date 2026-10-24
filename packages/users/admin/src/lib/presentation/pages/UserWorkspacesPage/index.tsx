@@ -11,7 +11,7 @@ import {
     toast
 } from '@orthacms/design-system';
 import { useHasPermission } from '@orthacms/identity-admin';
-import { useAddWorkspaceMember } from '../../../application/useAddWorkspaceMember';
+import { useAddToWorkspaces } from '../../../application/useAddToWorkspaces';
 import { useRemoveWorkspaceMember } from '../../../application/useRemoveWorkspaceMember';
 import { useUserDetailContext } from '../../userDetailContext';
 import { AddToWorkspacesDialog } from '../../components/AddToWorkspacesDialog';
@@ -73,26 +73,14 @@ export function UserWorkspacesPage() {
     const intl = useIntl();
     const { member } = useUserDetailContext();
     const canManage = useHasPermission('users:update');
-    const addMember = useAddWorkspaceMember();
+    const addMember = useAddToWorkspaces(member.id);
     const removeMember = useRemoveWorkspaceMember();
 
     const [adding, setAdding] = useState(false);
     const [removing, setRemoving] = useState<MemberWorkspace | null>(null);
 
     const onAdd = async (workspaceIds: string[]) => {
-        // Add each workspace independently so one failure (e.g. a 409 from an
-        // already-member race, or a transient network error) doesn't mask the
-        // ones that did commit. `Promise.all` would reject on the first failure
-        // and report total failure even though some adds succeeded.
-        const results = await Promise.allSettled(
-            workspaceIds.map((workspaceId) =>
-                addMember.mutateAsync({ userId: member.id, workspaceId })
-            )
-        );
-        const added = results.filter(
-            (result) => result.status === 'fulfilled'
-        ).length;
-
+        const { added, failed } = await addMember.add(workspaceIds);
         // Close once anything landed (the successful mutations have already
         // invalidated the detail, so the list reflects them); keep the dialog
         // open only when every add failed, so the admin can retry.
@@ -100,7 +88,7 @@ export function UserWorkspacesPage() {
             setAdding(false);
             toast.success(intl.formatMessage(messages.added, { count: added }));
         }
-        if (added < workspaceIds.length) {
+        if (failed > 0) {
             toast.error(intl.formatMessage(messages.addFailed));
         }
     };

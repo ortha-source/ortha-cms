@@ -56,9 +56,10 @@ export class IssuePasswordResetUseCase {
     /**
      * Runs the issue, returning the raw token for the admin to deliver — the
      * only moment it exists in readable form, since only its hash is stored —
-     * or `null` once a provider is configured and the message carries it.
+     * or `null` once a provider is configured and the message carries it,
+     * alongside the (non-secret) moment the link stops working.
      */
-    async execute(actor: PublicUser, id: string): Promise<string | null> {
+    async execute(actor: PublicUser, id: string): Promise<IssuedPasswordReset> {
         const memberId = MemberId.create(id);
 
         return this.uow.run(async () => {
@@ -101,7 +102,18 @@ export class IssuePasswordResetUseCase {
                 )
             );
 
-            return shouldReturnToken(this.mail) ? reset.raw : null;
+            return {
+                resetToken: shouldReturnToken(this.mail) ? reset.raw : null,
+                expiresAt: reset.expiresAt
+            };
         });
     }
+}
+
+/** What issuing a reset produces. */
+export interface IssuedPasswordReset {
+    /** The raw token, or `null` when a mail provider is delivering it. */
+    resetToken: string | null;
+    /** When the link stops working (identity's `token.resetTtlSeconds`). */
+    expiresAt: Date;
 }

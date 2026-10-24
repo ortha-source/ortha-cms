@@ -102,6 +102,39 @@ describe('User sessions (admin)', () => {
         expect(await countUserSessions(target.id)).toBe(1);
     });
 
+    it('signs a member out everywhere, one audit-able revocation per session', async () => {
+        await login(TARGET_EMAIL);
+        await login(TARGET_EMAIL);
+        const adminAgent = await login(ADMIN_EMAIL);
+
+        const res = await adminAgent
+            .delete(`/api/users/${target.id}/sessions`)
+            .expect(200);
+        expect(res.body).toEqual({ revoked: 2 });
+
+        const after = await adminAgent
+            .get(`/api/users/${target.id}/sessions`)
+            .expect(200);
+        expect(after.body).toHaveLength(0);
+    });
+
+    it('keeps the caller’s own session when they sign themselves out everywhere', async () => {
+        await login(ADMIN_EMAIL); // another device
+        const adminAgent = await login(ADMIN_EMAIL);
+
+        const res = await adminAgent
+            .delete(`/api/users/${admin.id}/sessions`)
+            .expect(200);
+        expect(res.body).toEqual({ revoked: 1 });
+
+        // Still signed in: the request that asked is the one that survived.
+        const after = await adminAgent
+            .get(`/api/users/${admin.id}/sessions`)
+            .expect(200);
+        expect(after.body).toHaveLength(1);
+        expect(after.body[0].current).toBe(true);
+    });
+
     it('is idempotent — revoking an unknown session still 204s', async () => {
         const adminAgent = await login(ADMIN_EMAIL);
         await adminAgent

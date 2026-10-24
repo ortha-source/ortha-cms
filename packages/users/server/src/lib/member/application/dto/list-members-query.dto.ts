@@ -14,6 +14,10 @@ import {
     FILTER_MAX_LENGTH,
     MAX_PAGE_SIZE
 } from '../../member.constants';
+import {
+    ASSIGNABLE_ROLE_KEYS,
+    type AssignableRoleKey
+} from '../../domain/value-objects/role';
 
 /** Account statuses a caller may filter the list by. */
 const FILTERABLE_STATUSES = ['pending', 'active', 'disabled'] as const;
@@ -49,6 +53,20 @@ export class ListMembersQueryDto {
     @IsOptional()
     @IsIn(FILTERABLE_STATUSES)
     status?: (typeof FILTERABLE_STATUSES)[number];
+
+    /**
+     * Restrict to members holding one system role. The roster's **Admins**
+     * quick filter passes `admin`; omitted shows every role. AND-ed with the
+     * other params, exactly like `status`.
+     */
+    @ApiPropertyOptional({
+        enum: [...ASSIGNABLE_ROLE_KEYS],
+        description:
+            'Restrict to members holding one system role. Omitted shows every role.'
+    })
+    @IsOptional()
+    @IsIn(ASSIGNABLE_ROLE_KEYS)
+    role?: AssignableRoleKey;
 
     /**
      * Structured filter tree as a JSON string (`?filter=<json>`), produced by

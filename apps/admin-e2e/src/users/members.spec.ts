@@ -1,19 +1,12 @@
 import { test, expect } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
-import { expectNoA11yViolations } from '../support/a11y';
 import {
     DEFAULT_MEMBERS,
-    INVITE_TOKEN,
     ROTATED_INVITE_TOKEN,
     manyMembers,
     mockMembers,
-    spyInvite,
     spyResendInvite
 } from '../support/api/members';
-import {
-    mockWorkspaces,
-    mockWorkspacesUnavailable
-} from '../support/api/workspaces';
 
 /** Alan — the roster's one pending invite, the only member Resend applies to. */
 const PENDING_MEMBER = DEFAULT_MEMBERS.filter(
@@ -22,12 +15,13 @@ const PENDING_MEMBER = DEFAULT_MEMBERS.filter(
 
 /**
  * The Members page (`/users`, `@orthacms/users-admin`): rendering the roster,
- * search and its two empty states, the invite wizard, status-dependent row
- * actions, the failed read, and permission gating — of the page, of the nav
+ * search and its two empty states, the quick filters, "Last active",
+ * status-dependent row actions, the failed read, and permission gating — of the page, of the nav
  * entry that points at it, and of the request behind it. The backend is the
  * `GET /api/users` mock; `mockSignedIn` satisfies the shell's auth probe.
  *
- * The row menu's **guardrails** (the sole admin, your own account) live in
+ * The invite sheet has its own suite (`invite-sheet.spec.ts`). The row
+ * menu's **guardrails** (the sole admin, your own account) live in
  * `destructive-actions.spec.ts` beside the actions they veto; the Access tab's
  * equivalents are in `user-access.spec.ts`. This docstring used to claim them,
  * which is roughly how they went untested.
@@ -55,14 +49,68 @@ test.describe('Members page', () => {
         await expect(membersPage.statusPill('Disabled')).toBeVisible();
     });
 
-    test('shows the member count in the header subtitle', async ({
+    test('says who can sign in and how many invites wait, in the subtitle', async ({
         membersPage,
         page
     }) => {
         await membersPage.goto();
+        // Ada and Grace are active; Alan's invite is waiting.
         await expect(
-            page.getByText('4 people', { exact: false })
+            page.getByText('2 people can sign in · 1 invite waiting')
         ).toBeVisible();
+    });
+
+    test('shows when each member was last active — or when an invite went out', async ({
+        membersPage,
+        page
+    }) => {
+        await membersPage.goto();
+        await expect(membersPage.lastActiveHeader()).toBeVisible();
+        // "Last active" replaced "Joined".
+        await expect(
+            page.getByRole('columnheader', { name: 'Joined' })
+        ).toHaveCount(0);
+
+        await expect(membersPage.row('Ada Lovelace')).toContainText(
+            /1[23] min ago/
+        );
+        await expect(membersPage.row('Grace Hopper')).toContainText('1 h ago');
+        // An invite has never been active; its row says when it was sent.
+        await expect(membersPage.row('alan@orthacms.dev')).toContainText(
+            /Invited Jan 1/
+        );
+        // Past a week it is the date, with the year when it isn't this one.
+        await expect(membersPage.row('Katherine Johnson')).toContainText(
+            'Sep 30, 2025'
+        );
+    });
+
+    test('offers Resend right on an invited row', async ({
+        membersPage,
+        page
+    }) => {
+        const resend = await spyResendInvite(page, PENDING_MEMBER);
+        await membersPage.goto();
+
+        await membersPage.inlineResend(PENDING_MEMBER.email).click();
+
+        await expect(membersPage.inviteLinkDialog()).toBeVisible();
+        expect(resend.count).toBe(1);
+        // Only the invited row carries one.
+        await expect(
+            page.getByRole('button', { name: /^Resend the invite to/ })
+        ).toHaveCount(1);
+    });
+
+    test('marks your own row', async ({ membersPage, page }) => {
+        await mockSignedIn(page, {
+            id: 'u_grace',
+            email: 'grace@orthacms.dev',
+            name: 'Grace Hopper'
+        });
+        await membersPage.goto();
+        await expect(membersPage.youBadge('Grace Hopper')).toBeVisible();
+        await expect(membersPage.youBadge('Ada Lovelace')).toHaveCount(0);
     });
 
     test('filters the roster by a search term', async ({ membersPage }) => {
@@ -188,162 +236,6 @@ test.describe('Members page', () => {
         await expect(membersPage.row('Ada Lovelace')).toBeVisible();
     });
 
-    test('invites a member through the three-step wizard', async ({
-        membersPage,
-        page
-    }) => {
-        const invite = await spyInvite(page);
-        await mockWorkspaces(page); // the assignment step lists workspaces
-        await membersPage.goto();
-
-        await membersPage.inviteButton.click();
-        await expect(page).toHaveURL(/\/users\/invite$/);
-        await expect(membersPage.inviteHeading()).toBeVisible();
-
-        // Step 1 — details.
-        await membersPage.inviteEmail().fill('new@orthacms.dev');
-        await membersPage.continueToRole().click();
-        // Step 2 — role.
-        await membersPage.continueToWorkspaces().click();
-        // Step 3 — assign a workspace, then send.
-        await membersPage.inviteWorkspace('Marketing site').check();
-        await membersPage.sendInvite().click();
-
-        // No redirect: the raw token comes back once, so the wizard hands the
-        // link over instead of dropping the admin back on the list.
-        await expect(membersPage.inviteSentHeading()).toBeVisible();
-        await expect(page).toHaveURL(/\/users\/invite$/);
-        await expect(
-            membersPage.inviteLinkField('new@orthacms.dev')
-        ).toHaveValue(
-            new RegExp(`/identity/accept-invite\\?token=${INVITE_TOKEN}$`)
-        );
-        expect(invite.count).toBe(1);
-    });
-
-    test('holds Send while the workspaces could not be read, and offers a retry', async ({
-        membersPage,
-        page,
-        makeAxe
-    }) => {
-        const invite = await spyInvite(page);
-        // A refusal rather than a 500, which the query client retries with
-        // backoff before admitting it failed — the state is the same, only
-        // slower to reach.
-        await mockWorkspacesUnavailable(page, 403);
-        await membersPage.goto();
-
-        await membersPage.inviteButton.click();
-        await membersPage.inviteEmail().fill('new@orthacms.dev');
-        await membersPage.continueToRole().click();
-        await membersPage.continueToWorkspaces().click();
-
-        // Send used to stay live under this error. "All workspaces" then sent
-        // the empty list it had failed to load — an invite into nothing, under
-        // a choice that read as "everything".
-        await expect(membersPage.workspacesError()).toBeVisible();
-        await expect(membersPage.sendInvite()).toBeDisabled();
-        expect(invite.count).toBe(0);
-        await expectNoA11yViolations(makeAxe());
-
-        // The way forward is on the alert itself. Later routes win.
-        await mockWorkspaces(page);
-        await membersPage.retryWorkspaces().click();
-        await expect(
-            membersPage.inviteWorkspace('Marketing site')
-        ).toBeVisible();
-        await expect(membersPage.sendInvite()).toBeEnabled();
-    });
-
-    test('assigns all workspaces via the "All workspaces" mode', async ({
-        membersPage,
-        page
-    }) => {
-        await spyInvite(page);
-        await mockWorkspaces(page);
-        await membersPage.goto();
-
-        await membersPage.inviteButton.click();
-        await membersPage.inviteEmail().fill('new@orthacms.dev');
-        await membersPage.continueToRole().click();
-        await membersPage.continueToWorkspaces().click();
-
-        // Default is "Specific" — the search is shown.
-        await expect(membersPage.workspaceSearch()).toBeVisible();
-        // Switching to "All workspaces" hides the per-workspace picker.
-        await membersPage.inviteWorkspaceMode('All workspaces').check();
-        await expect(membersPage.workspaceSearch()).toBeHidden();
-    });
-
-    test('searches the workspaces in the assignment step', async ({
-        membersPage,
-        page
-    }) => {
-        await spyInvite(page);
-        await mockWorkspaces(page);
-        await membersPage.goto();
-
-        await membersPage.inviteButton.click();
-        await membersPage.inviteEmail().fill('new@orthacms.dev');
-        await membersPage.continueToRole().click();
-        await membersPage.continueToWorkspaces().click();
-
-        await membersPage.workspaceSearch().fill('Marketing');
-        await expect(
-            membersPage.inviteWorkspace('Marketing site')
-        ).toBeVisible();
-        await expect(membersPage.inviteWorkspace('Product docs')).toHaveCount(
-            0
-        );
-    });
-
-    test('keeps Continue disabled (no request) for an invalid email', async ({
-        membersPage,
-        page
-    }) => {
-        const invite = await spyInvite(page);
-        await membersPage.goto();
-
-        await membersPage.inviteButton.click();
-        await membersPage.inviteEmail().fill('not-an-email');
-
-        // Continue stays disabled, so the role step and submit are unreachable.
-        await expect(membersPage.continueToRole()).toBeDisabled();
-        expect(invite.count).toBe(0);
-    });
-
-    test('explains an invalid email once the field has been left', async ({
-        membersPage,
-        page
-    }) => {
-        await spyInvite(page);
-        await membersPage.goto();
-        await membersPage.inviteButton.click();
-
-        await membersPage.inviteEmail().fill('not-an-email');
-        // Nothing is said while the address is still being typed: the message
-        // is gated on `emailTouched`, which only `onBlur` sets, so someone who
-        // types an address and never leaves the field has the disabled Continue
-        // above as their only signal.
-        await expect(page.getByText('Enter a valid email address')).toHaveCount(
-            0
-        );
-
-        await membersPage.inviteEmail().blur();
-        await expect(
-            page.getByText('Enter a valid email address')
-        ).toBeVisible();
-
-        // From here it does track every keystroke — finishing the address
-        // clears the message without a second blur, so the person who is
-        // fixing it is not left staring at an error they already corrected.
-        await membersPage.inviteEmail().fill('new@orthacms.dev');
-        await expect(page.getByText('Enter a valid email address')).toHaveCount(
-            0
-        );
-        await expect(membersPage.continueToRole()).toBeEnabled();
-    });
-
     test('paginates with a selectable page size', async ({
         membersPage,
         page
@@ -366,44 +258,71 @@ test.describe('Members page', () => {
         await expect(membersPage.paginationNav()).toBeVisible();
     });
 
-    test('shows status-specific actions for a pending invite', async ({
+    test('an invited row’s menu is resend, copy link, revoke', async ({
         membersPage
     }) => {
         await membersPage.goto();
         await membersPage.openActions('alan@orthacms.dev');
 
         await expect(membersPage.menuItem('Resend invite')).toBeVisible();
+        await expect(membersPage.menuItem('Copy invite link')).toBeVisible();
         await expect(membersPage.menuItem('Revoke invite')).toBeVisible();
-        await expect(membersPage.menuItem('Disable')).toHaveCount(0);
+        await expect(membersPage.menuItem('Open profile')).toHaveCount(0);
+        await expect(membersPage.menuItem('Suspend')).toHaveCount(0);
     });
 
-    test('the row menu mirrors the detail sections', async ({
+    test('an active row’s menu is profile, role, workspaces, sign-in tools, suspend', async ({
         membersPage
     }) => {
         await membersPage.goto();
         await membersPage.openActions('Grace Hopper');
 
-        // Account + gated Audit/Access navigation, no "Edit".
-        await expect(membersPage.menuItem('General')).toBeVisible();
-        await expect(membersPage.menuItem('Sessions')).toBeVisible();
-        await expect(membersPage.menuItem('Sign-in access')).toBeVisible();
-        await expect(membersPage.menuItem('Edit')).toHaveCount(0);
+        for (const label of [
+            'Open profile',
+            'Change role…',
+            'Workspaces…',
+            'Password reset link',
+            'Sign out everywhere',
+            'Suspend…'
+        ]) {
+            await expect(membersPage.menuItem(label)).toBeVisible();
+        }
+        await expect(membersPage.menuItem('Resend invite')).toHaveCount(0);
     });
 
-    test('offers Enable (not Disable) for a disabled member', async ({
+    test('a suspended row’s menu offers Reactivate (not Suspend)', async ({
         membersPage
     }) => {
         await membersPage.goto();
         await membersPage.openActions('Katherine Johnson');
 
-        await expect(membersPage.menuItem('Enable')).toBeVisible();
-        await expect(membersPage.menuItem('Disable')).toHaveCount(0);
+        await expect(membersPage.menuItem('Reactivate')).toBeVisible();
+        await expect(membersPage.menuItem('Suspend')).toHaveCount(0);
+        await expect(membersPage.menuItem('Password reset link')).toHaveCount(
+            0
+        );
+    });
+
+    test('Copy invite link hands over a fresh link', async ({
+        membersPage,
+        page
+    }) => {
+        // Only a hash of the old token is stored, so "copy" can only ever mean
+        // a new link — the dialog says the old one stopped working.
+        const resend = await spyResendInvite(page, PENDING_MEMBER);
+        await membersPage.goto();
+        await membersPage.openActions(PENDING_MEMBER.email);
+        await membersPage.menuItem('Copy invite link').click();
+
+        await expect(
+            membersPage.inviteLinkField(PENDING_MEMBER.email)
+        ).toHaveValue(new RegExp(`token=${ROTATED_INVITE_TOKEN}$`));
+        expect(resend.count).toBe(1);
     });
 
     test('renders the role as a read-only chip', async ({ membersPage }) => {
         await membersPage.goto();
-        // The Role column is a read-only chip; editing happens on the detail
-        // page's Role tab, not inline.
+        // The Role column is a read-only chip; changing it is the role dialog.
         await expect(membersPage.roleChip('Ada Lovelace')).toBeVisible();
     });
 
@@ -419,12 +338,20 @@ test.describe('Members page', () => {
         await expect(membersPage.inviteButton).toHaveCount(0);
         // The role is a read-only chip for everyone.
         await expect(membersPage.roleChip('Grace Hopper')).toBeVisible();
-        // The row menu is navigation-only for a viewer: Account links, but no
-        // gated Audit/Access tabs and no write actions.
+        // The row menu is navigation-only for a viewer: no role change, no
+        // sign-in tools, no suspend.
         await membersPage.openActions('Grace Hopper');
-        await expect(membersPage.menuItem('General')).toBeVisible();
-        await expect(membersPage.menuItem('Sessions')).toHaveCount(0);
-        await expect(membersPage.menuItem('Disable')).toHaveCount(0);
+        await expect(membersPage.menuItem('Open profile')).toBeVisible();
+        await expect(membersPage.menuItem('Change role')).toHaveCount(0);
+        await expect(membersPage.menuItem('Sign out everywhere')).toHaveCount(
+            0
+        );
+        await expect(membersPage.menuItem('Suspend')).toHaveCount(0);
+        await page.keyboard.press('Escape');
+        // …and an invited row offers no Resend button either.
+        await expect(membersPage.inlineResend('alan@orthacms.dev')).toHaveCount(
+            0
+        );
     });
 
     test('shows a no-access state without users:read', async ({

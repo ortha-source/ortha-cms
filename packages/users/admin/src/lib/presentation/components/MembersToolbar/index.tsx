@@ -15,14 +15,15 @@ const messages = defineMessages({
 });
 
 /**
- * The Members table toolbar: a name/email search box with the advanced-filter
- * control pinned to the right. Layout lives in the shared `SearchToolbar`; this
+ * The Members table toolbar: the quick-filter chips on the left, then the
+ * name/email search box with the advanced-filter control pinned to the right. Layout lives in the shared `SearchToolbar`; this
  * wrapper only supplies the localised strings and the page-owned filter control.
  */
 export function MembersToolbar({
     search,
     onSearchChange,
     filterControl,
+    quickFilters,
     busy = false
 }: {
     search: string;
@@ -31,6 +32,8 @@ export function MembersToolbar({
     busy?: boolean;
     /** Optional advanced-filter control rendered on the right. */
     filterControl?: ReactNode;
+    /** The quick-filter chips leading the toolbar. */
+    quickFilters?: ReactNode;
 }) {
     const intl = useIntl();
 
@@ -42,6 +45,7 @@ export function MembersToolbar({
             searchLabel={intl.formatMessage(messages.searchLabel)}
             searchPlaceholder={intl.formatMessage(messages.searchPlaceholder)}
             actions={filterControl}
+            leading={quickFilters}
         />
     );
 }

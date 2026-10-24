@@ -45,4 +45,22 @@ describe('membersKeys', () => {
             membersKeys.sessions('b')
         );
     });
+
+    it('keeps sign-in methods and the role catalogue out of the root key', () => {
+        // Neither changes when a member is renamed, re-roled or suspended.
+        expect(isPrefixOf(membersKeys.all, membersKeys.signIn(id))).toBe(false);
+        expect(isPrefixOf(membersKeys.all, membersKeys.roles)).toBe(false);
+    });
+
+    it('lets an invite refresh the existing-address check', () => {
+        expect(
+            isPrefixOf(membersKeys.all, membersKeys.existingEmails(['a@x.io']))
+        ).toBe(true);
+    });
+
+    it('keys the existing-address check by the set, not its order', () => {
+        expect(membersKeys.existingEmails(['b@x.io', 'a@x.io'])).toEqual(
+            membersKeys.existingEmails(['a@x.io', 'b@x.io'])
+        );
+    });
 });

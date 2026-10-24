@@ -18,11 +18,12 @@ const messages = defineMessages({
     },
     filteredDescription: {
         id: 'users.empty.filtered.description',
-        defaultMessage: 'Try a different name or email, or clear the search.'
+        defaultMessage:
+            'Try a different name or email, or clear the filters to see everyone.'
     },
     clear: {
         id: 'users.empty.clear',
-        defaultMessage: 'Clear search'
+        defaultMessage: 'Clear filters'
     },
     emptyTitle: {
         id: 'users.empty.none.title',
@@ -34,22 +35,22 @@ const messages = defineMessages({
     },
     invite: {
         id: 'users.empty.invite',
-        defaultMessage: 'Invite member'
+        defaultMessage: 'Invite people'
     }
 });
 
 type MembersEmptyProps = {
-    /** Whether a search is currently narrowing the list. */
+    /** Whether a search, quick filter or filter is narrowing the list. */
     filtered: boolean;
-    /** Clears the search. */
+    /** Clears the search and every filter. */
     onClear: () => void;
     /** Opens the invite flow. Omitted when the user lacks `users:create`. */
     onInvite?: () => void;
 };
 
 /**
- * The empty state under the toolbar. A search miss offers to clear the
- * search; a genuinely empty roster invites the first member (when the
+ * The empty state under the toolbar. A narrowed list that matched nobody
+ * offers to clear what narrowed it; a genuinely empty roster invites the first member (when the
  * signed-in user may invite).
  */
 export function MembersEmpty({

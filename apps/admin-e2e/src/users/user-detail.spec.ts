@@ -4,16 +4,19 @@ import { mockMembers } from '../support/api/members';
 import { mockWorkspaces } from '../support/api/workspaces';
 import {
     mockActivity,
-    mockEmptyActivity,
+    mockMemberPage,
+    mockMemberSignIn,
     mockUserDetail,
     mockUserSessions,
+    spyRevokeAllSessions,
     spyUpdateMember
 } from '../support/api/userDetail';
 
 /**
- * The user detail page (`/users/:id`, `@orthacms/users-admin`): the hero +
- * stats + side-rail shell, tab navigation, the General name edit, session
- * revocation, and permission-gated tabs. Backed by the `mockUserDetail` /
+ * The member page (`/users/:id`, `@orthacms/users-admin`): the header, the
+ * four tabs (Overview, Workspaces, Sessions & access, Activity), the
+ * Overview's profile edit and summaries, session revocation, and
+ * permission-gated tabs. Backed by the `mockUserDetail` /
  * `mockUserSessions` / activity mocks; `mockSignedIn` satisfies the shell's
  * auth probe and decides which tabs the rail shows.
  */
@@ -22,19 +25,103 @@ test.describe('User detail page', () => {
         await mockSignedIn(page);
         await mockMembers(page);
         await mockWorkspaces(page);
-        await mockEmptyActivity(page);
-        await mockUserSessions(page);
+        await mockMemberPage(page);
         await mockUserDetail(page);
     });
 
-    test('renders the member hero and the General tab by default', async ({
-        userDetailPage
+    test('renders the header and opens on Overview', async ({
+        userDetailPage,
+        page
     }) => {
         await userDetailPage.goto('u_grace');
         await expect(userDetailPage.nav).toBeVisible();
         await expect(userDetailPage.heading('Grace Hopper')).toBeVisible();
-        // The index redirects to General, whose form shows the email read-only.
+        await expect(page).toHaveURL(/\/users\/u_grace\/overview$/);
+        // Status, role, address and last activity on one line.
+        await expect(page.getByText('Active 1 h ago')).toBeVisible();
+        await expect(page.getByText('Member since Jan 2026')).toBeVisible();
+        await expect(userDetailPage.changeRoleButton()).toBeVisible();
         await expect(userDetailPage.nameInput()).toHaveValue('Grace Hopper');
+    });
+
+    test('has four tabs, not seven', async ({ userDetailPage }) => {
+        await userDetailPage.goto('u_grace');
+        await expect(userDetailPage.rail.getByRole('link')).toHaveText([
+            'Overview',
+            'Workspaces',
+            'Sessions & access',
+            'Activity'
+        ]);
+    });
+
+    test('sends the old tab paths somewhere sensible', async ({
+        userDetailPage,
+        page
+    }) => {
+        await page.goto('/users/u_grace/general');
+        await expect(page).toHaveURL(/\/users\/u_grace\/overview$/);
+        await page.goto('/users/u_grace/roles');
+        await expect(page).toHaveURL(/\/users\/u_grace\/overview$/);
+        await page.goto('/users/u_grace/sessions');
+        await expect(page).toHaveURL(/\/users\/u_grace\/access$/);
+        await expect(userDetailPage.sessionsCardHeader()).toBeVisible();
+    });
+
+    test('summarises workspaces, sign-in and recent activity, each with a way in', async ({
+        userDetailPage,
+        page
+    }) => {
+        await mockActivity(page, [
+            {
+                id: 'ev_pub',
+                kind: 'entry.published',
+                subjectType: 'entry',
+                subjectId: 'e1',
+                actorId: 'u_grace',
+                actorEmail: 'grace@orthacms.dev',
+                meta: { title: 'Spring launch' },
+                at: new Date(Date.now() - 3_600_000).toISOString()
+            }
+        ]);
+        await userDetailPage.goto('u_grace');
+
+        await expect(userDetailPage.card('Workspaces')).toContainText(
+            'Product docs'
+        );
+        await expect(userDetailPage.card('Sign-in')).toContainText(
+            '2 active sessions'
+        );
+        await expect(userDetailPage.card('Sign-in')).toContainText(
+            'Password set · SSO: Google'
+        );
+        await expect(userDetailPage.card('Recent activity')).toContainText(
+            'Spring launch'
+        );
+
+        await page
+            .getByRole('link', {
+                name: 'Manage Grace Hopper’s sessions and access'
+            })
+            .click();
+        await expect(page).toHaveURL(/\/users\/u_grace\/access$/);
+        await userDetailPage.openTab('Overview');
+        await page
+            .getByRole('link', { name: 'See all of Grace Hopper’s activity' })
+            .click();
+        await expect(page).toHaveURL(/\/users\/u_grace\/activity$/);
+    });
+
+    test('says an invitee has no way to sign in yet', async ({
+        userDetailPage,
+        page
+    }) => {
+        await mockMemberSignIn(page, { hasPassword: false, ssoProviders: [] });
+        await userDetailPage.goto('u_alan');
+        await expect(userDetailPage.card('Sign-in')).toContainText(
+            'Invite not accepted yet'
+        );
+        // The header says when the invite went out instead of "Member since".
+        await expect(page.getByText(/^Invited /)).toBeVisible();
     });
 
     test('opens when the member row is clicked', async ({
@@ -78,7 +165,7 @@ test.describe('User detail page', () => {
         await expect(membersPage.heading).toBeVisible();
     });
 
-    test('opens a specific tab from the row menu', async ({
+    test('opens the Workspaces tab from the row menu', async ({
         membersPage,
         userDetailPage,
         page
@@ -87,22 +174,37 @@ test.describe('User detail page', () => {
         await page
             .getByRole('button', { name: 'Actions for Grace Hopper' })
             .click();
-        await page.getByRole('menuitem', { name: 'Sessions' }).click();
-        await expect(page).toHaveURL(/\/users\/u_grace\/sessions/);
+        await page.getByRole('menuitem', { name: 'Workspaces…' }).click();
+        await expect(page).toHaveURL(/\/users\/u_grace\/workspaces/);
         await expect(userDetailPage.heading('Grace Hopper')).toBeVisible();
     });
 
-    test('navigates between tabs via the side rail', async ({
+    test('navigates between the tabs', async ({ userDetailPage, page }) => {
+        await userDetailPage.goto('u_grace');
+        await userDetailPage.openTab('Workspaces');
+        await expect(page).toHaveURL(/\/users\/u_grace\/workspaces/);
+        await userDetailPage.openTab('Sessions & access');
+        await expect(page).toHaveURL(/\/users\/u_grace\/access/);
+        await userDetailPage.openTab('Activity');
+        await expect(page).toHaveURL(/\/users\/u_grace\/activity/);
+        await userDetailPage.openTab('Overview');
+        await expect(page).toHaveURL(/\/users\/u_grace\/overview/);
+    });
+
+    test('signs the member out everywhere from Sessions & access', async ({
         userDetailPage,
         page
     }) => {
+        const revokeAll = await spyRevokeAllSessions(page, 2);
         await userDetailPage.goto('u_grace');
-        await userDetailPage.openTab('Role');
-        await expect(page).toHaveURL(/\/users\/u_grace\/roles/);
-        await userDetailPage.openTab('Workspaces');
-        await expect(page).toHaveURL(/\/users\/u_grace\/workspaces/);
-        await userDetailPage.openTab('Sessions');
-        await expect(page).toHaveURL(/\/users\/u_grace\/sessions/);
+        await userDetailPage.openTab('Sessions & access');
+
+        await userDetailPage.signOutEverywhere().click();
+        await userDetailPage.confirmButton('Sign out everywhere').click();
+
+        await expect.poll(() => revokeAll.count).toBe(1);
+        await expect(page.getByText('Ended 2 sessions.')).toBeVisible();
+        await expect(userDetailPage.sessionsCardHeader()).toBeFocused();
     });
 
     test('edits the display name (PATCH /api/users/:id)', async ({
@@ -125,10 +227,10 @@ test.describe('User detail page', () => {
     }) => {
         const sessions = await mockUserSessions(page);
         await userDetailPage.goto('u_grace');
-        await userDetailPage.openTab('Sessions');
+        await userDetailPage.openTab('Sessions & access');
 
         await expect(page.getByText('Chrome on macOS')).toBeVisible();
-        // The accessible name carries the device, so each card's Revoke is
+        // The accessible name carries the device, so each row's Revoke is
         // distinguishable — see the a11y assertion below.
         await page
             .getByRole('button', {
@@ -146,9 +248,9 @@ test.describe('User detail page', () => {
     }) => {
         await mockUserSessions(page);
         await userDetailPage.goto('u_grace');
-        await userDetailPage.openTab('Sessions');
+        await userDetailPage.openTab('Sessions & access');
 
-        // Two cards, two distinct accessible names: an unnamed "Revoke this
+        // Two rows, two distinct accessible names: an unnamed "Revoke this
         // session" on both would leave a screen-reader user unable to tell
         // which device they are about to sign out (WCAG 2.4.6 / 4.1.2).
         await expect(
@@ -271,8 +373,14 @@ test.describe('User detail page', () => {
         await mockSignedIn(page, { permissions: ['users:read'] });
         await userDetailPage.goto('u_grace');
 
-        await expect(userDetailPage.tab('General')).toBeVisible();
-        await expect(userDetailPage.tab('Sessions')).toHaveCount(0);
-        await expect(userDetailPage.tab('Sign-in access')).toHaveCount(0);
+        await expect(userDetailPage.tab('Overview')).toBeVisible();
+        await expect(userDetailPage.tab('Sessions & access')).toHaveCount(0);
+        // Nor the controls that need the permission, nor the sign-in card.
+        await expect(userDetailPage.changeRoleButton()).toHaveCount(0);
+        await expect(userDetailPage.card('Sign-in')).toHaveCount(0);
+        await expect(userDetailPage.nameInput()).toBeDisabled();
+        // A deep link is turned back too.
+        await page.goto('/users/u_grace/access');
+        await expect(page).toHaveURL(/\/users\/u_grace\/overview$/);
     });
 });

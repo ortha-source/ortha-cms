@@ -7,10 +7,7 @@ import {
     SIDEBAR_NAV_SLOT
 } from '@orthacms/shell-admin';
 import { Users } from 'lucide-react';
-import {
-    InviteMemberPageSkeleton,
-    MembersPageSkeleton
-} from '../components/MembersSkeleton';
+import { MembersPageSkeleton } from '../components/MembersSkeleton';
 import { AccountMenu } from '../components/AccountMenu';
 import { InviteMemberHomeAction } from '../components/InviteMemberHomeAction';
 import { ThemeSync } from '../components/ThemeSync';
@@ -22,11 +19,6 @@ import { PanelLayoutSync } from '../components/PanelLayoutSync';
 const MembersPage = lazyPage(
     () => import('../pages/MembersPage'),
     'MembersPage'
-);
-
-const InviteMemberPage = lazyPage(
-    () => import('../pages/InviteMemberPage'),
-    'InviteMemberPage'
 );
 
 // The detail page (its nested tab router) is its own chunk, likewise.
@@ -46,6 +38,9 @@ export type UsersAdminPlugin = AdminPlugin;
  * private routes — `/users` (the Members page), `/users/invite` (the invite
  * wizard) and `/users/:id/*` (the member card's own nested router) — rendered
  * inside the shell's authenticated layout.
+ *
+ * `/users/invite` is the roster with the invite sheet open over it — the same
+ * page component, so opening and closing the sheet never reloads the list.
  *
  * It contributes to two slots. The nav entry goes to {@link SIDEBAR_NAV_SLOT}
  * with `group: 'directory'`, `order: 20` and `permission: 'users:read'` —
@@ -82,16 +77,18 @@ export function UsersPlugin(): UsersAdminPlugin {
                 )
             },
             {
+                // The invite sheet, over the roster. A route rather than local
+                // state so Home's "Invite member" and a bookmark can open it.
                 path: '/users/invite',
                 element: (
-                    <Suspense fallback={<InviteMemberPageSkeleton />}>
-                        <InviteMemberPage />
+                    <Suspense fallback={<MembersPageSkeleton />}>
+                        <MembersPage inviting />
                     </Suspense>
                 )
             },
             {
                 // Splat so the detail page owns its nested tab routes
-                // (`general`, `roles`, …). `/users/invite` outranks `/users/:id`
+                // (`overview`, `access`, …). `/users/invite` outranks `/users/:id`
                 // in the router, so the static invite route is unaffected.
                 path: '/users/:id/*',
                 element: (

@@ -41,6 +41,14 @@ export interface MemberRepository {
     existsByEmail(email: string): Promise<boolean>;
 
     /**
+     * Which of `emails` already belong to an account, compared
+     * case-insensitively, returned lower-cased in the order given. One query
+     * for a whole batch invite's up-front check; the unique index stays the
+     * race-proof backstop, exactly as it is for {@link existsByEmail}.
+     */
+    takenEmails(emails: readonly string[]): Promise<string[]>;
+
+    /**
      * Persists a member: inserts a brand-new aggregate (resolving its role key
      * to an id), or applies a loaded aggregate's name/role/status deltas. A
      * duplicate-email insert throws {@link EmailTakenError}.
