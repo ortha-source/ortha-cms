@@ -35,6 +35,7 @@ const review = (overrides: Partial<EntryReview> = {}): EntryReview => ({
     headPublished: false,
     callerWroteHead: false,
     callerApprovedHead: false,
+    countsStaleApprovals: false,
     approvals: [],
     request: null,
     ...overrides
