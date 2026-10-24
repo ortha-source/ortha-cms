@@ -323,4 +323,12 @@ export type ProtectionInsights = {
     open: number;
     overdue: number;
     overdueAfterDays: number;
+    /** The request that has waited longest, or `null` when nothing is open. */
+    oldestOpen: {
+        contentType: string;
+        contentTypeLabel: string;
+        entryId: string;
+        entryTitle: string | null;
+        waitingDays: number;
+    } | null;
 };

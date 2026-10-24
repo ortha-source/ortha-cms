@@ -150,6 +150,71 @@ export const INSIGHTS_WIDGET_SLOT =
 export const INSIGHTS_SECTION_SLOT =
     createSlot<InsightsSection>('insights.section');
 
+/** What the page hands a signal's row: how to open its drill-down. */
+export type InsightsSignalRowProps = {
+    /** Opens this signal's drill-down panel. */
+    onOpen: () => void;
+    /** Whether this signal's panel is the one open — the row shows it. */
+    isOpen: boolean;
+};
+
+/**
+ * One line of the **Needs attention** card: a count of something that asks
+ * for work, contributed by the package that owns the data — and the records
+ * behind it, one click away.
+ *
+ * Two components, because the line and the panel have different lives. The
+ * `Component` renders always (it is the count), reading its own query and
+ * rendering a `SignalRow`; the `Drill` mounts only while its panel is open and
+ * renders a `SignalDrill`. Neither takes data from the page — like a widget,
+ * each reads what it needs — so the page never has to know what a signal
+ * counts.
+ */
+export type InsightsSignal = {
+    /** Stable identity — the React key, and the `?signal=` value that opens it. */
+    id: string;
+    /** Sort order within the card. Defaults to {@link DEFAULT_INSIGHTS_ORDER}. */
+    order?: number;
+    /**
+     * Permission required to see this line at all — checked here, before the
+     * card decides whether it has any lines, and again in the data hook.
+     */
+    permission?: string;
+    /** `react-intl` id for the signal's name. */
+    titleId: string;
+    /** Fallback name — what the error boundary names when the line throws. */
+    defaultTitle: string;
+    /** The line. Renders a `SignalRow`. */
+    Component: ComponentType<InsightsSignalRowProps>;
+    /** The drill-down panel's body. Renders a `SignalDrill`. */
+    Drill: ComponentType;
+};
+
+/**
+ * The extension point for **Needs attention** signals — the counts that ask
+ * for somebody's work, which lead the Insights page before any chart.
+ *
+ * @example
+ * ```tsx
+ * {
+ *     slot: INSIGHTS_SIGNAL_SLOT,
+ *     items: [
+ *         {
+ *             id: 'content.stale',
+ *             order: 30,
+ *             permission: 'content:read',
+ *             titleId: 'content.insights.signal.stale.title',
+ *             defaultTitle: 'Gone quiet',
+ *             Component: StaleSignal,
+ *             Drill: StaleDrill
+ *         }
+ *     ]
+ * }
+ * ```
+ */
+export const INSIGHTS_SIGNAL_SLOT =
+    createSlot<InsightsSignal>('insights.signal');
+
 /**
  * Section ids the Insights plugin registers by default, so contributors
  * reference a constant rather than retyping a string that has to match exactly.

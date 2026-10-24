@@ -1,5 +1,15 @@
 import { Injectable } from '@nestjs/common';
-import { and, eq, isNull, sql, type AnyColumn, type SQL } from 'drizzle-orm';
+import {
+    and,
+    asc,
+    desc,
+    eq,
+    inArray,
+    isNull,
+    sql,
+    type AnyColumn,
+    type SQL
+} from 'drizzle-orm';
 import type { PgTable } from 'drizzle-orm/pg-core';
 import { InjectDatabase, type Database } from '@orthacms/database';
 import { InjectContentRegistry } from '../../../content.tokens';
@@ -7,8 +17,19 @@ import type { ContentTypeRegistry } from '../../../registry/content-type-registr
 import type { AnyContentType } from '../../../types/content-type';
 import { ENTRY_STATUS } from '../../../types/content-type';
 import { contentEntryRevisions } from '../../../revisions/infrastructure/persistence/revision-table';
+import { entryTitle } from '../../../entries/infrastructure/persistence/entry-row';
+import {
+    busiestWeekday,
+    DEFAULT_TIME_ZONE,
+    oldestFirst,
+    sortTypeCounts,
+    staleAgeWindow
+} from './insights-drill.helpers';
 import type {
     ContentPipelineView,
+    ContentRecordsView,
+    InsightsRecordTypeCountView,
+    StaleAge,
     ContentPunchcardView,
     ContentStaleView,
     ContentTotalsView,
@@ -250,6 +271,8 @@ export class ContentInsightsQuery {
             STALE_BOUNDS.map((bound) => [bound.id, 0])
         );
         counts.set('older', 0);
+        let olderTopType: ContentStaleView['olderTopType'] = null;
+        let olderTopCount = 0;
 
         for (const type of this.registry.all()) {
             const columns = columnsOf(type);
@@ -276,6 +299,12 @@ export class ContentInsightsQuery {
                 .where(and(this.scope(type, workspaceId), liveOnly));
 
             if (!row) continue;
+            // Strictly greater, so a tie keeps the type registered first and
+            // the line does not flip between two reads of the same data.
+            if ((row.older ?? 0) > olderTopCount) {
+                olderTopCount = row.older ?? 0;
+                olderTopType = { name: type.name, label: type.label };
+            }
             for (const key of [
                 'd30',
                 'd90',
@@ -293,31 +322,51 @@ export class ContentInsightsQuery {
 
         return {
             buckets,
-            total: buckets.reduce((sum, bucket) => sum + bucket.count, 0)
+            total: buckets.reduce((sum, bucket) => sum + bucket.count, 0),
+            olderTopType
         };
     }
 
-    /** Draft/published split per content type. */
+    /**
+     * Published / modified / draft split per content type.
+     *
+     * One grouped read per type, like {@link unshipped}: the three figures
+     * partition the same rows. `drafts` keeps meaning every draft (it always
+     * has); `modified` is the share of them with live content behind.
+     */
     async pipeline(workspaceId: string): Promise<ContentPipelineView> {
         const types: ContentPipelineView['types'] = [];
 
         for (const type of this.registry.all()) {
-            const columns = columnsOf(type);
+            let published: number;
+            let drafts = 0;
+            let modified = 0;
 
-            const published = type.publishable
-                ? await this.countOf(
-                      type,
-                      workspaceId,
-                      eq(columns['status'], ENTRY_STATUS.Published)
-                  )
-                : await this.countOf(type, workspaceId);
-            const drafts = type.publishable
-                ? await this.countOf(
-                      type,
-                      workspaceId,
-                      eq(columns['status'], ENTRY_STATUS.Draft)
-                  )
-                : 0;
+            if (type.publishable) {
+                const columns = columnsOf(type);
+                const status = columns['status'];
+                const publishedAt = columns['publishedAt'];
+                const [row] = await this.db
+                    .select({
+                        published: sql<number>`cast(count(*) filter (
+                            where ${status} = ${ENTRY_STATUS.Published}
+                        ) as int)`,
+                        drafts: sql<number>`cast(count(*) filter (
+                            where ${status} = ${ENTRY_STATUS.Draft}
+                        ) as int)`,
+                        modified: sql<number>`cast(count(*) filter (
+                            where ${status} = ${ENTRY_STATUS.Draft}
+                              and ${publishedAt} is not null
+                        ) as int)`
+                    })
+                    .from(type.table as PgTable)
+                    .where(this.scope(type, workspaceId));
+                published = row?.published ?? 0;
+                drafts = row?.drafts ?? 0;
+                modified = row?.modified ?? 0;
+            } else {
+                published = await this.countOf(type, workspaceId);
+            }
 
             // A type the workspace has never used is noise on a chart about
             // where the workspace's weight sits.
@@ -327,7 +376,8 @@ export class ContentInsightsQuery {
                 name: type.name,
                 label: type.label,
                 published,
-                drafts
+                drafts,
+                modified
             });
         }
 
@@ -405,22 +455,47 @@ export class ContentInsightsQuery {
     ): Promise<ContentVelocityView> {
         const granularity = granularityFor(days);
         const merged = new Map<string, number>();
+        const weekdays = new Map<number, number>();
 
         for (const type of this.registry.all()) {
             if (!type.publishable) continue;
+            const publishedAt = columnsOf(type)['publishedAt'];
             mergeBuckets(
                 merged,
                 await this.bucketed(
                     type,
                     workspaceId,
-                    columnsOf(type)['publishedAt'],
+                    publishedAt,
                     days,
                     granularity
                 )
             );
+            // Grouped by ordinal: the weekday expression rendered twice would
+            // be two different texts to Postgres (see `truncUnit`).
+            const rows = await this.db
+                .select({
+                    weekday: sql<number>`cast(extract(isodow from ${publishedAt}) as int)`,
+                    n: sql<number>`cast(count(*) as int)`
+                })
+                .from(type.table as PgTable)
+                .where(
+                    and(
+                        this.scope(type, workspaceId),
+                        sql`${publishedAt} >= ${windowStart(days)}`
+                    )
+                )
+                .groupBy(sql`1`);
+            mergeBuckets(
+                weekdays,
+                new Map(rows.map((row) => [row.weekday, row.n]))
+            );
         }
 
-        return { points: toSeries(merged), granularity };
+        return {
+            points: toSeries(merged),
+            granularity,
+            busiestWeekday: busiestWeekday(weekdays)
+        };
     }
 
     /**
@@ -430,19 +505,38 @@ export class ContentInsightsQuery {
      * fan-out: `content_entry_revisions` is generic across every type, so the
      * whole workspace's editing history lives in one table.
      *
-     * Hours come out in the database session's timezone (UTC in every
-     * deployment we run). Rendering them as local time would need each
-     * viewer's offset applied to the grouping, not to the labels — shifting
-     * the labels alone would silently mislabel the buckets.
+     * Grouped in the **viewer's** zone (`?tz=`), applied to the timestamp
+     * before it is bucketed: shifting only the labels of UTC buckets would
+     * mislabel every one of them, and a half-hour offset would not even land
+     * on a bucket edge. The zone actually used comes back with the grid.
      */
     async punchcard(
         workspaceId: string,
-        days: number
+        days: number,
+        timeZone: string = DEFAULT_TIME_ZONE
     ): Promise<ContentPunchcardView> {
+        try {
+            return await this.punchcardIn(workspaceId, days, timeZone);
+        } catch (error) {
+            // The zone was well-formed and known to this runtime, but the
+            // database's own tz table can lag the runtime's. A grid in UTC that
+            // says so beats a failed card.
+            if (timeZone === DEFAULT_TIME_ZONE) throw error;
+            return this.punchcardIn(workspaceId, days, DEFAULT_TIME_ZONE);
+        }
+    }
+
+    /** {@link punchcard} in one zone, no fallback. */
+    private async punchcardIn(
+        workspaceId: string,
+        days: number,
+        timeZone: string
+    ): Promise<ContentPunchcardView> {
+        const local = sql`(${contentEntryRevisions.createdAt} at time zone ${timeZone})`;
         const rows = await this.db
             .select({
-                weekday: sql<number>`cast(extract(isodow from ${contentEntryRevisions.createdAt}) as int)`,
-                hour: sql<number>`cast(extract(hour from ${contentEntryRevisions.createdAt}) as int)`,
+                weekday: sql<number>`cast(extract(isodow from ${local}) as int)`,
+                hour: sql<number>`cast(extract(hour from ${local}) as int)`,
                 count: sql<number>`cast(count(*) as int)`
             })
             .from(contentEntryRevisions)
@@ -452,16 +546,165 @@ export class ContentInsightsQuery {
                     sql`${contentEntryRevisions.createdAt} >= ${windowStart(days)}`
                 )
             )
-            .groupBy(
-                sql`extract(isodow from ${contentEntryRevisions.createdAt})`,
-                sql`extract(hour from ${contentEntryRevisions.createdAt})`
-            );
+            // By ordinal, not by repeating the expressions: the zone is a bound
+            // parameter, so each repetition would render as a different `$n`
+            // and Postgres would refuse the GROUP BY (see `truncUnit`).
+            .groupBy(sql`1`, sql`2`);
 
         return {
             cells: rows,
             max: rows.reduce((peak, row) => Math.max(peak, row.count), 0),
-            total: rows.reduce((sum, row) => sum + row.count, 0)
+            total: rows.reduce((sum, row) => sum + row.count, 0),
+            timeZone
         };
+    }
+
+    /**
+     * The published records whose last edit falls in one age band — the
+     * records behind the "Gone quiet" line, oldest first.
+     *
+     * Live content only, exactly as {@link stale} counts it, so the panel's
+     * total and the chart's bar can never disagree.
+     */
+    async staleRecords(
+        workspaceId: string,
+        age: StaleAge,
+        limit: number
+    ): Promise<ContentRecordsView> {
+        const { fromDays, toDays } = staleAgeWindow(age);
+        return this.records(workspaceId, limit, (type) => {
+            const columns = columnsOf(type);
+            const updatedAt = columns['updatedAt'];
+            return and(
+                type.publishable
+                    ? eq(columns['status'], ENTRY_STATUS.Published)
+                    : undefined,
+                sql`${updatedAt} <= now() - make_interval(days => ${fromDays})`,
+                toDays === null
+                    ? undefined
+                    : sql`${updatedAt} > now() - make_interval(days => ${toDays})`
+            );
+        });
+    }
+
+    /**
+     * Live records carrying unpublished edits — the records behind "Waiting to
+     * go live", the edit that has waited longest first. Publishable types
+     * only, the same rows {@link unshipped} counts as `modified`.
+     */
+    async unshippedRecords(
+        workspaceId: string,
+        limit: number
+    ): Promise<ContentRecordsView> {
+        return this.records(workspaceId, limit, (type) => {
+            if (!type.publishable) return null;
+            const columns = columnsOf(type);
+            return and(
+                eq(columns['status'], ENTRY_STATUS.Draft),
+                sql`${columns['publishedAt']} is not null`
+            );
+        });
+    }
+
+    /**
+     * The shared drill-down read: per type, the true count and its oldest
+     * `limit` rows under `filter`; then the global oldest `limit`, each with a
+     * title and the id of whoever saved it last.
+     *
+     * `filter` returning `null` skips a type outright. The statement count is
+     * fixed per registry (two per type, one for the editors), never per row.
+     */
+    private async records(
+        workspaceId: string,
+        limit: number,
+        filter: (type: AnyContentType) => SQL | undefined | null
+    ): Promise<ContentRecordsView> {
+        const counts: InsightsRecordTypeCountView[] = [];
+        const candidates: {
+            type: AnyContentType;
+            row: Record<string, unknown>;
+            id: string;
+            updatedAt: Date;
+        }[] = [];
+
+        for (const type of this.registry.all()) {
+            const predicate = filter(type);
+            if (predicate === null) continue;
+            const count = await this.countOf(type, workspaceId, predicate);
+            if (count === 0) continue;
+            counts.push({ name: type.name, label: type.label, count });
+
+            const updatedAt = columnsOf(type)['updatedAt'];
+            const rows = (await this.db
+                .select()
+                .from(type.table as PgTable)
+                .where(and(this.scope(type, workspaceId), predicate))
+                .orderBy(asc(updatedAt))
+                .limit(limit)) as Record<string, unknown>[];
+            for (const row of rows) {
+                candidates.push({
+                    type,
+                    row,
+                    id: row['id'] as string,
+                    updatedAt: row['updatedAt'] as Date
+                });
+            }
+        }
+
+        const picked = oldestFirst(candidates, limit);
+        const editors = await this.lastEditors(
+            workspaceId,
+            picked.map((candidate) => candidate.id)
+        );
+
+        return {
+            total: counts.reduce((sum, entry) => sum + entry.count, 0),
+            types: sortTypeCounts(counts),
+            records: picked.map(({ type, row, id, updatedAt }) => {
+                const title = entryTitle(type, row);
+                return {
+                    id,
+                    type: type.name,
+                    typeLabel: type.label,
+                    title: title === id ? null : title,
+                    updatedAt: updatedAt.toISOString(),
+                    editorId: editors.get(id) ?? null
+                };
+            })
+        };
+    }
+
+    /**
+     * Who wrote each entry's newest revision. One `DISTINCT ON` read over the
+     * revision store's `(entry_id, revision_number)` index; an entry with no
+     * revisions (or none with an author) is simply absent.
+     */
+    private async lastEditors(
+        workspaceId: string,
+        entryIds: string[]
+    ): Promise<Map<string, string>> {
+        if (!entryIds.length) return new Map();
+        const rows = await this.db
+            .selectDistinctOn([contentEntryRevisions.entryId], {
+                entryId: contentEntryRevisions.entryId,
+                createdBy: contentEntryRevisions.createdBy
+            })
+            .from(contentEntryRevisions)
+            .where(
+                and(
+                    eq(contentEntryRevisions.workspaceId, workspaceId),
+                    inArray(contentEntryRevisions.entryId, entryIds)
+                )
+            )
+            .orderBy(
+                contentEntryRevisions.entryId,
+                desc(contentEntryRevisions.revisionNumber)
+            );
+        const editors = new Map<string, string>();
+        for (const row of rows) {
+            if (row.createdBy) editors.set(row.entryId, row.createdBy);
+        }
+        return editors;
     }
 }
 
@@ -478,10 +721,7 @@ function bucketExpression(
 }
 
 /** Adds one type's bucket counts into a running total across types. */
-function mergeBuckets(
-    into: Map<string, number>,
-    from: Map<string, number>
-): void {
+function mergeBuckets<K>(into: Map<K, number>, from: Map<K, number>): void {
     for (const [bucket, value] of from) {
         into.set(bucket, (into.get(bucket) ?? 0) + value);
     }

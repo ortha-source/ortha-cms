@@ -6,7 +6,12 @@ import {
 } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useMediaAltCoverage, useMediaStorage, useMediaUploads } from './index';
+import {
+    useMediaAltCoverage,
+    useMediaAltMissing,
+    useMediaStorage,
+    useMediaUploads
+} from './index';
 
 /**
  * The media half of two Insights-page invariants.
@@ -33,7 +38,8 @@ import { useMediaAltCoverage, useMediaStorage, useMediaUploads } from './index';
 const gateway = vi.hoisted(() => ({
     storage: vi.fn(),
     uploads: vi.fn(),
-    altCoverage: vi.fn()
+    altCoverage: vi.fn(),
+    altMissing: vi.fn()
 }));
 
 vi.mock('../../infrastructure/httpMediaInsightsGateway', () => ({
@@ -85,7 +91,8 @@ const wrapper = (queryClient: QueryClient) =>
 const hooks = [
     ['storage', useMediaStorage, gateway.storage],
     ['uploads', useMediaUploads, gateway.uploads],
-    ['alt coverage', useMediaAltCoverage, gateway.altCoverage]
+    ['alt coverage', useMediaAltCoverage, gateway.altCoverage],
+    ['alt missing', useMediaAltMissing, gateway.altMissing]
 ] as const;
 
 beforeEach(() => {

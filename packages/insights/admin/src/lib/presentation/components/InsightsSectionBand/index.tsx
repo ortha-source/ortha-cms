@@ -1,9 +1,14 @@
+import type { ReactNode } from 'react';
 import { useIntl } from 'react-intl';
 import { cn } from '@orthacms/design-system';
-import type { InsightsWidgetSize } from '../../slots/insightsSlots';
+import type {
+    InsightsWidget,
+    InsightsWidgetSize
+} from '../../slots/insightsSlots';
 import type { InsightsBand } from '../../../utils/resolveInsightsLayout';
 import { useInsightsRange } from '../../../hooks/useInsightsRange';
 import { WidgetBoundary } from '../WidgetBoundary';
+import { StatStrip } from '../StatStrip';
 
 /**
  * Column span per size, written as whole literal class strings because
@@ -46,21 +51,39 @@ function spanFor(size: InsightsWidgetSize | undefined): string {
 export type InsightsSectionBandProps = {
     /** The section and its visible widgets. */
     band: InsightsBand;
+    /**
+     * Leads the band with the **Needs attention** card, the band's other charts
+     * beside it — given to the first tab only, and only when the reader can
+     * see at least one line.
+     */
+    attention?: ReactNode;
 };
 
 /**
- * One labelled band of the Insights page: a heading and the grid of widgets
- * under it.
+ * One section of the Insights page — the body of its tab.
+ *
+ * Three rows, each only when it has something in it:
+ *
+ * 1. the band's `xs` widgets, set side by side in one {@link StatStrip};
+ * 2. when `attention` is given, the Needs-attention card with the band's other
+ *    widgets stacked beside it — what needs someone first, charts second;
+ * 3. otherwise the other widgets in the twelve-column grid, at their sizes.
+ *
+ * The section's heading stays an `h2`, visually hidden: the tab already shows
+ * its name, and the outline must still go `h1` → `h2` → `h3` with no gap
+ * (`[insights:I-24]`).
  *
  * Each widget is mounted inside its own {@link WidgetBoundary} so a throw from
  * one contributing package can't take the others down — these components come
  * from packages the Insights plugin has no visibility into.
  */
-export function InsightsSectionBand({ band }: InsightsSectionBandProps) {
+export function InsightsSectionBand({
+    band,
+    attention
+}: InsightsSectionBandProps) {
     const intl = useIntl();
     const { range } = useInsightsRange();
     const { section } = band;
-    const Icon = section.icon;
 
     const heading = intl.formatMessage({
         id: section.titleId,
@@ -73,47 +96,75 @@ export function InsightsSectionBand({ band }: InsightsSectionBandProps) {
           })
         : null;
 
+    const tiles = band.widgets.filter((widget) => widget.size === 'xs');
+    const rest = band.widgets.filter((widget) => widget.size !== 'xs');
+
+    const mount = (widget: InsightsWidget) => (
+        <WidgetBoundary
+            title={intl.formatMessage({
+                id: widget.titleId,
+                defaultMessage: widget.defaultTitle
+            })}
+            // The range is the page's one "ask again" action, so a widget that
+            // threw on one window's data gets another chance on the next rather
+            // than staying broken until the page is remounted.
+            resetKey={range}
+        >
+            <widget.Component />
+        </WidgetBoundary>
+    );
+
     return (
         <section
-            className="flex flex-col gap-3"
+            className="flex flex-col gap-4"
             data-section-id={section.id}
             data-section-fallback={band.isFallback ? 'true' : undefined}
         >
-            <div className="border-b pb-1">
-                <h2 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.07em] text-muted-foreground">
-                    {Icon ? <Icon className="size-3.5 shrink-0" /> : null}
-                    {heading}
-                </h2>
-                {description ? (
-                    <p className="mt-1 pb-1 text-xs normal-case tracking-normal text-muted-foreground">
-                        {description}
-                    </p>
-                ) : null}
-            </div>
+            <h2 className="sr-only">{heading}</h2>
+            {description ? (
+                <p className="text-xs text-muted-foreground">{description}</p>
+            ) : null}
 
-            <div className="grid grid-cols-12 gap-3">
-                {band.widgets.map((widget) => (
-                    <div
-                        key={widget.id}
-                        data-widget-id={widget.id}
-                        className={cn(spanFor(widget.size))}
-                    >
-                        <WidgetBoundary
-                            title={intl.formatMessage({
-                                id: widget.titleId,
-                                defaultMessage: widget.defaultTitle
-                            })}
-                            // The range is the page's one "ask again" action,
-                            // so a widget that threw on one window's data gets
-                            // another chance on the next rather than staying
-                            // broken until the page is remounted.
-                            resetKey={range}
+            {tiles.length > 0 ? (
+                <StatStrip count={tiles.length}>
+                    {tiles.map((widget) => (
+                        <div
+                            key={widget.id}
+                            data-widget-id={widget.id}
+                            className="bg-card"
                         >
-                            <widget.Component />
-                        </WidgetBoundary>
-                    </div>
-                ))}
-            </div>
+                            {mount(widget)}
+                        </div>
+                    ))}
+                </StatStrip>
+            ) : null}
+
+            {attention ? (
+                <div className="grid items-start gap-4 lg:grid-cols-2">
+                    {attention}
+                    {rest.length > 0 ? (
+                        <div className="flex flex-col gap-4">
+                            {rest.map((widget) => (
+                                <div key={widget.id} data-widget-id={widget.id}>
+                                    {mount(widget)}
+                                </div>
+                            ))}
+                        </div>
+                    ) : null}
+                </div>
+            ) : rest.length > 0 ? (
+                <div className="grid grid-cols-12 gap-4">
+                    {rest.map((widget) => (
+                        <div
+                            key={widget.id}
+                            data-widget-id={widget.id}
+                            className={cn(spanFor(widget.size))}
+                        >
+                            {mount(widget)}
+                        </div>
+                    ))}
+                </div>
+            ) : null}
         </section>
     );
 }

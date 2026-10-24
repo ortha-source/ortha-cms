@@ -8,6 +8,7 @@ import { CurrentWorkspace, WorkspaceGuard } from '@orthacms/workspaces-server';
 import { MediaInsightsQuery } from '../../infrastructure/queries/media-insights.query';
 import type {
     MediaAltCoverageView,
+    MediaAltMissingView,
     MediaStorageView,
     MediaUploadsView
 } from '../../types/media-insights-view';
@@ -25,8 +26,21 @@ function toDays(raw: string | undefined): number {
     return Math.min(parsed, MAX_DAYS);
 }
 
+/** Rows a drill-down lists when the caller states no limit. */
+const DEFAULT_LIMIT = 20;
+
+/** Most rows a drill-down may list — it is a side panel, not a table. */
+const MAX_LIMIT = 50;
+
+/** Parses `?limit=`, clamped to the panel's cap. */
+export function toLimit(raw: string | undefined): number {
+    const parsed = Number(raw);
+    if (!Number.isInteger(parsed) || parsed < 1) return DEFAULT_LIMIT;
+    return Math.min(parsed, MAX_LIMIT);
+}
+
 /**
- * `GET /api/insights/media/{storage,uploads,alt}` — the read-only aggregates
+ * `GET /api/insights/media/{storage,uploads,alt,alt/missing}` — the read-only aggregates
  * behind the media Insights widgets.
  *
  * Grouped in one controller, unlike content's four: these are three projections
@@ -64,5 +78,17 @@ export class MediaInsightsController {
         @CurrentWorkspace() workspaceId: string
     ): Promise<MediaAltCoverageView> {
         return this.insights.altCoverage(workspaceId);
+    }
+
+    /**
+     * The images missing alt text, oldest upload first — the drill-down behind
+     * the Insights line. `?limit=` is clamped to the panel's cap.
+     */
+    @Get('alt/missing')
+    altMissing(
+        @CurrentWorkspace() workspaceId: string,
+        @Query('limit') limit?: string
+    ): Promise<MediaAltMissingView> {
+        return this.insights.altMissing(workspaceId, toLimit(limit));
     }
 }

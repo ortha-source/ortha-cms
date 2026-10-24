@@ -23,7 +23,9 @@ export const mediaInsightsKeys = {
     uploads: (workspaceId: string, days: number) =>
         ['media-insights', workspaceId, 'uploads', days] as const,
     alt: (workspaceId: string) =>
-        ['media-insights', workspaceId, 'alt'] as const
+        ['media-insights', workspaceId, 'alt'] as const,
+    altMissing: (workspaceId: string) =>
+        ['media-insights', workspaceId, 'alt-missing'] as const
 };
 
 /**
@@ -90,6 +92,27 @@ export function useMediaAltCoverage() {
         // sitting on a skeleton for about seven seconds first — on a page whose
         // whole premise is that one failing card degrades alone, that reads as
         // a hang rather than a failure. One retry still covers a transient blip.
+        retry: 1,
+        enabled: canRead
+    });
+}
+
+/** How many images the alt-text drill-down lists. */
+export const ALT_DRILL_LIMIT = 20;
+
+/**
+ * Loads the images missing alt text, oldest upload first — the drill-down
+ * behind the Needs-attention line. Mounted only while its panel is open.
+ */
+export function useMediaAltMissing() {
+    const workspace = useCurrentWorkspace();
+    const canRead = useHasPermission(MEDIA_READ);
+
+    return useQuery({
+        queryKey: mediaInsightsKeys.altMissing(workspace.id),
+        queryFn: () => httpMediaInsightsGateway.altMissing(ALT_DRILL_LIMIT),
+        staleTime: STALE_TIME.Standard,
+        // One retry, as every Insights read (`[insights:I-16]`).
         retry: 1,
         enabled: canRead
     });

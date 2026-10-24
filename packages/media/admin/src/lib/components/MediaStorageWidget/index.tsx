@@ -12,11 +12,11 @@ import { formatBytes } from '../../utils/formatBytes';
 const messages = defineMessages({
     title: {
         id: 'media.insights.storageBreakdown.title',
-        defaultMessage: "What's using the storage"
+        defaultMessage: 'Storage'
     },
     description: {
         id: 'media.insights.storageBreakdown.description',
-        defaultMessage: '{bytes} across {count, number} assets'
+        defaultMessage: '{bytes} · {count, number} assets'
     },
     tip: {
         id: 'media.insights.storageBreakdown.tip',

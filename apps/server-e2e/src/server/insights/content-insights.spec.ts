@@ -589,6 +589,107 @@ describe('Content insights (/api/insights/content)', () => {
         });
     });
 
+    describe('drill-down reads', () => {
+        it('lists the published records in an age band, oldest first, with the true total', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const older = await createEntry(agent, {
+                ...VALID,
+                text: 'Oldest page'
+            });
+            const old = await createEntry(agent, {
+                ...VALID,
+                text: 'Old page'
+            });
+            const draft = await createEntry(agent);
+            for (const id of [older, old]) {
+                await agent
+                    .post(`/api/content/test_article/${id}/publish`)
+                    .expect(201);
+            }
+            await ageEntry(older, 500);
+            await ageEntry(old, 400);
+            // A draft is not neglected content, however old.
+            await ageEntry(draft, 600);
+
+            const res = await agent
+                .get('/api/insights/content/stale/records?age=year')
+                .expect(200);
+            expect(res.body.total).toBe(2);
+            expect(res.body.types).toEqual([
+                expect.objectContaining({ name: 'test_article', count: 2 })
+            ]);
+            expect(
+                res.body.records.map((record: { id: string }) => record.id)
+            ).toEqual([older, old]);
+            expect(res.body.records[0]).toMatchObject({
+                type: 'test_article',
+                editorId: admin.id
+            });
+
+            // The band and the chart's bucket are the same rows.
+            const stale = await agent
+                .get('/api/insights/content/stale')
+                .expect(200);
+            expect(stale.body.olderTopType).toMatchObject({
+                name: 'test_article'
+            });
+            await expect(
+                agent.get('/api/insights/content/stale/records?age=recent')
+            ).resolves.toMatchObject({ body: { total: 0 } });
+        });
+
+        it('lists live records carrying unpublished edits', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const edited = await createEntry(agent);
+            await agent
+                .post(`/api/content/test_article/${edited}/publish`)
+                .expect(201);
+            await agent
+                .patch(`/api/content/test_article/${edited}`)
+                .send({ values: { ...VALID, text: 'Edited after publish' } })
+                .expect(200);
+            await createEntry(agent);
+
+            const res = await agent
+                .get('/api/insights/content/unshipped/records?limit=5')
+                .expect(200);
+            expect(res.body.total).toBe(1);
+            expect(res.body.records).toEqual([
+                expect.objectContaining({ id: edited })
+            ]);
+        });
+
+        it('lists only the workspace named by the header', async () => {
+            const there = await login(ADMIN_EMAIL, otherWorkspaceId);
+            const id = await createEntry(there);
+            await there
+                .post(`/api/content/test_article/${id}/publish`)
+                .expect(201);
+            await ageEntry(id, 500);
+
+            const here = await login(ADMIN_EMAIL);
+            await expect(
+                here.get('/api/insights/content/stale/records')
+            ).resolves.toMatchObject({ body: { total: 0, records: [] } });
+        });
+
+        it('groups the punchcard in the zone asked for, and says which', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            await createEntry(agent);
+
+            const tokyo = await agent
+                .get('/api/insights/content/punchcard?tz=Asia/Tokyo')
+                .expect(200);
+            expect(tokyo.body.timeZone).toBe('Asia/Tokyo');
+            expect(tokyo.body.total).toBe(1);
+
+            const junk = await agent
+                .get('/api/insights/content/punchcard?tz=Not/AZone')
+                .expect(200);
+            expect(junk.body.timeZone).toBe('UTC');
+        });
+    });
+
     describe('authorization', () => {
         it('401s without a session', async () => {
             await request(harness.server)
@@ -633,10 +734,12 @@ describe('Content insights (/api/insights/content)', () => {
         it('refuses every route without a session', async () => {
             for (const route of [
                 'stale',
+                'stale/records',
                 'pipeline',
                 'velocity',
                 'punchcard',
-                'unshipped'
+                'unshipped',
+                'unshipped/records'
             ]) {
                 await request(harness.server)
                     .get(`/api/insights/content/${route}`)

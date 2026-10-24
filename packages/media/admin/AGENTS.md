@@ -354,9 +354,13 @@ picked fills the Media Library with assets for a record the user then abandons.
 
 This plugin contributes the **media cards** on the Insights page via
 `@orthacms/insights-admin`'s `INSIGHTS_WIDGET_SLOT` — media owns `media_asset`,
-so it owns the cards reading it. Four contributions: a **Media storage** stat
-tile in Overview, **What's using the storage**, **Uploads**, and **Images
-missing alt text**. Data layer follows the package's shape —
+so it owns the cards reading it. Three cards — a **Media storage** stat tile in
+Overview, **Storage** and **Uploads** on the _Localisation & media_ tab — and
+one **Needs-attention line** on `INSIGHTS_SIGNAL_SLOT`: **Images missing alt
+text** (`MediaAltSignal`), opening the images behind it oldest upload first
+(`MediaAltDrill`, `GET /insights/media/alt/missing`). The library has no "no
+alt text" filter to land on, so the panel's way out opens the library as it
+is rather than claiming a filtered view. Data layer follows the package's shape —
 `infrastructure/mediaInsightsGateway` (port), `httpMediaInsightsGateway`
 (the `apiClient` use), and `hooks/useMediaInsights` (keys + read hooks,
 workspace-scoped, `retry: 1`).

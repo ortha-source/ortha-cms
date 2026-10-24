@@ -240,13 +240,26 @@ describe('InsightsSectionBand widget width', () => {
     }
 
     it('gives a declared size its own span [insights:I-20]', () => {
-        renderSizes({ tile: 'xs', wide: 'full' });
+        renderSizes({ third: 'sm', wide: 'full' });
 
         // That these are whole literals rather than assembled strings is not
         // visible here — the markup is the same either way — and is pinned as
         // source text in `utils/chartTone/index.spec.ts`.
-        expect(wrapperClass('tile')).toContain('col-span-6 lg:col-span-3');
+        expect(wrapperClass('third')).toContain(
+            'col-span-12 md:col-span-6 lg:col-span-4'
+        );
         expect(wrapperClass('wide')).toContain('col-span-12');
+    });
+
+    it('sets the xs tiles side by side in one stat strip', () => {
+        renderSizes({ a: 'xs', b: 'xs', chart: 'md' });
+
+        const strip = screen.getByTestId('stat-strip');
+        expect(strip.querySelector('[data-widget-id="a"]')).not.toBeNull();
+        expect(strip.querySelector('[data-widget-id="b"]')).not.toBeNull();
+        // Only the tiles: a chart keeps its place in the grid.
+        expect(strip.querySelector('[data-widget-id="chart"]')).toBeNull();
+        expect(wrapperClass('chart')).toContain('col-span-12 lg:col-span-6');
     });
 
     it('falls back to the md span for a size nobody offers [insights:I-20]', () => {

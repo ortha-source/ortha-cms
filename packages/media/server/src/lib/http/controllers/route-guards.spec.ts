@@ -154,6 +154,7 @@ describe('MediaModule route guards', () => {
             'DELETE /media/assets',
             'DELETE /media/folders/:id',
             'GET /insights/media/alt',
+            'GET /insights/media/alt/missing',
             'GET /insights/media/storage',
             'GET /insights/media/uploads',
             'GET /media/assets',

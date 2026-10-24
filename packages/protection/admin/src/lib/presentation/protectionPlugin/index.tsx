@@ -9,10 +9,7 @@ import {
     type ContentTypeDetail,
     type EntryRecord
 } from '@orthacms/content-admin';
-import {
-    INSIGHTS_SECTION_IDS,
-    INSIGHTS_WIDGET_SLOT
-} from '@orthacms/insights-admin';
+import { INSIGHTS_SIGNAL_SLOT } from '@orthacms/insights-admin';
 import {
     WORKSPACE_NAV_SLOT,
     WORKSPACE_ROUTE_SLOT,
@@ -26,7 +23,8 @@ import { ReviewsSkeleton } from '../components/ReviewsSkeleton';
 import { ReviewSection } from '../components/ReviewSection';
 import { usePublishProtectionVerdict } from '../slots/publishGuard';
 import { ReviewColumnCell } from '../components/ReviewColumnCell';
-import { ProtectionInsightsCard } from '../components/ProtectionInsightsCard';
+import { ReviewsSignal } from '../components/ReviewsSignal';
+import { ReviewsDrill } from '../components/ReviewsDrill';
 import { useReviewStateFilterFields } from '../../application/useReviewStateFilterFields';
 import { useReviewStatusByEntry } from '../../application/hooks';
 
@@ -170,22 +168,21 @@ export function ProtectionPlugin(): ProtectionAdminPlugin {
                 ]
             },
             {
-                slot: INSIGHTS_WIDGET_SLOT,
+                // A Needs-attention line on Insights, beside content's own
+                // debts: a stalled review is work outstanding like those, and
+                // the line opens the requests behind its count.
+                slot: INSIGHTS_SIGNAL_SLOT,
                 items: [
                     {
-                        id: 'insights.protection.reviews',
-                        // Beside content's own debts — half of what Insights
-                        // reports is work outstanding, and a stalled review is
-                        // one more of those.
-                        section: INSIGHTS_SECTION_IDS.Content,
-                        order: 40,
-                        size: 'xs',
-                        // Matches the route's own guard, so the card is not
+                        id: 'protection.reviews',
+                        order: 20,
+                        // Matches the route's own guard, so the line is not
                         // rendered for somebody the request would then refuse.
                         permission: 'content:read',
-                        titleId: 'protection.insights.title',
+                        titleId: 'protection.insights.signal.title',
                         defaultTitle: 'Waiting on review',
-                        Component: ProtectionInsightsCard
+                        Component: ReviewsSignal,
+                        Drill: ReviewsDrill
                     }
                 ]
             },

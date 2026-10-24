@@ -31,6 +31,11 @@ export type WidgetBoundaryProps = {
      * failed card otherwise doesn't have.
      */
     resetKey?: string;
+    /**
+     * `card` (the default) stands in for a whole widget; `line` for one line
+     * of the Needs-attention card, where a nested card would break the list.
+     */
+    variant?: 'card' | 'line';
     /** The widget being isolated. */
     children: ReactNode;
 };
@@ -81,6 +86,17 @@ export class WidgetBoundary extends Component<
 
     override render(): ReactNode {
         if (!this.state.failed) return this.props.children;
+
+        if (this.props.variant === 'line') {
+            return (
+                <div className="flex flex-col gap-0.5 px-4 py-3">
+                    <span className="font-medium">{this.props.title}</span>
+                    <p role="alert" className="text-xs text-destructive">
+                        <FormattedMessage {...messages.failed} />
+                    </p>
+                </div>
+            );
+        }
 
         return (
             <Card className="h-full shadow-none">

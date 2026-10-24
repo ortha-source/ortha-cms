@@ -239,4 +239,26 @@ export interface ProtectionInsightsView {
     overdue: number;
     /** The threshold `overdue` was counted against, so the card can say it. */
     overdueAfterDays: number;
+    /**
+     * The request that has waited longest, so the Needs-attention line can
+     * name it — "1 overdue — Pricing FAQ, 5 days". `null` when nothing is open.
+     */
+    oldestOpen: ProtectionInsightsOldestView | null;
+}
+
+/** The longest-waiting open review request, as the Insights line names it. */
+export interface ProtectionInsightsOldestView {
+    /** The code-defined content type name. */
+    contentType: string;
+    /** The type's display label. */
+    contentTypeLabel: string;
+    /** The entry under review. */
+    entryId: string;
+    /**
+     * The entry's display title, or `null` for a type no longer registered, an
+     * entry that has gone, or one with no title-eligible value.
+     */
+    entryTitle: string | null;
+    /** Whole days since the request was opened. */
+    waitingDays: number;
 }
