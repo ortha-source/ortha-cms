@@ -57,7 +57,10 @@ business truth (ADR-0003 frontend guidance).
 - `Workspace` / `WorkspaceMember` / `WorkspaceStatus` — the data model.
 - **Workspace shell slots** — `WORKSPACE_NAV_SLOT` (the "Workspace" section's
   labeled nav rows), `WORKSPACE_SECTION_SLOT` (custom sidebar sections, e.g. the
-  Content Library's content-type list), `WORKSPACE_ROUTE_SLOT` (pages mounted
+  Content Library's content-type list; an item's optional `takeover(pathname)`
+  makes it the sidebar's only content where it returns true — the copilot's
+  Agents view swaps the content tree for its chat list that way),
+  `WORKSPACE_ROUTE_SLOT` (pages mounted
   inside the shell; `WorkspaceRoute.order` picks the default landing), and
   `WORKSPACE_SETTINGS_TAB_SLOT` (a section on the **settings** page — see
   below), plus the `WorkspaceNavItem` / `WorkspaceSectionItem` /

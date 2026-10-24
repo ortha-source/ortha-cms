@@ -123,6 +123,8 @@ export interface CopilotSpy {
     readonly patches: { id: string; body: Record<string, unknown> }[];
     /** Every `POST /runs` body, in order. */
     readonly runs: Record<string, unknown>[];
+    /** Every answer posted to a parked run, in order. */
+    readonly decisions: Record<string, unknown>[];
     /** The mock's current threads — mutated by PATCH, like the real table. */
     readonly conversations: CopilotConversationView[];
     /** The mock's current skills — mutated by the write routes. */
@@ -399,6 +401,80 @@ export function parkedRun(conversationId: string): string {
 }
 
 /**
+ * A run that **parks on a write it could preview**: a step, a sentence, then a
+ * permission request carrying the server's `preview` — the R7 conversation
+ * board's "23 changes · Not saved" card and "wants to save 23 records as
+ * drafts". Pass it as `runBody`.
+ */
+export function previewedRun(conversationId: string): string {
+    const record = (index: number, title: string, after: string) => ({
+        field: `items[${index}].summary`,
+        label: 'Summary',
+        record: title,
+        before: '',
+        after
+    });
+    return [
+        frame({ type: 'run-started', runId: 'r_preview', conversationId }),
+        frame({
+            type: 'tool-call',
+            id: 'call_find',
+            name: 'admin_content_search',
+            input: { typeName: 'blog-posts' }
+        }),
+        frame({
+            type: 'tool-result',
+            id: 'call_find',
+            name: 'admin_content_search',
+            ok: true,
+            summary: '842 records · 23 have no summary',
+            durationMs: 6
+        }),
+        frame({
+            type: 'text-delta',
+            text: 'I drafted a summary for each of the 23 — nothing is saved until you say so.'
+        }),
+        frame({
+            type: 'tool-permission-request',
+            id: 'call_save',
+            runId: 'r_preview',
+            name: 'content_propose_bulk_save',
+            input: { typeName: 'blog-posts', items: [] },
+            expiresAt: new Date(Date.now() + 300_000).toISOString(),
+            preview: {
+                kind: 'content.entry.bulk-save',
+                summary: 'Write a summary for 23 articles',
+                lands: 'draft',
+                records: 23,
+                omitted: 0,
+                changes: [
+                    record(
+                        0,
+                        'Spring launch — what changed',
+                        'Everything that shipped in spring.'
+                    ),
+                    record(
+                        1,
+                        'Webhooks, retried',
+                        'How deliveries survive outages.'
+                    ),
+                    record(
+                        2,
+                        'Security at Ortha',
+                        'The reviews behind every release.'
+                    ),
+                    record(
+                        3,
+                        'Our design principles',
+                        'What we keep coming back to.'
+                    )
+                ]
+            }
+        })
+    ].join('');
+}
+
+/**
  * A run whose change **did not apply** — the receipt nobody wants to read.
  *
  * Pass it as `runBody`. The proposal lands `pending`, which since ADR-0009
@@ -617,6 +693,7 @@ export async function mockCopilotApi(
     const spy: CopilotSpy = {
         patches: [],
         runs: [],
+        decisions: [],
         conversations: options.empty ? [] : seedConversations(),
         skills: options.skills ?? seedSkills(),
         skillWrites: []
@@ -637,6 +714,17 @@ export async function mockCopilotApi(
     await page.route('**/api/copilot/models', (route) =>
         route.fulfill(json({ items: models }))
     );
+
+    // Answering a parked run. Recorded so a spec can assert the decision.
+    await page.route('**/api/copilot/runs/*/permission', async (route) => {
+        spy.decisions.push(
+            JSON.parse(route.request().postData() ?? '{}') as Record<
+                string,
+                unknown
+            >
+        );
+        return route.fulfill({ status: 204, body: '' });
+    });
 
     await page.route('**/api/copilot/suggestions', (route) => {
         const answer = options.suggestions ?? SUGGESTIONS;

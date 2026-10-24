@@ -49,7 +49,7 @@ test.describe('Ortha CMS AI across a change of account', () => {
         await contentLibraryPage.goto(WORKSPACE_ID);
         await copilotDockPage.startChat();
         await copilotDockPage.startChat();
-        await expect(copilotDockPage.launcher).toHaveAccessibleName(/2 chats/);
+        await expect(copilotDockPage.windows()).toHaveCount(2);
         // The CMS ⇄ Agents switcher's memory of where this account was.
         await page.evaluate(
             (key) =>
@@ -85,10 +85,9 @@ test.describe('Ortha CMS AI across a change of account', () => {
         await loginPage.login('grace@orthacms.dev', PASSWORD);
         await expect(page).toHaveURL(new RegExp(`/workspaces/${WORKSPACE_ID}`));
 
-        await expect(copilotDockPage.launcher).toHaveAccessibleName(
-            'Ask Ortha AI'
-        );
+        await expect(copilotDockPage.launcher).toBeVisible();
         await expect(copilotDockPage.windows()).toHaveCount(0);
+        await expect(copilotDockPage.chatList).toHaveCount(0);
     });
 
     test('signing out cancels a run still in flight', async ({

@@ -25,12 +25,9 @@ export class CopilotDockPage extends BasePage {
      * holds nothing — outside a workspace, and on the Agents view.
      */
     readonly dock: Locator;
-    /**
-     * The launcher: "Ask Ortha AI" with no chats open, "Ask Ortha
-     * AI — N chats" (opening the list) once there are some.
-     */
+    /** The launcher: "Ask Ortha AI", which always starts a chat. */
     readonly launcher: Locator;
-    /** The list of open chats the launcher opens. */
+    /** The collapsed chats' pills, beside the launcher. */
     readonly chatList: Locator;
     /** The launcher's tooltip: the product's name and the shortcut. */
     readonly launcherTooltip: Locator;
@@ -39,9 +36,11 @@ export class CopilotDockPage extends BasePage {
         super(page);
         this.dock = page.locator('[data-slot="inset-footer-end"]');
         this.launcher = this.dock.getByRole('button', {
-            name: /^Ask Ortha AI/
+            name: 'Ask Ortha AI',
+            exact: true
         });
-        this.chatList = page.getByRole('dialog', {
+        // The collapsed chats, as pills beside the launcher (R7).
+        this.chatList = this.dock.getByRole('group', {
             name: 'Ortha CMS AI chats'
         });
         this.launcherTooltip = page.getByRole('tooltip');
@@ -49,60 +48,26 @@ export class CopilotDockPage extends BasePage {
 
     // --- the dock ---------------------------------------------------------
 
-    /**
-     * The control that starts a chat. With no chats open it is the launcher
-     * itself — "Ask Ortha AI", carrying the platform's shortcut
-     * hint, a name that *contains* its visible text (the 2.5.3 property the
-     * earlier constant "New chat" broke). Once there are chats it is the list's
-     * own "New chat" row, so open the list first.
-     */
+    /** The control that starts a chat: "Ask Ortha AI", always. */
     newChat(): Locator {
-        // Exact: with chats open the launcher is "Ask Ortha AI — N chats",
-        // which opens the list rather than starting one.
-        return this.dock
-            .getByRole('button', {
-                name: 'Ask Ortha AI',
-                exact: true
-            })
-            .or(
-                this.chatList.getByRole('button', {
-                    name: 'New chat',
-                    exact: true
-                })
-            );
+        return this.launcher;
     }
 
-    /** Open the chat list (a no-op while it is already open). */
+    /** The pills are always on screen; this waits for them. */
     async openChatList() {
-        if (await this.chatList.isVisible()) return;
-        await this.launcher.click();
         await this.chatList.waitFor();
     }
 
-    /** Start a chat — from the launcher, or from the list once chats exist. */
+    /** Start a chat from the launcher. */
     async startChat() {
-        const start = this.dock.getByRole('button', {
-            name: 'Ask Ortha AI',
-            exact: true
-        });
-        if (await start.isVisible()) {
-            await start.click();
-            return;
-        }
-        await this.openChatList();
-        await this.chatList
-            .getByRole('button', { name: 'New chat', exact: true })
-            .click();
+        await this.launcher.click();
     }
 
     /**
-     * A chat's row in the list (open it first with {@link openChatList}). The
-     * marker is **in the name** — "… — finished", "… — waiting for you" — not
-     * only in the coloured dot, so pass a regex to assert one.
-     *
-     * A plain name matches **exactly**: role names are substring-matched by
-     * default, and every row sits beside a "Close {title}" control that would
-     * otherwise match the same string.
+     * A collapsed chat's pill. The marker is **in the name** — "… — finished",
+     * "… — waiting for you" — not only in its mark, so pass a regex to assert
+     * one. A plain name matches **exactly**: every pill sits beside a "Close
+     * {title}" control that would otherwise match the same string.
      */
     pill(name: string | RegExp): Locator {
         return this.chatList.getByRole('button', {
@@ -111,11 +76,9 @@ export class CopilotDockPage extends BasePage {
         });
     }
 
-    /** Every chat row and close control in the open list — for counting. */
+    /** Every pill and close control in the dock — for counting. */
     pills(): Locator {
-        return this.chatList.getByRole('button').filter({
-            hasNot: this.page.getByText('New chat', { exact: true })
-        });
+        return this.chatList.getByRole('button');
     }
 
     /** A chat's own Close control, named after the chat it discards. */
@@ -163,8 +126,9 @@ export class CopilotDockPage extends BasePage {
 
     /** The window's message box. */
     composer(index = 0): Locator {
+        // "Reply…" once there is a transcript above it.
         return this.panel(index).getByRole('textbox', {
-            name: 'Ask about your content…'
+            name: /^(Ask about your content…|Reply…)$/
         });
     }
 
