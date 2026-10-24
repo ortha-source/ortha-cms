@@ -18,8 +18,7 @@ const messages = defineMessages({
     title: { id: 'apiTokens.page.title', defaultMessage: 'API tokens' },
     subtitle: {
         id: 'apiTokens.page.subtitle',
-        defaultMessage:
-            'Bearer tokens for reading content through the external API.'
+        defaultMessage: 'Bearer tokens for the content API'
     },
     loading: {
         id: 'apiTokens.skeleton.loading',
@@ -41,7 +40,7 @@ export function ApiTokensSkeleton({ rows = 5 }: { rows?: number }) {
             <span className="sr-only">
                 {intl.formatMessage(messages.loading)}
             </span>
-            <div aria-hidden className="mt-4">
+            <div aria-hidden>
                 <Table>
                     <TableHeader>
                         <TableRow>

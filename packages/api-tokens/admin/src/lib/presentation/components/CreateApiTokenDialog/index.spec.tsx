@@ -56,7 +56,7 @@ const workspaceOptions = vi.mocked(useWorkspaceOptions);
 const WORKSPACE = 'Marketing site';
 const SUBMIT = 'Create token';
 const CANCEL = 'Cancel';
-const PLACEHOLDER = 'Select workspaces';
+const PLACEHOLDER = 'Add a workspace…';
 
 /**
  * Renders the dialog open, with the parent still owning `open` — the same
@@ -88,14 +88,14 @@ function renderDialog() {
     };
 }
 
-const nameField = () => screen.getByLabelText('Name') as HTMLInputElement;
+const nameField = () => screen.getByLabelText(/^Name/) as HTMLInputElement;
 
 const submitButton = () =>
     screen.getByRole('button', { name: SUBMIT }) as HTMLButtonElement;
 
-/** The multi-select trigger, named by its own label — the two `Select`s are combo boxes too. */
+/** The picker's trigger, named by the field label it sits under. */
 const workspacesTrigger = () =>
-    screen.getByRole('combobox', { name: 'Workspaces' });
+    screen.getByRole('combobox', { name: /^Workspaces/ });
 
 /** Opens the workspace selector and picks the one workspace on offer. */
 async function pickWorkspace() {
@@ -123,7 +123,9 @@ describe('CreateApiTokenDialog', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         workspaceOptions.mockReturnValue({
-            data: [{ id: 'ws_1', name: WORKSPACE }],
+            data: [
+                { id: 'ws_1', name: WORKSPACE, initials: 'MS', color: 'violet' }
+            ],
             isError: false,
             refetch: vi.fn()
         } as unknown as ReturnType<typeof useWorkspaceOptions>);
@@ -178,14 +180,81 @@ describe('CreateApiTokenDialog', () => {
         fireEvent.click(submitButton());
 
         // The trim is not cosmetic — it is the name the token carries forever.
-        // `never` is the default expiry, and the gateway expresses that by
-        // omitting the field rather than sending a null.
+        // Thirty days is the default expiry: a forgotten token should die.
         expect(onSubmit).toHaveBeenCalledWith({
             name: 'Production website',
             workspaceIds: ['ws_1'],
             scope: 'read',
-            expiresAt: undefined
+            expiresAt: expect.any(String)
         });
+        const { expiresAt } = onSubmit.mock.calls[0][0] as {
+            expiresAt: string;
+        };
+        const days = (Date.parse(expiresAt) - Date.now()) / 86_400_000;
+        expect(days).toBeGreaterThan(29.9);
+        expect(days).toBeLessThan(30.1);
+    });
+
+    it('omits the expiry entirely when Never is chosen', async () => {
+        const { onSubmit } = renderDialog();
+        fireEvent.change(nameField(), { target: { value: 'Website' } });
+        await pickWorkspace();
+
+        fireEvent.click(screen.getByRole('radio', { name: 'Never' }));
+        fireEvent.click(submitButton());
+
+        // The gateway says "never" by leaving the field out, not with a null.
+        expect(onSubmit.mock.calls[0][0].expiresAt).toBeUndefined();
+    });
+
+    it('turns the expiry preset into a date before you submit', () => {
+        renderDialog();
+
+        fireEvent.click(screen.getByRole('radio', { name: '90 days' }));
+
+        const expected = new Date(Date.now() + 90 * 86_400_000);
+        const formatted = new Intl.DateTimeFormat('en', {
+            dateStyle: 'medium'
+        }).format(expected);
+        expect(
+            screen.getByText(new RegExp(`^On ${formatted}\\.`))
+        ).toBeTruthy();
+    });
+
+    it('offers access as two cards, Read-only first and chosen', async () => {
+        const { onSubmit } = renderDialog();
+        const readOnly = screen.getByRole('radio', { name: /^Read-only/ });
+        const full = screen.getByRole('radio', { name: /^Full access/ });
+
+        expect(readOnly.getAttribute('aria-checked')).toBe('true');
+
+        fireEvent.click(full);
+        fireEvent.change(nameField(), { target: { value: 'Builder' } });
+        await pickWorkspace();
+        fireEvent.click(submitButton());
+
+        expect(onSubmit.mock.calls[0][0].scope).toBe('full');
+    });
+
+    it('takes a picked workspace back out with its chip', async () => {
+        renderDialog();
+        fireEvent.change(nameField(), { target: { value: 'Website' } });
+        await pickWorkspace();
+        fireEvent.keyDown(document.activeElement ?? document.body, {
+            key: 'Escape'
+        });
+
+        fireEvent.click(
+            screen.getByRole('button', { name: `Remove ${WORKSPACE}` })
+        );
+
+        expect(submitButton().disabled).toBe(true);
+    });
+
+    it('caps the name at the server’s 120 characters', () => {
+        renderDialog();
+
+        expect(nameField().maxLength).toBe(120);
     });
 
     it('shows an empty form after a cancelled draft is reopened', async () => {
@@ -204,6 +273,10 @@ describe('CreateApiTokenDialog', () => {
 
         expect(nameField().value).toBe('');
         expect(workspacesTrigger().textContent).toContain(PLACEHOLDER);
+        // No chip survived either: the bucket is empty again.
+        expect(
+            screen.queryByRole('button', { name: `Remove ${WORKSPACE}` })
+        ).toBeNull();
     });
 
     /**

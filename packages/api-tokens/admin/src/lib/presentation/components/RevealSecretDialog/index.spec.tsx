@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { IntlProvider } from 'react-intl';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { RevealSecretDialog } from './index';
+import type { CreatedApiToken } from '../../../domain/types/apiToken';
+import { exampleRequest, RevealSecretDialog } from './index';
 
 // jsdom implements none of the browser APIs the Radix dialog primitives reach
 // for, and this package registers no vitest setup file, so the shims the
@@ -56,15 +57,44 @@ Object.defineProperty(navigator, 'clipboard', {
     value: { writeText: (text: string) => writeText(text) }
 });
 
-function renderDialog() {
+const WORKSPACE_ID = '11111111-1111-4111-8111-111111111111';
+
+const TOKEN: CreatedApiToken = {
+    id: 'tok_1',
+    name: 'Docs search index',
+    workspaceIds: [WORKSPACE_ID],
+    scope: 'read',
+    lookupPrefix: 'ort_live_su',
+    expiresAt: new Date('2026-11-23T12:00:00.000Z'),
+    lastUsedAt: null,
+    revokedAt: null,
+    createdAt: new Date('2026-10-24T12:00:00.000Z'),
+    status: 'active',
+    expiringSoon: true,
+    createdBy: null,
+    secret: SECRET
+};
+
+function renderDialog(token: CreatedApiToken = TOKEN) {
     const onOpenChange = vi.fn();
 
     render(
         <IntlProvider locale="en" onError={() => undefined}>
             <RevealSecretDialog
-                secret={SECRET}
+                token={token}
                 open
                 onOpenChange={onOpenChange}
+                resolveWorkspace={(id) =>
+                    id === WORKSPACE_ID
+                        ? {
+                              id,
+                              name: 'Product docs',
+                              description: null,
+                              initials: 'PD',
+                              color: 'teal'
+                          }
+                        : undefined
+                }
             />
         </IntlProvider>
     );
@@ -170,6 +200,54 @@ describe('RevealSecretDialog', () => {
      * rejected write as a copy would drop the guard on the one press where the
      * secret genuinely did not make it anywhere.
      */
+    it('counts copying the example request as copying — it carries the secret', async () => {
+        const { onOpenChange } = renderDialog();
+
+        fireEvent.click(button('Copy request'));
+        await waitFor(() =>
+            expect(writeText).toHaveBeenCalledWith(
+                expect.stringContaining(`Bearer ${SECRET}`)
+            )
+        );
+
+        fireEvent.click(button(DONE));
+
+        expect(onOpenChange).toHaveBeenCalledWith(false);
+    });
+
+    it('shows the request with the secret elided, and both headers', () => {
+        renderDialog();
+
+        const shown = screen.getByRole('group', { name: 'Try it' });
+        // The field above is where the secret is read; the example must not be
+        // a second, unlabelled copy of it.
+        expect(shown.textContent).not.toContain(SECRET);
+        expect(shown.textContent).toContain(
+            'Authorization: Bearer ort_live_su'
+        );
+        expect(shown.textContent).toContain(`X-Workspace-Id: ${WORKSPACE_ID}`);
+    });
+
+    it('sums the token up in one line: name, access, workspaces, expiry', () => {
+        renderDialog();
+
+        expect(
+            screen.getByText(
+                'Docs search index · Read-only · Product docs · expires Nov 23'
+            )
+        ).toBeTruthy();
+    });
+
+    it('says a token without an expiry never expires', () => {
+        renderDialog({ ...TOKEN, expiresAt: null, scope: 'full' });
+
+        expect(
+            screen.getByText(
+                'Docs search index · Full access · Product docs · never expires'
+            )
+        ).toBeTruthy();
+    });
+
     it('does not count a refused clipboard write as a copy', async () => {
         writeText.mockRejectedValue(new Error('clipboard blocked'));
         const { onOpenChange } = renderDialog();
@@ -181,5 +259,33 @@ describe('RevealSecretDialog', () => {
 
         expect(isConfirming()).toBe(true);
         expect(onOpenChange).not.toHaveBeenCalled();
+    });
+});
+
+describe('exampleRequest', () => {
+    it('lists the content types with both headers, ready to paste', () => {
+        expect(
+            exampleRequest({
+                origin: 'https://cms.example.com',
+                secret: 'orthacms_abc',
+                workspaceId: 'ws-1'
+            })
+        ).toBe(
+            [
+                'curl https://cms.example.com/api/v1/content-types \\',
+                '  -H "Authorization: Bearer orthacms_abc" \\',
+                '  -H "X-Workspace-Id: ws-1"'
+            ].join('\n')
+        );
+    });
+
+    it('leaves the workspace header out only when there is none to name', () => {
+        expect(
+            exampleRequest({
+                origin: 'https://cms.example.com',
+                secret: 'orthacms_abc',
+                workspaceId: undefined
+            })
+        ).not.toContain('X-Workspace-Id');
     });
 });

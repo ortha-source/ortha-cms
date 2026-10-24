@@ -1,8 +1,26 @@
 import { Injectable } from '@nestjs/common';
-import { and, count, desc, eq, inArray, isNull } from 'drizzle-orm';
+import {
+    and,
+    count,
+    desc,
+    eq,
+    gt,
+    ilike,
+    inArray,
+    isNotNull,
+    isNull,
+    lte,
+    or,
+    sql,
+    type SQL
+} from 'drizzle-orm';
 import { UnitOfWork } from '@orthacms/database';
-import { apiTokens, apiTokenWorkspaces } from '../../../schema';
+import { apiTokens, apiTokenWorkspaces, users } from '../../../schema';
 import type { ApiTokenScope } from '../../domain/api-token-scope';
+import {
+    expiringSoonCutoff,
+    type ApiTokenStatus
+} from '../../domain/api-token-status';
 
 /** A stored `api_tokens` row. */
 export type ApiTokenRow = typeof apiTokens.$inferSelect;
@@ -36,8 +54,77 @@ export interface ListApiTokensOptions {
      * every token. A multi-workspace token matches each of its workspaces.
      */
     workspaceId?: string;
+    /** Restrict to one derived status, measured at {@link now}. */
+    status?: ApiTokenStatus;
+    /**
+     * Case-insensitive substring of the token's name or its non-secret
+     * `lookup_prefix` (people paste the prefix they see in a log). LIKE
+     * wildcards in it are matched literally.
+     */
+    search?: string;
+    /** The instant statuses are derived at. Defaults to the current time. */
+    now?: Date;
     limit: number;
     offset: number;
+}
+
+/** Filter options for {@link DrizzleApiTokenRepository.summarize}. */
+export interface SummarizeApiTokensOptions {
+    /** Same bucket-membership filter as the list; omit for every token. */
+    workspaceId?: string;
+    /** The instant statuses are derived at. Defaults to the current time. */
+    now?: Date;
+}
+
+/**
+ * Per-status totals for the management page's filter chips, plus the
+ * "what is about to break" figures for its subtitle. Counted over the
+ * workspace filter only — never the status or search — so each chip shows
+ * how many tokens it would reveal.
+ */
+export interface ApiTokenSummary {
+    active: number;
+    expired: number;
+    revoked: number;
+    /** Active tokens whose expiry falls inside the expiring-soon window. */
+    expiringSoon: number;
+    /** The soonest of those expiries, or `null` when none is coming up. */
+    nextExpiresAt: Date | null;
+}
+
+/** Who minted a token, as the management list names them. */
+export interface ApiTokenCreator {
+    id: string;
+    /** Display name, or `null` when the account never set one. */
+    name: string | null;
+    email: string;
+}
+
+/** Escapes LIKE's metacharacters so a search term matches literally. */
+function escapeLikePattern(term: string): string {
+    return term.replace(/[\\%_]/g, (char) => `\\${char}`);
+}
+
+/**
+ * The SQL form of a derived status at `now` — the same rule as
+ * `apiTokenStatusOf`: revocation first, then expiry.
+ */
+export function statusPredicate(status: ApiTokenStatus, now: Date): SQL {
+    switch (status) {
+        case 'revoked':
+            return isNotNull(apiTokens.revokedAt);
+        case 'expired':
+            return and(
+                isNull(apiTokens.revokedAt),
+                isNotNull(apiTokens.expiresAt),
+                lte(apiTokens.expiresAt, now)
+            ) as SQL;
+        case 'active':
+            return and(
+                isNull(apiTokens.revokedAt),
+                or(isNull(apiTokens.expiresAt), gt(apiTokens.expiresAt, now))
+            ) as SQL;
+    }
 }
 
 /**
@@ -116,24 +203,21 @@ export class DrizzleApiTokenRepository {
     async list(
         options: ListApiTokensOptions
     ): Promise<{ items: ApiTokenRecord[]; total: number }> {
-        // "Covers this workspace" is a bucket-membership test, so the filter is
-        // an `id IN (…)` over the join table rather than a join — a token with
-        // three workspaces must still appear exactly once in the page.
-        const where = options.workspaceId
-            ? inArray(
-                  apiTokens.id,
-                  this.uow
-                      .current()
-                      .select({ tokenId: apiTokenWorkspaces.tokenId })
-                      .from(apiTokenWorkspaces)
-                      .where(
-                          eq(
-                              apiTokenWorkspaces.workspaceId,
-                              options.workspaceId
-                          )
+        const now = options.now ?? new Date();
+        const search = options.search?.trim();
+        const where = and(
+            this.workspaceFilter(options.workspaceId),
+            options.status ? statusPredicate(options.status, now) : undefined,
+            search
+                ? or(
+                      ilike(apiTokens.name, `%${escapeLikePattern(search)}%`),
+                      ilike(
+                          apiTokens.lookupPrefix,
+                          `%${escapeLikePattern(search)}%`
                       )
-              )
-            : undefined;
+                  )
+                : undefined
+        );
         const [[{ total }], rows] = await Promise.all([
             this.uow
                 .current()
@@ -161,6 +245,79 @@ export class DrizzleApiTokenRepository {
     }
 
     /**
+     * The per-status totals and the expiring-soon figures, in **one** statement
+     * of filtered aggregates — so the chips and the subtitle are a single
+     * consistent snapshot rather than four reads that can disagree.
+     */
+    async summarize(
+        options: SummarizeApiTokensOptions = {}
+    ): Promise<ApiTokenSummary> {
+        const now = options.now ?? new Date();
+        const active = statusPredicate('active', now);
+        const soon = and(
+            active,
+            isNotNull(apiTokens.expiresAt),
+            lte(apiTokens.expiresAt, expiringSoonCutoff(now))
+        );
+        const [row] = await this.uow
+            .current()
+            .select({
+                active: sql<number>`count(*) filter (where ${active})`.mapWith(
+                    Number
+                ),
+                expired:
+                    sql<number>`count(*) filter (where ${statusPredicate('expired', now)})`.mapWith(
+                        Number
+                    ),
+                revoked:
+                    sql<number>`count(*) filter (where ${statusPredicate('revoked', now)})`.mapWith(
+                        Number
+                    ),
+                expiringSoon:
+                    sql<number>`count(*) filter (where ${soon})`.mapWith(
+                        Number
+                    ),
+                nextExpiresAt:
+                    sql<Date | null>`min(${apiTokens.expiresAt}) filter (where ${soon})`.mapWith(
+                        apiTokens.expiresAt
+                    )
+            })
+            .from(apiTokens)
+            .where(this.workspaceFilter(options.workspaceId));
+        return {
+            active: row?.active ?? 0,
+            expired: row?.expired ?? 0,
+            revoked: row?.revoked ?? 0,
+            expiringSoon: row?.expiringSoon ?? 0,
+            nextExpiresAt: row?.nextExpiresAt ?? null
+        };
+    }
+
+    /**
+     * The minting users behind `userIds`, keyed by id — one batched read for a
+     * whole page, like {@link bucketsFor}. A user with no row is simply absent
+     * (`created_by` cascades, so that is not expected to happen).
+     */
+    async creatorsFor(
+        userIds: readonly string[]
+    ): Promise<Map<string, ApiTokenCreator>> {
+        const creators = new Map<string, ApiTokenCreator>();
+        const unique = [...new Set(userIds)];
+        if (unique.length === 0) {
+            return creators;
+        }
+        const rows = await this.uow
+            .current()
+            .select({ id: users.id, name: users.name, email: users.email })
+            .from(users)
+            .where(inArray(users.id, unique));
+        for (const row of rows) {
+            creators.set(row.id, row);
+        }
+        return creators;
+    }
+
+    /**
      * Revokes a live token by id. Idempotent — the `revoked_at IS NULL` guard
      * means a second revoke is a no-op that returns `false`.
      */
@@ -181,6 +338,25 @@ export class DrizzleApiTokenRepository {
             .update(apiTokens)
             .set({ lastUsedAt: at })
             .where(eq(apiTokens.id, id));
+    }
+
+    /**
+     * "Covers this workspace" is a bucket-membership test, so the filter is an
+     * `id IN (…)` over the join table rather than a join — a token with three
+     * workspaces must still appear exactly once in the page.
+     */
+    private workspaceFilter(workspaceId: string | undefined): SQL | undefined {
+        if (!workspaceId) {
+            return undefined;
+        }
+        return inArray(
+            apiTokens.id,
+            this.uow
+                .current()
+                .select({ tokenId: apiTokenWorkspaces.tokenId })
+                .from(apiTokenWorkspaces)
+                .where(eq(apiTokenWorkspaces.workspaceId, workspaceId))
+        );
     }
 
     /**

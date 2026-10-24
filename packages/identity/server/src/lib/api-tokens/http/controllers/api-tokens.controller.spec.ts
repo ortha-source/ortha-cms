@@ -53,7 +53,8 @@ function makeService(options: { mintFails?: unknown } = {}) {
                     expiresAt: input.expiresAt ?? null,
                     lastUsedAt: null,
                     revokedAt: null,
-                    createdAt: new Date('2026-01-01T00:00:00Z')
+                    createdAt: new Date('2026-01-01T00:00:00Z'),
+                    createdBy: null
                 },
                 secret: 'orthacms_secret'
             };
@@ -212,6 +213,29 @@ describe('ApiTokensController', () => {
             expect((lists[0] as { pageSize: number }).pageSize).toBeGreaterThan(
                 0
             );
+        });
+
+        it('passes the status and search filters through to the list', async () => {
+            const { controller, lists } = makeService();
+
+            await controller.list({ status: 'expired', q: '  build  ' });
+
+            // Trimmed here, so the repository never sees a term padded with
+            // the spaces a pasted prefix tends to carry.
+            expect(lists[0]).toMatchObject({
+                status: 'expired',
+                search: 'build'
+            });
+        });
+
+        it('treats a blank search as no search at all', async () => {
+            // `?q=` from a cleared search box must not become a `%%` filter —
+            // harmless, but it is a predicate on every row for nothing.
+            const { controller, lists } = makeService();
+
+            await controller.list({ q: '   ' });
+
+            expect((lists[0] as { search?: string }).search).toBeUndefined();
         });
 
         it('names the acting admin on revoke too', async () => {

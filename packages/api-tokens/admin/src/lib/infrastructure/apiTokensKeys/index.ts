@@ -1,7 +1,13 @@
-/** Parameters accepted by `GET /api/api-tokens` — paging (+ optional filter). */
+import type { ApiTokenStatus } from '../../domain/types/apiToken';
+
+/** Parameters accepted by `GET /api/api-tokens` — paging plus the filters. */
 export type ApiTokensListParams = {
     /** Restrict to one workspace's tokens; omit for all. */
     workspaceId?: string;
+    /** Restrict to one derived status; omit for every token. */
+    status?: ApiTokenStatus;
+    /** Case-insensitive substring of the name or the display prefix. */
+    q?: string;
     /** 1-based page number; the server defaults to 1. */
     page?: number;
     /** Rows per page; the server defaults to its own page size. */

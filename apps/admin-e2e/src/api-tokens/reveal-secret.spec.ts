@@ -36,7 +36,7 @@ test.describe('API token reveal-once dialog', () => {
 
         await expect(apiTokensPage.revealDialog()).toBeVisible();
         await expect(apiTokensPage.revealDialog()).toContainText(
-            'This is the only time the token is shown.'
+            'This is the only time it is shown.'
         );
         // A bare `<code>` block would be unreachable by keyboard and clipped by
         // `truncate` with no way to scroll it — the credential would exist only

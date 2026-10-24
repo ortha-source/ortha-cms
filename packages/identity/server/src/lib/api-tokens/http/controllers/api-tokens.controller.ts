@@ -19,6 +19,7 @@ import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
 import type { PublicUser } from '../../../auth/services/auth.service';
 import {
     ApiTokenService,
+    type ApiTokenPage,
     type ApiTokenView
 } from '../../application/api-token.service';
 import { UnknownWorkspaceError } from '../../domain/unknown-workspace.error';
@@ -34,13 +35,8 @@ export interface CreateApiTokenResponse extends ApiTokenView {
     secret: string;
 }
 
-/** The paginated list envelope. */
-export interface ListApiTokensResponse {
-    items: ApiTokenView[];
-    total: number;
-    page: number;
-    pageSize: number;
-}
+/** The paginated list envelope, with the page-wide status summary. */
+export type ListApiTokensResponse = ApiTokenPage;
 
 /**
  * Admin management of external-API bearer tokens under `/api/api-tokens`. These
@@ -103,6 +99,9 @@ export class ApiTokensController {
     ): Promise<ListApiTokensResponse> {
         return this.tokens.list({
             workspaceId: query.workspaceId,
+            status: query.status,
+            // A blank term is no term: `?q=` must not filter on `%%`.
+            search: query.q?.trim() || undefined,
             page: query.page ?? 1,
             pageSize: query.pageSize ?? API_TOKENS_DEFAULT_PAGE_SIZE
         });

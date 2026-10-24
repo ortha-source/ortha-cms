@@ -10,7 +10,7 @@ const messages = defineMessages({
     description: {
         id: 'apiTokens.empty.description',
         defaultMessage:
-            'Create a bearer token to let an external app read content through the API.'
+            'Create a bearer token so a site, an app or a build can work with your content through the API.'
     },
     create: {
         id: 'apiTokens.empty.create',
