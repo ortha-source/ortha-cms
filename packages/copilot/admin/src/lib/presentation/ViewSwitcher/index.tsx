@@ -11,6 +11,7 @@ import { useHasPermission } from '@orthacms/identity-admin';
 import { useCopilotAvailable } from '../../application/useCopilotModels';
 import { useCopilotSessions } from '../../application/useCopilotSessions';
 import { chatsAwaiting } from '../../application/chatsStatus';
+import { AgentsSidebar } from '../AgentsSidebar';
 import {
     COPILOT_USE,
     agentsPath,
@@ -170,7 +171,7 @@ export function ViewSwitcher() {
         );
     };
 
-    return (
+    const switcher = (
         <SidebarGroup className="pb-0">
             <SegmentedControl
                 value={inAgents ? AGENTS : CMS}
@@ -230,5 +231,17 @@ export function ViewSwitcher() {
                 </SegmentedControlItem>
             </SegmentedControl>
         </SidebarGroup>
+    );
+
+    // In the Agents view this section **is** the sidebar (`takeover` in the
+    // plugin): the chats replace the content tree under the switcher, and
+    // switching back to CMS brings the tree back.
+    return inAgents ? (
+        <>
+            {switcher}
+            <AgentsSidebar workspaceId={workspaceId} />
+        </>
+    ) : (
+        switcher
     );
 }

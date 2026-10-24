@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@orthacms/utils-admin';
 import { skillsKey, type CopilotSkill } from './useSkills';
+import { suggestionsKey } from './useCopilotSuggestions';
 
 /** One skill as the edit form reads it — the row, body included. */
 export interface CopilotSkillDetail {
@@ -153,10 +154,18 @@ export function skillWriteMessage(error: unknown, fallback: string): string {
     return fallback;
 }
 
-/** Refreshes both lists — the manage page's and the composer's picker. */
+/**
+ * Refreshes both lists — the manage page's and the composer's picker — and the
+ * new-chat openers, which name a skill.
+ */
 function invalidate(
     queryClient: ReturnType<typeof useQueryClient>,
     workspaceId: string
 ): void {
     void queryClient.invalidateQueries({ queryKey: skillsKey(workspaceId) });
+    // The new-chat openers name a manual skill when one is on, so a skill
+    // switched on, off or deleted changes them too.
+    void queryClient.invalidateQueries({
+        queryKey: suggestionsKey(workspaceId)
+    });
 }

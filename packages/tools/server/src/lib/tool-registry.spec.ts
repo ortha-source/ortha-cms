@@ -181,6 +181,88 @@ describe('ToolRegistry', () => {
         });
     });
 
+    describe('preview', () => {
+        /** A propose tool, previewable or not. */
+        const propose = (
+            previewable: boolean,
+            ran: { value: boolean },
+            requires: ToolDefinition['requires'] = []
+        ): ToolDefinition => ({
+            ...tool('content_propose_update', requires, ran),
+            readOnly: false,
+            effect: 'propose',
+            previewable
+        });
+
+        it('runs the handler of a tool that declared it previewable', async () => {
+            const ran = { value: false };
+            registry.register(provider(propose(true, ran)));
+
+            await expect(
+                registry.preview(
+                    'content_propose_update',
+                    {},
+                    contextWith(),
+                    'copilot'
+                )
+            ).resolves.toEqual({ ok: true });
+            expect(ran.value).toBe(true);
+        });
+
+        it('refuses a propose tool that never claimed a pure handler', async () => {
+            const ran = { value: false };
+            registry.register(provider(propose(false, ran)));
+
+            await expect(
+                registry.preview(
+                    'content_propose_update',
+                    {},
+                    contextWith(),
+                    'copilot'
+                )
+            ).rejects.toBeInstanceOf(NotFoundException);
+            expect(ran.value).toBe(false);
+        });
+
+        it('refuses a previewable flag on anything but a propose tool', async () => {
+            const ran = { value: false };
+            registry.register(
+                provider({
+                    ...tool('protection_apply', [], ran),
+                    effect: 'apply',
+                    previewable: true
+                })
+            );
+
+            await expect(
+                registry.preview(
+                    'protection_apply',
+                    {},
+                    contextWith(),
+                    'copilot'
+                )
+            ).rejects.toBeInstanceOf(NotFoundException);
+            expect(ran.value).toBe(false);
+        });
+
+        it('still checks `requires`, like a call', async () => {
+            const ran = { value: false };
+            registry.register(
+                provider(propose(true, ran, [PERMISSIONS.CONTENT_UPDATE]))
+            );
+
+            await expect(
+                registry.preview(
+                    'content_propose_update',
+                    {},
+                    contextWith(),
+                    'copilot'
+                )
+            ).rejects.toBeInstanceOf(ForbiddenException);
+            expect(ran.value).toBe(false);
+        });
+    });
+
     // Not the security boundary — `requires` is — but the difference between a
     // caller's mistake coming back as a fixable `validation_failed` and as the
     // opaque 500 a handler produces when it is handed a string where the schema

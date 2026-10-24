@@ -1,33 +1,10 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { CircleAlert, Sparkles } from 'lucide-react';
-import { Alert, AlertDescription, Badge } from '@orthacms/design-system';
+import { CircleAlert } from 'lucide-react';
+import { Alert, AlertDescription } from '@orthacms/design-system';
+import { ChangeCard } from '../ChangeCard';
 import type { ChatProposal } from '../../domain/types/chat';
 
 const messages = defineMessages({
-    failed: {
-        id: 'copilot.proposal.failed',
-        defaultMessage: 'Not saved'
-    },
-    accepted: {
-        id: 'copilot.proposal.accepted',
-        defaultMessage: 'Saved'
-    },
-    rejected: {
-        id: 'copilot.proposal.rejected',
-        defaultMessage: 'Discarded'
-    },
-    empty: {
-        id: 'copilot.proposal.empty',
-        defaultMessage: '(empty)'
-    },
-    before: {
-        id: 'copilot.proposal.before',
-        defaultMessage: 'Was'
-    },
-    after: {
-        id: 'copilot.proposal.after',
-        defaultMessage: 'Now'
-    },
     applied: {
         id: 'copilot.proposal.applied',
         defaultMessage: 'This change was saved to your content.'
@@ -80,64 +57,17 @@ export function ProposalCard({ proposal }: { proposal: ChatProposal }) {
     const failed = proposal.status === 'pending';
 
     return (
-        <section
-            className="border-border bg-card rounded-lg border shadow-sm"
-            // Named by its own summary: with several cards in a thread, "Change"
-            // repeated four times tells a screen-reader user nothing.
-            aria-label={proposal.summary}
+        <ChangeCard
+            summary={proposal.summary}
+            changes={proposal.changes ?? []}
+            status={proposal.status}
         >
-            <header className="flex items-start gap-2 px-3 pt-3">
-                <Sparkles className="text-muted-foreground mt-0.5 size-4 shrink-0" />
-                <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium">{proposal.summary}</p>
-                    <p className="text-muted-foreground mt-0.5 font-mono text-[11px]">
-                        {proposal.kind}
-                    </p>
-                </div>
-                <StatusBadge status={proposal.status} />
-            </header>
-
-            {proposal.changes && proposal.changes.length > 0 && (
-                <dl className="mt-3 divide-y border-t">
-                    {proposal.changes.map((change) => (
-                        <div key={change.field} className="px-3 py-2">
-                            <dt className="text-muted-foreground text-[11px] font-medium">
-                                {change.label ?? change.field}
-                            </dt>
-                            <dd className="mt-1 space-y-1 text-xs">
-                                {/* `before` is absent on a create — there is
-                                    nothing to replace, and printing an invented
-                                    "—" would read as a field being cleared. */}
-                                {'before' in change && (
-                                    <ValueRow
-                                        label={intl.formatMessage(
-                                            messages.before
-                                        )}
-                                        value={change.before}
-                                        muted
-                                    />
-                                )}
-                                <ValueRow
-                                    label={intl.formatMessage(messages.after)}
-                                    value={change.after}
-                                />
-                            </dd>
-                        </div>
-                    ))}
-                </dl>
-            )}
-
-            {/* Keyed off the status, not off `error` being present. A row
-                reopened from a past thread may carry the failure without the
-                message (older rows, or a reason that was never recorded), and a
-                card that then showed the diff with no warning would read as
-                though the change had gone through. */}
             {failed && (
                 // `py-3`, not `pt-3`: with no bottom padding the alert butted
                 // straight into the footer's rule, so the one block on the card
                 // that says the change did not happen was the one drawn as
                 // though it were part of the line below it.
-                <div className="px-3 py-3">
+                <div className="border-t px-3.5 py-3">
                     <Alert variant="destructive">
                         {/* **The icon is not a direct child of the `Alert`,
                             deliberately.** The design system positions a
@@ -214,7 +144,7 @@ export function ProposalCard({ proposal }: { proposal: ChatProposal }) {
                 user believes. The alert above already states the outcome, so
                 the footer stands down rather than restating it. */}
             {!(failed && proposal.error) && (
-                <footer className="flex items-center gap-2 border-t px-3 py-2">
+                <footer className="flex items-center gap-2 border-t px-3.5 py-2">
                     <span className="text-muted-foreground text-[11px]">
                         {proposal.status === 'accepted'
                             ? intl.formatMessage(messages.applied)
@@ -224,86 +154,6 @@ export function ProposalCard({ proposal }: { proposal: ChatProposal }) {
                     </span>
                 </footer>
             )}
-        </section>
+        </ChangeCard>
     );
-}
-
-function StatusBadge({ status }: { status: ChatProposal['status'] }) {
-    const intl = useIntl();
-    if (status === 'accepted') {
-        return (
-            <Badge variant="secondary">
-                {intl.formatMessage(messages.accepted)}
-            </Badge>
-        );
-    }
-    if (status === 'rejected') {
-        return (
-            <Badge variant="outline">
-                {intl.formatMessage(messages.rejected)}
-            </Badge>
-        );
-    }
-    // `destructive`, not the neutral default it had as "pending": a change the
-    // user was told about but which never landed is a failure, and the badge is
-    // what they read first.
-    return (
-        <Badge variant="destructive">
-            {intl.formatMessage(messages.failed)}
-        </Badge>
-    );
-}
-
-/**
- * One side of a field's diff.
- *
- * Rendered as **text**, never as markup: a proposed value is content the model
- * produced from content the workspace authored, and this card is where a human
- * decides on it — the one place it must be impossible for it to render as
- * anything but characters.
- */
-function ValueRow({
-    label,
-    value,
-    muted
-}: {
-    label: string;
-    value: unknown;
-    muted?: boolean;
-}) {
-    const intl = useIntl();
-    const empty = value === null || value === undefined || value === '';
-    return (
-        <div className="flex gap-2">
-            <span className="text-muted-foreground w-10 shrink-0 text-[10px] tracking-wide uppercase">
-                {label}
-            </span>
-            <span
-                className={[
-                    'min-w-0 flex-1 break-words whitespace-pre-wrap',
-                    muted ? 'text-muted-foreground line-through' : '',
-                    empty ? 'text-muted-foreground italic' : ''
-                ]
-                    .filter(Boolean)
-                    .join(' ')}
-            >
-                {empty ? intl.formatMessage(messages.empty) : display(value)}
-            </span>
-        </div>
-    );
-}
-
-/** A value as a person reads it — scalars plain, anything else as JSON. */
-function display(value: unknown): string {
-    if (typeof value === 'string') {
-        return value;
-    }
-    if (typeof value === 'number' || typeof value === 'boolean') {
-        return String(value);
-    }
-    try {
-        return JSON.stringify(value) ?? '';
-    } catch {
-        return String(value);
-    }
 }

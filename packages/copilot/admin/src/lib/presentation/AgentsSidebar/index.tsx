@@ -1,36 +1,39 @@
 import { useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { defineMessages, useIntl, type MessageDescriptor } from 'react-intl';
-import {
-    Archive,
-    ArrowLeft,
-    BookOpen,
-    MessageSquarePlus,
-    Search
-} from 'lucide-react';
-import { Button, Input, Skeleton, toast } from '@orthacms/design-system';
+import { Archive, ArrowLeft, BookOpen, Plus, Search } from 'lucide-react';
+import { Button, Skeleton, cn, toast } from '@orthacms/design-system';
 import { useHasPermission } from '@orthacms/identity-admin';
-import { useAgentNavigation } from '../../../application/useAgentThread';
+import { useAgentNavigation } from '../../application/useAgentThread';
 import {
     useConversations,
     type CopilotConversation
-} from '../../../application/useConversations';
-import { useUpdateConversation } from '../../../application/useUpdateConversation';
-import { useThreadActivity } from '../../../application/useThreadActivity';
+} from '../../application/useConversations';
+import { useUpdateConversation } from '../../application/useUpdateConversation';
+import { useThreadActivity } from '../../application/useThreadActivity';
 import {
     filterConversations,
     groupConversations,
     type ConversationGroupId
-} from '../../../application/groupConversations';
+} from '../../application/groupConversations';
 import {
     COPILOT_SKILLS_MANAGE,
+    SKILLS_SEGMENT,
     agentSkillsPath,
     readAgentThreadId
-} from '../../../domain/agentsRoute';
-import { AgentsRailRow } from './AgentsRailRow';
+} from '../../domain/agentsRoute';
+import {
+    NEW_CHAT_KEY_SHORTCUTS,
+    shortcutModifierGlyph
+} from '../../domain/shortcut';
+import { AgentsChatRow } from './AgentsChatRow';
 import { RenameChatDialog } from './RenameChatDialog';
 
 const messages = defineMessages({
+    heading: {
+        id: 'copilot.agents.rail.list',
+        defaultMessage: 'Chats'
+    },
     newChat: {
         id: 'copilot.agents.rail.newChat',
         defaultMessage: 'New chat'
@@ -39,13 +42,13 @@ const messages = defineMessages({
         id: 'copilot.agents.rail.skills',
         defaultMessage: 'Skills'
     },
+    tools: {
+        id: 'copilot.agents.rail.tools',
+        defaultMessage: 'Tools'
+    },
     search: {
         id: 'copilot.agents.rail.search',
         defaultMessage: 'Search chats'
-    },
-    list: {
-        id: 'copilot.agents.rail.list',
-        defaultMessage: 'Chats'
     },
     empty: {
         id: 'copilot.agents.rail.empty',
@@ -126,48 +129,62 @@ const GROUP_LABELS: Record<ConversationGroupId, MessageDescriptor> = {
     older: messages.older
 };
 
-export interface AgentsRailListProps {
+/**
+ * The sidebar's group label — the same quiet line the content tree's
+ * "Workspace content" and the workspace's "Tools" use, so the Agents view
+ * reads as the same sidebar in another mode rather than a second navigation.
+ */
+const LABEL =
+    'flex h-8 items-center px-2 text-xs font-medium text-sidebar-foreground/70';
+
+/** A row: the sidebar's own height, padding, hover and focus ring. */
+const ROW =
+    'flex h-8 w-full min-w-0 items-center gap-2 rounded-md px-2 text-left text-sm text-sidebar-foreground outline-none transition-colors hover:bg-sidebar-accent/60 focus-visible:ring-2 focus-visible:ring-sidebar-ring';
+
+export interface AgentsSidebarProps {
     /** The workspace whose threads are listed. */
     workspaceId: string;
-    /**
-     * Called after the user picks a thread or starts a new one. The desktop
-     * rail ignores it; the mobile sheet uses it to close itself, since the list
-     * it was opened from is now behind the answer it navigated to.
-     */
-    onNavigate?(): void;
 }
 
 /**
- * The thread list — New chat, a filter, and every conversation grouped by when
- * it was last used.
+ * **The chats, in the sidebar** — what the workspace sidebar shows while the
+ * Agents view is open, in place of the content tree (R7: "Agents mode swaps
+ * the content tree for your chats, grouped by day").
  *
- * **It navigates; it holds no chat state.** Which thread is open is a fact about
- * the URL (`useAgentThread` is what binds that to a transcript), so this list
- * needs nothing from the page it sits beside — which is exactly what lets the
- * same component serve both the desktop rail and the mobile sheet.
+ * It used to be a third column beside the sidebar: a resizable rail with its
+ * own New chat and filter, plus a sheet on mobile. That spent 18rem of the page
+ * on a list the sidebar had room for, and put two navigations side by side.
+ * Now the `ViewSwitcher`'s section claims the sidebar on every Agents path
+ * (`WorkspaceSectionItem.takeover`), so the CMS navigation is one click away on
+ * the switcher above and comes back the moment you switch — and on a phone the
+ * list is wherever the sidebar is.
+ *
+ * **It navigates; it holds no chat state.** Which thread is open is a fact
+ * about the URL (`useAgentThread` binds it to a transcript).
+ *
+ * - **A row is its name**, plus a spinner while its answer streams and an
+ *   amber dot while it waits on you — both said in words in the row's name.
+ * - **The filter appears past five chats**: a search box over three rows is
+ *   furniture that pushes the rows it searches down the column.
+ * - **Tools** holds the two doors that are not chats: Skills, for whoever may
+ *   author them, and Archived, once something is archived — a permanent
+ *   "Archived (0)" is a door to an empty room. Archived is a *mode* of this
+ *   list rather than a route, so Back keeps moving between threads.
  */
-export function AgentsRailList({
-    workspaceId,
-    onNavigate
-}: AgentsRailListProps) {
+export function AgentsSidebar({ workspaceId }: AgentsSidebarProps) {
     const intl = useIntl();
     const { pathname } = useLocation();
     const { startNew, select } = useAgentNavigation(workspaceId);
     const activity = useThreadActivity();
+    const canManageSkills = useHasPermission(COPILOT_SKILLS_MANAGE);
     const [query, setQuery] = useState('');
-    // Which of the two disjoint lists is on screen. Local state rather than a
-    // URL param: it is a way of looking at the rail, not a place — and putting
-    // it in the URL would make Back step through it, competing with the Back
-    // that moves between threads.
     const [showArchived, setShowArchived] = useState(false);
     const [renaming, setRenaming] = useState<CopilotConversation | null>(null);
     /**
-     * How to give the renamed row's menu button focus back.
-     *
-     * A **ref, not state**: closing the dialog clears `renaming` in the same
-     * commit that unmounts it, so a callback held in state is already gone by
-     * the time Radix fires `onCloseAutoFocus` — and focus lands on `<body>`,
-     * which is the exact bug this exists to prevent.
+     * How to give the renamed row's menu button focus back. A **ref, not
+     * state**: closing the dialog clears `renaming` in the same commit that
+     * unmounts it, so a callback held in state is already gone by the time
+     * Radix fires `onCloseAutoFocus`.
      */
     const returnFocusRef = useRef<(() => void) | null>(null);
     const {
@@ -176,9 +193,15 @@ export function AgentsRailList({
         isError,
         refetch
     } = useConversations(workspaceId, showArchived);
+    // Its own query, so the Archived row can hide itself while nothing is
+    // archived. One cached request per workspace.
+    const { data: archived } = useConversations(workspaceId, true);
     const update = useUpdateConversation(workspaceId);
 
     const activeId = readAgentThreadId(pathname);
+    const onSkills = pathname.split('/').filter(Boolean)[3] === SKILLS_SEGMENT;
+    const hasArchived = (archived?.length ?? 0) > 0;
+    const shortcut = `${shortcutModifierGlyph()}J`;
 
     /** Files a thread away, or brings it back — with a line saying which. */
     const toggleArchived = (conversation: CopilotConversation) =>
@@ -196,12 +219,11 @@ export function AgentsRailList({
                                 : messages.archived
                         )
                     );
-                    // Archiving what you are reading leaves you on a thread that
-                    // is in no visible list. Start a new chat instead — the
-                    // thread is filed, not lost, and the archived list has it.
+                    // Archiving what you are reading leaves you on a thread
+                    // that is in no visible list. Start a new chat instead —
+                    // the thread is filed, not lost.
                     if (conversation.id === activeId) {
                         startNew();
-                        onNavigate?.();
                     }
                 },
                 onError: () =>
@@ -218,66 +240,78 @@ export function AgentsRailList({
         [conversations, query]
     );
 
+    const leaveArchive = () => {
+        setShowArchived(false);
+        setQuery('');
+    };
+
     return (
-        <div className="flex min-h-0 flex-1 flex-col">
-            <div className="flex flex-col gap-2 p-2">
-                {/* One button, two jobs — because they are the same job: "get me
-                    out of here and back to chatting". Offering New chat *and* a
-                    way back from the archive would put two escapes side by side
-                    in an 18rem column. */}
+        <nav
+            aria-label={intl.formatMessage(messages.heading)}
+            className="flex w-full min-w-0 flex-col gap-2 pb-2"
+        >
+            <div className="flex flex-col gap-1 px-2">
+                <div className={cn(LABEL, 'justify-between')}>
+                    <h2>
+                        {intl.formatMessage(
+                            showArchived
+                                ? messages.archivedList
+                                : messages.heading
+                        )}
+                    </h2>
+                    {/* The chord is New chat's `aria-keyshortcuts`; the glyph
+                        is decorative and follows the platform. */}
+                    {showArchived ? null : (
+                        <kbd
+                            aria-hidden
+                            className="border-sidebar-border bg-background/60 text-muted-foreground inline-flex h-[18px] items-center rounded border px-[5px] font-sans text-[11px] font-medium"
+                        >
+                            {shortcut}
+                        </kbd>
+                    )}
+                </div>
+                {/* One control, two jobs — because they are the same job: "get
+                    me out of here and back to chatting". */}
                 {showArchived ? (
-                    <Button
-                        variant="outline"
-                        className="justify-start gap-2"
-                        onClick={() => {
-                            setShowArchived(false);
-                            setQuery('');
-                        }}
+                    <button
+                        type="button"
+                        className={ROW}
+                        onClick={leaveArchive}
                     >
-                        <ArrowLeft className="size-4" />
+                        <ArrowLeft aria-hidden className="size-4 shrink-0" />
                         {intl.formatMessage(messages.backToChats)}
-                    </Button>
+                    </button>
                 ) : (
-                    <Button
-                        variant="outline"
-                        className="justify-start gap-2"
-                        onClick={() => {
-                            startNew();
-                            onNavigate?.();
-                        }}
+                    <button
+                        type="button"
+                        className={ROW}
+                        onClick={startNew}
+                        aria-keyshortcuts={NEW_CHAT_KEY_SHORTCUTS}
                     >
-                        <MessageSquarePlus className="size-4" />
+                        <Plus aria-hidden className="size-4 shrink-0" />
                         {intl.formatMessage(messages.newChat)}
-                    </Button>
+                    </button>
                 )}
 
-                {/* The filter appears once there is enough history for it to be
-                    worth typing into. A search box over three rows is furniture
-                    that pushes the rows it searches further down the rail. */}
                 {(conversations?.length ?? 0) > 5 && (
-                    <div className="relative">
+                    <div className="relative mt-1">
                         <Search
-                            className="text-muted-foreground pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2"
+                            className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
                             aria-hidden
                         />
-                        <Input
+                        <input
                             type="search"
                             value={query}
                             onChange={(event) => setQuery(event.target.value)}
                             placeholder={intl.formatMessage(messages.search)}
                             aria-label={intl.formatMessage(messages.search)}
-                            className="h-8 pl-7 text-sm"
+                            className="border-sidebar-border bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-sidebar-ring h-8 w-full rounded-lg border pr-2 pl-8 text-[13px] shadow-xs outline-none focus-visible:ring-2"
                         />
                     </div>
                 )}
             </div>
 
-            <nav
-                aria-label={intl.formatMessage(
-                    showArchived ? messages.archivedList : messages.list
-                )}
-                className="min-h-0 flex-1 overflow-y-auto px-2 pb-3"
-            >
+            <div className="flex flex-col gap-1 px-2">
                 {isPending && (
                     <div className="space-y-2 px-2 py-1" aria-hidden>
                         <Skeleton className="h-4 w-2/3" />
@@ -292,7 +326,7 @@ export function AgentsRailList({
                 {isError && (
                     <div
                         role="alert"
-                        className="text-muted-foreground space-y-2 px-2 py-1 text-xs"
+                        className="text-sidebar-foreground space-y-2 px-2 py-1 text-xs"
                     >
                         <p>{intl.formatMessage(messages.failed)}</p>
                         <Button
@@ -306,7 +340,7 @@ export function AgentsRailList({
                 )}
 
                 {!isPending && !isError && groups.length === 0 && (
-                    <p className="text-muted-foreground px-2 py-1 text-xs">
+                    <p className="text-sidebar-foreground px-2 py-1 text-xs">
                         {query.trim()
                             ? intl.formatMessage(messages.noMatches, {
                                   query: query.trim()
@@ -320,21 +354,18 @@ export function AgentsRailList({
                 )}
 
                 {groups.map((group) => (
-                    <section key={group.id} className="mb-4">
-                        <h3 className="text-muted-foreground px-2.5 pb-1 text-[10px] font-semibold tracking-[0.08em] uppercase">
+                    <section key={group.id}>
+                        <h3 className={LABEL}>
                             {intl.formatMessage(GROUP_LABELS[group.id])}
                         </h3>
-                        <ul className="space-y-0.5">
+                        <ul className="flex flex-col gap-0.5">
                             {group.conversations.map((conversation) => (
-                                <AgentsRailRow
+                                <AgentsChatRow
                                     key={conversation.id}
                                     conversation={conversation}
                                     active={conversation.id === activeId}
                                     activity={activity.get(conversation.id)}
-                                    onSelect={() => {
-                                        select(conversation.id);
-                                        onNavigate?.();
-                                    }}
+                                    onSelect={() => select(conversation.id)}
                                     onRename={(returnFocus) => {
                                         returnFocusRef.current = returnFocus;
                                         setRenaming(conversation);
@@ -347,25 +378,50 @@ export function AgentsRailList({
                         </ul>
                     </section>
                 ))}
-            </nav>
+            </div>
 
-            {/* Only on the active list, and only once something has been filed:
-                a permanent "Archived (0)" link is a door to an empty room. */}
-            {!showArchived && (
-                <ArchiveLink
-                    workspaceId={workspaceId}
-                    onOpen={() => {
-                        setShowArchived(true);
-                        setQuery('');
-                    }}
-                />
-            )}
-
-            {/* The way to the workspace's skills, and the only one — the page
-                is admin-only, so it is not in the nav where everyone would see
-                a door they cannot open. Fail-closed, like every other
-                permission check on this surface. */}
-            <SkillsLink workspaceId={workspaceId} />
+            {/* The two doors that are not chats. Skills only for whoever may
+                author one (fail-closed); Archived only once something has been
+                filed, and not while you are already in it. */}
+            {canManageSkills || (!showArchived && hasArchived) ? (
+                <div className="flex flex-col gap-0.5 px-2">
+                    <h2 className={LABEL}>
+                        {intl.formatMessage(messages.tools)}
+                    </h2>
+                    {canManageSkills ? (
+                        <Link
+                            to={agentSkillsPath(workspaceId)}
+                            {...(onSkills
+                                ? { 'aria-current': 'page' as const }
+                                : {})}
+                            className={cn(
+                                ROW,
+                                onSkills &&
+                                    'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
+                            )}
+                        >
+                            <BookOpen aria-hidden className="size-4 shrink-0" />
+                            {intl.formatMessage(messages.skills)}
+                        </Link>
+                    ) : null}
+                    {!showArchived && hasArchived ? (
+                        <button
+                            type="button"
+                            className={ROW}
+                            onClick={() => {
+                                setShowArchived(true);
+                                setQuery('');
+                            }}
+                        >
+                            <Archive aria-hidden className="size-4 shrink-0" />
+                            {intl.formatMessage(messages.showArchived)}
+                            <span className="text-sidebar-foreground ml-auto text-xs tabular-nums">
+                                {archived?.length}
+                            </span>
+                        </button>
+                    ) : null}
+                </div>
+            ) : null}
 
             <RenameChatDialog
                 conversation={renaming}
@@ -390,79 +446,6 @@ export function AgentsRailList({
                     );
                 }}
             />
-        </div>
-    );
-}
-
-/**
- * The link to the workspace's skills, under the archive link.
- *
- * Rendered only for someone who may actually write one. Skills are visible to
- * everybody in the composer's picker; this page is where they are *authored*,
- * which is admin-only, so a contributor gets no link rather than a page that
- * greets them with "no access".
- */
-function SkillsLink({ workspaceId }: { workspaceId: string }) {
-    const intl = useIntl();
-    const canManage = useHasPermission(COPILOT_SKILLS_MANAGE);
-
-    if (!canManage) {
-        return null;
-    }
-
-    return (
-        <div className="border-t p-2">
-            <Button
-                asChild
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground w-full justify-start gap-2"
-            >
-                <Link to={agentSkillsPath(workspaceId)}>
-                    <BookOpen className="size-3.5" />
-                    {intl.formatMessage(messages.skills)}
-                </Link>
-            </Button>
-        </div>
-    );
-}
-
-/**
- * The way into the archive, at the foot of the rail.
- *
- * It runs its **own** query for the archived list rather than taking a count
- * from above, so the link can hide itself when there is nothing archived. The
- * cost is one cached request per workspace, and the alternative — a count
- * endpoint, or listing both sets to size one — is more server for less.
- */
-function ArchiveLink({
-    workspaceId,
-    onOpen
-}: {
-    workspaceId: string;
-    onOpen(): void;
-}) {
-    const intl = useIntl();
-    const { data } = useConversations(workspaceId, true);
-
-    if (!data || data.length === 0) {
-        return null;
-    }
-
-    return (
-        <div className="border-t p-2">
-            <Button
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground w-full justify-start gap-2"
-                onClick={onOpen}
-            >
-                <Archive className="size-3.5" />
-                {intl.formatMessage(messages.showArchived)}
-                <span className="ml-auto text-[11px] tabular-nums">
-                    {data.length}
-                </span>
-            </Button>
-        </div>
+        </nav>
     );
 }

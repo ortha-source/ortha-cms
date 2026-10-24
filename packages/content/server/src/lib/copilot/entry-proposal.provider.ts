@@ -17,6 +17,7 @@ import type {
 import { EntryWriterService } from '../entries/infrastructure/persistence/entry-writer.service';
 import { WorkspaceGrantsQuery } from '../content-types/queries/workspace-grants.query';
 import { resolveOwnedType } from './owned-type';
+import { entryTitle } from '../entries/infrastructure/persistence/entry-row';
 import { BULK_MAX_SAVE_ITEMS } from '../entries/entries.constants';
 import {
     CONTENT_ENTRY_EXTENSION,
@@ -314,6 +315,10 @@ export class EntryProposalToolProvider implements ToolProvider, OnModuleInit {
             requires: [PERMISSIONS.CONTENT_CREATE],
             readOnly: false,
             effect: 'propose',
+            // A pure function of the arguments and the current entries — it
+            // reads and writes nothing else — so the copilot may run it before
+            // its permission prompt to show the diff it would make.
+            previewable: true,
             // Copilot-only: it reads the admin services (a viewer must see
             // drafts) or writes through propose-then-apply with the human as
             // actor. MCP's content tools are the public-API set.
@@ -353,9 +358,11 @@ export class EntryProposalToolProvider implements ToolProvider, OnModuleInit {
                         ([field, after]): ProposalChange => ({
                             field,
                             ...labelOf(fields.get(field)),
+                            ...recordOf(type, values),
                             after
                         })
-                    )
+                    ),
+                    lands: landsOf(type)
                 };
             }
         };
@@ -409,6 +416,10 @@ export class EntryProposalToolProvider implements ToolProvider, OnModuleInit {
             requires: [PERMISSIONS.CONTENT_UPDATE],
             readOnly: false,
             effect: 'propose',
+            // A pure function of the arguments and the current entries — it
+            // reads and writes nothing else — so the copilot may run it before
+            // its permission prompt to show the diff it would make.
+            previewable: true,
             // Copilot-only: it reads the admin services (a viewer must see
             // drafts) or writes through propose-then-apply with the human as
             // actor. MCP's content tools are the public-API set.
@@ -444,6 +455,7 @@ export class EntryProposalToolProvider implements ToolProvider, OnModuleInit {
                     ctx.workspaceId
                 );
                 const before = current.values ?? {};
+                const record = recordOf(type, before);
 
                 const changes = Object.entries(values)
                     .map(([field, after]): ProposalChange => {
@@ -454,12 +466,14 @@ export class EntryProposalToolProvider implements ToolProvider, OnModuleInit {
                             return {
                                 field,
                                 ...labelOf(fields.get(field)),
+                                ...record,
                                 after
                             };
                         }
                         return {
                             field,
                             ...labelOf(fields.get(field)),
+                            ...record,
                             before: before[field] ?? null,
                             after
                         };
@@ -508,7 +522,8 @@ export class EntryProposalToolProvider implements ToolProvider, OnModuleInit {
                     },
                     patch: { values: patched },
                     summary: this.discloseFanout(args.summary, fanout),
-                    changes
+                    changes,
+                    lands: landsOf(type)
                 };
             }
         };
@@ -618,6 +633,10 @@ export class EntryProposalToolProvider implements ToolProvider, OnModuleInit {
             requires: [PERMISSIONS.CONTENT_CREATE, PERMISSIONS.CONTENT_UPDATE],
             readOnly: false,
             effect: 'propose',
+            // Pure, like the single-entry tools: reads the entries it would
+            // change and writes nothing, so it can be previewed before the
+            // permission prompt.
+            previewable: true,
             surfaces: ['copilot'],
             handler: async (input, ctx): Promise<ProposalDraft> => {
                 const args = (input ?? {}) as {
@@ -675,6 +694,10 @@ export class EntryProposalToolProvider implements ToolProvider, OnModuleInit {
                     // model re-sending twenty unchanged records would
                     // unpublish twenty live pages.
                     const changed: Record<string, unknown> = {};
+                    // The record this item touches, as a person names it — the
+                    // entry's current title on an edit, the new one on a
+                    // create — so the card can group its rows under it.
+                    const record = recordOf(type, before ?? values);
                     for (const [field, after] of Object.entries(values)) {
                         const wholeSet = this.isWholeSetRelation(
                             fields.get(field)
@@ -695,7 +718,13 @@ export class EntryProposalToolProvider implements ToolProvider, OnModuleInit {
                             // rows on `field` and eight entries editing `title`
                             // would otherwise collapse into one row.
                             field: `items[${index}].${field}`,
-                            label: `#${index + 1} ${labelOf(fields.get(field)).label ?? field}`,
+                            // Numbered only when there is no record to group
+                            // under: with one, the card already says which
+                            // entry the row belongs to.
+                            label: record.record
+                                ? (labelOf(fields.get(field)).label ?? field)
+                                : `#${index + 1} ${labelOf(fields.get(field)).label ?? field}`,
+                            ...record,
                             ...(hasBefore
                                 ? { before: before[field] ?? null }
                                 : {}),
@@ -750,7 +779,8 @@ export class EntryProposalToolProvider implements ToolProvider, OnModuleInit {
                         merged,
                         fanouts.length
                     ),
-                    changes
+                    changes,
+                    lands: landsOf(type)
                 };
             }
         };
@@ -793,6 +823,30 @@ function mergeFanouts(
 }
 
 /** The field's admin label, when it has one — for the diff's row heading. */
+/**
+ * The record a change belongs to, as a person names it — the entry's display
+ * title (`entryTitle`'s rule: the first non-empty text or select field).
+ * Nothing when no such field has a value: an entry id is not a name anyone
+ * would recognise on a review card.
+ */
+function recordOf(
+    type: AnyContentType,
+    values: Record<string, unknown>
+): { record?: string } {
+    // A type with no field map has nothing to title a record by.
+    if (!type.fields) return {};
+    const title = entryTitle(type, { ...values, id: '' });
+    return title ? { record: title } : {};
+}
+
+/**
+ * Where the change lands: a draft on a publishable type (whatever is published
+ * stays live until someone publishes), live at once on one that is not.
+ */
+function landsOf(type: AnyContentType): 'draft' | 'live' {
+    return type.publishable ? 'draft' : 'live';
+}
+
 function labelOf(field: SerializedField | undefined): { label?: string } {
     const label = field?.admin?.['label'];
     return typeof label === 'string' ? { label } : {};

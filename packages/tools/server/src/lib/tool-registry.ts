@@ -236,6 +236,31 @@ export class ToolRegistry implements OnApplicationBootstrap {
     }
 
     /**
+     * Runs a **previewable** tool's handler to show what it would do, before
+     * the actor has allowed it — exactly as {@link call} would run it: scoped
+     * to the surface, `requires` checked, arguments validated.
+     *
+     * Refused for anything that did not declare
+     * {@link ToolDefinition.previewable} on an `effect: 'propose'` tool. A
+     * preview of a tool that writes for itself, or whose binder never claimed
+     * a pure handler, is the call the permission prompt exists to stop.
+     */
+    async preview(
+        name: string,
+        input: Record<string, unknown> | undefined,
+        context: ToolContext,
+        surface: ToolSurface
+    ): Promise<ToolOutput> {
+        const tool = this.forSurface(surface).find(
+            (candidate) => candidate.name === name
+        );
+        if (!tool || !tool.previewable || tool.effect !== 'propose') {
+            throw new NotFoundException(`"${name}" cannot be previewed.`);
+        }
+        return this.call(name, input, context, surface);
+    }
+
+    /**
      * Every resource visible to the actor, across providers — permission
      * filtered, exactly as {@link visibleTo} filters tools.
      */

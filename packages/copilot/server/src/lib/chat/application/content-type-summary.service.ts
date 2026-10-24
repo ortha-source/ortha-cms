@@ -8,6 +8,7 @@ import {
     workspaces,
     type ContentCatalog
 } from '@orthacms/workspaces-server';
+import type { SuggestionContentType } from './suggestions';
 
 /**
  * The content-type summaries the system prompt is built from — `name — label
@@ -46,6 +47,22 @@ export class ContentTypeSummaryService {
 
     /** Summaries for the types `workspaceId` was granted, in catalogue order. */
     async summaries(workspaceId: string): Promise<string[]> {
+        return (await this.grantedTypes(workspaceId)).map(
+            (type) =>
+                `${type.name} — ${type.label} (${type.kind})` +
+                (type.owned
+                    ? ''
+                    : ' — shared records only: link them, never create')
+        );
+    }
+
+    /**
+     * The types `workspaceId` can reach, in catalogue order, each marked with
+     * whether the workspace owns the grant or reaches it only through a shared
+     * source. What the prompt's summaries and the new-chat suggestions are
+     * both built from, so the two can never name different types.
+     */
+    async grantedTypes(workspaceId: string): Promise<SuggestionContentType[]> {
         if (!this.catalogue) {
             return [];
         }
@@ -102,12 +119,11 @@ export class ContentTypeSummaryService {
         return this.catalogue
             .list()
             .filter((type) => granted.has(type.name))
-            .map(
-                (type) =>
-                    `${type.name} — ${type.label ?? type.name} (${type.kind})` +
-                    (owned.has(type.name)
-                        ? ''
-                        : ' — shared records only: link them, never create')
-            );
+            .map((type) => ({
+                name: type.name,
+                label: type.label ?? type.name,
+                kind: type.kind,
+                owned: owned.has(type.name)
+            }));
     }
 }

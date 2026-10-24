@@ -11,6 +11,7 @@ import {
     isAbortError,
     isProposalDraft,
     normalizeTranscript,
+    permissionPreview,
     resolveModel,
     toSkillRef,
     wasCutShort,
@@ -24,6 +25,7 @@ import {
     type ModelStreamEvent,
     type ModelTool,
     type ModelUsage,
+    type PermissionPreview,
     type ProposalDraft,
     type RunLimits,
     type RunStopReason,
@@ -708,6 +710,14 @@ export class RunEngine {
         );
         if (allowed.includes(call.name)) return null;
 
+        // What the call would change, for a binder that declared its handler
+        // pure (`previewable`). Computed **before** the prompt so the person
+        // decides on a "Was → Now" diff rather than on raw arguments.
+        const preview =
+            tool.effect === 'propose' && tool.previewable
+                ? await this.previewDraft(ctx, call)
+                : undefined;
+
         return {
             event: {
                 type: 'tool-permission-request',
@@ -716,6 +726,7 @@ export class RunEngine {
                 name: call.name,
                 ...(tool.title ? { title: tool.title } : {}),
                 input: call.input,
+                ...(preview ? { preview } : {}),
                 // Read here rather than inside `settle`, because the frame is
                 // emitted before the run parks — and the client needs the
                 // deadline to count down to from the moment the prompt appears.
@@ -781,6 +792,57 @@ export class RunEngine {
                 };
             }
         };
+    }
+
+    /**
+     * Runs a previewable `propose` tool's handler to build the diff its
+     * permission prompt shows — **nothing is recorded, applied or audited.**
+     *
+     * Through {@link ToolRegistry.preview}, which refuses any tool that did not
+     * declare a pure handler and checks `requires` exactly as a call does, on a
+     * freshly resolved context (ADR-0005 §3). Any failure — a stale entry id, a
+     * no-op change, a binder bug — yields no preview rather than an error: the
+     * prompt still asks, falling back to the arguments, and the real call
+     * reports the failure if the person allows it. A failed preview must never
+     * skip the prompt, because the records could change between the two runs.
+     *
+     * Bypasses the repeated-call guard on purpose: this is not a call the model
+     * made, and counting it would refuse the real one as a repeat of itself.
+     */
+    private async previewDraft(
+        ctx: {
+            input: StartRunInput;
+            runId: string;
+        },
+        call: ToolUseBlock
+    ): Promise<PermissionPreview | undefined> {
+        try {
+            const fresh = await this.profiles.resolve(
+                {
+                    id: ctx.input.userId,
+                    email: ctx.input.userEmail,
+                    roleId: ctx.input.roleId
+                },
+                ctx.input.workspaceId,
+                ctx.input.signal
+            );
+            const output = await this.tools.preview(
+                call.name,
+                (call.input ?? {}) as Record<string, unknown>,
+                fresh.context,
+                'copilot'
+            );
+            return isProposalDraft(output)
+                ? permissionPreview(output)
+                : undefined;
+        } catch (error) {
+            this.logger.debug?.(
+                `Run ${ctx.runId}: no preview for "${call.name}": ${
+                    error instanceof Error ? error.message : String(error)
+                }`
+            );
+            return undefined;
+        }
     }
 
     private async executeTool(

@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { CircleAlert } from 'lucide-react';
 import {
@@ -16,6 +16,7 @@ import { useComposerAttachments } from '../../../application/useComposerAttachme
 import { useComposerSkills } from '../../../application/useComposerSkills';
 import { useEffectiveModelChoice } from '../../../application/useCopilotModels';
 import type { RouteContext } from '../../../application/readRouteContext';
+import type { ChatSkill } from '../../../domain/types/chat';
 import { Composer } from '../../Composer';
 import { useCopilotUsage } from '../../../application/useCopilotUsage';
 import { usageMeterState } from '../../../application/usageMeter';
@@ -41,6 +42,10 @@ const messages = defineMessages({
     retry: {
         id: 'copilot.agents.thread.retry',
         defaultMessage: 'Try again'
+    },
+    reply: {
+        id: 'copilot.agents.thread.reply',
+        defaultMessage: 'Reply…'
     }
 });
 
@@ -113,7 +118,23 @@ export function AgentsThread({
     // the Agents view or switch threads, and holding it here meant a question
     // asked after a trip into the CMS went with no context at all.
 
-    const send = (text: string) => {
+    // The first send moves the composer from under the suggestions to the
+    // foot of the transcript — a remount, which drops focus on `<body>`. This
+    // carries it across, and only for a send: opening a saved thread from the
+    // sidebar must leave focus where the person put it.
+    const refocus = useRef(false);
+    const turnCount = chat.messages.length;
+    useEffect(() => {
+        if (refocus.current && turnCount > 0) {
+            refocus.current = false;
+            composerRef.current?.focus();
+        }
+    }, [turnCount]);
+
+    const send = (text: string, extraSkill?: ChatSkill) => {
+        if (chat.messages.length === 0) {
+            refocus.current = true;
+        }
         chat.sendWith({
             text,
             context: {
@@ -131,8 +152,17 @@ export function AgentsThread({
                 model: model?.model ?? null
             },
             attachments: files.sent,
-            skills: skills.inForce,
-            chosenSkills: skills.chosen
+            // A suggestion that names a skill ("against the SEO checklist
+            // skill") turns it on for this send as well as for the chat.
+            skills:
+                extraSkill &&
+                !skills.inForce.some((skill) => skill.name === extraSkill.name)
+                    ? [...skills.inForce, extraSkill]
+                    : skills.inForce,
+            chosenSkills:
+                extraSkill && !skills.chosen.includes(extraSkill.name)
+                    ? [...skills.chosen, extraSkill.name]
+                    : skills.chosen
         });
         // Cleared on send, not on the run finishing: the files belong to the
         // turn that was just sent, and leaving them staged would silently
@@ -144,6 +174,46 @@ export function AgentsThread({
         // that makes people stop using the feature. The chips stay on screen,
         // so it is never a hidden state.
     };
+
+    // One composer, in one of two places: under the suggestions on a new chat,
+    // at the foot of the transcript once there is one.
+    const composer = (
+        <>
+            {/* "Your message, plus where you are" (design §2) — but only when
+                the user asked for it. See ContextChip for why it is opt-in. */}
+            <ContextChip
+                current={routeContext}
+                attached={attached}
+                onAttach={() => setAttached(routeContext)}
+                onDetach={() => setAttached(null)}
+                // The column is already padded here, so the chip contributes
+                // no gutter of its own.
+                className="px-0"
+            />
+            <Composer
+                busy={chat.busy}
+                inputRef={composerRef}
+                // A reply once there is something to reply to.
+                placeholder={
+                    chat.messages.length > 0
+                        ? intl.formatMessage(messages.reply)
+                        : undefined
+                }
+                // In the box, by Send: the model applies to the turn being
+                // written, not to the conversation.
+                controls={<ModelPicker value={model} onChange={setChoice} />}
+                // The page already centres and pads its own column, so the
+                // composer drops the panel's divider and gutters and
+                // contributes only the box itself.
+                className="border-t-0 p-0"
+                onSend={(text) => send(text)}
+                onStop={chat.stop}
+                {...(canAttach ? { attachments: files } : {})}
+                skills={skills}
+                usage={usage}
+            />
+        </>
+    );
 
     return (
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -187,12 +257,35 @@ export function AgentsThread({
                 </SkeletonRegion>
             ) : chat.messages.length === 0 ? (
                 <AgentsWelcome
+                    workspaceId={workspaceId}
                     workspaceName={workspaceName}
-                    onPick={(text) => {
-                        send(text);
-                        composerRef.current?.focus();
+                    onPick={(suggestion, copy) => {
+                        if (suggestion.kind === 'check-skill') {
+                            const known = skills.all.find(
+                                (skill) => skill.name === suggestion.skill.name
+                            );
+                            if (
+                                known &&
+                                !skills.selected.includes(known.name) &&
+                                skills.selected.length < skills.max
+                            ) {
+                                skills.setSelected([
+                                    ...skills.selected,
+                                    known.name
+                                ]);
+                                send(copy.prompt, {
+                                    name: known.name,
+                                    title: known.title,
+                                    source: known.source
+                                });
+                                return;
+                            }
+                        }
+                        send(copy.prompt);
                     }}
-                />
+                >
+                    {composer}
+                </AgentsWelcome>
             ) : (
                 <MessageList
                     messages={chat.messages}
@@ -201,46 +294,15 @@ export function AgentsThread({
                 />
             )}
 
-            {/* The gutter goes on the outside and the column on the inside —
-                the same nesting `MessageList` uses — so the composer measures
-                the same 3xl as the messages above it. Padding *inside* the cap
-                made the box 32px narrower than the transcript at any width past
-                the cap, and the two edges visibly failed to line up. */}
-            <div className="shrink-0 px-4 pt-2 pb-4">
-                <div className="mx-auto w-full max-w-3xl">
-                    {/* "Your message, plus where you are" (design §2) — but only
-                        when the user asked for it. See ContextChip for why it is
-                        opt-in. */}
-                    <ContextChip
-                        current={routeContext}
-                        attached={attached}
-                        onAttach={() => setAttached(routeContext)}
-                        onDetach={() => setAttached(null)}
-                        // The column is already padded here, so the chip
-                        // contributes no gutter of its own.
-                        className="px-0"
-                    />
-                    <Composer
-                        busy={chat.busy}
-                        inputRef={composerRef}
-                        // In the box, bottom-left: the model applies to the
-                        // turn being written, not to the conversation, so it
-                        // belongs with the thing that writes it.
-                        controls={
-                            <ModelPicker value={model} onChange={setChoice} />
-                        }
-                        // The page already centres and pads its own column, so
-                        // the composer drops the panel's divider and gutters
-                        // and contributes only the box itself.
-                        className="border-t-0 p-0"
-                        onSend={send}
-                        onStop={chat.stop}
-                        {...(canAttach ? { attachments: files } : {})}
-                        skills={skills}
-                        usage={usage}
-                    />
+            {/* At the foot of everything but the new chat, whose composer sits
+                under its suggestions. The gutter goes on the outside and the
+                column on the inside — the same nesting `MessageList` uses — so
+                the composer measures the same 3xl as the messages above. */}
+            {failed || loading || chat.messages.length > 0 ? (
+                <div className="shrink-0 px-4 pt-2 pb-4">
+                    <div className="mx-auto w-full max-w-3xl">{composer}</div>
                 </div>
-            </div>
+            ) : null}
         </div>
     );
 }

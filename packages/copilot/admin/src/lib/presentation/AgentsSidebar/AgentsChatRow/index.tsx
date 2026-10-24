@@ -15,8 +15,8 @@ import {
     DropdownMenuTrigger,
     cn
 } from '@orthacms/design-system';
-import type { CopilotConversation } from '../../../../application/useConversations';
-import type { ThreadActivity } from '../../../../application/threadActivity';
+import type { CopilotConversation } from '../../../application/useConversations';
+import type { ThreadActivity } from '../../../application/threadActivity';
 
 const messages = defineMessages({
     // The rail's own word for a thread with no server-derived title yet.
@@ -55,7 +55,7 @@ const messages = defineMessages({
     }
 });
 
-export interface AgentsRailRowProps {
+export interface AgentsChatRowProps {
     /** The thread this row opens. */
     conversation: CopilotConversation;
     /** Whether it is the thread on screen. */
@@ -97,14 +97,14 @@ export interface AgentsRailRowProps {
  * Both say so in words too (in the row's name and its tooltip), and both stay
  * in place when the row is hovered, since the menu sits to their right.
  */
-export function AgentsRailRow({
+export function AgentsChatRow({
     conversation,
     active,
     activity,
     onSelect,
     onRename,
     onToggleArchived
-}: AgentsRailRowProps) {
+}: AgentsChatRowProps) {
     const intl = useIntl();
     const menuRef = useRef<HTMLButtonElement>(null);
     const title = conversation.title ?? intl.formatMessage(messages.untitled);
@@ -127,10 +127,10 @@ export function AgentsRailRow({
                 // announced, not merely tinted.
                 {...(active ? { 'aria-current': 'page' as const } : {})}
                 className={cn(
-                    'focus-visible:ring-ring flex h-8 w-full items-center rounded-lg pr-8 pl-2.5 text-left text-[13px] transition-colors focus-visible:ring-2 focus-visible:outline-none',
+                    'focus-visible:ring-sidebar-ring text-sidebar-foreground flex h-8 w-full items-center rounded-md pr-8 pl-2 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none',
                     active
-                        ? 'bg-accent text-foreground font-medium'
-                        : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
+                        ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
+                        : 'hover:bg-sidebar-accent/60'
                 )}
             >
                 <span className="min-w-0 flex-1 truncate">{title}</span>
@@ -138,7 +138,7 @@ export function AgentsRailRow({
                     <Loader2
                         aria-hidden
                         data-activity="working"
-                        className="text-muted-foreground ml-2 size-3.5 shrink-0 animate-spin motion-reduce:animate-none"
+                        className="text-info ml-2 size-3.5 shrink-0 animate-spin motion-reduce:animate-none"
                     />
                 )}
                 {activity === 'awaiting' && (
@@ -166,7 +166,7 @@ export function AgentsRailRow({
                         ref={menuRef}
                         variant="ghost"
                         size="icon"
-                        className="text-muted-foreground absolute top-1/2 right-1 size-6 -translate-y-1/2 opacity-0 transition-opacity group-focus-within/row:opacity-100 group-hover/row:opacity-100 data-[state=open]:opacity-100"
+                        className="text-sidebar-foreground hover:bg-sidebar-accent absolute top-1/2 right-1 size-6 -translate-y-1/2 opacity-0 transition-opacity group-focus-within/row:opacity-100 group-hover/row:opacity-100 data-[state=open]:opacity-100"
                         aria-label={intl.formatMessage(messages.actions, {
                             title
                         })}

@@ -14,7 +14,7 @@ import {
     Input,
     Spinner
 } from '@orthacms/design-system';
-import type { CopilotConversation } from '../../../../application/useConversations';
+import type { CopilotConversation } from '../../../application/useConversations';
 
 /** Mirrors the server's `MAX_TITLE_LENGTH`, so the two agree on the limit. */
 const MAX_TITLE_LENGTH = 200;

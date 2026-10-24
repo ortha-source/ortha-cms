@@ -32,6 +32,7 @@ import { UpdateConversationController } from './chat/http/controllers/update-con
 import { SkillCatalogService } from './skills/application/skill-catalog.service';
 import { SkillRepository } from './skills/infrastructure/persistence/skill.repository';
 import { ListSkillsController } from './skills/http/controllers/list-skills.controller';
+import { ListSuggestionsController } from './chat/http/controllers/list-suggestions.controller';
 import { ManageSkillsController } from './skills/http/controllers/manage-skills.controller';
 import { CopilotQuotaService } from './usage/application/copilot-quota.service';
 import { UsageRepository } from './usage/infrastructure/persistence/usage.repository';
@@ -136,6 +137,9 @@ export class CopilotModule {
                       // collide (different segment counts); `skills/manage` is
                       // declared above `skills/:id` inside the manage controller.
                       ListSkillsController,
+                      // A literal path, like the skills routes — before the
+                      // conversation wildcard for the same reason.
+                      ListSuggestionsController,
                       ManageSkillsController,
                       GetConversationController,
                       GetUsageController

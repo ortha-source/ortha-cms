@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { ChevronRight, CircleAlert, CircleCheck } from 'lucide-react';
+import { Check, ChevronRight, CircleAlert } from 'lucide-react';
 import {
     Collapsible,
     CollapsibleContent,
@@ -114,12 +114,12 @@ export function ToolStep({ step }: { step: ChatToolStep }) {
     const Result = renderer?.Component;
 
     return (
-        <Collapsible className="border-border/60 bg-muted/40 rounded-md border">
-            <CollapsibleTrigger className="group flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs">
-                <ChevronRight
-                    aria-hidden
-                    className="text-muted-foreground size-3.5 shrink-0 transition-transform group-data-[state=open]:rotate-90 motion-reduce:transition-none"
-                />
+        // A **line**, not a box (R7: "what the assistant did reads as short
+        // steps"): a tick, the phrase, what it was about, and the outcome — in
+        // the transcript's quiet colour, so the answer and the change card are
+        // what the eye lands on. It still opens, to the exact input and output.
+        <Collapsible>
+            <CollapsibleTrigger className="group text-muted-foreground hover:text-foreground focus-visible:ring-ring flex w-full min-w-0 items-center gap-2 rounded-sm py-0.5 text-left text-[12.5px] transition-colors focus-visible:ring-2 focus-visible:outline-none">
                 <StatusIcon status={step.status} />
                 {/* The status in words, for anyone the icon's shape and colour
                     do not reach. */}
@@ -135,52 +135,46 @@ export function ToolStep({ step }: { step: ChatToolStep }) {
                     )}
                 </span>
                 {/* The running step is the one thing on this list that is
-                    *happening*, so it carries a little more weight than the
-                    entries above it, which are a log of what already did. */}
-                <span className={running ? 'shrink-0 font-medium' : 'shrink-0'}>
+                    *happening*; the entries above it are a log of what already
+                    did. */}
+                <span
+                    className={
+                        running ? 'text-foreground shrink-0' : 'shrink-0'
+                    }
+                >
                     {label}
                 </span>
                 {/* **What the call is about**, not just what kind of call it
-                    is. "Creating an entry…" is a category; "Creating an entry ·
-                    German translation of Prescribing Information" is the thing
-                    the person asked for, and it is already on the wire — the
-                    `tool-call` frame carries the arguments and arrives *before*
-                    the call runs. */}
+                    is — already on the wire, since the `tool-call` frame
+                    carries the arguments before the call runs. */}
                 {subject && (
-                    <span className="text-muted-foreground min-w-0 truncate">
-                        · {subject}
-                    </span>
+                    <span className="min-w-0 truncate">· {subject}</span>
                 )}
-                {/* The tool's own one-liner — "12 results", "applied" — after
-                    the phrase rather than instead of it.
-
-                    **"Failed" is no longer conditional on there being no
-                    summary.** It was `summary ?? 'Failed'`, so a step that
-                    failed *and* returned a summary printed only the summary —
-                    and the server writes one for the failure path too
-                    ("failed: set the number"), which is the case most likely to
-                    reach a user. The word came from the branch that could not
-                    happen. Now the failure is stated by the `sr-only` status
-                    above and by the icon, and the summary is what it always
-                    was: extra detail after it. */}
+                {/* The tool's own one-liner — "842 records", "applied" —
+                    after the phrase rather than instead of it. A failure is
+                    stated by the icon and the `sr-only` status above. */}
                 {!running && (step.summary || step.status === 'error') && (
-                    <span className="text-muted-foreground truncate">
-                        {step.summary ?? intl.formatMessage(messages.failed)}
+                    <span className="min-w-0 truncate">
+                        · {step.summary ?? intl.formatMessage(messages.failed)}
                     </span>
                 )}
-                {step.durationMs !== undefined && (
-                    <span className="text-muted-foreground ml-auto shrink-0 tabular-nums">
-                        {intl.formatMessage(messages.duration, {
-                            ms: step.durationMs
-                        })}
-                    </span>
-                )}
+                <ChevronRight
+                    aria-hidden
+                    className="size-3.5 shrink-0 opacity-0 transition-[opacity,rotate] group-hover:opacity-100 group-focus-visible:opacity-100 group-data-[state=open]:rotate-90 group-data-[state=open]:opacity-100 motion-reduce:transition-none"
+                />
             </CollapsibleTrigger>
 
-            <CollapsibleContent className="space-y-2 px-2.5 pb-2.5">
+            <CollapsibleContent className="border-border/60 bg-muted/40 mt-1 space-y-2 rounded-md border p-2.5">
                 <Payload
                     label={intl.formatMessage(messages.toolName)}
-                    value={step.name}
+                    value={
+                        step.durationMs !== undefined
+                            ? `${step.name} · ${intl.formatMessage(
+                                  messages.duration,
+                                  { ms: step.durationMs }
+                              )}`
+                            : step.name
+                    }
                 />
                 {/* Not while drafting: the arguments are still being
                     written, and an empty box would read as a call made with
@@ -253,12 +247,7 @@ function StatusIcon({ status }: { status: ChatToolStep['status'] }) {
             />
         );
     }
-    return (
-        <CircleCheck
-            aria-hidden
-            className="size-3.5 shrink-0 text-emerald-600"
-        />
-    );
+    return <Check aria-hidden className="size-3.5 shrink-0" />;
 }
 
 /**
