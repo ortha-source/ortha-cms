@@ -1,13 +1,14 @@
 import { Injectable } from '@nestjs/common';
-import { and, count, eq, ilike, inArray, or } from 'drizzle-orm';
+import { and, count, eq, ilike, inArray, max, or, sql } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@orthacms/database';
 import { applyFilterTree, parseFilterTree } from '@orthacms/utils-server';
-import { roles, users } from '@orthacms/identity-server';
+import { roles, sessions, users } from '@orthacms/identity-server';
 import { memberships, workspaces } from '@orthacms/workspaces-server';
 import { DEFAULT_PAGE_SIZE } from '../../member.constants';
 import { MEMBER_FILTER_SCHEMA } from '../../application/member-filter';
 import type { ListMembersQueryDto } from '../../application/dto/list-members-query.dto';
 import type {
+    MemberCountsView,
     MemberListView,
     MemberView,
     MemberWorkspaceView
@@ -75,18 +76,28 @@ export class MemberViewQuery {
                 .offset((page - 1) * pageSize) as Promise<MemberRow[]>
         ]);
 
-        const [workspacesByUser, adminCount] = await Promise.all([
-            this.workspacesByUser(rows.map((row) => row.id)),
-            this.activeAdminCount()
-        ]);
+        const ids = rows.map((row) => row.id);
+        const [workspacesByUser, lastActiveByUser, adminCount, counts] =
+            await Promise.all([
+                this.workspacesByUser(ids),
+                this.lastActiveByUser(ids),
+                this.activeAdminCount(),
+                this.counts()
+            ]);
 
         return {
             items: rows.map((row) =>
-                this.toView(row, workspacesByUser.get(row.id) ?? [], adminCount)
+                this.toView(
+                    row,
+                    workspacesByUser.get(row.id) ?? [],
+                    lastActiveByUser.get(row.id) ?? null,
+                    adminCount
+                )
             ),
             total,
             page,
-            pageSize
+            pageSize,
+            counts
         };
     }
 
@@ -96,11 +107,63 @@ export class MemberViewQuery {
         if (!row) {
             return null;
         }
-        const [workspacesByUser, adminCount] = await Promise.all([
-            this.workspacesByUser([id]),
-            this.activeAdminCount()
-        ]);
-        return this.toView(row, workspacesByUser.get(id) ?? [], adminCount);
+        const [workspacesByUser, lastActiveByUser, adminCount] =
+            await Promise.all([
+                this.workspacesByUser([id]),
+                this.lastActiveByUser([id]),
+                this.activeAdminCount()
+            ]);
+        return this.toView(
+            row,
+            workspacesByUser.get(id) ?? [],
+            lastActiveByUser.get(id) ?? null,
+            adminCount
+        );
+    }
+
+    /**
+     * Several members' views, in the order `ids` names them — the batch
+     * invite's response. Ids with no row are skipped. Four queries for the
+     * whole set rather than four per member.
+     */
+    async byIds(ids: string[]): Promise<MemberView[]> {
+        if (ids.length === 0) {
+            return [];
+        }
+        const rows = (await this.db
+            .select({
+                id: users.id,
+                email: users.email,
+                name: users.name,
+                status: users.status,
+                createdAt: users.createdAt,
+                roleId: roles.id,
+                roleKey: roles.key,
+                roleName: roles.name
+            })
+            .from(users)
+            .innerJoin(roles, eq(users.roleId, roles.id))
+            .where(inArray(users.id, ids))) as MemberRow[];
+        const [workspacesByUser, lastActiveByUser, adminCount] =
+            await Promise.all([
+                this.workspacesByUser(ids),
+                this.lastActiveByUser(ids),
+                this.activeAdminCount()
+            ]);
+        const byId = new Map(rows.map((row) => [row.id, row]));
+        return ids.flatMap((id) => {
+            const row = byId.get(id);
+            return row
+                ? [
+                      this.toView(
+                          row,
+                          workspacesByUser.get(id) ?? [],
+                          lastActiveByUser.get(id) ?? null,
+                          adminCount
+                      )
+                  ]
+                : [];
+        });
     }
 
     /** Selects one `users ⋈ roles` row, or `null` when it doesn't exist. */
@@ -148,7 +211,12 @@ export class MemberViewQuery {
     private listPredicate(query: ListMembersQueryDto) {
         return and(
             this.searchPredicate(query.search),
-            query.status ? eq(users.status, query.status) : undefined
+            query.status ? eq(users.status, query.status) : undefined,
+            // A subquery rather than a join, so it composes into the count
+            // query (which joins nothing) exactly as it does into the page.
+            query.role
+                ? sql`${users.roleId} in (select ${roles.id} from ${roles} where ${roles.key} = ${query.role})`
+                : undefined
         );
     }
 
@@ -215,6 +283,70 @@ export class MemberViewQuery {
         return grouped;
     }
 
+    /**
+     * The most recent `last_used_at` across each user's sessions, grouped by
+     * user — the "Last active" column. Revoked and expired sessions count:
+     * the question is when the person was last seen, not whether they are
+     * signed in now. Covered by `sessions_user_id_idx`.
+     */
+    private async lastActiveByUser(
+        userIds: string[]
+    ): Promise<Map<string, Date>> {
+        if (userIds.length === 0) {
+            return new Map();
+        }
+        const rows = await this.db
+            .select({
+                userId: sessions.userId,
+                lastActiveAt: max(sessions.lastUsedAt)
+            })
+            .from(sessions)
+            .where(inArray(sessions.userId, userIds))
+            .groupBy(sessions.userId);
+
+        const result = new Map<string, Date>();
+        for (const row of rows) {
+            if (row.lastActiveAt) {
+                result.set(row.userId, new Date(row.lastActiveAt));
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Directory-wide head counts for the quick filters, in one pass over
+     * `users ⋈ roles` with `count(*) filter (…)` per bucket.
+     */
+    private async counts(): Promise<MemberCountsView> {
+        const [row] = await this.db
+            .select({
+                everyone: count(),
+                active: sql<number>`count(*) filter (where ${users.status} = 'active')`.mapWith(
+                    Number
+                ),
+                invited:
+                    sql<number>`count(*) filter (where ${users.status} = 'pending')`.mapWith(
+                        Number
+                    ),
+                disabled:
+                    sql<number>`count(*) filter (where ${users.status} = 'disabled')`.mapWith(
+                        Number
+                    ),
+                admins: sql<number>`count(*) filter (where ${roles.key} = 'admin')`.mapWith(
+                    Number
+                )
+            })
+            .from(users)
+            .innerJoin(roles, eq(users.roleId, roles.id));
+        return {
+            everyone: Number(row?.everyone ?? 0),
+            active: Number(row?.active ?? 0),
+            admins: Number(row?.admins ?? 0),
+            invited: Number(row?.invited ?? 0),
+            disabled: Number(row?.disabled ?? 0)
+        };
+    }
+
     /** Counts members who currently hold admin powers (active + admin role). */
     private async activeAdminCount(): Promise<number> {
         const [{ total }] = await this.db
@@ -228,6 +360,7 @@ export class MemberViewQuery {
     private toView(
         row: MemberRow,
         workspaceList: MemberWorkspaceView[],
+        lastActiveAt: Date | null,
         activeAdminCount: number
     ): MemberView {
         return {
@@ -241,7 +374,8 @@ export class MemberViewQuery {
                 row.roleKey === 'admin' &&
                 row.status === 'active' &&
                 activeAdminCount <= 1,
-            workspaces: workspaceList
+            workspaces: workspaceList,
+            lastActiveAt
         };
     }
 }

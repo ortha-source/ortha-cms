@@ -54,6 +54,7 @@ describe('RevealLinkUseCase', () => {
             findByIdForAdminGuard: async () => member,
             countActiveAdmins: async () => 5,
             existsByEmail: async () => false,
+            takenEmails: async () => [],
             save: async () => undefined,
             delete: async () => undefined
         };

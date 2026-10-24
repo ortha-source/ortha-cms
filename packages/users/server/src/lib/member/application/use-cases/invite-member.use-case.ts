@@ -59,7 +59,7 @@ export class InviteMemberUseCase {
     /** Runs the invite, returning the new member's id and their raw token. */
     async execute(
         actor: PublicUser,
-        dto: InviteMemberDto
+        dto: Pick<InviteMemberDto, 'email' | 'role' | 'name' | 'workspaceIds'>
     ): Promise<InvitedMember> {
         const email = dto.email.toLowerCase();
         if (await this.members.existsByEmail(email)) {
@@ -104,7 +104,8 @@ export class InviteMemberUseCase {
 
             return {
                 id: member.id.value,
-                inviteToken: shouldReturnToken(this.mail) ? invite.raw : null
+                inviteToken: shouldReturnToken(this.mail) ? invite.raw : null,
+                expiresAt: invite.expiresAt
             };
         });
     }
@@ -125,4 +126,6 @@ export interface InvitedMember {
      * message does not arrive.
      */
     inviteToken: string | null;
+    /** When the invite link stops working. Not a secret. */
+    expiresAt: Date;
 }

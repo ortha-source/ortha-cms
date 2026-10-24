@@ -49,6 +49,7 @@ describe('RevokeInviteUseCase', () => {
             },
             countActiveAdmins: async () => 5,
             existsByEmail: async () => false,
+            takenEmails: async () => [],
             save: async () => {
                 trace.push('save');
             },

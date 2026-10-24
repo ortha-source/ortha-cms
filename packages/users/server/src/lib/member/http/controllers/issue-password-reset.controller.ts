@@ -54,12 +54,19 @@ export class IssuePasswordResetController {
         @Param('id', ParseUUIDPipe) id: string
     ): Promise<PasswordResetMemberView> {
         try {
-            const resetToken = await this.issueReset.execute(actor, id);
+            const { resetToken, expiresAt } = await this.issueReset.execute(
+                actor,
+                id
+            );
             const view = await this.views.byId(id);
             if (!view) {
                 throw new NotFoundException();
             }
-            return { ...view, ...(resetToken ? { resetToken } : {}) };
+            return {
+                ...view,
+                ...(resetToken ? { resetToken } : {}),
+                resetExpiresAt: expiresAt
+            };
         } catch (error) {
             if (error instanceof MemberNotFoundError) {
                 throw new NotFoundException();

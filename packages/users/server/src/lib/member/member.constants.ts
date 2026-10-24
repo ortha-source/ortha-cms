@@ -37,3 +37,11 @@ export const INVITE_RESEND_COOLDOWN_SECONDS = 60;
  * — already dead, with no sign that it is.
  */
 export const PASSWORD_RESET_COOLDOWN_SECONDS = 60;
+
+/**
+ * The most addresses one `POST /api/users/invites/batch` accepts. Enough for a
+ * team pasted from a spreadsheet; small enough that the whole batch — one
+ * transaction, one token rotation and one queued message per address — stays
+ * a short write rather than a bulk-load.
+ */
+export const INVITE_BATCH_MAX = 25;
