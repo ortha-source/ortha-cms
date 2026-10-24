@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { Check, Clock, ShieldQuestion, X } from 'lucide-react';
+import { Clock, TriangleAlert } from 'lucide-react';
 import {
     Alert,
     AlertDescription,
@@ -9,19 +9,13 @@ import {
 } from '@orthacms/design-system';
 import type { ToolPermissionDecision } from '@orthacms/copilot-domain';
 import type { ChatPermissionRequest } from '../../domain/types/chat';
+import { ChangeCard } from '../ChangeCard';
+import { permissionCopy } from './permissionCopy';
 
 const messages = defineMessages({
-    asks: {
-        id: 'copilot.permission.asks',
-        defaultMessage: 'Ortha CMS AI wants to change your content'
-    },
     deciding: {
         id: 'copilot.permission.deciding',
         defaultMessage: 'Sending your answer…'
-    },
-    nothingYet: {
-        id: 'copilot.permission.nothingYet',
-        defaultMessage: 'Nothing has happened yet — it is waiting for you.'
     },
     once: {
         id: 'copilot.permission.once',
@@ -34,6 +28,10 @@ const messages = defineMessages({
     deny: {
         id: 'copilot.permission.deny',
         defaultMessage: 'Don’t allow'
+    },
+    details: {
+        id: 'copilot.permission.details',
+        defaultMessage: 'What it will send'
     },
     failed: {
         id: 'copilot.permission.failed',
@@ -116,7 +114,9 @@ export function PermissionPrompt({
     const busy = request.deciding === true;
     const remainingMs = useRemainingMs(request.expiresAt);
     const primaryRef = useRef<HTMLButtonElement>(null);
+    const titleId = useId();
     const describedById = useId();
+    const copy = permissionCopy(intl, request.preview);
 
     // **Move focus here when the prompt appears.** This is the one control that
     // stops a prompt-injected write before anything happens (ADR-0009 §1b), and
@@ -149,124 +149,136 @@ export function PermissionPrompt({
     }, [onExtend]);
 
     return (
-        <section
-            className="border-border bg-card rounded-lg border shadow-sm"
-            // `group` rather than a bare region: the buttons and the arguments
-            // they are about are one thing, and `aria-describedby` ties the
-            // decision to the payload it is a decision about.
-            role="group"
-            aria-label={intl.formatMessage(messages.asks)}
-            aria-describedby={describedById}
-        >
-            <header className="flex items-start gap-2 px-3 pt-3">
-                <ShieldQuestion
-                    aria-hidden
-                    className="text-muted-foreground mt-0.5 size-4 shrink-0"
+        <>
+            {/* **The change, before it is made** (R7: "the result is a change
+                card with Was → Now per record, marked Not saved"). Computed by
+                the server from a tool that declared a pure handler; when there
+                is none, the arguments below stand in for it. */}
+            {request.preview ? (
+                <ChangeCard
+                    summary={request.preview.summary}
+                    changes={request.preview.changes}
+                    records={request.preview.records}
+                    omitted={request.preview.omitted}
+                    status="preview"
                 />
-                <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium">
-                        {intl.formatMessage(messages.asks)}
-                    </p>
-                    <p className="text-muted-foreground mt-0.5 font-mono text-[11px]">
-                        {request.name}
-                    </p>
-                </div>
-            </header>
+            ) : null}
 
-            {/* The arguments, as **text**. This is the one screen where a user
-                decides whether a write may happen, so what they are shown must
-                be impossible to render as anything but characters — same rule
-                as the tool step's payload, for a stronger reason. */}
-            <pre
-                id={describedById}
-                // Keyboard-reachable because it scrolls: a decision whose
-                // arguments a keyboard-only user cannot scroll through is one
-                // they have to make on the visible half (2.1.1).
-                tabIndex={0}
-                className="text-muted-foreground focus-visible:ring-ring mt-2 max-h-40 overflow-auto px-3 text-[11px] break-words whitespace-pre-wrap focus-visible:ring-2 focus-visible:outline-none"
+            <section
+                className="border-warning/45 bg-warning-soft/55 flex flex-col gap-2.5 rounded-xl border px-3.5 py-3 text-[13px]"
+                // `group` rather than a bare region: the buttons and the
+                // sentence they answer are one thing, and `aria-describedby`
+                // ties the decision to what it is a decision about.
+                role="group"
+                aria-labelledby={titleId}
+                aria-describedby={describedById}
             >
-                {stringify(request.input)}
-            </pre>
+                <p
+                    id={titleId}
+                    className="flex items-center gap-2 font-semibold"
+                >
+                    <TriangleAlert
+                        aria-hidden
+                        className="text-warning-soft-foreground size-4 shrink-0"
+                    />
+                    {copy.title}
+                </p>
+                <p id={describedById}>{copy.consequence}</p>
 
-            {request.error && (
-                <div className="px-3 pt-3">
+                {/* The arguments, as **text** — this is the one screen where a
+                    user decides whether a write may happen, so what they are
+                    shown must be impossible to render as anything but
+                    characters. Open when there is no preview to read instead,
+                    one click away when there is. */}
+                <details
+                    open={!request.preview}
+                    className="text-muted-foreground group/details"
+                >
+                    <summary className="focus-visible:ring-ring w-fit cursor-pointer rounded-sm text-xs focus-visible:ring-2 focus-visible:outline-none">
+                        {intl.formatMessage(messages.details)}{' '}
+                        <span className="font-mono">{request.name}</span>
+                    </summary>
+                    <pre
+                        // Keyboard-reachable because it scrolls: a decision
+                        // whose arguments a keyboard-only user cannot scroll
+                        // through is one they make on the visible half (2.1.1).
+                        tabIndex={0}
+                        aria-label={intl.formatMessage(messages.details)}
+                        className="bg-background/60 focus-visible:ring-ring mt-1.5 max-h-40 overflow-auto rounded-md border p-2 text-[11px] break-words whitespace-pre-wrap focus-visible:ring-2 focus-visible:outline-none"
+                    >
+                        {stringify(request.input)}
+                    </pre>
+                </details>
+
+                {request.error && (
                     <Alert variant="destructive">
                         <AlertDescription>
                             {intl.formatMessage(messages.failed)}
                         </AlertDescription>
                     </Alert>
-                </div>
-            )}
+                )}
 
-            {/* The **outcome**, not a countdown. While the prompt is open the
-                keep-alive above holds the run, so there is no clock to show and
-                nothing to hurry the reader with. What is left is the one case
-                the keep-alive deliberately does not cover — a prompt left in a
-                hidden tab until the budget ran out — where the buttons below
-                would otherwise look answerable and quietly do nothing.
-                `role="status"`, because by the time it appears there is no
-                longer anything for the reader to do about it. */}
-            {remainingMs !== null && remainingMs <= 0 && (
-                <div className="px-3 pt-2">
+                {/* The **outcome**, not a countdown. While the prompt is open
+                    the keep-alive above holds the run, so there is no clock to
+                    show. What is left is a prompt left in a hidden tab until
+                    the budget ran out, where the buttons below would otherwise
+                    look answerable and quietly do nothing. */}
+                {remainingMs !== null && remainingMs <= 0 && (
                     <p
                         role="status"
-                        className="text-muted-foreground flex items-center gap-1.5 text-[11px]"
+                        className="text-muted-foreground flex items-center gap-1.5 text-xs"
                     >
                         <Clock aria-hidden className="size-3.5 shrink-0" />
                         {intl.formatMessage(messages.expired)}
                     </p>
-                </div>
-            )}
+                )}
 
-            <footer className="mt-3 flex flex-wrap items-center gap-2 border-t px-3 py-2">
-                <span className="text-muted-foreground mr-auto text-[11px]">
-                    {intl.formatMessage(messages.nothingYet)}
-                </span>
-                <Button
-                    size="sm"
-                    variant="ghost"
-                    disabled={busy}
-                    onClick={() => onDecide('deny')}
-                >
-                    <X aria-hidden className="size-3.5" />
-                    {intl.formatMessage(messages.deny)}
-                </Button>
-                <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={busy}
-                    onClick={() => onDecide('chat')}
-                >
-                    {intl.formatMessage(messages.chat)}
-                </Button>
-                <Button
-                    ref={primaryRef}
-                    size="sm"
-                    disabled={busy}
-                    onClick={() => onDecide('once')}
-                >
-                    {busy ? (
-                        <>
-                            <Spinner
-                                aria-hidden
-                                role="presentation"
-                                className="size-3.5 motion-reduce:animate-none"
-                            />
-                            {/* Clicking disables all three buttons and swaps
-                                the tick for a spinner; without this a screen
-                                reader announces only that the controls became
-                                unavailable. */}
-                            <span className="sr-only">
-                                {intl.formatMessage(messages.deciding)}
-                            </span>
-                        </>
-                    ) : (
-                        <Check aria-hidden className="size-3.5" />
-                    )}
-                    {intl.formatMessage(messages.once)}
-                </Button>
-            </footer>
-        </section>
+                {/* In the order a person reads them (R7): the safe, one-off
+                    answer first and focused, the standing one second, the
+                    refusal last and quietest. */}
+                <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                        ref={primaryRef}
+                        size="sm"
+                        disabled={busy}
+                        onClick={() => onDecide('once')}
+                    >
+                        {busy ? (
+                            <>
+                                <Spinner
+                                    aria-hidden
+                                    role="presentation"
+                                    className="size-3.5 motion-reduce:animate-none"
+                                />
+                                {/* Clicking disables all three buttons; without
+                                    this a screen reader announces only that the
+                                    controls became unavailable. */}
+                                <span className="sr-only">
+                                    {intl.formatMessage(messages.deciding)}
+                                </span>
+                            </>
+                        ) : null}
+                        {intl.formatMessage(messages.once)}
+                    </Button>
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={busy}
+                        onClick={() => onDecide('chat')}
+                    >
+                        {intl.formatMessage(messages.chat)}
+                    </Button>
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={busy}
+                        onClick={() => onDecide('deny')}
+                    >
+                        {intl.formatMessage(messages.deny)}
+                    </Button>
+                </div>
+            </section>
+        </>
     );
 }
 

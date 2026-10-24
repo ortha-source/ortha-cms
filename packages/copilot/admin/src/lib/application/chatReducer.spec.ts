@@ -492,6 +492,34 @@ describe('chatReducer', () => {
             }
         });
 
+        it('keeps the preview the server computed before asking', () => {
+            const preview = {
+                kind: 'content.entry.update',
+                summary: 'Write the summary',
+                lands: 'draft' as const,
+                records: 1,
+                changes: [
+                    {
+                        field: 'summary',
+                        record: 'Spring launch',
+                        before: '',
+                        after: 'Everything that shipped'
+                    }
+                ],
+                omitted: 0
+            };
+            const withPreview = {
+                ...asks,
+                event: {
+                    ...(asks as unknown as { event: Record<string, unknown> })
+                        .event,
+                    preview
+                }
+            } as ChatAction;
+            const state = play(submit, started, withPreview);
+            expect(state.messages[1].permissions?.[0].preview).toEqual(preview);
+        });
+
         it('attaches the request to the assistant turn', () => {
             const state = play(submit, started, asks);
             expect(state.messages[1].permissions).toEqual([

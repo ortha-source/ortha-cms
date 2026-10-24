@@ -10,7 +10,7 @@ import {
     type ReactNode
 } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { ArrowUp, Paperclip, Square } from 'lucide-react';
+import { ArrowRight, Paperclip, Square } from 'lucide-react';
 import { MAX_MESSAGE_LENGTH } from '@orthacms/copilot-domain';
 import { Button, Textarea, cn } from '@orthacms/design-system';
 import type { UsageMeterState } from '../../application/usageMeter';
@@ -165,6 +165,11 @@ export interface ComposerProps {
      */
     controls?: ReactNode;
     /**
+     * The field's placeholder (and accessible name). Defaults to "Ask about
+     * your content…"; a surface with a transcript above passes "Reply…".
+     */
+    placeholder?: string;
+    /**
      * Overrides the wrapper's chrome. The panel wants the divider and padding
      * that separate it from the transcript above; a page that already centres
      * its own column wants neither.
@@ -196,7 +201,8 @@ export function Composer({
     className,
     attachments,
     skills,
-    usage = null
+    usage = null,
+    placeholder
 }: ComposerProps) {
     const intl = useIntl();
     const [value, setValue] = useState('');
@@ -278,6 +284,14 @@ export function Composer({
               )
             : null;
     const showCounter = length >= MAX_MESSAGE_LENGTH * COUNTER_FROM;
+    // Whether the hint line says anything beyond the keyboard reminder.
+    const hinting = Boolean(
+        attachments?.error ||
+            attachments?.uploading ||
+            tooLong ||
+            spentHint ||
+            refused
+    );
 
     const submit = () => {
         const text = value.trim();
@@ -439,17 +453,18 @@ export function Composer({
                     onChange={(event) => setValue(event.target.value)}
                     onKeyDown={onKeyDown}
                     onPaste={onPaste}
-                    placeholder={intl.formatMessage(messages.placeholder)}
-                    aria-label={intl.formatMessage(messages.placeholder)}
+                    placeholder={
+                        placeholder ?? intl.formatMessage(messages.placeholder)
+                    }
+                    aria-label={
+                        placeholder ?? intl.formatMessage(messages.placeholder)
+                    }
                     aria-invalid={tooLong || undefined}
                     rows={2}
                     className="min-h-0 resize-none overflow-y-auto border-0 bg-transparent px-3 py-2.5 shadow-none focus-visible:border-0 focus-visible:ring-0"
                 />
-                <div className="flex items-center justify-between gap-2 px-2 pb-2">
-                    {/* Always rendered, even with no controls, so the send
-                        button keeps its place instead of jumping when a
-                        deployment offers one model and the picker hides. */}
-                    <div className="flex min-w-0 items-center gap-1">
+                <div className="flex items-center gap-2 px-2 pb-2">
+                    <div className="flex shrink-0 items-center gap-1">
                         {attachments ? (
                             <>
                                 <input
@@ -468,9 +483,9 @@ export function Composer({
                                 />
                                 <Button
                                     type="button"
-                                    variant="ghost"
+                                    variant="outline"
                                     size="icon"
-                                    className="size-7 shrink-0"
+                                    className="size-7 shrink-0 shadow-none"
                                     onClick={() => fileRef.current?.click()}
                                     aria-label={intl.formatMessage(
                                         messages.attach
@@ -489,6 +504,11 @@ export function Composer({
                                 loading={skills.loading}
                             />
                         ) : null}
+                    </div>
+                    {/* The model, by Send (R7): it names what will answer the
+                        message the button sends. `min-w-0` so a long model id
+                        is the thing that gives way at 320px, not the row. */}
+                    <div className="ml-auto flex min-w-0 items-center gap-1">
                         {controls}
                     </div>
                     <Button
@@ -510,18 +530,31 @@ export function Composer({
                         {busy ? (
                             <Square className="size-3.5" />
                         ) : (
-                            <ArrowUp className="size-4" />
+                            <ArrowRight className="size-4" />
                         )}
                     </Button>
                 </div>
             </div>
-            <div className="mt-1.5 flex items-baseline justify-between gap-3 text-[11px]">
+            <div
+                className={cn(
+                    'flex items-baseline justify-between gap-3 text-[11px]',
+                    // Room only when there is something to read: the default
+                    // line is for a screen reader alone.
+                    hinting || showCounter ? 'mt-1.5' : 'h-0'
+                )}
+            >
                 <p
                     className={cn(
                         'min-w-0',
                         attachments?.error || tooLong || refused || spent
                             ? 'text-destructive'
-                            : 'text-muted-foreground'
+                            : 'text-muted-foreground',
+                        // The keyboard hint ("Enter to send…") is what every
+                        // chat box does, so it is not drawn (R7) — but the
+                        // region stays, and says it, for a screen reader.
+                        // Anything else it says is a reason a send did not
+                        // happen, and is shown.
+                        !hinting && 'sr-only'
                     )}
                     // A live region so the count refusal, the upload wait and
                     // the length refusal are announced, not just drawn — each
@@ -556,7 +589,7 @@ export function Composer({
                 {showCounter ? (
                     <span
                         className={cn(
-                            'shrink-0 tabular-nums',
+                            'ml-auto shrink-0 tabular-nums',
                             tooLong
                                 ? 'text-destructive'
                                 : 'text-muted-foreground'

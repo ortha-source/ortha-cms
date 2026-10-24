@@ -1,5 +1,5 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { Check, Cpu } from 'lucide-react';
+import { Check } from 'lucide-react';
 import {
     Button,
     DropdownMenu,
@@ -89,19 +89,19 @@ export function ModelPicker({ value, onChange }: ModelPickerProps) {
                     variant="ghost"
                     size="sm"
                     // `min-w-0` so this is the control that gives way when the
-                    // row runs out of room: it shares the composer's bottom-left
+                    // row runs out of room: it shares the composer's bottom row
                     // with the paperclip and the skills button, both `shrink-0`
                     // and both short, while a model id is long and the one label
-                    // that reads fine abbreviated. Without it the button holds
+                    // that reads fine abbreviated. It sits by Send (R7), as
+                    // plain text — the name of what will answer. Without it the button holds
                     // its content width and the row wraps instead — which is
                     // what a panel dragged down to `MIN_PANEL_WIDTH` (320px)
                     // does on every deployment offering more than one backend.
-                    className="text-muted-foreground h-8 min-w-0 gap-1.5 px-2 text-xs"
+                    className="text-muted-foreground h-7 min-w-0 gap-1.5 px-2 text-xs"
                     aria-label={intl.formatMessage(messages.choose)}
                     title={intl.formatMessage(messages.choose)}
                 >
-                    <Cpu className="size-3.5 shrink-0" />
-                    <span className="max-w-32 truncate">{value?.model}</span>
+                    <span className="max-w-40 truncate">{value?.model}</span>
                 </Button>
             </DropdownMenuTrigger>
 

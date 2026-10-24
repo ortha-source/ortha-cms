@@ -492,6 +492,44 @@ function failedRun(conversationId: string, reason: string): string {
     ].join('');
 }
 
+/**
+ * The openers the server picks for an editor in the seeded workspace — the
+ * same four the R7 board draws: a summary sweep over the workspace's own
+ * collection, the week's changes, a translation, and a check against the one
+ * manual skill.
+ */
+export const SUGGESTIONS = [
+    {
+        kind: 'missing-summary',
+        type: {
+            name: 'blog-posts',
+            label: 'Articles',
+            kind: 'collection',
+            owned: true
+        }
+    },
+    { kind: 'recent-changes' },
+    {
+        kind: 'translate',
+        type: {
+            name: 'pricing',
+            label: 'Pricing FAQ',
+            kind: 'single',
+            owned: true
+        }
+    },
+    {
+        kind: 'check-skill',
+        type: {
+            name: 'blog-posts',
+            label: 'Articles',
+            kind: 'collection',
+            owned: true
+        },
+        skill: { name: 'seo-checklist', title: 'SEO checklist' }
+    }
+];
+
 /** How the mock should behave, for the error and empty paths. */
 /** When the mocked daily quota starts over — midnight UTC, as the server says. */
 export const USAGE_RESETS_AT = '2026-10-20T00:00:00.000Z';
@@ -539,6 +577,12 @@ export interface CopilotMockOptions {
         resetsAt?: string;
         retryAfterSeconds?: number;
     };
+    /**
+     * What `GET /api/copilot/suggestions` returns. Defaults to the four
+     * openers an editor in the Marketing workspace gets ({@link SUGGESTIONS});
+     * a status fails the request instead, for the fallback.
+     */
+    suggestions?: unknown[] | { status: number };
     /**
      * Replaces the scripted run body. Compose one with {@link frame}; the
      * default is prose → tool call → change card → prose, ending `end`.
@@ -593,6 +637,13 @@ export async function mockCopilotApi(
     await page.route('**/api/copilot/models', (route) =>
         route.fulfill(json({ items: models }))
     );
+
+    await page.route('**/api/copilot/suggestions', (route) => {
+        const answer = options.suggestions ?? SUGGESTIONS;
+        return Array.isArray(answer)
+            ? route.fulfill(json(answer))
+            : route.fulfill(json({ message: 'Failed.' }, answer.status));
+    });
 
     await page.route('**/api/copilot/usage', (route) =>
         route.fulfill(

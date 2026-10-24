@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { ArrowLeft } from 'lucide-react';
 import { AuthStatus, useAuth } from '@orthacms/identity-admin';
@@ -50,8 +50,15 @@ const messages = defineMessages({
 export function WorkspaceNav({ workspace }: { workspace: Workspace }) {
     const intl = useIntl();
     const { data: workspaces = [] } = useWorkspaces();
-    const sections = byOrder(WORKSPACE_SECTION_SLOT.getItems());
-    const navItems = byOrder(WORKSPACE_NAV_SLOT.getItems());
+    const { pathname } = useLocation();
+    const contributed = byOrder(WORKSPACE_SECTION_SLOT.getItems());
+    // A section that takes the sidebar over for this location is rendered
+    // alone (see `WorkspaceSectionItem.takeover`).
+    const takeover = contributed.find((section) =>
+        section.takeover?.(pathname)
+    );
+    const sections = takeover ? [takeover] : contributed;
+    const navItems = takeover ? [] : byOrder(WORKSPACE_NAV_SLOT.getItems());
 
     // Mirror the exact visibility rule `WorkspaceNavButton` applies per row: an
     // item with no `permission` is always visible, one with a `permission` only

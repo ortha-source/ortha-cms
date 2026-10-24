@@ -1,3 +1,5 @@
+import type { PermissionPreview } from '@orthacms/copilot-domain';
+
 /** One tool call as the transcript renders it. */
 export interface ChatToolStep {
     /** The provider-assigned call id. */
@@ -50,6 +52,8 @@ export interface ChatProposal {
     changes?: {
         field: string;
         label?: string;
+        /** The record the field belongs to, when the tool named it. */
+        record?: string;
         before?: unknown;
         after: unknown;
     }[];
@@ -90,6 +94,12 @@ export interface ChatPermissionRequest {
      * (`ORT-118`).
      */
     expiresAt?: string;
+    /**
+     * What the call would change — the "Was → Now" diff the server computed
+     * before asking, for a tool whose binder declared it previewable. Absent
+     * otherwise, and the prompt falls back to the arguments.
+     */
+    preview?: PermissionPreview;
     /** True while an answer is in flight. */
     deciding?: boolean;
     /** Set when the answer did not reach the run (it had already moved on). */
