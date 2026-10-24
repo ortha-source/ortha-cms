@@ -2,6 +2,8 @@ import { apiClient, toApiError } from '@orthacms/utils-admin';
 import type {
     ContentInsightsGateway,
     ContentPipeline,
+    ContentRecords,
+    StaleAge,
     ContentPunchcard,
     ContentStale,
     ContentTotals,
@@ -61,11 +63,11 @@ export const httpContentInsightsGateway: ContentInsightsGateway = {
         }
     },
 
-    async punchcard(days: number): Promise<ContentPunchcard> {
+    async punchcard(days: number, timeZone: string): Promise<ContentPunchcard> {
         try {
             const { data } = await apiClient.get<ContentPunchcard>(
                 '/insights/content/punchcard',
-                { params: { days } }
+                { params: { days, tz: timeZone } }
             );
             return data;
         } catch (error) {
@@ -78,6 +80,30 @@ export const httpContentInsightsGateway: ContentInsightsGateway = {
             const { data } = await apiClient.get<ContentVelocity>(
                 '/insights/content/velocity',
                 { params: { days } }
+            );
+            return data;
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async staleRecords(age: StaleAge, limit: number): Promise<ContentRecords> {
+        try {
+            const { data } = await apiClient.get<ContentRecords>(
+                '/insights/content/stale/records',
+                { params: { age, limit } }
+            );
+            return data;
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async unshippedRecords(limit: number): Promise<ContentRecords> {
+        try {
+            const { data } = await apiClient.get<ContentRecords>(
+                '/insights/content/unshipped/records',
+                { params: { limit } }
             );
             return data;
         } catch (error) {

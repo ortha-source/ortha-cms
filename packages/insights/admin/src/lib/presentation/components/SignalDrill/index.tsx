@@ -42,6 +42,11 @@ export type SignalDrillProps = {
      * the heading then names the signal alone rather than inventing a zero.
      */
     count?: number;
+    /**
+     * The heading in full, when the default "{title} · N records" names the
+     * wrong thing — "· 23 images". Used once `count` is known.
+     */
+    heading?: string;
     /** How many rows are listed, when fewer than `count`. */
     shown?: number;
     /** One sentence for assistive tech saying what the list is. */
@@ -77,6 +82,7 @@ export type SignalDrillProps = {
 export function SignalDrill({
     title,
     count,
+    heading: headingOverride,
     shown,
     description,
     filter,
@@ -91,7 +97,8 @@ export function SignalDrill({
     const heading =
         count === undefined
             ? title
-            : intl.formatMessage(messages.heading, { title, count });
+            : (headingOverride ??
+              intl.formatMessage(messages.heading, { title, count }));
 
     return (
         <>

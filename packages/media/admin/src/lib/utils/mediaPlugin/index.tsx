@@ -14,13 +14,15 @@ import {
 import { WYSIWYG_MEDIA_SLOT } from '@orthacms/wysiwyg-admin';
 import {
     INSIGHTS_SECTION_IDS,
+    INSIGHTS_SIGNAL_SLOT,
     INSIGHTS_WIDGET_SLOT
 } from '@orthacms/insights-admin';
 import { Image, Upload } from 'lucide-react';
 import { MediaStorageStat } from '../../components/MediaStorageStat';
 import { MediaStorageWidget } from '../../components/MediaStorageWidget';
 import { MediaUploadsWidget } from '../../components/MediaUploadsWidget';
-import { MediaAltTextWidget } from '../../components/MediaAltTextWidget';
+import { MediaAltSignal } from '../../components/MediaAltSignal';
+import { MediaAltDrill } from '../../components/MediaAltDrill';
 import { MediaFieldInput } from '../../components/MediaFieldInput';
 import { MediaLibraryPageSkeleton } from '../../components/MediaLibrarySkeleton';
 import { WysiwygLibrarySource } from '../../components/WysiwygLibrarySource';
@@ -78,31 +80,37 @@ export function MediaPlugin(): MediaAdminPlugin {
                         id: 'insights.media.storageBreakdown',
                         section: INSIGHTS_SECTION_IDS.Reach,
                         order: 10,
-                        size: 'sm',
+                        size: 'md',
                         permission: MEDIA_READ,
                         titleId: 'media.insights.storageBreakdown.title',
-                        defaultTitle: "What's using the storage",
+                        defaultTitle: 'Storage',
                         Component: MediaStorageWidget
                     },
                     {
                         id: 'insights.media.uploads',
                         section: INSIGHTS_SECTION_IDS.Reach,
                         order: 20,
-                        size: 'sm',
+                        size: 'md',
                         permission: MEDIA_READ,
                         titleId: 'media.insights.uploads.title',
                         defaultTitle: 'Uploads',
                         Component: MediaUploadsWidget
-                    },
+                    }
+                ]
+            },
+            {
+                // The alt-text debt is a Needs-attention line now, opening the
+                // images behind it, rather than a card of its own.
+                slot: INSIGHTS_SIGNAL_SLOT,
+                items: [
                     {
-                        id: 'insights.media.alt',
-                        section: INSIGHTS_SECTION_IDS.Reach,
-                        order: 30,
-                        size: 'sm',
+                        id: 'media.alt',
+                        order: 40,
                         permission: MEDIA_READ,
-                        titleId: 'media.insights.alt.title',
+                        titleId: 'media.insights.signal.alt.title',
                         defaultTitle: 'Images missing alt text',
-                        Component: MediaAltTextWidget
+                        Component: MediaAltSignal,
+                        Drill: MediaAltDrill
                     }
                 ]
             },
