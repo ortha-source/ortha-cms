@@ -254,7 +254,9 @@ test.describe('accessibility (axe, WCAG 2.1 A/AA)', () => {
         // A field error with the strength meter beside it — the hint moves
         // off-screen but stays described, and the error takes its line.
         await resetPasswordPage.setPassword('short');
-        await resetPasswordPage.fieldError(/Use at least 12 characters/).waitFor();
+        await resetPasswordPage
+            .fieldError(/Use at least 12 characters/)
+            .waitFor();
         await expectNoA11yViolations(makeAxe());
     });
 
