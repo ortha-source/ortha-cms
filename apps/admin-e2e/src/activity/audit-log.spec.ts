@@ -9,33 +9,44 @@ import {
 import { expectNoA11yViolations } from '../support/a11y';
 
 /**
- * The Activity Log page (`/activity`, `@orthacms/activity-admin`): rendering
- * the audit trail, expandable rows revealing details, the filter toolbar
- * driving the `/api/activity` mock, the "System" actor rendering, and the
- * `activity:read` gate (no nav entry, a no-access state for users who lack it).
+ * The Activity page (`/activity`, `@orthacms/activity-admin`): the audit trail
+ * as a day-grouped feed of sentences, the free-text search and the time range
+ * driving the `/api/activity` mock, the "System" actor, the workspace suffix,
+ * and the `activity:read` gate (no nav entry, a no-access state, no request).
  * The backend is the `GET /api/activity` mock; `mockSignedIn` satisfies the
  * shell's auth probe.
  */
-test.describe('Activity Log page', () => {
+test.describe('Activity page — the feed', () => {
     test.beforeEach(async ({ page }) => {
         await mockSignedIn(page);
         await mockActivity(page);
     });
 
-    test('renders the audit trail with actors and actions', async ({
+    test('renders the trail as sentences under day headings', async ({
         activityLogPage
     }) => {
         await activityLogPage.goto();
         await expect(activityLogPage.heading).toBeVisible();
         // The gated shell wrapped the page.
         await expect(activityLogPage.nav).toBeVisible();
-        await expect(activityLogPage.table).toBeVisible();
+        await expect(activityLogPage.feed).toBeVisible();
 
-        await expect(activityLogPage.row('Changed role')).toBeVisible();
-        // An actor email shows in its row.
+        // Actor, verb, object as one line — not four columns.
         await expect(
-            activityLogPage.row('ada@orthacms.dev').first()
+            activityLogPage.row(
+                'ada@orthacms.dev changed the role of a member to Contributor'
+            )
         ).toBeVisible();
+        await expect(
+            activityLogPage.row('grace@orthacms.dev suspended a member')
+        ).toBeVisible();
+        // The fixtures are older than yesterday, so their headings are dates.
+        await expect(activityLogPage.dayHeading(/Jun 11/)).toBeVisible();
+        await expect(activityLogPage.dayHeading(/Jun 10/)).toBeVisible();
+        // Deployment-wide, and saying so (see the plugin's AGENTS.md).
+        await expect(activityLogPage.subtitle()).toHaveText(
+            `${DEFAULT_ACTIVITY.length} events in the last 7 days, across every workspace`
+        );
     });
 
     test('renders a system-initiated event with a "System" actor', async ({
@@ -43,59 +54,46 @@ test.describe('Activity Log page', () => {
     }) => {
         await activityLogPage.goto();
         await expect(
-            activityLogPage.row('Invited member').filter({ hasText: 'System' })
+            activityLogPage.row('System invited alan@orthacms.dev')
         ).toBeVisible();
     });
 
-    test('expands a row to reveal its details, then collapses it', async ({
+    test('names the record and the workspace an action happened in', async ({
+        activityLogPage,
+        page
+    }) => {
+        await mockWorkspaces(page);
+        await activityLogPage.goto();
+        await expect(
+            activityLogPage.row(
+                'ada@orthacms.dev published Spring launch in Marketing site'
+            )
+        ).toBeVisible();
+    });
+
+    test('one search box finds people, records and actions', async ({
         activityLogPage,
         page
     }) => {
         await activityLogPage.goto();
-        const detail = page.getByText('viewer → contributor');
 
-        // Collapsed by default — the detail panel isn't visible.
-        await expect(detail).toBeHidden();
-
-        await activityLogPage.expandRow('Changed role');
-        await expect(detail).toBeVisible();
-        await expect(
-            activityLogPage.expandToggle('Changed role')
-        ).toHaveAttribute('aria-expanded', 'true');
-
-        // Toggling again collapses it: the disclosure reports collapsed and the
-        // panel is marked inert. (The detail text keeps a clipped layout box
-        // after the grid-rows close animation, so assert the semantic collapsed
-        // state rather than the text node's geometric visibility.)
-        await activityLogPage.expandRow('Changed role');
-        await expect(
-            activityLogPage.expandToggle('Changed role')
-        ).toHaveAttribute('aria-expanded', 'false');
-    });
-
-    test('expands a row by clicking anywhere on the row body', async ({
-        activityLogPage,
-        page
-    }) => {
-        await activityLogPage.goto();
-        const detail = page.getByText('viewer → contributor');
-        await expect(detail).toBeHidden();
-
-        await activityLogPage.clickRowBody('Changed role');
-        await expect(detail).toBeVisible();
-    });
-
-    test('the actor-email search drives the request', async ({
-        activityLogPage
-    }) => {
-        await activityLogPage.goto();
-        await activityLogPage.emailSearch.fill('grace');
-
-        // Only Grace's suspension event matches the actor-email filter.
-        await expect(
-            activityLogPage.row('grace@orthacms.dev').first()
-        ).toBeVisible();
+        // A person: the actor's address, or the subject's id.
+        await activityLogPage.search.fill('katherine');
+        await expect(activityLogPage.row('suspended a member')).toBeVisible();
         await expect(activityLogPage.row('ada@orthacms.dev')).toHaveCount(0);
+
+        // A record, by the name the server froze on the row.
+        await activityLogPage.search.fill('spring');
+        await expect(
+            activityLogPage.row('published Spring launch')
+        ).toBeVisible();
+        await expect(activityLogPage.row('suspended')).toHaveCount(0);
+
+        // An action, in words — "role changed" finds `user.role_changed`.
+        await activityLogPage.search.fill('role changed');
+        await expect(activityLogPage.row('changed the role of')).toBeVisible();
+        await expect(activityLogPage.row('published')).toHaveCount(0);
+        await expect(page).toHaveURL(/q=role\+changed|q=role%20changed/);
     });
 
     test('deep-links the active search into the URL [activity:I-30]', async ({
@@ -103,33 +101,101 @@ test.describe('Activity Log page', () => {
         page
     }) => {
         await activityLogPage.goto();
-        await activityLogPage.emailSearch.fill('grace');
+        await activityLogPage.search.fill('grace');
+        await expect(page).toHaveURL(/q=grace/);
 
-        await expect(page).toHaveURL(/actorEmail=grace/);
+        await activityLogPage.gotoWith('q=katherine');
+        await expect(activityLogPage.search).toHaveValue('katherine');
+        await expect(activityLogPage.row('ada@orthacms.dev')).toHaveCount(0);
     });
 
-    test('shows an empty state when filters match nothing', async ({
+    test('a link from before the one search box still finds what it meant', async ({
+        activityLogPage,
+        page
+    }) => {
+        // `?actorEmail=` was the page's only search. The free-text one covers
+        // the address, so the value moves over rather than being dropped.
+        await activityLogPage.gotoWith('actorEmail=grace');
+        await expect(page).toHaveURL(/q=grace/);
+        await expect(page).not.toHaveURL(/actorEmail=/);
+        await expect(activityLogPage.search).toHaveValue('grace');
+    });
+
+    test('shows the filtered empty state when the search matches nothing', async ({
         activityLogPage
     }) => {
         await activityLogPage.goto();
-        await activityLogPage.emailSearch.fill('nobody-xyz');
+        await activityLogPage.search.fill('nobody-xyz');
 
         await expect(
             activityLogPage.emptyText('No activity matches')
         ).toBeVisible();
+        await expect(activityLogPage.subtitle()).toHaveText('No events match');
     });
 
     /**
-     * The gate, asserted where it is actually made rather than where it shows.
-     *
-     * The DOM half of this — a no-access screen, no nav entry — was already
-     * here, and it is the half that cannot fail for the right reason: the page
-     * returns `ActivityNoAccess` from an early `return`, so the screen looks
-     * identical whether or not the query underneath it was enabled. An
-     * unconditional `useActivityLog(params, true)` would still render exactly
-     * this, having asked the server for an audit log the caller may not read
-     * and taken whatever it answered. What separates the two is the request,
-     * so the request is what this counts.
+     * The range as a request, because the mock does not apply it (the fixtures
+     * are fixed dates and the range is relative to today). What the page owes
+     * the server is the right bound: local midnight six days ago by default,
+     * and none at all for "All time".
+     */
+    test('opens on the last 7 days and asks for exactly that [activity:I-30]', async ({
+        activityLogPage,
+        page
+    }) => {
+        const froms: (string | null)[] = [];
+        page.on('request', (request) => {
+            const url = new URL(request.url());
+            if (url.pathname === '/api/activity') {
+                froms.push(url.searchParams.get('from'));
+            }
+        });
+        await activityLogPage.goto();
+        await expect(activityLogPage.feed).toBeVisible();
+        await expect(activityLogPage.rangeSelect).toHaveText(/Last 7 days/);
+
+        const expected = await page.evaluate(() => {
+            const now = new Date();
+            return new Date(
+                now.getFullYear(),
+                now.getMonth(),
+                now.getDate() - 6
+            ).toISOString();
+        });
+        expect(froms.at(-1)).toBe(expected);
+
+        await activityLogPage.chooseRange('All time');
+        await expect(page).toHaveURL(/range=all/);
+        await expect.poll(() => froms.at(-1)).toBeNull();
+        await expect(activityLogPage.subtitle()).toHaveText(
+            `${DEFAULT_ACTIVITY.length} events across every workspace`
+        );
+    });
+
+    test('a quiet week offers the whole log instead of "no activity yet"', async ({
+        activityLogPage,
+        page
+    }) => {
+        await mockActivity(page, []);
+        await activityLogPage.goto();
+        await expect(
+            activityLogPage.emptyText('Nothing happened in this period')
+        ).toBeVisible();
+
+        await activityLogPage.showAllTime().click();
+        await expect(page).toHaveURL(/range=all/);
+        await expect(
+            activityLogPage.emptyText('No activity yet')
+        ).toBeVisible();
+        // The button that was pressed is gone; focus is not.
+        await expect(activityLogPage.search).toBeFocused();
+    });
+
+    /**
+     * The gate, asserted where it is actually made rather than where it shows:
+     * an unconditional query would render the same no-access screen having
+     * asked the server for an audit log the caller may not read. What
+     * separates the two is the request, so the request is what this counts.
      */
     test('makes no request at all without activity:read [activity:I-28]', async ({
         activityLogPage,
@@ -149,15 +215,13 @@ test.describe('Activity Log page', () => {
         await activityLogPage.goto();
 
         await expect(activityLogPage.noAccessText()).toBeVisible();
-        // The permission-gated nav entry is hidden.
+        // The permission-gated nav entry is hidden, and so is the export.
         await expect(activityLogPage.navButton).toHaveCount(0);
+        await expect(activityLogPage.exportButton).toHaveCount(0);
 
         // A wall-clock settle, because the assertion is an **absence**: there
         // is no event to wait for when the correct behaviour is that nothing
-        // happens. React Query fires an enabled query during the mount commit,
-        // so half a second after the no-access screen is on the page is long
-        // past the moment a leak would have shown. `no-wait-for-timeout` is a
-        // warning here rather than an error for exactly this shape.
+        // happens.
         await page.waitForTimeout(500);
         expect(asked).toEqual([]);
     });
@@ -248,10 +312,10 @@ test.describe('Activity Log resilience', () => {
         }) => {
             await mockActivity(page, MANY);
             await activityLogPage.gotoWith('page=3');
-            await expect(activityLogPage.table).toBeVisible();
+            await expect(activityLogPage.feed).toBeVisible();
 
             // Sixty events narrow to one. Page three no longer exists.
-            await activityLogPage.emailSearch.fill('grace');
+            await activityLogPage.search.fill('grace');
 
             await expect(
                 activityLogPage.row('grace@orthacms.dev').first()
@@ -273,7 +337,7 @@ test.describe('Activity Log resilience', () => {
             await mockActivity(page, MANY, { delayMs: 150 });
             await activityLogPage.gotoWith('page=3');
 
-            await expect(activityLogPage.table).toBeVisible();
+            await expect(activityLogPage.feed).toBeVisible();
             await expect(page).toHaveURL(/page=3/);
         });
     });
@@ -310,7 +374,7 @@ test.describe('Activity Log resilience', () => {
         // request forever and the only way out was hand-editing the URL again.
         // (A 4xx skips the query client's retry, so the error state, if it came,
         // would be on screen at once rather than seven seconds later.)
-        await expect(activityLogPage.table).toBeVisible();
+        await expect(activityLogPage.feed).toBeVisible();
         await expect(activityLogPage.errorAlert()).toHaveCount(0);
         await expect(page.getByText('Rows per page')).toBeVisible();
 
@@ -346,29 +410,30 @@ test.describe('Activity Log resilience', () => {
 });
 
 /**
- * Accessibility scans (axe, WCAG 2.1 A/AA) of the Activity Log and its states.
+ * Accessibility scans (axe, WCAG 2.1 A/AA) of the Activity page and its states.
  * A regression guard, not a conformance claim.
  */
-test.describe('Activity Log accessibility (axe, WCAG 2.1 A/AA)', () => {
+test.describe('Activity page accessibility (axe, WCAG 2.1 A/AA)', () => {
     test.beforeEach(async ({ page }) => {
         await mockSignedIn(page);
+        await mockWorkspaces(page);
         await mockActivity(page);
     });
 
-    test('table — initial', async ({ activityLogPage, makeAxe }) => {
+    test('feed — initial', async ({ activityLogPage, makeAxe }) => {
         await activityLogPage.goto();
-        await activityLogPage.heading.waitFor();
+        await activityLogPage.feed.waitFor();
         await expectNoA11yViolations(makeAxe());
     });
 
-    test('table — expanded row', async ({ activityLogPage, makeAxe, page }) => {
+    test('feed — event panel open', async ({ activityLogPage, makeAxe }) => {
         await activityLogPage.goto();
-        await activityLogPage.expandRow('Changed role');
-        await page.getByText('viewer → contributor').waitFor();
+        await activityLogPage.openEvent('changed the role of');
+        await activityLogPage.diffTable().waitFor();
         await expectNoA11yViolations(makeAxe());
     });
 
-    test('table — loading skeleton', async ({
+    test('feed — loading skeleton', async ({
         activityLogPage,
         page,
         makeAxe
@@ -381,8 +446,21 @@ test.describe('Activity Log accessibility (axe, WCAG 2.1 A/AA)', () => {
 
     test('empty state — no matches', async ({ activityLogPage, makeAxe }) => {
         await activityLogPage.goto();
-        await activityLogPage.emailSearch.fill('nobody-xyz');
+        await activityLogPage.search.fill('nobody-xyz');
         await activityLogPage.emptyText('No activity matches').waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('empty state — nothing in the range', async ({
+        activityLogPage,
+        page,
+        makeAxe
+    }) => {
+        await mockActivity(page, []);
+        await activityLogPage.goto();
+        await activityLogPage
+            .emptyText('Nothing happened in this period')
+            .waitFor();
         await expectNoA11yViolations(makeAxe());
     });
 
@@ -394,108 +472,93 @@ test.describe('Activity Log accessibility (axe, WCAG 2.1 A/AA)', () => {
     });
 
     // The theme defaults to `system`, so emulating the OS preference flips the
-    // whole page without touching app internals. Every other axe scan in the
-    // repo runs in whatever theme the browser happens to default to, which
-    // leaves the dark palette — muted-on-muted at 11–12 px, plus a 30%-alpha
-    // fill under the detail panel — completely unscanned.
-    test('table — dark theme', async ({ activityLogPage, makeAxe, page }) => {
+    // whole page without touching app internals — the dark palette (muted text
+    // on the day headings, the tinted tiles and the selected row) gets its own
+    // scan.
+    test('feed — dark theme', async ({ activityLogPage, makeAxe, page }) => {
         await page.emulateMedia({ colorScheme: 'dark' });
         await activityLogPage.goto();
-        await activityLogPage.heading.waitFor();
+        await activityLogPage.feed.waitFor();
         await expectNoA11yViolations(makeAxe());
     });
 
-    test('table — dark theme, expanded row', async ({
+    test('feed — dark theme, event panel open', async ({
         activityLogPage,
         makeAxe,
         page
     }) => {
         await page.emulateMedia({ colorScheme: 'dark' });
         await activityLogPage.goto();
-        await activityLogPage.expandRow('Changed role');
-        await page.getByText('viewer → contributor').waitFor();
+        await activityLogPage.openEvent('changed the role of');
+        await activityLogPage.diffTable().waitFor();
         await expectNoA11yViolations(makeAxe());
     });
 });
 
 /**
- * The Activity Log's assistive-technology semantics — the parts axe cannot see
- * because they are about what changes, and what a table's shape *means*.
+ * The feed's assistive-technology semantics — the parts axe cannot see
+ * because they are about what changes, and what the list's shape *means*.
  */
-test.describe('Activity Log assistive-technology semantics', () => {
+test.describe('Activity page assistive-technology semantics', () => {
     test.beforeEach(async ({ page }) => {
         await mockSignedIn(page);
     });
 
-    test('a collapsed row contributes one table row, not two [activity:I-27]', async ({
+    test('each event is one list item and one button, under a day heading', async ({
         activityLogPage,
         page
     }) => {
         await mockActivity(page);
         await activityLogPage.goto();
-        await expect(activityLogPage.table).toBeVisible();
+        await expect(activityLogPage.feed).toBeVisible();
 
-        // Every event renders a data row *and* a detail row so the disclosure
-        // can animate. `inert` used to sit on the inner <dl> only, leaving the
-        // empty <tr> a structural row: a 25-event page announced as 50 rows,
-        // with a blank row between every pair of events. The detail <tr> is now
-        // aria-hidden while collapsed, and `getByRole('row')` reads the same
-        // accessibility tree a screen reader does.
-        const header = 1;
-        await expect(activityLogPage.table.getByRole('row')).toHaveCount(
-            DEFAULT_ACTIVITY.length + header
+        // One list item per event — nothing structural in between (the old
+        // table's hidden detail rows once doubled the announced row count).
+        await expect(activityLogPage.feed.getByRole('listitem')).toHaveCount(
+            DEFAULT_ACTIVITY.length
         );
-
-        // Expanding one adds exactly one row back.
-        await activityLogPage.expandRow('Changed role');
-        await expect(activityLogPage.table.getByRole('row')).toHaveCount(
-            DEFAULT_ACTIVITY.length + header + 1
+        await expect(activityLogPage.feed.getByRole('button')).toHaveCount(
+            DEFAULT_ACTIVITY.length
         );
+        // Each row button says it opens a dialog and whether it is open.
+        const row = activityLogPage.rowButton('changed the role of');
+        await expect(row).toHaveAttribute('aria-haspopup', 'dialog');
+        await expect(row).toHaveAttribute('aria-expanded', 'false');
+        // Two calendar days in the fixture, two headings.
+        await expect(
+            activityLogPage.feed.getByRole('heading', { level: 2 })
+        ).toHaveCount(2);
     });
 
-    test('the When cell carries a machine-readable instant', async ({
+    test('the time carries a machine-readable instant', async ({
         activityLogPage,
         page
     }) => {
         await mockActivity(page);
         await activityLogPage.goto();
 
-        // The home panel always did this; the table's When cell was a bare
-        // formatted string, so the exact instant was unavailable to AT,
-        // translation tools and user scripts.
         const when = activityLogPage
-            .row('Changed role')
+            .row('changed the role of')
             .locator('time')
             .first();
         await expect(when).toHaveAttribute('datetime', DEFAULT_ACTIVITY[1].at);
-        await expect(when).toContainText('Jun');
     });
 
     test('paging changes the live region, so the turnover is announced', async ({
         activityLogPage,
         page
     }) => {
-        // The whole kind catalogue over a 25-row page: two pages, and every
-        // row changes. The last row's index is derived from the fixture rather
-        // than written out — the catalogue grows every time the server learns a
-        // new audit kind, and this assertion is about the *announcement*, not
-        // about how many kinds there happen to be today.
+        // The whole kind catalogue over a 25-row page. The last row's index is
+        // derived from the fixture: the catalogue grows every time the server
+        // learns a new audit kind, and this is about the *announcement*.
         await mockActivity(page, ALL_KINDS_ACTIVITY);
         await activityLogPage.goto();
 
         const status = activityLogPage.resultsStatus();
-        // Both the page *count* and the last row's index come from the fixture.
-        // The count used to be written out as "2" and went stale the moment the
-        // catalogue grew past 50 kinds — which is the very thing the fixture is
-        // derived from, so a literal here contradicts the reason it is derived.
         const PAGE_SIZE = 25;
         const pages = Math.ceil(ALL_KINDS_ACTIVITY.length / PAGE_SIZE);
         expect(pages).toBeGreaterThan(1);
 
-        // The region used to carry only the total — which is invariant across
-        // pages — so Next page replaced all 25 rows and the announced text did
-        // not change at all. The "page N of M" span carries no live region, so a
-        // screen-reader user got silence.
         await expect(status).toContainText(`page 1 of ${pages}`);
         await expect(status).toContainText(`1–${PAGE_SIZE}`);
 
@@ -510,22 +573,20 @@ test.describe('Activity Log assistive-technology semantics', () => {
 });
 
 /**
- * Keyboard operability for the Activity Log — what axe can't assert: the
- * filters take focus and filter as you type, and a row expands from the
- * keyboard.
+ * Keyboard operability for the Activity page — what axe can't assert: the
+ * search filters as you type, a row opens its panel from the keyboard and
+ * Escape brings focus back, and clearing the filters does not drop focus.
  */
-test.describe('Activity Log keyboard operability', () => {
+test.describe('Activity page keyboard operability', () => {
     test.beforeEach(async ({ page }) => {
         await mockSignedIn(page);
         await mockActivity(page);
     });
 
-    test('the actor-email search filters as you type', async ({
-        activityLogPage
-    }) => {
+    test('the search filters as you type', async ({ activityLogPage }) => {
         await activityLogPage.goto();
-        await activityLogPage.emailSearch.focus();
-        await activityLogPage.emailSearch.pressSequentially('grace');
+        await activityLogPage.search.focus();
+        await activityLogPage.search.pressSequentially('katherine');
 
         await expect(
             activityLogPage.row('grace@orthacms.dev').first()
@@ -533,33 +594,41 @@ test.describe('Activity Log keyboard operability', () => {
         await expect(activityLogPage.row('ada@orthacms.dev')).toHaveCount(0);
     });
 
-    test('a row expands from the keyboard', async ({
+    test('a row opens its event from the keyboard, and Escape gives focus back', async ({
         activityLogPage,
         page
     }) => {
         await activityLogPage.goto();
-        await activityLogPage.expandToggle('Changed role').focus();
+        const row = activityLogPage.rowButton('changed the role of');
+        await row.focus();
         await page.keyboard.press('Enter');
-        await expect(page.getByText('viewer → contributor')).toBeVisible();
+
+        await expect(activityLogPage.eventPanel()).toBeVisible();
+        await expect(row).toHaveAttribute('aria-expanded', 'true');
+        // Focus moved into the panel rather than staying behind it.
+        await expect
+            .poll(() => activityLogPage.focusIsInsideDialog())
+            .toBe(true);
+
+        await page.keyboard.press('Escape');
+        await expect(activityLogPage.eventPanel()).toBeHidden();
+        await expect(row).toBeFocused();
     });
 
     test('"Clear filters" hands focus back instead of dropping it on the body', async ({
         activityLogPage
     }) => {
         await activityLogPage.goto();
-        await activityLogPage.emailSearch.fill('nobody-xyz');
+        await activityLogPage.search.fill('nobody-xyz');
         await activityLogPage.emptyText('No activity matches').waitFor();
 
         // Clearing makes the query return rows, so the empty state — and with
-        // it the button just activated — unmounts. React does not move focus
-        // when that happens: it fell to <body> and the next Tab restarted from
-        // the top of the document, stranding a keyboard user with no idea where
-        // they were. The page already restores focus correctly when the filter
-        // panel closes; this is the same concept, twelve lines away.
+        // it the button just activated — unmounts. Focus goes to the search box
+        // rather than falling to <body>.
         await activityLogPage.clearFilters().focus();
         await activityLogPage.clearFilters().press('Enter');
 
-        await expect(activityLogPage.table).toBeVisible();
-        await expect(activityLogPage.emailSearch).toBeFocused();
+        await expect(activityLogPage.feed).toBeVisible();
+        await expect(activityLogPage.search).toBeFocused();
     });
 });

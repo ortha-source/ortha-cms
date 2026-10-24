@@ -16,10 +16,14 @@ export class ActivityLogPage extends BasePage {
     readonly nav: Locator;
     /** The Activity entry in the primary nav (an icon button, labelled). */
     readonly navButton: Locator;
-    /** The actor-email search box. */
-    readonly emailSearch: Locator;
-    /** The audit-log table. */
-    readonly table: Locator;
+    /** The free-text search box — people, records, actions. */
+    readonly search: Locator;
+    /** The time-range select ("Last 7 days"). */
+    readonly rangeSelect: Locator;
+    /** The day-grouped feed of event sentences (a named region). */
+    readonly feed: Locator;
+    /** "Export CSV", portalled into the top bar. */
+    readonly exportButton: Locator;
 
     constructor(page: Page) {
         super(page);
@@ -29,10 +33,12 @@ export class ActivityLogPage extends BasePage {
         });
         this.nav = page.getByRole('navigation', { name: 'Primary' });
         this.navButton = this.nav.getByRole('button', { name: 'Activity' });
-        this.emailSearch = page.getByRole('searchbox', {
-            name: 'Search by actor email'
+        this.search = page.getByRole('searchbox', {
+            name: 'Search people, records, actions'
         });
-        this.table = page.getByRole('table', { name: 'Activity log' });
+        this.rangeSelect = page.getByRole('combobox', { name: 'Time range' });
+        this.feed = page.getByRole('region', { name: 'Activity log' });
+        this.exportButton = page.getByRole('button', { name: /Export CSV/ });
     }
 
     async goto() {
@@ -48,32 +54,80 @@ export class ActivityLogPage extends BasePage {
         await this.page.goto(`/activity?${search}`);
     }
 
-    /** A table row located by any visible text it contains (email, action…). */
+    /** The page's subtitle under the `<h1>` ("12 events in the last 7 days…"). */
+    subtitle(): Locator {
+        return this.page.getByText(
+            /events? (in the last|today|across|match)|No events match/
+        );
+    }
+
+    /** A feed row located by any visible text in its sentence. */
     row(text: string): Locator {
-        return this.page.getByRole('row').filter({ hasText: text });
+        return this.feed.getByRole('listitem').filter({ hasText: text });
     }
 
-    /** The expand/collapse toggle inside a row matched by its visible text. */
-    expandToggle(rowText: string): Locator {
-        return this.row(rowText)
-            .getByRole('button', { name: /details/i })
-            .first();
+    /** The button that is a feed row — it opens the event panel. */
+    rowButton(text: string): Locator {
+        return this.row(text).getByRole('button').first();
     }
 
-    /** Expands the first row containing `rowText` to reveal its details panel. */
-    async expandRow(rowText: string) {
-        await this.expandToggle(rowText).click();
+    /** Every row's text, in feed order (the sentence, workspace and time). */
+    async sentences(): Promise<string[]> {
+        return this.feed.getByRole('listitem').allInnerTexts();
     }
 
-    /** Clicks a row's body (not the toggle button) to expand/collapse it. */
-    async clickRowBody(rowText: string) {
-        await this.row(rowText)
-            .getByText(rowText, { exact: false })
-            .first()
-            .click();
+    /** A day heading in the feed ("Today", "Yesterday", a date). */
+    dayHeading(name: string | RegExp): Locator {
+        return this.feed.getByRole('heading', { level: 2, name });
     }
 
-    /** The table loading skeleton — a `role="status"` region. */
+    /** Opens the event panel for the first row containing `text`. */
+    async openEvent(text: string) {
+        await this.rowButton(text).click();
+        await this.eventPanel().waitFor();
+    }
+
+    /** The event panel — a non-modal dialog titled "Event". */
+    eventPanel(): Locator {
+        return this.page.getByRole('dialog', { name: 'Event' });
+    }
+
+    /** The panel's before/after table. */
+    diffTable(): Locator {
+        return this.eventPanel().getByRole('table', { name: 'What changed' });
+    }
+
+    /** The panel's folded "Raw metadata" disclosure. */
+    rawMetadataToggle(): Locator {
+        return this.eventPanel().getByRole('button', { name: 'Raw metadata' });
+    }
+
+    /** A link or button in the panel, by its accessible name. */
+    panelAction(name: string | RegExp): Locator {
+        return this.eventPanel()
+            .getByRole('link', { name })
+            .or(this.eventPanel().getByRole('button', { name }));
+    }
+
+    /** Pick a time range from the select. */
+    async chooseRange(label: string) {
+        await this.rangeSelect.click();
+        await this.page.getByRole('option', { name: label }).click();
+    }
+
+    /** An applied-filter chip's remove button, by its condition label. */
+    chipRemove(label: string): Locator {
+        return this.page.getByRole('button', {
+            name: `Remove condition ${label}`
+        });
+    }
+
+    /** A filter chip by its text. */
+    chip(text: string | RegExp): Locator {
+        return this.page.locator('span[title]').filter({ hasText: text });
+    }
+
+    /** The feed loading skeleton — a `role="status"` region. */
     tableSkeleton(): Locator {
         return this.page
             .getByRole('status')
@@ -85,7 +139,7 @@ export class ActivityLogPage extends BasePage {
         return this.page.getByText('You don’t have access to the activity log');
     }
 
-    /** The empty-state heading shown when filters match nothing. */
+    /** An empty-state heading, by its exact text. */
     emptyText(label: string): Locator {
         return this.page.getByText(label, { exact: true });
     }
@@ -132,32 +186,63 @@ export class ActivityLogPage extends BasePage {
             .filter({ hasText: /(was|were) not recorded/ });
     }
 
+    /** The "Show all time" button inside the range empty state. */
+    showAllTime(): Locator {
+        return this.page.getByRole('button', { name: 'Show all time' });
+    }
+
     /** The banner's button that opens the dead-letter dialog. */
     deadLettersTrigger(): Locator {
         return this.page.getByRole('button', { name: 'Review and retry' });
     }
 
-    /** The dead-letter dialog itself, named by its `DialogTitle`. */
+    /**
+     * The dead-letter dialog itself, named by its `DialogTitle` — the count
+     * ("3 actions were not recorded"), or "Every action is recorded" once the
+     * last one is queued.
+     */
     deadLettersDialog(): Locator {
         return this.page.getByRole('dialog', {
-            name: 'Events that were not recorded'
+            name: /not recorded|Every action is recorded/
         });
     }
 
-    /** The dialog's table of parked events. */
-    deadLettersTable(): Locator {
-        return this.deadLettersDialog().getByRole('table');
+    /** The dialog's list of parked events. */
+    deadLettersList(): Locator {
+        return this.deadLettersDialog().getByRole('list', {
+            name: 'Events that could not be recorded'
+        });
+    }
+
+    /** One parked event's row in the dialog, by any text in it. */
+    deadLetterRow(text: string): Locator {
+        return this.deadLettersList()
+            .getByRole('listitem')
+            .filter({ hasText: text });
     }
 
     /**
      * One row's Retry button, found by the row-scoped accessible name the
-     * dialog gives it ("Retry {kind} from {when}") — not by five identical
-     * "Retry"s, which is the point of the name existing.
+     * dialog gives it ("Retry {action} from {when}", the action as the log
+     * labels it) — not by five identical "Retry"s, which is the point of the
+     * name existing.
      */
-    deadLetterRetry(kind: string): Locator {
+    deadLetterRetry(label: string): Locator {
         return this.deadLettersDialog().getByRole('button', {
-            name: new RegExp(`^Retry ${kind.replace(/\./g, '\\.')} from `)
+            name: new RegExp(`^Retry ${label} from `)
         });
+    }
+
+    /** The dialog's "Retry all" — named for how many rows it will send. */
+    deadLettersRetryAll(): Locator {
+        return this.deadLettersDialog().getByRole('button', {
+            name: /^Retry (all \d+ events|the \d+ event) shown$/
+        });
+    }
+
+    /** A row's "Queued" badge, once it has been retried. */
+    deadLetterQueued(label: string): Locator {
+        return this.deadLetterRow(label).getByText('Queued', { exact: true });
     }
 
     /** Every Retry button currently in the dialog. */
@@ -181,7 +266,7 @@ export class ActivityLogPage extends BasePage {
         });
     }
 
-    /** The dialog's footer count ("Showing N events of M."). */
+    /** The dialog's footer count ("Showing N events of M."), when capped. */
     deadLettersCount(): Locator {
         return this.deadLettersDialog().getByText(/^Showing /);
     }
@@ -222,11 +307,6 @@ export class ActivityLogPage extends BasePage {
         });
     }
 
-    /** The dialog table's `sr-only` caption — what the table says it lists. */
-    deadLettersCaption(): Locator {
-        return this.deadLettersTable().locator('caption');
-    }
-
     /**
      * The `aria-label` on every Retry button in the dialog, in row order.
      *
@@ -245,17 +325,6 @@ export class ActivityLogPage extends BasePage {
             );
         }
         return labels;
-    }
-
-    /** The `scope` of each column header in the dialog's table, in order. */
-    async deadLettersHeaderScopes(): Promise<(string | null)[]> {
-        const heads = this.deadLettersTable().locator('thead th');
-        const count = await heads.count();
-        const scopes: (string | null)[] = [];
-        for (let index = 0; index < count; index += 1) {
-            scopes.push(await heads.nth(index).getAttribute('scope'));
-        }
-        return scopes;
     }
 
     /** Anything on the page claiming a sort state. Nothing here is sortable. */
@@ -297,24 +366,5 @@ export class ActivityLogPage extends BasePage {
         return this.page
             .locator('[data-sonner-toast]')
             .filter({ hasText: text });
-    }
-
-    /**
-     * The Action-column labels currently on screen. Every one should be a
-     * localized phrase — a value containing a `.` is a raw wire kind that fell
-     * through `formatActivityAction`'s fallback.
-     */
-    async actionLabels(): Promise<string[]> {
-        return this.page
-            .locator('table tbody tr td:nth-child(4)')
-            .allInnerTexts();
-    }
-
-    /** The Subject-column type labels currently on screen (the first line). */
-    async subjectTypeLabels(): Promise<string[]> {
-        const cells = await this.page
-            .locator('table tbody tr td:nth-child(5)')
-            .allInnerTexts();
-        return cells.map((cell) => cell.split('\n')[0].trim());
     }
 }

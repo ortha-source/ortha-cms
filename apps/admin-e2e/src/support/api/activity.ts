@@ -6,8 +6,12 @@ export interface ActivitySeed {
     kind: string;
     subjectType: string;
     subjectId: string;
+    /** The subject's name frozen on the row; absent on older rows. */
+    subjectLabel?: string | null;
     actorId: string | null;
     actorEmail: string | null;
+    /** The workspace the action happened in, when it belongs to one. */
+    workspaceId?: string | null;
     meta: Record<string, unknown> | null;
     at: string;
 }
@@ -57,6 +61,21 @@ export const DEFAULT_ACTIVITY: ActivitySeed[] = [
         actorEmail: null,
         meta: { email: 'alan@orthacms.dev' },
         at: '2026-06-11T12:00:00.000Z'
+    },
+    {
+        // A content event that names its record and its workspace — the
+        // feed's "published Spring launch in Marketing site", and the panel's
+        // "Open Spring launch" link into the library.
+        id: 'ev_5',
+        kind: 'entry.published',
+        subjectType: 'content_entry',
+        subjectId: 'e_spring',
+        subjectLabel: 'Spring launch',
+        actorId: 'u_ada',
+        actorEmail: 'ada@orthacms.dev',
+        workspaceId: 'ws_marketing',
+        meta: { contentType: 'article', title: 'Spring launch' },
+        at: '2026-06-11T14:00:00.000Z'
     }
 ];
 
@@ -239,6 +258,7 @@ const MAX_PAGE_SIZE = 100;
 function paramsOf(route: Route): {
     kinds: string[];
     actorEmail: string;
+    q: string;
     filter: string;
     page: number;
     pageSize: number;
@@ -250,6 +270,7 @@ function paramsOf(route: Route): {
         actorEmail: (url.searchParams.get('actorEmail') ?? '')
             .trim()
             .toLowerCase(),
+        q: (url.searchParams.get('q') ?? '').trim().toLowerCase(),
         filter: url.searchParams.get('filter') ?? '',
         page: Number(url.searchParams.get('page') ?? '1'),
         pageSize: Number(url.searchParams.get('pageSize') ?? '25')
@@ -275,6 +296,8 @@ function eventValue(event: ActivitySeed, field: string): string {
             return event.actorId ?? '';
         case 'actorEmail':
             return event.actorEmail ?? '';
+        case 'workspaceId':
+            return event.workspaceId ?? '';
         case 'at':
             return event.at;
         default:
@@ -331,9 +354,35 @@ function applyFilter(events: ActivitySeed[], filter: string): ActivitySeed[] {
 }
 
 /**
+ * The server's free-text `?q=`: a case-insensitive substring over the actor's
+ * email, the subject's recorded name and id, the subject type and the kind —
+ * with spaces also matching the kind's underscores ("role changed" finds
+ * `user.role_changed`). `meta` is not searched, exactly as on the server.
+ */
+function matchesSearch(event: ActivitySeed, q: string): boolean {
+    if (!q) return true;
+    const kindNeedle = q.replace(/\s+/g, '_');
+    return (
+        [
+            event.actorEmail,
+            event.subjectLabel,
+            event.subjectId,
+            event.subjectType
+        ].some((value) => (value ?? '').toLowerCase().includes(q)) ||
+        event.kind.toLowerCase().includes(q) ||
+        event.kind.toLowerCase().includes(kindNeedle)
+    );
+}
+
+/**
  * Stub `GET /api/activity` with a deterministic log, applying the same
- * filtering + pagination the server does (kind IN, actor-email substring,
- * offset paging) so the page's controls behave for real — **including the
+ * filtering + pagination the server does (kind IN, actor-email substring, the
+ * free-text `q`, offset paging) so the page's controls behave for real.
+ *
+ * **`from` / `to` are not applied.** The page opens on the last 7 days and the
+ * fixtures are fixed dates, so honouring the range would empty every suite on
+ * the day the calendar moved past them; the range's own spec asserts the
+ * request carries the bound instead — **including the
  * refusals**: a `pageSize` outside `1…`{@link MAX_PAGE_SIZE} comes back 400,
  * exactly as the DTO's `@Max` makes the real API answer. The page sits behind
  * the shell's gate, so a test also needs `mockSignedIn`. Pass `delayMs` to hold
@@ -357,6 +406,7 @@ export async function mockActivity(
         const {
             kinds,
             actorEmail,
+            q,
             filter,
             page: pageNum,
             pageSize
@@ -395,7 +445,7 @@ export async function mockActivity(
             ) {
                 return false;
             }
-            return true;
+            return matchesSearch(event, q);
         });
         // The query-builder `?filter=` intersects with the structured params,
         // mirroring the server's AND composition.
@@ -677,6 +727,72 @@ export async function spyRetryDeadLetter(
         },
         get count() {
             return ids.length;
+        }
+    };
+}
+
+/** What {@link spyActivityExport} saw: the query of every export request. */
+export interface ActivityExportSpy {
+    /** Each request's search params, in order. */
+    readonly requests: URLSearchParams[];
+    readonly count: number;
+}
+
+/**
+ * Stub `GET /api/activity/export` — the CSV of the current view — and record
+ * what the page asked for. Answers a two-row CSV as an attachment with the
+ * route's own headers; `total` above the rows it holds sets
+ * `X-Export-Truncated`, the way the server says a capped file is not the whole
+ * answer. `status` drives the failure branch.
+ */
+export async function spyActivityExport(
+    page: Page,
+    {
+        status = 200,
+        total = 2,
+        delayMs
+    }: { status?: number; total?: number; delayMs?: number } = {}
+): Promise<ActivityExportSpy> {
+    const requests: URLSearchParams[] = [];
+    await page.route('**/api/activity/export*', async (route) => {
+        if (route.request().method() !== 'GET') {
+            await route.fallback();
+            return;
+        }
+        requests.push(new URL(route.request().url()).searchParams);
+        if (delayMs) {
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
+        }
+        if (status >= 400) {
+            await route.fulfill({
+                status,
+                contentType: 'application/json',
+                body: JSON.stringify({ statusCode: status, message: 'Nope' })
+            });
+            return;
+        }
+        const rows = 2;
+        await route.fulfill({
+            status: 200,
+            headers: {
+                'content-type': 'text/csv; charset=utf-8',
+                'content-disposition':
+                    'attachment; filename="activity-2026-10-24.csv"',
+                'x-total-count': String(total),
+                'x-export-truncated': String(total > rows)
+            },
+            body:
+                'at,kind,actor_type,actor_id,actor_email,subject_type,subject_id,subject_label,workspace_id,event_id,meta\r\n' +
+                '2026-06-11T08:30:00.000Z,user.suspended,user,u_grace,grace@orthacms.dev,user,u_katherine,,,ev_3,\r\n' +
+                '2026-06-10T10:00:00.000Z,user.role_changed,user,u_ada,ada@orthacms.dev,user,u_grace,,,ev_2,\r\n'
+        });
+    });
+    return {
+        get requests() {
+            return requests;
+        },
+        get count() {
+            return requests.length;
         }
     };
 }

@@ -36,6 +36,13 @@ import {
  *   insights punchcard reads the revision table instead of this one. Populated
  *   from the emitting event's own `payload.workspaceId`; a producer that has a
  *   workspace puts it there.
+ * - `subjectLabel` is a frozen, human-readable name for the subject **at the
+ *   time of the event** — an entry's title, a token's label, an invitee's
+ *   address — lifted out of `meta` by the pure mapper. It exists so the log can
+ *   be searched by what a reader calls a record (`?q=`), without making the
+ *   open `meta` jsonb part of the queryable surface (`activity:I-16`). Nullable:
+ *   plenty of kinds carry nothing nameable, and a row written by the retained
+ *   `record` path never had one.
  * - `meta` is an open jsonb payload; each emitting plugin owns its shape.
  * - `at` is the logical event time (defaults to now); `createdAt` is the
  *   immutable write time, dropped from the read API.
@@ -51,6 +58,7 @@ export const activityEvents = pgTable(
         kind: text('kind').notNull(),
         subjectType: text('subject_type').notNull(),
         subjectId: text('subject_id').notNull(),
+        subjectLabel: text('subject_label'),
         actorId: uuid('actor_id'),
         actorType: text('actor_type'),
         actorEmail: text('actor_email'),

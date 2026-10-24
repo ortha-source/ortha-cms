@@ -1,6 +1,7 @@
 import { test, expect } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
 import { mockActivity } from '../support/api/activity';
+import { mockWorkspaces } from '../support/api/workspaces';
 import { expectNoA11yViolations } from '../support/a11y';
 
 /**
@@ -173,5 +174,45 @@ test.describe('Activity filter (query builder)', () => {
             'Filters'
         );
         await expect(activityLogPage.filterCountBadge()).toHaveCount(0);
+    });
+
+    test('a filter reads back as a chip — the workspace by its name', async ({
+        activityLogPage,
+        page
+    }) => {
+        await mockWorkspaces(page);
+        const filter = encodeURIComponent(
+            JSON.stringify({
+                field: 'workspaceId',
+                op: 'eq',
+                value: 'ws_marketing'
+            })
+        );
+        await page.goto(`/activity?filter=${filter}`);
+
+        // "Workspace equals Marketing site", not a uuid to decode.
+        await expect(
+            activityLogPage.chip('Workspace equals Marketing site')
+        ).toBeVisible();
+        await expect(
+            activityLogPage.row('published Spring launch')
+        ).toBeVisible();
+        await expect(activityLogPage.row('suspended a member')).toHaveCount(0);
+        await expect(activityLogPage.subtitle()).toHaveText('1 event matches');
+
+        // Removing the chip removes the condition.
+        await activityLogPage.chipRemove('Workspace equals').click();
+        await expect(page).not.toHaveURL(/filter=/);
+        await expect(activityLogPage.row('suspended a member')).toBeVisible();
+    });
+
+    test('the labelled Filter button carries the count', async ({
+        activityLogPage
+    }) => {
+        await activityLogPage.goto();
+        await expect(activityLogPage.filterTrigger()).toHaveText(/Filter/);
+        await expect(activityLogPage.filterTrigger()).toHaveAccessibleName(
+            'Filters'
+        );
     });
 });

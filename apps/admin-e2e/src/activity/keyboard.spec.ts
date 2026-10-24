@@ -39,7 +39,7 @@ test.describe('Activity dead letters keyboard', () => {
         const trigger = activityLogPage.deadLettersTrigger();
         await trigger.focus();
         await page.keyboard.press('Enter');
-        await expect(activityLogPage.deadLettersTable()).toBeVisible();
+        await expect(activityLogPage.deadLettersList()).toBeVisible();
 
         // Focus moved into the dialog rather than being left behind it — a
         // keyboard user who opens an overlay and stays outside it is stranded.
@@ -72,9 +72,9 @@ test.describe('Activity dead letters keyboard', () => {
         await activityLogPage.goto();
         await activityLogPage.deadLettersTrigger().focus();
         await page.keyboard.press('Enter');
-        await expect(activityLogPage.deadLettersTable()).toBeVisible();
+        await expect(activityLogPage.deadLettersList()).toBeVisible();
 
-        const target = activityLogPage.deadLetterRetry('media.asset.uploaded');
+        const target = activityLogPage.deadLetterRetry('Uploaded asset');
         await target.focus();
         await expect(target).toBeFocused();
         await page.keyboard.press('Enter');
@@ -104,9 +104,9 @@ test.describe('Activity dead letters keyboard', () => {
 
         await activityLogPage.goto();
         await activityLogPage.deadLettersTrigger().click();
-        await expect(activityLogPage.deadLettersTable()).toBeVisible();
+        await expect(activityLogPage.deadLettersList()).toBeVisible();
 
-        const target = activityLogPage.deadLetterRetry('entry.published');
+        const target = activityLogPage.deadLetterRetry('Published content');
         await target.click();
 
         // `aria-disabled`, not `disabled`: a disabled button leaves the tab
@@ -119,7 +119,53 @@ test.describe('Activity dead letters keyboard', () => {
 
         // The other rows are untouched — the pending state is scoped to the row
         // that was pressed, not to the panel.
-        const other = activityLogPage.deadLetterRetry('user.invited');
+        const other = activityLogPage.deadLetterRetry('Invited member');
         await expect(other).not.toHaveAttribute('aria-disabled', 'true');
+    });
+});
+
+test.describe('Activity dead letters keyboard — Retry all', () => {
+    test.beforeEach(async ({ page }) => {
+        await mockSignedIn(page);
+        await mockActivity(page);
+    });
+
+    test('Retry all is reachable, and keeps its tab stop while it works', async ({
+        page,
+        activityLogPage
+    }) => {
+        const parked = parkedEvents();
+        await mockDeadLetters(page, parked);
+        // Hold each POST so the busy state can be observed.
+        await page.route(
+            '**/api/activity/dead-letters/*/retry',
+            async (route) => {
+                await new Promise((resolve) => setTimeout(resolve, 800));
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({
+                        ...DEAD_LETTERS[0],
+                        attempts: 0,
+                        nextAttemptAt: null
+                    })
+                });
+            }
+        );
+
+        await activityLogPage.goto();
+        await activityLogPage.deadLettersTrigger().focus();
+        await page.keyboard.press('Enter');
+        await expect(activityLogPage.deadLettersList()).toBeVisible();
+
+        const all = activityLogPage.deadLettersRetryAll();
+        await all.focus();
+        await page.keyboard.press('Enter');
+        await expect(all).toHaveAttribute('aria-disabled', 'true');
+        await expect(all).toBeFocused();
+        // While a pass runs, no row can start a second one.
+        await expect(
+            activityLogPage.deadLetterRetry('Uploaded asset')
+        ).toHaveAttribute('aria-disabled', 'true');
     });
 });
