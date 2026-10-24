@@ -2,7 +2,11 @@ import { test, expect } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
 import { mockWorkspaces } from '../support/api/workspaces';
 import { mockApiTokensApi, REVEALED_SECRET } from '../support/api/apiTokens';
-import type { BrowserGlobals, EvalInput } from '../support/browserGlobals';
+import type {
+    BrowserGlobals,
+    EvalInput,
+    EvalScrollable
+} from '../support/browserGlobals';
 
 /**
  * Keyboard operability for the API tokens page — the half axe cannot see. Two
@@ -78,19 +82,23 @@ test.describe('API tokens keyboard operability', () => {
         await apiTokensPage.createToken('Full value');
         await apiTokensPage.secretField().waitFor();
 
-        // The field may be visually truncated (it always is on a phone), so
-        // the value — not the rendered text — is what assistive tech and
+        // On a phone the field wraps onto more lines (`break-all`) instead
+        // of scrolling sideways, so the whole credential is on screen — and
+        // the value, not the rendered text, is what assistive tech and
         // Ctrl+C have to carry.
         await expect(apiTokensPage.secretField()).toHaveValue(REVEALED_SECRET);
         await page.setViewportSize({ width: 360, height: 800 });
         const clipped = await page.evaluate(() => {
             const { document } = globalThis as unknown as BrowserGlobals;
-            const input = document.querySelector(
-                'input[readonly]'
-            ) as EvalInput | null;
-            return input ? input.scrollWidth > input.clientWidth : false;
+            const field = document.querySelector('textarea[readonly]') as
+                | (EvalInput & EvalScrollable)
+                | null;
+            return field
+                ? field.scrollWidth > field.clientWidth ||
+                      field.scrollHeight > field.clientHeight
+                : true;
         });
-        expect(clipped).toBe(true);
+        expect(clipped).toBe(false);
         await expect(apiTokensPage.secretField()).toHaveValue(REVEALED_SECRET);
     });
 
