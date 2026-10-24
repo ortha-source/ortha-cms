@@ -300,6 +300,33 @@ createAdmin({
 });
 ```
 
+## The R7 public screens
+
+- **One card for all of them** — `AuthCard` (16px radius, 22px `<h1>`,
+  optional status mark), `AuthCallout` for quiet notes, `BackToSignIn`.
+- **Errors at the field.** A `401` on sign-in is said under the password
+  (`credentialsError`), which then takes focus; one sentence for an unknown
+  address and a wrong password, and **no tries-left count** (the throttle is
+  the device's). Anything else (`429`, `?error=sso`, outage) is the focused
+  `AuthAlert` banner. The session-ended `AuthNotice` sits above the heading,
+  and the heading names it with `aria-describedby` so it is read on arrival.
+- **One password field** (`PasswordField`): a reveal toggle (`aria-pressed`,
+  constant name "Show password") and, where a password is chosen, a strength
+  meter (`domain/passwordStrength`, advice only) whose words are the field's
+  description. The confirm field is gone; the server's `confirmPassword` is
+  optional.
+- **"Forgot it?"** (`ForgotPasswordPage`, `/identity/forgot-password`) asks
+  `GET /api/auth/password-recovery`: with mail, a request form and a "Check
+  your email" card that is identical for every address ("If … belongs to an
+  account here"); without (or when the probe fails), who can help and where
+  they click — **naming nobody**.
+- **The invitation** says what it grants ("as a Contributor in Marketing site
+  and Support hub", from the description's `role`/`workspaces`) and **never
+  who sent it** — the board's inviter name is deliberately not rendered.
+- **Dead links**: a token that is not 64 hex characters (`domain/linkToken`)
+  is "This link isn't complete" with no request; a `404` is "This invite/reset
+  link has expired", which names nobody.
+
 ## Single sign-on on the sign-in page
 
 `SsoProviders` renders the "or continue with" block from `GET /api/auth/sso`
@@ -316,8 +343,10 @@ createAdmin({
   would make every visitor wait on a feature most deployments do not use, and an
   error would hand someone a problem they cannot act on while they are trying to
   sign in a way that still works.
-- **It comes after the password form**, in DOM and tab order. A visitor who came
-  to type a password should not tab past a list of providers to reach the field.
+- **It leads** (R7), in DOM and tab order: where a deployment has single
+  sign-on it is how most people come in, so the provider links come first,
+  then "or with email" and the password form. On the invitation the order is
+  reversed ("or", then "Accept with …").
 - **The destination is carried on the link**, not in router state:
   `?redirect=/workspaces`. The password form posts and the page navigates
   afterwards; an SSO link leaves the app entirely, so it has to take the

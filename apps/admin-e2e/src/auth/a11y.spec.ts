@@ -16,6 +16,11 @@ import {
     mockPasswordReset,
     spyResetPassword
 } from '../support/api/passwordReset';
+import {
+    mockPasswordRecoveryAvailability,
+    spyPasswordRecovery
+} from '../support/api/passwordRecovery';
+import { ForgotPasswordPage } from '../support/pages/ForgotPasswordPage';
 import { expectNoA11yViolations } from '../support/a11y';
 
 /**
@@ -57,7 +62,7 @@ test.describe('accessibility (axe, WCAG 2.1 A/AA)', () => {
         await expectNoA11yViolations(makeAxe());
     });
 
-    test('login page — credential-error banner visible', async ({
+    test('login page — credential error at the password field', async ({
         page,
         loginPage,
         makeAxe
@@ -66,7 +71,91 @@ test.describe('accessibility (axe, WCAG 2.1 A/AA)', () => {
         await mockLogin(page, { status: 401 });
         await loginPage.goto();
         await loginPage.login('admin@example.com', 'wrong-password');
+        await loginPage.credentialsError.waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('login page — throttled banner visible', async ({
+        page,
+        loginPage,
+        makeAxe
+    }) => {
+        await mockSignedOut(page);
+        await mockLogin(page, { status: 429, retryAfterSeconds: 30 });
+        await loginPage.goto();
+        await loginPage.login('admin@example.com', 'wrong-password');
         await loginPage.errorBanner.waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('login page — session-ended notice and revealed password', async ({
+        page,
+        loginPage,
+        makeAxe
+    }) => {
+        await mockSignedOut(page);
+        await loginPage.goto();
+        await loginPage.password.fill('SecurePass123!');
+        await loginPage.revealPassword.click();
+        await expect(loginPage.password).toHaveAttribute('type', 'text');
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('forgot password — no mail configured', async ({ page, makeAxe }) => {
+        await mockSignedOut(page);
+        await mockPasswordRecoveryAvailability(page, false);
+        const forgot = new ForgotPasswordPage(page);
+        await forgot.goto();
+        await forgot.noMailExplanation.waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('forgot password — request form and its errors', async ({
+        page,
+        makeAxe
+    }) => {
+        await mockSignedOut(page);
+        await mockPasswordRecoveryAvailability(page, true);
+        const forgot = new ForgotPasswordPage(page);
+        await forgot.goto();
+        await forgot.heading.waitFor();
+        await expectNoA11yViolations(makeAxe());
+
+        await forgot.submit.click();
+        await page
+            .getByText('Enter the email you sign in with', {
+                exact: true
+            })
+            .waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('forgot password — check your email', async ({ page, makeAxe }) => {
+        await mockSignedOut(page);
+        await mockPasswordRecoveryAvailability(page, true);
+        await spyPasswordRecovery(page);
+        const forgot = new ForgotPasswordPage(page);
+        await forgot.goto();
+        await forgot.request('ada@orthacms.dev');
+        await forgot.sentHeading.waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('forgot password — dark theme', async ({ page, makeAxe }) => {
+        await page.emulateMedia({ colorScheme: 'dark' });
+        await mockSignedOut(page);
+        await mockPasswordRecoveryAvailability(page, false);
+        const forgot = new ForgotPasswordPage(page);
+        await forgot.goto();
+        await forgot.noMailExplanation.waitFor();
+        await expectDarkTheme(page);
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('incomplete link', async ({ page, acceptInvitePage, makeAxe }) => {
+        await mockSignedOut(page);
+        await acceptInvitePage.gotoWithoutToken();
+        await acceptInvitePage.incompleteHeading().waitFor();
         await expectNoA11yViolations(makeAxe());
     });
 
@@ -162,11 +251,12 @@ test.describe('accessibility (axe, WCAG 2.1 A/AA)', () => {
         await resetPasswordPage.goto();
         await resetPasswordPage.heading.waitFor();
 
-        // Two field errors at once — a short password and a confirmation that
-        // does not match it — so the scan covers several `role="alert"` regions
-        // pointed at by `aria-describedby`, not just one.
-        await resetPasswordPage.setPassword('short', 'shorter');
-        await resetPasswordPage.fieldError(/at least 12 characters/).waitFor();
+        // A field error with the strength meter beside it — the hint moves
+        // off-screen but stays described, and the error takes its line.
+        await resetPasswordPage.setPassword('short');
+        await resetPasswordPage
+            .fieldError(/Use at least 12 characters/)
+            .waitFor();
         await expectNoA11yViolations(makeAxe());
     });
 
@@ -327,7 +417,7 @@ test.describe('accessibility (axe, WCAG 2.1 A/AA)', () => {
         await mockLogin(page, { status: 401 });
         await loginPage.goto();
         await loginPage.login('admin@example.com', 'wrong-password');
-        await loginPage.errorBanner.waitFor();
+        await loginPage.credentialsError.waitFor();
         await expectDarkTheme(page);
         await expectNoA11yViolations(makeAxe());
     });
@@ -355,7 +445,7 @@ test.describe('accessibility (axe, WCAG 2.1 A/AA)', () => {
         makeAxe
     }) => {
         await mockSignedOut(page);
-        await mockLogin(page, { status: 401 });
+        await mockLogin(page, { status: 429 });
         await loginPage.goto();
         await loginPage.login('admin@example.com', 'wrong-password');
         await loginPage.errorBanner.waitFor();

@@ -74,6 +74,24 @@ describe('queueing a transactional message', () => {
         );
     });
 
+    it('points a self-service recovery at the same reset route', async () => {
+        const { dispatcher, queued } = dispatcherFor();
+
+        await dispatcher.enqueue({
+            kind: MAIL_KINDS.PASSWORD_RECOVERY,
+            to: 'ada@example.com',
+            userId: 'user-1',
+            token: 's3cret',
+            expiresAt
+        });
+
+        expect(queued[0].kind).toBe('password_recovery');
+        expect(queued[0].link).toBe(
+            'https://cms.example.com/identity/reset-password?token=s3cret'
+        );
+        expect(queued[0].subject).toContain('Reset your');
+    });
+
     it('uses a host’s template when it overrode one', async () => {
         const { dispatcher, queued } = dispatcherFor({
             appUrl: 'https://cms.example.com',

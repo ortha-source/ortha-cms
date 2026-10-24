@@ -1,6 +1,9 @@
 import { type Locator, type Page } from '@playwright/test';
 import { BasePage } from './BasePage';
 
+/** A token with the shape the server mints: 64 hex characters. */
+export const RESET_LINK_TOKEN = 'f0e1d2c3'.repeat(8);
+
 /**
  * Page object for the reset-password screen at
  * `/identity/reset-password?token=…` (from `@orthacms/identity-admin`) — the
@@ -14,10 +17,12 @@ import { BasePage } from './BasePage';
 export class ResetPasswordPage extends BasePage {
     /** The page's `<h1>` on the happy path. */
     readonly heading: Locator;
-    /** The new-password field. */
+    /** The new-password field — the only one since R7. */
     readonly password: Locator;
-    /** The re-typed password field. */
-    readonly confirmPassword: Locator;
+    /** The password field's show/hide toggle. */
+    readonly revealPassword: Locator;
+    /** The account line under the heading ("for grace@…"). */
+    readonly account: Locator;
     /** The submit control; its label flips while submitting. */
     readonly submit: Locator;
     /**
@@ -32,7 +37,10 @@ export class ResetPasswordPage extends BasePage {
             name: 'Choose a new password'
         });
         this.password = page.getByLabel('New password', { exact: true });
-        this.confirmPassword = page.getByLabel('Confirm new password');
+        this.revealPassword = page.getByRole('button', {
+            name: 'Show password'
+        });
+        this.account = page.getByText(/^for \S+@\S+$/);
         this.submit = page.getByRole('button', {
             name: /Set new password|Setting your new password/
         });
@@ -41,8 +49,12 @@ export class ResetPasswordPage extends BasePage {
             .filter({ hasText: 'Couldn’t set your new password' });
     }
 
-    /** Open the reset page with `token` in the query string. */
-    async goto(token = 'reset-token-abc123') {
+    /**
+     * Open the reset page with `token` in the query string. The default has
+     * the shape a real token has; anything else is caught in the browser as an
+     * incomplete link and never reaches the mock.
+     */
+    async goto(token = RESET_LINK_TOKEN) {
         await this.page.goto(
             `/identity/reset-password?token=${encodeURIComponent(token)}`
         );
@@ -53,16 +65,17 @@ export class ResetPasswordPage extends BasePage {
         await this.page.goto('/identity/reset-password');
     }
 
-    /** Fill both password fields and submit. */
-    async setPassword(password: string, confirmation = password) {
+    /** Fill the password and submit. */
+    async setPassword(password: string) {
         await this.password.fill(password);
-        await this.confirmPassword.fill(confirmation);
         await this.submit.click();
     }
 
-    /** The read-only email of the account the link resets. */
-    emailField(): Locator {
-        return this.page.getByLabel('Email');
+    /** The "you'll be signed out everywhere else" note before the button. */
+    signOutNote(): Locator {
+        return this.page.getByText(
+            'You’ll be signed out on every other device.'
+        );
     }
 
     /** The success state's heading — the hand-off back to sign-in. */
@@ -72,11 +85,23 @@ export class ResetPasswordPage extends BasePage {
         });
     }
 
-    /** The dead-link state's heading. */
+    /** The dead-link (server `404`) state's heading. */
     unavailableHeading(): Locator {
         return this.page.getByRole('heading', {
-            name: 'This reset link no longer works'
+            name: 'This reset link has expired'
         });
+    }
+
+    /** The truncated-link state's heading — decided in the browser. */
+    incompleteHeading(): Locator {
+        return this.page.getByRole('heading', {
+            name: 'This link isn’t complete'
+        });
+    }
+
+    /** The dead-link card's way to a fresh link. */
+    requestNewLink(): Locator {
+        return this.page.getByRole('link', { name: 'Get a new link' });
     }
 
     /** Any state's escape hatch back to sign-in. */

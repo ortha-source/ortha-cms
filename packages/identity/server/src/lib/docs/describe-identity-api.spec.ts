@@ -17,6 +17,10 @@ function scannedDocument(): OpenApiDocument {
             '/api/auth/invite/accept': { post: scanned('201') },
             '/api/auth/reset/{token}': { get: scanned('200') },
             '/api/auth/reset': { post: scanned('201') },
+            '/api/auth/password-recovery': {
+                get: scanned('200'),
+                post: scanned('202')
+            },
             '/api/auth/sso': { get: scanned('200') },
             '/api/auth/sso/{provider}/start': { get: scanned('200') },
             '/api/auth/sso/{provider}/callback': {
@@ -65,6 +69,7 @@ describe('describeIdentityApi', () => {
                 'AuthAck',
                 'InviteDescription',
                 'PasswordResetDescription',
+                'PasswordRecoveryAvailability',
                 'SsoProvider',
                 'SsoBackchannelLogoutResult',
                 'UserSession',
@@ -88,6 +93,21 @@ describe('describeIdentityApi', () => {
         expect(successSchema(document, '/api/auth/login', 'post')).toEqual({
             $ref: '#/components/schemas/AuthAck'
         });
+    });
+
+    it('describes the recovery route without a hint of who has an account', () => {
+        const document = scannedDocument();
+        describeIdentityApi(document);
+
+        expect(
+            successSchema(document, '/api/auth/password-recovery', 'get')
+        ).toEqual({
+            $ref: '#/components/schemas/PasswordRecoveryAvailability'
+        });
+        // The POST is a bare acknowledgement on the 202 the handler sends.
+        expect(
+            successSchema(document, '/api/auth/password-recovery', 'post')
+        ).toEqual({ $ref: '#/components/schemas/AuthAck' });
     });
 
     it('writes onto the status code the scanner emitted, never a new one', () => {

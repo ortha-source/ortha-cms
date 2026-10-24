@@ -22,16 +22,17 @@ export const MAIL_KINDS = {
     /** An administrator re-sent an outstanding invitation. */
     INVITE_RESENT: 'invite_resent',
     /** An administrator issued a password reset for a member. */
-    PASSWORD_RESET: 'password_reset'
+    PASSWORD_RESET: 'password_reset',
+    /**
+     * A member asked for a reset themselves, from the public "forgot your
+     * password?" form (ADR-0018 phase 2). Same link as {@link PASSWORD_RESET},
+     * different copy: nobody else did anything, so the message must not say
+     * an administrator did.
+     */
+    PASSWORD_RECOVERY: 'password_recovery'
 } as const;
 
-/**
- * What a queued message is, for the dead-letter surface and the audit trail.
- *
- * `password_recovery` — the self-service form's message — is deliberately
- * absent: the route arrives in phase 2 (ADR-0018 §7), and a kind nothing can
- * produce would be a template and a branch nobody executes.
- */
+/** What a queued message is, for the dead-letter surface and the audit trail. */
 export type MailKind = (typeof MAIL_KINDS)[keyof typeof MAIL_KINDS];
 
 /** Everything a transactional message needs, apart from the copy itself. */

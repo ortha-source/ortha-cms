@@ -9,9 +9,13 @@ import {
 /** Comfortably over the 12-character minimum the form enforces. */
 const GOOD_PASSWORD = 'correct horse battery staple';
 
+/** A token with the shape the server mints (64 hex characters). */
+const TOKEN = '9a'.repeat(32);
+
 /**
  * The reset screen at `/identity/reset-password?token=…` — where a member ends
- * up after an admin hands them a link from the Access tab.
+ * up after an admin hands them a link from the Sessions & access tab, or after
+ * asking for one on the "Forgot it?" screen.
  *
  * The route is public, so the tests seed only the reset lookup: someone
  * resetting a password is by definition not signed in, which is the premise of
@@ -30,18 +34,41 @@ test.describe('reset a password', () => {
         await resetPasswordPage.goto();
 
         await expect(resetPasswordPage.heading).toBeVisible();
-        // The email came from the token, so it is shown, not asked for — a
-        // link cannot be pointed at a different account by editing a field.
-        await expect(resetPasswordPage.emailField()).toHaveValue(
-            DEFAULT_RESET.email
+        // The account came from the token, so it is named under the heading,
+        // not asked for — a link cannot be pointed at a different account.
+        await expect(resetPasswordPage.account).toHaveText(
+            `for ${DEFAULT_RESET.email}`
         );
-        await expect(resetPasswordPage.emailField()).toHaveAttribute(
-            'readonly',
-            ''
+        await expect(page.getByRole('textbox', { name: 'Email' })).toHaveCount(
+            0
         );
 
+        // One field with a meter and a reveal toggle, and the consequence
+        // said before the button rather than after it.
         await expect(resetPasswordPage.password).toBeEditable();
-        await expect(resetPasswordPage.confirmPassword).toBeEditable();
+        await expect(page.locator('input[type="password"]')).toHaveCount(1);
+        await expect(resetPasswordPage.signOutNote()).toBeVisible();
+        const note = await resetPasswordPage.signOutNote().boundingBox();
+        const submit = await resetPasswordPage.submit.boundingBox();
+        expect(note!.y).toBeLessThan(submit!.y);
+    });
+
+    test('rates the new password and can show it', async ({
+        page,
+        resetPasswordPage
+    }) => {
+        await mockPasswordReset(page);
+        await resetPasswordPage.goto();
+
+        await resetPasswordPage.password.fill(GOOD_PASSWORD);
+        await expect(
+            page.getByText('Strong · at least 12 characters')
+        ).toBeVisible();
+        await resetPasswordPage.revealPassword.click();
+        await expect(resetPasswordPage.password).toHaveAttribute(
+            'type',
+            'text'
+        );
     });
 
     test('submits the token with the password and hands off to sign-in', async ({
@@ -51,20 +78,24 @@ test.describe('reset a password', () => {
         await mockPasswordReset(page);
         const spy = await spyResetPassword(page);
 
-        await resetPasswordPage.goto('reset-token-xyz');
+        await resetPasswordPage.goto(TOKEN);
         await expect(resetPasswordPage.heading).toBeVisible();
         await resetPasswordPage.setPassword(GOOD_PASSWORD);
 
         // The redemption revokes every session and issues none, so the page
         // must not pretend the user is now inside the app.
         await expect(resetPasswordPage.doneHeading()).toBeVisible();
+        await expect(
+            page.getByText(
+                'Sign in with it now. Other devices were signed out.'
+            )
+        ).toBeVisible();
         await expect(resetPasswordPage.signInLink()).toBeVisible();
 
         expect(spy.count).toBe(1);
         expect(spy.bodies[0]).toEqual({
-            token: 'reset-token-xyz',
-            password: GOOD_PASSWORD,
-            confirmPassword: GOOD_PASSWORD
+            token: TOKEN,
+            password: GOOD_PASSWORD
         });
     });
 
@@ -98,23 +129,8 @@ test.describe('reset a password', () => {
         await resetPasswordPage.setPassword('short');
 
         await expect(
-            resetPasswordPage.fieldError(/at least 12 characters/)
+            resetPasswordPage.fieldError(/Use at least 12 characters/)
         ).toBeVisible();
-        expect(spy.count).toBe(0);
-    });
-
-    test('refuses to submit when the confirmation does not match', async ({
-        page,
-        resetPasswordPage
-    }) => {
-        await mockPasswordReset(page);
-        const spy = await spyResetPassword(page);
-
-        await resetPasswordPage.goto();
-        await expect(resetPasswordPage.heading).toBeVisible();
-        await resetPasswordPage.setPassword(GOOD_PASSWORD, `${GOOD_PASSWORD}!`);
-
-        await expect(resetPasswordPage.fieldError(/don’t match/)).toBeVisible();
         expect(spy.count).toBe(0);
     });
 
@@ -128,6 +144,12 @@ test.describe('reset a password', () => {
         await expect(resetPasswordPage.unavailableHeading()).toBeVisible();
         await expect(resetPasswordPage.signInLink()).toBeVisible();
         await expect(resetPasswordPage.password).toBeHidden();
+        // …and the way to a fresh one, which the "Forgot it?" screen either
+        // sends or says who can make.
+        await expect(resetPasswordPage.requestNewLink()).toHaveAttribute(
+            'href',
+            '/identity/forgot-password'
+        );
     });
 
     test('treats a link with no token as a truncated one, not a dead one', async ({
@@ -137,12 +159,29 @@ test.describe('reset a password', () => {
         await mockPasswordReset(page);
         await resetPasswordPage.gotoWithoutToken();
 
-        await expect(resetPasswordPage.unavailableHeading()).toBeVisible();
-        // The advice differs: this is fixable by opening the link properly,
-        // so the copy must not send the user off to ask for a replacement.
+        await expect(resetPasswordPage.incompleteHeading()).toBeVisible();
+        await expect(resetPasswordPage.unavailableHeading()).toHaveCount(0);
+        // The advice differs: this is fixable by opening the link properly.
         await expect(
-            resetPasswordPage.fieldError(/missing its reset code/)
+            page.getByText(/Open it again from the original message/)
         ).toBeVisible();
+    });
+
+    test('calls a token cut short incomplete without asking the server', async ({
+        page,
+        resetPasswordPage
+    }) => {
+        const lookups: string[] = [];
+        page.on('request', (request) => {
+            if (request.url().includes('/api/auth/reset/')) {
+                lookups.push(request.url());
+            }
+        });
+        await mockPasswordReset(page);
+        await resetPasswordPage.goto(TOKEN.slice(0, 50));
+
+        await expect(resetPasswordPage.incompleteHeading()).toBeVisible();
+        expect(lookups).toEqual([]);
     });
 
     test('offers a retry — not a replacement — when the lookup itself fails', async ({

@@ -69,6 +69,14 @@ describe('the shipped templates', () => {
         );
     });
 
+    it('does not blame an administrator for a reset the member asked for', () => {
+        const rendered = DEFAULT_MAIL_TEMPLATES.password_recovery(context);
+        // The actor is the recipient (or a stranger typing their address), so
+        // the copy names nobody and says that ignoring it is safe.
+        expect(rendered.text).not.toContain('Grace Hopper');
+        expect(rendered.text).toContain('If it was not you, ignore this');
+    });
+
     it('escapes a name that would otherwise be markup in the HTML part', () => {
         const rendered = DEFAULT_MAIL_TEMPLATES.invite({
             ...context,

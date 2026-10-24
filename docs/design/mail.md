@@ -4,7 +4,7 @@
 > console and testkit adapters, the three transactional messages, `appUrl` and
 > `reveal-link` — and phase 3's **scaffolder question** with it: `create-orthacms-app`
 > now asks for a mail backend, single-choice with "Do not configure" as the
-> default. Phase 2, and the rest of phase 3, are not built. The decision behind it is
+> default. Phase 2's recovery route is built (identity's `/api/auth/password-recovery`, the users plugin's issuer, the `password_recovery` template); the rest of phase 2 and of phase 3 are not. The decision behind it is
 > [ADR-0018](../adr/0018-mail-provider.md) (Accepted); the packages' own
 > `AGENTS.md` files are now the reference for their internals, and
 > [`docs/artifacts/mail.md`](../artifacts/mail.md) is the dossier. Where the

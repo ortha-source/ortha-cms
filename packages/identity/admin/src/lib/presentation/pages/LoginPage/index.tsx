@@ -22,8 +22,7 @@ const messages = defineMessages({
     },
     invalidCredentials: {
         id: 'identity.login.error.invalidCredentials',
-        defaultMessage:
-            'The email or password you entered is incorrect. Please double-check your credentials and try again.'
+        defaultMessage: 'That email and password don’t match.'
     },
     generic: {
         id: 'identity.login.error.generic',
@@ -32,7 +31,7 @@ const messages = defineMessages({
     sessionEnded: {
         id: 'identity.login.sessionEnded',
         defaultMessage:
-            'Your session has ended, so you were signed out. Please sign in again to continue where you left off.'
+            'Your session ended, so you were signed out. Sign in to pick up where you were.'
     },
     ssoFailed: {
         id: 'identity.login.ssoFailed',
@@ -64,7 +63,7 @@ export function LoginPage() {
     const navigate = useNavigate();
     const location = useLocation();
     const queryClient = useQueryClient();
-    const { mutate, isPending, error } = useLoginMutation();
+    const { mutate, isPending, error, reset } = useLoginMutation();
 
     useDocumentTitle(intl.formatMessage(messages.documentTitle));
 
@@ -90,7 +89,14 @@ export function LoginPage() {
     const ssoFailed =
         new URLSearchParams(location.search).get('error') === 'sso';
 
+    // Whether a password has been tried on this visit. Once it has, the
+    // `?error=sso` flag is history: clearing a failed attempt's message as the
+    // person retypes must not bring the provider banner back — it takes focus
+    // as it mounts, and would pull them out of the field mid-word.
+    const [attempted, setAttempted] = useState(false);
+
     const handleSubmit = (credentials: LoginCredentials) => {
+        setAttempted(true);
         mutate(credentials, {
             onSuccess: async () => {
                 await queryClient.invalidateQueries({
@@ -101,23 +107,30 @@ export function LoginPage() {
         });
     };
 
+    // A wrong password (or an unknown address — the server answers both with
+    // one `401`, identity:I-03) is said at the password field. It names no
+    // count of tries left: the throttle is keyed on the device, and the
+    // banner below is what a throttled attempt gets.
+    const credentialsError =
+        error?.status === HTTP_STATUS.UNAUTHORIZED
+            ? intl.formatMessage(messages.invalidCredentials)
+            : undefined;
+
     // A failed submission wins over the redirect flag: the flag describes how
     // the visitor arrived, and once they have tried a password the result of
     // that attempt is the thing they are waiting to hear about.
-    const errorMessage = error
-        ? // A throttled attempt gets its own answer before the generic one: the
-          // route carries `ThrottlerGuard`, and someone who mistyped a password
-          // a few times is exactly who reaches it — for whom "please try again"
-          // is the one thing that cannot work.
-          (rateLimitMessage(intl, error) ??
-          intl.formatMessage(
-              error.status === HTTP_STATUS.UNAUTHORIZED
-                  ? messages.invalidCredentials
-                  : messages.generic
-          ))
-        : ssoFailed
-          ? intl.formatMessage(messages.ssoFailed)
-          : undefined;
+    const errorMessage = credentialsError
+        ? undefined
+        : error
+          ? // A throttled attempt gets its own answer before the generic one:
+            // the route carries `ThrottlerGuard`, and someone who mistyped a
+            // password a few times is exactly who reaches it — for whom
+            // "please try again" is the one thing that cannot work.
+            (rateLimitMessage(intl, error) ??
+            intl.formatMessage(messages.generic))
+          : ssoFailed && !attempted
+            ? intl.formatMessage(messages.ssoFailed)
+            : undefined;
 
     return (
         <AuthLayout surface="signin">
@@ -125,6 +138,8 @@ export function LoginPage() {
                 onSubmit={handleSubmit}
                 isPending={isPending}
                 error={errorMessage}
+                credentialsError={credentialsError}
+                onEdit={credentialsError ? reset : undefined}
                 notice={
                     sessionEnded
                         ? intl.formatMessage(messages.sessionEnded)

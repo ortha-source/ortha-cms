@@ -68,12 +68,34 @@ async function topOf(locator: {
 }
 
 test.describe('auth focus management', () => {
-    test('a failed sign-in moves focus to the error, not past it', async ({
+    test('a wrong password puts focus back on the password, with the reason attached', async ({
         page,
         loginPage
     }) => {
         await mockSignedOut(page);
         await mockLogin(page, { status: 401 });
+        await loginPage.goto();
+        await expect(loginPage.heading).toBeVisible();
+
+        await loginPage.login('admin@example.com', 'wrong-password');
+
+        // R7: errors at the field. Focus lands where the correction is typed,
+        // and the message is the field's description, so arriving there reads
+        // it — no hunt backwards from the submit button.
+        await expect(loginPage.credentialsError).toBeVisible();
+        await expect(loginPage.password).toBeFocused();
+        await expect(loginPage.password).toHaveAttribute(
+            'aria-describedby',
+            /login-password-error/
+        );
+    });
+
+    test('a failure that is not about the fields moves focus to the banner', async ({
+        page,
+        loginPage
+    }) => {
+        await mockSignedOut(page);
+        await mockLogin(page, { status: 429 });
         await loginPage.goto();
         await expect(loginPage.heading).toBeVisible();
 
@@ -86,12 +108,12 @@ test.describe('auth focus management', () => {
         await expect(loginPage.errorBanner).toBeFocused();
     });
 
-    test('the fields are one Tab away from the focused error', async ({
+    test('the fields are one Tab away from the focused banner', async ({
         page,
         loginPage
     }) => {
         await mockSignedOut(page);
-        await mockLogin(page, { status: 401 });
+        await mockLogin(page, { status: 429 });
         await loginPage.goto();
         await expect(loginPage.heading).toBeVisible();
         await loginPage.login('admin@example.com', 'wrong-password');
@@ -150,7 +172,7 @@ test.describe('auth focus management', () => {
         loginPage
     }) => {
         await mockSignedOut(page);
-        await mockLogin(page, { status: 401 });
+        await mockLogin(page, { status: 429 });
         await loginPage.goto();
         await expect(loginPage.heading).toBeVisible();
         await loginPage.login('admin@example.com', 'wrong-password');
@@ -196,15 +218,13 @@ test.describe('auth focus management', () => {
         // text in place and never fire the effect, leaving the user standing
         // wherever they were while the page silently said something new.
         await mockSignedOut(page);
-        await mockLogin(page, { status: 401 });
+        await mockLogin(page, { status: 429 });
         await loginPage.goto();
         await expect(loginPage.heading).toBeVisible();
 
         await loginPage.login('admin@example.com', 'wrong-password');
         await expect(loginPage.errorBanner).toBeFocused();
-        await expect(loginPage.errorBanner).toContainText(
-            'email or password you entered is incorrect'
-        );
+        await expect(loginPage.errorBanner).toContainText('Too many attempts');
 
         // Move focus away, exactly as somebody correcting the form would, then
         // fail differently: a `500` maps to the generic message, so the banner
@@ -244,14 +264,15 @@ test.describe('auth focus management', () => {
         await expect(loginPage.sessionEndedNotice).not.toBeFocused();
     });
 
-    test('the notice sits between the heading and the fields', async ({
+    test('the notice opens the card, and the focused heading is described by it', async ({
         page,
         loginPage,
         membersPage
     }) => {
-        // Not focusing it is only half the claim: it has to be somewhere the
-        // reader actually reaches from the heading they were placed on, and
-        // before the form they are being asked to fill in again.
+        // Not focusing it is only half the claim: the reader has to actually
+        // meet it. R7 draws it above the heading, as the first thing the card
+        // says — so the heading the visitor is placed on points
+        // `aria-describedby` at it, and it is read on arrival.
         await mockSignedIn(page);
         await mockMembers(page);
         await membersPage.goto();
@@ -265,8 +286,15 @@ test.describe('auth focus management', () => {
         const notice = await topOf(loginPage.sessionEndedNotice);
         const email = await topOf(loginPage.email);
 
-        expect(notice).toBeGreaterThan(heading);
-        expect(notice).toBeLessThan(email);
+        expect(notice).toBeLessThan(heading);
+        expect(heading).toBeLessThan(email);
+        await expect(loginPage.heading).toHaveAttribute(
+            'aria-describedby',
+            'login-notice'
+        );
+        await expect(page.locator('#login-notice')).toContainText(
+            'Your session ended'
+        );
     });
 
     test('the invite form takes focus when the lookup resolves', async ({
@@ -278,7 +306,7 @@ test.describe('auth focus management', () => {
         // any navigation, which is exactly the transition that used to strand
         // focus at the top of the document.
         await mockInvite(page, undefined, { delayMs: 300 });
-        await acceptInvitePage.goto('tok_focus');
+        await acceptInvitePage.goto();
 
         await expect(acceptInvitePage.heading).toBeVisible();
         await expect(acceptInvitePage.heading).toBeFocused();
@@ -290,7 +318,7 @@ test.describe('auth focus management', () => {
     }) => {
         await mockSignedOut(page);
         await mockInvite(page, undefined, { status: 404, delayMs: 300 });
-        await acceptInvitePage.goto('tok_dead');
+        await acceptInvitePage.goto();
 
         await expect(acceptInvitePage.unavailableHeading()).toBeVisible();
         await expect(acceptInvitePage.unavailableHeading()).toBeFocused();
@@ -315,7 +343,7 @@ test.describe('auth page titles', () => {
     }) => {
         await mockSignedOut(page);
         await mockInvite(page);
-        await acceptInvitePage.goto('tok_title');
+        await acceptInvitePage.goto();
         await expect(acceptInvitePage.heading).toBeVisible();
 
         await expect(page).toHaveTitle(/Accept your invite/);

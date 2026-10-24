@@ -4,6 +4,7 @@ import type {
     InviteRepository,
     PendingInvite
 } from '../../domain/invite.repository';
+import type { InviteWorkspaceDirectory } from '../ports/invite-workspace-directory.port';
 import { DescribeInviteUseCase } from './describe-invite.use-case';
 
 const USER_ID = '11111111-1111-4111-8111-111111111111';
@@ -34,11 +35,15 @@ describe('DescribeInviteUseCase', () => {
             tokenId: TOKEN_ID,
             userId: USER_ID,
             email: 'ada@example.com',
-            name: 'Ada Lovelace'
+            name: 'Ada Lovelace',
+            role: 'Contributor'
         };
     }
 
-    function harness(invite: PendingInvite | null): Harness {
+    function harness(
+        invite: PendingInvite | null,
+        workspaces?: InviteWorkspaceDirectory
+    ): Harness {
         const lookups: string[] = [];
         const consumed: boolean[] = [];
 
@@ -60,7 +65,7 @@ describe('DescribeInviteUseCase', () => {
         } as unknown as InviteRepository;
 
         return {
-            useCase: new DescribeInviteUseCase(hashing, invites),
+            useCase: new DescribeInviteUseCase(hashing, invites, workspaces),
             lookups,
             consumed
         };
@@ -75,10 +80,18 @@ describe('DescribeInviteUseCase', () => {
         expect(lookups).not.toContain(RAW_TOKEN);
         expect(description).toEqual({
             email: 'ada@example.com',
-            name: 'Ada Lovelace'
+            name: 'Ada Lovelace',
+            role: 'Contributor',
+            workspaces: []
         });
-        // No id, no status — nothing the invitee has no business seeing.
-        expect(Object.keys(description).sort()).toEqual(['email', 'name']);
+        // No id, no status, no inviter — nothing the invitee has no business
+        // seeing, and no administrator's name on a public page.
+        expect(Object.keys(description).sort()).toEqual([
+            'email',
+            'name',
+            'role',
+            'workspaces'
+        ]);
         // A pure read: opening the link twice, or refreshing, is harmless.
         expect(consumed).toEqual([]);
     });
@@ -88,8 +101,43 @@ describe('DescribeInviteUseCase', () => {
 
         await expect(useCase.execute(RAW_TOKEN)).resolves.toEqual({
             email: 'ada@example.com',
-            name: null
+            name: null,
+            role: 'Contributor',
+            workspaces: []
         });
+    });
+
+    it('names the workspaces the invitee will join, asking about the invited account only', async () => {
+        const asked: string[] = [];
+        const { useCase } = harness(pendingInvite(), {
+            namesFor: async (userId) => {
+                asked.push(userId);
+                return ['Marketing site', 'Support hub'];
+            }
+        });
+
+        const description = await useCase.execute(RAW_TOKEN);
+
+        expect(description.workspaces).toEqual([
+            'Marketing site',
+            'Support hub'
+        ]);
+        expect(asked).toEqual([USER_ID]);
+    });
+
+    it('does not ask the workspace directory about a dead link', async () => {
+        const asked: string[] = [];
+        const { useCase } = harness(null, {
+            namesFor: async (userId) => {
+                asked.push(userId);
+                return [];
+            }
+        });
+
+        await expect(useCase.execute(RAW_TOKEN)).rejects.toBeInstanceOf(
+            InvalidInviteTokenError
+        );
+        expect(asked).toEqual([]);
     });
 
     it('raises the one generic error for a token that resolves to nothing', async () => {

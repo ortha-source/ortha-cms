@@ -39,5 +39,6 @@ export type {
     AcceptInviteInput,
     PasswordResetDetails,
     ResetPasswordInput,
+    PasswordRecoveryAvailability,
     SsoProviderSummary
 } from './types/auth';

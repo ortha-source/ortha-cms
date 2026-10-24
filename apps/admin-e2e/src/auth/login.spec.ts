@@ -13,8 +13,9 @@ const PASSWORD = 'SecurePass123!';
 /**
  * The login flow at `/identity/signin`. The backend is mocked at the network
  * layer (`support/api/auth`), so these assert admin behavior in isolation:
- * navigation on success, the error banner on a 401, client-side validation,
- * and the pending state. The real round-trip is the server-e2e suite's job.
+ * navigation on success, the error at the password field on a 401 (R7: errors
+ * at the field), the banner for everything else, client-side validation, and
+ * the pending state. The real round-trip is the server-e2e suite's job.
  *
  * `beforeEach` seeds a signed-out session (`GET /auth/me` → 401) so the host's
  * auth probe is deterministic; the success cases flip to signed in before
@@ -43,15 +44,56 @@ test.describe('Login page (/identity/signin)', () => {
     });
 
     test.describe('invalid credentials (401)', () => {
-        test('shows the error banner and stays on the page', async ({
+        test('says so under the password field and puts the cursor back there', async ({
             page,
             loginPage
         }) => {
             await mockLogin(page, { status: 401 });
             await loginPage.login(EMAIL, 'wrong-password');
 
-            await expect(loginPage.errorBanner).toContainText('incorrect');
+            await expect(loginPage.credentialsError).toHaveText(
+                'That email and password don’t match.'
+            );
+            await expect(loginPage.password).toHaveAttribute(
+                'aria-invalid',
+                'true'
+            );
+            await expect(loginPage.password).toBeFocused();
+            // At the field, not in a banner.
+            await expect(loginPage.errorBanner).toBeHidden();
             await expect(page).toHaveURL(/\/identity\/signin/);
+        });
+
+        test('says the same thing for an address with no account, and counts no tries', async ({
+            page,
+            loginPage
+        }) => {
+            await mockLogin(page, { status: 401 });
+            await loginPage.login('nobody@example.com', 'whatever-it-is');
+
+            // One 401 for every reason (identity:I-03), so one sentence; and
+            // no "2 tries left" — the throttle is the device's, not the
+            // account's, and a countdown is one more thing to read off a
+            // public page.
+            await expect(loginPage.credentialsError).toHaveText(
+                'That email and password don’t match.'
+            );
+            await expect(loginPage.credentialsError).not.toContainText(
+                /tries|attempts|left/
+            );
+        });
+
+        test('drops the stale answer once the password is retyped', async ({
+            page,
+            loginPage
+        }) => {
+            await mockLogin(page, { status: 401 });
+            await loginPage.login(EMAIL, 'wrong-password');
+            await expect(loginPage.credentialsError).toBeVisible();
+
+            await loginPage.password.fill('another-try');
+
+            await expect(loginPage.credentialsError).toBeHidden();
         });
     });
 
@@ -105,7 +147,8 @@ test.describe('Login page (/identity/signin)', () => {
             // The limit is keyed on the caller, not the identity claimed, so
             // the message must not drift into the enumeration signal the 401
             // copy is carefully written to avoid.
-            await expect(loginPage.errorBanner).not.toContainText('incorrect');
+            await expect(loginPage.errorBanner).toBeVisible();
+            await expect(loginPage.errorBanner).not.toContainText('match');
             await expect(loginPage.errorBanner).not.toContainText('account');
         });
     });
@@ -156,9 +199,9 @@ test.describe('Login page (/identity/signin)', () => {
     });
 
     test.describe('the controls on offer', () => {
-        // Password recovery, sign-up and the legal pages have no routes yet, so
-        // the page must not advertise them: they used to render as buttons with
-        // no handler, four focusable stops that did nothing when activated.
+        // Sign-up and the legal pages have no routes, so the page must not
+        // advertise them: they used to render as buttons with no handler,
+        // focusable stops that did nothing when activated.
         test('offers no control that leads nowhere', async ({
             page,
             loginPage
@@ -166,7 +209,6 @@ test.describe('Login page (/identity/signin)', () => {
             await expect(loginPage.submit).toBeVisible();
 
             for (const name of [
-                'Forgot your password?',
                 'Sign up',
                 'Terms of Service',
                 'Privacy Policy'
@@ -176,14 +218,53 @@ test.describe('Login page (/identity/signin)', () => {
             }
         });
 
-        test('says how an account is obtained instead', async ({
+        test('“Forgot it?” leads to the recovery screen', async ({
+            page,
+            loginPage
+        }) => {
+            await expect(loginPage.forgotPassword).toHaveAttribute(
+                'href',
+                '/identity/forgot-password'
+            );
+            await loginPage.forgotPassword.click();
+            await expect(page).toHaveURL(/\/identity\/forgot-password$/);
+        });
+
+        test('says how an account is obtained, naming nobody', async ({
             page,
             loginPage
         }) => {
             await expect(loginPage.submit).toBeVisible();
             await expect(
-                page.getByText(/Accounts are created by invitation/)
+                page.getByText(
+                    'No account? Ortha is invite-only — ask an admin.'
+                )
             ).toBeVisible();
+        });
+
+        test('names the deployment under the heading', async ({ page }) => {
+            const host = new URL(page.url()).host;
+            await expect(
+                page.getByText(`to Ortha CMS · ${host}`)
+            ).toBeVisible();
+        });
+
+        test('lets the password be read back with the reveal toggle', async ({
+            loginPage
+        }) => {
+            await loginPage.password.fill(PASSWORD);
+            await expect(loginPage.password).toHaveAttribute(
+                'type',
+                'password'
+            );
+
+            await loginPage.revealPassword.click();
+
+            await expect(loginPage.password).toHaveAttribute('type', 'text');
+            await expect(loginPage.revealPassword).toHaveAttribute(
+                'aria-pressed',
+                'true'
+            );
         });
     });
 

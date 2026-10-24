@@ -172,9 +172,33 @@ const passwordReset: MailTemplate = (context) => {
     };
 };
 
+/**
+ * The member asked for a reset themselves, from the public form.
+ *
+ * Nobody but the recipient (or someone typing their address) did anything, so
+ * there is no actor to name. The last line is for the second case: the form is
+ * public, anyone can type any address into it, and a recipient who did not ask
+ * needs to hear that ignoring the message is safe.
+ */
+const passwordRecovery: MailTemplate = (context) => {
+    const lines = [
+        greeting(context),
+        `Someone asked to reset the password for your ${context.productName} account.`,
+        'Follow the link below to choose a new password. Any earlier reset link has stopped working.',
+        `The link expires on ${formatExpiry(context.expiresAt)} (UTC).`,
+        'If it was not you, ignore this message — your password stays as it is.'
+    ];
+    return {
+        subject: `Reset your ${context.productName} password`,
+        text: textBody(lines, context.link),
+        html: htmlBody(lines, context.link)
+    };
+};
+
 /** The shipped copy, one template per kind. */
 export const DEFAULT_MAIL_TEMPLATES: MailTemplates = {
     invite,
     invite_resent: inviteResent,
-    password_reset: passwordReset
+    password_reset: passwordReset,
+    password_recovery: passwordRecovery
 };
