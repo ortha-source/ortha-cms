@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Check, X } from 'lucide-react';
 import {
@@ -70,6 +70,7 @@ export function WorkspacePicker({
 }) {
     const intl = useIntl();
     const [open, setOpen] = useState(false);
+    const triggerRef = useRef<HTMLButtonElement>(null);
     const [search, setSearch] = useState('');
     const selected = new Set(value);
     const byId = new Map(options.map((option) => [option.id, option]));
@@ -105,7 +106,13 @@ export function WorkspacePicker({
                         {name}
                         <button
                             type="button"
-                            onClick={() => toggle(workspaceId)}
+                            onClick={() => {
+                                toggle(workspaceId);
+                                // The chip — and this button — is gone on the
+                                // next render; hand focus to the add control
+                                // rather than let it fall out of the dialog.
+                                triggerRef.current?.focus();
+                            }}
                             aria-label={intl.formatMessage(messages.remove, {
                                 name
                             })}
@@ -125,6 +132,7 @@ export function WorkspacePicker({
             >
                 <PopoverTrigger asChild>
                     <button
+                        ref={triggerRef}
                         id={id}
                         type="button"
                         role="combobox"
