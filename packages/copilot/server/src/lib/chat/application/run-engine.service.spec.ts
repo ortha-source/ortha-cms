@@ -170,7 +170,7 @@ interface Harness {
     conversations: ReturnType<typeof fakeConversations>;
     seen: Seen;
     /** The shared tool registry, so a test can see whether a call ran. */
-    tools: { call: jest.Mock };
+    tools: { call: jest.Mock; preview: jest.Mock };
     /** The `copilot_proposals` writer, so a test can read what it was handed. */
     proposals: { create: jest.Mock; decide: jest.Mock };
     decisions: { apply: jest.Mock };
@@ -218,6 +218,11 @@ function harness(
          * inside `executeTool`.
          */
         profileTools?: (nth: number) => ToolDefinition[];
+        /** What the registry's `preview` answers for a previewable tool. */
+        toolPreview?: (
+            name: string,
+            input: Record<string, unknown>
+        ) => Promise<unknown>;
         /** The media plugin's resolver, or none at all when omitted. */
         attachments?: AttachmentResolver;
         /** How the user answers a parked write. Defaults to allowing it once. */
@@ -260,7 +265,8 @@ function harness(
     const tools = {
         call: jest.fn(
             options.toolCall ?? (async () => ({ ok: true }) as unknown)
-        )
+        ),
+        preview: jest.fn(options.toolPreview ?? (async () => DRAFT as unknown))
     };
     const proposals = {
         create: jest.fn(async (input: Record<string, unknown>) => ({
@@ -916,6 +922,103 @@ describe('RunEngine auditing a refused call', () => {
             ok: false,
             summary: 'not allowed'
         });
+    });
+});
+
+describe('RunEngine previewing a parked write', () => {
+    /** The same propose tool, with a binder that vouched for its handler. */
+    const PREVIEWABLE_TOOL = {
+        ...PROPOSE_TOOL,
+        previewable: true
+    } as unknown as ToolDefinition;
+
+    it('puts the diff of the draft on the permission frame, before anything is recorded', async () => {
+        const { engine, tools, proposals } = harness(
+            asksFor({ id: 'call-1', name: 'fixture_propose', input: {} }),
+            {
+                tools: [PREVIEWABLE_TOOL],
+                toolPreview: async () => ({
+                    ...DRAFT,
+                    lands: 'draft',
+                    changes: [
+                        {
+                            field: 'items[0].summary',
+                            record: 'Spring launch',
+                            before: null,
+                            after: 'Everything that shipped'
+                        }
+                    ]
+                }),
+                decide: async () => ({ decision: 'deny', timedOut: false })
+            }
+        );
+        const controller = new AbortController();
+
+        const frames = await drain(engine.run(startInput(controller.signal)));
+
+        const request = frames.find(
+            (frame) => frame.type === 'tool-permission-request'
+        );
+        expect(request).toMatchObject({
+            preview: {
+                kind: DRAFT.kind,
+                summary: DRAFT.summary,
+                lands: 'draft',
+                records: 1,
+                omitted: 0,
+                changes: [expect.objectContaining({ record: 'Spring launch' })]
+            }
+        });
+        // A preview is a picture: refused, nothing was ever called for real,
+        // recorded or applied. (The fixture model asks again on every step,
+        // so each refusal is followed by another preview.)
+        expect(tools.preview).toHaveBeenCalled();
+        expect(tools.call).not.toHaveBeenCalled();
+        expect(proposals.create).not.toHaveBeenCalled();
+    });
+
+    it('never previews a tool whose binder did not declare it pure [copilot:I-07]', async () => {
+        const { engine, tools } = harness(
+            asksFor({ id: 'call-1', name: 'fixture_propose', input: {} }),
+            {
+                tools: [PROPOSE_TOOL],
+                decide: async () => ({ decision: 'deny', timedOut: false })
+            }
+        );
+        const controller = new AbortController();
+
+        const frames = await drain(engine.run(startInput(controller.signal)));
+
+        expect(tools.preview).not.toHaveBeenCalled();
+        expect(
+            frames.find((frame) => frame.type === 'tool-permission-request')
+        ).not.toHaveProperty('preview');
+    });
+
+    it('still asks when the preview fails, and the call can still run', async () => {
+        const { engine, tools } = harness(
+            asksFor({ id: 'call-1', name: 'fixture_propose', input: {} }),
+            {
+                tools: [PREVIEWABLE_TOOL],
+                toolPreview: async () => {
+                    throw new Error('Entry not found');
+                },
+                toolCall: async () => DRAFT
+            }
+        );
+        const controller = new AbortController();
+
+        const frames = await drain(engine.run(startInput(controller.signal)));
+
+        const request = frames.find(
+            (frame) => frame.type === 'tool-permission-request'
+        );
+        expect(request).toBeDefined();
+        expect(request).not.toHaveProperty('preview');
+        // Allowed once (the harness default), so the real call happens — and
+        // the preview's failure did not count as a repeat of it.
+        expect(tools.call).toHaveBeenCalledTimes(1);
+        expect(resultFor(frames, 'call-1')).toMatchObject({ ok: true });
     });
 });
 

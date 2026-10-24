@@ -15,6 +15,14 @@ export interface ProposalChange {
     field: string;
     /** A human label for the field, when the schema has one. */
     label?: string;
+    /**
+     * The record this field belongs to, as a person names it — an entry's
+     * title. Optional, and only worth setting on a change that can touch more
+     * than one record: the review card groups rows under it, so a batch reads
+     * as "Spring launch — Summary: … → …" instead of a column of `#3 Summary`
+     * labels nobody can map back to an entry.
+     */
+    record?: string;
     /** The value today. Absent on a create — there is nothing to replace. */
     before?: unknown;
     /** The value the proposal would write. */
@@ -54,6 +62,14 @@ export interface ProposalDraft {
      * reason a human can decide in a second rather than a minute.
      */
     changes?: readonly ProposalChange[];
+    /**
+     * Where the change lands when it is applied, for the sentence a person is
+     * asked to allow: `draft` leaves anything already published live until
+     * someone publishes it, `live` is visible to readers the moment it is
+     * saved. Optional — a binder that cannot say leaves it out, and the
+     * prompt then says neither rather than guessing.
+     */
+    lands?: 'draft' | 'live';
 }
 
 /**
