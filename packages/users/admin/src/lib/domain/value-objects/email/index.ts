@@ -46,4 +46,33 @@ export class Email {
     get value(): string {
         return this.email;
     }
+
+    /**
+     * Splits pasted or typed text into candidate addresses — the invite
+     * sheet's chip input. Commas, semicolons, whitespace and newlines all
+     * separate (a column copied out of a spreadsheet arrives one per line), a
+     * `Name <address>` pair keeps only the address, and each piece is trimmed
+     * and lower-cased: the server compares case-insensitively, so `Ada@x.io`
+     * and `ada@x.io` are one person here too. Order is kept, duplicates are
+     * dropped, and nothing is validated — a malformed piece still becomes a
+     * chip, so the person can see it and fix it.
+     */
+    static splitList(text: string): string[] {
+        const seen = new Set<string>();
+        const out: string[] = [];
+        // `Ada Lovelace <ada@x.io>` → `ada@x.io` before splitting, or the
+        // display name's words would each become a chip of their own.
+        const addresses = text.replace(/[^,;\n<>]*<([^>]*)>/g, ' $1 ');
+        for (const raw of addresses.split(/[\s,;]+/)) {
+            const piece = raw
+                .replace(/^[<"'(]+|[>"')]+$/g, '')
+                .trim()
+                .toLowerCase();
+            if (piece && !seen.has(piece)) {
+                seen.add(piece);
+                out.push(piece);
+            }
+        }
+        return out;
+    }
 }

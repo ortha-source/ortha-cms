@@ -5,27 +5,26 @@ import {
     useHasPermission
 } from '@orthacms/identity-admin';
 import { UserDetailLayout } from '../UserDetailLayout';
-import { UserGeneralPage } from '../../pages/UserGeneralPage';
-import { UserRolesPage } from '../../pages/UserRolesPage';
+import { UserOverviewPage } from '../../pages/UserOverviewPage';
 import { UserWorkspacesPage } from '../../pages/UserWorkspacesPage';
-import { UserSessionsPage } from '../../pages/UserSessionsPage';
 import { UserActivityPage } from '../../pages/UserActivityPage';
 import { UserAccessPage } from '../../pages/UserAccessPage';
 import { UserPreferencesPage } from '../../pages/UserPreferencesPage';
 
 /**
  * The nested router for one member, mounted by the plugin at `/users/:id/*`.
- * Mirrors `IdentityRouter`: a single element owning its own `<Routes>`, with
- * the shared layout wrapping the tab pages and providing the member via Outlet
- * context.
+ * A single element owning its own `<Routes>`, with the shared layout wrapping
+ * the tab pages and providing the member via Outlet context.
  *
- * The Audit (Sessions, Activity) and Access tabs are permission-gated at the
- * route level — without the permission the route redirects to General, so a
- * deep link or stale bookmark can't reach a tab the side rail hides. The
- * Preferences tab is **self-only** — it is the current user's own app
- * preferences (theme), so it is gated on the viewed profile being the caller's
- * own, and redirects to General on anyone else's profile. The index redirects
- * to General as the default tab.
+ * Four tabs: **Overview** (the index), **Workspaces**, **Sessions & access**
+ * (`users:update`) and **Activity** (`activity:read`). Without the permission a
+ * gated route redirects to Overview, so a deep link or stale bookmark can't
+ * reach a tab the bar hides. **Preferences** is self-only and redirects on
+ * anyone else's page.
+ *
+ * The seven-tab era's paths still resolve, so old links and bookmarks land
+ * somewhere sensible: `general` and `roles` on Overview (role is changed from
+ * the header now), `sessions` on Sessions & access.
  */
 export function UserDetailRouter() {
     const canManage = useHasPermission('users:update');
@@ -38,17 +37,16 @@ export function UserDetailRouter() {
     return (
         <Routes>
             <Route element={<UserDetailLayout />}>
-                <Route index element={<Navigate to="general" replace />} />
-                <Route path="general" element={<UserGeneralPage />} />
-                <Route path="roles" element={<UserRolesPage />} />
+                <Route index element={<Navigate to="overview" replace />} />
+                <Route path="overview" element={<UserOverviewPage />} />
                 <Route path="workspaces" element={<UserWorkspacesPage />} />
                 <Route
-                    path="sessions"
+                    path="access"
                     element={
                         canManage ? (
-                            <UserSessionsPage />
+                            <UserAccessPage />
                         ) : (
-                            <Navigate to="../general" replace />
+                            <Navigate to="../overview" replace />
                         )
                     }
                 />
@@ -58,17 +56,7 @@ export function UserDetailRouter() {
                         canReadActivity ? (
                             <UserActivityPage />
                         ) : (
-                            <Navigate to="../general" replace />
-                        )
-                    }
-                />
-                <Route
-                    path="access"
-                    element={
-                        canManage ? (
-                            <UserAccessPage />
-                        ) : (
-                            <Navigate to="../general" replace />
+                            <Navigate to="../overview" replace />
                         )
                     }
                 />
@@ -78,11 +66,23 @@ export function UserDetailRouter() {
                         isSelf ? (
                             <UserPreferencesPage />
                         ) : (
-                            <Navigate to="../general" replace />
+                            <Navigate to="../overview" replace />
                         )
                     }
                 />
-                <Route path="*" element={<Navigate to="general" replace />} />
+                <Route
+                    path="general"
+                    element={<Navigate to="../overview" replace />}
+                />
+                <Route
+                    path="roles"
+                    element={<Navigate to="../overview" replace />}
+                />
+                <Route
+                    path="sessions"
+                    element={<Navigate to="../access" replace />}
+                />
+                <Route path="*" element={<Navigate to="overview" replace />} />
             </Route>
         </Routes>
     );

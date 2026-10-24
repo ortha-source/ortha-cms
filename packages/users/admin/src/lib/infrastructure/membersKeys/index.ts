@@ -2,6 +2,10 @@
 export type MembersListParams = {
     /** Case-insensitive name/email substring; omit for no filter. */
     search?: string;
+    /** One account status (the Invited / Disabled quick filters). */
+    status?: 'pending' | 'active' | 'disabled';
+    /** One system role (the Admins quick filter). */
+    role?: 'admin' | 'contributor' | 'viewer';
     /** Query-builder filter tree as a JSON string; omit for no structured filter. */
     filter?: string;
     /** 1-based page number; the server defaults to 1. */
@@ -33,5 +37,19 @@ export const membersKeys = {
      * `member-sessions` so `membersKeys.all` cannot reach it — see the note
      * above.
      */
-    sessions: (id: string) => ['member-sessions', id] as const
+    sessions: (id: string) => ['member-sessions', id] as const,
+    /**
+     * How one member signs in (password set, linked SSO). Rooted beside
+     * `sessions` and for the same reason: no member mutation can change it.
+     */
+    signIn: (id: string) => ['member-sign-in', id] as const,
+    /** The assignable roles and their grants — static for a deployment. */
+    roles: ['member-roles'] as const,
+    /**
+     * Which of a set of addresses already belong to members — the invite
+     * sheet's live check. Under `all`, so an invite (which creates members)
+     * refreshes it.
+     */
+    existingEmails: (emails: readonly string[]) =>
+        ['members', 'existing-emails', [...emails].sort()] as const
 };

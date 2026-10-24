@@ -61,3 +61,42 @@ describe('Email.create', () => {
         expect(() => Email.create('')).toThrow('Invalid member email: ""');
     });
 });
+
+describe('Email.splitList', () => {
+    it('splits on commas, semicolons, spaces and newlines', () => {
+        expect(
+            Email.splitList(
+                'lena@growth.io, sam@growth.io;kai@growth.io\nmo@x.io'
+            )
+        ).toEqual([
+            'lena@growth.io',
+            'sam@growth.io',
+            'kai@growth.io',
+            'mo@x.io'
+        ]);
+    });
+
+    it('keeps only the address of a `Name <address>` pair', () => {
+        expect(
+            Email.splitList('Ada Lovelace <Ada@Orthacms.dev>, Sam <sam@x.io>')
+        ).toEqual(['ada@orthacms.dev', 'sam@x.io']);
+    });
+
+    it('lower-cases and drops repeats, keeping first-seen order', () => {
+        expect(Email.splitList('B@x.io a@x.io b@X.IO')).toEqual([
+            'b@x.io',
+            'a@x.io'
+        ]);
+    });
+
+    it('keeps a malformed piece so the person can see it', () => {
+        expect(Email.splitList('not-an-email, ok@x.io')).toEqual([
+            'not-an-email',
+            'ok@x.io'
+        ]);
+    });
+
+    it('answers nothing for blank input', () => {
+        expect(Email.splitList(' , ;\n')).toEqual([]);
+    });
+});

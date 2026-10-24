@@ -9,7 +9,8 @@ import type {
     MemberRole,
     MemberStatus,
     MemberWithResetToken,
-    MemberWorkspace
+    MemberWorkspace,
+    RoleCatalogEntry
 } from '../../domain/types/member';
 
 // The shared wire→model contract for a member. The admin can't import the
@@ -48,6 +49,12 @@ export type MemberResponse = {
     createdAt: string;
     isLastAdmin: boolean;
     workspaces: MemberWorkspaceResponse[];
+    /**
+     * ISO timestamp of the newest session use, or `null` for someone who never
+     * signed in. Optional on the type because a server older than the members
+     * redesign omits it, which must read as "unknown", not crash the roster.
+     */
+    lastActiveAt?: string | null;
 };
 
 /**
@@ -61,6 +68,7 @@ export type MemberResponse = {
  */
 export type InvitedMemberResponse = MemberResponse & {
     inviteToken?: string;
+    inviteExpiresAt?: string;
 };
 
 /** Maps a workspace from the wire to the admin's presentational shape. */
@@ -94,7 +102,8 @@ export function toMember(dto: MemberResponse): Member {
         status: dto.status,
         joinedAt: new Date(dto.createdAt),
         isLastAdmin: dto.isLastAdmin,
-        workspaces: dto.workspaces.map(toMemberWorkspace)
+        workspaces: dto.workspaces.map(toMemberWorkspace),
+        lastActiveAt: dto.lastActiveAt ? new Date(dto.lastActiveAt) : null
     };
 }
 
@@ -106,7 +115,13 @@ export function toInvitedMember(dto: InvitedMemberResponse): InvitedMember {
     // `null` — not `''` and not a guess — is "the server sent it; there is no
     // link for you to hand over", which the UI renders as its own outcome
     // rather than as a broken link.
-    return { ...toMember(dto), inviteToken: dto.inviteToken ?? null };
+    return {
+        ...toMember(dto),
+        inviteToken: dto.inviteToken ?? null,
+        inviteExpiresAt: dto.inviteExpiresAt
+            ? new Date(dto.inviteExpiresAt)
+            : null
+    };
 }
 
 /**
@@ -116,6 +131,7 @@ export function toInvitedMember(dto: InvitedMemberResponse): InvitedMember {
  */
 export type PasswordResetMemberResponse = MemberResponse & {
     resetToken?: string;
+    resetExpiresAt?: string;
 };
 
 /**
@@ -125,10 +141,42 @@ export type PasswordResetMemberResponse = MemberResponse & {
 export function toMemberWithResetToken(
     dto: PasswordResetMemberResponse
 ): MemberWithResetToken {
-    return { ...toMember(dto), resetToken: dto.resetToken ?? null };
+    return {
+        ...toMember(dto),
+        resetToken: dto.resetToken ?? null,
+        resetExpiresAt: dto.resetExpiresAt ? new Date(dto.resetExpiresAt) : null
+    };
+}
+
+/** A role as `GET /users/roles` returns it. */
+export type RoleCatalogEntryResponse = {
+    key: string;
+    name: string;
+    permissions: string[];
+};
+
+/**
+ * Maps the role catalogue, dropping any key outside the three assignable
+ * roles — the dialog can only offer those, and a stray entry is not one it
+ * could explain.
+ */
+export function toRoleCatalog(
+    items: RoleCatalogEntryResponse[]
+): RoleCatalogEntry[] {
+    return items.flatMap((item) =>
+        isMemberRole(item.key)
+            ? [
+                  {
+                      key: item.key,
+                      name: item.name,
+                      permissions: item.permissions
+                  }
+              ]
+            : []
+    );
 }
 
 /** Whether a wire role key is one of the admin's assignable roles. */
-function isMemberRole(key: string): key is MemberRole {
+export function isMemberRole(key: string): key is MemberRole {
     return key === 'admin' || key === 'contributor' || key === 'viewer';
 }

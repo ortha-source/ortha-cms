@@ -63,7 +63,10 @@ export async function mockUserDetail(
         // (`/sessions`) and the `?...` list fall through to their own routes.
         if (
             route.request().method() !== 'GET' ||
-            /\/sessions(\/|$)/.test(url.pathname)
+            /\/sessions(\/|$)/.test(url.pathname) ||
+            // `GET /api/users/roles` is the role catalogue, not a member —
+            // the server registers it ahead of `/:id` for the same reason.
+            url.pathname.endsWith('/users/roles')
         ) {
             await route.fallback();
             return;
@@ -199,4 +202,116 @@ export async function spyUpdateMember(
             return bodies;
         }
     };
+}
+
+/** The grants the three system roles hold — trimmed to the keys the dialog reads. */
+export const ROLE_CATALOG = [
+    {
+        key: 'admin',
+        name: 'Administrator',
+        permissions: [
+            'content:read',
+            'content:update',
+            'content:publish',
+            'users:read',
+            'users:update',
+            'tokens:create',
+            'webhooks:manage',
+            'workspaces:create',
+            'workspaces:update'
+        ]
+    },
+    {
+        key: 'contributor',
+        name: 'Contributor',
+        permissions: [
+            'content:read',
+            'content:update',
+            'content:publish',
+            'users:read'
+        ]
+    },
+    {
+        key: 'viewer',
+        name: 'Viewer',
+        permissions: ['content:read', 'users:read']
+    }
+];
+
+/** Stub `GET /api/users/roles` — the role dialog's "What changes" source. */
+export async function mockRoleCatalog(
+    page: Page,
+    { status = 200 }: { status?: number } = {}
+): Promise<void> {
+    await page.route('**/api/users/roles', async (route) => {
+        if (route.request().method() !== 'GET') {
+            await route.fallback();
+            return;
+        }
+        await route.fulfill({
+            status,
+            contentType: 'application/json',
+            body: JSON.stringify(
+                status === 200 ? { items: ROLE_CATALOG } : { message: 'Nope' }
+            )
+        });
+    });
+}
+
+/** Stub `GET /api/users/:id/sign-in` — the Overview's sign-in methods. */
+export async function mockMemberSignIn(
+    page: Page,
+    signIn: { hasPassword: boolean; ssoProviders: string[] } = {
+        hasPassword: true,
+        ssoProviders: ['google']
+    }
+): Promise<void> {
+    await page.route('**/api/users/*/sign-in', async (route) => {
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify(signIn)
+        });
+    });
+}
+
+/**
+ * Stub `DELETE /api/users/:id/sessions` — "Sign out everywhere" — answering
+ * with how many sessions ended, and counting the calls.
+ */
+export async function spyRevokeAllSessions(
+    page: Page,
+    revoked = 2
+): Promise<{ readonly count: number }> {
+    let count = 0;
+    await page.route('**/api/users/*/sessions', async (route) => {
+        if (route.request().method() !== 'DELETE') {
+            await route.fallback();
+            return;
+        }
+        count += 1;
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({ revoked })
+        });
+    });
+    return {
+        get count() {
+            return count;
+        }
+    };
+}
+
+/**
+ * Everything the member page reads besides the member itself, seeded at once:
+ * sessions, sign-in methods, the role catalogue and an empty activity log. A
+ * suite that cares about one of them registers its own afterwards — the most
+ * recently added route wins.
+ */
+export async function mockMemberPage(page: Page): Promise<void> {
+    await mockUserSessions(page);
+    await mockMemberSignIn(page);
+    await mockRoleCatalog(page);
+    await mockEmptyActivity(page);
 }

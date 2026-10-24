@@ -143,7 +143,14 @@ export async function spyIssuePasswordReset(
             contentType: 'application/json',
             body: JSON.stringify(
                 status === 201
-                    ? { ...member, resetToken: RESET_TOKEN }
+                    ? {
+                          ...member,
+                          resetToken: RESET_TOKEN,
+                          // An hour out, as identity's default reset TTL.
+                          resetExpiresAt: new Date(
+                              Date.now() + 60 * 60 * 1000
+                          ).toISOString()
+                      }
                     : {
                           statusCode: status,
                           error: 'Conflict',

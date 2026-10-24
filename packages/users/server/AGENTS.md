@@ -4,17 +4,38 @@ The users **plugin** for the Ortha CMS server: the member-management API the
 admin's Members page drives. Exposes, under `/api/users`:
 
 - `GET /users` — searchable (`?search=`, name/email `ILIKE`), paginated
-  (`?page=&pageSize=`, 1-based) member list; each row joins the global role, the
-  member's workspaces, and a server-computed `isLastAdmin` flag the UI uses to
-  disable guarded controls. Also honours a query-builder `?filter=` tree.
+  (`?page=&pageSize=`, 1-based) member list, narrowable by `?status=` and
+  `?role=` (the admin's quick filters); each row joins the global role, the
+  member's workspaces, a server-computed `isLastAdmin` flag the UI uses to
+  disable guarded controls, and `lastActiveAt` — the newest `last_used_at`
+  across the member's sessions (derived at read time, no column, so the
+  package still owns no table). Also honours a query-builder `?filter=` tree.
+  The envelope carries directory-wide `counts` (everyone / active / admins /
+  invited / disabled) that **no** request parameter narrows.
+- `GET /users/roles` — the three assignable roles and their permission keys,
+  straight from identity's `SYSTEM_ROLES` (`users:read`), for the admin's
+  role-change "what changes" table. **Registered ahead of `GetMemberController`**
+  — behind `/:id`'s `ParseUUIDPipe` it would 400; `users.module.spec.ts` pins
+  the order.
+- `GET /users/:id/sign-in` — `{ hasPassword, ssoProviders }` (`users:update`,
+  like identity's session list: how someone authenticates is account-security
+  metadata, not directory data).
+- `POST /users/invites/batch` — invite 1–25 addresses with one role and one set
+  of workspaces, **all-or-nothing** in one unit of work (each address goes
+  through `InviteMemberUseCase`, whose `uow.run` joins). A collision is a
+  `409 EMAIL_TAKEN` whose `emails` names **every** taken address, nobody
+  invited. That answer is an existence signal, so the route requires
+  `users:read` **and** `users:create`: only callers who could already read the
+  directory get it — no new enumeration surface. Items carry `inviteToken` on
+  the same terms as the single route, plus `inviteExpiresAt`.
 - `GET /users/:id` — one member's full view (the same `MemberView` the list
   returns), backing the admin user detail page; `users:read`, 404 on unknown id.
 - `POST /users/invites` — invite by email: creates a `pending` user + invite
   token, and optionally links the new member to `workspaceIds` (memberships;
-  unknown ids are ignored). **No email is sent yet** (`TODO(users-email)`,
-  identity epic #11), so the response is an `InvitedMemberView` — the member row
-  plus the raw `inviteToken`, returned **once** for the admin to turn into a
-  link. Only its hash is stored; the list and detail reads never carry it.
+  unknown ids are ignored). The response is an `InvitedMemberView` — the member
+  row plus the raw `inviteToken` (absent with a mailer), returned **once**, and
+  the non-secret `inviteExpiresAt`. Only the token's hash is stored; the list
+  and detail reads never carry it.
 - `PATCH /users/:id` — edit display name and/or role.
 - `POST /users/:id/disable` / `POST /users/:id/enable` — flip account status;
   disabling also revokes the member's live sessions.
@@ -32,7 +53,10 @@ admin's Members page drives. Exposes, under `/api/users`:
   admin. Redeeming the link is identity's job (`POST /api/auth/reset`); this
   context only decides **who** may be reset. 409s a `pending` member (no
   password yet — resend their invite) and a `disabled` one (locked out on
-  purpose).
+  purpose). Carries `resetExpiresAt` so the admin can say how long it works.
+
+"Sign out everywhere" (`DELETE /users/:id/sessions`) is identity's, beside its
+per-session revoke, mounted on the same prefix.
 
 > **Layered per ADR-0003 (tactical DDD inside plugins).** This is Wave 2 of the
 > migration; the structure copies the `@orthacms/workspaces-server` pilot —
@@ -124,7 +148,7 @@ global key, so everything that takes it serialises deployment-wide.
 `findByIdForAdminGuard` (locked), and a **pure rename** loads via `findById`
 (unlocked) — a rename cannot change the admin count, and making it wait put
 every member edit in the deployment behind one lock. `enable` is unlocked for
-the same reason, stated positively: enabling only ever *increases* the count, so
+the same reason, stated positively: enabling only ever _increases_ the count, so
 it cannot violate the invariant.
 
 ## Conflict bodies carry a machine code
@@ -174,7 +198,7 @@ Two things are worth stating outright:
   (`member.password_reset_issued` → `user.password_reset_issued`). Handing
   someone a link that can take over an account is an administrative act in its
   own right and has to be attributed to the admin who performed it, whether or
-  not the link is ever used. The redemption is a *separate* row
+  not the link is ever used. The redemption is a _separate_ row
   (`user.password_changed`), actored by the account holder — the two together
   are what let a reviewer say who opened the door and who walked through it.
 
@@ -185,7 +209,7 @@ Two things are worth stating outright:
 a `retryAfterSeconds`.
 
 This is **not** the obvious fix, so the reasoning matters: rotation is
-unconditionally destructive, and the raw token is *unrecoverable* — only its
+unconditionally destructive, and the raw token is _unrecoverable_ — only its
 SHA-256 is stored. The server therefore **cannot** "return the existing link
 instead" when a resend arrives too soon. Refusing the second call is the only
 way a double-clicked Resend doesn't leave the admin holding the dead first
@@ -268,9 +292,9 @@ same permission. No invite tokens, no session data.
   (and, for `workspaces`/`memberships`, `@orthacms/workspaces-server`).
 - Authorization: identity's `PermissionsGuard` bound per controller with
   `@RequirePermissions(PERMISSIONS.USERS_READ | USERS_CREATE | USERS_UPDATE |
-  USERS_DELETE)` — the shared constants, never inline strings (`.cursor/BUGBOT.md`
+USERS_DELETE)` — the shared constants, never inline strings (`.cursor/BUGBOT.md`
   §Server). Authentication is identity's global `AuthGuard`.
-- **CSRF:** every *state-changing* controller also carries `OriginGuard`, ahead
+- **CSRF:** every _state-changing_ controller also carries `OriginGuard`, ahead
   of `PermissionsGuard` — `@UseGuards(OriginGuard, PermissionsGuard)` — matching
   `workspaces/server` and the `ARCHITECTURE.md §5.3` request-flow invariant. The
   two read controllers (`list-members`, `get-member`) deliberately do not: a GET

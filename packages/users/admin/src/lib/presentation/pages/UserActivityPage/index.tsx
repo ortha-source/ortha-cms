@@ -1,27 +1,5 @@
-import type { ComponentType } from 'react';
 import { useMemo, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import {
-    Activity,
-    Archive,
-    ArchiveRestore,
-    Ban,
-    Building2,
-    CircleCheck,
-    FileText,
-    FolderPlus,
-    Image,
-    KeyRound,
-    LogIn,
-    LogOut,
-    MailX,
-    Pencil,
-    Send,
-    ShieldCheck,
-    Trash2,
-    UserMinus,
-    UserPlus
-} from 'lucide-react';
 import {
     Alert,
     AlertDescription,
@@ -34,14 +12,12 @@ import {
     Skeleton,
     cn
 } from '@orthacms/design-system';
+import { MemberActivityRow } from '../../components/MemberActivityRow';
 import { useHasPermission } from '@orthacms/identity-admin';
-import {
-    formatActivityAction,
-    useActivityLog,
-    type ActivityEvent
-} from '@orthacms/activity-admin';
+import { useActivityLog } from '@orthacms/activity-admin';
 import { MembersPagination } from '../../components/MembersPagination';
 import { useUserDetailContext } from '../../userDetailContext';
+import { memberActivityFilter } from '../../memberActivityFilter';
 
 /** Default page size for the per-user activity timeline (a pagination option). */
 const DEFAULT_PAGE_SIZE = 25;
@@ -61,198 +37,8 @@ const messages = defineMessages({
         id: 'users.activity.error',
         defaultMessage: 'Couldn’t load activity. Please try again.'
     },
-    retry: { id: 'users.activity.retry', defaultMessage: 'Retry' },
-    system: { id: 'users.activity.system', defaultMessage: 'System' },
-    by: { id: 'users.activity.by', defaultMessage: 'by {actor}' }
+    retry: { id: 'users.activity.retry', defaultMessage: 'Retry' }
 });
-
-type ActivityIcon = ComponentType<{
-    className?: string;
-    'aria-hidden'?: boolean;
-}>;
-
-/**
- * Per-kind **presentation** — an icon and a tinted chip class, so an invite
- * reads differently from a suspension at a glance. The *label* is not here on
- * purpose: it comes from `activity-admin`'s `formatActivityAction`, the one
- * kind→label catalogue in the admin.
- *
- * This map used to own labels too, and it knew twelve kinds. The tab's query is
- * "everything about *or by* this member", so it surfaces every kind the actor
- * touched — and each of the other nineteen rendered as a raw dotted wire token
- * (`media.asset.uploaded`, `token.created`, `workspace.content_granted`) in a
- * member's timeline. A second catalogue is a second thing to forget; a missing
- * icon here only costs a neutral chip.
- */
-const KIND_STYLE: Record<string, { icon: ActivityIcon; className: string }> = {
-    'user.invited': {
-        icon: UserPlus,
-        className: 'bg-blue-500/10 text-blue-600'
-    },
-    'user.invite_resent': {
-        icon: Send,
-        className: 'bg-blue-500/10 text-blue-600'
-    },
-    'user.invite_revoked': {
-        icon: MailX,
-        className: 'bg-rose-500/10 text-rose-600'
-    },
-    'user.activated': {
-        icon: CircleCheck,
-        className: 'bg-emerald-500/10 text-emerald-600'
-    },
-    'user.profile_updated': {
-        icon: Pencil,
-        className: 'bg-indigo-500/10 text-indigo-600'
-    },
-    'user.role_changed': {
-        icon: ShieldCheck,
-        className: 'bg-violet-500/10 text-violet-600'
-    },
-    'user.suspended': {
-        icon: Ban,
-        className: 'bg-amber-500/10 text-amber-600'
-    },
-    'user.reactivated': {
-        icon: CircleCheck,
-        className: 'bg-emerald-500/10 text-emerald-600'
-    },
-    'user.password_changed': {
-        icon: KeyRound,
-        className: 'bg-violet-500/10 text-violet-600'
-    },
-    'user.password_reset_issued': {
-        icon: KeyRound,
-        className: 'bg-amber-500/10 text-amber-600'
-    },
-    'user.signed_in': {
-        icon: LogIn,
-        className: 'bg-slate-500/10 text-slate-600'
-    },
-    'user.signed_out': {
-        icon: LogOut,
-        className: 'bg-slate-500/10 text-slate-600'
-    },
-    'workspace.created': {
-        icon: Building2,
-        className: 'bg-teal-500/10 text-teal-600'
-    },
-    'workspace.updated': {
-        icon: Pencil,
-        className: 'bg-teal-500/10 text-teal-600'
-    },
-    'workspace.archived': {
-        icon: Archive,
-        className: 'bg-amber-500/10 text-amber-600'
-    },
-    'workspace.unarchived': {
-        icon: ArchiveRestore,
-        className: 'bg-emerald-500/10 text-emerald-600'
-    },
-    'workspace.deleted': {
-        icon: Trash2,
-        className: 'bg-rose-500/10 text-rose-600'
-    },
-    'workspace.member_added': {
-        icon: UserPlus,
-        className: 'bg-teal-500/10 text-teal-600'
-    },
-    'workspace.member_removed': {
-        icon: UserMinus,
-        className: 'bg-rose-500/10 text-rose-600'
-    },
-    'workspace.content_granted': {
-        icon: ShieldCheck,
-        className: 'bg-teal-500/10 text-teal-600'
-    },
-    'workspace.content_revoked': {
-        icon: ShieldCheck,
-        className: 'bg-rose-500/10 text-rose-600'
-    },
-    'entry.published': {
-        icon: FileText,
-        className: 'bg-emerald-500/10 text-emerald-600'
-    },
-    'entry.unpublished': {
-        icon: FileText,
-        className: 'bg-amber-500/10 text-amber-600'
-    },
-    'token.created': {
-        icon: KeyRound,
-        className: 'bg-violet-500/10 text-violet-600'
-    },
-    'token.revoked': {
-        icon: KeyRound,
-        className: 'bg-rose-500/10 text-rose-600'
-    },
-    'media.asset.uploaded': {
-        icon: Image,
-        className: 'bg-blue-500/10 text-blue-600'
-    },
-    'media.asset.updated': {
-        icon: Pencil,
-        className: 'bg-indigo-500/10 text-indigo-600'
-    },
-    'media.asset.moved': {
-        icon: FolderPlus,
-        className: 'bg-indigo-500/10 text-indigo-600'
-    },
-    'media.asset.deleted': {
-        icon: Trash2,
-        className: 'bg-rose-500/10 text-rose-600'
-    },
-    'media.folder.created': {
-        icon: FolderPlus,
-        className: 'bg-blue-500/10 text-blue-600'
-    },
-    'media.folder.renamed': {
-        icon: Pencil,
-        className: 'bg-indigo-500/10 text-indigo-600'
-    },
-    'media.folder.deleted': {
-        icon: Trash2,
-        className: 'bg-rose-500/10 text-rose-600'
-    }
-};
-
-const FALLBACK_STYLE = {
-    icon: Activity as ActivityIcon,
-    className: 'bg-muted text-muted-foreground'
-};
-
-/** One timeline entry. */
-function ActivityRow({ event }: { event: ActivityEvent }) {
-    const intl = useIntl();
-    const style = KIND_STYLE[event.kind];
-    const title = formatActivityAction(intl, event.kind);
-    const Icon = style?.icon ?? FALLBACK_STYLE.icon;
-    const chipClassName = style?.className ?? FALLBACK_STYLE.className;
-    const actor = event.actor?.email ?? intl.formatMessage(messages.system);
-
-    return (
-        <li className="flex items-center gap-3 border-b py-3 last:border-b-0">
-            <span
-                aria-hidden
-                className={cn(
-                    'flex size-8 shrink-0 items-center justify-center rounded-full',
-                    chipClassName
-                )}
-            >
-                <Icon aria-hidden className="size-4" />
-            </span>
-            <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium">{title}</p>
-                <p className="text-xs text-muted-foreground">
-                    {intl.formatDate(event.at, {
-                        dateStyle: 'medium',
-                        timeStyle: 'short'
-                    })}{' '}
-                    {intl.formatMessage(messages.by, { actor })}
-                </p>
-            </div>
-        </li>
-    );
-}
 
 /**
  * The Activity tab: a timeline of audit events whose subject is this member,
@@ -272,21 +58,7 @@ export function UserActivityPage() {
     // role changed) OR events they *performed* (`actorId=:id` — e.g. they
     // created a workspace, signed in). Serialised to the wire filter grammar the
     // activity endpoint already parses.
-    const filter = useMemo(
-        () =>
-            JSON.stringify({
-                or: [
-                    {
-                        and: [
-                            { field: 'subjectType', op: 'eq', value: 'user' },
-                            { field: 'subjectId', op: 'eq', value: member.id }
-                        ]
-                    },
-                    { field: 'actorId', op: 'eq', value: member.id }
-                ]
-            }),
-        [member.id]
-    );
+    const filter = useMemo(() => memberActivityFilter(member.id), [member.id]);
 
     const { data, isPending, isError, isPlaceholderData, refetch } =
         useActivityLog({ filter, page, pageSize }, canRead);
@@ -342,7 +114,10 @@ export function UserActivityPage() {
                             )}
                         >
                             {events.map((event) => (
-                                <ActivityRow key={event.id} event={event} />
+                                <MemberActivityRow
+                                    key={event.id}
+                                    event={event}
+                                />
                             ))}
                         </ul>
                         <MembersPagination

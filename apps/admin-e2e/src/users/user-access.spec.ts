@@ -6,11 +6,7 @@ import {
     spySetMemberStatus
 } from '../support/api/members';
 import { mockWorkspaces } from '../support/api/workspaces';
-import {
-    mockEmptyActivity,
-    mockUserDetail,
-    mockUserSessions
-} from '../support/api/userDetail';
+import { mockMemberPage, mockUserDetail } from '../support/api/userDetail';
 import { expectNoA11yViolations } from '../support/a11y';
 
 /** Ada — the roster's sole admin, so the guardrail blocks suspending her. */
@@ -23,8 +19,9 @@ const ALAN = DEFAULT_MEMBERS[2];
 const KATHERINE = DEFAULT_MEMBERS[3];
 
 /**
- * The Access tab's **sign-in access** card (`/users/:id/access`,
- * `@orthacms/users-admin`) — the suspend/reactivate half. Its password half is
+ * The **Sessions & access** tab's suspend card (`/users/:id/access`,
+ * `@orthacms/users-admin`) — the suspend/reactivate part, apart from the
+ * sessions and the password link as the risky one. The password card is
  * `password-reset.spec.ts`.
  *
  * The same *operation* is driven from the members list in
@@ -39,8 +36,7 @@ test.describe('Sign-in access', () => {
         await mockSignedIn(page);
         await mockMembers(page);
         await mockWorkspaces(page);
-        await mockEmptyActivity(page);
-        await mockUserSessions(page);
+        await mockMemberPage(page);
         await mockUserDetail(page);
     });
 
@@ -48,15 +44,15 @@ test.describe('Sign-in access', () => {
         userDetailPage
     }) => {
         await userDetailPage.goto(GRACE.id);
-        await userDetailPage.openTab('Sign-in access');
+        await userDetailPage.openTab('Sessions & access');
 
-        await expect(
-            userDetailPage.accessStatus('This member can sign in')
-        ).toBeVisible();
+        await expect(userDetailPage.card('Suspend Grace')).toBeVisible();
         // The consequence is the load-bearing part: an admin has to know that
-        // memberships and content survive, or they reach for Revoke instead.
+        // records, roles and workspaces survive, or they reach for Revoke.
         await expect(
-            userDetailPage.accessStatus(/revokes active sessions/)
+            userDetailPage.accessStatus(
+                /Signs them out everywhere and stops new sign-ins/
+            )
         ).toBeVisible();
         await expect(
             userDetailPage.accessAction('Suspend member')
@@ -67,12 +63,10 @@ test.describe('Sign-in access', () => {
         userDetailPage
     }) => {
         await userDetailPage.goto(KATHERINE.id);
-        await userDetailPage.openTab('Sign-in access');
+        await userDetailPage.openTab('Sessions & access');
 
         await expect(
-            userDetailPage.accessStatus('This member is suspended', {
-                exact: true
-            })
+            userDetailPage.card('Katherine is suspended')
         ).toBeVisible();
         await expect(
             userDetailPage.accessAction('Reactivate member')
@@ -89,7 +83,7 @@ test.describe('Sign-in access', () => {
         // take away yet — so the card explains rather than offering a button
         // that would fail.
         await userDetailPage.goto(ALAN.id);
-        await userDetailPage.openTab('Sign-in access');
+        await userDetailPage.openTab('Sessions & access');
 
         await expect(
             userDetailPage.accessStatus('Invite not accepted yet')
@@ -108,7 +102,7 @@ test.describe('Sign-in access', () => {
     }) => {
         const status = await spySetMemberStatus(page, GRACE);
         await userDetailPage.goto(GRACE.id);
-        await userDetailPage.openTab('Sign-in access');
+        await userDetailPage.openTab('Sessions & access');
 
         await userDetailPage.accessAction('Suspend member').click();
 
@@ -131,7 +125,7 @@ test.describe('Sign-in access', () => {
         // the wrong one here suspends the member an admin was rescuing.
         const status = await spySetMemberStatus(page, KATHERINE);
         await userDetailPage.goto(KATHERINE.id);
-        await userDetailPage.openTab('Sign-in access');
+        await userDetailPage.openTab('Sessions & access');
 
         await userDetailPage.accessAction('Reactivate member').click();
         await userDetailPage.confirmButton('Reactivate member').click();
@@ -146,7 +140,7 @@ test.describe('Sign-in access', () => {
     }) => {
         const status = await spySetMemberStatus(page, GRACE);
         await userDetailPage.goto(GRACE.id);
-        await userDetailPage.openTab('Sign-in access');
+        await userDetailPage.openTab('Sessions & access');
 
         await userDetailPage.accessAction('Suspend member').click();
         await page.keyboard.press('Escape');
@@ -167,10 +161,12 @@ test.describe('Sign-in access', () => {
         // that reads as a bug.
         const status = await spySetMemberStatus(page, ADA);
         await userDetailPage.goto(ADA.id);
-        await userDetailPage.openTab('Sign-in access');
+        await userDetailPage.openTab('Sessions & access');
 
         await expect(
-            userDetailPage.accessStatus(/last remaining admin/)
+            userDetailPage.accessStatus(
+                /Ada is the last admin and can’t be suspended/
+            )
         ).toBeVisible();
         await expect(
             userDetailPage.accessAction('Suspend member')
@@ -187,7 +183,7 @@ test.describe('Sign-in access', () => {
         // accident.
         await mockSignedIn(page, { id: GRACE.id, email: GRACE.email });
         await userDetailPage.goto(GRACE.id);
-        await userDetailPage.openTab('Sign-in access');
+        await userDetailPage.openTab('Sessions & access');
 
         await expect(
             userDetailPage.accessStatus(/can’t suspend your own account/)
@@ -202,8 +198,9 @@ test.describe('Sign-in access', () => {
         makeAxe
     }) => {
         await userDetailPage.goto(GRACE.id);
-        await userDetailPage.openTab('Sign-in access');
+        await userDetailPage.openTab('Sessions & access');
         await userDetailPage.accessAction('Suspend member').waitFor();
+        await userDetailPage.sessionsCardHeader().waitFor();
 
         await expectNoA11yViolations(makeAxe());
     });
@@ -216,7 +213,7 @@ test.describe('Sign-in access', () => {
         // The destructive confirm had no scan anywhere in the suite.
         await spySetMemberStatus(page, GRACE);
         await userDetailPage.goto(GRACE.id);
-        await userDetailPage.openTab('Sign-in access');
+        await userDetailPage.openTab('Sessions & access');
         await userDetailPage.accessAction('Suspend member').click();
         await page.getByRole('dialog').waitFor();
 

@@ -81,44 +81,67 @@ React Query's structural sharing keeps working) rather than replacing it.
 
 ## The pages
 
-`MembersPage` — `Container`/`ContainerHeader`, a search toolbar, the
-**Member · Role · Status · Workspaces · Joined** table plus an actions column
-(its header is there for screen readers), pagination, a loading
-**skeleton** (`MembersTableSkeleton`), and empty/no-access states. Each row is a
-shortcut to the member's detail page (the name is a real link for keyboard
-users); the row's kebab menu mirrors the detail tab bar — an **Account**
-group (General/Role/Workspaces) plus permission-gated **Audit**
-(Sessions/Activity) and **Access** (Sign-in access) groups that navigate
-straight to a tab — followed by the status quick actions (Resend/Revoke invite,
-Disable/Enable). Editing name/role now lives on the detail page, not an inline
-dialog. `InviteMemberPage` — the invite form (role + workspaces), gated the same
-way.
+`MembersPage` — `Container`/`ContainerHeader` ("N people can sign in · M
+invites waiting", from the list's directory-wide `counts`), the toolbar
+(`MembersToolbar`: the **quick filters** `MembersQuickFilters` — Everyone /
+Admins / Invited / Disabled, `?show=` in the URL, mapped to the list's `role` /
+`status` params by `presentation/membersQuickFilter` — then search and the
+query-builder popover), the **Member · Role · Workspaces · Status · Last
+active** table plus an actions column, pagination, a loading skeleton and
+empty/no-access states. "Last active" is the server's `lastActiveAt` (newest
+session use), worded by `presentation/recencyLabel` over the pure
+`domain/recency` buckets ("12 min ago", "Yesterday", "Sep 30"); an invite says
+when it was sent. Each row is a shortcut to the member's page.
 
-`UserDetailLayout` (`/users/:id/*`, via `UserDetailRouter`'s nested `<Routes>`)
-— fetches one member once (`useUserDetail`) and shares it with every tab through
-the Outlet context (`presentation/userDetailContext`), so a tab read is free. Renders
-`UserHero`, `UserStatsStrip`, and the `UserDetailTabs` underline tab bar
-(design-system `TabNav`) above the active tab; the way back to the roster is the
-top bar's "Members" crumb, which stays a link while loading and on a 404 too. Seven tab pages:
-**General** (edit name), **Role** (`RolePicker` +
-confirm), **Workspaces** (`WorkspaceMembershipCard` + `AddToWorkspacesDialog`),
-**Sessions** (`SessionCard` + revoke), **Activity** (reuses
-`@orthacms/activity-admin`'s `useActivityLog`, pinned to `subjectId`),
-**Access** (suspend/reactivate **plus the password-reset link**), and
-**Preferences** (`UserPreferencesPage` —
-the colour-theme picker Light/Dark/System over `/api/preferences`, applied
-optimistically through the design-system `AppearanceProvider`). The Audit
-(Sessions, Activity) and Access tabs are permission-gated **at the route
-level** — without `users:update` / `activity:read` the tab bar hides them and
-the route redirects to General. **Preferences is self-only** — it carries the
-current user's own app settings, so it is gated on `useAuth().user.id ===
-member.id` (hidden and route-redirected on anyone else's profile).
+**The row menu follows the member's status** (`MemberRowActions`): active —
+Open profile, Change role…, Workspaces…, Password reset link, Sign out
+everywhere, Suspend…; invited — Resend invite, Copy invite link, Revoke
+invite… (plus an inline **Resend** button on the row); suspended — Open
+profile, Workspaces…, Reactivate. A guarded item (yourself, the last admin, a
+custom role) stays focusable but `aria-disabled`, with the reason **written
+inside the menu** and set as its description — never a hover-only tooltip.
+The member page's `⋯` is the same component (`variant="detail"`) minus what
+the page already shows.
+
+**The invite sheet** (`InviteMembersSheet`) is `/users/invite` — the roster
+page rendered with `inviting`, so Home's "Invite member" and bookmarks open
+it. Addresses are chips (`EmailChipsInput`, split by `Email.splitList`),
+one role (`RolePicker`), workspaces as tiles (+ "all workspaces"), and a Send
+that counts the invites. A malformed address or one that already belongs to a
+member (`useExistingEmails`: the ordinary list with an `email in […]` filter)
+is flagged on its chip and blocks Send; the server's batch `409 EMAIL_TAKEN`
+naming addresses lands in the same place. Then **a link per person**
+(`InviteMembersSent`), each with Copy; Done / Invite more / Esc ask first while
+any link is uncopied, and `useUnsavedChanges` covers navigation. With a
+mailer it is one line ("Emails sent to 2 people.").
+
+`UserDetailLayout` (`/users/:id/*`, via `UserDetailRouter`) fetches the member
+once and shares it through the Outlet context. The header (`UserHero`) is the
+page's `<h1>` (via `ContainerHeader`) with status, role, address, member
+since and last active on one line, **Change role** (the `ChangeRoleDialog`)
+and the `⋯` menu. **Four tabs instead of seven** (`UserDetailTabs`, a
+`TabNav` under the header): **Overview** (Profile — name edit, email fixed —
+Recent activity, and summary cards for Workspaces and Sign-in, each with a way
+into its tab), **Workspaces**, **Sessions & access** (`users:update`: sessions
+with per-row Revoke and Sign out everywhere, the password link generated and
+shown in place, and Suspend/Reactivate apart as the risky card) and
+**Activity** (`activity:read`). **Preferences** remains a fifth tab on your
+own page only. The old paths redirect: `general`/`roles` → `overview`,
+`sessions` → `access`. Cards are `MemberCard` — named regions with an `<h2>`.
+
+**The role dialog** shows what changes: the role cards, then a "What changes"
+table computed by `domain/roleChanges` from the server's grants
+(`GET /api/users/roles`), flipped rows highlighted, and a button naming the
+outcome ("Make Grace an admin"). The self / last-admin / custom-role guards
+lock it with the reason written underneath; a server `409` with
+`SELF_ACTION` / `LAST_ADMIN_PROTECTED` lands there too.
 
 ## Destructive actions are confirmed, named, and give focus back
 
-Two member actions are irreversible from the UI: **Revoke invite** deletes the
-pending account outright (cascading its token and workspace assignments), and
-**Disable** locks a person out and kills their live sessions. Both now go
+Three member actions are confirmed: **Revoke invite** deletes the pending
+account outright (cascading its token and workspace assignments), **Suspend**
+locks a person out and kills their live sessions, and **Sign out everywhere**
+ends every session (the caller's own excepted). Both now go
 through the design-system `ConfirmDialog`, naming the member — matching what the
 Access tab (Suspend), the Workspaces tab (Remove) and the Role tab already did.
 They previously fired straight off `onSelect`, which meant one extra `↓` past
@@ -129,7 +152,7 @@ feedback arriving in a success toast afterwards (WCAG 3.3.4).
 focus to whatever opened the overlay, but that trigger is the row's kebab and the
 row has just unmounted — so focus falls to `<body>` and a keyboard user restarts
 at the top of the document (WCAG 2.4.3). The row menu therefore targets a stable
-anchor explicitly: the member's own kebab when the row survives (disable, resend),
+anchor explicitly: the member's own kebab when the row survives (suspend, resend),
 and `MEMBERS_RESULTS_ANCHOR_ID` (`presentation/membersResultsAnchor`,
 `tabIndex={-1}`) when it does not. That anchor wraps **all four** result states —
 skeleton, error, empty, table — not the table alone: revoking the last row on
@@ -152,10 +175,11 @@ delivery channel** and the raw token comes back exactly once. Two surfaces exist
 for that one moment, both built on `InviteLinkPanel` (read-only link + copy
 button + a plain warning that whoever opens it becomes that person):
 
-- the invite wizard ends on `InviteSent` instead of redirecting — navigating
-  away before copying would mean resending;
-- **Resend invite** opens `InviteLinkDialog` with the rotated link, because the
-  resend already invalidated whatever link the invitee had.
+- the invite sheet ends on a link per person instead of closing — leaving
+  before copying would mean resending;
+- **Resend invite** and **Copy invite link** open `InviteLinkDialog` with a
+  rotated link: only the token's hash is stored, so "copy" can only mean a
+  new link, and the old one stops working.
 
 `inviteLinkFor(token)` builds the URL from `window.location.origin` — the admin
 is already looking at the app on the origin the invitee should use, so there is
@@ -176,8 +200,10 @@ component here could intercept on its own.
 
 ## The password-reset link hand-off
 
-The Access tab's `PasswordResetCard` mints a single-use reset link for an
-**active** member and reveals it through `PasswordResetLinkDialog` /
+The Sessions & access tab's Password card mints a single-use reset link for an
+**active** member and shows it **in place** with Copy and its lifetime
+("Works once, for 1 hour"), guarded by `useUnsavedChanges` until copied; the
+row menu's "Password reset link" reveals it through `PasswordResetLinkDialog` /
 `PasswordResetLinkPanel` — the same reveal-once shape as the invite pair,
 because it is the same situation: with no mail provider configured the admin is
 the delivery channel and the raw token is readable exactly once. With one, the
@@ -231,12 +257,15 @@ and points at identity's `/identity/reset-password` route.
 ## Tests
 
 Component _behaviour_ lives in `apps/admin-e2e`, which drives a real browser —
-`src/users/` covers the roster, the wizard, the detail tabs, the destructive-action
-confirmations and the Role tab's guardrails. The package's own `vitest` specs
-(`npx nx test @orthacms/users-admin`) hold only what a browser can't reach: the
-mapper's coercion rules, the `MemberEntity` guardrail matrix, and the query-key
-scoping — each needs inputs the API won't produce on demand (a custom role key, a
-member who is both you and the last admin).
+`src/users/` covers the roster and its quick filters, the invite sheet
+(`invite-sheet.spec.ts`), the member page's tabs and summaries, the role dialog
+(`roles.spec.ts`), the destructive-action confirmations and the guardrails. The
+package's own `vitest` specs (`npx nx test @orthacms/users-admin`) hold the pure
+rules (mapper coercion, `MemberEntity` guardrails, query-key scoping, recency
+buckets, user-agent naming, the role-change diff, `Email.splitList`, the quick
+filter mapping) plus focused component/hook specs for the chip input, the
+quick-filter chips, the role dialog and the invite flow (`src/test/domShims.ts`
+installs the jsdom shims Radix needs).
 
 ## Commands
 
