@@ -3,6 +3,7 @@ import type {
     AlarmFindingList,
     AlarmRule,
     AlarmRulePreview,
+    AlarmRuleUpdated,
     AlarmScanResult,
     AlarmSeverity,
     AlarmSummary
@@ -39,8 +40,14 @@ export type AlarmsGateway = {
     createRule(
         input: CreateAlarmRuleInput
     ): Promise<{ rule: AlarmRule; scan: AlarmScanResult }>;
-    /** Applies a partial update; a changed filter is rescanned server-side. */
-    updateRule(id: string, input: UpdateAlarmRuleInput): Promise<AlarmRule>;
+    /**
+     * Applies a partial update; a changed filter (or a rule switched back on)
+     * is rescanned server-side, and the response says what that scan did.
+     */
+    updateRule(
+        id: string,
+        input: UpdateAlarmRuleInput
+    ): Promise<AlarmRuleUpdated>;
     /** Deletes a rule and, with it, its findings. */
     deleteRule(id: string): Promise<void>;
     /** Re-runs one rule over its whole collection. */
@@ -62,5 +69,4 @@ export type AlarmsGateway = {
      * given (Home, which sits outside any workspace, asks each in turn).
      */
     summary(workspaceId?: string): Promise<AlarmSummary>;
-    /** Silences one finding. */
 };

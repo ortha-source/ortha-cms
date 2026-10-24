@@ -6,9 +6,10 @@ import {
     ConfirmDialog,
     Container,
     ContainerHeader,
-    SegmentedControl,
-    SegmentedControlCount,
-    SegmentedControlItem,
+    Tabs,
+    TabsContent,
+    TabsList,
+    TabsTrigger,
     toast
 } from '@orthacms/design-system';
 import { useHasPermission } from '@orthacms/identity-admin';
@@ -19,39 +20,48 @@ import { useAlarmRules } from '../../../application/useAlarmRules';
 import { useAlarmSummary } from '../../../application/useAlarmSummary';
 import {
     useDeleteAlarmRule,
-    useRescanAlarmRule
+    useRescanAlarmRule,
+    useUpdateAlarmRule
 } from '../../../application/useAlarmRuleMutations';
-import type { AlarmRule } from '../../../types/alarm';
+import { useTypeLabels } from '../../../application/useTypeLabels';
+import type { AlarmRule, AlarmScanResult } from '../../../types/alarm';
 import { AlarmsNoAccess } from '../../components/AlarmsNoAccess';
 import { AlarmsSkeleton } from '../../components/AlarmsSkeleton';
 import { FindingGroupList } from '../../components/FindingGroupList';
 import { RuleList } from '../../components/RuleList';
 import { AlarmSummaryStrip } from '../../components/AlarmSummaryStrip';
+import { scanMessage } from '../../scanMessage';
 
 const messages = defineMessages({
     title: { id: 'alarms.page.title', defaultMessage: 'Alarms' },
     subtitle: {
         id: 'alarms.page.subtitle',
         defaultMessage:
-            'Rules that watch this workspace’s content. They flag problems; they never block a save or a publish.'
+            'Rules that watch this workspace’s content. They flag problems — they never block a save or a publish.'
     },
     tabOpen: { id: 'alarms.page.tabOpen', defaultMessage: 'Flagged' },
     // "Alarms" rather than "Rules": the object a person creates here is an
-    // alarm, and "rule" meant nothing outside this page — the records
-    // toolbar's button was the complaint that surfaced it. It repeats the
-    // section name, which is mild and unambiguous: the tab lists the alarms.
+    // alarm, and "rule" meant nothing outside this page.
     tabRules: { id: 'alarms.page.tabRules', defaultMessage: 'Alarms' },
     tabsLabel: { id: 'alarms.page.tabsLabel', defaultMessage: 'Alarms view' },
     crumb: { id: 'alarms.page.crumb', defaultMessage: 'Alarms' },
     newAlarm: { id: 'alarms.page.newAlarm', defaultMessage: 'New alarm' },
-    rescanned: {
-        id: 'alarms.page.rescanned',
-        defaultMessage:
-            '{name}: checked {scanned}, {open, plural, =0 {nothing flagged} one {# flagged} other {# flagged}}, {resolved} cleared.'
-    },
     rescanFailed: {
         id: 'alarms.page.rescanFailed',
         defaultMessage: 'The check failed: {reason}'
+    },
+    turnedOn: {
+        id: 'alarms.page.turnedOn',
+        defaultMessage: '{name} is on.'
+    },
+    turnedOff: {
+        id: 'alarms.page.turnedOff',
+        defaultMessage:
+            '{name} is off. It keeps what it flagged and checks nothing new until it is back on.'
+    },
+    toggleFailed: {
+        id: 'alarms.page.toggleFailed',
+        defaultMessage: '{name} could not be switched: {reason}'
     },
     deleteTitle: {
         id: 'alarms.page.deleteTitle',
@@ -60,7 +70,7 @@ const messages = defineMessages({
     deleteBody: {
         id: 'alarms.page.deleteBody',
         defaultMessage:
-            '“{name}” and everything it has flagged will be removed. Records themselves are untouched.'
+            '“{name}” and everything it has flagged will be removed. Records themselves are untouched. To pause it instead, switch it off.'
     },
     deleteConfirm: {
         id: 'alarms.page.deleteConfirm',
@@ -69,17 +79,20 @@ const messages = defineMessages({
     deleted: { id: 'alarms.page.deleted', defaultMessage: 'Alarm deleted.' }
 });
 
-/** Which of the three views the page is showing. */
+/** Which of the two views the page is showing. */
 type AlarmsTab = 'open' | 'rules';
 
 /**
- * The workspace's alarms: what is flagged, what has been silenced, and the
- * rules behind both.
+ * The workspace's alarms: what the rules found, and the rules themselves.
  *
- * Findings are grouped **by rule** rather than by record, because that is how
- * they get fixed — an editor handed "fourteen articles link to a draft author"
- * does one pass, while fourteen separate rows about fourteen articles is
- * fourteen context switches.
+ * - **Flagged** groups findings **by alarm**, worst first, because that is how
+ *   they get fixed — "fourteen articles link to a draft author" is one pass.
+ * - **Alarms** lists the rules with their condition as chips and an on/off
+ *   switch, so pausing an alarm never means deleting it.
+ *
+ * The page leads with `ContainerHeader` (the `<h1>`), **New alarm** in the
+ * top bar, and the figures strip: open findings per severity and when the
+ * alarms last checked.
  */
 export function AlarmsPage() {
     const intl = useIntl();
@@ -89,19 +102,24 @@ export function AlarmsPage() {
     const canManage = useHasPermission('alarms:manage');
 
     const [tab, setTab] = useState<AlarmsTab>('open');
-    // Which alarm's group to open on arrival, set by an alarm card's "N records
-    // flagged". Not a filter any more: grouping already separates the alarms,
-    // so narrowing to one would hide the rest for no gain.
+    // Which alarm's group to open, set by an alarm card's "N flagged". Not a
+    // filter: grouping already separates the alarms, so narrowing to one would
+    // hide the rest for no gain.
     const [focusRuleId, setFocusRuleId] = useState<string | undefined>();
     const [pendingDelete, setPendingDelete] = useState<AlarmRule | null>(null);
     const [rescanning, setRescanning] = useState<ReadonlySet<string>>(
         () => new Set()
     );
+    const [toggling, setToggling] = useState<ReadonlyMap<string, boolean>>(
+        () => new Map()
+    );
 
     const summary = useAlarmSummary(canRead);
     const rules = useAlarmRules(canRead);
+    const typeLabel = useTypeLabels(canRead);
 
     const rescan = useRescanAlarmRule();
+    const update = useUpdateAlarmRule();
     const remove = useDeleteAlarmRule();
 
     const crumbs = [
@@ -125,18 +143,13 @@ export function AlarmsPage() {
 
     if (summary.isPending && rules.isPending) return <AlarmsSkeleton />;
 
+    const reportScan = (rule: AlarmRule, result: AlarmScanResult) =>
+        toast.success(scanMessage(intl, rule.name, result));
+
     const onRescan = (rule: AlarmRule) => {
         setRescanning((current) => new Set(current).add(rule.id));
         rescan.mutate(rule.id, {
-            onSuccess: (result) =>
-                toast.success(
-                    intl.formatMessage(messages.rescanned, {
-                        name: rule.name,
-                        scanned: result.scanned,
-                        open: result.open,
-                        resolved: result.resolved
-                    })
-                ),
+            onSuccess: (result) => reportScan(rule, result),
             onError: (error) =>
                 toast.error(
                     intl.formatMessage(messages.rescanFailed, {
@@ -152,11 +165,46 @@ export function AlarmsPage() {
         });
     };
 
+    const onToggle = (rule: AlarmRule, enabled: boolean) => {
+        setToggling((current) => new Map(current).set(rule.id, enabled));
+        update.mutate(
+            { id: rule.id, input: { enabled } },
+            {
+                onSuccess: (result) => {
+                    // Switching on rescans server-side; say what it found,
+                    // which is more use than "on".
+                    if (result.scan) reportScan(rule, result.scan);
+                    else
+                        toast.success(
+                            intl.formatMessage(
+                                enabled ? messages.turnedOn : messages.turnedOff,
+                                { name: rule.name }
+                            )
+                        );
+                },
+                onError: (error) =>
+                    toast.error(
+                        intl.formatMessage(messages.toggleFailed, {
+                            name: rule.name,
+                            reason: (error as Error).message
+                        })
+                    ),
+                onSettled: () =>
+                    setToggling((current) => {
+                        const next = new Map(current);
+                        next.delete(rule.id);
+                        return next;
+                    })
+            }
+        );
+    };
+
     const showFindings = (rule: AlarmRule) => {
         setFocusRuleId(rule.id);
         setTab('open');
     };
 
+    const newAlarmPath = `/workspaces/${workspace.id}/alarms/rules/new`;
     const openTotal = summary.data?.openTotal ?? 0;
 
     return (
@@ -164,20 +212,13 @@ export function AlarmsPage() {
             <PageTopBar icon={BellRing} crumbs={crumbs} />
             {canManage ? (
                 <PageActionsPortal>
-                    <Button
-                        size="sm"
-                        onClick={() =>
-                            navigate(
-                                `/workspaces/${workspace.id}/alarms/rules/new`
-                            )
-                        }
-                    >
-                        <Plus />
+                    <Button size="sm" onClick={() => navigate(newAlarmPath)}>
+                        <Plus aria-hidden="true" />
                         {intl.formatMessage(messages.newAlarm)}
                     </Button>
                 </PageActionsPortal>
             ) : null}
-            <Container className="flex flex-col gap-5">
+            <Container className="flex max-w-[940px] flex-col gap-5">
                 <ContainerHeader
                     className="mb-0"
                     title={intl.formatMessage(messages.title)}
@@ -189,41 +230,53 @@ export function AlarmsPage() {
                     rules={rules.data ?? []}
                 />
 
-                {/* The tabs and the view they select, one step apart. */}
-                <div className="flex flex-col items-stretch gap-4">
-                    <SegmentedControl
-                        // `self-start`, because a flex column stretches its
-                        // children: without it the tab strip spanned the full
-                        // width of the page and read as a header band rather
-                        // than as three tabs.
-                        className="self-start"
-                        aria-label={intl.formatMessage(messages.tabsLabel)}
-                        value={tab}
-                        onValueChange={(next) => {
-                            setTab(next as AlarmsTab);
-                            setFocusRuleId(undefined);
-                        }}
-                    >
-                        <SegmentedControlItem value="open">
-                            {intl.formatMessage(messages.tabOpen)}
-                            <SegmentedControlCount>
-                                {openTotal}
-                            </SegmentedControlCount>
-                        </SegmentedControlItem>
-                        <SegmentedControlItem value="rules">
-                            {intl.formatMessage(messages.tabRules)}
-                            <SegmentedControlCount>
-                                {rules.data?.length ?? 0}
-                            </SegmentedControlCount>
-                        </SegmentedControlItem>
-                    </SegmentedControl>
+                <Tabs
+                    value={tab}
+                    onValueChange={(next) => {
+                        setTab(next as AlarmsTab);
+                        setFocusRuleId(undefined);
+                    }}
+                    className="flex flex-col gap-4"
+                >
+                    <TabsList aria-label={intl.formatMessage(messages.tabsLabel)}>
+                        <TabsTrigger value="open">
+                            {intl.formatMessage(messages.tabOpen)}{' '}
+                            <span className="text-xs font-normal tabular-nums text-muted-foreground">
+                                {intl.formatNumber(openTotal)}
+                            </span>
+                        </TabsTrigger>
+                        <TabsTrigger value="rules">
+                            {intl.formatMessage(messages.tabRules)}{' '}
+                            <span className="text-xs font-normal tabular-nums text-muted-foreground">
+                                {intl.formatNumber(rules.data?.length ?? 0)}
+                            </span>
+                        </TabsTrigger>
+                    </TabsList>
 
-                    {tab === 'rules' ? (
+                    <TabsContent value="open">
+                        <FindingGroupList
+                            rules={rules.data ?? []}
+                            isError={rules.isError}
+                            canManage={canManage}
+                            typeLabel={typeLabel}
+                            onRescan={onRescan}
+                            rescanningIds={rescanning}
+                            onCreate={
+                                canManage
+                                    ? () => navigate(newAlarmPath)
+                                    : undefined
+                            }
+                            focusRuleId={focusRuleId}
+                        />
+                    </TabsContent>
+                    <TabsContent value="rules">
                         <RuleList
                             rules={rules.data ?? []}
                             isError={rules.isError}
                             canManage={canManage}
+                            typeLabel={typeLabel}
                             rescanningIds={rescanning}
+                            pendingToggles={toggling}
                             onRescan={onRescan}
                             onEdit={(rule) =>
                                 navigate(
@@ -231,27 +284,11 @@ export function AlarmsPage() {
                                 )
                             }
                             onDelete={setPendingDelete}
+                            onToggle={onToggle}
                             onShowFindings={showFindings}
                         />
-                    ) : (
-                        <FindingGroupList
-                            rules={rules.data ?? []}
-                            isError={rules.isError}
-                            canManage={canManage}
-                            onRescan={onRescan}
-                            rescanningIds={rescanning}
-                            onCreate={
-                                canManage
-                                    ? () =>
-                                          navigate(
-                                              `/workspaces/${workspace.id}/alarms/rules/new`
-                                          )
-                                    : undefined
-                            }
-                            focusRuleId={focusRuleId}
-                        />
-                    )}
-                </div>
+                    </TabsContent>
+                </Tabs>
 
                 <ConfirmDialog
                     open={pendingDelete !== null}

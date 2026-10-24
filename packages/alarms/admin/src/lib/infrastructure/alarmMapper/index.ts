@@ -3,6 +3,7 @@ import type {
     AlarmFindingList,
     AlarmRule,
     AlarmRulePreview,
+    AlarmRuleUpdated,
     AlarmScanResult,
     AlarmSeverity,
     AlarmSummary,
@@ -28,7 +29,15 @@ export type AlarmRuleResponse = {
     enabled: boolean;
     brokenReason: string | null;
     lastScanAt: string | null;
+    /** Absent from a server older than the field. */
+    createdBy?: string | null;
     openCount: number;
+};
+
+/** The update response: the rule, plus the rescan the edit ran. */
+export type AlarmRuleUpdatedResponse = AlarmRuleResponse & {
+    /** Absent from a server older than the field. */
+    scan?: AlarmScanResponse | null;
 };
 
 /** One finding on the wire. */
@@ -42,6 +51,8 @@ export type AlarmFindingResponse = {
     state: string;
     firstSeenAt: string;
     lastSeenAt: string;
+    /** On the paged list only. */
+    entryTitle?: string | null;
 };
 
 /** The findings page envelope. */
@@ -66,6 +77,8 @@ export type AlarmRulePreviewResponse = {
     matched: number;
     total: number;
     sampleIds: string[];
+    /** Absent from a server older than the field. */
+    sample?: { id: string; title: string | null }[];
 };
 
 /** The workspace's counts. */
@@ -113,7 +126,18 @@ export function toAlarmRule(dto: AlarmRuleResponse): AlarmRule {
         enabled: dto.enabled,
         brokenReason: dto.brokenReason,
         lastScanAt: dto.lastScanAt,
+        createdBy: dto.createdBy ?? null,
         openCount: dto.openCount
+    };
+}
+
+/** Maps an update response: the rule, and the scan it ran or `null`. */
+export function toAlarmRuleUpdated(
+    dto: AlarmRuleUpdatedResponse
+): AlarmRuleUpdated {
+    return {
+        ...toAlarmRule(dto),
+        scan: dto.scan ? toAlarmScanResult(dto.scan) : null
     };
 }
 
@@ -128,7 +152,8 @@ export function toAlarmFinding(dto: AlarmFindingResponse): AlarmFinding {
         severity: toSeverity(dto.severity),
         state: toState(dto.state),
         firstSeenAt: dto.firstSeenAt,
-        lastSeenAt: dto.lastSeenAt
+        lastSeenAt: dto.lastSeenAt,
+        entryTitle: dto.entryTitle ?? null
     };
 }
 
@@ -153,7 +178,15 @@ export function toAlarmScanResult(dto: AlarmScanResponse): AlarmScanResult {
 export function toAlarmRulePreview(
     dto: AlarmRulePreviewResponse
 ): AlarmRulePreview {
-    return { ...dto };
+    return {
+        matched: dto.matched,
+        total: dto.total,
+        sampleIds: dto.sampleIds,
+        // An older server sends ids only; they stand in, untitled.
+        sample:
+            dto.sample ??
+            dto.sampleIds.map((id) => ({ id, title: null }))
+    };
 }
 
 /** Maps the workspace counts, filling in any severity the server omitted. */

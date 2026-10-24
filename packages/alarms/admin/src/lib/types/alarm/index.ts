@@ -31,8 +31,16 @@ export type AlarmRule = {
      */
     brokenReason: string | null;
     lastScanAt: string | null;
+    /** Who created it, by user id — resolved against the workspace roster. */
+    createdBy: string | null;
     openCount: number;
 };
+
+/**
+ * A rule after an edit, with the rescan the edit caused — `null` when it
+ * caused none (a rename, a new level, a rule switched off).
+ */
+export type AlarmRuleUpdated = AlarmRule & { scan: AlarmScanResult | null };
 
 /** One finding, already joined to the rule that produced it. */
 export type AlarmFinding = {
@@ -46,6 +54,12 @@ export type AlarmFinding = {
     state: FindingState;
     firstSeenAt: string;
     lastSeenAt: string;
+    /**
+     * The record's display title, when the server could name it — `null` for
+     * a record with no title-eligible value (or a surface that does not ask),
+     * which is then named by id.
+     */
+    entryTitle: string | null;
 };
 
 /** A page of findings. */
@@ -70,6 +84,8 @@ export type AlarmRulePreview = {
     matched: number;
     total: number;
     sampleIds: string[];
+    /** A few of the matching records, by title (`null` when untitled). */
+    sample: { id: string; title: string | null }[];
 };
 
 /** Open counts for the workspace. */
