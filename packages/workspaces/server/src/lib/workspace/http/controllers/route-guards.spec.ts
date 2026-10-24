@@ -146,14 +146,15 @@ describe('WorkspacesModule route guards', () => {
             }
         );
 
-        it('guards the two read-only preview counters too [workspaces:I-05]', () => {
+        it('guards the read-only preview counters too [workspaces:I-05]', () => {
             // The easiest omission to rationalise: they only return a number,
             // so why guard a read? Because the number is "how much content
             // does workspace X hold" — an answer no non-member is entitled to,
             // and one that confirms the id exists.
             for (const key of [
                 'GET /workspaces/:id/entry-count',
-                'GET /workspaces/:id/content/:slug/entry-count'
+                'GET /workspaces/:id/content/:slug/entry-count',
+                'GET /workspaces/:id/archive-impact'
             ]) {
                 expect(route(key).guards).toContain(WorkspaceMemberGuard);
             }
@@ -170,6 +171,7 @@ describe('WorkspacesModule route guards', () => {
                 'DELETE /workspaces/:id',
                 'DELETE /workspaces/:id/content/:slug',
                 'DELETE /workspaces/:id/members/:userId',
+                'GET /workspaces/:id/archive-impact',
                 'GET /workspaces/:id/content/:slug/entry-count',
                 'GET /workspaces/:id/entry-count',
                 'GET /workspaces/:id/shared-sources',
@@ -231,6 +233,11 @@ describe('WorkspacesModule route guards', () => {
                 'content revoke',
                 'GET /workspaces/:id/content/:slug/entry-count',
                 'DELETE /workspaces/:id/content/:slug'
+            ],
+            [
+                'archive impact',
+                'GET /workspaces/:id/archive-impact',
+                'POST /workspaces/:id/archive'
             ]
         ])(
             // covers: workspaces:I-30

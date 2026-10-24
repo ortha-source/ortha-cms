@@ -80,6 +80,40 @@ describe('Workspace lifecycle (archive / unarchive / delete)', () => {
         return res.body.id as string;
     }
 
+    describe('GET /api/workspaces/:id/archive-impact', () => {
+        it('counts what archiving would touch, deleting nothing', async () => {
+            const { agent } = await loginAs('admin', ADMIN_EMAIL);
+            const id = await createWorkspace(agent);
+
+            const res = await agent
+                .get(`/api/workspaces/${id}/archive-impact`)
+                .expect(200);
+            // A fresh, unshared workspace: its creator, no records, and no
+            // workspace linking records it does not share.
+            expect(res.body).toEqual({
+                records: 0,
+                members: 1,
+                linkedWorkspaces: 0
+            });
+
+            // A read: the workspace is still active afterwards.
+            const list = await agent.get('/api/workspaces').expect(200);
+            expect(
+                (list.body as { id: string; status: string }[]).find(
+                    (workspace) => workspace.id === id
+                )?.status
+            ).toBe('active');
+        });
+
+        it('answers a non-member with the flat 403 [workspaces:I-03]', async () => {
+            const { agent: admin } = await loginAs('admin', ADMIN_EMAIL);
+            const id = await createWorkspace(admin);
+            const { agent } = await loginAs('admin', 'outsider@example.com');
+
+            await agent.get(`/api/workspaces/${id}/archive-impact`).expect(403);
+        });
+    });
+
     describe('POST /api/workspaces/:id/archive', () => {
         it('archives a workspace and records workspace.archived', async () => {
             const { agent } = await loginAs('admin', ADMIN_EMAIL);
@@ -89,6 +123,8 @@ describe('Workspace lifecycle (archive / unarchive / delete)', () => {
                 .post(`/api/workspaces/${id}/archive`)
                 .expect(201);
             expect(res.body.status).toBe('archived');
+            // The card says "Archived Sep 2" from this stamp.
+            expect(Date.parse(res.body.archivedAt)).not.toBeNaN();
 
             const archived = (await getActivityRows()).find(
                 (row) => row.kind === 'workspace.archived'
@@ -122,6 +158,7 @@ describe('Workspace lifecycle (archive / unarchive / delete)', () => {
                 .post(`/api/workspaces/${id}/unarchive`)
                 .expect(201);
             expect(res.body.status).toBe('active');
+            expect(res.body.archivedAt).toBeNull();
 
             const unarchived = (await getActivityRows()).find(
                 (row) => row.kind === 'workspace.unarchived'

@@ -42,7 +42,9 @@ test.describe('Workspaces page', () => {
         // Default filter is Active: active cards show, archived are hidden.
         await expect(workspacesPage.card('Marketing site')).toBeVisible();
         await expect(workspacesPage.card('Research archive')).toBeHidden();
-        await expect(workspacesPage.count()).toHaveText('4 of 6');
+        await expect(workspacesPage.count()).toHaveText(
+            '4 workspaces shown of 6.'
+        );
     });
 
     test('search narrows the table and updates the count', async ({
@@ -54,7 +56,9 @@ test.describe('Workspaces page', () => {
 
         await expect(workspacesPage.card('Marketing site')).toBeVisible();
         await expect(workspacesPage.card('Support hub')).toBeHidden();
-        await expect(workspacesPage.count()).toHaveText('1 of 6');
+        await expect(workspacesPage.count()).toHaveText(
+            '1 workspace shown of 6.'
+        );
     });
 
     test('the status filter switches to archived and marks the chip active', async ({
@@ -66,7 +70,9 @@ test.describe('Workspaces page', () => {
 
         await expect(workspacesPage.card('Research archive')).toBeVisible();
         await expect(workspacesPage.card('Marketing site')).toBeHidden();
-        await expect(workspacesPage.count()).toHaveText('2 of 6');
+        await expect(workspacesPage.count()).toHaveText(
+            '2 workspaces shown of 6.'
+        );
         // The chosen chip is the checked radio in the segmented filter.
         await expect(workspacesPage.statusOption('Archived')).toHaveAttribute(
             'aria-checked',
@@ -83,7 +89,9 @@ test.describe('Workspaces page', () => {
 
         await expect(workspacesPage.card('Marketing site')).toBeVisible();
         await expect(workspacesPage.card('Research archive')).toBeVisible();
-        await expect(workspacesPage.count()).toHaveText('6 of 6');
+        await expect(workspacesPage.count()).toHaveText(
+            '6 workspaces shown of 6.'
+        );
     });
 
     test('shows a contextual empty state when nothing matches', async ({
@@ -100,18 +108,57 @@ test.describe('Workspaces page', () => {
         await workspacesPage.clearFiltersButton().click();
         await expect(workspacesPage.card('Marketing site')).toBeVisible();
         await expect(workspacesPage.card('Research archive')).toBeVisible();
-        await expect(workspacesPage.count()).toHaveText('6 of 6');
+        await expect(workspacesPage.count()).toHaveText(
+            '6 workspaces shown of 6.'
+        );
     });
 
-    test('a row shows the workspace member and type counts', async ({
+    test('a card says what is inside and when it last moved', async ({
         workspacesPage
     }) => {
         await workspacesPage.goto();
 
-        // Product docs has 5 members; the row surfaces the counts as text.
+        const docs = workspacesPage.card('Product docs');
+        // Records and content types instead of a bare member count…
+        await expect(docs.getByText('1,204 records')).toBeVisible();
+        await expect(docs.getByText('0 content types')).toBeVisible();
+        // …who is in it as faces (four, then "+1"), read once as a roster…
+        await expect(docs.getByText('+1', { exact: true })).toBeVisible();
         await expect(
-            workspacesPage.card('Product docs').getByText('5 members')
+            docs.getByRole('img', { name: /^5 members: Grace Hopper/ })
         ).toBeVisible();
+        // …and when it last moved (the seed is stamped relative to the run,
+        // so the minutes may have ticked on since).
+        await expect(docs.getByText('Edited 1 hr. ago')).toBeVisible();
+        await expect(
+            workspacesPage
+                .card('Marketing site')
+                .getByText(/^Edited 1\d min\. ago$/)
+        ).toBeVisible();
+    });
+
+    test('sorts by last edit by default, and by name on request', async ({
+        workspacesPage
+    }) => {
+        await workspacesPage.goto();
+
+        // The busy workspaces first; Internal wiki sends no timestamp, so it
+        // sorts last.
+        await expect(workspacesPage.sort).toHaveText(/Recently edited/);
+        expect(await workspacesPage.cardNames()).toEqual([
+            'Marketing site',
+            'Product docs',
+            'Support hub',
+            'Internal wiki'
+        ]);
+
+        await workspacesPage.sortBy('Name');
+        expect(await workspacesPage.cardNames()).toEqual([
+            'Internal wiki',
+            'Marketing site',
+            'Product docs',
+            'Support hub'
+        ]);
     });
 
     test('a row opens its workspace on click', async ({
@@ -451,7 +498,8 @@ test.describe('Workspaces page', () => {
         test('creates a workspace and shows it in the grid', async ({
             page,
             workspacesPage,
-            createWorkspacePage
+            createWorkspacePage,
+            workspaceReadyPage
         }) => {
             await workspacesPage.goto();
             await workspacesPage.openCreate();
@@ -460,14 +508,17 @@ test.describe('Workspaces page', () => {
 
             await createWorkspacePage.create('QA space');
 
-            // Back on the list: a toast confirms and the new card persists
-            // through the post-create refetch (not just the optimistic insert).
-            await expect(page).toHaveURL(/\/workspaces$/);
+            // It lands on the "ready" screen, not on a toast and the list…
+            await expect(page).toHaveURL(/\/workspaces\/ws_qa-space\/ready$/);
+            await expect(workspaceReadyPage.heading('QA space')).toBeVisible();
+
+            // …and the new card persists through the post-create refetch (not
+            // just the optimistic insert).
+            await workspaceReadyPage.backToWorkspaces.click();
             await expect(workspacesPage.card('QA space')).toBeVisible();
-            await expect(
-                workspacesPage.toast('Workspace "QA space" created.')
-            ).toBeVisible();
-            await expect(workspacesPage.count()).toHaveText('5 of 7');
+            await expect(workspacesPage.count()).toHaveText(
+                '5 workspaces shown of 7.'
+            );
         });
 
         test('keeps Continue disabled until the basics are valid', async ({
@@ -475,12 +526,17 @@ test.describe('Workspaces page', () => {
         }) => {
             await createWorkspacePage.goto();
 
-            await expect(createWorkspacePage.continueToMembers).toBeDisabled();
+            await expect(createWorkspacePage.continueButton).toBeDisabled();
 
             await createWorkspacePage.nameInput.fill('QA space');
 
-            // Enables once the auto-filled slug is confirmed available.
-            await expect(createWorkspacePage.continueToMembers).toBeEnabled();
+            // Enables once the auto-filled address is confirmed available,
+            // which the field says inline.
+            await expect(createWorkspacePage.slugInput).toHaveValue('qa-space');
+            await expect(
+                createWorkspacePage.slugStatus('Available')
+            ).toBeVisible();
+            await expect(createWorkspacePage.continueButton).toBeEnabled();
         });
 
         test('returns to the list via the "Workspaces" breadcrumb', async ({

@@ -7,8 +7,17 @@ import {
     InputGroupInput,
     SegmentedControl,
     SegmentedControlCount,
-    SegmentedControlItem
+    SegmentedControlItem,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue
 } from '@orthacms/design-system';
+import {
+    WORKSPACE_SORTS,
+    type WorkspaceSort
+} from '../../../domain/workspaceSort';
 
 /** The status the list is filtered by. `Active` is the default view. */
 export type StatusFilter = 'All' | 'Active' | 'Archived';
@@ -42,9 +51,21 @@ const messages = defineMessages({
         id: 'workspaces.toolbar.statusArchived',
         defaultMessage: 'Archived'
     },
-    count: {
-        id: 'workspaces.toolbar.count',
-        defaultMessage: '{shown} of {total}'
+    sortLabel: {
+        id: 'workspaces.toolbar.sortLabel',
+        defaultMessage: 'Sort workspaces'
+    },
+    sortEdited: {
+        id: 'workspaces.toolbar.sortEdited',
+        defaultMessage: 'Recently edited'
+    },
+    sortName: {
+        id: 'workspaces.toolbar.sortName',
+        defaultMessage: 'Name'
+    },
+    sortCreated: {
+        id: 'workspaces.toolbar.sortCreated',
+        defaultMessage: 'Recently created'
     },
     countAnnouncement: {
         id: 'workspaces.toolbar.countAnnouncement',
@@ -67,14 +88,19 @@ type WorkspaceToolbarProps = {
     onStatusChange: (value: StatusFilter) => void;
     /** How many workspaces fall under each status (for the chip counts). */
     counts: Record<StatusFilter, number>;
+    /** The card order. */
+    sort: WorkspaceSort;
+    onSortChange: (value: WorkspaceSort) => void;
     shown: number;
     total: number;
 };
 
 /**
- * The list toolbar: a search box, the status filter as a segmented chip group
- * (All / Active / Archived, each badged with its count), and a live
- * "{shown} of {total}" count. Wraps to multiple rows on narrow viewports.
+ * The list toolbar — sort and filter, nothing more: a search box, the status
+ * filter as a segmented chip group (All / Active / Archived, each badged with
+ * its count) and the order (recently edited by default, so the busy
+ * workspaces come first). A polite live region restates how many cards a
+ * search or filter left. Wraps to multiple rows on narrow viewports.
  */
 export function WorkspaceToolbar({
     search,
@@ -82,6 +108,8 @@ export function WorkspaceToolbar({
     status,
     onStatusChange,
     counts,
+    sort,
+    onSortChange,
     shown,
     total
 }: WorkspaceToolbarProps) {
@@ -93,10 +121,16 @@ export function WorkspaceToolbar({
         Archived: intl.formatMessage(messages.statusArchived)
     };
 
+    const sortLabel: Record<WorkspaceSort, string> = {
+        edited: intl.formatMessage(messages.sortEdited),
+        name: intl.formatMessage(messages.sortName),
+        created: intl.formatMessage(messages.sortCreated)
+    };
+
     return (
         <DensityProvider density="compact">
-            <div className="mb-4 flex flex-wrap items-center gap-2">
-                <InputGroup className="w-full shadow-none sm:max-w-[360px]">
+            <div className="mb-1 flex flex-wrap items-center gap-2">
+                <InputGroup className="w-full shadow-none sm:max-w-[260px]">
                     <InputGroupAddon>
                         <Search />
                     </InputGroupAddon>
@@ -147,17 +181,30 @@ export function WorkspaceToolbar({
                     ))}
                 </SegmentedControl>
 
-                {/* The visible count is the only feedback that a search or a status
-                change did anything — the table just silently swaps rows. A
-                polite live region restates it so that lands for a screen-reader
-                user too; `aria-hidden` on the visible span keeps it from being
-                announced twice (once as content, once as the live update). */}
-                <span
-                    aria-hidden
-                    className="ml-auto text-sm text-muted-foreground"
+                <Select
+                    value={sort}
+                    onValueChange={(value) =>
+                        onSortChange(value as WorkspaceSort)
+                    }
                 >
-                    {intl.formatMessage(messages.count, { shown, total })}
-                </span>
+                    <SelectTrigger
+                        className="ml-auto w-auto gap-2 shadow-none"
+                        aria-label={intl.formatMessage(messages.sortLabel)}
+                    >
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {WORKSPACE_SORTS.map((option) => (
+                            <SelectItem key={option} value={option}>
+                                {sortLabel[option]}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+
+                {/* A search or a status change just swaps the cards; this
+                    polite live region is what tells a screen-reader user it
+                    did anything. */}
                 <span role="status" aria-live="polite" className="sr-only">
                     {intl.formatMessage(messages.countAnnouncement, {
                         shown,

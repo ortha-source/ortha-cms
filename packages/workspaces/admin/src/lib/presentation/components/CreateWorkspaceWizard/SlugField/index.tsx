@@ -1,93 +1,90 @@
 import { defineMessages, useIntl } from 'react-intl';
 import { AlertCircle, Check, RotateCcw, X } from 'lucide-react';
 import {
-    Button,
+    Badge,
     Field,
     FieldDescription,
     FieldError,
     FieldLabel,
-    Input,
+    InputGroup,
+    InputGroupAddon,
+    InputGroupButton,
+    InputGroupInput,
     Spinner
 } from '@orthacms/design-system';
 import { SlugStatus } from '../../../../domain/types/wizard';
 
 const messages = defineMessages({
     label: {
-        id: 'workspaces.create.basics.slugLabel',
-        defaultMessage: 'Slug'
+        id: 'workspaces.create.basics.addressLabel',
+        defaultMessage: 'Address'
+    },
+    prefix: {
+        id: 'workspaces.create.basics.addressPrefix',
+        defaultMessage: '/workspaces/'
     },
     placeholder: {
         id: 'workspaces.create.basics.slugPlaceholder',
         defaultMessage: 'marketing-site'
     },
     help: {
-        id: 'workspaces.create.basics.slugHelp',
+        id: 'workspaces.create.basics.addressHelp',
         defaultMessage:
-            'A unique identifier for the workspace. Cannot be changed after creation.'
+            'Made from the name. It can’t change after the workspace is created.'
     },
     regenerate: {
         id: 'workspaces.create.basics.slugRegenerate',
-        defaultMessage: 'Regenerate from name'
+        defaultMessage: 'Make it from the name again'
     },
     checking: {
         id: 'workspaces.create.basics.slugChecking',
-        defaultMessage: 'Checking availability…'
+        defaultMessage: 'Checking…'
     },
     available: {
         id: 'workspaces.create.basics.slugAvailable',
         defaultMessage: 'Available'
     },
+    takenBadge: {
+        id: 'workspaces.create.basics.slugTakenBadge',
+        defaultMessage: 'Taken'
+    },
     taken: {
         id: 'workspaces.create.basics.slugTaken',
-        defaultMessage: 'That slug is already taken.'
+        defaultMessage:
+            'Another workspace already has this address. Try a different one.'
     },
     unknown: {
         id: 'workspaces.create.basics.slugUnknown',
         defaultMessage:
-            'Couldn’t check whether this slug is free, so you can’t continue yet. Please try again.'
+            'Couldn’t check whether this address is free, so you can’t continue yet. Please try again.'
     }
 });
 
-/** The live availability line shown beneath the slug input. */
-function SlugStatusLine({ status }: { status: SlugStatus }) {
+/** The availability badge inside the address input. */
+function AvailabilityBadge({ status }: { status: SlugStatus }) {
     const intl = useIntl();
-
     if (status === SlugStatus.Checking) {
         return (
-            <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <Spinner className="size-3.5" />
+            <Badge variant="secondary" size="xs">
+                <Spinner className="size-3" />
                 {intl.formatMessage(messages.checking)}
-            </span>
+            </Badge>
         );
     }
     if (status === SlugStatus.Available) {
         return (
-            <span className="flex items-center gap-1.5 text-sm text-success">
-                <Check className="size-3.5" />
+            <Badge variant="success" size="xs">
+                <Check aria-hidden />
                 {intl.formatMessage(messages.available)}
-            </span>
+            </Badge>
         );
     }
     if (status === SlugStatus.Taken) {
         return (
-            <span className="flex items-center gap-1.5 text-sm text-destructive">
-                <X className="size-3.5" />
-                {intl.formatMessage(messages.taken)}
-            </span>
-        );
-    }
-    if (status === SlugStatus.Unknown) {
-        // `role="alert"` because this one appears only on a failure the user
-        // didn't cause and must act on — the other states are passive progress
-        // reporting and would be noise if announced.
-        return (
-            <span
-                role="alert"
-                className="flex items-center gap-1.5 text-sm text-destructive"
-            >
-                <AlertCircle className="size-3.5" />
-                {intl.formatMessage(messages.unknown)}
-            </span>
+            <Badge variant="destructive" size="xs">
+                <X aria-hidden />
+                {intl.formatMessage(messages.takenBadge)}
+            </Badge>
         );
     }
     return null;
@@ -110,9 +107,10 @@ export type SlugFieldProps = {
 };
 
 /**
- * Slug input with a regenerate button (shown once the slug has been manually
- * edited) and a live availability line. Shape errors take over the helper slot;
- * otherwise the helper text and availability status show.
+ * The slug, shown as the address it becomes — `/workspaces/<slug>` — with its
+ * availability checked as you type and said inline, inside the field. A slug
+ * edited by hand gets a button to make it from the name again. Shape errors,
+ * a taken address and a check that could not run each say so under the field.
  */
 export function SlugField({
     value,
@@ -123,44 +121,61 @@ export function SlugField({
     error
 }: SlugFieldProps) {
     const intl = useIntl();
+    const problem =
+        error ??
+        (status === SlugStatus.Taken
+            ? intl.formatMessage(messages.taken)
+            : undefined);
 
     return (
-        <Field data-invalid={!!error}>
+        <Field data-invalid={!!problem}>
             <FieldLabel htmlFor="workspace-slug">
                 {intl.formatMessage(messages.label)}
             </FieldLabel>
-            <div className="flex items-center gap-2">
-                <Input
+            <InputGroup className="font-mono shadow-none">
+                <InputGroupAddon className="pr-0 font-mono text-muted-foreground">
+                    {intl.formatMessage(messages.prefix)}
+                </InputGroupAddon>
+                <InputGroupInput
                     id="workspace-slug"
                     value={value}
                     onChange={(event) => onChange(event.target.value)}
                     placeholder={intl.formatMessage(messages.placeholder)}
                     autoComplete="off"
                     spellCheck={false}
-                    aria-invalid={!!error}
+                    aria-invalid={!!problem}
+                    className="pl-0.5 font-mono"
                 />
-                {slugEdited ? (
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={onRegenerate}
-                        title={intl.formatMessage(messages.regenerate)}
-                        aria-label={intl.formatMessage(messages.regenerate)}
-                    >
-                        <RotateCcw />
-                    </Button>
-                ) : null}
-            </div>
-            {error ? (
-                <FieldError errors={[{ message: error }]} />
+                <InputGroupAddon align="inline-end" className="gap-1">
+                    <AvailabilityBadge status={status} />
+                    {slugEdited ? (
+                        <InputGroupButton
+                            size="icon-xs"
+                            onClick={onRegenerate}
+                            title={intl.formatMessage(messages.regenerate)}
+                            aria-label={intl.formatMessage(messages.regenerate)}
+                        >
+                            <RotateCcw />
+                        </InputGroupButton>
+                    ) : null}
+                </InputGroupAddon>
+            </InputGroup>
+            {problem ? (
+                <FieldError errors={[{ message: problem }]} />
+            ) : status === SlugStatus.Unknown ? (
+                // `role="alert"`: a failure the user didn't cause and must act
+                // on. The other states are passive and would be noise.
+                <p
+                    role="alert"
+                    className="flex items-center gap-1.5 text-sm text-destructive"
+                >
+                    <AlertCircle className="size-3.5" aria-hidden />
+                    {intl.formatMessage(messages.unknown)}
+                </p>
             ) : (
-                <>
-                    <FieldDescription>
-                        {intl.formatMessage(messages.help)}
-                    </FieldDescription>
-                    <SlugStatusLine status={status} />
-                </>
+                <FieldDescription>
+                    {intl.formatMessage(messages.help)}
+                </FieldDescription>
             )}
         </Field>
     );

@@ -84,6 +84,12 @@ export class DrizzleWorkspaceRepository implements WorkspaceRepository {
             }
             if (changes.statusChanged) {
                 patch.status = workspace.status.value;
+                // Stamped here, beside the status it describes, rather than
+                // carried on the aggregate: it is a persistence fact (when the
+                // row changed), like `updated_at`, and no invariant reads it.
+                patch.archivedAt = workspace.status.isArchived
+                    ? new Date()
+                    : null;
             }
             if (changes.sharedChanged) {
                 patch.isShared = workspace.isShared;

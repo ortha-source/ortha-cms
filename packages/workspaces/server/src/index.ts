@@ -30,6 +30,11 @@ export { CONTENT_CATALOG } from './lib/workspace/application/ports/content-catal
 export type { ContentCatalog } from './lib/workspace/application/ports/content-catalog.port';
 export { CONTENT_ENTRY_COUNTER } from './lib/workspace/application/ports/content-entry-counter.port';
 export type { ContentEntryCounter } from './lib/workspace/application/ports/content-entry-counter.port';
+export { CONTENT_ENTRY_STATS } from './lib/workspace/application/ports/content-entry-stats.port';
+export type {
+    ContentEntryStats,
+    WorkspaceEntryStat
+} from './lib/workspace/application/ports/content-entry-stats.port';
 // The cross-plugin delete fan-out: a plugin owning workspace-scoped rows that
 // carry no FK to `workspaces` implements WorkspacePurger and registers itself
 // with the registry, so a workspace delete reaches them.

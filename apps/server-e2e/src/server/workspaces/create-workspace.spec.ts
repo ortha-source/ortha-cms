@@ -84,17 +84,26 @@ describe('POST /api/workspaces', () => {
                 .expect(201);
 
             expect(Object.keys(res.body).sort()).toEqual([
+                'archivedAt',
                 'color',
                 'content',
+                'createdAt',
                 'description',
                 'id',
                 'isShared',
+                'lastEditedAt',
                 'members',
                 'name',
+                'recordCount',
+                'recordCountByType',
                 'sharedContent',
                 'slug',
                 'status'
             ]);
+            // Fresh: nothing written, nothing archived.
+            expect(res.body.recordCount).toBe(0);
+            expect(res.body.recordCountByType).toEqual({});
+            expect(res.body.archivedAt).toBeNull();
             // "All content" means every own type — never a shared grant.
             expect(res.body.sharedContent).toEqual([]);
             // A new workspace is never shared until someone decides so.
@@ -117,10 +126,13 @@ describe('POST /api/workspaces', () => {
                     email: ADMIN_EMAIL
                 })
             );
+            // Still no role: the only addition is the account's directory
+            // status, so an invite can be told from a teammate.
             expect(Object.keys(res.body.members[0]).sort()).toEqual([
                 'email',
                 'id',
-                'name'
+                'name',
+                'status'
             ]);
         });
 

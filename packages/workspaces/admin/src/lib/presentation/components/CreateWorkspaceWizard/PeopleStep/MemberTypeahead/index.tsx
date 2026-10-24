@@ -1,11 +1,15 @@
 import { useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { Mail, Plus, Search } from 'lucide-react';
+import { CornerDownLeft, Mail, Plus, Search } from 'lucide-react';
+import { initialsOf } from '@orthacms/utils-admin';
 import {
+    AVATAR_COLORS,
+    Badge,
     cn,
     InputGroup,
     InputGroupAddon,
     InputGroupInput,
+    Kbd,
     Popover,
     PopoverAnchor,
     PopoverContent,
@@ -14,6 +18,7 @@ import {
 import { useUsersSearch } from '../../../../../application/useUsersSearch';
 import type { MemberDraft } from '../../../../../domain/types/wizard';
 import { useComboboxList } from '../../../../hooks/useComboboxList';
+import { WorkspaceAvatar } from '../../../WorkspaceAvatar';
 
 /** Matches a plausible email address. */
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -25,7 +30,7 @@ const messages = defineMessages({
     },
     placeholder: {
         id: 'workspaces.create.members.searchPlaceholder',
-        defaultMessage: 'Add people by name or email'
+        defaultMessage: 'Type a name, or an email to invite'
     },
     searching: {
         id: 'workspaces.create.members.searching',
@@ -36,8 +41,8 @@ const messages = defineMessages({
         defaultMessage: 'No people match your search.'
     },
     invite: {
-        id: 'workspaces.create.members.invite',
-        defaultMessage: 'Invite {email}'
+        id: 'workspaces.create.members.inviteByEmail',
+        defaultMessage: 'Invite <b>{email}</b> by email'
     },
     label: {
         id: 'workspaces.create.members.searchLabel',
@@ -83,11 +88,17 @@ export function MemberTypeahead({ excludeIds, onAdd }: MemberTypeaheadProps) {
 
     const open = trimmed.length > 0;
 
-    const addUser = (user: { id: string; name: string; email: string }) => {
+    const addUser = (user: {
+        id: string;
+        name: string;
+        email: string;
+        role?: string;
+    }) => {
         onAdd({
             id: user.id,
             name: user.name,
-            email: user.email
+            email: user.email,
+            ...(user.role ? { role: user.role } : {})
         });
         setQuery('');
     };
@@ -123,7 +134,7 @@ export function MemberTypeahead({ excludeIds, onAdd }: MemberTypeaheadProps) {
 
     const optionClass = (active: boolean) =>
         cn(
-            'flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm',
+            'flex w-full cursor-pointer items-center gap-3 rounded-md px-2.5 py-2 text-left text-sm',
             active && 'bg-accent'
         );
 
@@ -152,6 +163,13 @@ export function MemberTypeahead({ excludeIds, onAdd }: MemberTypeaheadProps) {
                         aria-autocomplete="list"
                         autoComplete="off"
                     />
+                    {open ? (
+                        <InputGroupAddon align="inline-end">
+                            <Kbd aria-hidden>
+                                <CornerDownLeft />
+                            </Kbd>
+                        </InputGroupAddon>
+                    ) : null}
                 </InputGroup>
             </PopoverAnchor>
             <PopoverContent
@@ -195,12 +213,34 @@ export function MemberTypeahead({ excludeIds, onAdd }: MemberTypeaheadProps) {
                                     combobox.activeIndex === i
                                 )}
                             >
-                                <span className="truncate font-medium">
-                                    {user.name}
+                                <span aria-hidden>
+                                    <WorkspaceAvatar
+                                        initials={initialsOf(user.name)}
+                                        color={
+                                            AVATAR_COLORS[
+                                                (i + 3) % AVATAR_COLORS.length
+                                            ]
+                                        }
+                                        className="size-7 rounded-full text-[10px]"
+                                    />
                                 </span>
-                                <span className="truncate text-xs text-muted-foreground">
-                                    {user.email}
+                                <span className="flex min-w-0 flex-1 flex-col">
+                                    <span className="truncate font-medium">
+                                        {user.name}
+                                    </span>
+                                    <span className="truncate text-xs text-muted-foreground">
+                                        {user.email}
+                                    </span>
                                 </span>
+                                {user.role ? (
+                                    <Badge variant="outline" size="xs">
+                                        {user.role}
+                                    </Badge>
+                                ) : null}
+                                <Plus
+                                    aria-hidden
+                                    className="size-4 text-muted-foreground"
+                                />
                             </li>
                         ))}
                         {canInvite ? (
@@ -218,11 +258,20 @@ export function MemberTypeahead({ excludeIds, onAdd }: MemberTypeaheadProps) {
                                     combobox.activeIndex === results.length
                                 )}
                             >
-                                <Mail className="size-4 text-muted-foreground" />
-                                {intl.formatMessage(messages.invite, {
-                                    email: trimmed.toLowerCase()
-                                })}
-                                <Plus className="ml-auto size-4 text-muted-foreground" />
+                                <Mail
+                                    aria-hidden
+                                    className="size-4 text-muted-foreground"
+                                />
+                                <span>
+                                    {intl.formatMessage(messages.invite, {
+                                        email: trimmed.toLowerCase(),
+                                        b: (chunks) => (
+                                            <b key="b" className="font-medium">
+                                                {chunks}
+                                            </b>
+                                        )
+                                    })}
+                                </span>
                             </li>
                         ) : null}
                     </ul>

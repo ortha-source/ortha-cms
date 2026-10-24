@@ -50,9 +50,67 @@ export class WorkspacesPage extends BasePage {
         await this.heading.waitFor();
     }
 
-    /** The live "{shown} of {total}" count. */
+    /**
+     * The live count a search or filter leaves — a polite status, "4
+     * workspaces shown of 6." (the cards carry no visible count).
+     */
     count(): Locator {
-        return this.page.getByText(/^\d+ of \d+$/);
+        return this.page
+            .getByRole('status')
+            .filter({ hasText: /shown of \d+\.$/ });
+    }
+
+    /** The sort menu's trigger ("Recently edited", …). */
+    get sort(): Locator {
+        return this.page.getByRole('combobox', { name: 'Sort workspaces' });
+    }
+
+    /** Pick an order from the sort menu. */
+    async sortBy(label: string) {
+        await this.sort.click();
+        await this.page.getByRole('option', { name: label }).click();
+    }
+
+    /** The workspace names, in card order. */
+    async cardNames(): Promise<string[]> {
+        const links = this.table
+            .getByRole('listitem')
+            .getByRole('link', { name: /^Open / });
+        const names: string[] = [];
+        for (let i = 0; i < (await links.count()); i += 1) {
+            const label = (await links.nth(i).getAttribute('aria-label')) ?? '';
+            names.push(label.replace(/^Open /, ''));
+        }
+        return names;
+    }
+
+    /** A card's ⋯ menu trigger. */
+    cardMenu(name: string): Locator {
+        return this.card(name).getByRole('button', {
+            name: `More for ${name}`
+        });
+    }
+
+    /** An item of the open ⋯ menu. */
+    menuItem(name: string | RegExp): Locator {
+        return this.page.getByRole('menuitem', { name });
+    }
+
+    /** An archived card's Restore button. */
+    restoreButton(name: string): Locator {
+        return this.card(name).getByRole('button', { name: `Restore ${name}` });
+    }
+
+    /** The archive confirmation. */
+    archiveDialog(): Locator {
+        return this.page.getByRole('dialog');
+    }
+
+    /** The confirmation's "Archive workspace" button. */
+    archiveConfirm(): Locator {
+        return this.archiveDialog().getByRole('button', {
+            name: 'Archive workspace'
+        });
     }
 
     /**

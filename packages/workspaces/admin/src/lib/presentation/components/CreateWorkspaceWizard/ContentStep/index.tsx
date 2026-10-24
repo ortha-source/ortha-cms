@@ -1,8 +1,15 @@
-import { useMemo } from 'react';
+import { useMemo, type Ref } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { AlertCircle, Database, FileText } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from '@orthacms/design-system';
+import { AlertCircle } from 'lucide-react';
+import {
+    Alert,
+    AlertDescription,
+    AlertTitle,
+    type AvatarColor
+} from '@orthacms/design-system';
 import { useContentTypes } from '../../../../application/useContentTypes';
+import { useSharedSourceCandidates } from '../../../../application/useSharedSourceCandidates';
+import { useWorkspaces } from '../../../../application/useWorkspaces';
 import { ContentTypesSkeleton } from '../../WorkspacesSkeleton';
 import type {
     ContentMode,
@@ -10,13 +17,18 @@ import type {
     SharedContentChoice
 } from '../../../../domain/types/wizard';
 import { ModeTiles } from './ModeTiles';
-import { SharedContentSection } from './SharedContentSection';
-import {
-    ResourceSection,
-    type ResourceSectionMessages
-} from './ResourceSection';
+import { ContentPicker } from './ContentPicker';
 
 const messages = defineMessages({
+    title: {
+        id: 'workspaces.create.content.title',
+        defaultMessage: 'What can people write here?'
+    },
+    help: {
+        id: 'workspaces.create.content.help',
+        defaultMessage:
+            'Content types are shared by every workspace; pick the ones this one uses. Change it any time in Settings → Content.'
+    },
     errorTitle: {
         id: 'workspaces.create.content.errorTitle',
         defaultMessage: 'Could not load content types'
@@ -24,130 +36,33 @@ const messages = defineMessages({
     errorBody: {
         id: 'workspaces.create.content.errorBody',
         defaultMessage:
-            'Try again in a moment, or skip this step and grant content access later.'
-    },
-    allAlertTitle: {
-        id: 'workspaces.create.content.allAlertTitle',
-        defaultMessage: 'Full access'
-    },
-    allAlertBody: {
-        id: 'workspaces.create.content.allAlertBody',
-        defaultMessage:
-            'This workspace can access every collection and page, including any added later.'
-    }
-});
-
-const collectionMessages: ResourceSectionMessages = defineMessages({
-    heading: {
-        id: 'workspaces.create.content.collectionsHeading',
-        defaultMessage: 'Collections'
-    },
-    help: {
-        id: 'workspaces.create.content.collectionsHelp',
-        defaultMessage:
-            'Structured content types — e.g. blog posts, products, authors.'
-    },
-    searchPlaceholder: {
-        id: 'workspaces.create.content.collectionsSearch',
-        defaultMessage: 'Search collections by name'
-    },
-    allLabel: {
-        id: 'workspaces.create.content.collectionsAll',
-        defaultMessage: 'All collections'
-    },
-    empty: {
-        id: 'workspaces.create.content.collectionsEmpty',
-        defaultMessage: 'No collections defined yet.'
-    },
-    noResults: {
-        id: 'workspaces.create.content.collectionsNoResults',
-        defaultMessage: 'No collections match your search.'
-    },
-    countSpecific: {
-        id: 'workspaces.create.content.collectionsCountSpecific',
-        defaultMessage:
-            '{count, plural, =0 {No collections selected} one {# collection selected} other {# collections selected}}'
-    },
-    countAll: {
-        id: 'workspaces.create.content.collectionsCountAll',
-        defaultMessage: 'All collections selected'
-    },
-    countAllExcluded: {
-        id: 'workspaces.create.content.collectionsCountAllExcluded',
-        defaultMessage:
-            'All collections selected — {count, plural, one {# excluded} other {# excluded}}'
-    }
-});
-
-const pageMessages: ResourceSectionMessages = defineMessages({
-    heading: {
-        id: 'workspaces.create.content.pagesHeading',
-        defaultMessage: 'Pages'
-    },
-    help: {
-        id: 'workspaces.create.content.pagesHelp',
-        defaultMessage: 'Standalone pages — e.g. home, about, contact.'
-    },
-    searchPlaceholder: {
-        id: 'workspaces.create.content.pagesSearch',
-        defaultMessage: 'Search pages by name or path'
-    },
-    allLabel: {
-        id: 'workspaces.create.content.pagesAll',
-        defaultMessage: 'All pages'
-    },
-    empty: {
-        id: 'workspaces.create.content.pagesEmpty',
-        defaultMessage: 'No pages defined yet.'
-    },
-    noResults: {
-        id: 'workspaces.create.content.pagesNoResults',
-        defaultMessage: 'No pages match your search.'
-    },
-    countSpecific: {
-        id: 'workspaces.create.content.pagesCountSpecific',
-        defaultMessage:
-            '{count, plural, =0 {No pages selected} one {# page selected} other {# pages selected}}'
-    },
-    countAll: {
-        id: 'workspaces.create.content.pagesCountAll',
-        defaultMessage: 'All pages selected'
-    },
-    countAllExcluded: {
-        id: 'workspaces.create.content.pagesCountAllExcluded',
-        defaultMessage:
-            'All pages selected — {count, plural, one {# excluded} other {# excluded}}'
+            'Try again in a moment, or choose Everything and adjust it later in Settings → Content.'
     }
 });
 
 /** Props for {@link ContentStep}. */
 export type ContentStepProps = {
-    /** Page-level content mode. */
+    /** The step heading — the focus target after a step change. */
+    titleRef: Ref<HTMLHeadingElement>;
     contentMode: ContentMode;
-    /** Set the content mode. */
     setContentMode: (mode: ContentMode) => void;
-    /** Collection selection. */
     collections: ResourceSelection;
-    /** Replace the collection selection. */
     setCollections: (selection: ResourceSelection) => void;
-    /** Page selection. */
     pages: ResourceSelection;
-    /** Replace the page selection. */
     setPages: (selection: ResourceSelection) => void;
-    /** Grants picked from shared workspaces. */
     sharedContent: SharedContentChoice[];
-    /** Pick or unpick one type from one shared workspace. */
     onToggleSharedContent: (choice: SharedContentChoice) => void;
 };
 
 /**
- * The content step body: the All-vs-Specific mode tiles, then either a
- * reassuring full-access alert or the collections + pages selection panels
- * (with loading and error states for the content-types query), followed by
- * the types shared workspaces offer. "All content" is this workspace's own
- * types only; shared grants are always picked one by one.
+ * The content step body — two answers first: "Everything" (the quick path) or
+ * "Pick content types", which opens one list of collections, pages and what
+ * shared workspaces offer. Each own type says how many records it holds in
+ * your other workspaces; the loading and error states of the catalogue have
+ * their own place under the tiles.
  */
 export function ContentStep({
+    titleRef,
     contentMode,
     setContentMode,
     collections,
@@ -159,45 +74,60 @@ export function ContentStep({
 }: ContentStepProps) {
     const intl = useIntl();
     const query = useContentTypes();
-    const allTypes = useMemo(() => query.data ?? [], [query.data]);
+    const workspaces = useWorkspaces();
+    const { sources } = useSharedSourceCandidates();
+    const catalog = useMemo(() => query.data ?? [], [query.data]);
 
-    const collectionRows = useMemo(
-        () =>
-            allTypes
-                .filter((ct) => ct.kind === 'collection')
-                .map((ct) => ({
-                    id: ct.name,
-                    primary: ct.label ?? ct.name,
-                    secondary: ct.description
-                })),
-        [allTypes]
-    );
-    const pageRows = useMemo(
-        () =>
-            allTypes
-                .filter((ct) => ct.kind === 'single')
-                .map((ct) => ({
-                    id: ct.name,
-                    primary: ct.label ?? ct.name,
-                    secondary: ct.path ?? ct.description
-                })),
-        [allTypes]
-    );
+    // Usage across the workspaces you can see — the membership-scoped list,
+    // so these hints never describe a workspace you are not in.
+    const { elsewhere, unused, colors } = useMemo(() => {
+        const list = workspaces.data ?? [];
+        const counts: Record<string, number> = {};
+        const used = new Set<string>();
+        const tints: Record<string, AvatarColor> = {};
+        for (const workspace of list) {
+            tints[workspace.id] = workspace.color;
+            for (const slug of workspace.content) used.add(slug);
+            for (const [slug, n] of Object.entries(
+                workspace.recordCountByType
+            )) {
+                counts[slug] = (counts[slug] ?? 0) + n;
+            }
+        }
+        return {
+            elsewhere: counts,
+            // Only claim "new" once the list has actually loaded.
+            unused: new Set(
+                workspaces.data
+                    ? catalog.map((t) => t.name).filter((n) => !used.has(n))
+                    : []
+            ),
+            colors: tints
+        };
+    }, [workspaces.data, catalog]);
 
     return (
-        <div className="flex flex-col gap-6">
-            <ModeTiles value={contentMode} onChange={setContentMode} />
+        <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1">
+                <h2
+                    ref={titleRef}
+                    tabIndex={-1}
+                    className="text-sm font-semibold focus-visible:outline-none"
+                >
+                    {intl.formatMessage(messages.title)}
+                </h2>
+                <p className="text-[13px] text-muted-foreground">
+                    {intl.formatMessage(messages.help)}
+                </p>
+            </div>
 
-            {contentMode === 'all' ? (
-                <Alert>
-                    <AlertTitle>
-                        {intl.formatMessage(messages.allAlertTitle)}
-                    </AlertTitle>
-                    <AlertDescription>
-                        {intl.formatMessage(messages.allAlertBody)}
-                    </AlertDescription>
-                </Alert>
-            ) : query.isPending ? (
+            <ModeTiles
+                value={contentMode}
+                onChange={setContentMode}
+                total={catalog.length}
+            />
+
+            {contentMode === 'all' ? null : query.isPending ? (
                 <ContentTypesSkeleton />
             ) : query.isError ? (
                 <Alert variant="destructive">
@@ -210,27 +140,19 @@ export function ContentStep({
                     </AlertDescription>
                 </Alert>
             ) : (
-                <div className="flex flex-col gap-6">
-                    <ResourceSection
-                        messages={collectionMessages}
-                        icon={Database}
-                        rows={collectionRows}
-                        selection={collections}
-                        onChange={setCollections}
-                    />
-                    <ResourceSection
-                        messages={pageMessages}
-                        icon={FileText}
-                        rows={pageRows}
-                        selection={pages}
-                        onChange={setPages}
-                    />
-                    <SharedContentSection
-                        catalog={allTypes}
-                        selected={sharedContent}
-                        onToggle={onToggleSharedContent}
-                    />
-                </div>
+                <ContentPicker
+                    catalog={catalog}
+                    collections={collections}
+                    onCollectionsChange={setCollections}
+                    pages={pages}
+                    onPagesChange={setPages}
+                    sources={sources}
+                    sourceColors={colors}
+                    sharedContent={sharedContent}
+                    onToggleSharedContent={onToggleSharedContent}
+                    elsewhere={elsewhere}
+                    unused={unused}
+                />
             )}
         </div>
     );

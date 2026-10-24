@@ -1,6 +1,7 @@
 import { initialsOf } from '@orthacms/utils-admin';
 import { AVATAR_COLORS, type AvatarColor } from '@orthacms/design-system';
 import type {
+    ArchiveImpact,
     SharedContentGrant,
     SharedSource,
     Workspace,
@@ -13,6 +14,8 @@ export interface WorkspaceMemberView {
     id: string;
     name: string | null;
     email: string;
+    /** Directory status; absent on older responses. */
+    status?: 'pending' | 'active' | 'disabled';
 }
 
 /** A workspace as `GET /api/workspaces` returns it. */
@@ -30,6 +33,21 @@ export interface WorkspaceView {
     isShared?: boolean;
     /** Grants from shared workspaces; absent on older responses. */
     sharedContent?: SharedContentGrantView[];
+    /** Entries across every type; absent on older responses. */
+    recordCount?: number;
+    /** Entries per type slug; absent on older responses. */
+    recordCountByType?: Record<string, number>;
+    /** ISO timestamps; absent on older responses. */
+    createdAt?: string;
+    lastEditedAt?: string;
+    archivedAt?: string | null;
+}
+
+/** Response of `GET /api/workspaces/:id/archive-impact`. */
+export interface ArchiveImpactView {
+    records: number;
+    members: number;
+    linkedWorkspaces: number;
 }
 
 /** One grant from a shared workspace, as `WorkspaceView.sharedContent` sends it. */
@@ -92,7 +110,9 @@ function toMember(view: WorkspaceMemberView, index: number): WorkspaceMember {
         name,
         email: view.email,
         initials: initialsOf(name),
-        color: AVATAR_COLORS[index % AVATAR_COLORS.length]
+        color: AVATAR_COLORS[index % AVATAR_COLORS.length],
+        // Absent on an older server, which had no invites to tell apart.
+        pending: view.status === 'pending'
     };
 }
 
@@ -119,6 +139,24 @@ export function toWorkspace(view: WorkspaceView): Workspace {
         // over a real value.
         isShared: view.isShared ?? false,
         // An older server has no per-source grants: none were made.
-        sharedContent: (view.sharedContent ?? []).map(toSharedGrant)
+        sharedContent: (view.sharedContent ?? []).map(toSharedGrant),
+        // Display-only figures, never written back: an older server simply
+        // reports none of them.
+        recordCount: view.recordCount ?? 0,
+        recordCountByType: view.recordCountByType ?? {},
+        createdAt: view.createdAt ?? null,
+        lastEditedAt: view.lastEditedAt ?? null,
+        archivedAt: view.archivedAt ?? null
+    };
+}
+
+/** Maps the archive-impact counts, clamping anything malformed to zero. */
+export function toArchiveImpact(view: ArchiveImpactView): ArchiveImpact {
+    const count = (value: unknown) =>
+        typeof value === 'number' && value > 0 ? value : 0;
+    return {
+        records: count(view.records),
+        members: count(view.members),
+        linkedWorkspaces: count(view.linkedWorkspaces)
     };
 }

@@ -66,7 +66,7 @@ test.describe('workspaces-admin regressions', () => {
             await expect(
                 createWorkspacePage.slugStatus('Available')
             ).toBeHidden();
-            await expect(createWorkspacePage.continueToMembers).toBeDisabled();
+            await expect(createWorkspacePage.continueButton).toBeDisabled();
         });
     });
 
@@ -88,7 +88,7 @@ test.describe('workspaces-admin regressions', () => {
             // "the server refused" toast without sending a request at all.
             await expect(createWorkspacePage.nameInput).toBeVisible();
             await expect(createWorkspacePage.createButton).toBeHidden();
-            await expect(createWorkspacePage.continueToMembers).toBeVisible();
+            await expect(createWorkspacePage.continueButton).toBeVisible();
         });
 
         test('reloading mid-wizard returns to Basics rather than a dead end', async ({
@@ -98,9 +98,7 @@ test.describe('workspaces-admin regressions', () => {
             await createWorkspacePage.goto();
             // A name whose derived slug is free in the seed — a colliding one
             // would leave Continue disabled for the right reason and mask this.
-            await createWorkspacePage.nameInput.fill('Half filled space');
-            await createWorkspacePage.continueToMembers.click();
-            await expect(createWorkspacePage.continueToContent).toBeVisible();
+            await createWorkspacePage.toContentStep('Half filled space');
 
             // All wizard state is in-memory; only `?step=` survives a reload.
             await page.reload();
@@ -124,7 +122,7 @@ test.describe('workspaces-admin regressions', () => {
             await createWorkspacePage.create('Brand new space');
 
             await expect(
-                createWorkspacePage.toast(/That slug is already taken/)
+                createWorkspacePage.toast(/That address is already taken/)
             ).toBeVisible();
             await expect(
                 createWorkspacePage.toast(

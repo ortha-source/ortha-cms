@@ -1,25 +1,41 @@
+import type { ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
+import { Globe, RotateCcw } from 'lucide-react';
 import { initialsOf } from '@orthacms/utils-admin';
 import { Badge, Button, cn } from '@orthacms/design-system';
 import { WorkspaceAvatar } from '../../WorkspaceAvatar';
-import { StatusChip } from '../../StatusChip';
+import { MemberFaces } from '../../MemberFaces';
+import { useSinceLabel } from '../../../hooks/useSinceLabel';
 import { isActiveWorkspace } from '../../../../domain/isActiveWorkspace';
+import { contentTypeCount } from '../../../../domain/workspaceSummary';
 import type { Workspace } from '../../../../domain/types/workspace';
+import { WorkspaceCardMenu } from '../WorkspaceCardMenu';
 
 const messages = defineMessages({
-    memberCount: {
-        id: 'workspaces.table.memberCount',
-        defaultMessage: '{count, plural, one {# member} other {# members}}'
+    records: {
+        id: 'workspaces.card.records',
+        defaultMessage:
+            '{count, plural, one {<b>#</b> record} other {<b>#</b> records}}'
     },
     typeCount: {
-        id: 'workspaces.card.typeCount',
+        id: 'workspaces.card.contentTypes',
         defaultMessage:
-            '{count, plural, one {# content type} other {# content types}}'
+            '{count, plural, one {<b>#</b> content type} other {<b>#</b> content types}}'
     },
     shared: { id: 'workspaces.card.shared', defaultMessage: 'Shared' },
+    archived: { id: 'workspaces.card.archived', defaultMessage: 'Archived' },
+    edited: {
+        id: 'workspaces.card.edited',
+        defaultMessage: 'Edited {when}'
+    },
+    archivedOn: {
+        id: 'workspaces.card.archivedOn',
+        defaultMessage: 'Archived {when}'
+    },
     open: { id: 'workspaces.card.open', defaultMessage: 'Open' },
     settings: { id: 'workspaces.card.settings', defaultMessage: 'Settings' },
+    restore: { id: 'workspaces.card.restore', defaultMessage: 'Restore' },
     openLabel: {
         id: 'workspaces.card.openLabel',
         defaultMessage: 'Open {name}'
@@ -27,121 +43,202 @@ const messages = defineMessages({
     settingsLabel: {
         id: 'workspaces.card.settingsLabel',
         defaultMessage: 'Settings for {name}'
+    },
+    restoreLabel: {
+        id: 'workspaces.card.restoreLabel',
+        defaultMessage: 'Restore {name}'
     }
 });
 
-/** How many member avatars a card stacks before the count says the rest. */
-const AVATARS = 4;
-
-type WorkspaceCardProps = {
+/** Props for {@link WorkspaceCard}. */
+export type WorkspaceCardProps = {
     workspace: Workspace;
     /** Just created — the card flashes once. */
     justCreated: boolean;
+    /** Whether the user may archive/restore (`workspaces:update`). */
+    canUpdate: boolean;
+    /** Asks to archive this workspace (the list confirms), from `trigger`. */
+    onArchive: (trigger: HTMLButtonElement | null) => void;
+    /** Restores this archived workspace. */
+    onRestore: () => void;
+    /** Whether a status change for this workspace is in flight. */
+    statusPending: boolean;
 };
 
 /**
- * One workspace in the grid: its tile, name and description, who is in it and
- * how many content types it was granted, and the two ways in — Open and
- * Settings. The name is the card's link; a click anywhere else on the card
- * opens it too, for the mouse, without adding a tab stop.
+ * One workspace in the grid, saying what is inside: its tile and name (the
+ * card's link, with a Shared or Archived badge), when it last moved, its
+ * description, how many records and content types it holds, who is in it as
+ * faces, and the ways in — Open and Settings, or Restore once archived. The ⋯
+ * menu carries the same plus Archive. A click anywhere else on the card opens
+ * it too, for the mouse, without adding a tab stop.
  */
-export function WorkspaceCard({ workspace, justCreated }: WorkspaceCardProps) {
+export function WorkspaceCard({
+    workspace,
+    justCreated,
+    canUpdate,
+    onArchive,
+    onRestore,
+    statusPending
+}: WorkspaceCardProps) {
     const intl = useIntl();
     const navigate = useNavigate();
+    const since = useSinceLabel();
     const archived = !isActiveWorkspace(workspace);
     const to = `/workspaces/${workspace.id}`;
+    const bold = (chunks: ReactNode[]) => (
+        <b key="b" className="font-semibold text-foreground">
+            {chunks}
+        </b>
+    );
+
+    const when = archived ? workspace.archivedAt : workspace.lastEditedAt;
+    const whenLabel = when
+        ? intl.formatMessage(archived ? messages.archivedOn : messages.edited, {
+              when: since(when)
+          })
+        : null;
 
     return (
         <li
             onClick={() => navigate(to)}
             className={cn(
-                'flex cursor-pointer flex-col gap-3 rounded-xl border bg-card p-4 transition-colors hover:border-foreground/20',
-                archived && 'bg-muted/30',
+                'flex cursor-pointer flex-col rounded-xl border bg-card transition-colors hover:border-foreground/20',
+                archived && 'bg-muted/40',
                 justCreated && 'ds-flash'
             )}
         >
-            <div className="flex items-start gap-3">
-                <WorkspaceAvatar
-                    initials={initialsOf(workspace.name)}
-                    color={workspace.color}
-                    className="size-9 shrink-0 rounded-[9px] text-xs"
-                />
-                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <div className="flex min-w-0 items-center gap-1.5">
-                        <Link
-                            to={to}
-                            className="truncate text-sm font-semibold hover:underline focus-visible:underline"
-                            onClick={(event) => event.stopPropagation()}
-                        >
-                            {workspace.name}
-                        </Link>
-                        {workspace.isShared ? (
-                            <Badge variant="info" size="xs">
-                                {intl.formatMessage(messages.shared)}
-                            </Badge>
-                        ) : null}
-                        {archived ? (
-                            <StatusChip status={workspace.status} />
+            <div className="flex flex-1 flex-col gap-3 p-3.5">
+                <div className="flex items-start gap-2.5">
+                    <WorkspaceAvatar
+                        initials={initialsOf(workspace.name)}
+                        color={archived ? 'slate' : workspace.color}
+                        className="size-9 shrink-0 rounded-[9px] text-[15px]"
+                    />
+                    <div className="flex min-w-0 flex-1 flex-col">
+                        <div className="flex min-w-0 items-center gap-1.5">
+                            <Link
+                                to={to}
+                                className="truncate text-sm font-semibold hover:underline focus-visible:underline"
+                                onClick={(event) => event.stopPropagation()}
+                            >
+                                {workspace.name}
+                            </Link>
+                            {workspace.isShared && !archived ? (
+                                <Badge variant="info" size="xs">
+                                    <Globe aria-hidden />
+                                    {intl.formatMessage(messages.shared)}
+                                </Badge>
+                            ) : null}
+                            {archived ? (
+                                <Badge variant="secondary" size="xs">
+                                    {intl.formatMessage(messages.archived)}
+                                </Badge>
+                            ) : null}
+                        </div>
+                        {whenLabel ? (
+                            <span className="text-xs text-muted-foreground">
+                                {whenLabel}
+                            </span>
                         ) : null}
                     </div>
-                    {workspace.description ? (
-                        <p className="line-clamp-2 text-xs break-words text-muted-foreground">
-                            {workspace.description}
-                        </p>
-                    ) : null}
+                    <span onClick={(event) => event.stopPropagation()}>
+                        <WorkspaceCardMenu
+                            name={workspace.name}
+                            to={to}
+                            archived={archived}
+                            canUpdate={canUpdate}
+                            onArchive={onArchive}
+                            onRestore={onRestore}
+                        />
+                    </span>
+                </div>
+
+                {workspace.description ? (
+                    <p className="line-clamp-2 text-[13px] break-words text-muted-foreground">
+                        {workspace.description}
+                    </p>
+                ) : null}
+
+                <div className="mt-auto flex flex-wrap items-center gap-x-3.5 gap-y-1 text-xs text-muted-foreground">
+                    <span>
+                        {intl.formatMessage(messages.records, {
+                            count: workspace.recordCount,
+                            b: bold
+                        })}
+                    </span>
+                    <span>
+                        {intl.formatMessage(messages.typeCount, {
+                            count: contentTypeCount(workspace),
+                            b: bold
+                        })}
+                    </span>
+                    <MemberFaces
+                        members={workspace.members}
+                        className="ml-auto"
+                    />
                 </div>
             </div>
 
-            <div className="mt-auto flex items-center gap-3 text-xs text-muted-foreground">
-                {workspace.members.length > 0 ? (
-                    <span aria-hidden className="flex">
-                        {workspace.members.slice(0, AVATARS).map((member) => (
-                            <WorkspaceAvatar
-                                key={member.id}
-                                initials={member.initials}
-                                color={member.color}
-                                className="-ml-1.5 size-[22px] rounded-full border-2 border-card text-[9px] first:ml-0"
-                            />
-                        ))}
-                    </span>
-                ) : null}
-                <span>
-                    {intl.formatMessage(messages.memberCount, {
-                        count: workspace.members.length
-                    })}
-                </span>
-                <span aria-hidden>·</span>
-                <span>
-                    {intl.formatMessage(messages.typeCount, {
-                        count: workspace.content.length
-                    })}
-                </span>
-            </div>
-
             <div
-                className="-mx-4 -mb-4 flex gap-1.5 border-t px-4 py-2.5"
+                className="flex gap-1.5 border-t px-3.5 py-2.5"
                 onClick={(event) => event.stopPropagation()}
             >
-                <Button asChild variant="outline" size="sm">
-                    <Link
-                        to={to}
-                        aria-label={intl.formatMessage(messages.openLabel, {
-                            name: workspace.name
-                        })}
-                    >
-                        {intl.formatMessage(messages.open)}
-                    </Link>
-                </Button>
-                <Button asChild variant="ghost" size="sm">
-                    <Link
-                        to={`${to}/settings`}
-                        aria-label={intl.formatMessage(messages.settingsLabel, {
-                            name: workspace.name
-                        })}
-                    >
-                        {intl.formatMessage(messages.settings)}
-                    </Link>
-                </Button>
+                {archived ? (
+                    canUpdate ? (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={statusPending}
+                            onClick={onRestore}
+                            aria-label={intl.formatMessage(
+                                messages.restoreLabel,
+                                { name: workspace.name }
+                            )}
+                        >
+                            <RotateCcw aria-hidden />
+                            {intl.formatMessage(messages.restore)}
+                        </Button>
+                    ) : (
+                        <Button asChild variant="outline" size="sm">
+                            <Link
+                                to={to}
+                                aria-label={intl.formatMessage(
+                                    messages.openLabel,
+                                    { name: workspace.name }
+                                )}
+                            >
+                                {intl.formatMessage(messages.open)}
+                            </Link>
+                        </Button>
+                    )
+                ) : (
+                    <>
+                        <Button asChild variant="outline" size="sm">
+                            <Link
+                                to={to}
+                                aria-label={intl.formatMessage(
+                                    messages.openLabel,
+                                    { name: workspace.name }
+                                )}
+                            >
+                                {intl.formatMessage(messages.open)}
+                            </Link>
+                        </Button>
+                        <Button asChild variant="ghost" size="sm">
+                            <Link
+                                to={`${to}/settings`}
+                                aria-label={intl.formatMessage(
+                                    messages.settingsLabel,
+                                    { name: workspace.name }
+                                )}
+                            >
+                                {intl.formatMessage(messages.settings)}
+                            </Link>
+                        </Button>
+                    </>
+                )}
             </div>
         </li>
     );
