@@ -129,7 +129,7 @@ test.describe('reset a password', () => {
         await resetPasswordPage.setPassword('short');
 
         await expect(
-            resetPasswordPage.fieldError(/at least 12 characters/)
+            resetPasswordPage.fieldError(/Use at least 12 characters/)
         ).toBeVisible();
         expect(spy.count).toBe(0);
     });
