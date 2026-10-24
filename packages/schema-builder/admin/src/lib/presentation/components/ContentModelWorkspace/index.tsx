@@ -6,19 +6,18 @@ import {
     useSearchParams
 } from 'react-router-dom';
 import type { SchemaDocumentEnvelope } from '@orthacms/schema-builder-domain';
+import { PageActionsPortal } from '@orthacms/shell-admin';
 import { useUnsavedChanges } from '@orthacms/utils-admin';
 import { useApplyFlow } from '../../../application/useApplyFlow';
 import { useBuilderAccess } from '../../../application/useBuilderAccess';
 import { useSchemaDraft } from '../../../application/useSchemaDraft';
 import { newTypeDoc } from '../../../domain/newTypeDoc';
-import { typeEditability } from '../../../domain/typeEditability';
-import { AddFieldPage } from '../AddFieldPage';
 import { ChangesReview } from '../ChangesReview';
 import { ContentModelChrome } from '../ContentModelChrome';
 import { ContentModelEmpty } from '../ContentModelEmpty';
+import { ContentModelHeader } from '../ContentModelHeader';
 import { ContentModelLayout } from '../ContentModelLayout';
 import { DraftActions } from '../DraftActions';
-import { GrantNewTypeDialog } from '../GrantNewTypeDialog';
 import { ReadOnlyNotice } from '../ReadOnlyNotice';
 import { ReviewChangesButton } from '../ReviewChangesButton';
 import { TypeEditor } from '../TypeEditor';
@@ -92,110 +91,106 @@ export function ContentModelWorkspace({
     };
 
     if (reviewing) {
+        // A type as the review names it: from the draft, or — for one the
+        // draft removes — from the model as served.
+        const typeOf = (name: string) => {
+            const type =
+                draft.document.types.find((entry) => entry.name === name) ??
+                draft.base.types.find((entry) => entry.name === name);
+            return type && { label: type.label || type.name, kind: type.kind };
+        };
         return (
-            <>
-                <ChangesReview
-                    flow={flow}
-                    editorHref={location.pathname}
-                    onFinish={finishReview}
-                />
-                {/* Mounted only when there is something to grant: it reads the workspaces. */}
-                {flow.created.length > 0 && (
-                    <GrantNewTypeDialog
-                        types={flow.created}
-                        onClose={flow.dismissGrant}
-                    />
-                )}
-            </>
+            <ChangesReview
+                flow={flow}
+                editorHref={location.pathname}
+                typeOf={typeOf}
+                onFinish={finishReview}
+                onOpenType={(name) => {
+                    navigate(`/content-model/${name}`, { replace: true });
+                    flow.dismiss();
+                }}
+            />
         );
     }
 
     const { types } = draft.document;
     const selected = types.find((type) => type.name === typeName) ?? types[0];
 
-    // Adding a field: a page with steps over the same draft, for a type this
-    // person may change. Anything else — no such type, a hand-written one —
-    // has no field to add, and the editor simply shows.
-    if (
-        params.has('addField') &&
-        selected &&
-        typeEditability(selected, envelope.capabilities, access.canManage).ok
-    ) {
-        return (
-            <AddFieldPage
-                type={selected}
-                draft={draft}
-                editorHref={location.pathname}
-                onAdded={(entry) => {
-                    draft.dispatch({
-                        type: 'field.add',
-                        typeName: selected.name,
-                        entry
-                    });
-                    backToEditor();
-                }}
+    const draftActions = access.canEdit && (
+        <PageActionsPortal>
+            <DraftActions
+                changes={draft.changes.length}
+                issues={draft.issues.length}
+                onDiscard={draft.discard}
             />
+            <ReviewChangesButton
+                changes={draft.changes.length}
+                issues={draft.issues.length}
+                onClick={openReview}
+            />
+        </PageActionsPortal>
+    );
+    const notice = <ReadOnlyNotice reason={access.reason} />;
+
+    if (types.length === 0 && !access.canEdit)
+        return (
+            <ContentModelChrome>
+                {notice}
+                <ContentModelEmpty />
+            </ContentModelChrome>
         );
-    }
 
     return (
         <ContentModelChrome
-            actions={
-                access.canEdit && (
-                    <>
-                        <DraftActions
-                            changes={draft.changes.length}
-                            issues={draft.issues.length}
-                            onDiscard={draft.discard}
-                        />
-                        <ReviewChangesButton
-                            changes={draft.changes.length}
-                            issues={draft.issues.length}
-                            onClick={openReview}
-                        />
-                    </>
-                )
-            }
+            flush
+            crumb={selected ? selected.label || selected.name : undefined}
         >
-            <ReadOnlyNotice reason={access.reason} />
-            {types.length === 0 && !access.canEdit ? (
-                <ContentModelEmpty />
-            ) : (
-                <ContentModelLayout
-                    rail={
-                        <TypeRail
-                            types={types}
-                            selected={selected?.name}
-                            dirty={draft.dirtyTypes}
-                            onCreate={
-                                access.canEdit
-                                    ? () => setCreating(true)
-                                    : undefined
-                            }
+            {draftActions}
+            <ContentModelLayout
+                rail={
+                    <TypeRail
+                        types={types}
+                        selected={selected?.name}
+                        dirty={draft.dirtyTypes}
+                        onCreate={
+                            access.canEdit ? () => setCreating(true) : undefined
+                        }
+                    />
+                }
+                editor={
+                    selected ? (
+                        <TypeEditor
+                            key={selected.name}
+                            type={selected}
+                            capabilities={envelope.capabilities}
+                            access={access}
+                            draft={draft}
+                            notice={notice}
                         />
-                    }
-                    editor={
-                        selected && (
-                            <TypeEditor
-                                key={selected.name}
-                                type={selected}
-                                capabilities={envelope.capabilities}
-                                access={access}
-                                draft={draft}
+                    ) : (
+                        <>
+                            <ContentModelHeader />
+                            {notice}
+                            <ContentModelEmpty
+                                onCreate={
+                                    access.canEdit
+                                        ? () => setCreating(true)
+                                        : undefined
+                                }
                             />
-                        )
-                    }
-                />
-            )}
+                        </>
+                    )
+                }
+            />
             {access.canEdit && (
                 <NewTypeDialog
                     open={creating}
                     onOpenChange={setCreating}
                     taken={types.map((type) => type.name)}
-                    onCreate={(name, label, kind) => {
+                    onCreate={(name, label, kind, options) => {
                         draft.dispatch({
                             type: 'type.add',
-                            doc: newTypeDoc(name, label, kind)
+                            doc: newTypeDoc(name, label, kind, options)
                         });
                         setCreating(false);
                         navigate(`/content-model/${name}`);

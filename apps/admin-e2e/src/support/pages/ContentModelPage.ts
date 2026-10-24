@@ -8,7 +8,11 @@ import { BasePage } from './BasePage';
  * `content:read`.
  */
 export class ContentModelPage extends BasePage {
-    /** The page's `<h1>`, present in every state. */
+    /**
+     * The page's `<h1>`, present in every state: "Content Model" while loading,
+     * on an error, an empty model or without access — the open type's label
+     * once a type is on screen.
+     */
     readonly heading: Locator;
     /** The Content Model entry in the primary nav. */
     readonly navLink: Locator;
@@ -23,10 +27,7 @@ export class ContentModelPage extends BasePage {
 
     constructor(page: Page) {
         super(page);
-        this.heading = page.getByRole('heading', {
-            name: 'Content Model',
-            level: 1
-        });
+        this.heading = page.getByRole('heading', { level: 1 });
         this.navLink = page
             .getByRole('navigation', { name: 'Primary' })
             .getByRole('link', { name: 'Content Model' });
@@ -59,25 +60,41 @@ export class ContentModelPage extends BasePage {
         return this.rail.locator('[aria-current="page"]');
     }
 
-    /** The selected type's heading. */
+    /** The selected type's heading — the page's `<h1>`. */
     typeHeading(label: string): Locator {
-        return this.page.getByRole('heading', { name: label, level: 2 });
+        return this.page.getByRole('heading', { name: label, level: 1 });
+    }
+
+    /** The type's field list, groups included. */
+    fields(): Locator {
+        return this.page.getByRole('region', { name: 'Fields' });
     }
 
     /**
-     * One built-in tab's block. Since ADR-0022 there is one, **Content**:
-     * relations and media are fields of the one form. The retired names stay
-     * accepted so a spec can assert they are gone.
+     * A block the field list no longer draws: since ADR-0022 relations and
+     * media are fields of the one form, so a spec asserts these are gone.
      */
-    tab(name: 'Content' | 'Relations' | 'Media'): Locator {
-        return this.page.getByRole('region', { name });
+    block(name: 'Relations' | 'Media' | 'Content'): Locator {
+        return this.page.getByRole('region', { name, exact: true });
     }
 
-    /** The machine names of the fields drawn on a tab, top to bottom. */
-    async fieldNames(
-        name: 'Content' | 'Relations' | 'Media'
-    ): Promise<string[]> {
-        const rows = await this.tab(name).getByRole('listitem').all();
+    /** The type header's Settings button, and the sheet it opens. */
+    settingsButton(): Locator {
+        return this.page.getByRole('button', { name: 'Settings', exact: true });
+    }
+
+    settingsSheet(): Locator {
+        return this.page.getByRole('dialog', { name: /settings$/ });
+    }
+
+    /** The rail's search. */
+    railSearch(): Locator {
+        return this.rail.getByRole('searchbox', { name: 'Find a type' });
+    }
+
+    /** The machine names of the fields in the list, top to bottom. */
+    async fieldNames(): Promise<string[]> {
+        const rows = await this.fields().getByRole('listitem').all();
         const names: string[] = [];
         for (const row of rows) {
             if (await row.isVisible()) {
@@ -92,7 +109,7 @@ export class ContentModelPage extends BasePage {
 
     /** A General-tab group's block: its trigger, its handle and its fields. */
     groupBlock(label: string): Locator {
-        return this.tab('Content').getByRole('group', {
+        return this.fields().getByRole('group', {
             name: label,
             exact: true
         });
@@ -107,7 +124,7 @@ export class ContentModelPage extends BasePage {
 
     /** The labels of the General tab's groups, top to bottom. */
     async groupNames(): Promise<string[]> {
-        const blocks = await this.tab('Content').getByRole('group').all();
+        const blocks = await this.fields().getByRole('group').all();
         const labels: string[] = [];
         for (const block of blocks)
             labels.push((await block.getAttribute('aria-label')) ?? '');
@@ -160,27 +177,52 @@ export class ContentModelPage extends BasePage {
 
     // --- editing ------------------------------------------------------------
 
-    /** The fields card's "Add field" button. */
+    /** The field list's "Add field" button. */
     addFieldButton(): Locator {
-        return this.page.getByRole('button', { name: 'Add field' }).first();
+        return this.fields().getByRole('button', { name: 'Add field' });
     }
 
-    /** The "Add a field" page's `<h1>`. */
-    addFieldHeading(): Locator {
-        return this.page.getByRole('heading', {
-            level: 1,
-            name: 'Add a field'
-        });
+    /** The "Add a field to …" kind picker. */
+    addFieldDialog(): Locator {
+        return this.page.getByRole('dialog', { name: /^Add a field to / });
     }
 
-    /** One kind of field on the page's first step. */
+    /** One kind of field in the picker. */
     fieldKind(label: string): Locator {
         return this.page.getByRole('radio', { name: label, exact: true });
     }
 
-    /** A field's sheet, named by the field. */
+    /**
+     * A field's panel, named by its label — which, without one, is its
+     * machine name in words (`publishDate` → "Publish date").
+     */
     fieldSheet(name: string): Locator {
         return this.page.getByRole('dialog', { name });
+    }
+
+    /** The panel of a field being added, before it has a name. */
+    newFieldSheet(): Locator {
+        return this.page.getByRole('dialog', { name: 'New field' });
+    }
+
+    /**
+     * Adds a field: picks its kind (the first, Short text, unless named),
+     * gives it a label, and adds it from its panel.
+     */
+    async addField(
+        label: string,
+        { kind, from }: { kind?: string; from?: Locator } = {}
+    ): Promise<void> {
+        await (from ?? this.addFieldButton()).click();
+        if (kind) await this.fieldKind(kind).click();
+        await this.addFieldDialog()
+            .getByRole('button', { name: 'Continue' })
+            .click();
+        await this.newFieldSheet().getByLabel('Label').fill(label);
+        await this.page
+            .getByRole('dialog')
+            .getByRole('button', { name: 'Add field' })
+            .click();
     }
 
     /** The row's own "Edit <name>" button. */
@@ -306,9 +348,9 @@ export class ContentModelPage extends BasePage {
         return this.page.getByText(text).first();
     }
 
-    /** The General block's "Groups" button. */
+    /** The field list's "+ Group" button, which opens the groups sheet. */
     groupsButton(): Locator {
-        return this.tab('Content').getByRole('button', { name: 'Groups' });
+        return this.fields().getByRole('button', { name: 'Add a group' });
     }
 
     /** A select field's option input in its sheet's Validation tab, 1-based. */
@@ -388,17 +430,37 @@ export class ContentModelPage extends BasePage {
         return this.page.getByRole('button', { name: 'Review changes' });
     }
 
-    /** The review page's `<h1>`. */
+    /** The review page's `<h1>` ("Review 3 changes"). */
     reviewHeading(): Locator {
         return this.page.getByRole('heading', {
             level: 1,
-            name: 'Review changes'
+            name: /^Review \d+ changes?$/
         });
     }
 
-    /** The heading of the review step (or apply outcome) on screen. */
-    stepHeading(name: string): Locator {
-        return this.page.getByRole('heading', { level: 2, name });
+    /** The `<h1>` of the review's later states: applying, failed, applied. */
+    outcomeHeading(name: string | RegExp): Locator {
+        return this.page.getByRole('heading', { level: 1, name });
+    }
+
+    /** One type's card of changes on the review page. */
+    changeGroup(label: string): Locator {
+        return this.page.getByRole('region', { name: label, exact: true });
+    }
+
+    /** The review's "Apply N changes" (the base's `applyButton` is the filter's). */
+    applyChangesButton(): Locator {
+        return this.page.getByRole('button', { name: /^Apply \d/ });
+    }
+
+    /** The folded "Technical details" — files and SQL. */
+    technicalDetails(): Locator {
+        return this.page.getByRole('button', { name: /^Technical details/ });
+    }
+
+    /** The apply's steps while it runs. */
+    applySteps(): Locator {
+        return this.page.getByRole('status').getByRole('listitem');
     }
 
     /** A button on the review page, by its name. */
@@ -406,28 +468,19 @@ export class ContentModelPage extends BasePage {
         return this.page.getByRole('button', { name, exact: true });
     }
 
-    /** "Back to the Content Model" — a link while reviewing, a button after an apply. */
+    /** Back to the editor — "Back to editing" while reviewing, "Back to the Content Model" after an apply. */
     backToModel(): Locator {
-        return this.page
-            .getByRole('link', { name: 'Back to the Content Model' })
-            .or(
-                this.page.getByRole('button', {
-                    name: 'Back to the Content Model'
-                })
-            );
+        return this.page.getByRole('link', { name: 'Back to editing' }).or(
+            this.page.getByRole('button', {
+                name: 'Back to the Content Model'
+            })
+        );
     }
 
-    /** Walks the review from the changes to the apply step. */
-    async continueToApply(): Promise<void> {
-        await this.reviewAction('Continue to files').click();
-        await this.reviewAction('Continue to apply').click();
-        await this.stepHeading('Apply').waitFor();
-    }
-
-    /** The after-apply offer to grant a new type to workspaces. */
-    grantDialog(): Locator {
-        return this.page.getByRole('dialog', {
-            name: /^Use the new types? in workspaces$/
+    /** The applied page's offer to use the new types in workspaces. */
+    grantCard(): Locator {
+        return this.page.getByRole('region', {
+            name: /^Use .+ in workspaces$/
         });
     }
 
@@ -436,26 +489,26 @@ export class ContentModelPage extends BasePage {
         return this.page.getByRole('button', { name: 'Add the first field' });
     }
 
+    /** The "New content type" dialog. */
+    newTypeDialog(): Locator {
+        return this.page.getByRole('dialog', { name: 'New content type' });
+    }
+
     /**
-     * Adds a collection from the rail, by its label, and — since a type needs
-     * a field before it can be reviewed — a short text field named Title.
+     * Adds a blank collection from the rail, by its name, and — since a type
+     * needs a field before it can be reviewed — a short text field named
+     * Title.
      */
     async addType(
         label: string,
         { firstField = true }: { firstField?: boolean } = {}
     ): Promise<void> {
         await this.newTypeButton().click();
-        const dialog = this.page.getByRole('dialog', {
-            name: 'New content type'
-        });
-        await dialog.getByLabel('Label').fill(label);
-        await dialog.getByRole('button', { name: 'Add type' }).click();
+        const dialog = this.newTypeDialog();
+        await dialog.getByLabel('Name', { exact: true }).fill(label);
+        await dialog.getByRole('button', { name: 'Create type' }).click();
         if (!firstField) return;
-        await this.addFirstFieldButton().click();
-        await this.reviewAction('Continue').click();
-        await this.page.getByLabel('Label').fill('Title');
-        await this.reviewAction('Continue').click();
-        await this.reviewAction('Add field').click();
+        await this.addField('Title', { from: this.addFirstFieldButton() });
         await this.reviewButton().waitFor();
     }
 

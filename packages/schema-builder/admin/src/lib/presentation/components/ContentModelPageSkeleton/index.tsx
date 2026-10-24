@@ -8,7 +8,7 @@ import { ContentModelSkeleton } from '../ContentModelSkeleton';
  */
 export function ContentModelPageSkeleton() {
     return (
-        <ContentModelChrome>
+        <ContentModelChrome flush>
             <ContentModelSkeleton />
         </ContentModelChrome>
     );

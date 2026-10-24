@@ -300,7 +300,10 @@ export async function mockSchemaApply(
                 id: 'op-e2e',
                 status: done ? outcome : 'running',
                 step: done && outcome === 'succeeded' ? null : 'migrate',
-                migrations: [],
+                migrations:
+                    done && outcome === 'succeeded'
+                        ? ['0007_add_events.sql']
+                        : [],
                 files: [],
                 bootId: 'boot-e2e',
                 startedAt: '2026-10-04T00:00:00.000Z',

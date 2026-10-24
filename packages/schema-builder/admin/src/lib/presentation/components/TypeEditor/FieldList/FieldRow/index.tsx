@@ -3,7 +3,10 @@ import { defineMessages, useIntl } from 'react-intl';
 import { AlertTriangle } from 'lucide-react';
 import { Badge, cn } from '@orthacms/design-system';
 import type { FieldEntry } from '@orthacms/schema-builder-domain';
+import { kindOf } from '../../../../../domain/fieldCatalog';
 import { fieldFacts } from '../../../../../domain/fieldFacts';
+import { toLabel } from '../../../../../domain/identifiers';
+import { kindCopy } from '../../../fieldKindCopy';
 import type { FieldListEditing } from '../fieldListEditing';
 import { FieldFactList } from './FieldFactList';
 import { FieldRowMenu } from './FieldRowMenu';
@@ -25,15 +28,21 @@ type Props = {
     className?: string;
 };
 
-/** One field: its type, machine name, label, what is notable about it, and its type in words. */
+/**
+ * One field as people read it: the label leads, the machine name sits under
+ * it in mono; badges only for what changes behaviour (Required, Localized,
+ * Hidden, Multiple); the type in words on the right, with the detail that
+ * matters for it (how many options, which type a relation points at).
+ */
 export function FieldRow({ entry, editing, handle, className }: Props) {
     const intl = useIntl();
-    const label = entry.spec.admin?.label;
+    const label = entry.spec.admin?.label || toLabel(entry.name);
     const issues = editing?.issuesOf(entry.name) ?? 0;
+    const facts = fieldFacts(entry.spec);
     return (
         <div
             className={cn(
-                'flex min-h-12 items-center gap-3 px-4 py-2',
+                'flex min-h-[3.25rem] items-center gap-3 px-4 py-2',
                 className
             )}
         >
@@ -43,24 +52,24 @@ export function FieldRow({ entry, editing, handle, className }: Props) {
                 {editing ? (
                     <button
                         type="button"
-                        className="rounded text-left font-mono text-sm outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                        className="truncate rounded text-left text-sm font-medium outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
                         aria-label={intl.formatMessage(messages.edit, {
                             name: entry.name
                         })}
                         onClick={() => editing.onEdit(entry.key)}
                     >
-                        {entry.name}
+                        {label}
                     </button>
                 ) : (
-                    <span className="font-mono text-sm">{entry.name}</span>
-                )}
-                {label && (
-                    <span className="truncate text-xs text-muted-foreground">
+                    <span className="truncate text-sm font-medium">
                         {label}
                     </span>
                 )}
+                <span className="truncate font-mono text-xs text-muted-foreground">
+                    {entry.name}
+                </span>
             </span>
-            <FieldFactList facts={fieldFacts(entry.spec)} />
+            <FieldFactList facts={facts} part="flags" />
             {issues > 0 && (
                 <Badge
                     variant="destructive-soft"
@@ -70,9 +79,12 @@ export function FieldRow({ entry, editing, handle, className }: Props) {
                     {intl.formatMessage(messages.issues, { count: issues })}
                 </Badge>
             )}
-            <Badge variant="secondary" className="ml-auto shrink-0 font-normal">
-                {entry.spec.type}
-            </Badge>
+            <span className="ml-auto flex min-w-0 shrink-0 items-center gap-1 text-right text-xs text-muted-foreground">
+                <span>
+                    {intl.formatMessage(kindCopy(kindOf(entry.spec)).label)}
+                </span>
+                <FieldFactList facts={facts} part="details" />
+            </span>
             {editing && (
                 <FieldRowMenu
                     name={entry.name}

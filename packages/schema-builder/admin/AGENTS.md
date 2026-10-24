@@ -47,10 +47,20 @@ utils/schemaBuilderPlugin/  the AdminPlugin factory
 - **States never mix.** No access sends no request; loading is one
   `SkeletonRegion`; an error is an alert with a retry, never an empty rail; an
   app with no types is its own empty state.
-- **Skeletons share the chrome and the grid.** `ContentModelChrome` (top bar +
-  `<h1>`) and `ContentModelLayout` (the two-pane grid) are used by the page,
-  by `ContentModelSkeleton` and by the lazy route's `ContentModelPageSkeleton`,
-  so neither the chunk boundary nor the query boundary moves anything.
+- **Two panes over the whole work area.** `ContentModelChrome flush` hands the
+  body the work area; `ContentModelLayout` draws the rail as a column the
+  height of the work area, ruled off on the right (its list scrolls on its
+  own, "New content type" pinned to its foot), and the editor beside it. The
+  open type is the page's `<h1>` (`TypeHeader`, a `ContainerHeader`); with no
+  type open it is "Content Model" (`ContentModelHeader`). The draft's account —
+  unsaved count, problems, Discard, Review changes — goes to the top bar
+  through `PageActionsPortal`, beside the crumb Content Model › the type.
+- **Skeletons share the chrome and the grid.** `ContentModelChrome` and
+  `ContentModelLayout` are used by the page, by `ContentModelSkeleton` and by
+  the lazy route's `ContentModelPageSkeleton`; the skeleton draws a real
+  `<h1>` where the type's will be, so neither the chunk boundary nor the query
+  boundary moves it. No access, an error and an app with no types keep the
+  page measure under the page's own header.
 - **Read-only, and says why.** The page-wide notice gives the server's reason
   (`production`, `disabled`, `no-source-tree`). On a server that could edit, a
   hand-written type says it is read-only because the builder owns only files
@@ -73,13 +83,35 @@ Hand-written types stay read-only and say how to hand them over.
 - **Keys, not names.** A field keeps its key through a rename, so the diff
   reports a rename rather than a remove plus an add. A new field's key is
   `new:<random>` (`newFieldKey`).
-- **Adding a field is a page with steps** (`AddFieldPage`, `?addField` on
-  the editor's URL, like the review): the kind of field, the basics, the rules
-  and display. The field is built aside by `useNewField` — the same
-  `FieldEditor` contract the sheet edits through, over local state — and joins
-  the draft only on "Add field", so going back leaves nothing half-made. The
-  machine name follows the label until typed by hand; the schema rules run on
-  the field as it would land, before it can go on.
+- **The type page is fields first.** `TypeHeader` says what you need to know
+  in one line under the `<h1>` — machine name, kind, the flags that are on as
+  pills, path, field count — and keeps label, description and the flags in a
+  Settings sheet (`TypeSettingsSheet`); its ⋯ (`TypeMenu`) removes the type. A
+  field row is label first, machine name under it in mono, badges only for
+  what changes behaviour (Required, Localized, Hidden, Multiple), the type in
+  words on the right with its detail (options, a relation's target). Groups
+  are section headers inside the same list; "Add field" and "+ Group" close it.
+- **Adding a field is two steps**: a kind picker (`AddFieldDialog`, "Add a
+  field to {Type}", the catalog in `FIELD_KIND_GROUPS` sections, searchable by
+  name and example, Enter or a double-click continues), then the **same
+  panel** that edits a field (`FieldSheet` with `adding`: Another kind / Add
+  field). `AddFieldFlow` holds the field aside through `useNewField` — the same
+  `FieldEditor` contract the panel edits through, over local state — and it
+  joins the draft only on "Add field", so leaving at either step leaves
+  nothing half-made. It replaced the three-step `?addField` page. The machine
+  name follows the label until typed by hand; the schema rules run on the
+  field as it would land, before it can be added.
+- **The panel previews the field** (`FieldPreview`): label, required mark,
+  locale globe, the control its kind draws, placeholder or default, help text
+  — redrawn from the spec on every keystroke. A drawing, not a form: its
+  control is `aria-hidden` and takes no focus, so no second "Title" field
+  competes with the real ones below.
+- **A new type is one dialog** (`NewTypeDialog`): name and machine name, the
+  kind as two cards with an example of each, Start from — Blank or a template
+  (`TYPE_TEMPLATES`: Article, Event, FAQ; DSL fields only, fresh keys every
+  use, each pinned by a spec as accepted by the schema rules) — and Features
+  as checkboxes (draft & publish and trash on by default). What becomes fixed
+  once applied is said once, at the foot.
 - **The catalog is choices, not types** (`FIELD_CATALOG`, keyed by `id`). Each
   is a DSL type or a **preset** of one: "Long text" is `richtext` with the
   `textarea` widget, the DSL's own way to say a plain box of text. Every kind
@@ -125,8 +157,9 @@ Hand-written types stay read-only and say how to hand them over.
   Dragging
   works from the handle by keyboard too; dnd-kit's announcements are replaced
   with ones that name fields and lists.
-- **Groups** are edited in `GeneralGroupsSheet` — accordion blocks on General,
-  never sections or tabs — or one at a time from the block's own menu
+- **Groups** are edited in `GeneralGroupsSheet` (the list's "+ Group") —
+  groups on General, never sections of their own or tabs — or one at a time
+  from the group's own menu
   (`GroupSheet`: title, description, starts folded, remove). An empty one is
   flagged: the schema refuses it. Removing one keeps its fields, loose.
 - **Leaving** the page with a draft asks first (`useUnsavedChanges`). The rail
@@ -136,15 +169,19 @@ Hand-written types stay read-only and say how to hand them over.
 
 `useApplyFlow` (application) runs review → confirm → apply → restart → grant.
 
-- **The review is a page with steps** (`ChangesReview`), in the shape of the
-  other wizards — new workspace, invitation: a stepper rail and one step card.
-  Changes (verdicts, the per-change confirmation) → files and SQL → the
-  migration name and Apply; after Apply the card becomes the progress, then
-  the outcome. It is a **state of the content model page** (`?review`), not a
-  route: the same element stays mounted, so the draft it reviews is the
-  editor's, and Back — the link or the browser's — returns to it untouched.
-  Programmatic navigation is not intercepted by the unsaved-changes guard,
-  and the back link sits in a `data-keeps-unsaved-changes` region.
+- **The review is one page** (`ChangesReview`): the changes grouped by type
+  (`ChangeGroup` — the type, New collection / Removed, its riskiest verdict;
+  a card that deletes data drawn in the destructive tone), each destructive
+  change confirmed on its own; the files and SQL folded under "Technical
+  details"; and `ApplyBar`, held at the foot of the page, with what still
+  blocks Apply, the migration name and "Apply N changes". After Apply the page
+  becomes the progress, then the outcome. It is a **state of the content
+  model page** (`?review`), not a route: the same element stays mounted, so
+  the draft it reviews is the editor's, and Back — "Back to editing" in the
+  top bar, or the browser's — returns to it untouched. Programmatic
+  navigation is not intercepted by the unsaved-changes guard, and the back
+  link is marked `data-keeps-unsaved-changes`. It replaced a three-step
+  wizard.
 - **The plan is the server's.** Opening the review asks `POST
 /schema-builder/plan` with the draft and the fingerprint it started from
   (also when the page is reached by Back/Forward); `ChangesSkeleton` covers
@@ -161,12 +198,21 @@ Hand-written types stay read-only and say how to hand them over.
   says to restart the server. Once the new process answers, the document is put
   in the cache and every registry-derived query is invalidated (`isRegistryKey`).
   The draft resets on the new boot id even when the document is equal.
-- **A failure keeps the draft**, and says so. `ApplyProgress` is real progress,
-  one `role="status"`, not a skeleton.
-- **New types are granted to no workspace** (invariant 11). `GrantNewTypeDialog`
-  offers the active workspaces through `POST /workspaces/:id/content`, with
-  "Not now" as an equal answer; it is mounted only when there is something to
-  grant, because it reads the workspace list.
+- **Progress is the server's steps, timed here.** `waitForOperation` reports
+  every running answer; `useApplyFlow` folds them into `domain/applyProgress`
+  (generate → migrate → publish, then the restart and ready). A step's time is
+  what this tab saw between two polls; a step that ran between them is done
+  with no time — never a made-up zero. `ApplyProgress` draws them as a stepper
+  in one `role="status"`, not a skeleton.
+- **A failure keeps the draft**, stops at its step, and says so.
+- **The outcome is a page, and the next decision is on it.** `AppliedSummary`:
+  what was applied (changes, the migration file, the restart's time), then —
+  for a created type — the grant card, then Open {Type} in the model.
+- **New types are granted to no workspace** (invariant 11). `GrantNewTypes`
+  offers the active workspaces through `POST /workspaces/:id/content` inline
+  on the applied page, not in a modal over it, with "Not now" as an equal
+  answer; either answer leaves a line saying what happened. A search appears
+  past six workspaces.
 
 ## Commands
 

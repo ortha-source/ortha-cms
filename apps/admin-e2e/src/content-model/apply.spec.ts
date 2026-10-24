@@ -52,13 +52,14 @@ const DROP_AUTHOR = {
 
 /**
  * Review, apply and grant (`@orthacms/schema-builder-admin`, ADR-0020). The
- * review is a page with steps, like the other wizards: the changes (a change
- * that deletes data confirmed on its own), the files and the SQL, then the
- * migration name and Apply. The apply is followed to the restart; a new type
- * is offered to workspaces, never granted implicitly.
+ * review is one page: the changes grouped by type with their risk (a change
+ * that deletes data confirmed on its own), the files and SQL folded under
+ * "Technical details", and a bar at the foot with the migration name and
+ * Apply. The apply is followed step by step to the restart; a new type is
+ * offered to workspaces on the applied page, never granted implicitly.
  */
 test.describe('Content model — review and apply', () => {
-    test('reviews in steps: a skeleton, then the changes, the files and the SQL, then the name', async ({
+    test('reviews on one page: a skeleton, then the changes by type, the files and SQL on demand, and Apply at the foot', async ({
         page,
         contentModelPage
     }) => {
@@ -67,36 +68,35 @@ test.describe('Content model — review and apply', () => {
         await contentModelPage.addType('Events');
         await contentModelPage.reviewButton().click();
 
-        await expect(contentModelPage.reviewHeading()).toBeVisible();
         await expect(page).toHaveURL(/\/content-model\/events\?review/);
         await expect(page.getByText('Checking your changes…')).toBeAttached();
-        await expect(
-            contentModelPage.reviewAction('Continue to files')
-        ).toBeDisabled();
-        await expect(
-            page.getByRole('list', { name: 'Changes' }).getByText('Safe')
-        ).toBeVisible();
+        await expect(contentModelPage.applyChangesButton()).toHaveCount(0);
+        const events = contentModelPage.changeGroup('Events');
+        await expect(events.getByText('New collection')).toBeVisible();
+        await expect(events.getByText('Safe')).toBeVisible();
+        await expect(contentModelPage.reviewHeading()).toHaveText(
+            'Review 1 change'
+        );
         expect(calls.plans).toHaveLength(1);
 
-        await contentModelPage.reviewAction('Continue to files').click();
-        await expect(
-            contentModelPage.stepHeading('Files and SQL')
-        ).toBeFocused();
+        await contentModelPage.technicalDetails().click();
         await expect(
             page.getByText('src/content/collections/events.ts')
         ).toBeVisible();
         await page.getByRole('tab', { name: 'SQL' }).click();
         await expect(page.getByText(/CREATE TABLE "events"/)).toBeVisible();
 
-        await contentModelPage.reviewAction('Continue to apply').click();
         await expect(page.getByLabel('Migration name')).toHaveValue(
             /^[a-z][a-z0-9_]*$/
         );
-        await expect(contentModelPage.reviewAction('Apply')).toBeEnabled();
+        await expect(contentModelPage.applyChangesButton()).toHaveText(
+            'Apply 1 change'
+        );
+        await expect(contentModelPage.applyChangesButton()).toBeEnabled();
         expect(calls.applies).toHaveLength(0);
     });
 
-    test('a change that deletes data is confirmed on its own before going on', async ({
+    test('a change that deletes data is confirmed on its own before Apply', async ({
         page,
         contentModelPage
     }) => {
@@ -115,15 +115,16 @@ test.describe('Content model — review and apply', () => {
 
         await expect(confirm).toBeVisible();
         await expect(
-            contentModelPage.reviewAction('Continue to files')
-        ).toBeDisabled();
+            contentModelPage
+                .changeGroup('Authors')
+                .getByText('Deletes data', { exact: true })
+        ).toBeVisible();
+        await expect(contentModelPage.applyChangesButton()).toBeDisabled();
         await expect(
             page.getByText('Confirm the change that deletes data.')
         ).toBeVisible();
         await confirm.click();
-        await expect(
-            contentModelPage.reviewAction('Continue to files')
-        ).toBeEnabled();
+        await expect(contentModelPage.applyChangesButton()).toBeEnabled();
     });
 
     test('a stale document asks for a reload', async ({
@@ -165,7 +166,7 @@ test.describe('Content model — review and apply', () => {
         );
     });
 
-    test('applies, waits for the restart, offers the new type to workspaces, then returns', async ({
+    test('applies step by step, waits for the restart, offers the new type to workspaces on the page, then returns', async ({
         page,
         contentModelPage
     }) => {
@@ -173,14 +174,18 @@ test.describe('Content model — review and apply', () => {
         await contentModelPage.goto('article');
         await contentModelPage.addType('Events');
         await contentModelPage.reviewButton().click();
-        await contentModelPage.continueToApply();
-        await contentModelPage.reviewAction('Apply').click();
+        await contentModelPage.applyChangesButton().click();
 
         await expect(
-            contentModelPage.stepHeading('Applying the content model')
+            contentModelPage.outcomeHeading('Applying 1 change')
         ).toBeVisible();
-        const grant = contentModelPage.grantDialog();
+        await expect(contentModelPage.applySteps()).toHaveCount(5);
+        const grant = contentModelPage.grantCard();
         await expect(grant).toBeVisible({ timeout: 15_000 });
+        await expect(contentModelPage.outcomeHeading('Applied')).toBeVisible();
+        await expect(
+            page.getByText(/migration 0007_add_events\.sql/)
+        ).toBeVisible();
         expect(calls.applies).toEqual([
             expect.objectContaining({
                 baseFingerprint: '0123456789abcdef',
@@ -188,25 +193,29 @@ test.describe('Content model — review and apply', () => {
             })
         ]);
 
+        await expect(grant).toHaveAccessibleName('Use Events in workspaces');
         await expect(
             grant.getByRole('button', { name: 'Grant' })
         ).toBeDisabled();
         await grant.getByLabel(WORKSPACES_SEED[0].name).click();
-        await grant.getByRole('button', { name: 'Grant' }).click();
+        await grant
+            .getByRole('button', { name: 'Grant to 1 workspace' })
+            .click();
         await expect(grant).toBeHidden();
+        await expect(
+            page.getByText('Events can be used in 1 workspace now.')
+        ).toBeVisible();
         expect(calls.grants).toEqual([
             { workspaceId: WORKSPACES_SEED[0].id, slug: 'events' }
         ]);
 
-        await expect(contentModelPage.stepHeading('Applied')).toBeVisible();
-        await expect(page.getByText('The content model is live')).toBeVisible();
         await contentModelPage.backToModel().click();
         // The restarted server's model is the page's now: nothing to review.
         await expect(contentModelPage.reviewButton()).toBeHidden();
         await expect(contentModelPage.railLink('Events')).toBeVisible();
     });
 
-    test('a failed apply says so, and goes back to the review with the draft kept', async ({
+    test('a failed apply stops at its step, says so, and goes back to the review with the draft kept', async ({
         page,
         contentModelPage
     }) => {
@@ -220,24 +229,24 @@ test.describe('Content model — review and apply', () => {
         await contentModelPage.goto('article');
         await contentModelPage.addType('Events');
         await contentModelPage.reviewButton().click();
-        await contentModelPage.continueToApply();
-        await contentModelPage.reviewAction('Apply').click();
+        await contentModelPage.applyChangesButton().click();
 
-        const alert = page.getByRole('alert').filter({
-            hasText: 'The change was not applied'
-        });
-        await expect(alert).toBeVisible({ timeout: 15_000 });
-        await expect(alert).toContainText('relation "events" already exists.');
+        await expect(
+            contentModelPage.outcomeHeading('The change was not applied')
+        ).toBeVisible({ timeout: 15_000 });
+        await expect(page.getByRole('alert')).toContainText(
+            'relation "events" already exists.'
+        );
         expect(calls.restarted).toBe(false);
 
         await contentModelPage.reviewAction('Back to the review').click();
-        await expect(contentModelPage.reviewAction('Apply')).toBeEnabled();
+        await expect(contentModelPage.applyChangesButton()).toBeEnabled();
         await contentModelPage.backToModel().click();
         await expect(contentModelPage.railLink('Events')).toBeVisible();
         await expect(contentModelPage.reviewButton()).toBeVisible();
     });
 
-    test('has no axe violations on each step, the progress and the grant offer', async ({
+    test('has no axe violations on the review, the progress and the applied page', async ({
         page,
         contentModelPage,
         makeAxe
@@ -258,23 +267,19 @@ test.describe('Content model — review and apply', () => {
         await expectNoA11yViolations(makeAxe());
 
         await confirm.click();
-        await contentModelPage.reviewAction('Continue to files').click();
+        await contentModelPage.technicalDetails().click();
         await expect(
-            contentModelPage.stepHeading('Files and SQL')
+            page.getByText('src/content/collections/events.ts')
         ).toBeVisible();
         await expectNoA11yViolations(makeAxe());
 
-        await contentModelPage.reviewAction('Continue to apply').click();
-        await expect(contentModelPage.stepHeading('Apply')).toBeVisible();
-        await expectNoA11yViolations(makeAxe());
-
-        await contentModelPage.reviewAction('Apply').click();
+        await contentModelPage.applyChangesButton().click();
         await expect(
-            contentModelPage.stepHeading('Applying the content model')
+            contentModelPage.outcomeHeading('Applying 2 changes')
         ).toBeVisible();
         await expectNoA11yViolations(makeAxe());
 
-        await expect(contentModelPage.grantDialog()).toBeVisible({
+        await expect(contentModelPage.grantCard()).toBeVisible({
             timeout: 15_000
         });
         await expectNoA11yViolations(makeAxe());

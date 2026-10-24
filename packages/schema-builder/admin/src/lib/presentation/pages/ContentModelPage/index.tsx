@@ -26,15 +26,19 @@ export function ContentModelPage() {
     // The loaded workspace renders the chrome itself: its header carries the draft.
     if (canRead && query.data)
         return <ContentModelWorkspace envelope={query.data} />;
+    if (!canRead || query.isError)
+        return (
+            <ContentModelChrome>
+                {!canRead ? (
+                    <ContentModelNoAccess />
+                ) : (
+                    <ContentModelError onRetry={() => void query.refetch()} />
+                )}
+            </ContentModelChrome>
+        );
     return (
-        <ContentModelChrome>
-            {!canRead ? (
-                <ContentModelNoAccess />
-            ) : query.isError ? (
-                <ContentModelError onRetry={() => void query.refetch()} />
-            ) : (
-                <ContentModelSkeleton />
-            )}
+        <ContentModelChrome flush>
+            <ContentModelSkeleton />
         </ContentModelChrome>
     );
 }

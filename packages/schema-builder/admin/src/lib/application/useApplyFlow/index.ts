@@ -2,6 +2,12 @@ import { useCallback, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { SchemaDocumentEnvelope } from '@orthacms/schema-builder-domain';
 import {
+    advance,
+    failProgress,
+    startProgress,
+    type ApplyProgress
+} from '../../domain/applyProgress';
+import {
     applyReadiness,
     createdTypes,
     type ApplyReadiness
@@ -51,6 +57,12 @@ export function useApplyFlow(
     const [stage, setStage] = useState<ApplyStage>('idle');
     const [failure, setFailure] = useState<ApplyFailure | null>(null);
     const [created, setCreated] = useState<string[]>([]);
+    const [progress, setProgress] = useState<ApplyProgress | null>(null);
+    // What the outcome page says: what was applied, by which migration.
+    const [applied, setApplied] = useState<{
+        changes: number;
+        migrations: readonly string[];
+    } | null>(null);
 
     const plan = useMutation({
         mutationFn: () => gateway.plan(draft.document, envelope.fingerprint),
@@ -80,7 +92,10 @@ export function useApplyFlow(
     const apply = async () => {
         if (!plan.data || !readiness?.ok) return;
         const types = createdTypes(plan.data);
+        const changes = plan.data.changes.length;
         setFailure(null);
+        setApplied(null);
+        setProgress(startProgress(Date.now()));
         setStage('applying');
         try {
             const accepted = await gateway.apply({
@@ -92,9 +107,21 @@ export function useApplyFlow(
             const operation = await waitForOperation(
                 gateway,
                 accepted.operationId,
-                poll
+                poll,
+                ({ step }) => {
+                    if (step)
+                        setProgress(
+                            (current) =>
+                                current && advance(current, step, Date.now())
+                        );
+                }
             );
             if (operation.status !== 'succeeded') {
+                setProgress(
+                    (current) =>
+                        current &&
+                        failProgress(current, operation.step, Date.now())
+                );
                 setFailure(
                     operation.error ?? {
                         code: operation.status,
@@ -105,6 +132,10 @@ export function useApplyFlow(
                 return;
             }
             const manual = envelope.capabilities.restart === 'manual';
+            setApplied({ changes, migrations: operation.migrations });
+            setProgress(
+                (current) => current && advance(current, 'restart', Date.now())
+            );
             setStage(manual ? 'manual' : 'restarting');
             const next = await waitForRestart(
                 gateway,
@@ -116,8 +147,14 @@ export function useApplyFlow(
                 predicate: (query) => isRegistryKey(query.queryKey)
             });
             setCreated(types);
+            setProgress(
+                (current) => current && advance(current, 'ready', Date.now())
+            );
             setStage('done');
         } catch (error) {
+            setProgress(
+                (current) => current && failProgress(current, null, Date.now())
+            );
             setFailure({ message: (error as Error).message });
             setStage('failed');
         }
@@ -133,13 +170,16 @@ export function useApplyFlow(
         readiness,
         apply,
         stage,
+        /** The apply's steps as this tab saw them, with their times. */
+        progress,
+        /** After a successful apply: how many changes, which migrations. */
+        applied,
         failure,
-        /** Types the last apply created, to offer to workspaces. */
+        /** Types the last apply created, to offer to workspaces and to open. */
         created,
         dismiss: () => {
             setStage('idle');
             setFailure(null);
-        },
-        dismissGrant: () => setCreated([])
+        }
     };
 }

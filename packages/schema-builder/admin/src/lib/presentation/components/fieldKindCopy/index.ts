@@ -81,16 +81,76 @@ const messages = defineMessages({
     mediaHint: {
         id: 'schemaBuilder.kind.mediaHint',
         defaultMessage: 'Files from the media library: an image, a PDF.'
+    },
+    textExample: {
+        id: 'schemaBuilder.kind.textExample',
+        defaultMessage: 'A title, a name, a slug'
+    },
+    longtextExample: {
+        id: 'schemaBuilder.kind.longtextExample',
+        defaultMessage: 'A summary, a note'
+    },
+    richtextExample: {
+        id: 'schemaBuilder.kind.richtextExample',
+        defaultMessage: 'Headings, lists, links'
+    },
+    numberExample: {
+        id: 'schemaBuilder.kind.numberExample',
+        defaultMessage: 'A count, a rating'
+    },
+    moneyExample: {
+        id: 'schemaBuilder.kind.moneyExample',
+        defaultMessage: 'A price, a fee'
+    },
+    booleanExample: {
+        id: 'schemaBuilder.kind.booleanExample',
+        defaultMessage: 'Featured, archived'
+    },
+    dateExample: {
+        id: 'schemaBuilder.kind.dateExample',
+        defaultMessage: 'A day'
+    },
+    datetimeExample: {
+        id: 'schemaBuilder.kind.datetimeExample',
+        defaultMessage: 'A moment'
+    },
+    selectExample: {
+        id: 'schemaBuilder.kind.selectExample',
+        defaultMessage: 'A category, a status'
+    },
+    multiselectExample: {
+        id: 'schemaBuilder.kind.multiselectExample',
+        defaultMessage: 'Tags you define'
+    },
+    jsonExample: {
+        id: 'schemaBuilder.kind.jsonExample',
+        defaultMessage: 'Structured data, metadata'
+    },
+    relationExample: {
+        id: 'schemaBuilder.kind.relationExample',
+        defaultMessage: 'Entries of another type'
+    },
+    mediaExample: {
+        id: 'schemaBuilder.kind.mediaExample',
+        defaultMessage: 'Images, video, PDFs'
     }
 });
 
-/** What each kind of field (a catalog id) is called and what it is for. */
+/**
+ * What each kind of field (a catalog id) is called, what it is for, and a
+ * short example of what it holds — the line under it in the kind picker.
+ */
 export const kindCopy = (
     id: string
-): { label: MessageDescriptor; hint: MessageDescriptor } => {
+): {
+    label: MessageDescriptor;
+    hint: MessageDescriptor;
+    example: MessageDescriptor;
+} => {
     const table = messages as Record<string, MessageDescriptor>;
     return {
         label: table[id] ?? messages.text,
-        hint: table[`${id}Hint`] ?? messages.textHint
+        hint: table[`${id}Hint`] ?? messages.textHint,
+        example: table[`${id}Example`] ?? messages.textExample
     };
 };

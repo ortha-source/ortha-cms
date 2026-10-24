@@ -1,11 +1,6 @@
+import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import {
-    fireEvent,
-    render,
-    screen,
-    waitFor,
-    within
-} from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { IntlProvider } from 'react-intl';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -26,7 +21,10 @@ vi.mock('../../../infrastructure/httpSchemaGateway', () => ({
 }));
 vi.mock('@orthacms/identity-admin', () => ({ useHasPermission: vi.fn() }));
 // The top bar needs the shell's page-chrome context, which is not under test.
-vi.mock('@orthacms/shell-admin', () => ({ PageTopBar: () => null }));
+vi.mock('@orthacms/shell-admin', () => ({
+    PageTopBar: () => null,
+    PageActionsPortal: ({ children }: { children: ReactNode }) => children
+}));
 
 const fetchDocument = vi.mocked(httpSchemaGateway.document);
 const hasPermission = vi.mocked(useHasPermission);
@@ -94,7 +92,7 @@ describe('ContentModelPage', () => {
 
         fireEvent.click(within(alert).getByRole('button', { name: 'Retry' }));
         expect(
-            await screen.findByRole('heading', { level: 2, name: 'Articles' })
+            await screen.findByRole('heading', { level: 1, name: 'Articles' })
         ).toBeTruthy();
     });
 
@@ -120,7 +118,7 @@ describe('ContentModelPage', () => {
         const current = within(rail).getByRole('link', { current: 'page' });
         expect(current.getAttribute('href')).toBe('/content-model/article');
         expect(
-            screen.getByRole('heading', { level: 2, name: 'Articles' })
+            screen.getByRole('heading', { level: 1, name: 'Articles' })
         ).toBeTruthy();
     });
 
@@ -128,13 +126,13 @@ describe('ContentModelPage', () => {
         fetchDocument.mockResolvedValue(envelopeOf([article, author, home]));
         const { unmount } = renderPage('/content-model/home');
         expect(
-            await screen.findByRole('heading', { level: 2, name: 'Home' })
+            await screen.findByRole('heading', { level: 1, name: 'Home' })
         ).toBeTruthy();
         unmount();
 
         renderPage('/content-model/removed');
         expect(
-            await screen.findByRole('heading', { level: 2, name: 'Articles' })
+            await screen.findByRole('heading', { level: 1, name: 'Articles' })
         ).toBeTruthy();
     });
 
@@ -183,14 +181,14 @@ describe('ContentModelPage', () => {
         unmount();
 
         renderPage('/content-model/author');
-        await screen.findByRole('heading', { level: 2, name: 'author' });
+        await screen.findByRole('heading', { level: 1, name: 'author' });
         expect(screen.queryByText(/is written by hand in/)).toBeNull();
     });
 
     it('draws fields as the one form does: by rank, relations and media included, then groups', async () => {
         fetchDocument.mockResolvedValue(envelopeOf([article]));
         renderPage();
-        const content = await screen.findByRole('region', { name: 'Content' });
+        const content = await screen.findByRole('region', { name: 'Fields' });
         const names = within(content)
             .getAllByRole('listitem')
             .map((item) => item.querySelector('.font-mono')?.textContent);
@@ -205,22 +203,29 @@ describe('ContentModelPage', () => {
         expect(
             within(content).getByRole('button', { name: /SEO/ })
         ).toBeTruthy();
-        expect(within(content).getByText('starts folded')).toBeTruthy();
-        expect(within(content).getByText('many-to-one → author')).toBeTruthy();
+        expect(within(content).getByText(/starts folded/)).toBeTruthy();
+        expect(
+            within(content).getAllByText(/many-to-one → author/).length
+        ).toBeGreaterThan(0);
         expect(within(content).getByText('Multiple')).toBeTruthy();
         // The editor has no Relations or Media tab any more (ADR-0022).
         expect(screen.queryByRole('region', { name: 'Relations' })).toBeNull();
         expect(screen.queryByRole('region', { name: 'Media' })).toBeNull();
     });
 
-    it('states each type flag in words', async () => {
+    it('names the flags a type has on, beside its kind', async () => {
         fetchDocument.mockResolvedValue(envelopeOf([article, author]));
+        const { unmount } = renderPage('/content-model/article');
+        const meta = (await screen.findByText('article')).closest(
+            'p'
+        ) as HTMLElement;
+        for (const flag of ['Draft & publish', 'Trash', 'Localized'])
+            expect(within(meta).getByText(flag)).toBeTruthy();
+        unmount();
+
         renderPage('/content-model/author');
-        await screen.findByRole('heading', { level: 2, name: 'author' });
-        await waitFor(() =>
-            expect(screen.getByText(/Draft & publish/).textContent).toContain(
-                'off'
-            )
-        );
+        await screen.findByRole('heading', { level: 1, name: 'author' });
+        expect(screen.queryByText('Draft & publish')).toBeNull();
+        expect(screen.getByText('Collection')).toBeTruthy();
     });
 });

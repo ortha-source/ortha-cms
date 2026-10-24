@@ -67,3 +67,11 @@ export const kindOf = (spec: FieldDoc): string =>
 /** The catalog entry by id; the first one when the id is unknown. */
 export const catalogEntry = (id: string): FieldCatalogEntry =>
     FIELD_CATALOG.find((entry) => entry.id === id) ?? FIELD_CATALOG[0];
+
+/** How the "Add a field" dialog groups the catalog: by what a field holds. */
+export const FIELD_KIND_GROUPS = [
+    { id: 'text', kinds: ['text', 'longtext', 'richtext', 'json'] },
+    { id: 'numbers', kinds: ['number', 'money', 'date', 'datetime'] },
+    { id: 'choices', kinds: ['boolean', 'select', 'multiselect'] },
+    { id: 'links', kinds: ['relation', 'media'] }
+] as const;

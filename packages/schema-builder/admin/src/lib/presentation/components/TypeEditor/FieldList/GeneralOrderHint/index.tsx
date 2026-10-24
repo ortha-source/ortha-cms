@@ -12,7 +12,7 @@ const messages = defineMessages({
 export function GeneralOrderHint() {
     const intl = useIntl();
     return (
-        <p className="px-4 pb-1 pt-2 text-xs text-muted-foreground">
+        <p className="border-t bg-muted/20 px-4 py-2 text-xs text-muted-foreground">
             {intl.formatMessage(messages.hint)}
         </p>
     );

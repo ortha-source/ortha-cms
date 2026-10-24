@@ -30,6 +30,29 @@ describe('waitForOperation', () => {
         expect(operation).toHaveBeenCalledTimes(3);
     });
 
+    it('reports each running answer, so the page can follow the steps', async () => {
+        const running = (step: ApplyOperation['step']) => ({
+            ...op('running'),
+            step
+        });
+        const operation = vi
+            .fn()
+            .mockResolvedValueOnce(running('generate'))
+            .mockResolvedValueOnce(running('migrate'))
+            .mockResolvedValueOnce(op('succeeded'));
+        const onProgress = vi.fn();
+        await waitForOperation(
+            { operation } as unknown as SchemaGateway,
+            'op',
+            { sleep },
+            onProgress
+        );
+        expect(onProgress.mock.calls.map(([seen]) => seen.step)).toEqual([
+            'generate',
+            'migrate'
+        ]);
+    });
+
     it('answers a failure as soon as it is recorded', async () => {
         const operation = vi.fn().mockResolvedValue(op('failed'));
         await expect(
