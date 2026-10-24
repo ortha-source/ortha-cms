@@ -1,5 +1,6 @@
 import { Module, type DynamicModule } from '@nestjs/common';
 import { ALARMS_CONFIG } from './alarms.tokens';
+import { AlarmFindingsService } from './application/alarm-findings.service';
 import { AlarmRulesService } from './application/alarm-rules.service';
 import { AlarmEvaluator } from './infrastructure/alarm-evaluator.service';
 import { AlarmFindingStore } from './infrastructure/alarm-finding.store';
@@ -7,6 +8,7 @@ import { AlarmRuleRepository } from './infrastructure/alarm-rule.repository';
 import { AlarmSweepService } from './infrastructure/alarm-sweep.service';
 import { AlarmsWorkspacePurger } from './infrastructure/purge/alarms-workspace.purger';
 import { EntryEventSubscriber } from './infrastructure/entry-event.subscriber';
+import { EntryTitlesQuery } from './infrastructure/entry-titles.query';
 import { AlarmsCopilotToolProvider } from './copilot/alarms-tool.provider';
 import { AlarmFindingsController } from './http/controllers/alarm-findings.controller';
 import { AlarmRulesController } from './http/controllers/alarm-rules.controller';
@@ -50,7 +52,12 @@ export class AlarmsModule {
                 // unreachable from an editor that no longer opens.
                 AlarmsWorkspacePurger,
                 AlarmEvaluator,
+                // Names the entries a findings page or a preview lists, one
+                // content read per type — so the alarms page shows records
+                // by title rather than by id.
+                EntryTitlesQuery,
                 AlarmRulesService,
+                AlarmFindingsService,
                 // Registers itself with the outbox dispatcher on bootstrap.
                 EntryEventSubscriber,
                 // Arms the periodic rescan — the only path that covers rules
