@@ -1,6 +1,12 @@
-import { defineMessages, useIntl, type MessageDescriptor } from 'react-intl';
-import { ArrowUpRight } from 'lucide-react';
-import { HoneycombBackdrop } from './HoneycombBackdrop';
+import type { ReactNode } from 'react';
+import { defineMessages, useIntl } from 'react-intl';
+import { Sparkles } from 'lucide-react';
+import { Skeleton } from '@orthacms/design-system';
+import {
+    useCopilotSuggestions,
+    type CopilotSuggestion
+} from '../../../application/useCopilotSuggestions';
+import { suggestionCopy, type SuggestionCopy } from './suggestionCopy';
 
 // The product is **Ortha CMS AI**; the code keeps `copilot`. See the naming note in
 // `docs/design/copilot.md`.
@@ -12,116 +18,128 @@ const messages = defineMessages({
     subtitle: {
         id: 'copilot.agents.welcome.subtitle',
         defaultMessage:
-            'Ortha CMS AI can only see and change what your own role allows. Every change it makes is recorded.'
+            'I see and change only what your role allows. Every change asks first and is recorded in Activity.'
     },
     suggestions: {
         id: 'copilot.agents.welcome.suggestions',
-        defaultMessage: 'Try one of these'
+        defaultMessage: 'Suggestions'
     },
-    types: {
-        id: 'copilot.agents.welcome.types',
-        defaultMessage: 'What content types can I work with here?'
-    },
-    recent: {
-        id: 'copilot.agents.welcome.recent',
-        defaultMessage: 'Summarise what changed in this workspace this week'
-    },
-    audit: {
-        id: 'copilot.agents.welcome.audit',
-        defaultMessage: 'Find published entries that are missing a description'
-    },
-    draft: {
-        id: 'copilot.agents.welcome.draft',
-        defaultMessage:
-            'Draft a new entry and show me the change before I keep it'
+    loading: {
+        id: 'copilot.agents.welcome.loading',
+        defaultMessage: 'Loading suggestions…'
     }
 });
 
-/**
- * The four openers.
- *
- * Each one maps onto a tool the copilot actually has — the content-type
- * catalogue, the activity feed, entry search, and the propose-a-change path. A
- * suggestion chip is a promise about what the assistant can do, and one that
- * lands on "I can't do that" is worse than an empty screen.
- */
-const SUGGESTIONS: MessageDescriptor[] = [
-    messages.types,
-    messages.recent,
-    messages.audit,
-    messages.draft
-];
+/** What a workspace with no openers to offer (or a failed request) shows. */
+const FALLBACK: CopilotSuggestion[] = [{ kind: 'content-types' }];
 
 export interface AgentsWelcomeProps {
+    /** The workspace the openers are for. */
+    workspaceId: string;
     /** Named in the greeting, so it is obvious which workspace is in scope. */
     workspaceName: string;
     /** Sends a suggestion as the first turn. */
-    onPick(text: string): void;
+    onPick(suggestion: CopilotSuggestion, copy: SuggestionCopy): void;
+    /** The composer, which sits directly under the suggestions here. */
+    children?: ReactNode;
 }
 
 /**
- * The empty thread: a greeting and four things worth asking.
+ * The new chat: a greeting, four openers written for **this** workspace, and
+ * the composer right under them (R7, `AiNewChat`).
  *
- * It stands in for {@link MessageList}'s own empty state rather than sitting
- * above it, because a full page has room to *offer* something and a 420px panel
- * does not. The suggestions are the answer to the blank-composer problem — the
- * hard part of a copilot is not typing, it is knowing what it can be asked.
+ * **The openers come from the server** (`GET /copilot/suggestions`): it knows
+ * the workspace's types, its skills and the tools this person is offered, so
+ * "Find articles missing a summary" names a type that exists and is offered
+ * only to someone who can draft one. They used to be four fixed sentences
+ * that named no type at all. The admin words them (`suggestionCopy`), so they
+ * translate with everything else.
+ *
+ * **The composer is in the middle of the page here**, not pinned to the
+ * bottom: on an empty chat the question is the only thing on screen, and the
+ * box you type it into belongs beside the suggestions for it. Once there is a
+ * transcript it moves to the bottom, under the answer it replies to.
+ *
+ * The greeting is the visible title; the page's `<h1>` stays the product name
+ * (visually hidden, in `AgentsPage`), so this is an `<h2>`.
  */
-export function AgentsWelcome({ workspaceName, onPick }: AgentsWelcomeProps) {
+export function AgentsWelcome({
+    workspaceId,
+    workspaceName,
+    onPick,
+    children
+}: AgentsWelcomeProps) {
     const intl = useIntl();
+    const { data, isPending, isError } = useCopilotSuggestions(workspaceId);
+    const suggestions =
+        isError || (data && data.length === 0) ? FALLBACK : (data ?? []);
 
     return (
-        // `relative` + `overflow-hidden` so the lattice is clipped to this
-        // panel rather than bleeding under the composer below it.
-        <div className="relative flex flex-1 items-center justify-center overflow-hidden px-6 py-10">
-            <HoneycombBackdrop />
-
-            {/* Above the backdrop. Without the stacking context the greeting
-                would be painted under it at these opacities — invisible, but
-                only just. */}
-            <div className="relative w-full max-w-2xl">
-                <div className="flex flex-col items-center text-center">
-                    {/* No mark above the greeting. It was a hexagon cut from the
-                        lattice's own shape, and it was still one more thing to
-                        read before the question it sat on top of — the lattice
-                        already carries the motif. */}
-                    <h2 className="text-2xl font-semibold tracking-tight text-balance">
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-6 sm:px-8">
+            {/* `my-auto` rather than `justify-center` on the scroller: centred
+                while it fits, and scrollable from the top when it does not. */}
+            <div className="mx-auto my-auto flex w-full max-w-3xl flex-col gap-4">
+                <div className="mb-2 flex flex-col items-center text-center">
+                    <span
+                        aria-hidden
+                        className="bg-info-soft text-info mb-3 flex size-11 items-center justify-center rounded-xl"
+                    >
+                        <Sparkles className="size-5" />
+                    </span>
+                    <h2 className="text-[26px] leading-tight font-semibold tracking-tight text-balance">
                         {intl.formatMessage(messages.title, {
                             workspace: workspaceName
                         })}
                     </h2>
-                    <p className="text-muted-foreground mt-2 max-w-md text-sm text-pretty">
+                    <p className="text-muted-foreground mt-1.5 text-sm text-pretty">
                         {intl.formatMessage(messages.subtitle)}
                     </p>
                 </div>
 
-                <h3 className="text-muted-foreground mt-9 mb-2.5 text-[10px] font-semibold tracking-[0.08em] uppercase">
-                    {intl.formatMessage(messages.suggestions)}
-                </h3>
-                {/* Buttons, not links or cards: picking one *sends a message*,
-                    which is an action on this page and not a destination. */}
-                <ul className="grid gap-2 sm:grid-cols-2">
-                    {SUGGESTIONS.map((suggestion) => {
-                        const text = intl.formatMessage(suggestion);
-                        return (
-                            <li key={suggestion.id}>
-                                <button
-                                    type="button"
-                                    onClick={() => onPick(text)}
-                                    className="bg-card hover:border-muted-foreground/40 hover:bg-accent/40 focus-visible:ring-ring group flex h-full w-full items-start gap-2 rounded-xl border px-3.5 py-3 text-left text-sm shadow-xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
-                                >
-                                    <span className="flex-1 text-pretty">
-                                        {text}
-                                    </span>
-                                    <ArrowUpRight
-                                        className="text-muted-foreground mt-0.5 size-3.5 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
-                                        aria-hidden
-                                    />
-                                </button>
-                            </li>
-                        );
-                    })}
-                </ul>
+                {isPending ? (
+                    <div
+                        role="status"
+                        className="grid gap-3 sm:grid-cols-2"
+                        aria-label={intl.formatMessage(messages.loading)}
+                    >
+                        {Array.from({ length: 4 }).map((_, index) => (
+                            <Skeleton
+                                key={index}
+                                aria-hidden
+                                className="h-[68px] rounded-xl"
+                            />
+                        ))}
+                    </div>
+                ) : (
+                    // Buttons, not links: picking one *sends a message*, which
+                    // is an action on this page, not a destination.
+                    <ul
+                        aria-label={intl.formatMessage(messages.suggestions)}
+                        className="grid gap-3 sm:grid-cols-2"
+                    >
+                        {suggestions.map((suggestion, index) => {
+                            const copy = suggestionCopy(intl, suggestion);
+                            return (
+                                <li key={`${suggestion.kind}-${index}`}>
+                                    <button
+                                        type="button"
+                                        onClick={() => onPick(suggestion, copy)}
+                                        className="bg-card hover:bg-accent/40 focus-visible:ring-ring flex h-full w-full flex-col items-start gap-0.5 rounded-xl border px-3.5 py-3 text-left shadow-xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                                    >
+                                        <span className="text-sm font-medium">
+                                            {copy.title}
+                                        </span>
+                                        <span className="text-muted-foreground text-xs">
+                                            {copy.hint}
+                                        </span>
+                                    </button>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                )}
+
+                {children}
             </div>
         </div>
     );

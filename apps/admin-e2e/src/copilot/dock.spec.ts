@@ -91,31 +91,28 @@ test.describe('Ortha CMS AI dock', () => {
 
         // The cap **minimizes rather than refuses**: the user asked for another
         // chat, and the one they stopped looking at is the cheapest to give up.
-        // It keeps running, listed under the launcher.
+        // It keeps running, as a pill in the dock (R7).
         await expect(copilotDockPage.windows()).toHaveCount(3);
-        await expect(copilotDockPage.launcher).toHaveAccessibleName(/4 chats/);
         await copilotDockPage.openChatList();
-        await expect(copilotDockPage.pill('Untitled chat')).toHaveCount(4);
+        await expect(copilotDockPage.pill('Untitled chat')).toHaveCount(1);
     });
 
-    test('a pill toggles its window, and says which state it is in', async ({
+    test('a collapsed chat is a pill, and the pill opens it again', async ({
         copilotDockPage
     }) => {
         await copilotDockPage.startChat();
-        const pill = copilotDockPage.pill('Untitled chat');
-        await copilotDockPage.openChatList();
-        await expect(pill).toHaveAttribute('aria-pressed', 'true');
+        // A chat on screen has its window and no pill.
+        await expect(copilotDockPage.chatList).toHaveCount(0);
 
-        // A pick closes the list: it is a way to a window, not a place to stay.
-        await pill.click();
-        await expect(copilotDockPage.chatList).toBeHidden();
+        await copilotDockPage.headerButton('Minimize').click();
         await expect(copilotDockPage.windows()).toHaveCount(0);
 
-        await copilotDockPage.openChatList();
-        await expect(pill).toHaveAttribute('aria-pressed', 'false');
+        const pill = copilotDockPage.pill('Untitled chat');
+        await expect(pill).toBeVisible();
         await pill.click();
 
         await expect(copilotDockPage.panel()).toBeVisible();
+        await expect(pill).toHaveCount(0);
     });
 
     test('Escape collapses to the dock; it does not close', async ({
@@ -140,10 +137,7 @@ test.describe('Ortha CMS AI dock', () => {
         await copilotDockPage.headerButton('Close').click();
 
         await expect(copilotDockPage.windows()).toHaveCount(0);
-        // No chats left, so the launcher is back to starting one.
-        await expect(copilotDockPage.launcher).toHaveAccessibleName(
-            'Ask Ortha AI'
-        );
+        await expect(copilotDockPage.chatList).toHaveCount(0);
         // Otherwise focus falls to `<body>`, which strands a keyboard user at
         // the top of the page they were working on.
         await expect(copilotDockPage.newChat()).toBeFocused();
@@ -153,10 +147,10 @@ test.describe('Ortha CMS AI dock', () => {
         copilotDockPage
     }) => {
         await copilotDockPage.startChat();
+        await copilotDockPage.headerButton('Minimize').click();
 
-        // Two controls in one toolbar answering to the same name is ambiguous
-        // by voice and in a screen reader's control list — and "New chat" is
-        // the button sitting right beside it.
+        // Two controls in one strip answering to the same name is ambiguous
+        // by voice and in a screen reader's control list.
         await copilotDockPage.openChatList();
         await expect(copilotDockPage.pill('Untitled chat')).toBeVisible();
         await expect(copilotDockPage.newChat()).toBeVisible();
@@ -168,6 +162,7 @@ test.describe('Ortha CMS AI dock', () => {
         await copilotDockPage.startChat();
 
         await copilotDockPage.ask('Set the summary please');
+        await copilotDockPage.headerButton('Minimize').click();
 
         await copilotDockPage.openChatList();
         await expect(
@@ -190,18 +185,16 @@ test.describe('Ortha CMS AI dock', () => {
 
         // `unread` is edge-triggered off the run ending and only ever set on a
         // chat that is off screen — badging one the user is already reading
-        // trains them to ignore the badge. The list and the tab say so; the
-        // closed launcher does not — only a chat waiting on you marks it.
+        // trains them to ignore the badge. The pill and the tab say so.
         await copilotDockPage.openChatList();
         await expect(copilotDockPage.pill(/— finished/)).toBeVisible();
-        await expect(copilotDockPage.launcher).toHaveAccessibleName(
-            'Ask Ortha AI — 1 chat'
-        );
+        await expect(
+            copilotDockPage.pill(/— finished/).locator('[data-marker="unread"]')
+        ).toHaveCount(1);
         await expect.poll(() => page.title()).toMatch(/^\(1\)/);
 
         await copilotDockPage.pill(/— finished/).click();
 
-        await copilotDockPage.openChatList();
         await expect(copilotDockPage.pill(/— finished/)).toHaveCount(0);
         await expect.poll(() => page.title()).not.toMatch(/^\(1\)/);
     });
@@ -307,7 +300,6 @@ test.describe('Ortha CMS AI dock', () => {
         await expect(copilotDockPage.modelPicker()).toContainText('gpt-5.2');
 
         await copilotDockPage.composer().press('Escape');
-        await copilotDockPage.openChatList();
         await copilotDockPage.pill('Untitled chat').click();
 
         // It lived in the component that drew the picker, so collapsing a
@@ -333,6 +325,8 @@ test.describe('Ortha CMS AI dock', () => {
 test.describe('Ortha CMS AI dock — the attached page', () => {
     /** A collection whose records table gives the URL a content type. */
     const TYPE = 'blog_post';
+    /** What the chip calls that page: the type in words, and which page. */
+    const CHIP = 'Blog post · this list';
 
     test.beforeEach(async ({ page, contentLibraryPage }) => {
         await mockSignedIn(page);
@@ -344,20 +338,30 @@ test.describe('Ortha CMS AI dock — the attached page', () => {
         await contentLibraryPage.gotoSingle(WORKSPACE_ID, TYPE);
     });
 
+    test('a chat started from the page carries it, at the top of the window', async ({
+        copilotDockPage
+    }) => {
+        // R7: "⌘J opens the assistant beside the page it was asked from — the
+        // list is its context." Attached as a chip the person can see first and
+        // take off, not silently.
+        await copilotDockPage.startChat();
+        await expect(copilotDockPage.contextChip(CHIP)).toBeVisible();
+        await expect(copilotDockPage.removeContext()).toBeVisible();
+        await expect(copilotDockPage.addContext()).toHaveCount(0);
+    });
+
     test('survives collapsing the window and reopening it', async ({
         copilotDockPage
     }) => {
         await copilotDockPage.startChat();
-        await copilotDockPage.addContext().click();
-        await expect(copilotDockPage.contextChip(`${TYPE} list`)).toBeVisible();
+        await expect(copilotDockPage.contextChip(CHIP)).toBeVisible();
 
         await copilotDockPage.composer().press('Escape');
-        await copilotDockPage.openChatList();
         await copilotDockPage.pill('Untitled chat').click();
 
         // The gesture people use to go and *look* at the page they attached is
         // the one that used to drop the attachment.
-        await expect(copilotDockPage.contextChip(`${TYPE} list`)).toBeVisible();
+        await expect(copilotDockPage.contextChip(CHIP)).toBeVisible();
     });
 
     test('is still what the next turn carries after a collapse', async ({
@@ -369,9 +373,7 @@ test.describe('Ortha CMS AI dock — the attached page', () => {
         await contentLibraryPage.gotoSingle(WORKSPACE_ID, TYPE);
 
         await copilotDockPage.startChat();
-        await copilotDockPage.addContext().click();
         await copilotDockPage.composer().press('Escape');
-        await copilotDockPage.openChatList();
         await copilotDockPage.pill('Untitled chat').click();
 
         await copilotDockPage.ask('Which of these is missing a summary?');
@@ -389,7 +391,6 @@ test.describe('Ortha CMS AI dock — the attached page', () => {
         copilotDockPage
     }) => {
         await copilotDockPage.startChat();
-        await copilotDockPage.addContext().click();
 
         await copilotDockPage.openFromHistory(
             'Which articles are missing a summary?'
@@ -398,25 +399,21 @@ test.describe('Ortha CMS AI dock — the attached page', () => {
         // The attachment belongs to the question being written, not to the
         // transcript above it — so loading a thread into this window leaves it
         // alone, exactly as it leaves the model choice alone.
-        await expect(copilotDockPage.contextChip(`${TYPE} list`)).toBeVisible();
+        await expect(copilotDockPage.contextChip(CHIP)).toBeVisible();
     });
 
     test('can still be taken off after the window has been collapsed', async ({
         copilotDockPage
     }) => {
         await copilotDockPage.startChat();
-        await copilotDockPage.addContext().click();
         await copilotDockPage.composer().press('Escape');
-        await copilotDockPage.openChatList();
         await copilotDockPage.pill('Untitled chat').click();
 
         await copilotDockPage.removeContext().click();
 
         // The chip that came back is the live one, not a redraw of something
         // the composer had already lost track of.
-        await expect(copilotDockPage.contextChip(`${TYPE} list`)).toHaveCount(
-            0
-        );
+        await expect(copilotDockPage.contextChip(CHIP)).toHaveCount(0);
         await expect(copilotDockPage.addContext()).toBeVisible();
     });
 });
@@ -462,8 +459,9 @@ test.describe('Ortha CMS AI dock — regressions', () => {
         // transcript.
         await expect(copilotDockPage.panelTitle(0)).toHaveText(THREAD);
         await expect(copilotDockPage.panelTitle(1)).toHaveText('Ortha CMS AI');
-        await copilotDockPage.openChatList();
-        await expect(copilotDockPage.pill(THREAD)).toHaveCount(1);
+        await expect(
+            copilotDockPage.windows().filter({ hasText: THREAD })
+        ).toHaveCount(1);
     });
 
     test('the history button marks another window waiting for you, not its own', async ({
@@ -473,13 +471,13 @@ test.describe('Ortha CMS AI dock — regressions', () => {
         await mockCopilotApi(page, { runBody: parkedRun });
         await copilotDockPage.startChat();
         await copilotDockPage.ask('Delete the stale draft');
-        await expect(copilotDockPage.launcher).toHaveAccessibleName(
-            'Ask Ortha AI — 1 chat, 1 waiting for you'
-        );
+        await expect(
+            copilotDockPage.panel(0).getByRole('button', { name: 'Allow once' })
+        ).toBeVisible();
 
         // Its own prompt is on screen below, so its own button says nothing.
         await expect(copilotDockPage.historyPicker(0)).toHaveAccessibleName(
-            'Previous chats'
+            /— Previous chats$/
         );
         await expect(copilotDockPage.historyMarker(0)).toHaveCount(0);
 
@@ -487,7 +485,7 @@ test.describe('Ortha CMS AI dock — regressions', () => {
         await copilotDockPage.startChat();
         await expect(copilotDockPage.windows()).toHaveCount(2);
         await expect(copilotDockPage.historyPicker(1)).toHaveAccessibleName(
-            'Previous chats — 1 chat waiting for you'
+            /— Previous chats — 1 chat waiting for you$/
         );
         await expect(copilotDockPage.historyMarker(1)).toHaveCount(1);
     });
@@ -627,8 +625,9 @@ test.describe('Ortha CMS AI dock — regressions', () => {
             'Rewrite the pricing page intro'
         );
 
-        // The list the launcher opens is found by its own name, so a
-        // screen-reader user hears what it holds, not just "dialog".
+        // The pills are found by their group's own name, so a screen-reader
+        // user hears what they are, not just "group".
+        await copilotDockPage.headerButton('Minimize', 1).click();
         await copilotDockPage.openChatList();
         await expect(copilotDockPage.chatList).toBeVisible();
     });
@@ -794,7 +793,10 @@ test.describe('Ortha CMS AI dock accessibility (axe, WCAG 2.1 A/AA)', () => {
         await expectNoA11yViolations(makeAxe());
     });
 
-    test('the chat list, open', async ({ copilotDockPage, makeAxe }) => {
+    test('the dock with a collapsed chat', async ({
+        copilotDockPage,
+        makeAxe
+    }) => {
         await copilotDockPage.startChat();
         await copilotDockPage.composer().press('Escape');
         await copilotDockPage.openChatList();

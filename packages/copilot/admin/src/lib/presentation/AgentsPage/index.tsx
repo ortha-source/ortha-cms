@@ -13,7 +13,6 @@ import { useCurrentWorkspace } from '@orthacms/workspaces-admin';
 import { useCopilotAvailable } from '../../application/useCopilotModels';
 import { useRouteContext } from '../../application/useRouteContext';
 import { COPILOT_USE, agentsPath } from '../../domain/agentsRoute';
-import { AgentsRail } from './AgentsRail';
 import { AgentsThread } from './AgentsThread';
 import { AgentsTopBar } from './AgentsTopBar';
 import { useDocumentTitle } from '@orthacms/utils-admin';
@@ -57,10 +56,10 @@ const messages = defineMessages({
  *   you asked yesterday. History is a column rather than a dropdown, and the
  *   transcript gets the width to render a table or a diff.
  *
- * Three columns, and the third one is the point: the app sidebar keeps the
- * workspace's CMS navigation on screen, so leaving the Agents view is one click
- * on something already visible rather than a trip back through a menu. The
- * sidebar's own `ViewSwitcher` is the two-way control between the modes.
+ * Two columns: the workspace sidebar — which in this view lists the chats,
+ * grouped by day, in place of the content tree — and the conversation. The
+ * sidebar's own `ViewSwitcher` is the two-way control between the modes, so
+ * leaving is one click on something already visible.
  *
  * The permission check mirrors the server's gate rather than replacing it — the
  * run route enforces `copilot:use` regardless, and `useHasPermission` is
@@ -135,11 +134,11 @@ export function AgentsPage() {
                 workspaceId={workspace.id}
                 basePath={agentsPath(workspace.id)}
             />
-            {/* `min-h-0` against the shell's bounded column: the rail and the
-                transcript each run their own inner scroll, and without it both
-                would grow the page instead. */}
+            {/* `min-h-0` against the shell's bounded column: the transcript
+                runs its own inner scroll, and without it it would grow the
+                page instead. The chat list is not here — it is the sidebar's,
+                in this view (`AgentsSidebar`). */}
             <div className="flex min-h-0 min-w-0 flex-1">
-                <AgentsRail workspaceId={workspace.id} />
                 <AgentsThread
                     workspaceId={workspace.id}
                     workspaceName={workspace.name}

@@ -1,5 +1,5 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { History } from 'lucide-react';
+import { ChevronDown, History } from 'lucide-react';
 import {
     Button,
     DropdownMenu,
@@ -42,6 +42,13 @@ const messages = defineMessages({
     failed: {
         id: 'copilot.history.failed',
         defaultMessage: 'Could not open that chat.'
+    },
+    // The trigger's name when it shows the window's title (R7): it starts
+    // with that visible text, so "click Translate the pricing FAQ" works by
+    // voice (2.5.3), and says what opening it does.
+    titled: {
+        id: 'copilot.history.titled',
+        defaultMessage: '{title} — {history}'
     }
 });
 
@@ -67,6 +74,12 @@ export interface ConversationPickerProps {
         title: string | null,
         messages: ChatMessage[]
     ): void;
+    /**
+     * The window's title, drawn **as the trigger** (R7, `AiWindow`): the
+     * thread's name with a chevron, which opens the other threads. Omitted,
+     * the trigger is the history icon.
+     */
+    title?: string;
 }
 
 /**
@@ -87,7 +100,8 @@ export interface ConversationPickerProps {
 export function ConversationPicker({
     workspaceId,
     currentConversationId = null,
-    onOpen
+    onOpen,
+    title
 }: ConversationPickerProps) {
     const intl = useIntl();
     const { data: conversations } = useConversations(workspaceId);
@@ -108,25 +122,53 @@ export function ConversationPicker({
         // which axe fails as `aria-hidden-focus`.
         <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="relative size-8"
-                    aria-label={label}
-                    title={intl.formatMessage(messages.history)}
-                >
-                    <History className="size-4" />
-                    {awaiting > 0 && (
-                        <span
+                {title !== undefined ? (
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="relative h-7 min-w-0 gap-1 px-2 text-[13px] font-medium"
+                        aria-label={intl.formatMessage(messages.titled, {
+                            title,
+                            history: label
+                        })}
+                    >
+                        <span className="min-w-0 truncate">{title}</span>
+                        <ChevronDown
                             aria-hidden
-                            data-marker="awaiting"
-                            className="bg-warning ring-background absolute top-1 right-1 size-2 rounded-full ring-2"
+                            className="text-muted-foreground size-3.5 shrink-0"
                         />
-                    )}
-                </Button>
+                        {awaiting > 0 && (
+                            <span
+                                aria-hidden
+                                data-marker="awaiting"
+                                className="bg-warning size-2 shrink-0 rounded-full"
+                            />
+                        )}
+                    </Button>
+                ) : (
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="relative size-8"
+                        aria-label={label}
+                        title={intl.formatMessage(messages.history)}
+                    >
+                        <History className="size-4" />
+                        {awaiting > 0 && (
+                            <span
+                                aria-hidden
+                                data-marker="awaiting"
+                                className="bg-warning ring-background absolute top-1 right-1 size-2 rounded-full ring-2"
+                            />
+                        )}
+                    </Button>
+                )}
             </DropdownMenuTrigger>
 
-            <DropdownMenuContent align="end" className="w-64">
+            <DropdownMenuContent
+                align={title !== undefined ? 'start' : 'end'}
+                className="w-64"
+            >
                 <DropdownMenuLabel>
                     {intl.formatMessage(messages.history)}
                 </DropdownMenuLabel>

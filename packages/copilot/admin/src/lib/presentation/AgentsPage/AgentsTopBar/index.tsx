@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import type { ReactNode } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
-import { PanelLeft, Sparkles } from 'lucide-react';
+import { Plus, Sparkles } from 'lucide-react';
 import {
     Breadcrumb,
     BreadcrumbItem,
@@ -10,18 +10,12 @@ import {
     BreadcrumbPage,
     BreadcrumbSeparator,
     Button,
-    Sheet,
-    SheetContent,
-    SheetHeader,
-    SheetTitle,
-    SheetTrigger,
     TopBar,
     TopBarActions,
     TopBarIcon
 } from '@orthacms/design-system';
 import { useConversations } from '../../../application/useConversations';
 import { readAgentThreadId } from '../../../domain/agentsRoute';
-import { AgentsRailList } from '../AgentsRailList';
 
 // The product is **Ortha CMS AI**; the code keeps `copilot`. See the naming note in
 // `docs/design/copilot.md`.
@@ -41,10 +35,6 @@ const messages = defineMessages({
     untitled: {
         id: 'copilot.agents.topbar.untitled',
         defaultMessage: 'Untitled chat'
-    },
-    chats: {
-        id: 'copilot.agents.topbar.chats',
-        defaultMessage: 'Chats'
     }
 });
 
@@ -53,38 +43,57 @@ export interface AgentsTopBarProps {
     workspaceId: string;
     /** Where the "Ortha CMS AI" crumb links — a new chat. */
     basePath: string;
+    /**
+     * The crumb after "Ortha CMS AI". Omitted, it is the open thread's title,
+     * or "New chat" on the base path — a page that is not a chat (Skills)
+     * names itself.
+     */
+    leaf?: string;
+    /**
+     * The bar's actions, at its end. Omitted, a **New chat** button — the one
+     * action every chat page offers (R7); the Skills page passes New skill.
+     */
+    actions?: ReactNode;
 }
 
 /**
- * The Agents view's one bar: icon tile, breadcrumb, controls.
+ * The Agents view's one bar: icon tile, breadcrumb, the page's action.
  *
  * **One bar, not two.** A `PageTopBar` for the breadcrumb plus a header of the
  * thread's own would spend 6rem of a chat surface on chrome, so this composes
  * the `TopBar` primitive directly — the same thing `ContentTopBar` does, and for
- * the same reason. Rendering a real `TopBar` also matters beyond looks: it is
- * what hosts the sidebar-reveal trigger when the app sidebar is collapsed, and
- * what makes the shell's floating fallback toggle stand down.
+ * the same reason. Rendering a real `TopBar` also hosts the sidebar-reveal
+ * trigger when the app sidebar is collapsed.
  *
  * The thread's title comes from the **list** query rather than from the open
- * chat, which is what lets the bar sit above the transcript instead of inside
- * it: the title is a property of the saved thread, and the list is already
+ * chat: the title is a property of the saved thread, and the list is already
  * invalidated as each turn lands.
+ *
+ * There is no Chats button any more: the chat list lives in the sidebar
+ * (`AgentsSidebar`), which is where a phone finds it too.
  */
-export function AgentsTopBar({ workspaceId, basePath }: AgentsTopBarProps) {
+export function AgentsTopBar({
+    workspaceId,
+    basePath,
+    leaf: leafOverride,
+    actions
+}: AgentsTopBarProps) {
     const intl = useIntl();
+    const navigate = useNavigate();
     const { pathname } = useLocation();
     const { data: conversations } = useConversations(workspaceId);
-    const [railOpen, setRailOpen] = useState(false);
 
     const conversationId = readAgentThreadId(pathname);
     const saved = conversations?.find((item) => item.id === conversationId);
-    const leaf = conversationId
-        ? (saved?.title ?? intl.formatMessage(messages.untitled))
-        : intl.formatMessage(messages.newChat);
+    const leaf =
+        leafOverride ??
+        (conversationId
+            ? (saved?.title ?? intl.formatMessage(messages.untitled))
+            : intl.formatMessage(messages.newChat));
 
     return (
         <TopBar>
-            <TopBarIcon className="bg-primary/10 text-primary">
+            <TopBarIcon className="bg-info-soft text-info">
                 <Sparkles />
             </TopBarIcon>
 
@@ -93,8 +102,8 @@ export function AgentsTopBar({ workspaceId, basePath }: AgentsTopBarProps) {
                 className="min-w-0 overflow-hidden"
             >
                 <BreadcrumbList className="flex-nowrap font-medium">
-                    {/* Below `sm` only the open thread survives — the trail
-                        would otherwise shrink past its own text. */}
+                    {/* Below `sm` only the leaf survives — the trail would
+                        otherwise shrink past its own text. */}
                     <BreadcrumbItem className="hidden min-w-0 whitespace-nowrap sm:inline-flex">
                         <BreadcrumbLink asChild>
                             <Link to={basePath}>
@@ -113,40 +122,17 @@ export function AgentsTopBar({ workspaceId, basePath }: AgentsTopBarProps) {
 
             {/* `ml-auto`, so nothing may follow it on the bar. */}
             <TopBarActions>
-                {/* Below `md` the rail has no column of its own, so the thread
-                    list lives behind this button. A sheet rather than a menu: it
-                    is a whole navigation region, with its own search and its own
-                    New chat. */}
-                <Sheet open={railOpen} onOpenChange={setRailOpen}>
-                    {/* Through `SheetTrigger`, not a bare `onClick`: the
-                        trigger is what Radix returns focus to when the sheet
-                        closes, and a controlled dialog with no trigger drops it
-                        on `<body>`. */}
-                    <SheetTrigger asChild>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-muted-foreground gap-1.5 md:hidden"
-                        >
-                            <PanelLeft className="size-4" />
-                            {intl.formatMessage(messages.chats)}
-                        </Button>
-                    </SheetTrigger>
-                    <SheetContent
-                        side="left"
-                        className="flex w-80 flex-col gap-0 p-0"
+                {actions ?? (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5"
+                        onClick={() => navigate(basePath)}
                     >
-                        <SheetHeader className="border-b px-4 py-3">
-                            <SheetTitle className="text-base">
-                                {intl.formatMessage(messages.chats)}
-                            </SheetTitle>
-                        </SheetHeader>
-                        <AgentsRailList
-                            workspaceId={workspaceId}
-                            onNavigate={() => setRailOpen(false)}
-                        />
-                    </SheetContent>
-                </Sheet>
+                        <Plus aria-hidden className="size-4" />
+                        {intl.formatMessage(messages.newChat)}
+                    </Button>
+                )}
             </TopBarActions>
         </TopBar>
     );

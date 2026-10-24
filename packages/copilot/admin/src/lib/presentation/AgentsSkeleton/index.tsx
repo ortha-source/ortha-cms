@@ -46,7 +46,7 @@ function AgentsBarSkeleton() {
 
     return (
         <TopBar>
-            <TopBarIcon className="bg-primary/10 text-primary">
+            <TopBarIcon className="bg-info-soft text-info">
                 <Sparkles />
             </TopBarIcon>
             <Breadcrumb
@@ -81,23 +81,13 @@ export function AgentsPageSkeleton() {
     return (
         <>
             <AgentsBarSkeleton />
-            {/* Same `min-h-0` bounded row the loaded view uses, so the rail
-                and the thread land exactly where the placeholder left them. */}
+            {/* Same `min-h-0` bounded row the loaded view uses, so the thread
+                lands exactly where the placeholder left it. (The chat list is
+                the sidebar's, which draws its own loading state.) */}
             <div role="status" className="flex min-h-0 min-w-0 flex-1">
                 <span className="sr-only">
                     {intl.formatMessage(messages.loadingAgents)}
                 </span>
-
-                <div
-                    aria-hidden
-                    className="bg-muted/30 hidden w-72 shrink-0 flex-col gap-2 border-r p-3 md:flex"
-                >
-                    <Skeleton className="h-9 w-full" />
-                    <Skeleton className="h-8 w-full" />
-                    {Array.from({ length: 7 }).map((_, index) => (
-                        <Skeleton key={index} className="h-10 w-full" />
-                    ))}
-                </div>
 
                 <div
                     aria-hidden

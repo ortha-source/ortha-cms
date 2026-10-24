@@ -1,19 +1,17 @@
-import { useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { Plus, Sparkles, X } from 'lucide-react';
+import { Check, Loader2, MoreHorizontal, Sparkles, X } from 'lucide-react';
 import {
     Button,
-    cn,
-    Kbd,
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
     Tooltip,
     TooltipContent,
     TooltipTrigger
 } from '@orthacms/design-system';
 import type { CopilotSession } from '../../application/sessions';
-import { chatsAwaiting } from '../../application/chatsStatus';
+import { useThreadActivity } from '../../application/useThreadActivity';
 import {
     NEW_CHAT_KEY_SHORTCUTS,
     shortcutModifierGlyph
@@ -26,24 +24,12 @@ const messages = defineMessages({
         id: 'copilot.dock.label',
         defaultMessage: 'Ortha CMS AI chats'
     },
-    newChat: {
-        id: 'copilot.dock.newChat',
-        defaultMessage: 'New chat'
-    },
     start: {
         id: 'copilot.dock.start',
         defaultMessage: 'Ask Ortha AI'
     },
-    // The button's accessible name is its visible label — WCAG 2.5.3, the thing
-    // that makes "click Ask Ortha AI" work for anyone driving the admin by
-    // voice. It once *announced* "New chat" while reading something else.
-    startFull: {
-        id: 'copilot.dock.startFull',
-        defaultMessage: 'Ask Ortha AI'
-    },
-    // Deliberately not "New chat": that is the name of the button beside it,
-    // and two controls in one toolbar answering to the same name is ambiguous
-    // to anyone driving this by voice or by a screen reader's control list.
+    // Deliberately not "New chat": two controls in one region answering to
+    // the same name is ambiguous by voice and in a control list.
     untitled: {
         id: 'copilot.dock.untitled',
         defaultMessage: 'Untitled chat'
@@ -53,77 +39,73 @@ const messages = defineMessages({
         defaultMessage: '{title} — finished'
     },
     // Distinct from "finished" on purpose: this chat has not finished, it has
-    // stopped and is blocked on you. Conflating the two would let the more
-    // urgent state hide behind the routine one.
+    // stopped and is blocked on you.
     awaiting: {
         id: 'copilot.dock.awaiting',
         defaultMessage: '{title} — waiting for you'
+    },
+    working: {
+        id: 'copilot.dock.working',
+        defaultMessage: '{title} — working…'
     },
     close: {
         id: 'copilot.dock.close',
         defaultMessage: 'Close {title}'
     },
-    // The launcher once chats exist. It still starts with its visible label,
-    // so "click Ask Ortha AI" keeps working by voice (2.5.3). The count is
-    // said, not drawn — it tells a screen-reader user this now opens a list,
-    // which the bare label would not — and a chat waiting on you follows it,
-    // because a closed list must not hide that.
-    chats: {
-        id: 'copilot.dock.chats',
+    more: {
+        id: 'copilot.dock.more',
         defaultMessage:
-            'Ask Ortha AI — {count, plural, one {# chat} other {# chats}}'
-    },
-    chatsAwaiting: {
-        id: 'copilot.dock.chatsAwaiting',
-        defaultMessage:
-            'Ask Ortha AI — {count, plural, one {# chat} other {# chats}}, {awaiting} waiting for you'
+            '{count, plural, one {# more chat} other {# more chats}}'
     }
 });
 
 /**
- * The copilot's entry point, **"Ask Ortha AI" under the work area's card** —
- * at the right end of the footer strip on every page, through the design
- * system's `InsetFooterEnd` (incident.io's "Ask incident").
- *
- * It has lived in two other places. A pill bar floating `fixed` over the
- * bottom-right corner covered the records pagination and the Properties rail's
- * buttons, so every scrollport reserved a 66px gutter for it. An icon at the
- * top bar's end covered nothing, but sat among the page's own actions and had
- * to go wordless to fit. Under the card it is neither in the page nor in its
- * header, so it can say what it is.
- *
- * Two shapes:
- *
- * - **No chats:** clicking the icon opens a new chat straight away.
- * - **Chats open:** the icon opens a list of the chats, and carries an amber
- *   dot only while one of them is **waiting for you** — parked on a
- *   permission prompt (`chatsAwaiting`). No count and no "finished" dot: a
- *   number that moves as chats come and go is noise on a control you pass all
- *   day, and a finished answer asks nothing of you. The list keeps everything
- *   the pill bar had to get right:
- *   - **a row for a chat you cannot see says something happened in it** — the
- *     dot, and the same words in its accessible name ("— finished", "— waiting
- *     for you"; waiting outranks finished);
- *   - **a row toggles** its window, with `aria-pressed` saying which state it
- *     is in;
- *   - **Close is its own control with its own name**, because it ends a run
- *     and sits a few pixels from the thing that merely hides one.
- *
- * `newChatRef` lands on the launcher either way: it is the one control
- * guaranteed to still be there when a window goes away.
+ * How many pills the strip draws before the rest fold into "N more". The strip
+ * under the card is one line, and it shares it with the launcher.
  */
+const MAX_PILLS = 3;
+
 /**
  * The tooltip opens on **hover only**, never on focus. Focus is handed back to
- * this icon every time a chat window collapses, and a tooltip opened by that
- * would hang over the top of the window docked just beneath the bar — where it
- * swallowed clicks on that window's own header buttons. A focused reader loses
- * nothing: the button's name and `aria-keyshortcuts` say what the tooltip says.
- * Radix skips its own focus handler when the event arrives default-prevented.
+ * the launcher every time a chat window collapses, and a tooltip opened by
+ * that would hang over the window docked just beneath it — where it swallowed
+ * clicks on that window's own header buttons.
  */
 function suppressFocusTooltip(event: React.FocusEvent) {
     event.preventDefault();
 }
 
+/** What a collapsed chat says about itself, in words. */
+type PillState = 'awaiting' | 'unread' | 'working' | 'idle';
+
+/**
+ * **The dock** — collapsed chats as pills, and "Ask Ortha AI", in the strip
+ * under the work area's card (design-system `InsetFooterEnd`).
+ *
+ * R7 (`AiWindow`): "Up to three windows; others wait as pills in the dock". A
+ * pill per **collapsed** chat, saying what it is doing in words — "Audit author
+ * bios — waiting for you" with the amber dot, "SEO titles — finished" with a
+ * tick — and opening it again on click. A chat on screen has its window and
+ * needs no pill.
+ *
+ * It used to be a launcher that turned into a popover listing every chat,
+ * which hid the one thing the dock exists to say — that a chat in the
+ * background wants you — behind a click. The pills put it in plain sight.
+ *
+ * **In the strip, not over the page.** The board draws them floating over the
+ * bottom-left of the work area; a bar of pills fixed over the page is what
+ * once covered the records pagination and every scroll area's last row, so
+ * they stay in the strip under the card, beside the launcher. Same pills, a
+ * place that covers nothing.
+ *
+ * - **Waiting outranks finished outranks working**, and each is in the pill's
+ *   accessible name, not only in its mark.
+ * - **Close is its own control with its own name**, because it ends a run and
+ *   sits a few pixels from the thing that merely restores one.
+ * - **"Ask Ortha AI" always starts a chat**, with `⌘J` taught by its tooltip.
+ *   `newChatRef` lands on it whenever a window goes away: it is the one
+ *   control guaranteed to still be there.
+ */
 export function CopilotDock({
     sessions,
     onToggle,
@@ -139,27 +121,119 @@ export function CopilotDock({
     newChatRef?: React.RefObject<HTMLButtonElement | null>;
 }) {
     const intl = useIntl();
-    const [open, setOpen] = useState(false);
+    const activity = useThreadActivity();
     const shortcutGlyph = `${shortcutModifierGlyph()}J`;
-    const shortcut = (
-        <Kbd className="hidden md:inline-flex">{shortcutGlyph}</Kbd>
-    );
-    // The tooltip names the product and teaches the shortcut — the two things
-    // the icon alone cannot say. `aria-hidden` on the glyph copy: the button's
-    // own name and `aria-keyshortcuts` already say both to assistive tech.
-    const tooltip = (
-        <TooltipContent side="top" className="flex items-center gap-2">
-            {intl.formatMessage(messages.start)}
-            <span aria-hidden className="opacity-70">
-                {shortcutGlyph}
-            </span>
-        </TooltipContent>
-    );
-    const launcherButton =
-        'relative h-7 gap-1.5 px-2 text-muted-foreground hover:text-foreground';
+    const collapsed = sessions.filter((session) => session.minimized);
+    const shown = collapsed.slice(0, MAX_PILLS);
+    const folded = collapsed.slice(MAX_PILLS);
 
-    if (sessions.length === 0) {
-        return (
+    const describe = (session: CopilotSession) => {
+        const title = session.title ?? intl.formatMessage(messages.untitled);
+        const state: PillState = session.awaiting
+            ? 'awaiting'
+            : session.unread
+              ? 'unread'
+              : session.conversationId &&
+                  activity.get(session.conversationId) === 'working'
+                ? 'working'
+                : 'idle';
+        const label =
+            state === 'idle'
+                ? title
+                : intl.formatMessage(messages[state], { title });
+        return { title, state, label };
+    };
+
+    return (
+        <div className="flex min-w-0 items-center gap-2">
+            {collapsed.length > 0 ? (
+                <div
+                    role="group"
+                    aria-label={intl.formatMessage(messages.label)}
+                    className="flex min-w-0 items-center gap-1.5"
+                >
+                    {shown.map((session) => {
+                        const { title, state, label } = describe(session);
+                        return (
+                            <div
+                                key={session.id}
+                                className="bg-background flex h-7 max-w-64 min-w-0 items-center rounded-full border shadow-xs"
+                            >
+                                <button
+                                    type="button"
+                                    onClick={() => onToggle(session.id)}
+                                    title={label}
+                                    className="focus-visible:ring-ring flex h-full min-w-0 items-center gap-2 rounded-full pr-1 pl-3 text-[12.5px] focus-visible:ring-2 focus-visible:outline-none"
+                                >
+                                    <PillMarker state={state} />
+                                    <span className="min-w-0 truncate">
+                                        {label}
+                                    </span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        onClose(session.id);
+                                        requestAnimationFrame(() =>
+                                            newChatRef?.current?.focus()
+                                        );
+                                    }}
+                                    aria-label={intl.formatMessage(
+                                        messages.close,
+                                        { title }
+                                    )}
+                                    className="text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring mr-1 shrink-0 rounded-full p-1 focus-visible:ring-2 focus-visible:outline-none"
+                                >
+                                    <X aria-hidden className="size-3" />
+                                </button>
+                            </div>
+                        );
+                    })}
+                    {folded.length > 0 ? (
+                        <DropdownMenu modal={false}>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="bg-background h-7 gap-1 rounded-full px-2.5 text-[12.5px] shadow-xs"
+                                >
+                                    <MoreHorizontal
+                                        aria-hidden
+                                        className="size-3.5"
+                                    />
+                                    {intl.formatMessage(messages.more, {
+                                        count: folded.length
+                                    })}
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent
+                                side="top"
+                                align="end"
+                                className="w-72"
+                            >
+                                {folded.map((session) => {
+                                    const { state, label } = describe(session);
+                                    return (
+                                        <DropdownMenuItem
+                                            key={session.id}
+                                            onSelect={() =>
+                                                onToggle(session.id)
+                                            }
+                                            className="gap-2"
+                                        >
+                                            <PillMarker state={state} />
+                                            <span className="min-w-0 truncate">
+                                                {label}
+                                            </span>
+                                        </DropdownMenuItem>
+                                    );
+                                })}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    ) : null}
+                </div>
+            ) : null}
+
             <Tooltip>
                 <TooltipTrigger asChild onFocus={suppressFocusTooltip}>
                     <Button
@@ -168,176 +242,60 @@ export function CopilotDock({
                         variant="ghost"
                         size="sm"
                         onClick={onNewChat}
-                        aria-label={intl.formatMessage(messages.startFull)}
-                        // Both accepted chords, so assistive tech announces the
-                        // one its user can actually press rather than a glyph.
+                        // Its name is its visible label (WCAG 2.5.3) — what
+                        // makes "click Ask Ortha AI" work by voice.
+                        aria-label={intl.formatMessage(messages.start)}
+                        // Both accepted chords, so assistive tech announces
+                        // the one its user can actually press.
                         aria-keyshortcuts={NEW_CHAT_KEY_SHORTCUTS}
-                        className={launcherButton}
+                        className="text-muted-foreground hover:text-foreground h-7 shrink-0 gap-1.5 px-2"
                     >
                         <Sparkles aria-hidden className="size-4" />
                         {intl.formatMessage(messages.start)}
                     </Button>
                 </TooltipTrigger>
-                {tooltip}
+                {/* The tooltip names the product and teaches the shortcut —
+                    the glyph is `aria-hidden`, since the name and
+                    `aria-keyshortcuts` already say both. */}
+                <TooltipContent side="top" className="flex items-center gap-2">
+                    {intl.formatMessage(messages.start)}
+                    <span aria-hidden className="opacity-70">
+                        {shortcutGlyph}
+                    </span>
+                </TooltipContent>
             </Tooltip>
+        </div>
+    );
+}
+
+/** The pill's state as a mark: amber dot, tick, spinner — or nothing. */
+function PillMarker({ state }: { state: PillState }) {
+    if (state === 'awaiting') {
+        return (
+            <span
+                aria-hidden
+                data-marker="awaiting"
+                className="bg-warning size-[7px] shrink-0 rounded-full"
+            />
         );
     }
-
-    const awaiting = chatsAwaiting(sessions);
-    const launcherLabel = intl.formatMessage(
-        awaiting > 0 ? messages.chatsAwaiting : messages.chats,
-        { count: sessions.length, awaiting }
-    );
-
-    return (
-        // Non-modal, like every other overlay a chat can be driven from: the
-        // windows it opens sit over a page that stays live.
-        <Popover open={open} onOpenChange={setOpen}>
-            <Tooltip>
-                <TooltipTrigger asChild onFocus={suppressFocusTooltip}>
-                    <PopoverTrigger asChild>
-                        <Button
-                            ref={newChatRef}
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            aria-label={launcherLabel}
-                            className={launcherButton}
-                        >
-                            <Sparkles aria-hidden className="size-4" />
-                            {intl.formatMessage(messages.start)}
-                            {/* The dot for a chat waiting on you sits on the
-                                corner, and is said in the button's name as
-                                well. */}
-                            {awaiting > 0 && (
-                                <span
-                                    aria-hidden
-                                    data-marker="awaiting"
-                                    className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-warning ring-2 ring-background"
-                                />
-                            )}
-                        </Button>
-                    </PopoverTrigger>
-                </TooltipTrigger>
-                {/* No tooltip over an open list — it would sit on top of it. */}
-                {open ? null : tooltip}
-            </Tooltip>
-            <PopoverContent
-                side="top"
-                align="end"
-                aria-label={intl.formatMessage(messages.label)}
-                className="w-80 p-1"
-            >
-                <div className="flex flex-col gap-0.5">
-                    {sessions.map((session) => {
-                        const title =
-                            session.title ??
-                            intl.formatMessage(messages.untitled);
-                        return (
-                            <div
-                                key={session.id}
-                                className="flex items-center gap-0.5"
-                            >
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setOpen(false);
-                                        onToggle(session.id);
-                                    }}
-                                    aria-pressed={!session.minimized}
-                                    // The marker is in the name, not only in
-                                    // the dot — and `awaiting` outranks
-                                    // `unread`, because a chat blocked on a
-                                    // question is the one to open first.
-                                    aria-label={
-                                        session.awaiting
-                                            ? intl.formatMessage(
-                                                  messages.awaiting,
-                                                  { title }
-                                              )
-                                            : session.unread
-                                              ? intl.formatMessage(
-                                                    messages.unread,
-                                                    { title }
-                                                )
-                                              : title
-                                    }
-                                    title={title}
-                                    className={cn(
-                                        'focus-visible:ring-ring flex min-w-0 flex-1 items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none',
-                                        session.minimized
-                                            ? 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                                            : 'bg-secondary text-secondary-foreground'
-                                    )}
-                                >
-                                    <Sparkles
-                                        aria-hidden
-                                        className="size-3.5 shrink-0"
-                                    />
-                                    <span className="min-w-0 flex-1 truncate">
-                                        {title}
-                                    </span>
-                                    {(session.awaiting || session.unread) && (
-                                        <span
-                                            aria-hidden
-                                            className={cn(
-                                                'size-1.5 shrink-0 rounded-full',
-                                                // Amber for "answer me",
-                                                // primary for "there is
-                                                // something to read". The
-                                                // colour is a nicety on top of
-                                                // the name — never the only
-                                                // signal.
-                                                session.awaiting
-                                                    ? 'bg-warning'
-                                                    : 'bg-primary'
-                                            )}
-                                        />
-                                    )}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        onClose(session.id);
-                                        // The last close empties the list and
-                                        // unmounts it; the launcher it turns
-                                        // back into is where focus belongs.
-                                        if (sessions.length === 1) {
-                                            requestAnimationFrame(() =>
-                                                newChatRef?.current?.focus()
-                                            );
-                                        }
-                                    }}
-                                    aria-label={intl.formatMessage(
-                                        messages.close,
-                                        { title }
-                                    )}
-                                    className="text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring shrink-0 rounded-sm p-1.5 focus-visible:ring-2 focus-visible:outline-none"
-                                >
-                                    <X aria-hidden className="size-3.5" />
-                                </button>
-                            </div>
-                        );
-                    })}
-                    <div className="my-1 border-t" />
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setOpen(false);
-                            onNewChat();
-                        }}
-                        aria-label={intl.formatMessage(messages.newChat)}
-                        aria-keyshortcuts={NEW_CHAT_KEY_SHORTCUTS}
-                        className="focus-visible:ring-ring flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:outline-none"
-                    >
-                        <Plus aria-hidden className="size-3.5" />
-                        <span className="flex-1 text-left">
-                            {intl.formatMessage(messages.newChat)}
-                        </span>
-                        {shortcut}
-                    </button>
-                </div>
-            </PopoverContent>
-        </Popover>
-    );
+    if (state === 'unread') {
+        return (
+            <Check
+                aria-hidden
+                data-marker="unread"
+                className="size-3.5 shrink-0"
+            />
+        );
+    }
+    if (state === 'working') {
+        return (
+            <Loader2
+                aria-hidden
+                data-marker="working"
+                className="text-info size-3.5 shrink-0 animate-spin motion-reduce:animate-none"
+            />
+        );
+    }
+    return null;
 }

@@ -2,6 +2,7 @@ import { defineMessages, useIntl } from 'react-intl';
 import { FilePlus, FileText, Plus, Table2, X } from 'lucide-react';
 import { Badge, Button, cn } from '@orthacms/design-system';
 import type { RouteContext } from '../../application/readRouteContext';
+import { humanizeType } from '../../domain/humanizeType';
 
 const messages = defineMessages({
     add: {
@@ -22,15 +23,15 @@ const messages = defineMessages({
     },
     entry: {
         id: 'copilot.context.entry',
-        defaultMessage: '{type} entry'
+        defaultMessage: '{type} · this record'
     },
     records: {
         id: 'copilot.context.records',
-        defaultMessage: '{type} list'
+        defaultMessage: '{type} · this list'
     },
     create: {
         id: 'copilot.context.create',
-        defaultMessage: 'New {type}'
+        defaultMessage: '{type} · new record'
     }
 });
 
@@ -103,7 +104,10 @@ export function ContextChip({
             )}
         >
             {attached && (
-                <Badge variant="secondary" className="gap-1 pr-1 font-normal">
+                <Badge
+                    variant="secondary"
+                    className="h-[26px] gap-1.5 rounded-[7px] pr-1 pl-2 text-[12.5px] font-normal"
+                >
                     {attached.surface === 'entry' ? (
                         <FileText className="size-3" />
                     ) : attached.surface === 'create' ? (
@@ -120,7 +124,7 @@ export function ContextChip({
                             : attached.surface === 'create'
                               ? messages.create
                               : messages.records,
-                        { type: attached.contentType }
+                        { type: humanizeType(attached.contentType ?? '') }
                     )}
                     {attached.locale && (
                         <span className="uppercase">· {attached.locale}</span>

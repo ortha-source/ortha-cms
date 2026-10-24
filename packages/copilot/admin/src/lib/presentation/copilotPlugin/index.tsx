@@ -7,7 +7,11 @@ import {
     WORKSPACE_ROUTE_SLOT,
     WORKSPACE_SECTION_SLOT
 } from '@orthacms/workspaces-admin';
-import { AGENTS_SEGMENT, SKILLS_SEGMENT } from '../../domain/agentsRoute';
+import {
+    AGENTS_SEGMENT,
+    SKILLS_SEGMENT,
+    isAgentsPath
+} from '../../domain/agentsRoute';
 import { endCopilotSession } from '../../application/copilotStore';
 import { AgentsPageSkeleton, SkillsPageSkeleton } from '../AgentsSkeleton';
 import { CopilotLauncher } from '../CopilotLauncher';
@@ -100,7 +104,11 @@ export function CopilotPlugin(): CopilotAdminPlugin {
                     {
                         id: 'copilot.viewSwitcher',
                         order: 5,
-                        Component: ViewSwitcher
+                        Component: ViewSwitcher,
+                        // In the Agents view the switcher's section is the
+                        // whole sidebar: the chats replace the content tree
+                        // and the Tools group until you switch back.
+                        takeover: isAgentsPath
                     }
                 ]
             },

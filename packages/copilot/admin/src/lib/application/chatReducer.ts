@@ -280,7 +280,8 @@ function applyEvent(state: ChatState, event: CopilotRunEvent): ChatState {
                             name: event.name,
                             ...(event.title ? { title: event.title } : {}),
                             input: event.input,
-                            expiresAt: event.expiresAt
+                            expiresAt: event.expiresAt,
+                            ...(event.preview ? { preview: event.preview } : {})
                         }
                     ]
                 }))

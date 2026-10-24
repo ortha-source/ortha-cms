@@ -25,7 +25,11 @@ const LAST_MODEL_KEY = 'orthacms.copilot.last-model';
 export class AgentsPage extends BasePage {
     /** The shell's inset — everything the *page* renders, and nothing portalled. */
     readonly main: Locator;
-    /** The thread column (md+). Below that the same list lives in a sheet. */
+    /**
+     * The chat list — in the workspace sidebar while the Agents view is open,
+     * in place of the content tree. Still called the rail here, since every
+     * handle below hangs off it.
+     */
     readonly rail: Locator;
     /** The right end of the top bar, where the copilot launcher lives. */
     readonly dock: Locator;
@@ -37,12 +41,17 @@ export class AgentsPage extends BasePage {
     constructor(page: Page) {
         super(page);
         this.main = page.getByRole('main');
-        this.rail = page.getByRole('complementary', { name: 'Chats' });
+        this.rail = page.getByRole('navigation', {
+            name: 'Chats',
+            exact: true
+        });
         this.dock = page.locator('[data-slot="inset-footer-end"]');
         this.dockLauncher = this.dock.getByRole('button', {
-            name: /^Ask Ortha AI/
+            name: 'Ask Ortha AI',
+            exact: true
         });
-        this.dockList = page.getByRole('dialog', {
+        // The collapsed chats' pills, beside the launcher in the strip.
+        this.dockList = this.dock.getByRole('group', {
             name: 'Ortha CMS AI chats'
         });
     }
@@ -355,9 +364,9 @@ export class AgentsPage extends BasePage {
         });
     }
 
-    /** A change card's diff — the `<dl>` of fields the change touched. */
+    /** A change card's diff — the list of records and fields it touched. */
     proposalDiff(summary: string | RegExp): Locator {
-        return this.proposalCard(summary).locator('dl');
+        return this.proposalCard(summary).locator('ul');
     }
 
     /** A change card's status badge ("Saved", "Not saved", "Discarded"). */
@@ -384,8 +393,9 @@ export class AgentsPage extends BasePage {
 
     /** The message box. */
     composer(): Locator {
+        // "Reply…" once there is a transcript above it.
         return this.main.getByRole('textbox', {
-            name: 'Ask about your content…'
+            name: /^(Ask about your content…|Reply…)$/
         });
     }
 
@@ -758,17 +768,15 @@ export class AgentsPage extends BasePage {
     // --- the dock ---------------------------------------------------------
 
     /**
-     * A chat's row in the launcher's list — open it first with
-     * {@link openDockList}. Its name carries the marker ("— finished").
+     * A collapsed chat's pill in the dock. Its name carries the marker
+     * ("— finished", "— waiting for you").
      */
     dockPill(name: string | RegExp): Locator {
         return this.dockList.getByRole('button', { name });
     }
 
-    /** Open the launcher's chat list. */
+    /** Wait for the dock's pills — they are always on screen, no list to open. */
     async openDockList() {
-        if (await this.dockList.isVisible()) return;
-        await this.dockLauncher.click();
         await this.dockList.waitFor();
     }
 

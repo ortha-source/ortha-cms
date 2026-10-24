@@ -36,6 +36,7 @@ into `application / infrastructure / http`, beside a shared `infrastructure/`
 | `GET /api/copilot/proposals/:id`       | `PermissionsGuard`, `WorkspaceGuard`                | One change.                                                 |
 | `GET /api/copilot/skills`              | `PermissionsGuard`, `WorkspaceGuard`                | The picker's catalogue. **No instruction bodies.**          |
 | `GET /api/copilot/usage`               | `PermissionsGuard`, `WorkspaceGuard`                | Today's spend and quota. The workspace's only as a flag.    |
+| `GET /api/copilot/suggestions`         | `PermissionsGuard`, `WorkspaceGuard`                | The new chat's openers — structure, never prose.            |
 
 All of the above require `copilot:use`. The skills **write** routes require
 `copilot:skills:manage` instead — admin-only, see [Skills](#skills):
@@ -94,6 +95,30 @@ accept/reject pair and the `GET/PUT /api/copilot/policy` pair were deleted by
 [ADR-0009](../../../docs/adr/0009-copilot-applies-directly.md), along with
 `copilot:configure` itself. Whether a caller may make a change is decided once,
 by the capability profile, before the tool is ever offered.
+
+## The new chat's openers
+
+`GET /api/copilot/suggestions` (`ListSuggestionsController`) returns up to four
+`CopilotSuggestion`s — `{ kind, type?, skill? }`, never sentences; the admin
+words them so they translate. `buildSuggestions` is pure and unit-tested: each
+kind needs a tool the caller is **offered** (the capability profile, resolved
+per request), the types come from `ContentTypeSummaryService.grantedTypes` (the
+same grant query the system prompt uses, so the two cannot name different
+types), a write opener needs a type the workspace **owns**, and a skill is
+named only when it is enabled and `manual`.
+
+## Previewing a parked write
+
+A `propose` tool whose binder declared `previewable` (tools-server) is run once
+**before** `mayRun` emits its `tool-permission-request`, through
+`ToolRegistry.preview` — same surface scoping, `requires` check and validation
+as a call, on a freshly resolved context — and the draft becomes the frame's
+`preview` (`permissionPreview` in copilot-domain: kind, summary, `lands`,
+record count, capped changes). Nothing is recorded, applied or audited, and the
+repeated-call guard does not see it. A failed preview yields **no preview and
+still asks** — never skip the prompt on a failure, the records can change
+between the two runs. A tool without the flag is never run before the answer
+(I-07); the content plugin's three propose tools carry it.
 
 ## Three things that will bite you
 
