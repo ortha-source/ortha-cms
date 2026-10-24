@@ -11,8 +11,10 @@ import type {
 import type { WorkspaceOption } from '../../domain/types/workspaceOption';
 import {
     toApiToken,
+    toApiTokenSummary,
     toCreatedApiToken,
     type ApiTokenResponse,
+    type ApiTokenSummaryResponse,
     type CreatedApiTokenResponse
 } from '../apiTokenMapper';
 import type { ApiTokensListParams } from '../apiTokensKeys';
@@ -24,6 +26,7 @@ type ApiTokenListResponse = {
     total: number;
     page: number;
     pageSize: number;
+    summary?: ApiTokenSummaryResponse;
 };
 
 /** Only the fields the selector needs from `GET /api/workspaces`. */
@@ -63,7 +66,8 @@ export const httpApiTokenGateway: ApiTokenGateway = {
                 items: data.items.map(toApiToken),
                 total: data.total,
                 page: data.page,
-                pageSize: data.pageSize
+                pageSize: data.pageSize,
+                summary: toApiTokenSummary(data.summary)
             };
         } catch (error) {
             throw toApiError(error);

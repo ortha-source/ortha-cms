@@ -1,10 +1,9 @@
-import { useState } from 'react';
-import { defineMessages, useIntl } from 'react-intl';
+import { defineMessages, useIntl, type IntlShape } from 'react-intl';
 import { MoreHorizontal } from 'lucide-react';
 import {
     Badge,
+    BadgeDot,
     Button,
-    ConfirmDialog,
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
@@ -17,13 +16,12 @@ import {
     TableRow,
     cn
 } from '@orthacms/design-system';
-import { useJustCreated } from '@orthacms/utils-admin';
+import { sinceParts, useJustCreated } from '@orthacms/utils-admin';
 import { API_TOKENS_SCOPE } from '../../../application/useApiTokensMutation';
-import type {
-    ApiToken,
-    ApiTokenScope,
-    ApiTokenStatus
-} from '../../../domain/types/apiToken';
+import { daysUntil } from '../../../domain/apiTokenExpiry';
+import type { ApiToken } from '../../../domain/types/apiToken';
+import type { WorkspaceOption } from '../../../domain/types/workspaceOption';
+import { WorkspaceMonogram } from '../WorkspaceMonogram';
 
 const messages = defineMessages({
     name: { id: 'apiTokens.table.name', defaultMessage: 'Name' },
@@ -42,11 +40,35 @@ const messages = defineMessages({
         id: 'apiTokens.table.neverUsed',
         defaultMessage: 'Never'
     },
+    noExpiryLabel: {
+        id: 'apiTokens.table.noExpiryLabel',
+        defaultMessage: 'Not applicable, revoked'
+    },
+    expiresIn: {
+        id: 'apiTokens.table.expiresIn',
+        defaultMessage:
+            '{days, plural, =0 {today} one {in # day} other {in # days}}'
+    },
+    createdBy: {
+        id: 'apiTokens.table.createdBy',
+        defaultMessage: 'by {name} · {date}'
+    },
+    createdOn: {
+        id: 'apiTokens.table.createdOn',
+        defaultMessage: 'Created {date}'
+    },
     scopeRead: { id: 'apiTokens.table.scopeRead', defaultMessage: 'Read-only' },
-    scopeFull: { id: 'apiTokens.table.scopeFull', defaultMessage: 'Full' },
+    scopeFull: {
+        id: 'apiTokens.table.scopeFull',
+        defaultMessage: 'Full access'
+    },
     statusActive: {
         id: 'apiTokens.table.statusActive',
         defaultMessage: 'Active'
+    },
+    statusExpiringSoon: {
+        id: 'apiTokens.table.statusExpiringSoon',
+        defaultMessage: 'Expires soon'
     },
     statusExpired: {
         id: 'apiTokens.table.statusExpired',
@@ -61,57 +83,53 @@ const messages = defineMessages({
     open: {
         id: 'apiTokens.table.open',
         defaultMessage: 'Actions for {name}'
-    },
-    confirmTitle: {
-        id: 'apiTokens.table.confirmTitle',
-        defaultMessage: 'Revoke this token?'
-    },
-    confirmBody: {
-        id: 'apiTokens.table.confirmBody',
-        defaultMessage:
-            'Any app using “{name}” will immediately lose access. This can’t be undone.'
     }
 });
 
-const SCOPE_LABEL: Record<ApiTokenScope, keyof typeof messages> = {
-    read: 'scopeRead',
-    full: 'scopeFull'
-};
-
-const STATUS_LABEL: Record<ApiTokenStatus, keyof typeof messages> = {
-    active: 'statusActive',
-    expired: 'statusExpired',
-    revoked: 'statusRevoked'
-};
-
-const STATUS_VARIANT: Record<
-    ApiTokenStatus,
-    'default' | 'secondary' | 'outline'
-> = {
-    active: 'default',
-    expired: 'secondary',
-    revoked: 'outline'
-};
+/** "Aug 2" this year, "Dec 2024" before it — how the creation date reads. */
+function formatCreated(intl: IntlShape, date: Date): string {
+    return date.getFullYear() === new Date().getFullYear()
+        ? intl.formatDate(date, { month: 'short', day: 'numeric' })
+        : intl.formatDate(date, { month: 'short', year: 'numeric' });
+}
 
 /**
- * The tokens table. Each live token can be revoked (gated by `canRevoke`); the
- * confirm dialog is owned here and calls the parent's `onRevoke`. `revokingId`
- * marks the row whose revoke is in flight so its button shows a busy state and
- * can't double-submit.
+ * "2 min. ago", "yesterday" within the week, then a short date — with the
+ * year only when it is not this one.
+ */
+export function formatLastUsed(intl: IntlShape, date: Date): string {
+    const parts = sinceParts(date.toISOString());
+    return parts.kind === 'relative'
+        ? intl.formatRelativeTime(parts.value, parts.unit, {
+              numeric: 'auto',
+              style: 'short'
+          })
+        : intl.formatDate(parts.date, {
+              month: 'short',
+              day: 'numeric',
+              year: parts.withYear ? 'numeric' : undefined
+          });
+}
+
+/**
+ * The tokens table: who made each token, where it reaches, what it may do,
+ * whether it is live — and, for a live token expiring inside the window,
+ * that it is about to break. A live token's row carries a kebab with Revoke
+ * (gated by `canRevoke`); the page owns the confirmation.
  */
 export function ApiTokensTable({
     tokens,
     canRevoke,
     onRevoke,
-    revokingId,
-    resolveWorkspaceName,
+    resolveWorkspace,
     stale = false
 }: {
     tokens: ApiToken[];
     canRevoke: boolean;
-    onRevoke: (id: string) => void;
-    revokingId: string | null;
-    resolveWorkspaceName: (id: string) => string;
+    /** Asks the page to confirm revoking this token. */
+    onRevoke: (token: ApiToken) => void;
+    /** The workspace behind an id, or `undefined` when the list lacks it. */
+    resolveWorkspace: (id: string) => WorkspaceOption | undefined;
     /**
      * The rows are the previous page's result while the next one loads
      * (`isPlaceholderData`) — the table dims its body and goes `aria-busy`.
@@ -119,199 +137,253 @@ export function ApiTokensTable({
     stale?: boolean;
 }) {
     const intl = useIntl();
-    const [pending, setPending] = useState<ApiToken | null>(null);
     const isJustCreated = useJustCreated(API_TOKENS_SCOPE);
 
-    const formatDate = (date: Date | null, fallback: string) =>
-        date ? intl.formatDate(date, { dateStyle: 'medium' }) : fallback;
+    const headers = [
+        messages.name,
+        messages.workspace,
+        messages.token,
+        messages.scope,
+        messages.status,
+        messages.expires,
+        messages.lastUsed
+    ];
 
     return (
-        <>
-            <div className="mt-4">
-                <Table
-                    aria-label={intl.formatMessage(messages.caption)}
-                    stale={stale}
-                >
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead
-                                scope="col"
-                                className="whitespace-nowrap"
-                            >
-                                {intl.formatMessage(messages.name)}
-                            </TableHead>
-                            <TableHead
-                                scope="col"
-                                className="whitespace-nowrap"
-                            >
-                                {intl.formatMessage(messages.workspace)}
-                            </TableHead>
-                            <TableHead
-                                scope="col"
-                                className="whitespace-nowrap"
-                            >
-                                {intl.formatMessage(messages.token)}
-                            </TableHead>
-                            <TableHead
-                                scope="col"
-                                className="whitespace-nowrap"
-                            >
-                                {intl.formatMessage(messages.scope)}
-                            </TableHead>
-                            <TableHead
-                                scope="col"
-                                className="whitespace-nowrap"
-                            >
-                                {intl.formatMessage(messages.status)}
-                            </TableHead>
-                            <TableHead
-                                scope="col"
-                                className="whitespace-nowrap"
-                            >
-                                {intl.formatMessage(messages.expires)}
-                            </TableHead>
-                            <TableHead
-                                scope="col"
-                                className="whitespace-nowrap"
-                            >
-                                {intl.formatMessage(messages.lastUsed)}
-                            </TableHead>
-                            {canRevoke ? (
-                                <TableHead scope="col" className="w-12">
-                                    <span className="sr-only">
-                                        {intl.formatMessage(messages.actions)}
-                                    </span>
-                                </TableHead>
-                            ) : null}
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {tokens.map((token) => (
-                            <TableRow
-                                key={token.id}
+        <Table aria-label={intl.formatMessage(messages.caption)} stale={stale}>
+            <TableHeader>
+                <TableRow>
+                    {headers.map((header) => (
+                        <TableHead
+                            key={header.id}
+                            scope="col"
+                            className="whitespace-nowrap"
+                        >
+                            {intl.formatMessage(header)}
+                        </TableHead>
+                    ))}
+                    {canRevoke ? (
+                        <TableHead scope="col" className="w-12">
+                            <span className="sr-only">
+                                {intl.formatMessage(messages.actions)}
+                            </span>
+                        </TableHead>
+                    ) : null}
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {tokens.map((token) => {
+                    const live = token.status === 'active';
+                    const creator =
+                        token.createdBy?.name || token.createdBy?.email;
+                    const created = formatCreated(intl, token.createdAt);
+                    return (
+                        <TableRow
+                            key={token.id}
+                            className={cn(
+                                isJustCreated(token.id) && 'ds-flash'
+                            )}
+                        >
+                            <TableCell
                                 className={cn(
-                                    isJustCreated(token.id) && 'ds-flash'
+                                    'min-w-44',
+                                    !live && 'text-muted-foreground'
                                 )}
                             >
-                                <TableCell className="font-medium">
+                                <span className="block font-medium">
                                     {token.name}
-                                </TableCell>
-                                <TableCell>
-                                    <span className="flex flex-wrap gap-1">
-                                        {token.workspaceIds.map(
-                                            (workspaceId) => (
-                                                <Badge
-                                                    key={workspaceId}
-                                                    variant="outline"
-                                                    className="font-normal"
-                                                >
-                                                    {resolveWorkspaceName(
-                                                        workspaceId
+                                </span>
+                                <span className="block text-xs text-muted-foreground">
+                                    {creator
+                                        ? intl.formatMessage(
+                                              messages.createdBy,
+                                              { name: creator, date: created }
+                                          )
+                                        : intl.formatMessage(
+                                              messages.createdOn,
+                                              { date: created }
+                                          )}
+                                </span>
+                            </TableCell>
+                            <TableCell>
+                                <WorkspaceTiles
+                                    workspaceIds={token.workspaceIds}
+                                    resolveWorkspace={resolveWorkspace}
+                                />
+                            </TableCell>
+                            <TableCell>
+                                <code className="whitespace-nowrap font-mono text-xs text-muted-foreground">
+                                    {token.lookupPrefix}…
+                                </code>
+                            </TableCell>
+                            <TableCell>
+                                {token.scope === 'full' ? (
+                                    <Badge variant="warning" size="xs">
+                                        {intl.formatMessage(messages.scopeFull)}
+                                    </Badge>
+                                ) : (
+                                    <Badge variant="line" size="xs">
+                                        {intl.formatMessage(messages.scopeRead)}
+                                    </Badge>
+                                )}
+                            </TableCell>
+                            <TableCell>
+                                <StatusBadge token={token} />
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap">
+                                <ExpiresCell token={token} />
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap text-muted-foreground">
+                                {token.lastUsedAt
+                                    ? formatLastUsed(intl, token.lastUsedAt)
+                                    : intl.formatMessage(messages.neverUsed)}
+                            </TableCell>
+                            {canRevoke ? (
+                                <TableCell className="text-right">
+                                    {/* Only a live token has anything to
+                                        switch off; an expired or revoked one
+                                        gets no menu rather than an empty
+                                        one. */}
+                                    {live ? (
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="size-7"
+                                                    aria-label={intl.formatMessage(
+                                                        messages.open,
+                                                        { name: token.name }
                                                     )}
-                                                </Badge>
-                                            )
-                                        )}
-                                    </span>
+                                                >
+                                                    <MoreHorizontal />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem
+                                                    className="text-destructive focus:text-destructive"
+                                                    onSelect={() =>
+                                                        onRevoke(token)
+                                                    }
+                                                >
+                                                    {intl.formatMessage(
+                                                        messages.revoke
+                                                    )}
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    ) : null}
                                 </TableCell>
-                                <TableCell>
-                                    <code className="font-mono text-xs text-muted-foreground">
-                                        {token.lookupPrefix}…
-                                    </code>
-                                </TableCell>
-                                <TableCell>
-                                    <Badge
-                                        variant={
-                                            token.scope === 'full'
-                                                ? 'default'
-                                                : 'secondary'
-                                        }
-                                    >
-                                        {intl.formatMessage(
-                                            messages[SCOPE_LABEL[token.scope]]
-                                        )}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell>
-                                    <Badge
-                                        variant={STATUS_VARIANT[token.status]}
-                                    >
-                                        {intl.formatMessage(
-                                            messages[STATUS_LABEL[token.status]]
-                                        )}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell>
-                                    {formatDate(
-                                        token.expiresAt,
-                                        intl.formatMessage(messages.never)
-                                    )}
-                                </TableCell>
-                                <TableCell>
-                                    {formatDate(
-                                        token.lastUsedAt,
-                                        intl.formatMessage(messages.neverUsed)
-                                    )}
-                                </TableCell>
-                                {canRevoke ? (
-                                    <TableCell className="text-right">
-                                        {token.status === 'active' ? (
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="size-8"
-                                                        aria-label={intl.formatMessage(
-                                                            messages.open,
-                                                            { name: token.name }
-                                                        )}
-                                                    >
-                                                        <MoreHorizontal />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem
-                                                        className="text-destructive focus:text-destructive"
-                                                        onSelect={() =>
-                                                            setPending(token)
-                                                        }
-                                                    >
-                                                        {intl.formatMessage(
-                                                            messages.revoke
-                                                        )}
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        ) : null}
-                                    </TableCell>
-                                ) : null}
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </div>
-
-            <ConfirmDialog
-                open={pending !== null}
-                onOpenChange={(open) => {
-                    if (!open) {
-                        setPending(null);
-                    }
-                }}
-                title={intl.formatMessage(messages.confirmTitle)}
-                description={intl.formatMessage(messages.confirmBody, {
-                    name: pending?.name ?? ''
+                            ) : null}
+                        </TableRow>
+                    );
                 })}
-                confirmLabel={intl.formatMessage(messages.revoke)}
-                confirmVariant="destructive"
-                busy={pending !== null && revokingId === pending.id}
-                onConfirm={() => {
-                    if (pending) {
-                        onRevoke(pending.id);
-                        setPending(null);
-                    }
-                }}
-            />
-        </>
+            </TableBody>
+        </Table>
     );
+}
+
+/**
+ * A token's bucket as the workspaces' initials tiles, each named for a screen
+ * reader (and on hover). An id the workspace list never heard of is shown raw
+ * rather than dropped — an empty cell would read as "this token reaches
+ * nothing".
+ */
+function WorkspaceTiles({
+    workspaceIds,
+    resolveWorkspace
+}: {
+    workspaceIds: string[];
+    resolveWorkspace: (id: string) => WorkspaceOption | undefined;
+}) {
+    return (
+        <span className="flex flex-wrap items-center gap-[3px]">
+            {workspaceIds.map((workspaceId) => {
+                const workspace = resolveWorkspace(workspaceId);
+                if (!workspace) {
+                    return (
+                        <Badge
+                            key={workspaceId}
+                            variant="line"
+                            size="xs"
+                            className="font-mono"
+                        >
+                            {workspaceId}
+                        </Badge>
+                    );
+                }
+                return (
+                    <span
+                        key={workspaceId}
+                        title={workspace.name}
+                        className="inline-flex"
+                    >
+                        <WorkspaceMonogram workspace={workspace} />
+                        <span className="sr-only">{workspace.name}</span>
+                    </span>
+                );
+            })}
+        </span>
+    );
+}
+
+/** Active (green), Expires soon (amber), or a quiet Expired / Revoked. */
+function StatusBadge({ token }: { token: ApiToken }) {
+    const intl = useIntl();
+    if (token.status !== 'active') {
+        return (
+            <Badge variant="muted" size="xs">
+                {intl.formatMessage(
+                    token.status === 'revoked'
+                        ? messages.statusRevoked
+                        : messages.statusExpired
+                )}
+            </Badge>
+        );
+    }
+    return token.expiringSoon ? (
+        <Badge variant="warning" size="xs">
+            <BadgeDot />
+            {intl.formatMessage(messages.statusExpiringSoon)}
+        </Badge>
+    ) : (
+        <Badge variant="success" size="xs">
+            <BadgeDot />
+            {intl.formatMessage(messages.statusActive)}
+        </Badge>
+    );
+}
+
+/**
+ * When the token stops working: "Never", a countdown for one expiring soon,
+ * a date otherwise — and a dash for a revoked one, whose expiry no longer
+ * means anything.
+ */
+function ExpiresCell({ token }: { token: ApiToken }) {
+    const intl = useIntl();
+    if (token.status === 'revoked') {
+        return (
+            <>
+                <span aria-hidden className="text-muted-foreground">
+                    —
+                </span>
+                <span className="sr-only">
+                    {intl.formatMessage(messages.noExpiryLabel)}
+                </span>
+            </>
+        );
+    }
+    if (!token.expiresAt) {
+        return <>{intl.formatMessage(messages.never)}</>;
+    }
+    if (token.expiringSoon) {
+        return (
+            <span className="text-warning-soft-foreground">
+                {intl.formatMessage(messages.expiresIn, {
+                    days: daysUntil(token.expiresAt)
+                })}
+            </span>
+        );
+    }
+    return <>{intl.formatDate(token.expiresAt, { dateStyle: 'medium' })}</>;
 }

@@ -1109,4 +1109,118 @@ describe('API token management (/api/api-tokens)', () => {
             }
         });
     });
+    describe('list filters, creator and summary', () => {
+        /** Mints one token and returns its id. */
+        async function mint(
+            agent: Awaited<ReturnType<typeof login>>,
+            name: string,
+            expiresAt?: string
+        ): Promise<string> {
+            const res = await agent
+                .post('/api/api-tokens')
+                .send({
+                    name,
+                    workspaceIds: [workspaceId],
+                    scope: 'read',
+                    ...(expiresAt ? { expiresAt } : {})
+                })
+                .expect(201);
+            return res.body.id as string;
+        }
+
+        it('names who minted each token, on the mint and on the list', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const created = await agent
+                .post('/api/api-tokens')
+                .send({
+                    name: 'CI',
+                    workspaceIds: [workspaceId],
+                    scope: 'read'
+                })
+                .expect(201);
+
+            expect(created.body.createdBy).toMatchObject({
+                id: expect.any(String),
+                email: ADMIN_EMAIL
+            });
+            const list = await agent.get('/api/api-tokens').expect(200);
+            expect(list.body.items[0].createdBy).toEqual(
+                created.body.createdBy
+            );
+            // Attribution only — nothing about the account that could be used
+            // to act as it.
+            expect(list.body.items[0].createdBy).not.toHaveProperty(
+                'passwordHash'
+            );
+        });
+
+        it('filters by derived status and keeps the summary unfiltered [api-tokens:I-10]', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            await mint(agent, 'live');
+            const expired = await mint(agent, 'stale');
+            await expireApiToken(expired);
+            const revoked = await mint(agent, 'killed');
+            await agent.delete(`/api/api-tokens/${revoked}`).expect(204);
+
+            for (const [status, name] of [
+                ['active', 'live'],
+                ['expired', 'stale'],
+                ['revoked', 'killed']
+            ]) {
+                const res = await agent
+                    .get(`/api/api-tokens?status=${status}`)
+                    .expect(200);
+                expect(res.body.total).toBe(1);
+                expect(res.body.items[0].name).toBe(name);
+                expect(res.body.summary).toMatchObject({
+                    active: 1,
+                    expired: 1,
+                    revoked: 1
+                });
+            }
+        });
+
+        it('rejects a status that does not exist', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            await agent.get('/api/api-tokens?status=paused').expect(400);
+        });
+
+        it('counts what expires within thirty days, and when the first one does', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const soon = new Date(Date.now() + 12 * 86_400_000).toISOString();
+            const later = new Date(Date.now() + 90 * 86_400_000).toISOString();
+            await mint(agent, 'soon', soon);
+            await mint(agent, 'later', later);
+            await mint(agent, 'never');
+
+            const res = await agent.get('/api/api-tokens').expect(200);
+
+            expect(res.body.summary.active).toBe(3);
+            expect(res.body.summary.expiringSoon).toBe(1);
+            expect(Date.parse(res.body.summary.nextExpiresAt)).toBe(
+                Date.parse(soon)
+            );
+        });
+
+        it('searches names case-insensitively, with % taken literally', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            await mint(agent, 'Docs search index');
+            await mint(agent, '100% build');
+            await mint(agent, 'Preview');
+
+            const docs = await agent.get('/api/api-tokens?q=DOCS').expect(200);
+            expect(
+                docs.body.items.map((item: { name: string }) => item.name)
+            ).toEqual(['Docs search index']);
+
+            const percent = await agent
+                .get('/api/api-tokens?q=%25')
+                .expect(200);
+            expect(
+                percent.body.items.map((item: { name: string }) => item.name)
+            ).toEqual(['100% build']);
+            // The search narrows the page, never the summary.
+            expect(percent.body.summary.active).toBe(3);
+        });
+    });
 });

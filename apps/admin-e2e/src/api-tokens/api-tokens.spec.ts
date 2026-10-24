@@ -7,8 +7,14 @@ import {
 import {
     mockApiTokensApi,
     manyApiTokens,
+    seedStatusOf,
     API_TOKENS_SEED
 } from '../support/api/apiTokens';
+
+/** How many seed tokens the default Active view lists. */
+const ACTIVE_SEED_COUNT = API_TOKENS_SEED.filter(
+    (token) => seedStatusOf(token) === 'active'
+).length;
 
 /**
  * A failed query is not instant: the shared client retries a 5xx three times on
@@ -61,14 +67,16 @@ test.describe('API tokens page', () => {
         await expect(apiTokensPage.row('Production website')).toContainText(
             'Read-only'
         );
-        await expect(apiTokensPage.row('Build pipeline')).toContainText('Full');
+        await expect(apiTokensPage.row('Build pipeline')).toContainText(
+            'Full access'
+        );
 
         // `expiresAt: null` and `lastUsedAt: null` both read "Never".
+        await expect(apiTokensPage.rowExpires('Production website')).toHaveText(
+            'Never'
+        );
         await expect(
-            apiTokensPage.row('Production website').getByRole('cell').nth(5)
-        ).toHaveText('Never');
-        await expect(
-            apiTokensPage.row('Production website').getByRole('cell').nth(6)
+            apiTokensPage.rowLastUsed('Production website')
         ).toHaveText('Never');
     });
 
@@ -83,9 +91,16 @@ test.describe('API tokens page', () => {
         await expect(apiTokensPage.rowStatus('Production website')).toHaveText(
             'Active'
         );
+
+        // Expired and revoked tokens are a chip away rather than in the
+        // default view — and each lands under the right one.
+        await apiTokensPage.showStatus('Expired');
         await expect(apiTokensPage.rowStatus('Old preview build')).toHaveText(
             'Expired'
         );
+        await expect(apiTokensPage.row('Retired importer')).toHaveCount(0);
+
+        await apiTokensPage.showStatus('Revoked');
         await expect(apiTokensPage.rowStatus('Leaked laptop token')).toHaveText(
             'Revoked'
         );
@@ -104,13 +119,26 @@ test.describe('API tokens page', () => {
         await apiTokensPage.goto();
         await apiTokensPage.table.waitFor();
 
+        // Each workspace is an initials tile named for assistive tech (and
+        // on hover) — the name is in the cell, not just the two letters.
         await expect(
-            apiTokensPage.rowWorkspaces('Production website')
-        ).toHaveText('Marketing site');
-        // A bucket spanning two workspaces shows both names.
-        await expect(apiTokensPage.rowWorkspaces('Build pipeline')).toHaveText(
-            'Marketing siteProduct docs'
-        );
+            apiTokensPage
+                .rowWorkspaces('Production website')
+                .getByText('Marketing site', { exact: true })
+        ).toHaveCount(1);
+        await expect(
+            apiTokensPage
+                .rowWorkspaces('Production website')
+                .locator('[title="Marketing site"]')
+        ).toHaveCount(1);
+        // A bucket spanning two workspaces shows both.
+        for (const name of ['Marketing site', 'Product docs']) {
+            await expect(
+                apiTokensPage.rowWorkspaces('Build pipeline').getByText(name, {
+                    exact: true
+                })
+            ).toHaveCount(1);
+        }
         // An id the selector never heard of is shown raw rather than dropped —
         // an empty cell would read as "this token reaches nothing".
         await expect(apiTokensPage.rowWorkspaces('Orphaned bucket')).toHaveText(
@@ -129,9 +157,15 @@ test.describe('API tokens page', () => {
         await expect(
             apiTokensPage.rowActions('Production website')
         ).toBeVisible();
+
+        await apiTokensPage.showStatus('Expired');
+        await expect(apiTokensPage.row('Old preview build')).toBeVisible();
         await expect(apiTokensPage.rowActions('Old preview build')).toHaveCount(
             0
         );
+
+        await apiTokensPage.showStatus('Revoked');
+        await expect(apiTokensPage.row('Leaked laptop token')).toBeVisible();
         await expect(
             apiTokensPage.rowActions('Leaked laptop token')
         ).toHaveCount(0);
@@ -279,8 +313,8 @@ test.describe('API tokens page', () => {
         await page.getByRole('option', { name: 'Product docs' }).click();
         await page.keyboard.press('Escape');
 
-        await apiTokensPage.accessSelect().click();
-        await apiTokensPage.chooseOption('Full access');
+        await apiTokensPage.accessCard('Full access').click();
+        await apiTokensPage.expiryOption('Never').click();
 
         await expect(apiTokensPage.submitCreateButton()).toBeEnabled();
         await apiTokensPage.submitCreateButton().click();
@@ -291,7 +325,7 @@ test.describe('API tokens page', () => {
             workspaceIds: ['ws_marketing', 'ws_docs'],
             scope: 'full'
         });
-        // "Never" is the default preset, so no expiry is sent at all.
+        // "Never" sends no expiry at all, rather than a null.
         expect(api.lastCreateBody).not.toHaveProperty('expiresAt');
     });
 
@@ -306,10 +340,8 @@ test.describe('API tokens page', () => {
         await apiTokensPage.openCreate();
         await apiTokensPage.nameField().fill('Cancelled draft');
         await apiTokensPage.pickWorkspace('Marketing site');
-        await apiTokensPage.accessSelect().click();
-        await apiTokensPage.chooseOption('Full access');
-        await apiTokensPage.expiresSelect().click();
-        await apiTokensPage.chooseOption('30 days');
+        await apiTokensPage.accessCard('Full access').click();
+        await apiTokensPage.expiryOption('1 year').click();
 
         await apiTokensPage.cancelCreateButton().click();
         await expect(apiTokensPage.createDialog()).toHaveCount(0);
@@ -321,11 +353,14 @@ test.describe('API tokens page', () => {
         // this time. An admin who cancelled “Production website” and reopened
         // was one click from a second live credential wearing the same name.
         await expect(apiTokensPage.nameField()).toHaveValue('');
-        await expect(apiTokensPage.workspacesSelect()).toContainText(
-            'Select workspaces'
+        await expect(
+            apiTokensPage.removeWorkspaceChip('Marketing site')
+        ).toHaveCount(0);
+        await expect(apiTokensPage.accessCard('Read-only')).toBeChecked();
+        await expect(apiTokensPage.expiryOption('30 days')).toHaveAttribute(
+            'aria-checked',
+            'true'
         );
-        await expect(apiTokensPage.accessSelect()).toContainText('Read-only');
-        await expect(apiTokensPage.expiresSelect()).toContainText('Never');
         await expect(apiTokensPage.submitCreateButton()).toBeDisabled();
     });
 
@@ -349,9 +384,9 @@ test.describe('API tokens page', () => {
         // hanging off the closing edge alone misses it entirely, and the form
         // re-opens pre-filled with the token that was just created.
         await expect(apiTokensPage.nameField()).toHaveValue('');
-        await expect(apiTokensPage.workspacesSelect()).toContainText(
-            'Select workspaces'
-        );
+        await expect(
+            apiTokensPage.removeWorkspaceChip('Marketing site')
+        ).toHaveCount(0);
         await expect(apiTokensPage.submitCreateButton()).toBeDisabled();
     });
 
@@ -364,10 +399,9 @@ test.describe('API tokens page', () => {
         await apiTokensPage.table.waitFor();
 
         await apiTokensPage.openCreate();
-        await apiTokensPage.nameField().fill('Thirty days');
+        await apiTokensPage.nameField().fill('Ninety days');
         await apiTokensPage.pickWorkspace('Marketing site');
-        await apiTokensPage.expiresSelect().click();
-        await apiTokensPage.chooseOption('30 days');
+        await apiTokensPage.expiryOption('90 days').click();
         await apiTokensPage.submitCreateButton().click();
         await apiTokensPage.revealDialog().waitFor();
 
@@ -376,6 +410,36 @@ test.describe('API tokens page', () => {
         expect(expiresAt).toBeTruthy();
         const days =
             (Date.parse(expiresAt as string) - Date.now()) / 86_400_000;
+        expect(days).toBeGreaterThan(89.9);
+        expect(days).toBeLessThan(90.1);
+    });
+
+    test('a new token expires in thirty days unless told otherwise', async ({
+        page,
+        apiTokensPage
+    }) => {
+        const api = await mockApiTokensApi(page);
+        await apiTokensPage.goto();
+        await apiTokensPage.table.waitFor();
+
+        await apiTokensPage.openCreate();
+        // The default is finite: a token nobody remembered to give an expiry
+        // dies on its own instead of living forever.
+        await expect(apiTokensPage.expiryOption('30 days')).toHaveAttribute(
+            'aria-checked',
+            'true'
+        );
+        await apiTokensPage.nameField().fill('Defaulted');
+        await apiTokensPage.pickWorkspace('Marketing site');
+        await apiTokensPage.submitCreateButton().click();
+        await apiTokensPage.revealDialog().waitFor();
+
+        const days =
+            (Date.parse(
+                (api.lastCreateBody as { expiresAt: string }).expiresAt
+            ) -
+                Date.now()) /
+            86_400_000;
         expect(days).toBeGreaterThan(29.9);
         expect(days).toBeLessThan(30.1);
     });
@@ -423,9 +487,9 @@ test.describe('API tokens page', () => {
         ).toBeVisible();
         await expect(apiTokensPage.createDialog()).toBeVisible();
         await expect(apiTokensPage.nameField()).toHaveValue('Rejected token');
-        await expect(apiTokensPage.workspacesSelect()).toContainText(
-            'Marketing site'
-        );
+        await expect(
+            apiTokensPage.removeWorkspaceChip('Marketing site')
+        ).toBeVisible();
         await expect(apiTokensPage.revealDialog()).toHaveCount(0);
         // Correctable, not stuck: the submit comes back rather than staying
         // disabled behind a mutation that has already settled.
@@ -521,7 +585,7 @@ test.describe('API tokens page', () => {
         ).toBeVisible();
     });
 
-    test('revoking flips the row in place and says it happened', async ({
+    test('revoking moves the token to Revoked and says it happened', async ({
         page,
         apiTokensPage
     }) => {
@@ -531,19 +595,25 @@ test.describe('API tokens page', () => {
 
         await apiTokensPage.chooseRevoke('Production website');
         await expect(apiTokensPage.confirmDialog()).toContainText(
-            'Any app using “Production website” will immediately lose access.'
+            'Revoke “Production website”?'
         );
         await apiTokensPage.confirmRevokeButton().click();
 
+        await expect(apiTokensPage.toast('Token revoked')).toBeVisible();
+        // Out of the Active view, and counted under Revoked...
+        await expect(apiTokensPage.row('Production website')).toHaveCount(0);
+        await expect(apiTokensPage.statusChip('Revoked')).toHaveAccessibleName(
+            'Revoked, 3 tokens'
+        );
+        // ...where the row stays — a revoked token is history an operator
+        // needs to see — but its only action is gone.
+        await apiTokensPage.showStatus('Revoked');
         await expect(apiTokensPage.rowStatus('Production website')).toHaveText(
             'Revoked'
         );
-        // The row stays — a revoked token is history an operator needs to see —
-        // but its only action is gone.
         await expect(
             apiTokensPage.rowActions('Production website')
         ).toHaveCount(0);
-        await expect(apiTokensPage.toast('Token revoked')).toBeVisible();
         expect(api.revokeCalls).toBe(1);
     });
 
@@ -592,7 +662,7 @@ test.describe('API tokens page', () => {
         await apiTokensPage.table.waitFor();
 
         await expect(apiTokensPage.resultsStatus()).toHaveText(
-            `${API_TOKENS_SEED.length} API tokens`
+            `${ACTIVE_SEED_COUNT} API tokens`
         );
 
         await apiTokensPage.createToken('Announced token');
@@ -601,7 +671,7 @@ test.describe('API tokens page', () => {
         await apiTokensPage.closeWithoutCopyingButton().click();
 
         await expect(apiTokensPage.resultsStatus()).toHaveText(
-            `${API_TOKENS_SEED.length + 1} API tokens`
+            `${ACTIVE_SEED_COUNT + 1} API tokens`
         );
     });
 
@@ -652,6 +722,9 @@ test.describe('API tokens page', () => {
         page,
         apiTokensPage
     }) => {
+        // Three full page loads in one test: on a loaded dev server each one
+        // can take ~10 s, which put the default 30 s budget on a knife-edge.
+        test.slow();
         await mockApiTokensApi(page, { tokens: manyApiTokens(26) });
 
         // Not typos so much as stale links and hand-edited URLs. All three are

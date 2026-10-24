@@ -126,6 +126,16 @@ describe('ApiTokenService', () => {
                 findByHash: jest.fn(async () => row),
                 findById: jest.fn(),
                 list: jest.fn(),
+                summarize: jest.fn(),
+                creatorsFor: jest.fn(
+                    async (ids: readonly string[]) =>
+                        new Map(
+                            ids.map((id) => [
+                                id,
+                                { id, name: 'Ada', email: 'ada@x.dev' }
+                            ])
+                        )
+                ),
                 revoke: jest.fn(),
                 touchLastUsed
             } as unknown as DrizzleApiTokenRepository,
@@ -154,6 +164,24 @@ describe('ApiTokenService', () => {
             // The returned view carries no secret field of its own.
             expect(token).not.toHaveProperty('secret');
             expect(token.scope).toBe('read');
+        });
+
+        it('names the minting member on the view it hands back', async () => {
+            const { repo } = makeRepo(null);
+            const { service } = makeService(repo);
+
+            const { token } = await service.mint({
+                name: 'CI',
+                workspaceIds: ['ws-1'],
+                scope: 'read',
+                createdBy: 'user-1'
+            });
+
+            expect(token.createdBy).toEqual({
+                id: 'user-1',
+                name: 'Ada',
+                email: 'ada@x.dev'
+            });
         });
 
         it('persists the whole workspace bucket', async () => {
@@ -332,6 +360,133 @@ describe('ApiTokenService', () => {
                     service.mint(mintInput(['ws-anything']))
                 ).resolves.toBeDefined();
             });
+        });
+    });
+
+    describe('list', () => {
+        const SUMMARY = {
+            active: 2,
+            expired: 1,
+            revoked: 0,
+            expiringSoon: 1,
+            nextExpiresAt: new Date('2026-11-05T00:00:00Z')
+        };
+
+        function listRepo(records: ApiTokenRecord[]) {
+            const { repo } = makeRepo(null);
+            (repo.list as jest.Mock).mockResolvedValue({
+                items: records,
+                total: records.length
+            });
+            (repo.summarize as jest.Mock).mockResolvedValue(SUMMARY);
+            return repo;
+        }
+
+        const record = (id: string, createdBy: string): ApiTokenRecord =>
+            recordFrom(
+                {
+                    workspaceIds: ['ws-1'],
+                    name: id,
+                    tokenHash: 'h',
+                    lookupPrefix: 'orthacms_abc',
+                    scope: 'read',
+                    expiresAt: null,
+                    createdBy
+                },
+                { id }
+            );
+
+        it('passes every filter down and turns the page into an offset', async () => {
+            const repo = listRepo([]);
+            const { service } = makeService(repo);
+
+            await service.list({
+                workspaceId: 'ws-1',
+                status: 'active',
+                search: 'ci',
+                page: 3,
+                pageSize: 25
+            });
+
+            expect(repo.list).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    workspaceId: 'ws-1',
+                    status: 'active',
+                    search: 'ci',
+                    limit: 25,
+                    offset: 50
+                })
+            );
+        });
+
+        it('summarizes over the workspace only, never the status or search', async () => {
+            const repo = listRepo([]);
+            const { service } = makeService(repo);
+
+            const page = await service.list({
+                workspaceId: 'ws-1',
+                status: 'revoked',
+                search: 'ci',
+                page: 1,
+                pageSize: 25
+            });
+
+            const [options] = (repo.summarize as jest.Mock).mock.calls[0];
+            expect(options).toEqual({
+                workspaceId: 'ws-1',
+                now: expect.any(Date)
+            });
+            expect(page.summary).toEqual(SUMMARY);
+        });
+
+        it('derives the page and the summary at one shared instant', async () => {
+            // Two clocks would let a token expiring mid-request be counted as
+            // active in the chip and listed under Expired.
+            const repo = listRepo([]);
+            const { service } = makeService(repo);
+
+            await service.list({ page: 1, pageSize: 25 });
+
+            const listNow = (repo.list as jest.Mock).mock.calls[0][0].now;
+            const summaryNow = (repo.summarize as jest.Mock).mock.calls[0][0]
+                .now;
+            expect(listNow).toBe(summaryNow);
+        });
+
+        it('names each creator with one batched read for the page', async () => {
+            const repo = listRepo([
+                record('token-a', 'user-1'),
+                record('token-b', 'user-2')
+            ]);
+            const { service } = makeService(repo);
+
+            const page = await service.list({ page: 1, pageSize: 25 });
+
+            expect(repo.creatorsFor).toHaveBeenCalledTimes(1);
+            expect(repo.creatorsFor).toHaveBeenCalledWith(['user-1', 'user-2']);
+            expect(page.items.map((item) => item.createdBy?.id)).toEqual([
+                'user-1',
+                'user-2'
+            ]);
+        });
+
+        it('reads a creator with no account row as null rather than failing', async () => {
+            const repo = listRepo([record('token-a', 'ghost')]);
+            (repo.creatorsFor as jest.Mock).mockResolvedValue(new Map());
+            const { service } = makeService(repo);
+
+            const page = await service.list({ page: 1, pageSize: 25 });
+
+            expect(page.items[0].createdBy).toBeNull();
+        });
+
+        it('never puts the hash on the wire', async () => {
+            const repo = listRepo([record('token-a', 'user-1')]);
+            const { service } = makeService(repo);
+
+            const page = await service.list({ page: 1, pageSize: 25 });
+
+            expect(page.items[0]).not.toHaveProperty('tokenHash');
         });
     });
 

@@ -46,6 +46,54 @@ export class ApiTokensPage extends BasePage {
         await this.page.goto(`/api-tokens?${search}`);
     }
 
+    // --- header, chips and search -------------------------------------------
+
+    /**
+     * The container header's subtitle, which carries the live summary
+     * ("3 active, 1 expires in 12 days").
+     */
+    subtitle(): Locator {
+        return this.page.getByText(/^Bearer tokens for the content API/);
+    }
+
+    /** The Active / Expired / Revoked chip group. */
+    statusChips(): Locator {
+        return this.page.getByRole('group', { name: 'Show by status' });
+    }
+
+    /**
+     * One status chip. Its accessible name carries the count ("Expired, 1
+     * token"), so it is matched on the leading label.
+     */
+    statusChip(label: 'Active' | 'Expired' | 'Revoked'): Locator {
+        return this.statusChips().getByRole('button', {
+            name: new RegExp(`^${label}`)
+        });
+    }
+
+    /** Press a status chip and wait for its view to be the pressed one. */
+    async showStatus(label: 'Active' | 'Expired' | 'Revoked') {
+        await this.statusChip(label).click();
+        await this.statusChip(label)
+            .and(this.page.locator('[aria-pressed="true"]'))
+            .waitFor();
+    }
+
+    /** The list's search box. */
+    searchBox(): Locator {
+        return this.page.getByRole('searchbox', { name: 'Search tokens' });
+    }
+
+    /** A filtered-empty heading ("No active tokens", "No tokens match …"). */
+    noMatchHeading(text: string | RegExp): Locator {
+        return this.page.getByRole('heading', { name: text });
+    }
+
+    /** The no-match state's way back to the whole view. */
+    clearSearchButton(): Locator {
+        return this.page.getByRole('button', { name: 'Clear search' });
+    }
+
     // --- list states -------------------------------------------------------
 
     /** The `sr-only` live region carrying the result count (WCAG 4.1.3). */
@@ -121,9 +169,22 @@ export class ApiTokensPage extends BasePage {
         return this.row(name).getByRole('cell').nth(4);
     }
 
-    /** The Workspaces cell for a named token (one badge per workspace). */
+    /**
+     * The Workspaces cell for a named token: one initials tile per workspace,
+     * each named in `sr-only` text (or a raw-id badge for an unknown one).
+     */
     rowWorkspaces(name: string): Locator {
         return this.row(name).getByRole('cell').nth(1);
+    }
+
+    /** The Expires cell for a named token. */
+    rowExpires(name: string): Locator {
+        return this.row(name).getByRole('cell').nth(5);
+    }
+
+    /** The Last used cell for a named token. */
+    rowLastUsed(name: string): Locator {
+        return this.row(name).getByRole('cell').nth(6);
     }
 
     /** The row's kebab — rendered only for an `active` token. */
@@ -165,20 +226,54 @@ export class ApiTokensPage extends BasePage {
         return this.createDialog().getByLabel('Name');
     }
 
+    /**
+     * The workspace picker's "Add a workspace…" combobox, named by the field
+     * label it sits under.
+     */
     workspacesSelect(): Locator {
         return this.createDialog().getByRole('combobox', {
             name: 'Workspaces'
         });
     }
 
-    /** The Access select — named, so it can be told from Expires. */
-    accessSelect(): Locator {
-        return this.createDialog().getByRole('combobox', { name: 'Access' });
+    /** A picked workspace's chip remove button ("Remove Marketing site"). */
+    removeWorkspaceChip(name: string): Locator {
+        return this.createDialog().getByRole('button', {
+            name: `Remove ${name}`
+        });
     }
 
-    /** The Expires select — named, so it can be told from Access. */
-    expiresSelect(): Locator {
-        return this.createDialog().getByRole('combobox', { name: 'Expires' });
+    /** The Access radio group (two option cards). */
+    accessGroup(): Locator {
+        return this.createDialog().getByRole('radiogroup', { name: 'Access' });
+    }
+
+    /** One access card's radio, by its title ("Read-only", "Full access"). */
+    accessCard(label: 'Read-only' | 'Full access'): Locator {
+        return this.accessGroup().getByRole('radio', {
+            name: label,
+            exact: true
+        });
+    }
+
+    /** The Expires segmented control (a Radix single toggle group). */
+    expiresGroup(): Locator {
+        return this.createDialog().getByRole('radiogroup', { name: 'Expires' });
+    }
+
+    /** One expiry preset ("Never", "30 days", "90 days", "1 year"). */
+    expiryOption(label: string): Locator {
+        return this.expiresGroup().getByRole('radio', {
+            name: label,
+            exact: true
+        });
+    }
+
+    /** The line under the presets that turns the choice into a date. */
+    expiryHint(): Locator {
+        return this.createDialog().getByText(
+            /^On .+\. We flag it 30 days before\.$|^It keeps working until someone revokes it\.$/
+        );
     }
 
     submitCreateButton(): Locator {
@@ -236,11 +331,6 @@ export class ApiTokensPage extends BasePage {
         await this.page.keyboard.press('Escape');
     }
 
-    /** Choose an option in an open Radix `Select`. */
-    async chooseOption(label: string) {
-        await this.page.getByRole('option', { name: label }).click();
-    }
-
     /** Fill the minimum a token needs and submit. */
     async createToken(name: string, workspace = 'Marketing site') {
         await this.openCreate();
@@ -252,7 +342,7 @@ export class ApiTokensPage extends BasePage {
     // --- reveal dialog -----------------------------------------------------
 
     revealDialog(): Locator {
-        return this.page.getByRole('dialog', { name: 'Copy your API token' });
+        return this.page.getByRole('dialog', { name: 'Copy your token now' });
     }
 
     /**
@@ -267,8 +357,27 @@ export class ApiTokensPage extends BasePage {
         });
     }
 
+    /**
+     * The secret's Copy button. `exact`: "Copy request" carries the word too,
+     * and after a copy this one reads "Copied".
+     */
     copyButton(): Locator {
-        return this.revealDialog().getByRole('button', { name: 'Copy' });
+        return this.revealDialog().getByRole('button', {
+            name: 'Copy',
+            exact: true
+        });
+    }
+
+    /** The example request's own copy button — the full command, secret included. */
+    copyRequestButton(): Locator {
+        return this.revealDialog().getByRole('button', {
+            name: 'Copy request'
+        });
+    }
+
+    /** The ready-to-run example request ("Try it"). */
+    tryItBlock(): Locator {
+        return this.revealDialog().getByRole('group', { name: 'Try it' });
     }
 
     doneButton(): Locator {
@@ -309,12 +418,15 @@ export class ApiTokensPage extends BasePage {
 
     // --- revoke confirm ----------------------------------------------------
 
+    /** The revoke confirmation, titled with the token's name. */
     confirmDialog(): Locator {
-        return this.page.getByRole('dialog', { name: 'Revoke this token?' });
+        return this.page.getByRole('dialog', { name: /^Revoke “.+”\?$/ });
     }
 
     confirmRevokeButton(): Locator {
-        return this.confirmDialog().getByRole('button', { name: 'Revoke' });
+        return this.confirmDialog().getByRole('button', {
+            name: 'Revoke token'
+        });
     }
 
     cancelRevokeButton(): Locator {
