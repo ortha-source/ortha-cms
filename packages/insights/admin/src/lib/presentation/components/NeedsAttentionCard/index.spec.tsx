@@ -18,7 +18,7 @@ const signal = (
 describe('NeedsAttentionCard', () => {
     let consoleError: ReturnType<typeof vi.spyOn>;
     beforeEach(() => {
-        consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+        consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     });
     afterEach(() => consoleError.mockRestore());
 
