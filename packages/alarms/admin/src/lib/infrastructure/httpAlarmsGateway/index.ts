@@ -4,6 +4,7 @@ import type {
     AlarmFindingList,
     AlarmRule,
     AlarmRulePreview,
+    AlarmRuleUpdated,
     AlarmScanResult,
     AlarmSummary
 } from '../../types/alarm';
@@ -17,6 +18,7 @@ import {
     toAlarmFindingList,
     toAlarmRule,
     toAlarmRulePreview,
+    toAlarmRuleUpdated,
     toAlarmScanResult,
     toAlarmSummary,
     toFindingsByEntry,
@@ -24,6 +26,7 @@ import {
     type AlarmFindingsByEntryResponse,
     type AlarmRulePreviewResponse,
     type AlarmRuleResponse,
+    type AlarmRuleUpdatedResponse,
     type AlarmScanResponse,
     type AlarmSummaryResponse
 } from '../alarmMapper';
@@ -59,12 +62,12 @@ export const httpAlarmsGateway: AlarmsGateway = {
     async updateRule(
         id: string,
         input: UpdateAlarmRuleInput
-    ): Promise<AlarmRule> {
-        const { data } = await apiClient.patch<AlarmRuleResponse>(
+    ): Promise<AlarmRuleUpdated> {
+        const { data } = await apiClient.patch<AlarmRuleUpdatedResponse>(
             `/alarms/rules/${id}`,
             input
         );
-        return toAlarmRule(data);
+        return toAlarmRuleUpdated(data);
     },
 
     async deleteRule(id: string): Promise<void> {

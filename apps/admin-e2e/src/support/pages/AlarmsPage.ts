@@ -78,16 +78,15 @@ export class AlarmsPage extends BasePage {
         return this.breadcrumb().getByText(label, { exact: true });
     }
 
-    // --- the three tabs ---
+    // --- the two tabs ---
 
     /** One of the Flagged / Alarms tabs. */
     tab(name: 'Flagged' | 'Alarms'): Locator {
-        // A `radiogroup`, not a `group`: the design system's SegmentedControl
-        // is a Radix ToggleGroup in single-select mode, so the items are radios
-        // and the container takes the matching role.
+        // Underlined Radix tabs: a `tablist` of `tab`s, each carrying its
+        // count after the word ("Flagged 56").
         return this.page
-            .getByRole('radiogroup', { name: 'Alarms view' })
-            .getByRole('radio', { name: new RegExp(`^${name}`) });
+            .getByRole('tablist', { name: 'Alarms view' })
+            .getByRole('tab', { name: new RegExp(`^${name}`) });
     }
 
     // --- findings, grouped by alarm ---
@@ -191,9 +190,52 @@ export class AlarmsPage extends BasePage {
     /** The card for one alarm on the Alarms tab, by the alarm's name. */
     ruleCard(name: string): Locator {
         return this.page
-            .getByRole('list', { name: 'Alarms' })
-            .getByRole('listitem')
+            .getByRole('list', { name: 'Alarms', exact: true })
+            .locator(':scope > li')
             .filter({ hasText: name });
+    }
+
+    /** One alarm's on/off switch on the Alarms tab. */
+    ruleSwitch(name: string): Locator {
+        return this.page.getByRole('switch', { name: `Alarm “${name}” on` });
+    }
+
+    /** One alarm's "…" menu trigger on the Alarms tab. */
+    ruleMenu(name: string): Locator {
+        return this.page.getByRole('button', {
+            name: `More actions for “${name}”`
+        });
+    }
+
+    /** An item of the open "…" menu. */
+    menuItem(label: string): Locator {
+        return this.page.getByRole('menuitem', { name: label });
+    }
+
+    /** One alarm card's "N flagged" — opens that alarm's group. */
+    ruleFlagged(name: string): Locator {
+        return this.page.getByRole('button', {
+            name: new RegExp(`flagged by “${name}”`)
+        });
+    }
+
+    /** One condition chip on one alarm card. */
+    ruleChip(name: string, text: string | RegExp): Locator {
+        return this.ruleCard(name)
+            .locator('[data-condition-chip]')
+            .filter({ hasText: text });
+    }
+
+    /** A group's "Show all in Records" link. */
+    groupShowAll(name: string): Locator {
+        return this.page.getByRole('link', {
+            name: `Show all in Records: every record ${name} flags`
+        });
+    }
+
+    /** A record's "Open" link inside a group. */
+    groupOpen(title: string): Locator {
+        return this.page.getByRole('link', { name: `Open ${title}` });
     }
 
     /**
@@ -223,7 +265,11 @@ export class AlarmsPage extends BasePage {
         return this.page.getByRole('heading', { name: 'Flag a record when…' });
     }
 
-    /** The "Edit conditions" button that opens the builder's popover. */
+    /**
+     * The "+ Condition" button that opens the builder's popover. Its
+     * accessible name says what it does — "Edit conditions" — since the
+     * popover edits the whole condition, not only adds one.
+     */
     conditionToggle(): Locator {
         return this.page.getByRole('button', { name: 'Edit conditions' });
     }
@@ -252,33 +298,64 @@ export class AlarmsPage extends BasePage {
     }
 
     /**
-     * One committed condition, as a summary chip.
+     * One committed condition, as a chip.
      *
      * This is the read-out that makes Apply visible: before it existed,
      * committing a condition changed nothing on screen.
      */
     conditionChip(text: string | RegExp): Locator {
         return this.page
-            .locator('span')
-            .filter({ has: this.page.locator('[data-qb-chip-remove]') })
+            .locator('[data-condition-chip]')
             .filter({ hasText: text });
     }
 
     /** Every committed condition chip. */
     conditionChips(): Locator {
-        return this.page
-            .locator('span')
-            .filter({ has: this.page.locator('[data-qb-chip-remove]') });
+        return this.page.locator('[data-condition-chip]');
     }
 
-    /** Drop every committed condition via the summary's own "Clear all". */
+    /** The remove button on one chip. */
+    chipRemove(chip: Locator): Locator {
+        return chip.locator('[data-condition-chip-remove]');
+    }
+
+    /** Drop every committed condition, one chip at a time. */
     async clearAllConditions() {
-        await this.page.getByRole('button', { name: 'Clear all' }).click();
+        const chips = this.conditionChips();
+        while ((await chips.count()) > 0) {
+            await this.chipRemove(chips.first()).click();
+        }
     }
 
-    /** The live "N records match" read-out under the conditions. */
+    /** The preview's live "N of M … would be flagged" line. */
     matchCount(): Locator {
-        return this.page.getByText(/record[s]? match|No records match/);
+        return this.page.locator('[data-alarm-preview-count]');
+    }
+
+    /** The preview's "the condition is probably inverted" hint. */
+    invertedHint(): Locator {
+        return this.page
+            .getByRole('status')
+            .filter({ hasText: 'the condition is probably inverted' });
+    }
+
+    /** The preview's sample of matching records. */
+    previewSample(): Locator {
+        return this.page.getByRole('list', {
+            name: 'Some of the records it would flag'
+        });
+    }
+
+    /** The preview's "what editors will see" finding. */
+    editorsWillSee(): Locator {
+        return this.page.getByRole('group', { name: 'Editors will see' });
+    }
+
+    /** One level segment (Error / Warning / Info). */
+    level(word: 'Error' | 'Warning' | 'Info'): Locator {
+        return this.page
+            .getByRole('radiogroup', { name: 'Level' })
+            .getByRole('radio', { name: word });
     }
 
     /** The notice that says the conditions on screen are not saved yet. */

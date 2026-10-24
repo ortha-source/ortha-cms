@@ -38,6 +38,7 @@ import {
 import { DuplicateAlarmRuleNameError } from '../../infrastructure/alarm-rule.repository';
 import type {
     AlarmRulePreviewView,
+    AlarmRuleUpdatedView,
     AlarmRuleView,
     AlarmScanResultView
 } from '../../types/alarm-views';
@@ -101,7 +102,8 @@ export class AlarmRulesController {
         summary: 'Preview an alarm rule',
         description:
             'Runs a candidate filter without saving it and reports how many ' +
-            'entries it matches out of how many the workspace holds.'
+            'entries it matches out of how many the workspace holds, with a ' +
+            'few of the matching entries by title.'
     })
     @UseGuards(OriginGuard)
     @RequirePermissions(PERMISSIONS.ALARMS_MANAGE)
@@ -118,9 +120,10 @@ export class AlarmRulesController {
     @ApiOperation({
         summary: 'Update an alarm rule',
         description:
-            'Absent keys are left alone. Changing the filter triggers a full ' +
-            'rescan before the response, so the findings never describe the ' +
-            'previous condition.'
+            'Absent keys are left alone. Changing the filter — or switching a ' +
+            'disabled rule back on — triggers a full rescan before the ' +
+            'response, so the findings never describe the previous condition. ' +
+            'The response carries that scan, or `scan: null` when there was none.'
     })
     @UseGuards(OriginGuard)
     @RequirePermissions(PERMISSIONS.ALARMS_MANAGE)
@@ -130,7 +133,7 @@ export class AlarmRulesController {
         @Param('id', ParseUUIDPipe) id: string,
         @Body() dto: UpdateAlarmRuleDto,
         @CurrentUser() user?: PublicUser
-    ): Promise<AlarmRuleView> {
+    ): Promise<AlarmRuleUpdatedView> {
         return mapErrors(() =>
             this.rules.update(workspaceId, id, dto, toActor(user))
         );

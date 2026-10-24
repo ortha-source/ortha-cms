@@ -36,20 +36,26 @@ export type RuleListProps = {
     isError: boolean;
     /** Whether the caller holds `alarms:manage`. */
     canManage: boolean;
+    /** A collection's display label by its name. */
+    typeLabel: (name: string) => string;
     /** Re-run this rule across its collection. */
     onRescan: (rule: AlarmRule) => void;
     /** Open this rule for editing. */
     onEdit: (rule: AlarmRule) => void;
     /** Delete this rule. */
     onDelete: (rule: AlarmRule) => void;
+    /** Switch this rule on or off. */
+    onToggle: (rule: AlarmRule, enabled: boolean) => void;
     /** Show this rule's findings. */
     onShowFindings: (rule: AlarmRule) => void;
     /** Ids of rules with a rescan in flight. */
     rescanningIds: ReadonlySet<string>;
+    /** Rules with an on/off change in flight, and the value it is going to. */
+    pendingToggles: ReadonlyMap<string, boolean>;
 };
 
 /**
- * The workspace's rules, one card each.
+ * The workspace's alarms, one card each, in the API's order (by name).
  *
  * As with the findings list, `isError` gets its own state: "no rules" and
  * "could not load the rules" both render as nothing, and only one of them means
@@ -59,11 +65,14 @@ export function RuleList({
     rules,
     isError,
     canManage,
+    typeLabel,
     onRescan,
     onEdit,
     onDelete,
+    onToggle,
     onShowFindings,
-    rescanningIds
+    rescanningIds,
+    pendingToggles
 }: RuleListProps) {
     const intl = useIntl();
     const isJustCreated = useJustCreated(ALARM_RULES_SCOPE);
@@ -105,11 +114,14 @@ export function RuleList({
                 <RuleCard
                     key={rule.id}
                     rule={rule}
+                    typeLabel={typeLabel(rule.contentType)}
                     canManage={canManage}
                     isRescanning={rescanningIds.has(rule.id)}
+                    pendingEnabled={pendingToggles.get(rule.id)}
                     onRescan={onRescan}
                     onEdit={onEdit}
                     onDelete={onDelete}
+                    onToggle={onToggle}
                     onShowFindings={onShowFindings}
                     justCreated={isJustCreated(rule.id)}
                 />

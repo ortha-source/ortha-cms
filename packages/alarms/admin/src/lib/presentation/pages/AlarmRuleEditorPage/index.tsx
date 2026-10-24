@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import {
@@ -16,39 +16,45 @@ import {
     SelectTrigger,
     SelectValue,
     Spinner,
-    Textarea,
     toast
 } from '@orthacms/design-system';
 import {
     QueryBuilderPopover,
-    QueryBuilderSummary,
-    countRules,
     jsonFilterToTree,
     treeToJsonFilter,
     type FilterGroup
 } from '@orthacms/query-builder-admin';
 import {
-    RECORDS_FILTER_FIELDS_SLOT,
     RelationValuePicker,
     RequiredMark,
-    useContentSchema,
-    useContentTypes,
-    useFilterFields,
-    type ContentTypeDetail
+    useContentTypes
 } from '@orthacms/content-admin';
 import { useHasPermission } from '@orthacms/identity-admin';
-import { PageTopBar } from '@orthacms/shell-admin';
+import { PageActionsPortal, PageTopBar } from '@orthacms/shell-admin';
 import { useCurrentWorkspace } from '@orthacms/workspaces-admin';
-import { BellRing, SlidersHorizontal, TriangleAlert } from 'lucide-react';
+import { BellRing, Plus, Table2 } from 'lucide-react';
 import { useAlarmRules } from '../../../application/useAlarmRules';
 import {
     useCreateAlarmRule,
     usePreviewAlarmRule,
     useUpdateAlarmRule
 } from '../../../application/useAlarmRuleMutations';
-import { ALARM_SEVERITIES, type AlarmSeverity } from '../../../types/alarm';
+import { useConditionFields } from '../../../application/useConditionFields';
+import { useTypeLabels } from '../../../application/useTypeLabels';
+import type { AlarmSeverity } from '../../../types/alarm';
+import {
+    changedConditionIds,
+    flattenConditions,
+    removeCondition
+} from '../../../utils/conditions';
+import { previewVerdict } from '../../../utils/previewVerdict';
+import { AlarmPreviewPanel } from '../../components/AlarmPreviewPanel';
 import { AlarmsNoAccess } from '../../components/AlarmsNoAccess';
 import { AlarmsSkeleton } from '../../components/AlarmsSkeleton';
+import { Callout } from '../../components/Callout';
+import { ConditionChips } from '../../components/ConditionChips';
+import { SeverityPicker } from '../../components/SeverityPicker';
+import { scanMessage } from '../../scanMessage';
 
 const messages = defineMessages({
     title: { id: 'alarms.editor.title', defaultMessage: 'Edit alarm' },
@@ -59,17 +65,22 @@ const messages = defineMessages({
     createSubtitle: {
         id: 'alarms.editor.createSubtitle',
         defaultMessage:
-            'Pick what to watch, then say what counts as a problem. Nothing is ever blocked — a match is flagged, not refused.'
+            'Pick what to watch, then say what counts as a problem. Nothing is ever blocked — a match is flagged.'
+    },
+    subtitleCreator: {
+        id: 'alarms.editor.subtitleCreator',
+        defaultMessage: 'created by {name}'
+    },
+    subtitleFlagged: {
+        id: 'alarms.editor.subtitleFlagged',
+        defaultMessage:
+            '{count, plural, =0 {nothing flagged now} one {# record flagged now} other {# records flagged now}}'
     },
     crumbNew: { id: 'alarms.editor.crumbNew', defaultMessage: 'New alarm' },
+    crumbAlarms: { id: 'alarms.editor.crumbAlarms', defaultMessage: 'Alarms' },
     contentType: {
         id: 'alarms.editor.contentType',
         defaultMessage: 'What to watch'
-    },
-    contentTypeHint: {
-        id: 'alarms.editor.contentTypeHint',
-        defaultMessage:
-            'The collection this alarm checks. It cannot be changed later — every finding is about a record of this type.'
     },
     contentTypePlaceholder: {
         id: 'alarms.editor.contentTypePlaceholder',
@@ -79,28 +90,6 @@ const messages = defineMessages({
         id: 'alarms.editor.pickTypeFirst',
         defaultMessage: 'Choose a collection above to set conditions.'
     },
-    create: { id: 'alarms.editor.create', defaultMessage: 'Create alarm' },
-    created: {
-        id: 'alarms.editor.created',
-        defaultMessage:
-            '{name} created — {open, plural, =0 {nothing flagged yet} one {# record flagged} other {# records flagged}}.'
-    },
-    subtitle: {
-        id: 'alarms.editor.subtitle',
-        defaultMessage:
-            'Watching {contentType}. Changing the condition re-checks the whole collection.'
-    },
-    crumbAlarms: { id: 'alarms.editor.crumbAlarms', defaultMessage: 'Alarms' },
-    notFoundTitle: {
-        id: 'alarms.editor.notFoundTitle',
-        defaultMessage: 'No such alarm'
-    },
-    notFoundBody: {
-        id: 'alarms.editor.notFoundBody',
-        defaultMessage: 'It may have been deleted. Go back to the alarms list.'
-    },
-    back: { id: 'alarms.editor.back', defaultMessage: 'Back to alarms' },
-    cancel: { id: 'alarms.editor.cancel', defaultMessage: 'Cancel' },
     name: { id: 'alarms.editor.name', defaultMessage: 'Alarm name' },
     findingTitle: {
         id: 'alarms.editor.findingTitle',
@@ -108,30 +97,16 @@ const messages = defineMessages({
     },
     findingHint: {
         id: 'alarms.editor.findingHint',
-        defaultMessage: 'Shown on the record itself: “Author is not published”.'
-    },
-    description: {
-        id: 'alarms.editor.description',
-        defaultMessage: 'Notes (optional)'
+        defaultMessage: 'Shown on the record itself, in its status.'
     },
     severity: { id: 'alarms.editor.severity', defaultMessage: 'Level' },
-    severityError: {
-        id: 'alarms.editor.severityError',
-        defaultMessage: 'Error'
-    },
-    severityWarn: {
-        id: 'alarms.editor.severityWarn',
-        defaultMessage: 'Warning'
-    },
-    severityInfo: { id: 'alarms.editor.severityInfo', defaultMessage: 'Info' },
     condition: {
         id: 'alarms.editor.condition',
         defaultMessage: 'Flag a record when…'
     },
-    conditionHint: {
-        id: 'alarms.editor.conditionHint',
-        defaultMessage:
-            'The same conditions you filter the records list with. A record is flagged for as long as it matches all of them.'
+    addCondition: {
+        id: 'alarms.editor.addCondition',
+        defaultMessage: 'Condition'
     },
     editCondition: {
         id: 'alarms.editor.editCondition',
@@ -140,27 +115,8 @@ const messages = defineMessages({
     noCondition: {
         id: 'alarms.editor.noCondition',
         defaultMessage:
-            'No conditions yet. A rule needs at least one, or it would flag every record in the collection.'
+            'No conditions yet. An alarm needs at least one, or it would flag every record.'
     },
-    matching: {
-        id: 'alarms.editor.matching',
-        defaultMessage: 'Checking how many records match…'
-    },
-    matches: {
-        id: 'alarms.editor.matches',
-        defaultMessage:
-            '{matched, plural, =0 {No records match} one {# record matches} other {# records match}} right now, out of {total}.'
-    },
-    matchesEverything: {
-        id: 'alarms.editor.matchesEverything',
-        defaultMessage:
-            'That is every record in the collection — the condition is probably inverted.'
-    },
-    matchFailed: {
-        id: 'alarms.editor.matchFailed',
-        defaultMessage: 'Could not count the matches: {reason}'
-    },
-    recount: { id: 'alarms.editor.recount', defaultMessage: 'Re-check' },
     unsaved: {
         id: 'alarms.editor.unsaved',
         defaultMessage:
@@ -170,12 +126,17 @@ const messages = defineMessages({
         id: 'alarms.editor.brokenTitle',
         defaultMessage: 'This condition no longer matches the content type'
     },
-    save: { id: 'alarms.editor.save', defaultMessage: 'Save changes' },
-    requiredLegend: {
-        id: 'alarms.editor.requiredLegend',
-        defaultMessage:
-            'Fields marked * are required, and an alarm needs at least one condition.'
+    notFoundTitle: {
+        id: 'alarms.editor.notFoundTitle',
+        defaultMessage: 'No such alarm'
     },
+    notFoundBody: {
+        id: 'alarms.editor.notFoundBody',
+        defaultMessage: 'It may have been deleted. Go back to the alarms list.'
+    },
+    create: { id: 'alarms.editor.create', defaultMessage: 'Create alarm' },
+    cancel: { id: 'alarms.editor.cancel', defaultMessage: 'Cancel' },
+    save: { id: 'alarms.editor.save', defaultMessage: 'Save changes' },
     saved: { id: 'alarms.editor.saved', defaultMessage: 'Alarm saved.' },
     saveFailed: {
         id: 'alarms.editor.saveFailed',
@@ -183,73 +144,39 @@ const messages = defineMessages({
     }
 });
 
-/**
- * Stands in for a content type that has not loaded yet.
- *
- * A module constant rather than an inline literal: it is passed to slot hooks
- * on every render, and a fresh object each time would defeat any memoisation a
- * contributor does on its identity.
- */
-const NO_SCHEMA: ContentTypeDetail = {
-    name: '',
-    kind: 'collection',
-    label: '',
-    fields: []
-};
-
-/** The severity labels, keyed the same way the type is. */
-const SEVERITY_LABELS = {
-    error: messages.severityError,
-    warn: messages.severityWarn,
-    info: messages.severityInfo
-} as const;
-
 /** Props for {@link AlarmRuleEditorPage}. */
 export type AlarmRuleEditorPageProps = {
     /**
-     * `'create'` mounts the same page as a blank form with a content-type
+     * `'create'` mounts the same page as a blank form with a collection
      * picker; `'edit'` (the default) loads the rule named by the route.
      *
      * One component for both, because the two forms are the same form: the
-     * condition builder, the match count, the wording and the level are
-     * identical, and the only genuine difference is whether the collection is
-     * chosen or already fixed. A second page would be that whole surface
-     * duplicated for one `<Select>`.
+     * wording, the level, the conditions and the live preview are identical,
+     * and the only genuine difference is whether the collection is chosen or
+     * already fixed.
      */
     mode?: 'create' | 'edit';
 };
 
 /**
- * Creates or edits one alarm: its wording, its level, and its conditions.
+ * Creates or edits one alarm: what it watches, its wording, its level and its
+ * conditions — with what it would flag **right now** beside the form.
  *
  * The conditions are edited with the **records list's own query builder**, over
- * the same `/content-schema/:name/filter-fields` surface — so a rule can only
- * ever say something the list can say, and there is no second grammar to learn,
- * document or keep in step with the engine.
+ * the same filterable surface, so an alarm can only ever say something the list
+ * can say. They rest as chips ("SEO description *is* empty") with a
+ * "+ Condition" button that opens the builder; removing a chip re-commits at
+ * once.
  *
- * **"Save as alarm" in the records toolbar is still the better path**, and the
- * one the docs lead with: there the condition is already built and already
- * verified against rows the author has looked at. Creating from here starts
- * from a blank condition over a collection nobody has inspected, which is how
- * you get an alarm that matches everything — so this form leans hard on the
- * live match count to close that gap before the alarm is saved.
+ * **The preview is what makes the blank form safe.** It re-runs whenever the
+ * committed conditions change and shows the count, a sample of the records by
+ * title, and the finding as editors will see it — and when every record
+ * matches it says the condition is probably inverted, before anything is
+ * saved, and tints the conditions that changed since the last save.
  *
- * ### Why the condition block looks the way it does
- *
- * In the records list, Apply has an obvious consequence: the table underneath
- * re-runs. Here there is no table, so committing a condition changed nothing a
- * person could see and Apply read as a dead button. Two things fix that, and
- * both are on screen at rest rather than behind another click:
- *
- * - **The committed conditions render as chips** (`QueryBuilderSummary`), so
- *   Apply visibly moves the edit out of the builder and into the rule.
- * - **The match count re-runs on its own** whenever those conditions change.
- *   It was behind a "Count matches" button, which is the one number that tells
- *   you whether the rule you just wrote means what you think, and it only
- *   appeared if you knew to ask.
- *
- * Apply and Save then have visibly different jobs — Apply changes the chips,
- * Save re-checks the collection — and the unsaved notice says so in words.
+ * **Apply changes the chips; Save re-checks the collection.** The unsaved
+ * notice says so in words, and the toast after Save reports what the re-check
+ * did ("checked 842, 38 flagged, 2 cleared").
  */
 export function AlarmRuleEditorPage({
     mode = 'edit'
@@ -261,6 +188,9 @@ export function AlarmRuleEditorPage({
     const canRead = useHasPermission('alarms:read');
     const canManage = useHasPermission('alarms:manage');
     const isCreate = mode === 'create';
+    const levelId = useId();
+    const conditionHeadingId = useId();
+    const conditionButton = useRef<HTMLButtonElement>(null);
 
     const rules = useAlarmRules(canRead && !isCreate);
     const rule = useMemo(
@@ -268,82 +198,44 @@ export function AlarmRuleEditorPage({
         [rules.data, ruleId]
     );
 
-    // Only meaningful while creating; an existing rule's type is fixed, because
-    // changing it would make every finding it has opened a statement about the
-    // wrong collection.
+    // Only meaningful while creating; an existing alarm's type is fixed,
+    // because changing it would make every finding it has opened a statement
+    // about the wrong collection.
     const [contentType, setContentType] = useState('');
     const [name, setName] = useState('');
     const [findingTitle, setFindingTitle] = useState('');
-    const [description, setDescription] = useState('');
     const [severity, setSeverity] = useState<AlarmSeverity>('warn');
     const [tree, setTree] = useState<FilterGroup | null>(null);
 
-    // Seed the form once the rule arrives. Keyed on the id, not the object, so
-    // a background refetch cannot discard edits in progress by re-seeding from
-    // the server's copy.
+    // Seed the form once the rule arrives. Keyed on the id alone,
+    // deliberately: depending on the rule object would let a background
+    // refetch re-seed the form and discard edits in progress.
     useEffect(() => {
         if (!rule) return;
         setName(rule.name);
         setFindingTitle(rule.findingTitle);
-        setDescription(rule.description ?? '');
         setSeverity(rule.severity);
-        // `jsonFilterToTree` takes the wire JSON as a string — the same
-        // thing the records list has in `?filter=` — while the rule stores
-        // it parsed. One `stringify` beats a second parser.
+        // `jsonFilterToTree` takes the wire JSON as a string — the same thing
+        // the records list has in `?filter=` — while the rule stores it parsed.
         setTree(jsonFilterToTree(JSON.stringify(rule.filter)));
-        // Keyed on the id alone, deliberately: depending on the rule object
-        // would let a background refetch re-seed the form and discard edits in
-        // progress.
     }, [rule?.id]);
 
-    // The type the whole page is about: chosen while creating, fixed while
-    // editing.
     const watchedType = isCreate ? contentType : (rule?.contentType ?? '');
-
-    const filterFields = useFilterFields(watchedType || undefined);
-
-    // **The records list's *full* filterable surface, not just the server half.**
-    // A rule is created from a list filter, and that list offers
-    // slot-contributed fields alongside the server-derived ones — i18n's
-    // `localeCount` / `hasLocale` / `missingLocale`, answered by the same
-    // plugin's virtual-field subqueries at evaluation time. Reading only
-    // `useFilterFields` here meant a rule saved over one of those came back as
-    // "This field is no longer available — pick another one", and the Apply
-    // gate then refused every edit to it, because it rejects any rule whose
-    // field it cannot resolve.
-    //
-    // Hook-in-a-loop is rules-of-hooks-safe: slot items are registered once at
-    // boot and never change, so the call order is stable across renders — the
-    // same argument the records list documents at its own call site.
-    const schema = useContentSchema(watchedType, Boolean(watchedType));
-    // `useFields` is a **hook**, so it is called unconditionally with a
-    // placeholder until the real schema lands. Guarding the call on
-    // `schema.data` instead changed the hook count between renders and took the
-    // page down with the error boundary — React counts hooks, not intentions.
-    // The placeholder is a module constant so its identity is stable, and a
-    // contributor handed it returns nothing (i18n's, for one, is empty for a
-    // type with no `i18n` flag).
-    const slotFilterFields = RECORDS_FILTER_FIELDS_SLOT.getItems().flatMap(
-        (item) => item.useFields(schema.data ?? NO_SCHEMA)
-    );
-    // Not memoised, matching the records list's own call site: the slot's
-    // hooks return a fresh array each render anyway, so a `useMemo` over it
-    // would recompute every time while looking as though it did not.
-    const fields = [...filterFields.fields, ...slotFilterFields];
+    const conditionFields = useConditionFields(watchedType);
+    const typeLabel = useTypeLabels(canRead);
 
     const types = useContentTypes(canRead && isCreate);
-    // The catalogue is **global**; a rule can only watch a collection this
+    // The catalogue is **global**; an alarm can only watch a collection this
     // workspace owns (the server refuses any other with the same "unknown
-    // type" as an unregistered one), so the picker offers exactly those —
-    // the own grants, as protection's settings and the ⌘K palette scope it.
-    // A shared-only type is left out too: its records live at the source, so
-    // there is nothing here for a rule to evaluate.
+    // type" as an unregistered one), so the picker offers exactly those. A
+    // shared-only type is left out too: its records live at the source.
     const typeOptions = useMemo(() => {
         const granted = new Set(workspace.content);
         return (types.data ?? []).filter(
             (type) => type.kind === 'collection' && granted.has(type.name)
         );
     }, [types.data, workspace.content]);
+
     const create = useCreateAlarmRule();
     const update = useUpdateAlarmRule();
     const preview = usePreviewAlarmRule();
@@ -351,16 +243,10 @@ export function AlarmRuleEditorPage({
     /**
      * The current conditions as the wire tree the API stores.
      *
-     * `treeToJsonFilter` produces the JSON string the records list puts in its
-     * URL; the rules API takes the same tree as an object, so it is parsed back
-     * rather than re-serialised by a second implementation.
-     *
-     * **`relativeDates` is the important argument.** By default a "within the
-     * last N days" rule is serialised as a concrete cutoff — right for a shared
-     * link, and silently wrong for a stored rule, which would then mean "since
-     * the day I was written" for ever. This is the one place in the admin where
-     * a filter is stored rather than linked, so it is the one place that asks
-     * for the relative spelling.
+     * **`relativeDates` is the important argument** (`alarms:I-26`). By
+     * default a "within the last N days" rule is serialised as a concrete
+     * cutoff — right for a shared link, and silently wrong for a stored rule,
+     * which would then mean "since the day I was written" for ever.
      */
     const filterJson = useMemo((): Record<string, unknown> | null => {
         const json = tree
@@ -379,19 +265,17 @@ export function AlarmRuleEditorPage({
         }
     }, [tree]);
 
-    // A stable identity for "these conditions", so the count below re-runs when
-    // they actually change and not on every render. Serialising is what the
-    // save does anyway, so this costs nothing new.
+    // A stable identity for "these conditions", so the count re-runs when they
+    // actually change and not on every render.
     const filterKey = filterJson ? JSON.stringify(filterJson) : null;
 
     /**
      * Re-count the matches whenever the committed conditions change.
      *
      * `previewFor` is a ref rather than a dependency so the effect keys on the
-     * conditions alone: `preview.mutate` is a new function identity on every
-     * render, and depending on it would re-run this on each keystroke in the
-     * name field — one request per character, against a query that scans the
-     * collection.
+     * conditions alone: `preview.mutate` is a new identity on every render, and
+     * depending on it would re-run this on each keystroke in the name field —
+     * one collection scan per character.
      */
     const previewFor = useRef<{
         contentType?: string;
@@ -412,7 +296,13 @@ export function AlarmRuleEditorPage({
             contentType,
             filter: JSON.parse(filterKey) as Record<string, unknown>
         });
-    }, [filterKey]);
+    }, [filterKey, watchedType]);
+
+    // The stored conditions as a tree, for telling which chips changed.
+    const savedTree = useMemo(
+        () => (rule ? jsonFilterToTree(JSON.stringify(rule.filter)) : null),
+        [rule?.filter]
+    );
 
     const pageTitle = intl.formatMessage(
         isCreate ? messages.createTitle : messages.title
@@ -443,8 +333,8 @@ export function AlarmRuleEditorPage({
         );
     }
 
-    // Creating needs no rule, so neither guard below applies: the rules query is
-    // disabled in that mode and would otherwise report `isPending` for ever.
+    // Creating needs no rule, so neither guard below applies: the rules query
+    // is disabled in that mode and would otherwise report `isPending` for ever.
     if (!isCreate && rules.isPending) return <AlarmsSkeleton />;
 
     if (!isCreate && !rule) {
@@ -454,7 +344,6 @@ export function AlarmRuleEditorPage({
                 <Container>
                     <ContainerHeader title={pageTitle} />
                     <Alert>
-                        <TriangleAlert aria-hidden="true" />
                         <AlertTitle>
                             {intl.formatMessage(messages.notFoundTitle)}
                         </AlertTitle>
@@ -467,20 +356,51 @@ export function AlarmRuleEditorPage({
         );
     }
 
-    // What the rule is stored as, so the page can say whether the conditions on
-    // screen have been saved. Compared as serialised JSON rather than by
-    // identity — the tree is rebuilt on every commit.
-    const savedFilterKey = rule ? JSON.stringify(rule.filter) : null;
     // `?? ''` rather than a null guard: clearing every condition **is** a
-    // change, and treating it as "nothing to report" was how the page could
-    // differ from the stored rule while claiming to be in step with it. It is
-    // the notice below that stays quiet in that case, because the empty-state
-    // paragraph and a disabled Save already say something more specific.
-    // Nothing is "unsaved" on a rule that does not exist yet — the whole page
-    // is unsaved, and the Create button says so.
+    // change (`alarms:I-28`). The notice below stays quiet in that case,
+    // because the empty-state line and a disabled Save already say more.
+    const savedFilterKey = rule ? JSON.stringify(rule.filter) : null;
     const conditionsDirty =
         savedFilterKey !== null && (filterKey ?? '') !== savedFilterKey;
-    const ruleCount = countRules(tree);
+    const hasCondition = flattenConditions(tree).length > 0;
+
+    const verdict =
+        hasCondition && preview.data && !preview.isPending
+            ? previewVerdict(preview.data)
+            : null;
+    // The likely culprits when the condition looks inverted: whatever differs
+    // from what is stored (everything, on a new alarm).
+    const suspectIds = verdict?.inverted
+        ? changedConditionIds(tree, savedTree)
+        : undefined;
+
+    const creator = rule?.createdBy
+        ? workspace.members.find((member) => member.id === rule.createdBy)
+        : undefined;
+    const subtitle = isCreate
+        ? intl.formatMessage(messages.createSubtitle)
+        : [
+              typeLabel(rule?.contentType ?? ''),
+              creator
+                  ? intl.formatMessage(messages.subtitleCreator, {
+                        name: creator.name
+                    })
+                  : null,
+              intl.formatMessage(messages.subtitleFlagged, {
+                  count: rule?.openCount ?? 0
+              })
+          ]
+              .filter(Boolean)
+              .join(' · ');
+
+    const canSave =
+        canManage &&
+        !update.isPending &&
+        !create.isPending &&
+        filterJson !== null &&
+        (!isCreate || Boolean(contentType)) &&
+        name.trim().length > 0 &&
+        findingTitle.trim().length > 0;
 
     const backToList = () => navigate(`/workspaces/${workspace.id}/alarms`);
 
@@ -492,10 +412,10 @@ export function AlarmRuleEditorPage({
         );
 
     const onSave = () => {
-        // Never send `undefined` here to mean "leave it alone": with no
-        // conditions the Save button is disabled, so reaching this with a null
-        // filter is impossible, and silently keeping the previous condition
-        // after someone cleared it would be the worst of the options.
+        // Never send `undefined` to mean "leave it alone": with no conditions
+        // Save is disabled, so reaching this with a null filter is impossible,
+        // and silently keeping the previous condition would be the worst
+        // outcome available (`alarms:I-27`, `alarms:I-28`).
         if (!filterJson) return;
 
         if (isCreate) {
@@ -504,20 +424,15 @@ export function AlarmRuleEditorPage({
                     contentType,
                     name: name.trim(),
                     findingTitle: findingTitle.trim(),
-                    description: description.trim(),
                     severity,
                     filter: filterJson
                 },
                 {
                     onSuccess: (result) => {
                         // The server scans before it answers, so the toast can
-                        // report what the alarm actually found rather than
-                        // "created" and leaving the author to go and look.
+                        // say what the alarm actually found.
                         toast.success(
-                            intl.formatMessage(messages.created, {
-                                name: result.rule.name,
-                                open: result.scan.open
-                            })
+                            scanMessage(intl, result.rule.name, result.scan)
                         );
                         backToList();
                     },
@@ -534,117 +449,108 @@ export function AlarmRuleEditorPage({
                 input: {
                     name: name.trim(),
                     findingTitle: findingTitle.trim(),
-                    description: description.trim(),
                     severity,
                     filter: filterJson
                 }
             },
             {
-                onSuccess: () => {
-                    toast.success(intl.formatMessage(messages.saved));
-                    backToList();
-                },
+                onSuccess: (result) =>
+                    toast.success(
+                        result.scan
+                            ? scanMessage(intl, result.name, result.scan)
+                            : intl.formatMessage(messages.saved)
+                    ),
                 onError: onFailed
             }
         );
     };
 
+    const saveLabel = intl.formatMessage(
+        isCreate ? messages.create : messages.save
+    );
+    const saveBusy = update.isPending || create.isPending;
+
     return (
         <>
             <PageTopBar icon={BellRing} crumbs={crumbs} />
-            <Container>
+            {/* Editing saves from the top bar, where every other section's
+                page action sits; creating ends the form with its own pair. */}
+            {!isCreate && canManage ? (
+                <PageActionsPortal>
+                    <Button size="sm" disabled={!canSave} onClick={onSave}>
+                        {saveBusy ? <Spinner /> : null}
+                        {saveLabel}
+                    </Button>
+                </PageActionsPortal>
+            ) : null}
+            <Container className="flex max-w-[940px] flex-col gap-5">
                 <ContainerHeader
+                    className="mb-0"
                     title={pageTitle}
-                    subtitle={
-                        isCreate
-                            ? intl.formatMessage(messages.createSubtitle)
-                            : intl.formatMessage(messages.subtitle, {
-                                  contentType: rule?.contentType ?? ''
-                              })
-                    }
+                    subtitle={subtitle}
                 />
 
-                <div className="flex max-w-3xl flex-col gap-6">
-                    {rule?.brokenReason ? (
-                        <Alert variant="destructive">
-                            <TriangleAlert aria-hidden="true" />
-                            <AlertTitle>
-                                {intl.formatMessage(messages.brokenTitle)}
-                            </AlertTitle>
-                            <AlertDescription>
-                                {rule.brokenReason}
-                            </AlertDescription>
-                        </Alert>
-                    ) : null}
-
-                    <div className="flex flex-col gap-4">
-                        {/* The convention stated once, in the page, rather than
-                            as a `title` on each mark — a `title` is mouse-only,
-                            not dismissible, and on an `aria-hidden` element no
-                            assistive tech can reach it either. Only rendered
-                            where something is actually marked, i.e. for a
-                            caller who can edit. */}
-                        {canManage ? (
-                            <p className="text-xs text-muted-foreground">
-                                {intl.formatMessage(messages.requiredLegend)}
-                            </p>
-                        ) : null}
-
-                        {/* Only while creating. An existing alarm's type is
-                            fixed: every finding it holds is a statement about a
-                            record of that type, so changing it would not edit
-                            the alarm, it would silently repurpose its history. */}
-                        {isCreate ? (
-                            <div className="flex flex-col gap-1.5">
-                                <Label htmlFor="alarms-editor-type">
-                                    {intl.formatMessage(messages.contentType)}
-                                    <RequiredMark />
-                                </Label>
-                                <Select
-                                    value={contentType}
-                                    disabled={!canManage}
-                                    onValueChange={(next) => {
-                                        setContentType(next);
-                                        // The conditions belong to the old
-                                        // type's fields; keeping them would
-                                        // offer a builder full of rules the new
-                                        // type cannot resolve.
-                                        setTree(null);
-                                    }}
+                <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
+                    <div className="flex flex-col gap-4 rounded-xl border bg-card p-4">
+                        <div className="flex flex-col gap-1.5">
+                            <Label htmlFor="alarms-editor-type">
+                                {intl.formatMessage(messages.contentType)}
+                                <RequiredMark />
+                            </Label>
+                            {/* Disabled while editing: every finding an alarm
+                                holds is a statement about a record of its
+                                type, so changing it would not edit the alarm,
+                                it would silently repurpose its history. */}
+                            <Select
+                                value={watchedType}
+                                disabled={!canManage || !isCreate}
+                                onValueChange={(next) => {
+                                    setContentType(next);
+                                    // The conditions belong to the old type's
+                                    // fields; keeping them would offer a
+                                    // builder full of rules the new type
+                                    // cannot resolve.
+                                    setTree(null);
+                                }}
+                            >
+                                <SelectTrigger
+                                    id="alarms-editor-type"
+                                    aria-required
                                 >
-                                    <SelectTrigger
-                                        id="alarms-editor-type"
-                                        aria-required
-                                    >
+                                    <span className="flex min-w-0 items-center gap-2">
+                                        <Table2
+                                            aria-hidden="true"
+                                            className="size-4 shrink-0 text-muted-foreground"
+                                        />
                                         <SelectValue
                                             placeholder={intl.formatMessage(
                                                 messages.contentTypePlaceholder
                                             )}
                                         />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {typeOptions.map((type) => (
+                                    </span>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {isCreate ? (
+                                        typeOptions.map((type) => (
                                             <SelectItem
                                                 key={type.name}
                                                 value={type.name}
                                             >
                                                 {type.label}
                                             </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <p className="text-xs text-muted-foreground">
-                                    {intl.formatMessage(
-                                        messages.contentTypeHint
+                                        ))
+                                    ) : (
+                                        <SelectItem value={watchedType}>
+                                            {typeLabel(watchedType)}
+                                        </SelectItem>
                                     )}
-                                </p>
-                            </div>
-                        ) : null}
+                                </SelectContent>
+                            </Select>
+                        </div>
 
-                        {/* `label` is wrapped in **one** element, not a
-                            fragment: `FieldLabel` is a flex row with a `gap-2`,
-                            so two items put 8px between the word and the `*`
-                            that belongs to it. */}
+                        {/* `label` is wrapped in **one** element: `FieldLabel`
+                            is a flex row with a gap, so two items would put 8px
+                            between the word and its `*`. */}
                         <InputField
                             id="alarms-editor-name"
                             label={
@@ -678,245 +584,143 @@ export function AlarmRuleEditorPage({
                         />
 
                         <div className="flex flex-col gap-1.5">
-                            <Label htmlFor="alarms-editor-description">
-                                {intl.formatMessage(messages.description)}
-                            </Label>
-                            <Textarea
-                                id="alarms-editor-description"
-                                value={description}
+                            <span
+                                id={levelId}
+                                className="text-sm font-medium leading-none"
+                            >
+                                {intl.formatMessage(messages.severity)}
+                            </span>
+                            <SeverityPicker
+                                labelledBy={levelId}
+                                value={severity}
+                                onChange={setSeverity}
                                 disabled={!canManage}
-                                onChange={(event) =>
-                                    setDescription(event.target.value)
-                                }
                             />
                         </div>
 
-                        <div className="flex flex-col gap-1.5">
-                            <Label htmlFor="alarms-editor-severity">
-                                {intl.formatMessage(messages.severity)}
-                            </Label>
-                            <Select
-                                value={severity}
-                                disabled={!canManage}
-                                onValueChange={(next) =>
-                                    setSeverity(next as AlarmSeverity)
-                                }
+                        <section
+                            aria-labelledby={conditionHeadingId}
+                            className="flex flex-col gap-2"
+                        >
+                            {/* A heading, not a bare label: the conditions are
+                                what the alarm *is*, and the fields above are
+                                how it is worded. Drawn at the label's size. */}
+                            <h2
+                                id={conditionHeadingId}
+                                className="text-sm font-medium leading-none"
                             >
-                                <SelectTrigger id="alarms-editor-severity">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {ALARM_SEVERITIES.map((value) => (
-                                        <SelectItem key={value} value={value}>
-                                            {intl.formatMessage(
-                                                SEVERITY_LABELS[value]
+                                {intl.formatMessage(messages.condition)}
+                            </h2>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                                <ConditionChips
+                                    tree={tree}
+                                    fields={conditionFields.fields}
+                                    suspectIds={suspectIds}
+                                    onRemove={
+                                        canManage && tree
+                                            ? (id) =>
+                                                  setTree(
+                                                      removeCondition(tree, id)
+                                                  )
+                                            : undefined
+                                    }
+                                    onEmptied={() =>
+                                        conditionButton.current?.focus()
+                                    }
+                                />
+                                {/* The builder opens in a popover anchored to
+                                    this button; Apply commits into the chips
+                                    beside it and closes it. The load state is
+                                    threaded through: a builder handed an empty
+                                    surface while it loads refuses every rule
+                                    and says nothing about why. */}
+                                <QueryBuilderPopover
+                                    title={intl.formatMessage(
+                                        messages.editCondition
+                                    )}
+                                    trigger={
+                                        <Button
+                                            ref={conditionButton}
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-7 shrink-0 text-muted-foreground"
+                                            disabled={
+                                                !canManage || !watchedType
+                                            }
+                                            aria-label={intl.formatMessage(
+                                                messages.editCondition
                                             )}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
+                                        >
+                                            <Plus aria-hidden="true" />
+                                            {intl.formatMessage(
+                                                messages.addCondition
+                                            )}
+                                        </Button>
+                                    }
+                                    fields={conditionFields.fields}
+                                    fieldsPending={conditionFields.isPending}
+                                    fieldsError={conditionFields.isError}
+                                    onRetryFields={conditionFields.refetch}
+                                    value={tree}
+                                    onApply={setTree}
+                                    // The query builder holds no data layer, so
+                                    // the record picker for a relation value is
+                                    // injected by whoever mounts it.
+                                    renderRelationValue={(props) => (
+                                        <RelationValuePicker {...props} />
+                                    )}
+                                />
+                            </div>
+                            {!watchedType ? (
+                                <p className="text-xs text-muted-foreground">
+                                    {intl.formatMessage(messages.pickTypeFirst)}
+                                </p>
+                            ) : !hasCondition ? (
+                                <p className="text-xs text-muted-foreground">
+                                    {intl.formatMessage(messages.noCondition)}
+                                </p>
+                            ) : null}
+                        </section>
+
+                        {rule?.brokenReason ? (
+                            <Callout tone="bad">
+                                <b className="font-semibold">
+                                    {intl.formatMessage(messages.brokenTitle)}
+                                </b>{' '}
+                                ({rule.brokenReason})
+                            </Callout>
+                        ) : null}
+
+                        {conditionsDirty && filterJson ? (
+                            <Callout tone="warn">
+                                {intl.formatMessage(messages.unsaved)}
+                            </Callout>
+                        ) : null}
                     </div>
 
-                    {/* The conditions read as their own panel rather than as
-                        one more form row: they are what the rule *is*, and the
-                        three fields above are how it is worded. */}
-                    <section className="flex flex-col gap-4 rounded-xl border bg-card p-5">
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div className="flex flex-col gap-1">
-                                <h2 className="text-sm font-medium">
-                                    {intl.formatMessage(messages.condition)}
-                                </h2>
-                                <p className="max-w-prose text-xs text-muted-foreground">
-                                    {intl.formatMessage(messages.conditionHint)}
-                                </p>
-                            </div>
-                            {/* The builder opens in a popover anchored to
-                                this button. Apply commits into the chips
-                                below and closes it, which is what makes Apply
-                                visible here: there is no table underneath to
-                                re-run, the chips are what moves. Radix hands
-                                focus back to the button on close.
-
-                                The load state is threaded through, not
-                                dropped. The Apply gate rejects every rule
-                                whose field it cannot resolve, so a builder
-                                handed an empty `fields` array while the
-                                surface is still loading — or after it failed —
-                                refuses to commit and says nothing about why.
-                                That is the defect that made "Apply" look like
-                                a dead button and let an edited condition be
-                                saved as the old one. */}
-                            <QueryBuilderPopover
-                                title={intl.formatMessage(
-                                    messages.editCondition
-                                )}
-                                trigger={
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        className="shrink-0"
-                                        disabled={!canManage || !watchedType}
-                                    >
-                                        <SlidersHorizontal aria-hidden="true" />
-                                        {intl.formatMessage(
-                                            messages.editCondition
-                                        )}
-                                    </Button>
-                                }
-                                fields={fields}
-                                fieldsPending={
-                                    filterFields.isPending ||
-                                    // A disabled query is `isPending` forever,
-                                    // so this has to be gated on there being a
-                                    // type at all — otherwise the builder
-                                    // claims to be loading on a page where
-                                    // nothing was asked for.
-                                    (Boolean(watchedType) && schema.isPending)
-                                }
-                                fieldsError={filterFields.isError}
-                                onRetryFields={filterFields.refetch}
-                                value={tree}
-                                onApply={setTree}
-                                // Without this a relation rule's value cell is
-                                // a plain text box: the query builder holds no
-                                // data layer, so the record picker is injected
-                                // by whoever mounts it — the records list
-                                // passes the same one.
-                                renderRelationValue={(props) => (
-                                    <RelationValuePicker {...props} />
-                                )}
-                            />
-                        </div>
-
-                        {/* The committed conditions, at rest. This is what
-                            makes Apply visible: press it and the chips here
-                            change. Removing one re-commits immediately, the
-                            same as in the records toolbar. */}
-                        {!watchedType ? (
-                            <p className="text-sm text-muted-foreground">
-                                {intl.formatMessage(messages.pickTypeFirst)}
-                            </p>
-                        ) : tree && ruleCount > 0 ? (
-                            <QueryBuilderSummary
-                                tree={tree}
-                                fields={fields}
-                                onChange={setTree}
-                            />
-                        ) : (
-                            <p className="text-sm text-muted-foreground">
-                                {intl.formatMessage(messages.noCondition)}
-                            </p>
-                        )}
-
-                        {/* One line, three states, always present once there is
-                            something to count — the number that says whether
-                            the rule means what its author thinks. */}
-                        <div className="flex flex-wrap items-center gap-3 border-t pt-4">
-                            <p
-                                className="text-sm text-muted-foreground"
-                                aria-live="polite"
-                            >
-                                {!filterJson
-                                    ? null
-                                    : preview.isPending
-                                      ? intl.formatMessage(messages.matching)
-                                      : preview.isError
-                                        ? intl.formatMessage(
-                                              messages.matchFailed,
-                                              {
-                                                  reason: (
-                                                      preview.error as Error
-                                                  ).message
-                                              }
-                                          )
-                                        : preview.data
-                                          ? `${intl.formatMessage(
-                                                messages.matches,
-                                                {
-                                                    matched:
-                                                        preview.data.matched,
-                                                    total: preview.data.total
-                                                }
-                                            )}${
-                                                preview.data.total > 0 &&
-                                                preview.data.matched ===
-                                                    preview.data.total
-                                                    ? ` ${intl.formatMessage(messages.matchesEverything)}`
-                                                    : ''
-                                            }`
-                                          : null}
-                            </p>
-                            {filterJson ? (
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="ml-auto"
-                                    disabled={preview.isPending}
-                                    onClick={() =>
-                                        preview.mutate({
-                                            contentType: watchedType,
-                                            filter: filterJson
-                                        })
-                                    }
-                                >
-                                    {preview.isPending ? <Spinner /> : null}
-                                    {intl.formatMessage(messages.recount)}
-                                </Button>
-                            ) : null}
-                        </div>
-                    </section>
-
-                    {conditionsDirty && filterJson ? (
-                        // The icon is **inside** the description rather than a
-                        // top-level child of `Alert`. `Alert` absolutely
-                        // positions a top-level `<svg>` at `left-4 top-4` and
-                        // nudges the block beside it up 3px — geometry tuned
-                        // for a title over a description. This banner is a
-                        // description alone, one line long, so those rules put
-                        // the icon near the top of the box and the sentence off
-                        // its centre. Wrapping both in a flex row means none of
-                        // the `[&>svg]` selectors match, which fixes it here
-                        // without touching the geometry the admin's other
-                        // ~25 alerts are drawn with.
-                        <Alert variant="warning">
-                            <AlertDescription className="flex items-center gap-2">
-                                <TriangleAlert
-                                    aria-hidden="true"
-                                    className="size-4 shrink-0 text-warning"
-                                />
-                                {intl.formatMessage(messages.unsaved)}
-                            </AlertDescription>
-                        </Alert>
-                    ) : null}
-
-                    {canManage ? (
-                        <div className="flex items-center gap-2">
-                            <Button
-                                disabled={
-                                    update.isPending ||
-                                    create.isPending ||
-                                    !filterJson ||
-                                    (isCreate && !contentType) ||
-                                    name.trim().length === 0 ||
-                                    findingTitle.trim().length === 0
-                                }
-                                onClick={onSave}
-                            >
-                                {update.isPending || create.isPending ? (
-                                    <Spinner />
-                                ) : null}
-                                {intl.formatMessage(
-                                    isCreate ? messages.create : messages.save
-                                )}
-                            </Button>
-                            <Button variant="ghost" onClick={backToList}>
-                                {intl.formatMessage(messages.cancel)}
-                            </Button>
-                        </div>
-                    ) : null}
+                    <AlarmPreviewPanel
+                        typeLabel={watchedType ? typeLabel(watchedType) : ''}
+                        hasType={Boolean(watchedType)}
+                        hasCondition={hasCondition}
+                        preview={preview}
+                        findingTitle={findingTitle}
+                        name={name}
+                        severity={severity}
+                    />
                 </div>
+
+                {isCreate && canManage ? (
+                    <div className="flex items-center gap-2">
+                        <Button disabled={!canSave} onClick={onSave}>
+                            {saveBusy ? <Spinner /> : null}
+                            {saveLabel}
+                        </Button>
+                        <Button variant="ghost" onClick={backToList}>
+                            {intl.formatMessage(messages.cancel)}
+                        </Button>
+                    </div>
+                ) : null}
             </Container>
         </>
     );
