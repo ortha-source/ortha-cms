@@ -278,10 +278,11 @@ export function RevealSecretDialog({
                     dialog and the copy button lands outside the panel. The
                     secret is longer than the field is wide, so it wraps onto
                     a second line (`break-all`) rather than scrolling sideways:
-                    the whole credential stays readable at once. The button is
-                    `shrink-0` so the field — not the control — gives up the
-                    space. */}
-                <div className="flex min-w-0 items-start gap-2">
+                    the whole credential stays readable at once. On a phone the
+                    Copy button sits under the field at full width; from `sm`
+                    up it sits beside it, `shrink-0` so the field — not the
+                    control — gives up the space. */}
+                <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start">
                     <textarea
                         readOnly
                         rows={2}
@@ -295,8 +296,8 @@ export function RevealSecretDialog({
                         variant="outline"
                         className={
                             copied
-                                ? 'shrink-0 text-success-soft-foreground'
-                                : 'shrink-0'
+                                ? 'w-full shrink-0 text-success-soft-foreground sm:w-auto'
+                                : 'w-full shrink-0 sm:w-auto'
                         }
                         onClick={() =>
                             secret
