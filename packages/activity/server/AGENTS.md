@@ -100,6 +100,11 @@ Under `/api/activity`:
     **404**, deliberately indistinguishably; a row still climbing its backoff
     answers **409**.
 
+    The admin's **Retry all** (R7) does not change this: it is a client-side
+    pass over the rows its dialog shows, one request at a time through this
+    route, stopping at the first non-404/409 refusal. No bulk route was added,
+    deliberately.
+
     So the pair **reports, and repairs exactly one thing**: it does not re-run
     what failed fifteen times on a hunch, and there is no bulk retry — a reset
     row goes back to the head of an `ORDER BY occurred_at` claim, which is right

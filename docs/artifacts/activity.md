@@ -528,6 +528,7 @@ Four routes, three of them reads. Together they are the entire surface available
 | Method and path                           | Access                                    | Response                                    |
 | ----------------------------------------- | ----------------------------------------- | ------------------------------------------- |
 | GET /api/activity                         | `session` `activity:read`                 | { items\[\], total, page, pageSize }        |
+| GET /api/activity/export                  | `session` `activity:read`                 | CSV attachment (≤ 10,000 rows)              |
 | GET /api/activity/entries/:entryId        | `session` `content:read` `X-Workspace-Id` | { items\[\], total, page, pageSize }        |
 | GET /api/activity/dead-letters            | `session` `activity:read`                 | { total, items\[\] }                        |
 | POST /api/activity/dead-letters/:id/retry | `session` `activity:manage` `OriginGuard` | the reset dead letter, plus `nextAttemptAt` |
@@ -545,6 +546,8 @@ Paging only: the subject is the URL, the workspace is the header, and every othe
 `dispatched_at IS NULL AND attempts >= MAX_DELIVERY_ATTEMPTS`, newest first, each with the reason it parked (`outbox_events.last_error`). `total` is separate from `items` so a caller can render "3 events could not be recorded" without paging; `limit` caps at 200 and `since` narrows to recent failures.
 
 #### `/dead-letters/:id/retry` — the one thing this package writes
+
+> **R7 dialog.** The admin's dead-letter dialog is a list of the parked events, each named with the log's own action label (the outbox kind mapped onto its audit kind), its time, attempts and `last_error`. A retried row stays in the dialog marked **Queued** until it closes. **Retry all** is a client-side pass over the rows the dialog *shows*, sent one at a time through this same per-row route and stopped at the first refusal that is not 404/409 (`I-42`). There is still **no bulk route**: each request awaits its drain before the next row is reset, and nothing reaches a row the operator has not seen.
 
 `POST`, `activity:manage`, `OriginGuard`, one event at a time. It resets that row **in place** — `attempts = 0`, `next_attempt_at = NULL`, `last_error` kept — and answers with the row as it now stands. The id never changes: it is the idempotency key every subscriber deduplicates on, so a copy would be a second fact and a partly-succeeded delivery would be applied twice.
 
