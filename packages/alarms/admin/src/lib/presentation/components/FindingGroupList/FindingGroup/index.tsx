@@ -239,7 +239,10 @@ export function FindingGroup({
                     {intl.formatMessage(messages.count, {
                         count,
                         b: (chunks) => (
-                            <b className="mr-1 text-sm font-semibold tabular-nums text-foreground">
+                            <b
+                                key="count"
+                                className="mr-1 text-sm font-semibold tabular-nums text-foreground"
+                            >
                                 {chunks}
                             </b>
                         )

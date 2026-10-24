@@ -257,7 +257,7 @@ test.describe('The Alarms tab', () => {
         await trigger.click();
         await alarmsPage.menuItem('Delete').click();
         await expect(
-            page.getByRole('alertdialog', { name: 'Delete this alarm?' })
+            page.getByRole('dialog', { name: 'Delete this alarm?' })
         ).toBeVisible();
     });
 

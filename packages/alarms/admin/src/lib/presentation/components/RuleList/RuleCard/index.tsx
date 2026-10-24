@@ -171,7 +171,10 @@ export function RuleCard({
                         {intl.formatMessage(messages.flagged, {
                             count: rule.openCount,
                             b: (chunks) => (
-                                <b className="font-semibold tabular-nums">
+                                <b
+                                    key="count"
+                                    className="font-semibold tabular-nums"
+                                >
                                     {chunks}
                                 </b>
                             )
