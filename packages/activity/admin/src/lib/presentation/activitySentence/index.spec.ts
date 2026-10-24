@@ -151,6 +151,39 @@ describe('what a sentence names', () => {
         expect(values.hasOrigin).toBe('yes');
     });
 
+    it('says whether the object is a name or only a noun, so "the workspace a workspace" never happens', () => {
+        const named = sentenceValues(
+            intl,
+            event({
+                kind: 'workspace.archived',
+                subjectType: 'workspace',
+                meta: { name: 'Marketing' }
+            })
+        );
+        expect(named.named).toBe('yes');
+        const unnamed = sentenceValues(
+            intl,
+            event({
+                kind: 'workspace.archived',
+                subjectType: 'workspace',
+                meta: {}
+            })
+        );
+        expect(unnamed.named).toBe('no');
+        expect(unnamed.object).toBe('a workspace');
+        // Every sentence that puts a type word before the object branches on it.
+        for (const message of Object.values(SENTENCE_MESSAGES)) {
+            const text = String(message.defaultMessage);
+            if (
+                /the (workspace|API token|folder|audience|check|view|copilot skill) <b>\{object\}/.test(
+                    text
+                )
+            ) {
+                expect(text).toContain('{named, select,');
+            }
+        }
+    });
+
     it('capitalises a role key and nothing more', () => {
         expect(formatRole('admin')).toBe('Admin');
         expect(formatRole('Content lead')).toBe('Content lead');

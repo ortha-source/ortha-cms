@@ -1,7 +1,7 @@
 import { ApiError } from '@orthacms/utils-admin';
 import { retrySequentially } from './index';
 
-describe('"Retry all" — one at a time, stopping on a real failure', () => {
+describe('"Retry all" — one at a time, stopping on a real failure [activity:I-42]', () => {
     it('sends every id in order, one after the other', async () => {
         const sent: string[] = [];
         let inFlight = 0;

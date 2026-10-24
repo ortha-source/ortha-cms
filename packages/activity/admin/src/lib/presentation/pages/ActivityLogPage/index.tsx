@@ -308,7 +308,7 @@ export function ActivityLogPage() {
     const moreBy = (event: ActivityEvent) => {
         if (!event.actor) return;
         const byEmail = Boolean(event.actor.email);
-        applyFilter({
+        const tree: FilterGroup = {
             id: newId(),
             combinator: COMBINATOR.And,
             children: [
@@ -319,9 +319,14 @@ export function ActivityLogPage() {
                     value: event.actor.email ?? event.actor.id
                 }
             ]
-        });
+        };
+        // One URL write for both: two `setSearchParams` updaters in one tick
+        // each read the same `prev`, so the second would drop the first.
         setSearchInput('');
-        updateParams({ [SEARCH_KEY]: undefined });
+        updateParams({
+            filter: treeToJsonFilter(tree) ?? undefined,
+            [SEARCH_KEY]: undefined
+        });
         setSelected(null);
         searchRef.current?.focus();
     };

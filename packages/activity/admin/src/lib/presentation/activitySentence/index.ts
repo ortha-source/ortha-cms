@@ -112,23 +112,28 @@ const sentenceMessages = defineMessages({
     },
     workspaceCreated: {
         id: 'activity.sentence.workspace.created',
-        defaultMessage: '<b>{actor}</b> created the workspace <b>{object}</b>'
+        defaultMessage:
+            '<b>{actor}</b> created {named, select, yes {the workspace <b>{object}</b>} other {<b>{object}</b>}}'
     },
     workspaceUpdated: {
         id: 'activity.sentence.workspace.updated',
-        defaultMessage: '<b>{actor}</b> updated the workspace <b>{object}</b>'
+        defaultMessage:
+            '<b>{actor}</b> updated {named, select, yes {the workspace <b>{object}</b>} other {<b>{object}</b>}}'
     },
     workspaceArchived: {
         id: 'activity.sentence.workspace.archived',
-        defaultMessage: '<b>{actor}</b> archived the workspace <b>{object}</b>'
+        defaultMessage:
+            '<b>{actor}</b> archived {named, select, yes {the workspace <b>{object}</b>} other {<b>{object}</b>}}'
     },
     workspaceUnarchived: {
         id: 'activity.sentence.workspace.unarchived',
-        defaultMessage: '<b>{actor}</b> restored the workspace <b>{object}</b>'
+        defaultMessage:
+            '<b>{actor}</b> restored {named, select, yes {the workspace <b>{object}</b>} other {<b>{object}</b>}}'
     },
     workspaceDeleted: {
         id: 'activity.sentence.workspace.deleted',
-        defaultMessage: '<b>{actor}</b> deleted the workspace <b>{object}</b>'
+        defaultMessage:
+            '<b>{actor}</b> deleted {named, select, yes {the workspace <b>{object}</b>} other {<b>{object}</b>}}'
     },
     workspaceMemberAdded: {
         id: 'activity.sentence.workspace.member_added',
@@ -176,15 +181,18 @@ const sentenceMessages = defineMessages({
     },
     tokenCreated: {
         id: 'activity.sentence.token.created',
-        defaultMessage: '<b>{actor}</b> created the API token <b>{object}</b>'
+        defaultMessage:
+            '<b>{actor}</b> created {named, select, yes {the API token <b>{object}</b>} other {<b>{object}</b>}}'
     },
     tokenRevoked: {
         id: 'activity.sentence.token.revoked',
-        defaultMessage: '<b>{actor}</b> revoked the API token <b>{object}</b>'
+        defaultMessage:
+            '<b>{actor}</b> revoked {named, select, yes {the API token <b>{object}</b>} other {<b>{object}</b>}}'
     },
     tokenUsed: {
         id: 'activity.sentence.token.used',
-        defaultMessage: 'The API token <b>{object}</b> was used'
+        defaultMessage:
+            '{named, select, yes {The API token <b>{object}</b>} other {An API token}} was used'
     },
     assetUploaded: {
         id: 'activity.sentence.media.asset.uploaded',
@@ -204,7 +212,8 @@ const sentenceMessages = defineMessages({
     },
     folderCreated: {
         id: 'activity.sentence.media.folder.created',
-        defaultMessage: '<b>{actor}</b> created the folder <b>{object}</b>'
+        defaultMessage:
+            '<b>{actor}</b> created {named, select, yes {the folder <b>{object}</b>} other {<b>{object}</b>}}'
     },
     folderRenamed: {
         id: 'activity.sentence.media.folder.renamed',
@@ -224,15 +233,18 @@ const sentenceMessages = defineMessages({
     },
     segmentCreated: {
         id: 'activity.sentence.segment.created',
-        defaultMessage: '<b>{actor}</b> created the audience <b>{object}</b>'
+        defaultMessage:
+            '<b>{actor}</b> created {named, select, yes {the audience <b>{object}</b>} other {<b>{object}</b>}}'
     },
     segmentUpdated: {
         id: 'activity.sentence.segment.updated',
-        defaultMessage: '<b>{actor}</b> updated the audience <b>{object}</b>'
+        defaultMessage:
+            '<b>{actor}</b> updated {named, select, yes {the audience <b>{object}</b>} other {<b>{object}</b>}}'
     },
     segmentDeleted: {
         id: 'activity.sentence.segment.deleted',
-        defaultMessage: '<b>{actor}</b> deleted the audience <b>{object}</b>'
+        defaultMessage:
+            '<b>{actor}</b> deleted {named, select, yes {the audience <b>{object}</b>} other {<b>{object}</b>}}'
     },
     entryAccessChanged: {
         id: 'activity.sentence.segment.entry_access_changed',
@@ -240,46 +252,53 @@ const sentenceMessages = defineMessages({
     },
     alarmRuleCreated: {
         id: 'activity.sentence.alarm.rule.created',
-        defaultMessage: '<b>{actor}</b> created the check <b>{object}</b>'
+        defaultMessage:
+            '<b>{actor}</b> created {named, select, yes {the check <b>{object}</b>} other {<b>{object}</b>}}'
     },
     alarmRuleUpdated: {
         id: 'activity.sentence.alarm.rule.updated',
-        defaultMessage: '<b>{actor}</b> updated the check <b>{object}</b>'
+        defaultMessage:
+            '<b>{actor}</b> updated {named, select, yes {the check <b>{object}</b>} other {<b>{object}</b>}}'
     },
     alarmRuleDeleted: {
         id: 'activity.sentence.alarm.rule.deleted',
-        defaultMessage: '<b>{actor}</b> deleted the check <b>{object}</b>'
+        defaultMessage:
+            '<b>{actor}</b> deleted {named, select, yes {the check <b>{object}</b>} other {<b>{object}</b>}}'
     },
     alarmRuleRescanned: {
         id: 'activity.sentence.alarm.rule.rescanned',
-        defaultMessage: '<b>{actor}</b> rescanned the check <b>{object}</b>'
+        defaultMessage:
+            '<b>{actor}</b> rescanned {named, select, yes {the check <b>{object}</b>} other {<b>{object}</b>}}'
     },
     savedViewCreated: {
         id: 'activity.sentence.saved_view.created',
-        defaultMessage: '<b>{actor}</b> saved the view <b>{object}</b>'
+        defaultMessage:
+            '<b>{actor}</b> saved {named, select, yes {the view <b>{object}</b>} other {<b>{object}</b>}}'
     },
     savedViewUpdated: {
         id: 'activity.sentence.saved_view.updated',
-        defaultMessage: '<b>{actor}</b> updated the view <b>{object}</b>'
+        defaultMessage:
+            '<b>{actor}</b> updated {named, select, yes {the view <b>{object}</b>} other {<b>{object}</b>}}'
     },
     savedViewDeleted: {
         id: 'activity.sentence.saved_view.deleted',
-        defaultMessage: '<b>{actor}</b> deleted the view <b>{object}</b>'
+        defaultMessage:
+            '<b>{actor}</b> deleted {named, select, yes {the view <b>{object}</b>} other {<b>{object}</b>}}'
     },
     skillCreated: {
         id: 'activity.sentence.copilot.skill.created',
         defaultMessage:
-            '<b>{actor}</b> created the copilot skill <b>{object}</b>'
+            '<b>{actor}</b> created {named, select, yes {the copilot skill <b>{object}</b>} other {<b>{object}</b>}}'
     },
     skillUpdated: {
         id: 'activity.sentence.copilot.skill.updated',
         defaultMessage:
-            '<b>{actor}</b> updated the copilot skill <b>{object}</b>'
+            '<b>{actor}</b> updated {named, select, yes {the copilot skill <b>{object}</b>} other {<b>{object}</b>}}'
     },
     skillDeleted: {
         id: 'activity.sentence.copilot.skill.deleted',
         defaultMessage:
-            '<b>{actor}</b> deleted the copilot skill <b>{object}</b>'
+            '<b>{actor}</b> deleted {named, select, yes {the copilot skill <b>{object}</b>} other {<b>{object}</b>}}'
     },
     toolPermissionDecided: {
         id: 'activity.sentence.copilot.tool_permission.decided',
@@ -525,6 +544,12 @@ export type SentenceValues = {
     hasTo: 'yes' | 'no';
     origin: string;
     hasOrigin: 'yes' | 'no';
+    /**
+     * Whether `object` is the subject's own name or only the noun for its
+     * type — "archived the workspace **Marketing**" against "archived **a
+     * workspace**", never "the workspace a workspace".
+     */
+    named: 'yes' | 'no';
 };
 
 /** Who did it, as the sentence names them. */
@@ -545,9 +570,11 @@ export function sentenceValues(
         nounMessages.unknown;
     const to = roleOf(event);
     const origin = metaString(event.meta, 'ipAddress');
+    const name = activityObjectName(event);
     return {
         actor: actorName(intl, event),
-        object: activityObjectName(event) ?? intl.formatMessage(noun),
+        object: name ?? intl.formatMessage(noun),
+        named: name ? 'yes' : 'no',
         to: to ? formatRole(to) : '',
         hasTo: to ? 'yes' : 'no',
         origin: origin ?? '',

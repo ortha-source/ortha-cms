@@ -41,6 +41,18 @@ Under `/api/activity`:
   `order=asc|desc`, default `at desc`) audit log. Gated
   `@RequirePermissions(PERMISSIONS.ACTIVITY_READ)`. Drops `created_at` from the
   wire.
+- `GET /activity?q=` — free text: one escaped, case-insensitive substring
+  clause OR-ed over `actor_email`, `subject_label`, `subject_id`,
+  `subject_type` and `kind` (whitespace in the needle also matches the kind's
+  `_`), AND-ed with every other filter. **`meta` is never searched**
+  (`activity:I-16`); the readable name lives in `subject_label` instead.
+- `GET /activity/export` — the current view as CSV: the list's filters, search
+  and sort, no paging (`ExportActivityQueryDto` is `OmitType` of the list DTO,
+  so a new filter is exportable the day it ships). Gated `activity:read` by
+  constant; capped at `EXPORT_MAX_ROWS` (10,000) with `X-Total-Count` /
+  `X-Export-Truncated`; `no-store`, `nosniff`; every cell defused against
+  spreadsheet formula injection (`services/activity-csv.ts`, pure, unit-tested).
+  Writes nothing, not even an audit row.
 - `GET /activity/entries/:entryId` — **one entry's own trail**, gated
   `content:read` + `WorkspaceGuard` rather than `activity:read`.
 
@@ -163,6 +175,12 @@ entirely.
   `meta` open jsonb (each emitter owns its shape); `at` (logical) vs
   `created_at` (write time). Indexes on `(subject_type, subject_id, at)`,
   `(actor_id, at)`, `(kind, at)`, `(workspace_id, at)`.
+- `subject_label` — the subject's readable name **at the time of the event**,
+  lifted from the kind's own `meta` by the pure `subjectLabelOf` (`title`,
+  `name`, `label`, `email`, `key`, `slug`; strings only). Migration `0002`
+  backfills it from existing rows in the same key order (a spec pins the two
+  together). It is what `?q=` searches, so the open `meta` never becomes
+  queryable.
 - `actor_type` — what `actor_id` names: `'user'` or `'api_token'`. It used to
   mean "a `users` row" and nothing else, so a write made with a bearer token had
   to pass **no actor at all** rather than name a person who did not do it: every

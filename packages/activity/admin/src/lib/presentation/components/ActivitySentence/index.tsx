@@ -19,8 +19,13 @@ import { formatActivityAction } from '../../activityMessages';
 export function ActivitySentence({ event }: { event: ActivityEvent }) {
     const intl = useIntl();
     const descriptor = sentenceDescriptor(event.kind);
+    // Keyed: the rich-text chunks come back as an array of siblings, and
+    // React warns about an unkeyed list even inside `FormattedMessage`.
+    let part = 0;
     const strong = (chunks: ReactNode[]) => (
-        <span className="font-medium text-foreground">{chunks}</span>
+        <span key={`b${part++}`} className="font-medium text-foreground">
+            {chunks}
+        </span>
     );
 
     if (!descriptor) {

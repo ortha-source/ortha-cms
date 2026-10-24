@@ -49,13 +49,9 @@ test.describe('Activity dead letters', () => {
         await mockDeadLetters(page, parkedEvents());
         await activityLogPage.goto();
 
+        // One line: the count, and what it means for the rows below it.
         await expect(activityLogPage.deadLetterNotice()).toContainText(
-            '3 actions were not recorded'
-        );
-        // The kinds, not only the count: "3 actions were not recorded" is an
-        // alarm, naming them is a lead.
-        await expect(activityLogPage.deadLetterNotice()).toContainText(
-            'entry.published'
+            '3 actions were not recorded. The log below is incomplete.'
         );
         await expect(activityLogPage.deadLettersTrigger()).toBeVisible();
     });
@@ -67,26 +63,34 @@ test.describe('Activity dead letters', () => {
         await mockDeadLetters(page, parkedEvents());
         await activityLogPage.goto();
         await activityLogPage.deadLettersTrigger().click();
-        await expect(activityLogPage.deadLettersTable()).toBeVisible();
+        await expect(activityLogPage.deadLettersList()).toBeVisible();
 
         const dialog = activityLogPage.deadLettersDialog();
-        // `lastError` has been on the wire since the read route shipped and was
-        // rendered nowhere — it is the single field that tells an operator
-        // whether the cause is fixed.
-        await expect(dialog).toContainText(
+        // Named for its count, like the banner.
+        await expect(dialog).toHaveAccessibleName(
+            '3 actions were not recorded'
+        );
+        // Each row: what (as the log labels it), when, how often, and why.
+        // `lastError` is the single field that tells an operator whether the
+        // cause is fixed.
+        const published = activityLogPage.deadLetterRow('Published content');
+        await expect(published).toContainText('15 attempts');
+        await expect(published).toContainText(
             'violates foreign key constraint "activity_events_workspace_id_fkey"'
         );
-        await expect(dialog).toContainText('15');
+        await expect(
+            activityLogPage.deadLetterRow('Invited member')
+        ).toBeVisible();
         // A row whose `lastError` is null says so rather than showing a blank
-        // cell that reads as "no problem".
-        await expect(dialog).toContainText('No message was recorded');
-        // "N of M", so an unbounded `total` is never implied away.
-        await expect(activityLogPage.deadLettersCount()).toContainText(
-            'Showing 3 events of 3.'
-        );
+        // that reads as "no problem".
+        await expect(
+            activityLogPage.deadLetterRow('Uploaded asset')
+        ).toContainText('No message was recorded');
+        // The whole list is on screen, so there is no "N of M" to say.
+        await expect(activityLogPage.deadLettersCount()).toHaveCount(0);
     });
 
-    test('retrying sends exactly one POST for the row that was pressed, and the list follows', async ({
+    test('retrying sends exactly one POST for the row that was pressed, and marks it Queued', async ({
         page,
         activityLogPage
     }) => {
@@ -96,20 +100,21 @@ test.describe('Activity dead letters', () => {
 
         await activityLogPage.goto();
         await activityLogPage.deadLettersTrigger().click();
-        await expect(activityLogPage.deadLettersTable()).toBeVisible();
+        await expect(activityLogPage.deadLettersList()).toBeVisible();
 
-        await activityLogPage.deadLetterRetry('user.invited').click();
+        await activityLogPage.deadLetterRetry('Invited member').click();
 
         // One call, for the id of the row whose button was pressed — the whole
         // reason the accessible name is row-scoped rather than five "Retry"s.
         await expect.poll(() => retry.count).toBe(1);
         expect(retry.ids).toEqual([DEAD_LETTERS[1].id]);
 
-        // The dialog closes on success, and the row leaves when the **refetch**
-        // lands — there is no optimistic removal, because the retention sweep
-        // can move this list underneath the reader in both directions.
-        await expect(activityLogPage.deadLettersDialog()).toBeHidden();
-        await expect(activityLogPage.deadLetterNotice()).toContainText(
+        // The dialog stays open and the row says what happened to it, even
+        // though the refetch has taken it off the parked list.
+        await expect(
+            activityLogPage.deadLetterQueued('Invited member')
+        ).toBeVisible();
+        await expect(activityLogPage.deadLettersDialog()).toHaveAccessibleName(
             '2 actions were not recorded'
         );
         // "queued", never "recorded": whether it finally delivers is the
@@ -119,9 +124,14 @@ test.describe('Activity dead letters', () => {
         ).toBeVisible();
         // Still one: the refetch must not have re-fired the mutation.
         expect(retry.count).toBe(1);
+
+        await activityLogPage.closeDeadLettersDialog();
+        await expect(activityLogPage.deadLetterNotice()).toContainText(
+            '2 actions were not recorded'
+        );
     });
 
-    test('retrying the last one takes the banner away and hands focus to main', async ({
+    test('retrying the last one keeps the dialog, and closing it hands focus to main', async ({
         page,
         activityLogPage
     }) => {
@@ -131,17 +141,85 @@ test.describe('Activity dead letters', () => {
 
         await activityLogPage.goto();
         await activityLogPage.deadLettersTrigger().click();
-        await expect(activityLogPage.deadLettersTable()).toBeVisible();
-        await activityLogPage.deadLetterRetry('entry.published').click();
+        await expect(activityLogPage.deadLettersList()).toBeVisible();
+        await activityLogPage.deadLetterRetry('Published content').click();
 
-        // `total` → 0 → the notice returns `null` and takes the trigger with
-        // it, so Radix restores focus to a node that no longer exists: focus
-        // lands on `<body>` and the next Tab restarts at the top of the
-        // document. Focus is moved to `<main>` instead (WCAG 2.4.3).
-        await expect(activityLogPage.deadLetterNotice()).toBeHidden();
+        // The list is empty now, but the reader is still looking at the row
+        // they retried — the dialog outlives the banner.
+        await expect(
+            activityLogPage.deadLetterQueued('Published content')
+        ).toBeVisible();
+        await expect(activityLogPage.deadLettersDialog()).toHaveAccessibleName(
+            'Every action is recorded'
+        );
+
+        // Closing it: the trigger went with the banner, so Radix would restore
+        // focus to a node that no longer exists and the next Tab would restart
+        // at the top. Focus goes to `<main>` instead (WCAG 2.4.3).
+        await activityLogPage.closeDeadLettersDialog();
+        await expect(activityLogPage.deadLetterNotice()).toHaveCount(0);
         await expect
             .poll(() => activityLogPage.focusedElementId())
             .toBe('main-content');
+    });
+
+    test('Retry all sends the rows shown, one at a time, in order', async ({
+        page,
+        activityLogPage
+    }) => {
+        const parked = parkedEvents();
+        await mockDeadLetters(page, parked);
+        const retry = await spyRetryDeadLetter(page, parked);
+
+        await activityLogPage.goto();
+        await activityLogPage.deadLettersTrigger().click();
+        await expect(activityLogPage.deadLettersList()).toBeVisible();
+        await expect(
+            activityLogPage.deadLettersRetryAll()
+        ).toHaveAccessibleName('Retry all 3 events shown');
+        await activityLogPage.deadLettersRetryAll().click();
+
+        await expect.poll(() => retry.count).toBe(3);
+        // The order the dialog lists them in — newest first — one request each.
+        expect(retry.ids).toEqual(DEAD_LETTERS.map((row) => row.id));
+        for (const label of [
+            'Published content',
+            'Invited member',
+            'Uploaded asset'
+        ]) {
+            await expect(activityLogPage.deadLetterQueued(label)).toBeVisible();
+        }
+        await expect(
+            activityLogPage.toast('Queued 3 events to be tried again.')
+        ).toBeVisible();
+        // Nothing left to send, so nothing to offer.
+        await expect(activityLogPage.deadLettersRetryAll()).toHaveCount(0);
+    });
+
+    test('Retry all stops at the first real failure', async ({
+        page,
+        activityLogPage
+    }) => {
+        const parked = parkedEvents();
+        await mockDeadLetters(page, parked);
+        const retry = await spyRetryDeadLetter(page, parked, { status: 500 });
+
+        await activityLogPage.goto();
+        await activityLogPage.deadLettersTrigger().click();
+        await expect(activityLogPage.deadLettersList()).toBeVisible();
+        await activityLogPage.deadLettersRetryAll().click();
+
+        await expect(
+            activityLogPage.toast(
+                'Couldn’t queue the events. 3 were not queued.'
+            )
+        ).toBeVisible();
+        // Whatever broke the first request would break the next two: they
+        // were never sent.
+        expect(retry.count).toBe(1);
+        await expect(
+            activityLogPage.deadLetterQueued('Published content')
+        ).toHaveCount(0);
     });
 
     test('a later refetch that reaches zero does not move focus', async ({
@@ -154,11 +232,15 @@ test.describe('Activity dead letters', () => {
 
         await activityLogPage.goto();
         await activityLogPage.deadLettersTrigger().click();
-        await expect(activityLogPage.deadLettersTable()).toBeVisible();
+        await expect(activityLogPage.deadLettersList()).toBeVisible();
 
         // One of three. The list does not reach zero, so this retry is owed
         // nothing about focus — and the banner and its trigger are still there.
-        await activityLogPage.deadLetterRetry('user.invited').click();
+        await activityLogPage.deadLetterRetry('Invited member').click();
+        await expect(
+            activityLogPage.deadLetterQueued('Invited member')
+        ).toBeVisible();
+        await activityLogPage.closeDeadLettersDialog();
         await expect(activityLogPage.deadLetterNotice()).toContainText(
             '2 actions were not recorded'
         );
@@ -202,8 +284,8 @@ test.describe('Activity dead letters', () => {
 
             await activityLogPage.goto();
             await activityLogPage.deadLettersTrigger().click();
-            await expect(activityLogPage.deadLettersTable()).toBeVisible();
-            await activityLogPage.deadLetterRetry('user.invited').click();
+            await expect(activityLogPage.deadLettersList()).toBeVisible();
+            await activityLogPage.deadLetterRetry('Invited member').click();
 
             await expect(
                 activityLogPage.toast('That event is no longer parked.')
@@ -229,34 +311,34 @@ test.describe('Activity dead letters', () => {
             '3 actions were not recorded'
         );
         await activityLogPage.deadLettersTrigger().click();
-        await expect(activityLogPage.deadLettersTable()).toBeVisible();
+        await expect(activityLogPage.deadLettersList()).toBeVisible();
 
         // The sweep takes the row away between the fetch and the click — the
         // race that makes the 404 real rather than hypothetical. The last
         // registered route wins, so every dead-letter GET from here says two.
         await mockDeadLetters(page, parked.slice(1), { total: 2 });
-        await activityLogPage.deadLetterRetry('entry.published').click();
+        await activityLogPage.deadLetterRetry('Published content').click();
 
         await expect(
             activityLogPage.toast('That event is no longer parked.')
         ).toBeVisible();
         // The page the reader is looking at follows…
-        await expect(activityLogPage.deadLettersCount()).toContainText(
-            'Showing 2 events of 2.'
+        await expect(
+            activityLogPage.deadLetterRow('Published content')
+        ).toHaveCount(0);
+        await expect(activityLogPage.deadLettersDialog()).toHaveAccessibleName(
+            '2 actions were not recorded'
         );
 
         // …and so does the banner, which is a **separate cache entry** keyed by
-        // its own `limit`. Refreshing only the dialog left it counting — and
-        // naming the kind of — a row the client had just been told is gone.
+        // its own `limit`. Refreshing only the dialog left it counting a row
+        // the client had just been told is gone.
         // Asserted with the dialog closed: a modal Radix dialog `aria-hidden`s
         // the page root, so the banner has no role to be found by while it is
         // up.
         await activityLogPage.closeDeadLettersDialog();
         await expect(activityLogPage.deadLetterNotice()).toContainText(
             '2 actions were not recorded'
-        );
-        await expect(activityLogPage.deadLetterNotice()).not.toContainText(
-            'entry.published'
         );
     });
 
@@ -270,8 +352,8 @@ test.describe('Activity dead letters', () => {
 
         await activityLogPage.goto();
         await activityLogPage.deadLettersTrigger().click();
-        await expect(activityLogPage.deadLettersTable()).toBeVisible();
-        await activityLogPage.deadLetterRetry('user.invited').click();
+        await expect(activityLogPage.deadLettersList()).toBeVisible();
+        await activityLogPage.deadLetterRetry('Invited member').click();
 
         await expect(
             activityLogPage.toast('Couldn’t queue that event.')
@@ -284,7 +366,7 @@ test.describe('Activity dead letters', () => {
     }) => {
         await mockDeadLetters(page, [], { total: 0 });
         await activityLogPage.goto();
-        await expect(activityLogPage.table).toBeVisible();
+        await expect(activityLogPage.feed).toBeVisible();
 
         // Absence, not a zero-state. There is deliberately no "0 problems"
         // row, no placeholder and no reserved space: the normal case is that
@@ -300,7 +382,7 @@ test.describe('Activity dead letters', () => {
     }) => {
         await mockDeadLetters(page, [], { status: 500 });
         await activityLogPage.goto();
-        await expect(activityLogPage.table).toBeVisible();
+        await expect(activityLogPage.feed).toBeVisible();
 
         // Deliberate, and the opposite of the dialog's rule below: a caveat
         // about a list must never be the reason the page looks broken, and a
@@ -323,14 +405,14 @@ test.describe('Activity dead letters', () => {
         await mockDeadLetters(page, [], { status: 500 });
         await activityLogPage.deadLettersTrigger().click();
 
-        // The operator deliberately opened this, so an empty table would be an
+        // The operator deliberately opened this, so an empty list would be an
         // answer — "nothing is stuck" — and the wrong one. A 5xx is retried
         // three times on a backoff ladder before `isError`.
         await expect(activityLogPage.deadLettersError()).toBeVisible({
             timeout: 20_000
         });
         await expect(activityLogPage.deadLettersReload()).toBeVisible();
-        await expect(activityLogPage.deadLettersTable()).toHaveCount(0);
+        await expect(activityLogPage.deadLettersList()).toHaveCount(0);
     });
 
     test('an activity:read reader sees the caveat and no way to act on it', async ({
@@ -376,7 +458,7 @@ test.describe('Activity dead letters', () => {
         );
 
         await activityLogPage.deadLettersTrigger().click();
-        await expect(activityLogPage.deadLettersTable()).toBeVisible();
+        await expect(activityLogPage.deadLettersList()).toBeVisible();
         // The dialog's footer counts its own page against that same total.
         await expect(activityLogPage.deadLettersCount()).toContainText(
             'Showing 3 events of 42.'

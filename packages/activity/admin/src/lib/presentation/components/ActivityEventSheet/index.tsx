@@ -17,7 +17,10 @@ import type { ActivityEvent } from '../../../types/activityEvent';
 import { activityDateTime } from '../../activityDateTime';
 import { daysBetween } from '../../activityDays';
 import { activityDiff } from '../../activityDiff';
-import { formatActivityDetails } from '../../activityMessages';
+import {
+    formatActivityDetails,
+    formatActivitySubjectType
+} from '../../activityMessages';
 import { activityObjectName, actorName } from '../../activitySentence';
 import { subjectHref } from '../../activitySubjectLink';
 import { ActivityActionTile } from '../ActivityActionTile';
@@ -332,7 +335,14 @@ function EventBody({
                     <Button asChild variant="outline" className="shadow-none">
                         <Link to={href}>
                             {intl.formatMessage(messages.open, {
-                                name: subjectName ?? event.subjectId
+                                // The record's name, else what kind of thing
+                                // it is ("Open User") — never a bare id.
+                                name:
+                                    subjectName ??
+                                    formatActivitySubjectType(
+                                        intl,
+                                        event.subjectType
+                                    )
                             })}
                         </Link>
                     </Button>

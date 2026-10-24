@@ -4,8 +4,8 @@ import { mockWorkspaces } from '../support/api/workspaces';
 import { ALL_KINDS_ACTIVITY, mockActivity } from '../support/api/activity';
 
 /**
- * The kind → label catalogue: that **every** audit kind the server writes has a
- * localized Action label in the admin, and every `subjectType` a readable name.
+ * The kind → sentence catalogue: that **every** audit kind the server writes
+ * reads as a localized sentence in the feed, never as its raw wire token.
  *
  * This suite exists because the failure mode it guards is silent. The admin
  * restates the server's kind strings locally (it cannot import the server
@@ -19,106 +19,77 @@ import { ALL_KINDS_ACTIVITY, mockActivity } from '../support/api/activity';
  * `ALL_KINDS_ACTIVITY` is the pin: keep it in step with the server's
  * `FACET_MAPPERS` and these tests fail the moment the admin falls behind again.
  */
-test.describe('Activity Log kind catalogue', () => {
+test.describe('Activity kind catalogue', () => {
     test.beforeEach(async ({ page }) => {
         await mockSignedIn(page);
         await mockActivity(page, ALL_KINDS_ACTIVITY);
     });
 
-    test('every audit kind the server writes has a localized Action label', async ({
+    test('every audit kind the server writes reads as a sentence', async ({
         activityLogPage
     }) => {
         // Pin the page size so one render covers every kind in the catalogue
         // (there are more of them than the default page holds).
         await activityLogPage.gotoWith('pageSize=100');
-        await expect(activityLogPage.table).toBeVisible();
+        await expect(activityLogPage.feed).toBeVisible();
 
-        const labels = await activityLogPage.actionLabels();
-        expect(labels.length).toBe(ALL_KINDS_ACTIVITY.length);
+        const rows = await activityLogPage.sentences();
+        expect(rows.length).toBe(ALL_KINDS_ACTIVITY.length);
 
-        // A dot is the signature of the raw `domain.action` wire token leaking
-        // through the label lookup's fallback.
-        const raw = labels.filter((label) => label.includes('.'));
-        expect(raw, `unlabelled kinds: ${raw.join(', ')}`).toEqual([]);
+        // The raw `domain.action` token leaking through a missing sentence or
+        // label is the failure this pins — each row is checked against its own
+        // kind, since record names legitimately contain dots ("hero.png").
+        const raw = ALL_KINDS_ACTIVITY.filter((seed, index) =>
+            rows[index].includes(seed.kind)
+        ).map((seed) => seed.kind);
+        expect(raw, `kinds rendered raw: ${raw.join(', ')}`).toEqual([]);
     });
 
-    test('a few labels read as the phrases they should be', async ({
+    test('a few sentences read as the phrases they should be', async ({
         activityLogPage
     }) => {
         await activityLogPage.gotoWith('pageSize=100');
-        // Wait for the real table: the pending skeleton is also a <table> with
-        // eight blank rows, so reading cells too early yields eight empty
-        // strings and every `toContain` fails for the wrong reason.
-        await expect(activityLogPage.table).toBeVisible();
-        const labels = await activityLogPage.actionLabels();
+        await expect(activityLogPage.feed).toBeVisible();
 
-        expect(labels).toContain('Uploaded asset');
-        expect(labels).toContain('Deleted folder');
-        expect(labels).toContain('Activated account');
-        expect(labels).toContain('Archived workspace');
-        expect(labels).toContain('Granted content access');
+        for (const sentence of [
+            'ada@orthacms.dev uploaded hero.png',
+            'ada@orthacms.dev deleted a folder',
+            'ada@orthacms.dev activated their account',
+            'ada@orthacms.dev archived a workspace',
+            'ada@orthacms.dev created the workspace Marketing',
+            'ada@orthacms.dev shared author',
+            'ada@orthacms.dev created the API token CI',
+            'The API token CI was used',
+            'ada@orthacms.dev created the audience Members',
+            'ada@orthacms.dev signed in from 203.0.113.7'
+        ]) {
+            await expect(activityLogPage.row(sentence)).toHaveCount(1);
+        }
     });
 
-    test('every subject type renders as a readable name, not a machine token', async ({
-        activityLogPage
-    }) => {
-        await activityLogPage.gotoWith('pageSize=100');
-        await expect(activityLogPage.table).toBeVisible();
-        const types = await activityLogPage.subjectTypeLabels();
-
-        // `capitalize` on a snake_cased token gives "Media_asset".
-        const tokens = types.filter((type) => type.includes('_'));
-        expect(tokens, `raw subject types: ${tokens.join(', ')}`).toEqual([]);
-
-        expect(types).toContain('Media asset');
-        expect(types).toContain('Media folder');
-        expect(types).toContain('Content entry');
-        expect(types).toContain('API token');
-    });
-
-    test('the Details line reads the per-kind meta the server records', async ({
-        activityLogPage,
-        page
-    }) => {
-        await activityLogPage.gotoWith('pageSize=100');
-
-        // A rename records `{ name: { from, to } }`; this used to render the
-        // constant "Name changed" and ignore the payload entirely.
-        await activityLogPage.expandRow('Updated profile');
-        await expect(page.getByText('Ada L → Ada B')).toBeVisible();
-
-        // Media payloads differ per kind by design, so each reads one field.
-        await activityLogPage.expandRow('Uploaded asset');
-        await expect(page.getByText('hero.png').first()).toBeVisible();
-
-        // An entry edit names the fields it changed, the same shape a workspace
-        // update uses — the difference between "someone saved this" and a row a
-        // reviewer can act on.
-        await activityLogPage.expandRow('Edited content');
-        await expect(page.getByText('title, body').first()).toBeVisible();
-    });
-
-    test('the content editing lifecycle is labelled, not only publishing', async ({
+    test('the content editing lifecycle reads as what happened, not only publishing', async ({
         activityLogPage
     }) => {
         // Publishing was the only content action the log could answer for:
-        // create, edit, delete and restore raised no domain event at all, so an
-        // editor could rewrite the whole product and the record of record
-        // stayed silent about the most frequent action in a CMS.
+        // create, edit, delete and restore raised no domain event at all.
         await activityLogPage.gotoWith('pageSize=100');
-        await expect(activityLogPage.table).toBeVisible();
-        const labels = await activityLogPage.actionLabels();
+        await expect(activityLogPage.feed).toBeVisible();
 
-        expect(labels).toContain('Created content');
-        expect(labels).toContain('Edited content');
-        expect(labels).toContain('Deleted content');
-        expect(labels).toContain('Restored content');
-        // Its own label, because it is the one content action that leaves
-        // nothing behind to inspect afterwards.
-        expect(labels).toContain('Permanently deleted content');
+        for (const verb of [
+            'created an entry',
+            'edited an entry',
+            'published an entry',
+            'deleted an entry',
+            'restored an entry',
+            // Its own words, because it is the one content action that leaves
+            // nothing behind to inspect afterwards.
+            'permanently deleted an entry'
+        ]) {
+            await expect(activityLogPage.row(verb).first()).toBeVisible();
+        }
     });
 
-    test('the home panel names an action the same way the table does', async ({
+    test('the home panel names an action the same way the log’s labels do', async ({
         homePage,
         page
     }) => {
@@ -126,11 +97,9 @@ test.describe('Activity Log kind catalogue', () => {
         await homePage.goto();
         await expect(homePage.activityPanel).toBeVisible();
 
-        // The panel used to show the raw kind while the table showed a label,
-        // so the two surfaces named the same event differently — and the
-        // panel's half was a wire token no `react-intl` locale could translate.
-        // Scoped to `main`, since the Recent activity panel is the only place
-        // an event kind is rendered on the dashboard.
+        // The panel used to show the raw kind, a wire token no locale could
+        // translate. Scoped to `main`, since the Recent activity panel is the
+        // only place an event kind is rendered on the dashboard.
         const dashboard = page.getByRole('main');
         await expect(dashboard).toContainText('Invited member');
         await expect(dashboard).not.toContainText('user.invited');
