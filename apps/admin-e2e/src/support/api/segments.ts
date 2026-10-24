@@ -23,6 +23,59 @@ export interface EntryAccessSeed {
     deny: string[];
 }
 
+/** One entry naming an audience, as `GET /api/segments/:id/usage` lists it. */
+export interface SegmentUsageItemSeed {
+    entryId: string;
+    typeSlug: string;
+    typeLabel: string;
+    title: string | null;
+    locale: string | null;
+    state: 'allow' | 'deny';
+    trashed: boolean;
+}
+
+/**
+ * Where each audience is used, per workspace: `usage[segmentId][workspaceId]`.
+ * A workspace with no row answers an empty list; `'forbidden'` answers 403, as
+ * the `WorkspaceGuard` does for a workspace the caller is not a member of.
+ */
+export type SegmentUsageSeed = Record<
+    string,
+    Record<string, SegmentUsageItemSeed[] | 'forbidden'>
+>;
+
+const usageItem = (
+    entryId: string,
+    title: string,
+    state: 'allow' | 'deny'
+): SegmentUsageItemSeed => ({
+    entryId,
+    typeSlug: 'blog_post',
+    typeLabel: 'Blog post',
+    title,
+    locale: null,
+    state,
+    trashed: false
+});
+
+/**
+ * The default usage — Acme Corp's three entries, the board's own example: two
+ * restricted to it, one refusing it. All in Marketing site, so the directory's
+ * `usageCount: 3` and the workspace-scoped reads agree.
+ */
+export const SEGMENT_USAGE_SEED: SegmentUsageSeed = {
+    'seg-acme': {
+        ws_marketing: [
+            usageItem('entry-pricing', 'Enterprise pricing', 'allow'),
+            usageItem('entry-onboarding', 'Acme onboarding guide', 'allow'),
+            usageItem('entry-rivals', 'Competitor comparison', 'deny')
+        ]
+    },
+    'seg-initech': {
+        ws_marketing: [usageItem('entry-initech', 'Initech rollout', 'allow')]
+    }
+};
+
 /** The default vocabulary: three audiences, so a page of two has a second page. */
 export const SEGMENT_SEED: SegmentSeed[] = [
     {
@@ -89,6 +142,8 @@ export interface SegmentsApiSpy {
     readonly deleted: string[];
     /** The `workspace` query param each list read carried, in order. */
     readonly listedWorkspaces: (string | null)[];
+    /** `[segmentId, X-Workspace-Id]` of every usage read. */
+    readonly usageReads: [string, string | null][];
     /**
      * Delete an audience **out of band** — another administrator, in another
      * tab — so the next list read is shorter than the page on screen assumed.
@@ -133,6 +188,10 @@ export async function mockSegmentsApi(
          * skeleton is never on screen to assert against.
          */
         listDelayMs?: number;
+        /** Where each audience is used. Defaults to {@link SEGMENT_USAGE_SEED}. */
+        usage?: SegmentUsageSeed;
+        /** Fail every usage read with this status. */
+        usageStatus?: number;
     } = {}
 ): Promise<SegmentsApiSpy> {
     // A copy, because a delete now takes the row out of it — and the seeds are
@@ -148,8 +207,10 @@ export async function mockSegmentsApi(
         updated: [],
         deleted: [],
         listedWorkspaces: [],
+        usageReads: [],
         remove: drop
     };
+    const usage = options.usage ?? SEGMENT_USAGE_SEED;
 
     // One entry's access. Registered FIRST but matched by the more specific
     // pattern — Playwright tries the most recent registration first, so the
@@ -167,6 +228,45 @@ export async function mockSegmentsApi(
         }
         await route.fulfill(json(access[id] ?? { allow: [], deny: [] }));
     });
+
+    // Where one audience is used — workspace-scoped, so it answers by the
+    // `X-Workspace-Id` the request carried, exactly as the guard scopes it.
+    await page.route(
+        /\/api\/segments\/[^/?]+\/usage(\?.*)?$/,
+        async (route) => {
+            const request = route.request();
+            const parts = new URL(request.url()).pathname.split('/');
+            const id = decodeURIComponent(parts[parts.length - 2] ?? '');
+            const workspaceId = request.headers()['x-workspace-id'] ?? null;
+            spy.usageReads.push([id, workspaceId]);
+            if (options.usageStatus) {
+                return route.fulfill({
+                    status: options.usageStatus,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ message: 'Nope' })
+                });
+            }
+            const rows = workspaceId ? usage[id]?.[workspaceId] : undefined;
+            if (rows === 'forbidden') {
+                return route.fulfill({
+                    status: 403,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ message: 'Forbidden' })
+                });
+            }
+            const items = all.some((segment) => segment.id === id)
+                ? (rows ?? [])
+                : [];
+            await route.fulfill(
+                json({
+                    segmentId: id,
+                    total: items.length,
+                    items,
+                    truncated: false
+                })
+            );
+        }
+    );
 
     // Resolve by id, for the header chip and a revision's captured access.
     await page.route(/\/api\/segments\/lookup(\?.*)?$/, async (route) => {

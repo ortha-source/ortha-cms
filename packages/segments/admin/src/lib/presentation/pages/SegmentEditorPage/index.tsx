@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ShieldCheck } from 'lucide-react';
+import { ShieldCheck, Trash2 } from 'lucide-react';
 import { PageTopBar } from '@orthacms/shell-admin';
 import { RequiredMark } from '@orthacms/content-admin';
 import { useHasPermission } from '@orthacms/identity-admin';
@@ -21,6 +21,7 @@ import {
     Alert,
     AlertDescription,
     Button,
+    Card,
     Container,
     ContainerHeader,
     Field,
@@ -29,17 +30,27 @@ import {
     FieldLabel,
     Input,
     Spinner,
-    Textarea,
     toast
 } from '@orthacms/design-system';
 import {
     SEGMENTS_MANAGE,
     SEGMENTS_READ,
     useCreateSegment,
+    useDeleteSegment,
     useSegment,
     useUpdateSegment
 } from '../../../application/hooks';
-import { SegmentWorkspacesField } from '../../components/SegmentWorkspacesField';
+import { effectiveTags } from '../../../domain/readerTest';
+import type { Segment } from '../../../domain/types';
+import {
+    OFFERED_IN,
+    OfferedInField,
+    type OfferedIn
+} from '../../components/OfferedInField';
+import { ReaderTagsInput } from '../../components/ReaderTagsInput';
+import { ReaderTester } from '../../components/ReaderTester';
+import { SegmentUsagePanel } from '../../components/SegmentUsagePanel';
+import { DeleteSegmentDialog } from '../../components/DeleteSegmentDialog';
 import { SegmentFormSkeleton } from '../../components/SegmentFormSkeleton';
 
 const messages = defineMessages({
@@ -49,44 +60,43 @@ const messages = defineMessages({
         defaultMessage: 'New audience'
     },
     createBody: {
-        id: 'segments.editor.createBody',
+        id: 'segments.editor.createLede',
         defaultMessage:
-            'A group of readers you want to decide about — a customer, a plan, a region. Entries then say which audiences may read them.'
+            'A group of readers you want to decide about — a customer, a plan, a region.'
     },
     editTitle: {
         id: 'segments.editor.editTitle',
         defaultMessage: 'Edit audience'
     },
+    editBody: {
+        id: 'segments.editor.editLede',
+        defaultMessage: 'Tag changes apply to readers at once.'
+    },
     requiredLegend: {
         id: 'segments.editor.requiredLegend',
         defaultMessage: 'Fields marked * are required.'
     },
-    editBody: {
-        id: 'segments.editor.editBody',
-        defaultMessage:
-            'Changing the tags changes who this audience matches — immediately, on every entry that names it.'
-    },
     label: { id: 'segments.editor.label', defaultMessage: 'Name' },
     key: { id: 'segments.editor.key', defaultMessage: 'Key' },
     keyHint: {
-        id: 'segments.editor.keyHint',
+        id: 'segments.editor.keyMadeFromName',
         defaultMessage:
-            'Lowercase letters, digits, and . _ - — permanent, and the default reader tag.'
+            'Made from the name; lowercase letters, digits and . _ -. It can’t change later.'
     },
     keyFixed: {
-        id: 'segments.editor.keyFixed',
-        defaultMessage:
-            'The key is permanent: every entry that named this audience holds its id, and the key is what a reader tag defaults to.'
+        id: 'segments.editor.keyPermanent',
+        defaultMessage: 'Permanent — entries refer to it.'
     },
     tags: { id: 'segments.editor.tags', defaultMessage: 'Reader tags' },
     tagsHint: {
-        id: 'segments.editor.tagsHint',
+        id: 'segments.editor.tagsLimitHint',
         defaultMessage:
-            'One per line — the identifiers your readers arrive with. Any one is enough to match. Leave empty to use just “{key}”.'
+            '{count} of {max} · a reader with any of these is in the audience. Empty means the key itself.'
     },
-    tagsCount: {
-        id: 'segments.editor.tagsCount',
-        defaultMessage: '{count} of {max} tags'
+    scopeRequired: {
+        id: 'segments.editor.scopeRequired',
+        defaultMessage:
+            'Pick at least one workspace — or choose Every workspace.'
     },
     submitCreate: {
         id: 'segments.editor.submitCreate',
@@ -99,6 +109,10 @@ const messages = defineMessages({
         defaultMessage: '“{name}” is ready to use on entries.'
     },
     saved: { id: 'segments.editor.saved', defaultMessage: 'Saved.' },
+    deleted: {
+        id: 'segments.editor.deleted',
+        defaultMessage: '“{name}” was deleted.'
+    },
     writeError: {
         id: 'segments.editor.writeError',
         defaultMessage: 'Couldn’t save that. Please try again.'
@@ -111,6 +125,19 @@ const messages = defineMessages({
         id: 'segments.editor.noAccess',
         defaultMessage:
             'Editing audiences needs the “segments:manage” permission.'
+    },
+    deleteHeading: {
+        id: 'segments.editor.deleteHeading',
+        defaultMessage: 'Delete audience'
+    },
+    deleteBody: {
+        id: 'segments.editor.deleteBody',
+        defaultMessage:
+            'Entries that name it stop treating these readers differently.'
+    },
+    deleteCta: {
+        id: 'segments.editor.deleteCta',
+        defaultMessage: 'Delete…'
     },
 
     // One message per (field, reason) rather than a generic "invalid": the
@@ -193,14 +220,22 @@ const COPY: Record<
     }
 };
 
+/** The form's id — what the buttons outside it submit through `form=`. */
+const FORM_ID = 'segment-form';
+
 /**
  * Create or edit an audience, at `/segments/new` and `/segments/:segmentId`.
  *
- * **A page rather than a dialog.** It was a dialog while an audience was three
- * short fields; it now also decides which workspaces may use it, which is a list
- * that grows with the installation. A modal that scrolls is a modal that has
- * outgrown being one — and a page gives each audience a URL, which is what makes
- * "here, look at this one" a link instead of a set of directions.
+ * **The form, and beside it the thing it is for.** Creating, the right column
+ * is "Try a reader" — would this person be in it? — answered from the form as
+ * typed. Editing, it is **where the audience is used**: the entries naming it
+ * and whether each allows or refuses it, read before somebody changes the tags
+ * those entries rely on — and under it the delete, which spells out who will
+ * see what afterwards.
+ *
+ * **Tags are chips**, with the kernel's limit counted under them, and **"Offered
+ * in" is two cards** — Every workspace (including new ones) or Some — rather
+ * than a list of boxes whose all-clear state silently meant "every".
  *
  * **The rules come from the kernel**, not from a pattern spelled out here:
  * `@orthacms/segments-domain`'s `validateSegment` is the same function the
@@ -211,8 +246,10 @@ const COPY: Record<
  * the whole time somebody is typing it, and complaining from the second
  * character is noise about a state they are on their way out of.
  *
- * The **key is read-only when editing**, with the reason written next to it
- * rather than left as a greyed-out field nobody can interrogate.
+ * **Save sits in the top bar while editing** (the page header's action portals
+ * there) and stays on the page — the usage beside the form is still what the
+ * next change is checked against. Creating ends with Create / Cancel under the
+ * form and goes back to the directory, which flashes the new row.
  */
 export function SegmentEditorPage() {
     const intl = useIntl();
@@ -227,15 +264,21 @@ export function SegmentEditorPage() {
 
     const create = useCreateSegment();
     const update = useUpdateSegment();
+    const remove = useDeleteSegment();
     const submitting = create.isPending || update.isPending;
 
     const [label, setLabel] = useState('');
     const [key, setKey] = useState('');
     const [keyTouched, setKeyTouched] = useState(false);
-    const [tags, setTags] = useState('');
+    const [tags, setTags] = useState<string[]>([]);
+    const [scope, setScope] = useState<OfferedIn>(OFFERED_IN.Every);
     const [workspaceIds, setWorkspaceIds] = useState<string[]>([]);
     const [blurred, setBlurred] = useState<Record<string, boolean>>({});
     const [submitted, setSubmitted] = useState(false);
+    const [deleting, setDeleting] = useState<Segment | null>(null);
+    // The dialog has no Radix trigger, so on a cancel focus would fall to
+    // `<body>`; it goes back to the button that opened it instead.
+    const deleteButton = useRef<HTMLButtonElement>(null);
     // The key the server refused with a 409 — one somebody else took a moment
     // ago. Held as the key rather than a flag so the message clears itself the
     // moment a different one is typed.
@@ -248,27 +291,23 @@ export function SegmentEditorPage() {
         setLabel(segment.label);
         setKey(segment.key);
         setKeyTouched(true);
-        setTags(segment.tags.join('\n'));
+        setTags(segment.tags);
+        setScope(
+            segment.workspaceIds.length ? OFFERED_IN.Some : OFFERED_IN.Every
+        );
         setWorkspaceIds(segment.workspaceIds);
     }, [segment?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    useDocumentTitle(
-        intl.formatMessage(editing ? messages.editTitle : messages.createTitle)
-    );
+    const pageTitle = editing
+        ? (segment?.label ?? intl.formatMessage(messages.editTitle))
+        : intl.formatMessage(messages.createTitle);
+    useDocumentTitle(pageTitle);
 
     // The key tracks the name until somebody takes it over — the same
     // convention the workspace slug follows, and here for the same reason: the
     // derived value is right almost always, and typing in the field says it
     // isn't.
     const derivedKey = keyTouched ? key : slugify(label);
-    const tagList = useMemo(
-        () =>
-            tags
-                .split('\n')
-                .map((tag) => tag.trim())
-                .filter(Boolean),
-        [tags]
-    );
 
     // Editing sends no key, so there is nothing to check it against; creating
     // relies on the server's 409, which is the only complete answer now that the
@@ -278,9 +317,12 @@ export function SegmentEditorPage() {
     const issues = validateSegment({
         ...(editing ? {} : { key: derivedKey }),
         label,
-        tags: tagList
+        tags
     });
-    const valid = isValidSegment(issues);
+    // "Some workspaces" with none ticked would save as `[]` — which the server
+    // reads as **every** workspace, the opposite of the choice on screen.
+    const scopeMissing = scope === OFFERED_IN.Some && workspaceIds.length === 0;
+    const valid = isValidSegment(issues) && !scopeMissing;
 
     /** The message for a field, once it is due to be shown. */
     const errorFor = (field: keyof SegmentIssues): string | undefined => {
@@ -298,6 +340,10 @@ export function SegmentEditorPage() {
             ? intl.formatMessage(messages.keyDuplicate)
             : errorFor('key');
     const tagsError = errorFor('tags');
+    const scopeError =
+        submitted && scopeMissing
+            ? intl.formatMessage(messages.scopeRequired)
+            : undefined;
     const onBlur = (field: string) => () =>
         setBlurred((current) => ({ ...current, [field]: true }));
 
@@ -310,18 +356,15 @@ export function SegmentEditorPage() {
                     label: intl.formatMessage(messages.directory),
                     to: '/segments'
                 },
-                {
-                    key: 'editor',
-                    label: intl.formatMessage(
-                        editing ? messages.editTitle : messages.createTitle
-                    )
-                }
+                { key: 'editor', label: pageTitle }
             ]}
         />
     );
 
     const failed = () => toast.error(intl.formatMessage(messages.writeError));
     const leave = () => navigate('/segments');
+    // `[]` is how the server spells "every workspace, including new ones".
+    const scopeToSend = scope === OFFERED_IN.Every ? [] : workspaceIds;
 
     const submit = (event: React.FormEvent) => {
         event.preventDefault();
@@ -334,14 +377,12 @@ export function SegmentEditorPage() {
                 {
                     id: segmentId,
                     label: label.trim(),
-                    tags: tagList,
-                    workspaceIds
+                    tags,
+                    workspaceIds: scopeToSend
                 },
                 {
-                    onSuccess: () => {
-                        toast.success(intl.formatMessage(messages.saved));
-                        leave();
-                    },
+                    onSuccess: () =>
+                        toast.success(intl.formatMessage(messages.saved)),
                     onError: failed
                 }
             );
@@ -354,8 +395,8 @@ export function SegmentEditorPage() {
                 label: label.trim(),
                 // An empty list means "use the key", which the server fills in —
                 // sending `[]` would be an audience matching nobody.
-                ...(tagList.length ? { tags: tagList } : {}),
-                workspaceIds
+                ...(tags.length ? { tags } : {}),
+                workspaceIds: scopeToSend
             },
             {
                 onSuccess: (created) => {
@@ -379,16 +420,28 @@ export function SegmentEditorPage() {
         );
     };
 
+    const confirmDelete = () => {
+        if (!deleting) return;
+        const name = deleting.label;
+        remove.mutate(deleting.id, {
+            onSuccess: () => {
+                toast.success(intl.formatMessage(messages.deleted, { name }));
+                setDeleting(null);
+                leave();
+            },
+            onError: () => {
+                setDeleting(null);
+                failed();
+            }
+        });
+    };
+
     if (!canRead || !canManage) {
         return (
             <>
                 {bar}
                 <Container>
-                    <ContainerHeader
-                        title={intl.formatMessage(
-                            editing ? messages.editTitle : messages.createTitle
-                        )}
-                    />
+                    <ContainerHeader title={pageTitle} />
                     <p className="mt-6 text-sm text-muted-foreground">
                         {intl.formatMessage(messages.noAccess)}
                     </p>
@@ -411,7 +464,7 @@ export function SegmentEditorPage() {
         );
     }
 
-    if (editing && loaded.isError) {
+    if (editing && (loaded.isError || !segment)) {
         return (
             <>
                 {bar}
@@ -426,178 +479,283 @@ export function SegmentEditorPage() {
         );
     }
 
+    const submitLabel = intl.formatMessage(
+        editing ? messages.submitEdit : messages.submitCreate
+    );
+
     return (
         <>
             {bar}
             <Container>
-                <ContainerHeader
-                    title={intl.formatMessage(
-                        editing ? messages.editTitle : messages.createTitle
-                    )}
-                    subtitle={intl.formatMessage(
-                        editing ? messages.editBody : messages.createBody
-                    )}
-                />
-
-                {/* `noValidate` because the messages are ours: the browser's
-                    bubble says something else, in a different language, and
-                    disappears on the next keystroke. */}
-                <form
-                    noValidate
-                    className="mt-6 flex max-w-2xl flex-col gap-6"
-                    onSubmit={submit}
-                >
-                    {/* The convention, stated once in the page for everyone.
-                        The asterisks themselves are `aria-hidden` — the controls
-                        carry `aria-required`, which is what is announced — so a
-                        sighted reader who does not know the convention needs
-                        this line, and nothing about it should be hoverable. */}
-                    <p className="text-xs text-muted-foreground">
-                        {intl.formatMessage(messages.requiredLegend)}
-                    </p>
-
-                    <Field data-invalid={Boolean(labelError) || undefined}>
-                        <FieldLabel htmlFor="segment-label">
-                            {intl.formatMessage(messages.label)}
-                            <RequiredMark />
-                        </FieldLabel>
-                        <Input
-                            id="segment-label"
-                            value={label}
-                            autoFocus
-                            // `aria-required`, not the HTML `required`: the form
-                            // is `noValidate` (the submit handler owns the
-                            // messages), so the native attribute would carry the
-                            // semantics of a check that never runs.
-                            aria-required
-                            aria-invalid={Boolean(labelError)}
-                            aria-describedby={
-                                labelError ? 'segment-label-error' : undefined
-                            }
-                            onBlur={onBlur('label')}
-                            onChange={(event) => setLabel(event.target.value)}
-                        />
-                        {labelError ? (
-                            <FieldError id="segment-label-error">
-                                {labelError}
-                            </FieldError>
-                        ) : null}
-                    </Field>
-
-                    <Field data-invalid={Boolean(keyError) || undefined}>
-                        <FieldLabel htmlFor="segment-key">
-                            {intl.formatMessage(messages.key)}
-                            {/* Marked even while editing: it is still a value
-                                the audience cannot be without, and the field
-                                being read-only is said by the hint under it
-                                rather than by dropping the mark. */}
-                            <RequiredMark />
-                        </FieldLabel>
-                        <Input
-                            id="segment-key"
-                            value={derivedKey}
-                            readOnly={editing}
-                            aria-required
-                            aria-invalid={Boolean(keyError)}
-                            aria-describedby={
-                                keyError
-                                    ? 'segment-key-error'
-                                    : 'segment-key-hint'
-                            }
-                            onBlur={onBlur('key')}
-                            onChange={(event) => {
-                                setKeyTouched(true);
-                                setKey(event.target.value);
-                            }}
-                        />
-                        {keyError ? (
-                            <FieldError id="segment-key-error">
-                                {keyError}
-                            </FieldError>
-                        ) : (
-                            <FieldDescription id="segment-key-hint">
-                                {intl.formatMessage(
-                                    editing
-                                        ? messages.keyFixed
-                                        : messages.keyHint
-                                )}
-                            </FieldDescription>
+                <div className="max-w-[940px]">
+                    <ContainerHeader
+                        title={pageTitle}
+                        subtitle={intl.formatMessage(
+                            editing ? messages.editBody : messages.createBody
                         )}
-                    </Field>
-
-                    <Field data-invalid={Boolean(tagsError) || undefined}>
-                        <FieldLabel htmlFor="segment-tags">
-                            {intl.formatMessage(messages.tags)}
-                        </FieldLabel>
-                        {/* A textarea of one per line rather than a chip input:
-                            the common case is pasting a list out of the system
-                            that owns the identifiers, and a chip editor turns a
-                            paste of forty plan codes into forty interactions. */}
-                        <Textarea
-                            id="segment-tags"
-                            rows={5}
-                            value={tags}
-                            placeholder={derivedKey || 'acme'}
-                            aria-invalid={Boolean(tagsError)}
-                            aria-describedby={
-                                tagsError
-                                    ? 'segment-tags-error'
-                                    : 'segment-tags-hint'
-                            }
-                            onBlur={onBlur('tags')}
-                            onChange={(event) => setTags(event.target.value)}
-                        />
-                        {tagsError ? (
-                            <FieldError id="segment-tags-error">
-                                {tagsError}
-                            </FieldError>
-                        ) : (
-                            <FieldDescription id="segment-tags-hint">
-                                {intl.formatMessage(messages.tagsHint, {
-                                    key: derivedKey || 'acme'
-                                })}
-                                {tagList.length > 0
-                                    ? ` · ${intl.formatMessage(
-                                          messages.tagsCount,
-                                          {
-                                              count: tagList.length,
-                                              max: SEGMENT_TAGS_MAX
-                                          }
-                                      )}`
-                                    : ''}
-                            </FieldDescription>
-                        )}
-                    </Field>
-
-                    <SegmentWorkspacesField
-                        value={workspaceIds}
-                        onChange={setWorkspaceIds}
-                        disabled={submitting}
+                        // Editing, Save lives in the top bar — the header's
+                        // actions portal there — and submits the form by id.
+                        actions={
+                            editing ? (
+                                <Button
+                                    type="submit"
+                                    form={FORM_ID}
+                                    disabled={submitting}
+                                >
+                                    {submitting ? <Spinner /> : null}
+                                    {submitLabel}
+                                </Button>
+                            ) : undefined
+                        }
                     />
 
-                    <div className="flex items-center gap-2">
-                        {/* Not disabled on invalid input: a dead button explains
-                            nothing, and pressing it is how somebody with nothing
-                            focused finds out which field is wrong. */}
-                        <Button type="submit" disabled={submitting}>
-                            {submitting ? <Spinner /> : null}
-                            {intl.formatMessage(
-                                editing
-                                    ? messages.submitEdit
-                                    : messages.submitCreate
+                    <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
+                        <Card className="shadow-none">
+                            {/* `noValidate` because the messages are ours: the
+                                browser's bubble says something else, in a
+                                different language, and disappears on the next
+                                keystroke. */}
+                            <form
+                                id={FORM_ID}
+                                noValidate
+                                className="flex flex-col gap-4 p-4"
+                                onSubmit={submit}
+                            >
+                                {/* The convention, stated once for everyone.
+                                    The asterisks are `aria-hidden` — the
+                                    controls carry `aria-required`, which is
+                                    what is announced. */}
+                                <p className="text-xs text-muted-foreground">
+                                    {intl.formatMessage(
+                                        messages.requiredLegend
+                                    )}
+                                </p>
+
+                                <Field
+                                    data-invalid={
+                                        Boolean(labelError) || undefined
+                                    }
+                                >
+                                    <FieldLabel htmlFor="segment-label">
+                                        {intl.formatMessage(messages.label)}
+                                        <RequiredMark />
+                                    </FieldLabel>
+                                    <Input
+                                        id="segment-label"
+                                        value={label}
+                                        autoFocus
+                                        // `aria-required`, not the HTML
+                                        // `required`: the form is `noValidate`,
+                                        // so the native attribute would carry
+                                        // the semantics of a check that never
+                                        // runs.
+                                        aria-required
+                                        aria-invalid={Boolean(labelError)}
+                                        aria-describedby={
+                                            labelError
+                                                ? 'segment-label-error'
+                                                : undefined
+                                        }
+                                        onBlur={onBlur('label')}
+                                        onChange={(event) =>
+                                            setLabel(event.target.value)
+                                        }
+                                    />
+                                    {labelError ? (
+                                        <FieldError id="segment-label-error">
+                                            {labelError}
+                                        </FieldError>
+                                    ) : null}
+                                </Field>
+
+                                <Field
+                                    data-invalid={
+                                        Boolean(keyError) || undefined
+                                    }
+                                >
+                                    <FieldLabel htmlFor="segment-key">
+                                        {intl.formatMessage(messages.key)}
+                                        {/* Marked only while it can still be
+                                            typed. Editing, it is a fact about
+                                            the audience, not an input. */}
+                                        {editing ? null : <RequiredMark />}
+                                    </FieldLabel>
+                                    <Input
+                                        id="segment-key"
+                                        value={derivedKey}
+                                        readOnly={editing}
+                                        className={
+                                            editing
+                                                ? 'bg-muted font-mono shadow-none'
+                                                : 'font-mono'
+                                        }
+                                        aria-required={
+                                            editing ? undefined : true
+                                        }
+                                        aria-invalid={Boolean(keyError)}
+                                        aria-describedby={
+                                            keyError
+                                                ? 'segment-key-error'
+                                                : 'segment-key-hint'
+                                        }
+                                        onBlur={onBlur('key')}
+                                        onChange={(event) => {
+                                            setKeyTouched(true);
+                                            setKey(event.target.value);
+                                        }}
+                                    />
+                                    {keyError ? (
+                                        <FieldError id="segment-key-error">
+                                            {keyError}
+                                        </FieldError>
+                                    ) : (
+                                        <FieldDescription id="segment-key-hint">
+                                            {intl.formatMessage(
+                                                editing
+                                                    ? messages.keyFixed
+                                                    : messages.keyHint
+                                            )}
+                                        </FieldDescription>
+                                    )}
+                                </Field>
+
+                                <Field
+                                    data-invalid={
+                                        Boolean(tagsError) || undefined
+                                    }
+                                >
+                                    <FieldLabel htmlFor="segment-tags">
+                                        {intl.formatMessage(messages.tags)}
+                                    </FieldLabel>
+                                    <ReaderTagsInput
+                                        id="segment-tags"
+                                        value={tags}
+                                        onChange={setTags}
+                                        onBlur={onBlur('tags')}
+                                        invalid={Boolean(tagsError)}
+                                        disabled={submitting}
+                                        describedBy={
+                                            tagsError
+                                                ? 'segment-tags-error'
+                                                : 'segment-tags-hint'
+                                        }
+                                    />
+                                    {tagsError ? (
+                                        <FieldError id="segment-tags-error">
+                                            {tagsError}
+                                        </FieldError>
+                                    ) : (
+                                        <FieldDescription id="segment-tags-hint">
+                                            {intl.formatMessage(
+                                                messages.tagsHint,
+                                                {
+                                                    count: tags.length,
+                                                    max: SEGMENT_TAGS_MAX
+                                                }
+                                            )}
+                                        </FieldDescription>
+                                    )}
+                                </Field>
+
+                                <OfferedInField
+                                    mode={scope}
+                                    onModeChange={setScope}
+                                    value={workspaceIds}
+                                    onChange={setWorkspaceIds}
+                                    error={scopeError}
+                                    disabled={submitting}
+                                />
+                            </form>
+                        </Card>
+
+                        <div className="flex flex-col gap-4">
+                            {editing && segment ? (
+                                <>
+                                    <SegmentUsagePanel segment={segment} />
+                                    <Card className="border-destructive/30 shadow-none">
+                                        <section
+                                            aria-labelledby="segment-delete-heading"
+                                            className="flex flex-col items-start gap-2 p-4"
+                                        >
+                                            <h2
+                                                id="segment-delete-heading"
+                                                className="text-sm font-semibold"
+                                            >
+                                                {intl.formatMessage(
+                                                    messages.deleteHeading
+                                                )}
+                                            </h2>
+                                            <p className="text-xs text-muted-foreground">
+                                                {intl.formatMessage(
+                                                    messages.deleteBody
+                                                )}
+                                            </p>
+                                            <Button
+                                                ref={deleteButton}
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                className="mt-1 text-destructive shadow-none hover:text-destructive"
+                                                onClick={() =>
+                                                    setDeleting(segment)
+                                                }
+                                            >
+                                                <Trash2 aria-hidden />
+                                                {intl.formatMessage(
+                                                    messages.deleteCta
+                                                )}
+                                            </Button>
+                                        </section>
+                                    </Card>
+                                </>
+                            ) : (
+                                <ReaderTester
+                                    name={label}
+                                    tags={effectiveTags(tags, derivedKey)}
+                                />
                             )}
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            disabled={submitting}
-                            onClick={leave}
-                        >
-                            {intl.formatMessage(messages.cancel)}
-                        </Button>
+                        </div>
                     </div>
-                </form>
+
+                    {editing ? null : (
+                        <div className="mt-4 flex items-center gap-2">
+                            {/* Not disabled on invalid input: a dead button
+                                explains nothing, and pressing it is how
+                                somebody with nothing focused finds out which
+                                field is wrong. */}
+                            <Button
+                                type="submit"
+                                form={FORM_ID}
+                                disabled={submitting}
+                            >
+                                {submitting ? <Spinner /> : null}
+                                {submitLabel}
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                disabled={submitting}
+                                onClick={leave}
+                            >
+                                {intl.formatMessage(messages.cancel)}
+                            </Button>
+                        </div>
+                    )}
+                </div>
             </Container>
+
+            <DeleteSegmentDialog
+                segment={deleting}
+                busy={remove.isPending}
+                onOpenChange={(open) => {
+                    if (!open) setDeleting(null);
+                }}
+                onConfirm={confirmDelete}
+                onCloseAutoFocus={(event) => {
+                    event.preventDefault();
+                    deleteButton.current?.focus();
+                }}
+            />
         </>
     );
 }

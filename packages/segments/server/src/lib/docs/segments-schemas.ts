@@ -27,6 +27,10 @@ import {
     MATCHED_IDS_CAP,
     MAX_PAGE_SIZE
 } from '../application/segments.service';
+import {
+    SEGMENT_USAGE_LIMIT,
+    USAGE_STATE
+} from '../application/segment-usage.service';
 import { ref, type OpenApiSchema } from './openapi-writer';
 
 /** Schema name of one segment. */
@@ -37,6 +41,8 @@ export const SEGMENT_PAGE_SCHEMA = 'SegmentPage';
 export const ENTRY_ACCESS_SCHEMA = 'EntryAccess';
 /** Schema name of the public API's answer for one entry. */
 export const PUBLIC_ENTRY_ACCESS_SCHEMA = 'PublicEntryAccess';
+/** Schema name of where one segment is used, in one workspace. */
+export const SEGMENT_USAGE_SCHEMA = 'SegmentUsage';
 
 /** A list of segment ids, capped the way an entry's own sides are. */
 function segmentIds(description: string): OpenApiSchema {
@@ -186,12 +192,95 @@ function publicEntryAccessSchema(): OpenApiSchema {
     };
 }
 
+/** Where one audience is used — the entries of one workspace naming it. */
+function segmentUsageSchema(): OpenApiSchema {
+    return {
+        type: 'object',
+        title: 'Segment usage',
+        description:
+            'The entries of the workspace in `X-Workspace-Id` that name one audience, on either side. Workspace-scoped: another workspace’s entries are never named, so `total` can be smaller than the directory’s installation-wide `usageCount`.',
+        properties: {
+            segmentId: {
+                type: 'string',
+                format: 'uuid',
+                description: 'The audience asked about.'
+            },
+            total: {
+                type: 'integer',
+                minimum: 0,
+                description:
+                    'Every entry of this workspace naming the audience, either way.'
+            },
+            items: {
+                type: 'array',
+                maxItems: SEGMENT_USAGE_LIMIT,
+                description: `The first ${SEGMENT_USAGE_LIMIT}, ordered by type label then title.`,
+                items: {
+                    type: 'object',
+                    properties: {
+                        entryId: { type: 'string', format: 'uuid' },
+                        typeSlug: {
+                            type: 'string',
+                            description: 'The entry’s content type.'
+                        },
+                        typeLabel: {
+                            type: 'string',
+                            description:
+                                'The type’s label, or its slug when the type is no longer registered.'
+                        },
+                        title: {
+                            type: 'string',
+                            nullable: true,
+                            description:
+                                'The entry’s display title; `null` when its type is no longer registered.'
+                        },
+                        locale: {
+                            type: 'string',
+                            nullable: true,
+                            description:
+                                'The row’s locale on a localized type; `null` otherwise.'
+                        },
+                        state: {
+                            type: 'string',
+                            enum: Object.values(USAGE_STATE),
+                            description:
+                                '`allow` — readers in the audience can see the entry; `deny` — they cannot. A row naming it on both sides reads as `deny`, as `canRead` does.'
+                        },
+                        trashed: {
+                            type: 'boolean',
+                            description:
+                                'Whether the entry is in the trash. It still names the audience.'
+                        }
+                    },
+                    required: [
+                        'entryId',
+                        'typeSlug',
+                        'typeLabel',
+                        'title',
+                        'locale',
+                        'state',
+                        'trashed'
+                    ],
+                    additionalProperties: false
+                }
+            },
+            truncated: {
+                type: 'boolean',
+                description: 'Whether `items` stops short of `total`.'
+            }
+        },
+        required: ['segmentId', 'total', 'items', 'truncated'],
+        additionalProperties: false
+    };
+}
+
 /** Every schema this plugin adds, keyed by schema name. */
 export function buildSegmentsSchemas(): Record<string, OpenApiSchema> {
     return {
         [SEGMENT_SCHEMA]: segmentSchema(),
         [SEGMENT_PAGE_SCHEMA]: segmentPageSchema(),
         [ENTRY_ACCESS_SCHEMA]: entryAccessSchema(),
-        [PUBLIC_ENTRY_ACCESS_SCHEMA]: publicEntryAccessSchema()
+        [PUBLIC_ENTRY_ACCESS_SCHEMA]: publicEntryAccessSchema(),
+        [SEGMENT_USAGE_SCHEMA]: segmentUsageSchema()
     };
 }
