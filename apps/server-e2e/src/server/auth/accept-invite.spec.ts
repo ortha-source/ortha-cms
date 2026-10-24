@@ -90,16 +90,20 @@ describe('accept an invite', () => {
     });
 
     describe('GET /api/auth/invite/:token', () => {
-        it('describes who the invite is for, with no session', async () => {
+        it('describes who the invite is for and what it grants, with no session', async () => {
             const { token } = await invite();
 
             const res = await request(harness.server)
                 .get(`/api/auth/invite/${token}`)
                 .expect(200);
 
+            // The role and the workspaces, never the inviter (R7): the page
+            // that reads this is public.
             expect(res.body).toEqual({
                 email: INVITEE_EMAIL,
-                name: INVITEE_NAME
+                name: INVITEE_NAME,
+                role: 'Contributor',
+                workspaces: []
             });
         });
 

@@ -68,6 +68,10 @@ const PUBLIC_OPERATIONS: readonly string[] = [
     // The reset pair: somebody who has lost their password has no session.
     'GET /api/auth/reset/{token}',
     'POST /api/auth/reset',
+    // Self-service recovery (ADR-0018 phase 2): the same 202 for every
+    // address, and a 404 for the POST on a deployment without a mailer.
+    'GET /api/auth/password-recovery',
+    'POST /api/auth/password-recovery',
     // The single-sign-on handshake. The list is fetched by the sign-in screen
     // before anyone is signed in; the rest is a browser being handed back and
     // forth with an identity provider, and a provider calling in with no
