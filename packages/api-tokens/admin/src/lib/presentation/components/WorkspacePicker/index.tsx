@@ -1,0 +1,195 @@
+import { useState } from 'react';
+import { defineMessages, useIntl } from 'react-intl';
+import { Check, X } from 'lucide-react';
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+    cn
+} from '@orthacms/design-system';
+import type { WorkspaceOption } from '../../../domain/types/workspaceOption';
+import { WorkspaceMonogram } from '../WorkspaceMonogram';
+
+const messages = defineMessages({
+    add: {
+        id: 'apiTokens.picker.add',
+        defaultMessage: 'Add a workspace…'
+    },
+    search: {
+        id: 'apiTokens.picker.search',
+        defaultMessage: 'Search workspaces…'
+    },
+    empty: {
+        id: 'apiTokens.picker.empty',
+        defaultMessage: 'No workspaces found.'
+    },
+    remove: {
+        id: 'apiTokens.picker.remove',
+        defaultMessage: 'Remove {name}'
+    }
+});
+
+/**
+ * The token's workspace bucket as removable chips — each with the workspace's
+ * initials tile — followed by an "Add a workspace…" combobox that opens a
+ * searchable list. The list stays open while picking, so a multi-workspace
+ * bucket is a few clicks rather than a round trip per workspace; a ticked row
+ * carries `aria-checked`, and a chip's own ✕ takes it back out.
+ *
+ * The trigger is the field's labelled control (`id` + the label's
+ * `aria-labelledby`), so "Workspaces" is what a screen reader hears on it.
+ */
+export function WorkspacePicker({
+    id,
+    labelId,
+    describedBy,
+    options,
+    value,
+    onChange,
+    container,
+    invalid
+}: {
+    /** The trigger's id. */
+    id: string;
+    /** The visible label's id — the trigger is named by it. */
+    labelId: string;
+    /** Ids of the hint/error text describing the field. */
+    describedBy?: string;
+    options: WorkspaceOption[];
+    value: string[];
+    onChange: (next: string[]) => void;
+    /** Where the popover portals — inside a dialog, its content element. */
+    container?: HTMLElement | null;
+    invalid?: boolean;
+}) {
+    const intl = useIntl();
+    const [open, setOpen] = useState(false);
+    const [search, setSearch] = useState('');
+    const selected = new Set(value);
+    const byId = new Map(options.map((option) => [option.id, option]));
+
+    const toggle = (workspaceId: string) =>
+        onChange(
+            selected.has(workspaceId)
+                ? value.filter((item) => item !== workspaceId)
+                : [...value, workspaceId]
+        );
+
+    return (
+        <div
+            className={cn(
+                'flex min-h-9 w-full flex-wrap items-center gap-1.5 rounded-lg border bg-background px-1.5 py-1 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15',
+                invalid && 'border-destructive'
+            )}
+        >
+            {value.map((workspaceId) => {
+                const workspace = byId.get(workspaceId);
+                const name = workspace?.name ?? workspaceId;
+                return (
+                    <span
+                        key={workspaceId}
+                        className="inline-flex h-6 items-center gap-1.5 rounded-md border bg-muted/50 pl-1 pr-0.5 text-xs font-medium"
+                    >
+                        {workspace ? (
+                            <WorkspaceMonogram
+                                workspace={workspace}
+                                className="size-4 rounded-[4px] text-[8px]"
+                            />
+                        ) : null}
+                        {name}
+                        <button
+                            type="button"
+                            onClick={() => toggle(workspaceId)}
+                            aria-label={intl.formatMessage(messages.remove, {
+                                name
+                            })}
+                            className="inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                            <X className="size-3" aria-hidden />
+                        </button>
+                    </span>
+                );
+            })}
+            <Popover
+                open={open}
+                onOpenChange={(next) => {
+                    setOpen(next);
+                    if (!next) setSearch('');
+                }}
+            >
+                <PopoverTrigger asChild>
+                    <button
+                        id={id}
+                        type="button"
+                        role="combobox"
+                        aria-expanded={open}
+                        // Radix's Popover trigger declares `dialog`; what
+                        // actually opens is a listbox.
+                        aria-haspopup="listbox"
+                        aria-labelledby={`${labelId} ${id}`}
+                        aria-describedby={describedBy}
+                        aria-invalid={invalid}
+                        aria-required
+                        className="h-6 min-w-32 flex-1 rounded-sm px-1.5 text-left text-sm text-muted-foreground outline-none"
+                    >
+                        {intl.formatMessage(messages.add)}
+                    </button>
+                </PopoverTrigger>
+                <PopoverContent
+                    aria-labelledby={labelId}
+                    className="w-[300px] overflow-hidden p-0"
+                    align="start"
+                    container={container}
+                >
+                    <Command className="rounded-none">
+                        <CommandInput
+                            placeholder={intl.formatMessage(messages.search)}
+                            value={search}
+                            onValueChange={setSearch}
+                        />
+                        <CommandList aria-multiselectable="true">
+                            <CommandEmpty>
+                                {intl.formatMessage(messages.empty)}
+                            </CommandEmpty>
+                            <CommandGroup>
+                                {options.map((option) => (
+                                    <CommandItem
+                                        key={option.id}
+                                        // cmdk filters and highlights by
+                                        // `value`; the name rides in
+                                        // `keywords` so it is searchable too.
+                                        value={option.id}
+                                        keywords={[option.name]}
+                                        // cmdk owns `aria-selected` (the
+                                        // highlight), so chosen-ness rides on
+                                        // `aria-checked`.
+                                        aria-checked={selected.has(option.id)}
+                                        onSelect={() => toggle(option.id)}
+                                    >
+                                        <Check
+                                            className={cn(
+                                                'size-4',
+                                                selected.has(option.id)
+                                                    ? 'opacity-100'
+                                                    : 'opacity-0'
+                                            )}
+                                            aria-hidden
+                                        />
+                                        <WorkspaceMonogram workspace={option} />
+                                        {option.name}
+                                    </CommandItem>
+                                ))}
+                            </CommandGroup>
+                        </CommandList>
+                    </Command>
+                </PopoverContent>
+            </Popover>
+        </div>
+    );
+}

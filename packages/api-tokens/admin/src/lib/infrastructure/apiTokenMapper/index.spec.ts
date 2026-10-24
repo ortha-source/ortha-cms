@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
     toApiToken,
+    toApiTokenSummary,
     toCreatedApiToken,
     type ApiTokenResponse,
     type CreatedApiTokenResponse
@@ -152,5 +153,79 @@ describe('toCreatedApiToken', () => {
         // treat it as a row too.
         expect(created.id).toBe('tok_1');
         expect(created.status).toBe('active');
+    });
+});
+
+describe('toApiToken — creator and expiring-soon', () => {
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    const NOW = new Date('2026-10-24T12:00:00.000Z');
+    const inDays = (days: number) =>
+        new Date(NOW.getTime() + days * 86_400_000).toISOString();
+
+    it('flags a live token expiring inside thirty days', () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(NOW);
+
+        expect(
+            toApiToken(response({ expiresAt: inDays(12) })).expiringSoon
+        ).toBe(true);
+        expect(
+            toApiToken(response({ expiresAt: inDays(31) })).expiringSoon
+        ).toBe(false);
+        expect(toApiToken(response({ expiresAt: null })).expiringSoon).toBe(
+            false
+        );
+    });
+
+    it('never flags a revoked token, whatever its expiry', () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(NOW);
+
+        const token = toApiToken(
+            response({ expiresAt: inDays(3), revokedAt: inDays(-1) })
+        );
+
+        expect(token.expiringSoon).toBe(false);
+    });
+
+    it('carries the creator across, and reads a missing one as unknown', () => {
+        const ada = { id: 'u1', name: 'Ada Lovelace', email: 'ada@x.dev' };
+
+        expect(toApiToken(response({ createdBy: ada })).createdBy).toEqual(ada);
+        // A server predating the field omits it: "unknown", not a guess.
+        expect(toApiToken(response()).createdBy).toBeNull();
+    });
+});
+
+describe('toApiTokenSummary', () => {
+    it('parses the next expiry into a Date', () => {
+        expect(
+            toApiTokenSummary({
+                active: 3,
+                expired: 1,
+                revoked: 1,
+                expiringSoon: 1,
+                nextExpiresAt: '2026-11-05T00:00:00.000Z'
+            })
+        ).toEqual({
+            active: 3,
+            expired: 1,
+            revoked: 1,
+            expiringSoon: 1,
+            nextExpiresAt: new Date('2026-11-05T00:00:00.000Z')
+        });
+    });
+
+    it('reads an absent summary as all zeros rather than failing the page', () => {
+        expect(toApiTokenSummary(undefined)).toEqual({
+            active: 0,
+            expired: 0,
+            revoked: 0,
+            expiringSoon: 0,
+            nextExpiresAt: null
+        });
     });
 });

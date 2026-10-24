@@ -1,10 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { IntlProvider } from 'react-intl';
 import { MemoryRouter } from 'react-router-dom';
+import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useHasPermission } from '@orthacms/identity-admin';
-import type { ApiToken } from '../../../domain/types/apiToken';
+import type { ApiToken, ApiTokenList } from '../../../domain/types/apiToken';
 import { httpApiTokenGateway } from '../../../infrastructure/httpApiTokenGateway';
 import { ApiTokensPage } from './index';
 
@@ -59,7 +60,10 @@ vi.mock('@orthacms/identity-admin', () => ({
 // The top bar drags in the shell's page-chrome context, which this page neither
 // owns nor is under test here.
 vi.mock('@orthacms/shell-admin', () => ({
-    PageTopBar: () => null
+    PageTopBar: () => null,
+    // The shell portals page actions into its top bar; here they render in
+    // place, so the page's own buttons stay assertable.
+    PageActionsPortal: ({ children }: { children: ReactNode }) => children
 }));
 
 const list = vi.mocked(httpApiTokenGateway.list);
@@ -86,7 +90,17 @@ const token: ApiToken = {
     lastUsedAt: null,
     revokedAt: null,
     createdAt: new Date('2026-06-01T10:00:00.000Z'),
-    status: 'active'
+    status: 'active',
+    expiringSoon: false,
+    createdBy: { id: 'user-1', name: 'Ada Lovelace', email: 'ada@x.dev' }
+};
+
+const SUMMARY = {
+    active: 3,
+    expired: 1,
+    revoked: 1,
+    expiringSoon: 0,
+    nextExpiresAt: null
 };
 
 /**
@@ -97,16 +111,20 @@ const token: ApiToken = {
 function renderPage({
     permissions,
     path = '/api-tokens',
-    total = 1
+    total = 1,
+    items = [token],
+    summary = SUMMARY
 }: {
     permissions: string[];
     path?: string;
     total?: number;
+    items?: ApiToken[];
+    summary?: typeof SUMMARY | ApiTokenList['summary'];
 }) {
     hasPermission.mockImplementation((permission: string) =>
         permissions.includes(permission)
     );
-    list.mockResolvedValue({ items: [token], total, page: 1, pageSize: 25 });
+    list.mockResolvedValue({ items, total, page: 1, pageSize: 25, summary });
     listWorkspaceOptions.mockResolvedValue([]);
 
     const queryClient = new QueryClient({
@@ -163,7 +181,11 @@ describe('ApiTokensPage', () => {
             renderPage({ permissions: [READ], path });
 
             await waitFor(() => expect(list).toHaveBeenCalled());
-            expect(list).toHaveBeenCalledWith({ page: 1, pageSize: 25 });
+            expect(list).toHaveBeenCalledWith({
+                page: 1,
+                pageSize: 25,
+                status: 'active'
+            });
         });
 
         // The control: without this the four tests above would pass on a parser
@@ -176,7 +198,11 @@ describe('ApiTokensPage', () => {
             });
 
             await waitFor(() =>
-                expect(list).toHaveBeenCalledWith({ page: 3, pageSize: 25 })
+                expect(list).toHaveBeenCalledWith({
+                    page: 3,
+                    pageSize: 25,
+                    status: 'active'
+                })
             );
         });
     });
@@ -252,6 +278,165 @@ describe('ApiTokensPage', () => {
                     name: `Actions for ${token.name}`
                 })
             ).toBeTruthy();
+        });
+    });
+    describe('the redesigned list', () => {
+        it('names who created each token, and when', async () => {
+            renderPage({ permissions: [READ] });
+            await waitForTable();
+
+            expect(screen.getByText(/^by Ada Lovelace · /)).toBeTruthy();
+        });
+
+        it('opens on the Active chip and asks the server for active tokens only', async () => {
+            renderPage({ permissions: [READ] });
+            await waitForTable();
+
+            expect(
+                screen
+                    .getByRole('button', { name: 'Active, 3 tokens' })
+                    .getAttribute('aria-pressed')
+            ).toBe('true');
+        });
+
+        it('reads the status chip and the search off the URL', async () => {
+            renderPage({
+                permissions: [READ],
+                path: '/api-tokens?status=revoked&q=leak'
+            });
+
+            await waitFor(() =>
+                expect(list).toHaveBeenCalledWith({
+                    page: 1,
+                    pageSize: 25,
+                    status: 'revoked',
+                    q: 'leak'
+                })
+            );
+        });
+
+        it('falls back to Active on a status that does not exist', async () => {
+            renderPage({
+                permissions: [READ],
+                path: '/api-tokens?status=paused'
+            });
+
+            await waitFor(() =>
+                expect(list).toHaveBeenCalledWith(
+                    expect.objectContaining({ status: 'active' })
+                )
+            );
+        });
+
+        it('switches the view when another chip is pressed', async () => {
+            renderPage({ permissions: [READ] });
+            await waitForTable();
+
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Expired, 1 token' })
+            );
+
+            await waitFor(() =>
+                expect(list).toHaveBeenLastCalledWith(
+                    expect.objectContaining({ status: 'expired' })
+                )
+            );
+        });
+
+        it('says in the subtitle how many are live and what expires next', async () => {
+            const soon = new Date(Date.now() + 12 * 86_400_000 - 60_000);
+            renderPage({
+                permissions: [READ],
+                summary: { ...SUMMARY, expiringSoon: 1, nextExpiresAt: soon }
+            });
+            await waitForTable();
+
+            expect(
+                screen.getByText(
+                    'Bearer tokens for the content API · 3 active, 1 expires in 12 days'
+                )
+            ).toBeTruthy();
+        });
+
+        it('keeps the first-token empty state for a deployment with none at all', async () => {
+            renderPage({
+                permissions: [READ, CREATE],
+                items: [],
+                total: 0,
+                summary: {
+                    active: 0,
+                    expired: 0,
+                    revoked: 0,
+                    expiringSoon: 0,
+                    nextExpiresAt: null
+                }
+            });
+
+            await waitFor(() =>
+                expect(screen.getByText('No API tokens yet')).toBeTruthy()
+            );
+        });
+
+        it('says an empty view is empty, not that no tokens exist [api-tokens:I-23]', async () => {
+            // Every token revoked: the Active view is empty, but "No API
+            // tokens yet" would invite minting a duplicate of a key that only
+            // needs replacing.
+            renderPage({
+                permissions: [READ],
+                items: [],
+                total: 0,
+                summary: { ...SUMMARY, active: 0 }
+            });
+
+            await waitFor(() =>
+                expect(screen.getByText('No active tokens')).toBeTruthy()
+            );
+            expect(screen.queryByText('No API tokens yet')).toBeNull();
+        });
+
+        it('flags a live token expiring soon in its status and expiry', async () => {
+            renderPage({
+                permissions: [READ],
+                items: [
+                    {
+                        ...token,
+                        expiresAt: new Date(Date.now() + 5 * 86_400_000),
+                        expiringSoon: true
+                    }
+                ]
+            });
+            await waitForTable();
+
+            expect(screen.getByText('Expires soon')).toBeTruthy();
+            expect(screen.getByText('in 5 days')).toBeTruthy();
+        });
+
+        it('asks what will break before revoking, naming the last use', async () => {
+            renderPage({
+                permissions: [READ, DELETE],
+                items: [{ ...token, lastUsedAt: new Date() }]
+            });
+            await waitForTable();
+
+            // Radix's menu opens on pointerdown or a key, never on click;
+            // jsdom's pointer events carry no button, so use the keyboard.
+            fireEvent.keyDown(
+                screen.getByRole('button', {
+                    name: `Actions for ${token.name}`
+                }),
+                { key: 'Enter' }
+            );
+            fireEvent.click(
+                await screen.findByRole('menuitem', { name: 'Revoke' })
+            );
+
+            const dialog = await screen.findByRole('dialog', {
+                name: `Revoke “${token.name}”?`
+            });
+            expect(dialog.textContent).toContain(
+                'Anything using it stops at once'
+            );
+            expect(dialog.textContent).toContain('last used');
         });
     });
 });
