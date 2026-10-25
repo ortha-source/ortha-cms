@@ -63,9 +63,9 @@ const ROUTES: Record<string, Record<string, OperationSpec>> = {
     },
     '/rules/{id}': {
         patch: {
-            schema: 'AlarmRule',
+            schema: 'AlarmRuleUpdated',
             description:
-                'The rule as it now stands. A changed filter is re-validated and rescanned before this answers, so the findings never describe the previous condition.',
+                'The rule as it now stands, with `scan`: a changed filter (or a rule switched back on) is re-validated and rescanned before this answers, so the findings never describe the previous condition.',
             parsesFilter: true,
             resolvesRule: true,
             namesRule: true

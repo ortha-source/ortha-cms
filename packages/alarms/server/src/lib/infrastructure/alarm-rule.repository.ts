@@ -341,6 +341,7 @@ export class AlarmRuleRepository {
             enabled: row.enabled,
             brokenReason: row.brokenReason,
             lastScanAt: row.lastScanAt?.toISOString() ?? null,
+            createdBy: row.createdBy ?? null,
             createdAt: row.createdAt.toISOString(),
             updatedAt: row.updatedAt.toISOString(),
             openCount: open.get(row.id) ?? 0

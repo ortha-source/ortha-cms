@@ -1,6 +1,6 @@
 import { defineMessages, useIntl } from 'react-intl';
 import { cn } from '@orthacms/design-system';
-import { sinceParts } from '@orthacms/utils-admin';
+import { formatSince } from '../../relativeTime';
 import type { AlarmRule, AlarmSummary } from '../../../types/alarm';
 import { ALARM_SEVERITIES } from '../../../types/alarm';
 
@@ -36,21 +36,9 @@ export function AlarmSummaryStrip({ summary, rules }: AlarmSummaryStripProps) {
         .sort()
         .at(-1);
 
-    let lastLabel = intl.formatMessage(messages.never);
-    if (lastScan) {
-        const parts = sinceParts(lastScan);
-        lastLabel =
-            parts.kind === 'relative'
-                ? intl.formatRelativeTime(parts.value, parts.unit, {
-                      numeric: 'auto',
-                      style: 'short'
-                  })
-                : intl.formatDate(parts.date, {
-                      month: 'short',
-                      day: 'numeric',
-                      year: parts.withYear ? 'numeric' : undefined
-                  });
-    }
+    const lastLabel = lastScan
+        ? formatSince(intl, lastScan)
+        : intl.formatMessage(messages.never);
 
     return (
         <dl className="grid grid-cols-2 overflow-hidden rounded-xl border sm:grid-cols-4 sm:divide-x">

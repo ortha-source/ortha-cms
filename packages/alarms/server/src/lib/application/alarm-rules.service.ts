@@ -20,8 +20,10 @@ import { ALARM_EVENT_KINDS, alarmRuleEvent } from '../alarms.events';
 import { AlarmEvaluator } from '../infrastructure/alarm-evaluator.service';
 import { AlarmRuleRepository } from '../infrastructure/alarm-rule.repository';
 import type { AlarmRuleRecord } from '../infrastructure/alarm-rule.repository';
+import { EntryTitlesQuery } from '../infrastructure/entry-titles.query';
 import type {
     AlarmRulePreviewView,
+    AlarmRuleUpdatedView,
     AlarmRuleView,
     AlarmScanResultView
 } from '../types/alarm-views';
@@ -57,7 +59,8 @@ export class AlarmRulesService {
         private readonly matches: EntryMatchQuery,
         private readonly grants: WorkspaceGrantsQuery,
         @InjectContentRegistry()
-        private readonly registry: ContentTypeRegistry
+        private readonly registry: ContentTypeRegistry,
+        private readonly titles: EntryTitlesQuery
     ) {}
 
     /**
@@ -137,13 +140,20 @@ export class AlarmRulesService {
      * Applies a partial update. A changed filter is validated and then rescanned
      * before the call returns, so the response never describes a rule whose
      * findings belong to its previous condition.
+     *
+     * **Switching a rule back on rescans too.** While it was off nothing was
+     * evaluated, so its findings describe the day it was paused; turning it on
+     * and leaving them would present a months-old verdict as the current one
+     * until the next sweep happened by. The response carries that scan (or
+     * `null` when the write could not change what matches), which is what lets
+     * the editor's toast say what saving actually did.
      */
     async update(
         workspaceId: string,
         ruleId: string,
         dto: UpdateAlarmRuleDto,
         actor?: EventActor
-    ): Promise<AlarmRuleView> {
+    ): Promise<AlarmRuleUpdatedView> {
         const existing = await this.rules.findOrFail(workspaceId, ruleId);
         if (dto.filter !== undefined) {
             const type = await this.resolveType(
@@ -175,10 +185,12 @@ export class AlarmRulesService {
             );
             return row;
         });
-        if (dto.filter !== undefined && updated.enabled) {
-            await this.evaluator.rescan(updated);
-        }
-        return this.viewOf(workspaceId, ruleId);
+        const reEnabled = !existing.enabled && updated.enabled;
+        const scan =
+            updated.enabled && (dto.filter !== undefined || reEnabled)
+                ? await this.evaluator.rescan(updated)
+                : null;
+        return { ...(await this.viewOf(workspaceId, ruleId)), scan };
     }
 
     /** Deletes a rule. Its findings go with it, by FK cascade. */
@@ -256,7 +268,20 @@ export class AlarmRulesService {
                 limit: PREVIEW_SAMPLE_SIZE
             })
         ]);
-        return { matched, total, sampleIds };
+        // The sample by name, not by id: "Spring launch — what changed" is a
+        // record the author recognises and can judge, a uuid is not.
+        const titles = await this.titles.titles(
+            workspaceId,
+            sampleIds.map((entryId) => ({
+                contentType: dto.contentType,
+                entryId
+            }))
+        );
+        const sample = sampleIds.map((id) => ({
+            id,
+            title: titles.get(id) ?? null
+        }));
+        return { matched, total, sampleIds, sample };
     }
 
     /** One rule's current view, after a write. */

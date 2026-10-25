@@ -20,10 +20,30 @@ export interface AlarmRuleView {
     /** Set when the stored filter no longer parses against its type. */
     brokenReason: string | null;
     lastScanAt: string | null;
+    /**
+     * Who created the rule, by user id — `null` for a rule written by a
+     * system path. An id rather than a name: the admin already holds the
+     * workspace's roster, and a name stored here would go stale the day the
+     * person renamed themselves.
+     */
+    createdBy: string | null;
     createdAt: string;
     updatedAt: string;
     /** Findings currently open (i.e. not resolved). */
     openCount: number;
+}
+
+/**
+ * What `PATCH /alarms/rules/:id` answers with: the rule after the write, and
+ * the rescan the write caused, when it caused one.
+ *
+ * `scan` is `null` when nothing about the write could change which entries
+ * match — a rename, a new severity — so the editor can say "checked 842, 38
+ * flagged, 2 cleared" when there is something to say and stay quiet when there
+ * is not, without guessing which of the two happened.
+ */
+export interface AlarmRuleUpdatedView extends AlarmRuleView {
+    scan: AlarmScanResultView | null;
 }
 
 /** One finding, joined to the rule that produced it. */
@@ -39,6 +59,13 @@ export interface AlarmFindingView {
     detail: unknown;
     firstSeenAt: string;
     lastSeenAt: string;
+    /**
+     * The entry's display title — its first non-empty short text field, the
+     * same rule content's own `entryTitle` applies. Present on the paged list
+     * only, `null` when the entry has none (or has gone): the page then names
+     * it by id, which is honest, rather than inventing a label.
+     */
+    entryTitle?: string | null;
 }
 
 /** A page of findings. */
@@ -75,6 +102,18 @@ export interface AlarmRulePreviewView {
     total: number;
     /** First few matching ids, so the editor can show what it caught. */
     sampleIds: string[];
+    /**
+     * The same entries with their display titles, in the same order — what the
+     * editor actually lists under "Right now". `title` is `null` for an entry
+     * with no title-eligible value.
+     */
+    sample: AlarmPreviewSampleView[];
+}
+
+/** One entry a candidate filter matches, as the rule editor lists it. */
+export interface AlarmPreviewSampleView {
+    id: string;
+    title: string | null;
 }
 
 /**

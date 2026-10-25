@@ -99,6 +99,7 @@ src/lib/
     errors/                   #   transport-agnostic errors
   application/
     alarm-rules.service.ts    # the rule lifecycle (validate → store → rescan)
+    alarm-findings.service.ts # the findings page, each entry named
     dto/                      # class-validator + @ApiProperty shapes
   infrastructure/
     schema/                   # alarm_rules, alarm_findings
@@ -107,6 +108,7 @@ src/lib/
     alarm-evaluator.service.ts# the three evaluation paths
     entry-event.subscriber.ts # outbox → evaluation
     alarm-sweep.service.ts    # the periodic rescan
+    entry-titles.query.ts     # entry display titles, one read per type
   http/controllers/           # thin, permission-gated
   docs/                       # the OpenAPI response schemas (see below)
 ```
@@ -150,7 +152,17 @@ deployment's content model.
   entries edited after it existed — reporting a clean collection on the one day
   it is most likely to be wrong.
 - **Editing a filter forces a rescan before the response returns.** Otherwise
-  the findings table describes the _previous_ condition, confidently.
+  the findings table describes the _previous_ condition, confidently. So does
+  **switching a disabled rule back on** — its findings describe the day it was
+  paused. The `PATCH` response carries that rescan as `scan` (or `null` when
+  none ran), which the editor's toast and the Alarms tab's switch report.
+- **The findings list and the preview name entries by title.**
+  `EntryTitlesQuery` applies content's own `entryTitle` (first non-empty short
+  text/select field) over **one `loadLiveByIds` per content type** — never one
+  read per row, never a query against a `content_<name>` table. A missing type,
+  a gone entry or a blank title is `null`, and a failed read only loses the
+  title, never the finding (`alarms:I-36`). The by-entry batch and the copilot
+  tool do not ask for titles.
 - **A rule whose filter stops parsing is marked `broken`**, skipped by the
   evaluator, and surfaced in the UI. Silently never matching looks exactly like
   "everything is fine", which is the worst thing a correctness tool can do.

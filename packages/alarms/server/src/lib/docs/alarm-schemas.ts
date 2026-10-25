@@ -154,6 +154,7 @@ const RULE: OpenApiSchema = {
         'enabled',
         'brokenReason',
         'lastScanAt',
+        'createdBy',
         'createdAt',
         'updatedAt',
         'openCount'
@@ -192,6 +193,12 @@ const RULE: OpenApiSchema = {
                 'Set when the stored filter no longer parses against its content type — e.g. a field it names was removed.'
         },
         lastScanAt: { type: 'string', format: 'date-time', nullable: true },
+        createdBy: {
+            ...UUID,
+            nullable: true,
+            description:
+                'The user who created the rule, by id; null when no person did. Resolved to a name against the workspace roster by the client.'
+        },
         createdAt: DATE_TIME,
         updatedAt: DATE_TIME,
         openCount: {
@@ -234,7 +241,13 @@ const FINDING: OpenApiSchema = {
                 'Free-form JSON an evaluator may attach. Nothing writes one today, so it is null in practice.'
         },
         firstSeenAt: DATE_TIME,
-        lastSeenAt: DATE_TIME
+        lastSeenAt: DATE_TIME,
+        entryTitle: {
+            type: 'string',
+            nullable: true,
+            description:
+                'The entry’s display title — its first non-empty short text field. On the paged list only; null when the entry has none, in which case it is named by id.'
+        }
     }
 };
 
@@ -335,7 +348,7 @@ const RULE_PREVIEW: OpenApiSchema = {
     type: 'object',
     description:
         'How many entries a candidate filter matches, out of how many the workspace holds. The denominator is what turns a number into a judgement about whether the rule is too broad.',
-    required: ['matched', 'total', 'sampleIds'],
+    required: ['matched', 'total', 'sampleIds', 'sample'],
     properties: {
         matched: { type: 'integer' },
         total: { type: 'integer' },
@@ -343,8 +356,43 @@ const RULE_PREVIEW: OpenApiSchema = {
             type: 'array',
             items: UUID,
             description: 'The first few matching entry ids.'
+        },
+        sample: {
+            type: 'array',
+            description:
+                'The same entries, in the same order, with their display titles — what the editor lists under its count.',
+            items: {
+                type: 'object',
+                required: ['id', 'title'],
+                properties: {
+                    id: UUID,
+                    title: { type: 'string', nullable: true }
+                }
+            }
         }
     }
+};
+
+/**
+ * Update answers with the rule and the rescan the write caused — `null` when
+ * it caused none (a rename, a new severity, a rule switched off).
+ */
+const RULE_UPDATED: OpenApiSchema = {
+    description:
+        'The rule after the write, plus the full rescan a changed filter or a re-enabled rule runs before answering.',
+    allOf: [
+        ref('AlarmRule'),
+        {
+            type: 'object',
+            required: ['scan'],
+            properties: {
+                scan: {
+                    nullable: true,
+                    allOf: [ref('AlarmScanResult')]
+                }
+            }
+        }
+    ]
 };
 
 /** Every schema this plugin adds, keyed by component name. */
@@ -355,6 +403,7 @@ export function buildAlarmSchemas(): Record<string, OpenApiSchema> {
         AlarmFilterRule: FILTER_RULE,
         AlarmRule: RULE,
         AlarmRuleCreated: RULE_CREATED,
+        AlarmRuleUpdated: RULE_UPDATED,
         AlarmRulePreview: RULE_PREVIEW,
         AlarmScanResult: SCAN_RESULT,
         AlarmFinding: FINDING,

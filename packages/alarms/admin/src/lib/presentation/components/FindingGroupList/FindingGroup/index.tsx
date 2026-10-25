@@ -24,9 +24,13 @@ import { FindingsPager } from '../../FindingsPager';
 const messages = defineMessages({
     count: {
         id: 'alarms.group.openCount',
-        defaultMessage: '{count, number} open'
+        defaultMessage: '<b>{count, number}</b> open'
     },
-    edit: { id: 'alarms.group.edit', defaultMessage: 'Edit alarm' },
+    subtitle: {
+        id: 'alarms.group.subtitle',
+        defaultMessage: '{type} · shows editors “{title}”'
+    },
+    edit: { id: 'alarms.group.edit', defaultMessage: 'Edit' },
     editLabel: {
         id: 'alarms.group.editLabel',
         defaultMessage: 'Edit {name}'
@@ -44,6 +48,22 @@ const messages = defineMessages({
     recheckLabel: {
         id: 'alarms.group.recheckLabel',
         defaultMessage: 'Re-check {name} against the whole collection'
+    },
+    shown: {
+        id: 'alarms.group.shown',
+        defaultMessage: '{first, number}–{last, number} of {count, number}'
+    },
+    shownAll: {
+        id: 'alarms.group.shownAll',
+        defaultMessage: '{count, number} of {count, number}'
+    },
+    showAll: {
+        id: 'alarms.group.showAll',
+        defaultMessage: 'Show all in Records'
+    },
+    showAllLabel: {
+        id: 'alarms.group.showAllLabel',
+        defaultMessage: 'Show all in Records: every record {name} flags'
     },
     error: {
         id: 'alarms.group.error',
@@ -67,6 +87,8 @@ const GROUP_PAGE_SIZE = 10;
 export type FindingGroupProps = {
     /** The alarm this group is about. */
     rule: AlarmRule;
+    /** The collection's display label ("Articles"). */
+    typeLabel: string;
     /**
      * How many records this alarm currently flags.
      *
@@ -90,23 +112,29 @@ export type FindingGroupProps = {
 /**
  * One alarm and the records it has flagged, collapsed by default.
  *
- * **Why grouping rather than a flat list.** A workspace with a thousand flagged
- * records gave forty pages of rows in which nothing said which alarm was
- * responsible, and every row repeated the same sentence. What a person actually
- * does with findings is one alarm at a time — "fourteen articles link to a
- * draft author" is one pass, while fourteen rows about fourteen articles is
- * fourteen context switches. The page claimed to group by rule in its own
- * documentation and never did; this is that claim implemented.
+ * **Why grouping rather than a flat list.** What a person actually does with
+ * findings is one alarm at a time — "fourteen articles link to a draft author"
+ * is one pass, while fourteen rows about fourteen articles is fourteen context
+ * switches. The header carries everything constant across the group: the
+ * level, the alarm, what editors are told, how many are open; each row is only
+ * what differs — which record, and how long it has been flagged.
  *
- * **The records load when the group is opened**, not on mount. A workspace with
- * twenty alarms would otherwise fire twenty list requests to draw a screen on
- * which nineteen of them are collapsed.
+ * **The records load when the group is about to open**, not on mount: on hover
+ * or focus of its header, so they are usually in by the click. A workspace
+ * with twenty alarms would otherwise fire twenty list requests to draw a
+ * screen on which nineteen of them are collapsed. While they load, the
+ * skeleton has as many rows as the page will — the count is known — so the
+ * opening animation measures the final height and nothing jumps when they
+ * land.
  *
- * **Each group pages on its own**, ten at a time. A group is a work queue you
- * go down, and a shared pager would make "page 3" mean nothing in particular.
+ * **Each group pages on its own**, ten at a time, and ends in a footer that
+ * says how many of how many are on screen and links the whole set into the
+ * records list — the alarm's condition *is* a records filter, so "show me all
+ * of them" is that list, filtered, rather than a second paging UI here.
  */
 export function FindingGroup({
     rule,
+    typeLabel,
     count,
     defaultOpen,
     canManage,
@@ -116,13 +144,15 @@ export function FindingGroup({
 }: FindingGroupProps) {
     const intl = useIntl();
     const [open, setOpen] = useState(defaultOpen);
+    // Hovering or focusing the header starts the fetch, ahead of the click.
+    const [warm, setWarm] = useState(false);
     const [page, setPage] = useState(1);
     const { chip, Icon, label } = severityLook(rule.severity);
     const workspace = useCurrentWorkspace();
 
     const findings = useAlarmFindings(
         { state: 'open', ruleId: rule.id, page, pageSize: GROUP_PAGE_SIZE },
-        open
+        open || warm
     );
 
     const pageCount = useMemo(
@@ -130,37 +160,49 @@ export function FindingGroup({
         [count]
     );
 
-    // Muting the last row of a trailing page leaves this group's page past the
-    // end, and the refetch lands on an empty list with the pager hidden — the
-    // same stranding the flat list had, once per group.
+    // A rescan that clears the last row of a trailing page leaves this group's
+    // page past the end, and the refetch lands on an empty list with the pager
+    // hidden — clamp it.
     useEffect(() => {
         if (page > pageCount) setPage(pageCount);
     }, [page, pageCount]);
 
+    // Open whenever the parent asks again (an alarm card's "N flagged").
+    useEffect(() => {
+        if (defaultOpen) setOpen(true);
+    }, [defaultOpen]);
+
     const items = findings.data?.items ?? [];
+    const first = (page - 1) * GROUP_PAGE_SIZE + 1;
+    // How many rows this page will hold, for a skeleton of the same height.
+    const expectedRows = Math.min(
+        GROUP_PAGE_SIZE,
+        Math.max(1, count - (first - 1))
+    );
+    const recordsHref = `/workspaces/${workspace.id}/content/${rule.contentType}?filter=${encodeURIComponent(
+        JSON.stringify(rule.filter)
+    )}`;
 
     return (
         <Collapsible
             open={open}
             onOpenChange={setOpen}
-            className="rounded-xl border bg-card"
+            className="overflow-hidden rounded-xl border bg-card"
         >
             {/* The trigger covers the chevron and the wording only. Re-check
-                is a second action on the same row, and a `<button>` cannot
-                contain another one — nesting it would produce invalid markup
-                that browsers repair by hoisting it out of the trigger, which
-                is exactly where a click would then not toggle anything. */}
-            {/* The flash tints the header, not the card: its keyframes animate
-                `background-color` to transparent, which would drop the card's
-                own background for the length of the fade. */}
+                and Edit are second actions on the same row, and a `<button>`
+                cannot contain another one. The flash tints the header, not the
+                card: its keyframes animate `background-color` to transparent. */}
             <div
                 className={cn(
-                    'flex items-center gap-3 px-4 py-3 sm:px-5',
-                    justCreated && 'ds-flash rounded-xl'
+                    'flex items-center gap-3 bg-muted/40 px-4 py-3',
+                    justCreated && 'ds-flash'
                 )}
             >
                 <CollapsibleTrigger
-                    className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                    onPointerEnter={() => setWarm(true)}
+                    onFocus={() => setWarm(true)}
+                    className="flex min-w-0 flex-1 items-center gap-3 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     // The severity leads the name because `aria-label` on a
                     // button **replaces** its descendant text in the accessible
                     // name: an `sr-only` word inside the trigger is not read at
@@ -174,15 +216,16 @@ export function FindingGroup({
                 >
                     <ChevronRight
                         aria-hidden="true"
-                        className={`size-4 shrink-0 text-muted-foreground transition-transform duration-150 motion-reduce:transition-none ${
-                            open ? 'rotate-90' : ''
-                        }`}
+                        className={cn(
+                            'size-4 shrink-0 text-muted-foreground transition-transform duration-150 motion-reduce:transition-none',
+                            open && 'rotate-90'
+                        )}
                     />
                     {/* The severity as a pill: its own glyph and its word, so
                         colour is never the only signal (`alarms:I-32`). */}
                     <span
                         className={cn(
-                            'inline-flex h-5 shrink-0 items-center gap-1.5 rounded-md border px-1.5 text-xs font-medium',
+                            'inline-flex h-5 shrink-0 items-center gap-1 rounded-md border px-1.5 text-xs font-medium',
                             chip
                         )}
                     >
@@ -196,24 +239,29 @@ export function FindingGroup({
                         <span className="truncate text-sm font-semibold">
                             {rule.name}
                         </span>
-                        {/* What an editor reads on the record itself. It is
-                            constant across this group, which is exactly why it
-                            belongs on the header and not on every row. */}
                         <span className="truncate text-xs text-muted-foreground">
-                            {rule.contentType} · {rule.findingTitle}
+                            {intl.formatMessage(messages.subtitle, {
+                                type: typeLabel,
+                                title: rule.findingTitle
+                            })}
                         </span>
                     </span>
                 </CollapsibleTrigger>
 
-                <span className="inline-flex h-5 shrink-0 items-center rounded-md bg-muted px-1.5 text-xs font-medium tabular-nums text-muted-foreground">
-                    {intl.formatMessage(messages.count, { count })}
+                <span className="shrink-0 text-xs text-muted-foreground">
+                    {intl.formatMessage(messages.count, {
+                        count,
+                        b: (chunks) => (
+                            <b
+                                key="count"
+                                className="mr-1 text-sm font-semibold tabular-nums text-foreground"
+                            >
+                                {chunks}
+                            </b>
+                        )
+                    })}
                 </span>
 
-                {/* Beside the count rather than only on the Alarms tab: this is
-                    where someone reads a number they doubt, and "is that still
-                    true?" is the question they have here. The accessible name
-                    says which alarm, because several of these are on screen at
-                    once. */}
                 {canManage ? (
                     <Button
                         variant="ghost"
@@ -262,20 +310,34 @@ export function FindingGroup({
                             </AlertDescription>
                         </Alert>
                     ) : findings.isPending ? (
-                        // Named and announced, not two grey bars. This is the
-                        // group's own wait — the page-level skeleton is long
-                        // gone by the time anyone expands one — and without a
-                        // `SkeletonRegion` it is the one state here with no
-                        // words at all, which makes it indistinguishable from
-                        // "nothing flagged" to anyone not looking at it.
+                        // Named and announced, not two grey bars: without a
+                        // `SkeletonRegion` this is the one state here with no
+                        // words at all, indistinguishable from "nothing
+                        // flagged" to anyone not looking at it.
                         <SkeletonRegion
                             label={intl.formatMessage(messages.loading, {
                                 name: rule.name
                             })}
                         >
-                            <div className="flex flex-col gap-2 p-4">
-                                <Skeleton className="h-10 w-full" />
-                                <Skeleton className="h-10 w-full" />
+                            {/* Row for row the shape of `FindingRow` and the
+                                footer below, so the height is the final one. */}
+                            <div className="divide-y divide-border">
+                                {Array.from(
+                                    { length: expectedRows },
+                                    (_, index) => (
+                                        <div
+                                            key={index}
+                                            className="flex items-center gap-3 py-2 pl-11 pr-4"
+                                        >
+                                            <Skeleton className="h-4 flex-1" />
+                                            <Skeleton className="h-7 w-14" />
+                                        </div>
+                                    )
+                                )}
+                            </div>
+                            <div className="flex items-center gap-3 border-t py-2 pl-11 pr-4">
+                                <Skeleton className="h-4 w-16" />
+                                <Skeleton className="ml-auto h-7 w-32" />
                             </div>
                         </SkeletonRegion>
                     ) : items.length === 0 ? (
@@ -284,10 +346,9 @@ export function FindingGroup({
                         </p>
                     ) : (
                         <>
-                            {/* A page turn keeps the previous page on
-                                screen (`keepPreviousData`) until the next one
-                                lands: it dims after a beat — the design-system
-                                Table's `stale` contract — instead of looking
+                            {/* A page turn keeps the previous page on screen
+                                (`keepPreviousData`) until the next one lands;
+                                it dims after a beat instead of looking
                                 current. */}
                             <ul
                                 aria-busy={
@@ -308,25 +369,48 @@ export function FindingGroup({
                                     <FindingRow
                                         key={`${finding.ruleId}:${finding.entryId}`}
                                         finding={finding}
+                                        typeLabel={typeLabel}
                                     />
                                 ))}
                             </ul>
-                            {/* The wrapper is conditional, not just its
-                                contents. `FindingsPager` renders nothing at one
-                                page, but a padded box around nothing is still a
-                                padded box — it left ~28px of dead space under
-                                the last row of every group small enough not to
-                                need paging, which is most of them. */}
-                            {pageCount > 1 ? (
-                                <div className="px-4 pb-4 pt-3">
+                            <div className="flex flex-wrap items-center gap-3 border-t py-2 pl-11 pr-4">
+                                <span className="text-xs tabular-nums text-muted-foreground">
+                                    {pageCount > 1
+                                        ? intl.formatMessage(messages.shown, {
+                                              first,
+                                              last: first + items.length - 1,
+                                              count
+                                          })
+                                        : intl.formatMessage(
+                                              messages.shownAll,
+                                              { count }
+                                          )}
+                                </span>
+                                {pageCount > 1 ? (
                                     <FindingsPager
                                         page={page}
                                         pageCount={pageCount}
                                         onPage={setPage}
                                         label={rule.name}
                                     />
-                                </div>
-                            ) : null}
+                                ) : null}
+                                <Button
+                                    asChild
+                                    variant="ghost"
+                                    size="sm"
+                                    className="ml-auto h-7"
+                                >
+                                    <Link
+                                        to={recordsHref}
+                                        aria-label={intl.formatMessage(
+                                            messages.showAllLabel,
+                                            { name: rule.name }
+                                        )}
+                                    >
+                                        {intl.formatMessage(messages.showAll)}
+                                    </Link>
+                                </Button>
+                            </div>
                         </>
                     )}
                 </div>
