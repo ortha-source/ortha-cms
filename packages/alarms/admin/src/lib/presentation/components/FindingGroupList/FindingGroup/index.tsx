@@ -119,9 +119,13 @@ export type FindingGroupProps = {
  * level, the alarm, what editors are told, how many are open; each row is only
  * what differs — which record, and how long it has been flagged.
  *
- * **The records load when the group is opened**, not on mount. A workspace with
- * twenty alarms would otherwise fire twenty list requests to draw a screen on
- * which nineteen of them are collapsed.
+ * **The records load when the group is about to open**, not on mount: on hover
+ * or focus of its header, so they are usually in by the click. A workspace
+ * with twenty alarms would otherwise fire twenty list requests to draw a
+ * screen on which nineteen of them are collapsed. While they load, the
+ * skeleton has as many rows as the page will — the count is known — so the
+ * opening animation measures the final height and nothing jumps when they
+ * land.
  *
  * **Each group pages on its own**, ten at a time, and ends in a footer that
  * says how many of how many are on screen and links the whole set into the
@@ -140,13 +144,15 @@ export function FindingGroup({
 }: FindingGroupProps) {
     const intl = useIntl();
     const [open, setOpen] = useState(defaultOpen);
+    // Hovering or focusing the header starts the fetch, ahead of the click.
+    const [warm, setWarm] = useState(false);
     const [page, setPage] = useState(1);
     const { chip, Icon, label } = severityLook(rule.severity);
     const workspace = useCurrentWorkspace();
 
     const findings = useAlarmFindings(
         { state: 'open', ruleId: rule.id, page, pageSize: GROUP_PAGE_SIZE },
-        open
+        open || warm
     );
 
     const pageCount = useMemo(
@@ -168,6 +174,11 @@ export function FindingGroup({
 
     const items = findings.data?.items ?? [];
     const first = (page - 1) * GROUP_PAGE_SIZE + 1;
+    // How many rows this page will hold, for a skeleton of the same height.
+    const expectedRows = Math.min(
+        GROUP_PAGE_SIZE,
+        Math.max(1, count - (first - 1))
+    );
     const recordsHref = `/workspaces/${workspace.id}/content/${rule.contentType}?filter=${encodeURIComponent(
         JSON.stringify(rule.filter)
     )}`;
@@ -189,6 +200,8 @@ export function FindingGroup({
                 )}
             >
                 <CollapsibleTrigger
+                    onPointerEnter={() => setWarm(true)}
+                    onFocus={() => setWarm(true)}
                     className="flex min-w-0 flex-1 items-center gap-3 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     // The severity leads the name because `aria-label` on a
                     // button **replaces** its descendant text in the accessible
@@ -306,9 +319,25 @@ export function FindingGroup({
                                 name: rule.name
                             })}
                         >
-                            <div className="flex flex-col gap-2 p-4">
-                                <Skeleton className="h-10 w-full" />
-                                <Skeleton className="h-10 w-full" />
+                            {/* Row for row the shape of `FindingRow` and the
+                                footer below, so the height is the final one. */}
+                            <div className="divide-y divide-border">
+                                {Array.from(
+                                    { length: expectedRows },
+                                    (_, index) => (
+                                        <div
+                                            key={index}
+                                            className="flex items-center gap-3 py-2 pl-11 pr-4"
+                                        >
+                                            <Skeleton className="h-4 flex-1" />
+                                            <Skeleton className="h-7 w-14" />
+                                        </div>
+                                    )
+                                )}
+                            </div>
+                            <div className="flex items-center gap-3 border-t py-2 pl-11 pr-4">
+                                <Skeleton className="h-4 w-16" />
+                                <Skeleton className="ml-auto h-7 w-32" />
                             </div>
                         </SkeletonRegion>
                     ) : items.length === 0 ? (

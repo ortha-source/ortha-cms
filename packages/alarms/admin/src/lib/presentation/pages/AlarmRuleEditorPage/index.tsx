@@ -517,7 +517,11 @@ export function AlarmRuleEditorPage({
                                     id="alarms-editor-type"
                                     aria-required
                                 >
-                                    <span className="flex min-w-0 items-center gap-2">
+                                    {/* `!flex`: the trigger clamps its direct
+                                        `<span>` children to one line with
+                                        `display: -webkit-box`, which would
+                                        stack the icon over the text. */}
+                                    <span className="!flex min-w-0 items-center gap-2">
                                         <Table2
                                             aria-hidden="true"
                                             className="size-4 shrink-0 text-muted-foreground"
