@@ -27,6 +27,10 @@ export type ColorSwatchRowProps = {
     onChange: (color: AvatarColor) => void;
     /** Drawn before the swatches on their line — the settings page's preview tile. */
     leading?: ReactNode;
+    /** The group's visible label; defaults to "Avatar color". */
+    label?: string;
+    /** `sm` draws 28px swatches (the create wizard); `default` 36px. */
+    size?: 'sm' | 'default';
 };
 
 /**
@@ -44,10 +48,12 @@ export type ColorSwatchRowProps = {
 export function ColorSwatchRow({
     value,
     onChange,
-    leading
+    leading,
+    label: labelOverride,
+    size = 'default'
 }: ColorSwatchRowProps) {
     const intl = useIntl();
-    const label = intl.formatMessage(messages.label);
+    const label = labelOverride ?? intl.formatMessage(messages.label);
     const refs = useRef<(HTMLButtonElement | null)[]>([]);
 
     // Moving the selection also moves focus, which is what a radio group does:
@@ -115,7 +121,10 @@ export function ColorSwatchRow({
                                 onClick={() => onChange(color)}
                                 onKeyDown={(event) => onKeyDown(event, i)}
                                 className={cn(
-                                    'flex size-9 items-center justify-center rounded-xl text-white transition-colors',
+                                    'flex items-center justify-center text-white transition-colors',
+                                    size === 'sm'
+                                        ? 'size-7 rounded-lg'
+                                        : 'size-9 rounded-xl',
                                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                                     selected && 'ring-2 ring-ring ring-offset-2'
                                 )}
@@ -123,7 +132,9 @@ export function ColorSwatchRow({
                                     backgroundColor: avatarColorVar(color)
                                 }}
                             >
-                                {selected ? <Check className="size-4" /> : null}
+                                {selected && size === 'default' ? (
+                                    <Check className="size-4" />
+                                ) : null}
                             </button>
                         );
                     })}

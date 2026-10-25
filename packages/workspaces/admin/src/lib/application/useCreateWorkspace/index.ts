@@ -24,9 +24,9 @@ export const WORKSPACES_SCOPE = 'workspaces';
  * and reconciles with the server result on settle.
  *
  * On success the stub is swapped for the server's workspace in place and its
- * real id is marked as just created: the wizard navigates to the list next, and
- * the row it lands on — keyed by that id, so it does not remount when the
- * settle refetch arrives — is the one highlighted.
+ * real id is marked as just created: the wizard goes on to the "ready" screen,
+ * and the card the list shows next — keyed by that id, so it does not remount
+ * when the settle refetch arrives — is the one highlighted.
  */
 export function useCreateWorkspace() {
     const queryClient = useQueryClient();
@@ -54,7 +54,13 @@ export function useCreateWorkspace() {
                 // A new workspace is never shared; sharing is a settings toggle.
                 isShared: false,
                 // Resolved server-side too; reconciled by the same refetch.
-                sharedContent: []
+                sharedContent: [],
+                // Nothing written yet; the refetch brings the real stamps.
+                recordCount: 0,
+                recordCountByType: {},
+                createdAt: new Date().toISOString(),
+                lastEditedAt: new Date().toISOString(),
+                archivedAt: null
             };
             queryClient.setQueryData<Workspace[]>(workspacesKey, (old = []) => [
                 optimistic,

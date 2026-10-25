@@ -1,9 +1,7 @@
 import { defineMessages, useIntl } from 'react-intl';
-import {
-    Container,
-    Skeleton,
-    WizardPageSkeleton
-} from '@orthacms/design-system';
+import { Layers } from 'lucide-react';
+import { Container, Skeleton } from '@orthacms/design-system';
+import { PageTopBar } from '@orthacms/shell-admin';
 import { WorkspaceSettingsTopBar } from '../WorkspaceSettingsTopBar';
 
 /** Intl descriptors for the workspaces skeletons, co-located here. */
@@ -19,6 +17,14 @@ const messages = defineMessages({
     loadingForm: {
         id: 'workspaces.skeleton.loadingForm',
         defaultMessage: 'Loading…'
+    },
+    crumbWorkspaces: {
+        id: 'workspaces.skeleton.crumbWorkspaces',
+        defaultMessage: 'Workspaces'
+    },
+    crumbNew: {
+        id: 'workspaces.skeleton.crumbNew',
+        defaultMessage: 'New workspace'
     },
     loadingContent: {
         id: 'workspaces.skeleton.loadingContent',
@@ -129,14 +135,128 @@ export function WorkspaceShellSkeleton() {
 }
 
 /**
- * Lazy-route `Suspense` fallback for {@link CreateWorkspacePage}. Wraps the
- * shared {@link WizardPageSkeleton} so the `sr-only` status stays localized.
+ * Lazy-route `Suspense` fallback for {@link CreateWorkspacePage}, in the
+ * page's own frame so nothing moves when the chunk lands.
+ *
+ * The bar is **real**: its crumbs come from the route, not from data, so the
+ * same `PageTopBar` the page renders paints straight away. Below it the
+ * header, the horizontal three-step line, the Basics card (name, address,
+ * colour swatches, description, footer) and the 300px preview column are
+ * sketched at the page's sizes — `Container max-w-[940px]`, `gap-5`, and
+ * `lg:grid-cols-[minmax(0,1fr)_300px]`. One `role="status"` names the state;
+ * the shapes are `aria-hidden`.
  */
 export function CreateWorkspacePageSkeleton() {
     const intl = useIntl();
 
     return (
-        <WizardPageSkeleton label={intl.formatMessage(messages.loadingForm)} />
+        <>
+            <PageTopBar
+                icon={Layers}
+                iconClassName="bg-violet-soft text-violet-soft-foreground"
+                crumbs={[
+                    {
+                        key: 'workspaces',
+                        label: intl.formatMessage(messages.crumbWorkspaces),
+                        to: '/workspaces'
+                    },
+                    {
+                        key: 'new',
+                        label: intl.formatMessage(messages.crumbNew)
+                    }
+                ]}
+            />
+            <Container
+                className="flex max-w-[940px] flex-col gap-5"
+                role="status"
+            >
+                <span className="sr-only">
+                    {intl.formatMessage(messages.loadingForm)}
+                </span>
+                <div aria-hidden className="flex flex-col gap-5">
+                    <div className="flex flex-col gap-2">
+                        <Skeleton className="h-8 w-52" />
+                        <Skeleton className="h-4 w-96 max-w-full" />
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                        {[16, 16, 14].map((width, index) => (
+                            <div
+                                key={index}
+                                className="flex items-center gap-3"
+                            >
+                                {index > 0 ? (
+                                    <span className="h-px w-12 bg-border" />
+                                ) : null}
+                                <Skeleton className="size-5 rounded-full" />
+                                <Skeleton
+                                    className="h-4"
+                                    style={{ width: `${width * 4}px` }}
+                                />
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_300px]">
+                        <div className="rounded-xl border bg-card">
+                            <div className="flex flex-col gap-6 p-5">
+                                <div className="flex flex-col gap-2.5">
+                                    <Skeleton className="h-4 w-36" />
+                                    <Skeleton className="h-9 w-full" />
+                                </div>
+                                <div className="flex flex-col gap-2.5">
+                                    <Skeleton className="h-4 w-16" />
+                                    <Skeleton className="h-9 w-full" />
+                                    <Skeleton className="h-4 w-80 max-w-full" />
+                                </div>
+                                <div className="flex flex-col gap-2.5">
+                                    <Skeleton className="h-4 w-14" />
+                                    <div className="flex gap-2">
+                                        {Array.from({ length: 7 }).map(
+                                            (_, index) => (
+                                                <Skeleton
+                                                    key={index}
+                                                    className="size-7 rounded-md"
+                                                />
+                                            )
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="flex flex-col gap-2.5">
+                                    <Skeleton className="h-4 w-28" />
+                                    <Skeleton className="h-16 w-full" />
+                                    <Skeleton className="ml-auto h-3 w-12" />
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2 border-t px-5 py-3">
+                                <Skeleton className="h-8 w-16" />
+                                <Skeleton className="ml-auto h-8 w-24" />
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                            <Skeleton className="h-3 w-16" />
+                            <div className="rounded-xl border bg-card">
+                                <div className="flex flex-col gap-3 p-3">
+                                    <div className="flex items-center gap-2.5">
+                                        <Skeleton className="size-9 rounded-lg" />
+                                        <div className="flex flex-1 flex-col gap-1.5">
+                                            <Skeleton className="h-4 w-28" />
+                                            <Skeleton className="h-3 w-16" />
+                                        </div>
+                                    </div>
+                                    <Skeleton className="h-3 w-40" />
+                                </div>
+                                <div className="flex gap-2 border-t p-2.5">
+                                    <Skeleton className="h-7 w-14" />
+                                    <Skeleton className="h-7 w-16" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </Container>
+        </>
     );
 }
 

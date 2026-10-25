@@ -1,7 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { count, eq, type AnyColumn } from 'drizzle-orm';
+import { count, eq, inArray, max, type AnyColumn } from 'drizzle-orm';
+import type { PgColumn } from 'drizzle-orm/pg-core';
 import { InjectDatabase, type Database } from '@orthacms/database';
-import type { ContentEntryCounter } from '@orthacms/workspaces-server';
+import type {
+    ContentEntryCounter,
+    ContentEntryStats,
+    WorkspaceEntryStat
+} from '@orthacms/workspaces-server';
 import { InjectContentRegistry } from '../../../content.tokens';
 import type { ContentTypeRegistry } from '../../../registry/content-type-registry';
 import type { AnyContentType } from '../../../types/content-type';
@@ -14,10 +19,13 @@ type ContentTable = Record<string, AnyColumn>;
  * `content_<name>` tables: counts how many entries of a content type a
  * workspace holds. Bound to `CONTENT_ENTRY_COUNTER` in {@link ContentModule},
  * so identity's "revoke a content-type grant only when empty" rule resolves
- * against the real stored entries.
+ * against the real stored entries. Also bound to `CONTENT_ENTRY_STATS`, the
+ * batched, display-only sibling the workspace cards read.
  */
 @Injectable()
-export class EntryCounterService implements ContentEntryCounter {
+export class EntryCounterService
+    implements ContentEntryCounter, ContentEntryStats
+{
     constructor(
         @InjectDatabase() private readonly db: Database,
         @InjectContentRegistry() private readonly registry: ContentTypeRegistry
@@ -60,6 +68,43 @@ export class EntryCounterService implements ContentEntryCounter {
         return counts.reduce((sum, n) => sum + n, 0);
     }
 
+    /**
+     * Per-(workspace, type) entry counts and newest edits for a set of
+     * workspaces — one grouped query per content type, run concurrently, so
+     * the workspace list costs as many queries as there are types, not as
+     * there are workspaces. Counts every stored row (soft-deleted included),
+     * the same rows {@link countWorkspaceEntries} counts.
+     */
+    async entryStats(
+        workspaceIds: readonly string[]
+    ): Promise<WorkspaceEntryStat[]> {
+        if (workspaceIds.length === 0) return [];
+        const perType = await Promise.all(
+            this.registry.all().map(async (type) => {
+                const table = type.table as unknown as Record<string, PgColumn>;
+                const workspaceId = table['workspaceId'];
+                const rows = await this.db
+                    .select({
+                        workspaceId,
+                        total: count(),
+                        lastEditedAt: max(table['updatedAt'])
+                    })
+                    .from(type.table)
+                    .where(inArray(workspaceId, [...workspaceIds]))
+                    .groupBy(workspaceId);
+                return rows.map(
+                    (row): WorkspaceEntryStat => ({
+                        workspaceId: row.workspaceId as string,
+                        slug: type.name,
+                        count: Number(row.total),
+                        lastEditedAt: toDate(row.lastEditedAt)
+                    })
+                );
+            })
+        );
+        return perType.flat();
+    }
+
     /** Counts a single content type's rows in a workspace. */
     private async countTable(
         type: AnyContentType,
@@ -72,4 +117,14 @@ export class EntryCounterService implements ContentEntryCounter {
             .where(eq(table['workspaceId'], workspaceId));
         return total;
     }
+}
+
+/** A `max(timestamp)` as pg hands it back — a `Date`, a string, or nothing. */
+function toDate(value: unknown): Date | null {
+    if (value instanceof Date) return value;
+    if (typeof value === 'string' || typeof value === 'number') {
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? null : date;
+    }
+    return null;
 }

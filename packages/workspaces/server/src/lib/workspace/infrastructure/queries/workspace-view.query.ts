@@ -6,6 +6,11 @@ import { users } from '@orthacms/identity-server';
 import { workspaces } from '../schema/workspaces';
 import { memberships } from '../schema/memberships';
 import { workspaceContent } from '../schema/workspace-content';
+import { ContentEntryStatsReader } from '../../application/content/content-entry-stats.reader';
+import {
+    latest,
+    summarizeEntryStats
+} from '../../application/content/entry-stats.summary';
 import type {
     WorkspaceMemberView,
     WorkspaceSharedContentView,
@@ -17,14 +22,19 @@ type WorkspaceRow = typeof workspaces.$inferSelect;
 
 /**
  * Read model that assembles {@link WorkspaceView}s — the workspace endpoints'
- * response shape — from the workspace, membership, and content-grant tables.
- * A thin CQRS query service: it bypasses the aggregate (reads don't enforce
+ * response shape — from the workspace, membership, and content-grant tables,
+ * plus the content context's batched entry statistics (record counts and the
+ * newest edit, through the `CONTENT_ENTRY_STATS` port — one call for the whole
+ * set, never one per workspace). A thin CQRS query service: it bypasses the aggregate (reads don't enforce
  * invariants) and reads the base connection, so it sees committed state after a
  * use case's unit of work closes.
  */
 @Injectable()
 export class WorkspaceViewQuery {
-    constructor(@InjectDatabase() private readonly db: Database) {}
+    constructor(
+        @InjectDatabase() private readonly db: Database,
+        private readonly entryStats: ContentEntryStatsReader
+    ) {}
 
     /**
      * The workspaces `userId` is a member of, newest first, each with its
@@ -80,24 +90,41 @@ export class WorkspaceViewQuery {
     /** Maps workspace rows to views, attaching each one's members and grants. */
     private async toViews(rows: WorkspaceRow[]): Promise<WorkspaceView[]> {
         const ids = rows.map((row) => row.id);
-        const [membersByWorkspace, grantsByWorkspace, sharedByWorkspace] =
-            await Promise.all([
-                this.membersByWorkspace(ids),
-                this.grantsByWorkspace(ids),
-                this.sharedGrantsByWorkspace(ids)
-            ]);
-        return rows.map((row) => ({
-            id: row.id,
-            name: row.name,
-            slug: row.slug,
-            description: row.description ?? '',
-            color: row.color,
-            status: row.status,
-            isShared: row.isShared,
-            members: membersByWorkspace.get(row.id) ?? [],
-            content: grantsByWorkspace.get(row.id) ?? [],
-            sharedContent: sharedByWorkspace.get(row.id) ?? []
-        }));
+        const [
+            membersByWorkspace,
+            grantsByWorkspace,
+            sharedByWorkspace,
+            stats
+        ] = await Promise.all([
+            this.membersByWorkspace(ids),
+            this.grantsByWorkspace(ids),
+            this.sharedGrantsByWorkspace(ids),
+            this.entryStats.entryStats(ids)
+        ]);
+        const entriesByWorkspace = summarizeEntryStats(stats);
+        return rows.map((row) => {
+            const entries = entriesByWorkspace.get(row.id);
+            return {
+                id: row.id,
+                name: row.name,
+                slug: row.slug,
+                description: row.description ?? '',
+                color: row.color,
+                status: row.status,
+                isShared: row.isShared,
+                members: membersByWorkspace.get(row.id) ?? [],
+                content: grantsByWorkspace.get(row.id) ?? [],
+                sharedContent: sharedByWorkspace.get(row.id) ?? [],
+                recordCount: entries?.total ?? 0,
+                recordCountByType: entries?.byType ?? {},
+                createdAt: row.createdAt.toISOString(),
+                lastEditedAt: (
+                    latest(row.updatedAt, entries?.lastEditedAt ?? null) ??
+                    row.updatedAt
+                ).toISOString(),
+                archivedAt: row.archivedAt?.toISOString() ?? null
+            };
+        });
     }
 
     /**
@@ -115,7 +142,8 @@ export class WorkspaceViewQuery {
                 workspaceId: memberships.workspaceId,
                 id: users.id,
                 name: users.name,
-                email: users.email
+                email: users.email,
+                status: users.status
             })
             .from(memberships)
             .innerJoin(users, eq(users.id, memberships.userId))
@@ -123,7 +151,12 @@ export class WorkspaceViewQuery {
             .orderBy(memberships.createdAt, memberships.id);
         for (const row of rows) {
             const list = byWorkspace.get(row.workspaceId) ?? [];
-            list.push({ id: row.id, name: row.name, email: row.email });
+            list.push({
+                id: row.id,
+                name: row.name,
+                email: row.email,
+                status: row.status
+            });
             byWorkspace.set(row.workspaceId, list);
         }
         return byWorkspace;

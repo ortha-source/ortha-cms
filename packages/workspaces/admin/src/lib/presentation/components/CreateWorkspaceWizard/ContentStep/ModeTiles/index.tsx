@@ -5,43 +5,26 @@ import type { ContentMode } from '../../../../../domain/types/wizard';
 const messages = defineMessages({
     groupLabel: {
         id: 'workspaces.create.content.modeLabel',
-        defaultMessage: 'Content access'
+        defaultMessage: 'What can people write here?'
     },
     allTitle: {
-        id: 'workspaces.create.content.allTitle',
-        defaultMessage: 'All content'
+        id: 'workspaces.create.content.everythingTitle',
+        defaultMessage: 'Everything'
     },
     allDescription: {
-        id: 'workspaces.create.content.allDescription',
+        id: 'workspaces.create.content.everythingDescription',
         defaultMessage:
-            'Access every collection and page, including ones added later.'
+            '{count, plural, one {The # content type} other {All # content types}} this site defines.'
     },
     specificTitle: {
-        id: 'workspaces.create.content.specificTitle',
-        defaultMessage: 'Specific content'
+        id: 'workspaces.create.content.pickTitle',
+        defaultMessage: 'Pick content types'
     },
     specificDescription: {
-        id: 'workspaces.create.content.specificDescription',
-        defaultMessage: 'Choose exactly which collections and pages to grant.'
+        id: 'workspaces.create.content.pickDescription',
+        defaultMessage: 'Only what this team writes.'
     }
 });
-
-const TILES: {
-    value: ContentMode;
-    title: typeof messages.allTitle;
-    description: typeof messages.allDescription;
-}[] = [
-    {
-        value: 'all',
-        title: messages.allTitle,
-        description: messages.allDescription
-    },
-    {
-        value: 'specific',
-        title: messages.specificTitle,
-        description: messages.specificDescription
-    }
-];
 
 /** Props for {@link ModeTiles}. */
 export type ModeTilesProps = {
@@ -49,41 +32,74 @@ export type ModeTilesProps = {
     value: ContentMode;
     /** Called when a tile is chosen. */
     onChange: (mode: ContentMode) => void;
+    /** How many content types "Everything" grants. */
+    total: number;
 };
 
-/** Two radio tiles choosing between full access and a specific selection. */
-export function ModeTiles({ value, onChange }: ModeTilesProps) {
+/**
+ * The two answers first: "Everything" (the quick path — every content type
+ * the site defines, as this workspace's own) or "Pick content types", which
+ * opens the one list below.
+ */
+export function ModeTiles({ value, onChange, total }: ModeTilesProps) {
     const intl = useIntl();
+    const tiles: {
+        value: ContentMode;
+        title: string;
+        description: string;
+    }[] = [
+        {
+            value: 'all',
+            title: intl.formatMessage(messages.allTitle),
+            description: intl.formatMessage(messages.allDescription, {
+                count: total
+            })
+        },
+        {
+            value: 'specific',
+            title: intl.formatMessage(messages.specificTitle),
+            description: intl.formatMessage(messages.specificDescription)
+        }
+    ];
 
     return (
         <RadioGroup
             value={value}
             onValueChange={(next) => onChange(next as ContentMode)}
             aria-label={intl.formatMessage(messages.groupLabel)}
-            className="grid gap-3 sm:grid-cols-2"
+            className="grid gap-2.5 sm:grid-cols-2"
         >
-            {TILES.map((tile) => {
+            {tiles.map((tile) => {
                 const selected = value === tile.value;
                 return (
-                    <label
+                    // A div, not a <label>: a label re-dispatches the click
+                    // Radix fires when an arrow key moves focus, and the
+                    // selection never followed the focus. The radio keeps its
+                    // own name; the tile is a larger pointer target.
+                    <div
                         key={tile.value}
+                        onClick={() => onChange(tile.value)}
                         className={cn(
-                            'flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors',
+                            'flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition-colors',
                             selected
-                                ? 'border-primary bg-primary/5'
+                                ? 'border-foreground ring-1 ring-foreground'
                                 : 'hover:bg-accent'
                         )}
                     >
-                        <RadioGroupItem value={tile.value} className="mt-0.5" />
-                        <div className="flex flex-col gap-1">
+                        <RadioGroupItem
+                            value={tile.value}
+                            className="mt-0.5"
+                            aria-label={tile.title}
+                        />
+                        <span className="flex flex-col gap-0.5">
                             <span className="text-sm font-medium">
-                                {intl.formatMessage(tile.title)}
+                                {tile.title}
                             </span>
-                            <span className="text-sm text-muted-foreground">
-                                {intl.formatMessage(tile.description)}
+                            <span className="text-[13px] text-muted-foreground">
+                                {tile.description}
                             </span>
-                        </div>
-                    </label>
+                        </span>
+                    </div>
                 );
             })}
         </RadioGroup>

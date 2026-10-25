@@ -36,6 +36,11 @@ const CreateWorkspacePage = lazyPage(
     'CreateWorkspacePage'
 );
 
+const WorkspaceReadyPage = lazyPage(
+    () => import('../pages/WorkspaceReadyPage'),
+    'WorkspaceReadyPage'
+);
+
 const WorkspaceShell = lazyPage(
     () => import('../components/WorkspaceShell'),
     'WorkspaceShell'
@@ -99,6 +104,18 @@ export function WorkspacesPlugin(): WorkspacesAdminPlugin {
                 element: (
                     <Suspense fallback={<CreateWorkspacePageSkeleton />}>
                         <CreateWorkspacePage />
+                    </Suspense>
+                )
+            },
+            {
+                // Where a created workspace lands: the outcome and the next
+                // steps. Its static `ready` segment outranks the shell's splat
+                // below, so it renders with the app's own sidebar rather than
+                // inside the workspace shell.
+                path: '/workspaces/:id/ready',
+                element: (
+                    <Suspense fallback={<WorkspacesPageSkeleton />}>
+                        <WorkspaceReadyPage />
                     </Suspense>
                 )
             },

@@ -1,12 +1,19 @@
 import { apiClient, toApiError } from '@orthacms/utils-admin';
-import type { SharedSource, Workspace } from '../../domain/types/workspace';
+import type {
+    ArchiveImpact,
+    SharedSource,
+    Workspace
+} from '../../domain/types/workspace';
 import type {
     ContentType,
     CreateWorkspaceBody,
-    DirectoryUser
+    DirectoryUser,
+    InviteDelivery
 } from '../../domain/types/wizard';
 import {
+    toArchiveImpact,
     toSharedSources,
+    type ArchiveImpactView,
     toWorkspace,
     type SharedSourcesView,
     type WorkspaceView
@@ -40,7 +47,14 @@ interface MembersPage {
         name: string | null;
         email: string;
         status: 'pending' | 'active' | 'disabled';
+        role?: { name?: string | null } | null;
     }[];
+}
+
+/** What `POST /api/users/:id/invites/resend` answers, as far as this needs. */
+interface InviteIssuedView {
+    /** Present only when no mail provider carried it. */
+    inviteToken?: string;
 }
 
 /** How many matches the typeahead asks for per query. */
@@ -225,6 +239,32 @@ export const httpWorkspaceGateway: WorkspaceGateway = {
         }
     },
 
+    async archiveImpact(workspaceId: string): Promise<ArchiveImpact> {
+        try {
+            const { data } = await apiClient.get<ArchiveImpactView>(
+                `/workspaces/${workspaceId}/archive-impact`
+            );
+            return toArchiveImpact(data);
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async sendInvite(
+        userId: string
+    ): Promise<Exclude<InviteDelivery, 'pending'>> {
+        try {
+            const { data } = await apiClient.post<InviteIssuedView>(
+                `/users/${userId}/invites/resend`
+            );
+            // The raw token is deliberately dropped: it is a credential, and
+            // Members can reveal the link again when someone needs it.
+            return data?.inviteToken ? 'link' : 'sent';
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
     async searchUsers(query: string): Promise<DirectoryUser[]> {
         try {
             const { data } = await apiClient.get<MembersPage>('/users', {
@@ -238,7 +278,8 @@ export const httpWorkspaceGateway: WorkspaceGateway = {
                 .map((member) => ({
                     id: member.id,
                     name: member.name ?? member.email,
-                    email: member.email
+                    email: member.email,
+                    ...(member.role?.name ? { role: member.role.name } : {})
                 }));
         } catch (error) {
             throw toApiError(error);

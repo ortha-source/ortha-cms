@@ -341,7 +341,9 @@ This is the primitive the package is exported outwards for in the first place. I
 1. `POST /api/workspaces/:id/archive` and `.../unarchive` — two handlers in one controller, both reducing to `apply(actor, id, status)`.
 2. **Both require `workspaces:update`, not `workspaces:delete`**: archiving is a soft, fully reversible change of state, and gating it on the delete permission would equate “out of sight” with destruction.
 3. **Both are idempotent.** Archiving an already-archived workspace returns the current view and writes no event.
-4. **In the admin UI the asymmetry is deliberate:** archiving asks for confirmation (a `ConfirmDialog`), unarchiving applies at once — it is low-risk.
+4. **In the admin UI the asymmetry is deliberate:** archiving asks for confirmation, unarchiving (Restore) applies at once — it is low-risk.
+5. **The confirmation says what archiving touches.** `GET /api/workspaces/:id/archive-impact` (same gate as the archive) answers `{ records, members, linkedWorkspaces }`; the admin's `ArchiveWorkspaceDialog` — opened from a card's ⋯ menu or the Danger zone — lists what stays and how many workspaces linking its shared records will see them as unavailable. `linkedWorkspaces` is a count of live shared grants naming this source, never a list. An unreadable count does not block the button: archiving is reversible and deletes nothing.
+6. **`archived_at`** is stamped on archive and cleared on unarchive by the repository, so the card can say "Archived Sep 2".
 
 ### 7.6a Sharing a workspace ([ADR-0019](../adr/0019-shared-workspaces.md))
 
@@ -402,6 +404,7 @@ Every path carries the global `/api` prefix the host sets. Access legend: `sessi
 | GET /workspaces/:id/shared-sources            | `workspaces:update` `member`             | —                                                                           | `200 { items: [{ workspaceId, workspaceName, content: [{ slug, kind }] }] }`             | `400` not a UUID; `403`; `401`. Every shared, active workspace other than `:id`, with its own grants                                                                                          |
 | GET /workspaces/:id/content/:slug/entry-count | `workspaces:update` `member`             | the slug in the path                                                        | `200 { count }`; `0` if the content plugin is not bound                                  | `400` not a UUID; `403`; `401`. **Origin is not checked** — this is a read                                                                                                                    |
 | GET /workspaces/:id/entry-count               | `workspaces:delete` `member`             | —                                                                           | `200 { count }` across every type at once                                                | `400`; `403`; `401`                                                                                                                                                                           |
+| GET /workspaces/:id/archive-impact            | `workspaces:update` `member`             | —                                                                           | `200 { records, members, linkedWorkspaces }`                                             | `400`; `403`; `401`. A read — no Origin check                                                                                                                                                 |
 | GET /content-types                            | `workspaces:create or workspaces:update` | —                                                                           | `200` an array of `{ name, kind, label?, description?, path? }`                          | `403` when neither permission is held; `401`                                                                                                                                                  |
 
 Every DTO passes through the host's global `ValidationPipe` with `whitelist` and `forbidNonWhitelisted`: an undeclared field in the body is a `400` before the controller. Every `:id` passes through `ParseUUIDPipe`; the guard independently checks the same format, so a malformed identifier is cut off twice and never reaches a database query. A running server serves the generated OpenAPI at `/reference`.
@@ -419,8 +422,9 @@ The plugin registers **after** `ShellPlugin()`, because it nests its routes insi
 
 | Route                       | Screen                  | What it does                                                                                                                                                        |
 | --------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| /workspaces                 | `WorkspacesPage`        | The workspace table: search by name and description, status filter chips (All / Active / Archived) with counts, and a create button behind the permission           |
-| /workspaces/new             | `CreateWorkspacePage`   | The full-page three-step wizard; gated on `workspaces:create` with an explanatory redirect                                                                          |
+| /workspaces                 | `WorkspacesPage`        | The workspace cards (records, content types, faces, last edit): search, status filter chips (All / Active / Archived) with counts, sort, archive/restore per card   |
+| /workspaces/new             | `CreateWorkspacePage`   | The full-page three-step wizard (Basics → Content → People) beside a live card preview; gated on `workspaces:create` with an explanatory redirect                   |
+| /workspaces/:id/ready       | `WorkspaceReadyPage`    | Where a create lands: "{name} is ready", what it holds and where the invitations went, then next steps. Outranks the shell's splat by its static segment            |
 | /workspaces/:id/\*          | `WorkspaceShell`        | The workspace shell: resolves `:id`, publishes the context, **injects its own navigation into the application's sidebar**, and builds the nested routes from a slot |
 | /workspaces/:id/settings/\* | `WorkspaceSettingsPage` | The General · Members · Content · Danger zone tabs, each a nested route; the index redirects to `general`                                                           |
 
@@ -624,6 +628,8 @@ Statements that must always hold. At once a review checklist and a draft set of 
 - **I-38** — A shared grant is accepted only for a source that is shared, active, not the workspace itself, and holding its own grant for the slug — one uniform `422` otherwise, on `POST /workspaces/:id/content` and on create's `content.sharedContent` alike (the create then writes nothing). “All content” grants own types only.
 - **I-39** — A shared grant whose source becomes unshared, archived or loses its own grant is kept and reported `available: false`; it exposes nothing until the source is eligible again. Deleting the source cascades the grant away. Revoking a shared grant needs no entry count.
 - **I-40** — The explicit-grants migration writes `(W, kind, slug, S)` for every own grant `(W, kind, slug)` and every shared, active `S ≠ W` owning `(kind, slug)` — and nothing else — so no workspace saw more or less the moment after it ran.
+- **I-41** — Record counts and "last edited" on `WorkspaceView` come from the display-only `CONTENT_ENTRY_STATS` port; no destructive path reads it (deletion and revocation keep the bound-checked counter, I-14/I-15).
+- **I-42** — `GET /workspaces/:id/archive-impact` is gated like the archive it precedes and names no consumer workspace — it returns counts only.
 
 ## 13. Testing checklist
 

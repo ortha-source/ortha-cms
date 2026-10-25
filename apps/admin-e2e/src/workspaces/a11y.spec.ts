@@ -158,32 +158,63 @@ test.describe('Workspaces accessibility (axe, WCAG 2.1 A/AA)', () => {
         // unlabelled search input on the members step — an axe-detectable
         // failure — shipped and survived. Every step the user can reach gets
         // scanned now.
-        test('members step', async ({ createWorkspacePage, makeAxe }) => {
+        test('content step', async ({ createWorkspacePage, makeAxe }) => {
             await createWorkspacePage.goto();
-            await createWorkspacePage.nameInput.fill('Scanned workspace');
-            await createWorkspacePage.continueToMembers.click();
-            await createWorkspacePage.memberSearch.waitFor();
+            await createWorkspacePage.toContentStep('Scanned workspace');
             await expectNoA11yViolations(makeAxe());
         });
 
-        test('members step — directory results open', async ({
+        test('content step — the one list of picked types', async ({
             createWorkspacePage,
             makeAxe
         }) => {
             await createWorkspacePage.goto();
-            await createWorkspacePage.nameInput.fill('Scanned workspace');
-            await createWorkspacePage.continueToMembers.click();
-            await createWorkspacePage.memberSearch.fill('bar');
-            await createWorkspacePage.memberOption('Barbara Liskov').waitFor();
+            await createWorkspacePage.toContentStep('Scanned workspace');
+            await createWorkspacePage.specificContentTile.click();
+            await createWorkspacePage.contentSection('Collections').waitFor();
             await expectNoA11yViolations(makeAxe());
         });
 
-        test('content step', async ({ createWorkspacePage, makeAxe }) => {
+        test('people step', async ({ createWorkspacePage, makeAxe }) => {
             await createWorkspacePage.goto();
-            await createWorkspacePage.nameInput.fill('Scanned workspace');
-            await createWorkspacePage.continueToMembers.click();
-            await createWorkspacePage.continueToContent.click();
-            await createWorkspacePage.createButton.waitFor();
+            await createWorkspacePage.toPeopleStep('Scanned workspace');
+            await createWorkspacePage.memberSearch.waitFor();
+            await expectNoA11yViolations(makeAxe());
+        });
+
+        test('people step — directory results open', async ({
+            createWorkspacePage,
+            makeAxe
+        }) => {
+            await createWorkspacePage.goto();
+            await createWorkspacePage.toPeopleStep('Scanned workspace');
+            await createWorkspacePage.memberSearch.fill('bar');
+            await createWorkspacePage.memberOption(/Barbara Liskov/).waitFor();
+            await expectNoA11yViolations(makeAxe());
+        });
+
+        test('people step — a member and an invite in the list', async ({
+            createWorkspacePage,
+            makeAxe
+        }) => {
+            await createWorkspacePage.goto();
+            await createWorkspacePage.toPeopleStep('Scanned workspace');
+            await createWorkspacePage.memberSearch.fill('bar');
+            await createWorkspacePage.memberOption(/Barbara Liskov/).click();
+            await createWorkspacePage.memberSearch.fill('lena@growth.io');
+            await createWorkspacePage.memberOption(/Invite/).click();
+            await createWorkspacePage.person('lena@growth.io').waitFor();
+            await expectNoA11yViolations(makeAxe());
+        });
+
+        test('ready screen after a create', async ({
+            createWorkspacePage,
+            workspaceReadyPage,
+            makeAxe
+        }) => {
+            await createWorkspacePage.goto();
+            await createWorkspacePage.create('Scanned workspace');
+            await workspaceReadyPage.heading('Scanned workspace').waitFor();
             await expectNoA11yViolations(makeAxe());
         });
     });

@@ -233,23 +233,24 @@ test.describe('Shared content grants — create wizard', () => {
         await mockWorkspacesApi(page, [SHARED_SOURCE, ...WORKSPACES_SEED]);
     });
 
-    test('offers shared types in "Specific content" and sends them with the selection', async ({
+    test('offers shared types under "Pick content types" and sends them with the selection', async ({
         page,
         createWorkspacePage
     }) => {
         const creates = spyWorkspaceCreate(page);
         await createWorkspacePage.goto();
-        await createWorkspacePage.nameInput.fill('Guides');
-        await createWorkspacePage.continueToMembers.click();
-        await createWorkspacePage.continueToContent.click();
+        await createWorkspacePage.toContentStep('Guides');
 
         await createWorkspacePage.specificContentTile.click();
-        await expect(
-            createWorkspacePage.sharedContentGroup('Travel Library')
-        ).toBeVisible();
+        await expect(createWorkspacePage.sharedContentSection()).toBeVisible();
         await createWorkspacePage
             .sharedContentCheckbox('Products', 'Travel Library')
             .click();
+        // The preview counts the shared grant apart from the own types.
+        await expect(createWorkspacePage.preview).toContainText(
+            '0 content types · 1 shared'
+        );
+        await createWorkspacePage.continueButton.click();
         await createWorkspacePage.createButton.click();
 
         await expect.poll(() => creates.bodies.length).toBe(1);
@@ -261,19 +262,16 @@ test.describe('Shared content grants — create wizard', () => {
         });
     });
 
-    test('"All content" stays this workspace’s own types', async ({
+    test('"Everything" stays this workspace’s own types', async ({
         page,
         createWorkspacePage
     }) => {
         const creates = spyWorkspaceCreate(page);
         await createWorkspacePage.goto();
-        await createWorkspacePage.nameInput.fill('Guides');
-        await createWorkspacePage.continueToMembers.click();
-        await createWorkspacePage.continueToContent.click();
+        await createWorkspacePage.toContentStep('Guides');
 
-        await expect(
-            createWorkspacePage.sharedContentGroup('Travel Library')
-        ).toHaveCount(0);
+        await expect(createWorkspacePage.sharedContentSection()).toHaveCount(0);
+        await createWorkspacePage.continueButton.click();
         await createWorkspacePage.createButton.click();
 
         await expect.poll(() => creates.bodies.length).toBe(1);
@@ -285,13 +283,9 @@ test.describe('Shared content grants — create wizard', () => {
         makeAxe
     }) => {
         await createWorkspacePage.goto();
-        await createWorkspacePage.nameInput.fill('Guides');
-        await createWorkspacePage.continueToMembers.click();
-        await createWorkspacePage.continueToContent.click();
+        await createWorkspacePage.toContentStep('Guides');
         await createWorkspacePage.specificContentTile.click();
-        await createWorkspacePage
-            .sharedContentGroup('Travel Library')
-            .waitFor();
+        await createWorkspacePage.sharedContentSection().waitFor();
         await expectNoA11yViolations(makeAxe());
     });
 });
