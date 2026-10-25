@@ -1,7 +1,11 @@
 import { test, expect } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
 import { mockWorkspaces } from '../support/api/workspaces';
-import { mockSegmentsApi, type SegmentSeed } from '../support/api/segments';
+import {
+    manyUsageItems,
+    mockSegmentsApi,
+    type SegmentSeed
+} from '../support/api/segments';
 import { expectNoA11yViolations } from '../support/a11y';
 
 test.beforeEach(async ({ page }) => {
@@ -47,11 +51,44 @@ test.describe('The audience directory', () => {
 
         await expect(segmentsPage.heading).toBeVisible();
         await expect(segmentsPage.row('Acme Corp')).toBeVisible();
+        // The key sits under the name, the tags as chips beside it.
+        await expect(segmentsPage.row('Acme Corp')).toContainText(
+            'acme-legacy'
+        );
         // "Offered in" is stated rather than left blank, because empty means
         // *every* workspace — the opposite of what a blank cell reads as.
         await expect(segmentsPage.offeredIn('Acme Corp').first()).toHaveText(
             'Every workspace'
         );
+    });
+
+    test('explains what an audience is, above the table and below it', async ({
+        page,
+        segmentsPage
+    }) => {
+        // "Segments" alone told people nothing: the page says the model once
+        // in its lede and once more where the table ends.
+        await mockSegmentsApi(page);
+        await segmentsPage.goto();
+
+        await expect(
+            page.getByText(/An entry says which audiences may read it/)
+        ).toBeVisible();
+        await expect(segmentsPage.modelNote).toBeVisible();
+    });
+
+    test('links the usage count to where the audience is used', async ({
+        page,
+        segmentsPage
+    }) => {
+        await mockSegmentsApi(page);
+        await segmentsPage.goto();
+
+        await expect(segmentsPage.row('Globex')).toContainText('Not used yet');
+        await segmentsPage.usageLink('Acme Corp').click();
+
+        await expect(page).toHaveURL(/\/segments\/seg-acme$/);
+        await expect(segmentsPage.usagePanel).toBeVisible();
     });
 
     test('pages rather than dumping the whole vocabulary', async ({
@@ -114,15 +151,19 @@ test.describe('The audience directory', () => {
         await segmentsPage.rowMenu('Acme Corp').click();
         await page.getByRole('menuitem', { name: 'Delete' }).click();
 
-        // The consequence is spelled out per case: this one is named by three
-        // entries, so deleting it changes what readers see.
-        await expect(
-            page.getByRole('dialog').getByText(/removed from every entry/)
-        ).toBeVisible();
-        await page
-            .getByRole('dialog')
-            .getByRole('button', { name: 'Delete' })
-            .click();
+        // Who will see what: the entries naming it, split by the side they
+        // name it on, and what changes for its readers.
+        const dialog = segmentsPage.deleteDialog;
+        await expect(dialog).toContainText(
+            '3 entries name this audience. After deleting:'
+        );
+        await expect(dialog).toContainText(
+            'Enterprise pricing and Acme onboarding guide — no longer shown to Acme Corp readers only'
+        );
+        await expect(dialog).toContainText(
+            'Competitor comparison — Acme Corp readers can see it again'
+        );
+        await segmentsPage.confirmDelete.click();
 
         await expect.poll(() => api.deleted).toEqual(['seg-acme']);
     });
@@ -225,7 +266,11 @@ test.describe('The audience editor', () => {
 
         await expect(page).toHaveURL(/\/segments\/new$/);
         await segmentsPage.nameField.fill('Northwind');
-        await segmentsPage.tagsField.fill('northwind\nnorthwind-legacy');
+        // Tags are chips: typed and committed one at a time.
+        await segmentsPage.addTag('northwind');
+        await segmentsPage.addTag('northwind-legacy');
+        await expect(segmentsPage.tagChip('northwind-legacy')).toBeVisible();
+        await expect(page.getByText(/^2 of 20 ·/)).toBeVisible();
         await segmentsPage.submit.click();
 
         await expect
@@ -250,17 +295,62 @@ test.describe('The audience editor', () => {
         const api = await mockSegmentsApi(page);
         await segmentsPage.gotoNew();
 
-        // Nothing ticked means every workspace, and the control says so rather
-        // than leaving it to be inferred.
-        await expect(segmentsPage.offeredInBadge).toHaveText('Every workspace');
+        // Every workspace is a choice of its own, and the one an audience
+        // starts with — not "leave every box empty".
+        await expect(
+            segmentsPage.offeredInChoice('Every workspace')
+        ).toBeChecked();
 
         await segmentsPage.nameField.fill('Scoped');
+        await segmentsPage.offeredInChoice('Some workspaces').click();
         await segmentsPage.workspaceBox('Marketing site').click();
         await segmentsPage.submit.click();
 
         await expect
             .poll(() => api.created[0]?.['workspaceIds'])
-            .toHaveLength(1);
+            .toEqual(['ws_marketing']);
+    });
+
+    test('refuses "Some workspaces" with none picked, rather than saving "every"', async ({
+        page,
+        segmentsPage
+    }) => {
+        // An empty list is how the server spells *every* workspace — the
+        // opposite of the choice on screen.
+        const api = await mockSegmentsApi(page);
+        await segmentsPage.gotoNew();
+
+        await segmentsPage.nameField.fill('Scoped');
+        await segmentsPage.offeredInChoice('Some workspaces').click();
+        await segmentsPage.submit.click();
+
+        await expect(
+            segmentsPage.fieldError(/Pick at least one workspace/)
+        ).toBeVisible();
+        expect(api.created).toEqual([]);
+    });
+
+    test('tries a reader against the tags as typed', async ({
+        page,
+        segmentsPage
+    }) => {
+        await mockSegmentsApi(page);
+        await segmentsPage.gotoNew();
+
+        await segmentsPage.nameField.fill('Acme Corp');
+        await segmentsPage.addTag('acme');
+        await segmentsPage.addTag('acme-legacy');
+
+        await segmentsPage.tester.fill('acme-legacy');
+        await expect(segmentsPage.testerVerdict).toHaveText('In Acme Corp');
+
+        await segmentsPage.tester.fill('globex');
+        await expect(segmentsPage.testerVerdict).toHaveText('Not in Acme Corp');
+        await expect(
+            page.getByText(
+                'Readers with acme or acme-legacy see entries restricted to Acme Corp.'
+            )
+        ).toBeVisible();
     });
 
     test('marks the required fields, and says what the mark means', async ({
@@ -355,13 +445,126 @@ test.describe('The audience editor', () => {
         await segmentsPage.gotoEdit('seg-acme');
 
         await expect(segmentsPage.nameField).toHaveValue('Acme Corp');
-        await expect(segmentsPage.tagsField).toHaveValue('acme\nacme-legacy');
+        await expect(segmentsPage.heading).toHaveCount(0);
+        await expect(
+            page.getByRole('heading', { name: 'Acme Corp', level: 1 })
+        ).toBeVisible();
+        await expect(segmentsPage.tagChip('acme')).toBeVisible();
+        await expect(segmentsPage.tagChip('acme-legacy')).toBeVisible();
         // Read-only with the reason written next to it, rather than a greyed
         // field nobody can interrogate.
         await expect(segmentsPage.keyField).toHaveAttribute('readonly', '');
         await expect(
-            segmentsPage.fieldError(/The key is permanent/)
+            segmentsPage.fieldError('Permanent — entries refer to it.')
         ).toBeVisible();
+    });
+
+    test('shows where it is used beside the form', async ({
+        page,
+        segmentsPage
+    }) => {
+        const api = await mockSegmentsApi(page);
+        await segmentsPage.gotoEdit('seg-acme');
+
+        await expect(segmentsPage.usagePanel).toHaveAccessibleName(
+            'Used by 3 entries'
+        );
+        await expect(segmentsPage.usageRow('Enterprise pricing')).toContainText(
+            'Can see'
+        );
+        await expect(
+            segmentsPage.usageRow('Competitor comparison')
+        ).toContainText('Cannot see');
+        // Each entry opens in its workspace's editor…
+        await expect(
+            segmentsPage.usagePanel.getByRole('link', {
+                name: 'Enterprise pricing'
+            })
+        ).toHaveAttribute(
+            'href',
+            '/workspaces/ws_marketing/content/blog_post/entry-pricing'
+        );
+        // …and the lot opens in records, filtered to the audience.
+        const records = segmentsPage.usagePanel.getByRole('link', {
+            name: 'Open in records'
+        });
+        await expect(records).toHaveAttribute(
+            'href',
+            /^\/workspaces\/ws_marketing\/content\/blog_post\?filter=/
+        );
+        // Workspace-scoped: every workspace was asked under its own header.
+        expect(
+            api.usageReads.every(([, workspace]) => workspace !== null)
+        ).toBe(true);
+        expect(api.usageReads.map(([, workspace]) => workspace)).toContain(
+            'ws_marketing'
+        );
+    });
+
+    test('lists eight entries, then shows all of them inside the panel', async ({
+        page,
+        segmentsPage
+    }) => {
+        await mockSegmentsApi(page, {
+            usage: { 'seg-acme': { ws_marketing: manyUsageItems(60) } }
+        });
+        await segmentsPage.gotoEdit('seg-acme');
+
+        await expect(segmentsPage.usagePanel.getByRole('listitem')).toHaveCount(
+            8
+        );
+        await expect(segmentsPage.usageToggle).toHaveText('Show all 60');
+        await expect(segmentsPage.usageToggle).toHaveAttribute(
+            'aria-expanded',
+            'false'
+        );
+
+        // Keyboard: the toggle keeps focus whichever way it folds the list.
+        await segmentsPage.usageToggle.focus();
+        await page.keyboard.press('Enter');
+        await expect(segmentsPage.usagePanel.getByRole('listitem')).toHaveCount(
+            60
+        );
+        await expect(segmentsPage.usageToggle).toHaveText('Show fewer');
+        await expect(segmentsPage.usageToggle).toBeFocused();
+
+        await page.keyboard.press('Enter');
+        await expect(segmentsPage.usagePanel.getByRole('listitem')).toHaveCount(
+            8
+        );
+        await expect(segmentsPage.usageToggle).toBeFocused();
+    });
+
+    test('offers a retry when where-it-is-used cannot be read', async ({
+        page,
+        segmentsPage
+    }) => {
+        await mockSegmentsApi(page, { usageStatus: 500 });
+        await segmentsPage.gotoEdit('seg-acme');
+
+        await expect(
+            page.getByText('Couldn’t load the entries that use it.')
+        ).toBeVisible({ timeout: 15_000 });
+        await expect(
+            segmentsPage.usagePanel.getByRole('button', { name: 'Try again' })
+        ).toBeVisible();
+    });
+
+    test('deletes from its own page, naming who will see what', async ({
+        page,
+        segmentsPage
+    }) => {
+        const api = await mockSegmentsApi(page);
+        await segmentsPage.gotoEdit('seg-acme');
+
+        await segmentsPage.deleteButton.click();
+        await expect(segmentsPage.deleteDialog).toContainText(
+            'Competitor comparison — Acme Corp readers can see it again'
+        );
+        await segmentsPage.confirmDelete.click();
+
+        await expect.poll(() => api.deleted).toEqual(['seg-acme']);
+        await expect(page).toHaveURL(/\/segments$/);
     });
 
     test('sends only what changed on save', async ({ page, segmentsPage }) => {
@@ -390,7 +593,113 @@ test.describe('The audience editor', () => {
         await mockSegmentsApi(page);
         await segmentsPage.gotoEdit('seg-acme');
         await expect(segmentsPage.nameField).toHaveValue('Acme Corp');
+        await expect(segmentsPage.usageRow('Enterprise pricing')).toBeVisible();
 
         await expectNoA11yViolations(makeAxe());
+    });
+
+    test('has no axe violations while creating, with a reader tried', async ({
+        page,
+        segmentsPage,
+        makeAxe
+    }) => {
+        await mockSegmentsApi(page);
+        await segmentsPage.gotoNew();
+        await segmentsPage.nameField.fill('Acme Corp');
+        await segmentsPage.addTag('acme');
+        await segmentsPage.offeredInChoice('Some workspaces').click();
+        await segmentsPage.tester.fill('acme');
+        await expect(segmentsPage.testerVerdict).toHaveText('In Acme Corp');
+
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('has no axe violations with the delete confirmation open', async ({
+        page,
+        segmentsPage,
+        makeAxe
+    }) => {
+        await mockSegmentsApi(page);
+        await segmentsPage.gotoEdit('seg-acme');
+        await segmentsPage.deleteButton.click();
+        await expect(segmentsPage.deleteDialog).toContainText(
+            'After deleting:'
+        );
+
+        await expectNoA11yViolations(makeAxe());
+    });
+});
+
+test.describe('The audience editor, by keyboard', () => {
+    test('adds and removes tags without a mouse', async ({
+        page,
+        segmentsPage
+    }) => {
+        await mockSegmentsApi(page);
+        await segmentsPage.gotoNew();
+
+        // The name field takes focus on arrival; Tab walks to the tags.
+        await expect(segmentsPage.nameField).toBeFocused();
+        await page.keyboard.type('Northwind');
+        await page.keyboard.press('Tab'); // the key
+        await page.keyboard.press('Tab'); // the tags
+        await expect(segmentsPage.tagsField).toBeFocused();
+
+        await page.keyboard.type('northwind');
+        await page.keyboard.press('Enter');
+        await page.keyboard.type('legacy,');
+        await expect(segmentsPage.tagChip('northwind')).toBeVisible();
+        await expect(segmentsPage.tagChip('legacy')).toBeVisible();
+
+        // Backspace on an empty input takes the last chip back for editing.
+        await page.keyboard.press('Backspace');
+        await expect(segmentsPage.tagChip('legacy')).toHaveCount(0);
+        await expect(segmentsPage.tagsField).toHaveValue('legacy');
+
+        // A chip's × is a real button: reachable, and focus returns to the
+        // input once it is gone.
+        await segmentsPage.tagChip('northwind').focus();
+        await page.keyboard.press('Enter');
+        await expect(segmentsPage.tagChip('northwind')).toHaveCount(0);
+        await expect(segmentsPage.tagsField).toBeFocused();
+    });
+
+    test('picks where it is offered with the arrow keys', async ({
+        page,
+        segmentsPage
+    }) => {
+        await mockSegmentsApi(page);
+        await segmentsPage.gotoNew();
+
+        await segmentsPage.offeredInChoice('Every workspace').focus();
+        // Held rather than pressed: Radix checks a radio when focus arrives
+        // *while* an arrow key is down, and moves focus a tick after the
+        // keydown — an instant press-and-release lets go before it lands.
+        await page.keyboard.down('ArrowRight');
+        await expect(
+            segmentsPage.offeredInChoice('Some workspaces')
+        ).toBeFocused();
+        await page.keyboard.up('ArrowRight');
+        await expect(
+            segmentsPage.offeredInChoice('Some workspaces')
+        ).toBeChecked();
+        await expect(segmentsPage.workspaceBox('Marketing site')).toBeVisible();
+    });
+
+    test('closes the delete confirmation with Escape, deleting nothing', async ({
+        page,
+        segmentsPage
+    }) => {
+        const api = await mockSegmentsApi(page);
+        await segmentsPage.gotoEdit('seg-acme');
+
+        await segmentsPage.deleteButton.focus();
+        await page.keyboard.press('Enter');
+        await expect(segmentsPage.deleteDialog).toBeVisible();
+        await page.keyboard.press('Escape');
+
+        await expect(segmentsPage.deleteDialog).toHaveCount(0);
+        await expect(segmentsPage.deleteButton).toBeFocused();
+        expect(api.deleted).toEqual([]);
     });
 });

@@ -1,11 +1,16 @@
+import { useCallback, useMemo } from 'react';
 import {
     keepPreviousData,
     useMutation,
+    useQueries,
     useQuery,
-    useQueryClient
+    useQueryClient,
+    type QueryKey
 } from '@tanstack/react-query';
 import { useHasPermission } from '@orthacms/identity-admin';
-import { markJustCreated } from '@orthacms/utils-admin';
+import { useWorkspaces } from '@orthacms/workspaces-admin';
+import { ApiError, markJustCreated } from '@orthacms/utils-admin';
+import type { WorkspaceUsageItem } from '../domain/usage';
 import {
     httpSegmentsGateway,
     segmentsKeys,
@@ -18,6 +23,12 @@ import {
 export const SEGMENTS_READ = 'segments:read';
 /** Permission to change it. Admin only. */
 export const SEGMENTS_MANAGE = 'segments:manage';
+/**
+ * Permission to read content — which naming the entries an audience governs
+ * is. Every system role holds it; the usage route asks for it beside
+ * `segments:read`.
+ */
+export const CONTENT_READ = 'content:read';
 
 /** The `justCreated` scope of the audience directory's table. */
 export const SEGMENTS_SCOPE = 'segments';
@@ -51,12 +62,24 @@ export function useSegments(params: ListSegmentsParams = {}) {
  * them: the first page is not where their ids necessarily are, and reading a
  * miss as "deleted" would slander an audience that is merely on page three.
  */
-export function useSegmentLookup(ids: readonly string[]) {
+export function useSegmentLookup(
+    ids: readonly string[],
+    options: {
+        /**
+         * Hold the previous answer while a changed id list resolves. For a
+         * caller whose ids grow under the user's hand (the Access tab's "Set"
+         * view), so its rows do not blank on every toggle. Off by default: a
+         * caller showing *another* record's ids must not borrow these.
+         */
+        keepPrevious?: boolean;
+    } = {}
+) {
     const canRead = useHasPermission(SEGMENTS_READ);
     return useQuery({
         queryKey: segmentsKeys.lookup(ids),
         queryFn: () => httpSegmentsGateway.lookupSegments(ids),
-        enabled: canRead && ids.length > 0
+        enabled: canRead && ids.length > 0,
+        placeholderData: options.keepPrevious ? keepPreviousData : undefined
     });
 }
 
@@ -110,14 +133,124 @@ export function useUpdateSegment() {
  * The server also drops it from every entry that named it, in one transaction —
  * so every cached entry answer is stale, and the invalidation has to be the
  * root rather than the list.
+ *
+ * **Except the deleted segment's own reads.** Its page is still mounted while
+ * the delete settles (it navigates away on success), and refetching its detail
+ * and usage there would answer 404 and paint the page's load error for a frame
+ * over an action that worked. They are left to be collected instead.
  */
 export function useDeleteSegment() {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: (id: string) => httpSegmentsGateway.deleteSegment(id),
-        onSuccess: () =>
-            queryClient.invalidateQueries({ queryKey: segmentsKeys.catalogue })
+        onSuccess: (_result, id) =>
+            queryClient.invalidateQueries({
+                queryKey: segmentsKeys.catalogue,
+                predicate: (query) => !isAboutSegment(query.queryKey, id)
+            })
     });
+}
+
+/** Whether a key is one segment's own detail or usage read. */
+function isAboutSegment(key: QueryKey, id: string): boolean {
+    return (
+        key[0] === 'segments' &&
+        (key[1] === 'detail' || key[1] === 'usage') &&
+        key[2] === id
+    );
+}
+
+/** What {@link useSegmentUsage} answers, merged across workspaces. */
+export type SegmentUsageResult = {
+    /** Every listed entry, each with the workspace it was read from. */
+    items: WorkspaceUsageItem[];
+    /** Every entry naming the audience in the workspaces that answered. */
+    total: number;
+    /** Whether some workspace named more entries than it listed. */
+    truncated: boolean;
+    /** Whether the reads are allowed at all (`segments:read` + `content:read`). */
+    enabled: boolean;
+    isPending: boolean;
+    /** A workspace read failed for a reason other than "not yours". */
+    isError: boolean;
+    refetch: () => void;
+};
+
+/**
+ * Where one segment is used — across every workspace the caller can open.
+ *
+ * The usage route is **workspace-scoped** (an entry's title is content, and
+ * content belongs to one workspace), while the audience pages are not inside
+ * any workspace. So this asks each workspace the caller can see, one request
+ * apiece, and merges the answers. An installation has a handful of workspaces;
+ * a route answering for all of them at once would have to re-derive membership
+ * the `WorkspaceGuard` already decides.
+ *
+ * A **403** from one workspace is "not a member", not a failure — that
+ * workspace's entries are simply not the caller's to see, and the delete
+ * dialog counts them as elsewhere. Anything else is an error.
+ */
+export function useSegmentUsage(segmentId?: string): SegmentUsageResult {
+    const canRead = useHasPermission(SEGMENTS_READ);
+    const canReadContent = useHasPermission(CONTENT_READ);
+    const enabled = canRead && canReadContent && Boolean(segmentId);
+    const workspaces = useWorkspaces();
+    const list = useMemo(() => workspaces.data ?? [], [workspaces.data]);
+
+    const results = useQueries({
+        queries: list.map((workspace) => ({
+            queryKey: segmentsKeys.usage(segmentId ?? '', workspace.id),
+            queryFn: () =>
+                httpSegmentsGateway.getSegmentUsage(
+                    segmentId as string,
+                    workspace.id
+                ),
+            enabled,
+            // "Not your workspace" will not change on a retry.
+            retry: (count: number, error: unknown) =>
+                !isForbidden(error) && count < 2
+        }))
+    });
+
+    const refetchAll = workspaces.refetch;
+    const refetch = useCallback(() => {
+        void refetchAll();
+        for (const result of results) void result.refetch();
+    }, [refetchAll, results]);
+
+    const items: WorkspaceUsageItem[] = [];
+    let total = 0;
+    let truncated = false;
+    let isError = enabled && workspaces.isError;
+    let isPending = enabled && workspaces.isPending;
+    results.forEach((result, index) => {
+        const workspace = list[index];
+        if (!workspace) return;
+        if (result.isError) {
+            if (!isForbidden(result.error)) isError = true;
+            return;
+        }
+        if (result.isPending) {
+            isPending = isPending || enabled;
+            return;
+        }
+        total += result.data.total;
+        truncated = truncated || result.data.truncated;
+        for (const item of result.data.items) {
+            items.push({
+                ...item,
+                workspaceId: workspace.id,
+                workspaceName: workspace.name
+            });
+        }
+    });
+
+    return { items, total, truncated, enabled, isPending, isError, refetch };
+}
+
+/** Whether a failed read was the server saying "not yours". */
+function isForbidden(error: unknown): boolean {
+    return error instanceof ApiError && error.status === 403;
 }
 
 /**

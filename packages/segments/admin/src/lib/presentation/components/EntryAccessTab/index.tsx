@@ -1,13 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
-import { Globe, Lock, Search, ShieldCheck } from 'lucide-react';
+import { Search, ShieldCheck } from 'lucide-react';
 import { ChangedBadge, type EntryTabContext } from '@orthacms/content-admin';
 import { useHasPermission } from '@orthacms/identity-admin';
 import { useDebouncedValue } from '@orthacms/utils-admin';
-import { Button, Input, Skeleton, cn } from '@orthacms/design-system';
 import {
-    isOpen,
+    Button,
+    Input,
+    SegmentedControl,
+    SegmentedControlCount,
+    SegmentedControlItem,
+    Skeleton,
+    cn
+} from '@orthacms/design-system';
+import {
     sameAccess,
     stateOf,
     withState,
@@ -15,18 +22,20 @@ import {
     OPEN_ACCESS,
     type EntryAccess,
     type EntryAccessStaging,
+    type Segment,
     type SegmentState
 } from '../../../domain/types';
 import {
     SEGMENTS_MANAGE,
     useEntryAccess,
+    useSegmentLookup,
     useSegments
 } from '../../../application/hooks';
 import { ENTRY_ACCESS_PRESAVE_ID } from '../../../application/useEntryAccessPresave';
 import { SegmentStateControl } from '../SegmentStateControl';
 import { SegmentsPagination } from '../SegmentsPagination';
 import { EntryAccessBulkActions } from '../EntryAccessBulkActions';
-import { AccessSummary } from './AccessSummary';
+import { AccessLine } from './AccessLine';
 
 const messages = defineMessages({
     body: {
@@ -65,31 +74,30 @@ const messages = defineMessages({
         id: 'segments.entryTab.audienceColumn',
         defaultMessage: 'Audience'
     },
-    tagsColumn: { id: 'segments.entryTab.tagsColumn', defaultMessage: 'Tags' },
     accessColumn: {
         id: 'segments.entryTab.accessColumn',
         defaultMessage: 'Access'
-    },
-    defaultOpen: {
-        id: 'segments.entryTab.defaultOpen',
-        defaultMessage:
-            'Audiences left on “Not set” follow the default: everyone can read.'
-    },
-    defaultRestricted: {
-        id: 'segments.entryTab.defaultRestricted',
-        defaultMessage:
-            'Audiences left on “Not set” cannot read it, because an audience is set to “Can see”.'
     },
     pendingEveryLocale: {
         id: 'segments.entryTab.pendingEveryLocale',
         defaultMessage:
             'Access is saved with the entry and applies to every language of the record, not to this translation alone.'
     },
-    howRules: {
-        id: 'segments.entryTab.howRules',
-        defaultMessage: 'How rules combine'
+    filterLabel: {
+        id: 'segments.entryTab.filterLabel',
+        defaultMessage: 'Show audiences'
     },
-    tags: { id: 'segments.entryTab.tags', defaultMessage: 'Tags: {tags}' },
+    filterAll: { id: 'segments.entryTab.filterAll', defaultMessage: 'All' },
+    filterSet: { id: 'segments.entryTab.filterSet', defaultMessage: 'Set' },
+    filterOption: {
+        id: 'segments.entryTab.filterOption',
+        defaultMessage: '{label}, {count}'
+    },
+    noneSet: {
+        id: 'segments.entryTab.noneSet',
+        defaultMessage:
+            'No audience is set on this entry yet, so everyone can read it.'
+    },
     elsewhere: {
         id: 'segments.entryTab.elsewhere',
         defaultMessage:
@@ -99,6 +107,20 @@ const messages = defineMessages({
 
 /** Rows per page before anyone changes it. */
 const DEFAULT_PAGE_SIZE = 10;
+
+/** Which rows the table shows: every audience offered here, or the set ones. */
+const ROWS = { All: 'all', Set: 'set' } as const;
+type Rows = (typeof ROWS)[keyof typeof ROWS];
+
+/** Whether an audience matches the search, as the server's `q` does. */
+function matches(segment: Segment, query: string): boolean {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return true;
+    return (
+        segment.label.toLowerCase().includes(needle) ||
+        segment.key.toLowerCase().includes(needle)
+    );
+}
 
 /**
  * The entry editor's **Access** tab — the whole feature, from an editor's side.
@@ -139,6 +161,11 @@ export function EntryAccessTab({
     const canManage = useHasPermission(SEGMENTS_MANAGE);
 
     const [query, setQuery] = useState('');
+    const [rows, setRows] = useState<Rows>(ROWS.All);
+    // The ids the "Set" view was opened with. A row put back to "Not set"
+    // while the view is on stays in it until the view changes, so it does not
+    // vanish from under the cursor that just changed it.
+    const [pinned, setPinned] = useState<string[]>([]);
     const [rulesOpen, setRulesOpen] = useState(false);
     const debounced = useDebouncedValue(query, 250);
     const [page, setPage] = useState(1);
@@ -146,7 +173,7 @@ export function EntryAccessTab({
     // A narrowed search almost always has fewer pages than the one before it,
     // so staying on page four is how a reader lands on "no matches" for a term
     // that matches plenty.
-    useEffect(() => setPage(1), [debounced, pageSize]);
+    useEffect(() => setPage(1), [debounced, pageSize, rows]);
 
     const segments = useSegments({
         query: debounced || undefined,
@@ -165,13 +192,20 @@ export function EntryAccessTab({
     );
     useEffect(() => {
         if (
+            rows === ROWS.All &&
             segments.data &&
             !segments.isPlaceholderData &&
             page > segmentsPageCount
         ) {
             setPage(segmentsPageCount);
         }
-    }, [segments.data, segments.isPlaceholderData, page, segmentsPageCount]);
+    }, [
+        rows,
+        segments.data,
+        segments.isPlaceholderData,
+        page,
+        segmentsPageCount
+    ]);
 
     const saved = useEntryAccess(workspaceId, entry?.id, entry?.updatedAt);
     const staging = presave[ENTRY_ACCESS_PRESAVE_ID] as
@@ -185,6 +219,19 @@ export function EntryAccessTab({
     const draft = staging?.draft ?? savedAccess;
     const dirty = Boolean(staging?.draft);
 
+    // Every audience the entry decides about, whatever page or search it would
+    // fall on — read by id, because the paginated list cannot promise them.
+    // It is the "Set" view's rows.
+    const setIds = useMemo(
+        () => [...draft.allow, ...draft.deny],
+        [draft.allow, draft.deny]
+    );
+    const setViewIds = useMemo(
+        () => [...new Set([...pinned, ...setIds])],
+        [pinned, setIds]
+    );
+    const decided = useSegmentLookup(setViewIds, { keepPrevious: true });
+
     // The read is disabled without an entry id, so it never resolves on a create
     // — waiting on it there would leave the tab on skeletons forever.
     if (segments.isPending || (entry && saved.isPending)) {
@@ -196,16 +243,34 @@ export function EntryAccessTab({
         );
     }
 
-    const list = segments.data?.items ?? [];
-    const total = segments.data?.total ?? 0;
+    const allRows = segments.data?.items ?? [];
+    const allTotal = segments.data?.total ?? 0;
     const matchedIds = segments.data?.ids ?? [];
-    const pageCount = segmentsPageCount;
     const locked = readOnly || !canManage || !staging;
+
+    // The "Set" view, paged here: the ids it was opened with plus anything set
+    // since, by label, narrowed by the same search the server applies.
+    const setView = (decided.data ?? []).filter(
+        (segment) =>
+            setViewIds.includes(segment.id) && matches(segment, debounced)
+    );
+    const setCount = debounced
+        ? setView.filter((segment) => setIds.includes(segment.id)).length
+        : setIds.length;
+    const showingSet = rows === ROWS.Set;
+    const total = showingSet ? setView.length : allTotal;
+    const pageCount = showingSet
+        ? Math.max(1, Math.ceil(setView.length / pageSize))
+        : segmentsPageCount;
+    const shownPage = Math.min(page, pageCount);
+    const list = showingSet
+        ? setView.slice((shownPage - 1) * pageSize, shownPage * pageSize)
+        : allRows;
 
     // Nothing offered here at all — a different situation from a search that
     // matched nothing, and it needs a different sentence: the first is a setup
     // step, the second is a typo.
-    if (total === 0 && !debounced) {
+    if (allTotal === 0 && !debounced) {
         return (
             <div className="flex flex-col items-start gap-3">
                 <p className="max-w-xl text-sm text-muted-foreground">
@@ -222,7 +287,9 @@ export function EntryAccessTab({
     }
 
     /** Decisions on audiences this list does not cover — kept, and counted. */
-    const listed = new Set(matchedIds);
+    const listed = new Set(
+        showingSet ? setView.map((segment) => segment.id) : matchedIds
+    );
     const elsewhere = [...draft.allow, ...draft.deny].filter(
         (id) => !listed.has(id)
     ).length;
@@ -233,64 +300,76 @@ export function EntryAccessTab({
         staging?.stage(sameAccess(next, savedAccess) ? null : next);
     };
 
-    const restricted = !isOpen(draft);
     const changedRow = (id: string) =>
         stateOf(draft, id) !== stateOf(savedAccess, id);
 
     return (
         <div className="flex flex-col gap-5">
-            {/* What it adds up to, in one sentence, before the table that
-                decides it. */}
-            <section
-                aria-labelledby="entry-access-summary"
-                className="flex items-center gap-3.5 rounded-xl border p-4"
-            >
-                <span
-                    aria-hidden
-                    className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-muted text-muted-foreground"
-                >
-                    {restricted ? (
-                        <Lock className="size-4" />
-                    ) : (
-                        <Globe className="size-4" />
-                    )}
-                </span>
-                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <span id="entry-access-summary">
-                        <AccessSummary access={draft} known={list} />
-                    </span>
-                    <p className="text-[13px] leading-[18px] text-muted-foreground">
-                        {intl.formatMessage(
-                            restricted
-                                ? messages.defaultRestricted
-                                : messages.defaultOpen
-                        )}{' '}
-                        <button
-                            type="button"
-                            aria-expanded={rulesOpen}
-                            aria-controls="entry-access-rules"
-                            onClick={() => setRulesOpen((open) => !open)}
-                            className="rounded-sm text-foreground underline underline-offset-2 hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        >
-                            {intl.formatMessage(messages.howRules)}
-                        </button>
+            {/* What it adds up to, in one line, right over the toolbar —
+                the outcome and the one rule the rows do not say. */}
+            <div className="-mb-2 flex flex-col gap-1">
+                <AccessLine
+                    access={draft}
+                    dirty={dirty}
+                    rulesOpen={rulesOpen}
+                    onToggleRules={() => setRulesOpen((open) => !open)}
+                    rulesId="entry-access-rules"
+                />
+                {rulesOpen ? (
+                    <p
+                        id="entry-access-rules"
+                        className="ml-6 max-w-xl text-[13px] leading-[18px] text-muted-foreground"
+                    >
+                        {intl.formatMessage(messages.body)}
                     </p>
-                    {rulesOpen ? (
-                        <p
-                            id="entry-access-rules"
-                            className="mt-1 max-w-xl text-[13px] leading-[18px] text-muted-foreground"
-                        >
-                            {intl.formatMessage(messages.body)}
-                        </p>
-                    ) : null}
-                </div>
-                {dirty ? <ChangedBadge /> : null}
-            </section>
+                ) : null}
+            </div>
 
             {/* Search across the row, then the two ways to act on many at
                 once: set them all, or go and manage the audiences. */}
-            <div className="flex items-center gap-2">
-                <div className="relative min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+                {/* All or only the decided ones, beside the search that
+                    narrows either. Rows keep their order in both: sorting the
+                    set ones to the top would move them under the cursor. */}
+                <SegmentedControl
+                    value={rows}
+                    onValueChange={(next) => {
+                        // A single toggle group can be cleared; it cannot be
+                        // "no view".
+                        if (next !== ROWS.All && next !== ROWS.Set) return;
+                        setPinned(next === ROWS.Set ? setIds : []);
+                        setRows(next);
+                    }}
+                    aria-label={intl.formatMessage(messages.filterLabel)}
+                >
+                    {[
+                        {
+                            value: ROWS.All,
+                            label: intl.formatMessage(messages.filterAll),
+                            count: allTotal
+                        },
+                        {
+                            value: ROWS.Set,
+                            label: intl.formatMessage(messages.filterSet),
+                            count: setCount
+                        }
+                    ].map((option) => (
+                        <SegmentedControlItem
+                            key={option.value}
+                            value={option.value}
+                            aria-label={intl.formatMessage(
+                                messages.filterOption,
+                                option
+                            )}
+                        >
+                            {option.label}
+                            <SegmentedControlCount aria-hidden>
+                                {option.count}
+                            </SegmentedControlCount>
+                        </SegmentedControlItem>
+                    ))}
+                </SegmentedControl>
+                <div className="relative min-w-48 flex-1">
                     <Search
                         className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
                         aria-hidden
@@ -304,7 +383,7 @@ export function EntryAccessTab({
                         onChange={(event) => setQuery(event.target.value)}
                     />
                 </div>
-                {locked ? null : (
+                {locked || showingSet ? null : (
                     <EntryAccessBulkActions
                         count={total}
                         searching={Boolean(debounced)}
@@ -314,24 +393,31 @@ export function EntryAccessTab({
                         }
                     />
                 )}
+                {/* Icon-only, named and titled: with its words it wrapped
+                    onto a toolbar row of its own. */}
                 <Button
                     variant="ghost"
-                    size="sm"
-                    className="text-muted-foreground"
+                    size="icon"
+                    className="size-8 shrink-0 text-muted-foreground"
                     asChild
                 >
-                    <Link to="/segments">
+                    <Link
+                        to="/segments"
+                        aria-label={intl.formatMessage(messages.manage)}
+                        title={intl.formatMessage(messages.manage)}
+                    >
                         <ShieldCheck aria-hidden />
-                        {intl.formatMessage(messages.manage)}
                     </Link>
                 </Button>
             </div>
 
             {total === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                    {intl.formatMessage(messages.noMatches, {
-                        query: debounced
-                    })}
+                    {showingSet && !debounced
+                        ? intl.formatMessage(messages.noneSet)
+                        : intl.formatMessage(messages.noMatches, {
+                              query: debounced
+                          })}
                 </p>
             ) : (
                 <>
@@ -343,11 +429,16 @@ export function EntryAccessTab({
                         className={cn(
                             'overflow-hidden rounded-xl border',
                             'transition-opacity duration-(--ds-duration-base) motion-reduce:transition-none',
-                            segments.isPlaceholderData && 'opacity-60 delay-150'
+                            !showingSet &&
+                                segments.isPlaceholderData &&
+                                'opacity-60 delay-150'
                         )}
                     >
                         <table
-                            aria-busy={segments.isPlaceholderData || undefined}
+                            aria-busy={
+                                (!showingSet && segments.isPlaceholderData) ||
+                                undefined
+                            }
                             aria-label={intl.formatMessage(messages.table)}
                             className="w-full border-collapse text-sm"
                         >
@@ -356,11 +447,6 @@ export function EntryAccessTab({
                                     <th className="pl-4 font-medium">
                                         {intl.formatMessage(
                                             messages.audienceColumn
-                                        )}
-                                    </th>
-                                    <th className="hidden font-medium sm:table-cell">
-                                        {intl.formatMessage(
-                                            messages.tagsColumn
                                         )}
                                     </th>
                                     <th className="w-0 pr-3 font-medium">
@@ -381,24 +467,24 @@ export function EntryAccessTab({
                                                 changed && 'bg-warning-soft/45'
                                             )}
                                         >
-                                            <td className="pl-4">
+                                            {/* `w-full max-w-0` lets the
+                                                cell give way to the control
+                                                and its tag line truncate. */}
+                                            <td className="w-full max-w-0 py-2 pl-4">
                                                 <span className="flex items-center gap-2 font-medium">
-                                                    {segment.label}
+                                                    <span className="line-clamp-2 min-w-0 break-words">
+                                                        {segment.label}
+                                                    </span>
                                                     {changed ? (
                                                         <ChangedBadge />
                                                     ) : null}
                                                 </span>
-                                            </td>
-                                            <td className="hidden max-w-48 truncate text-[13px] text-muted-foreground sm:table-cell">
-                                                {intl.formatMessage(
-                                                    messages.tags,
-                                                    {
-                                                        tags:
-                                                            segment.tags.join(
-                                                                ', '
-                                                            ) || segment.key
-                                                    }
-                                                )}
+                                                <span
+                                                    className="block truncate font-mono text-[11px] leading-4 text-muted-foreground"
+                                                    title={tagLine(segment)}
+                                                >
+                                                    {tagLine(segment)}
+                                                </span>
                                             </td>
                                             <td className="py-2 pr-3">
                                                 <SegmentStateControl
@@ -427,7 +513,7 @@ export function EntryAccessTab({
                     </div>
 
                     <SegmentsPagination
-                        page={page}
+                        page={shownPage}
                         pageCount={pageCount}
                         pageSize={pageSize}
                         total={total}
@@ -460,4 +546,9 @@ export function EntryAccessTab({
             </p>
         </div>
     );
+}
+
+/** An audience's tags as one line — its key when it has none. */
+function tagLine(segment: Segment): string {
+    return segment.tags.length ? segment.tags.join(', ') : segment.key;
 }

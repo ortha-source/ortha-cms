@@ -21,6 +21,7 @@ import {
 } from '../support/api/content';
 import {
     mockSegmentsApi,
+    MANY_SEGMENT_SEED,
     PAGED_SEGMENT_SEED,
     type SegmentsApiSpy
 } from '../support/api/segments';
@@ -150,8 +151,8 @@ test.describe('Entry editor — Access tab', () => {
         // The same "Changed" pill a field carries — the tab is part of the
         // record, so it says so the same way.
         await expect(segmentsPage.accessChanged).toBeVisible();
-        await expect(segmentsPage.accessSummary.first()).toHaveText(
-            /^Readable only by/
+        await expect(segmentsPage.accessLine).toContainText(
+            /^Only 1 audience can see it/
         );
 
         await contentLibraryPage.editorSave.click();
@@ -337,8 +338,8 @@ test.describe('Entry editor — Access tab', () => {
         await segmentsPage.openBulkMenu();
         await segmentsPage.bulkAction('Clear all').click();
 
-        await expect(segmentsPage.accessSummary.first()).toHaveText(
-            'Readable by everyone'
+        await expect(segmentsPage.accessLine).toContainText(
+            'Public — every reader can see it.'
         );
     });
 
@@ -375,8 +376,8 @@ test.describe('Entry editor — Access tab', () => {
         // Not on screen — it is not offered here, so it cannot be *decided*
         // here…
         await expect(segmentsPage.accessControl('Acme Corp')).toBeVisible();
-        await expect(segmentsPage.accessSummary.first()).toHaveText(
-            /^Readable only by/
+        await expect(segmentsPage.accessLine).toContainText(
+            /^Only 1 audience can see it/
         );
         // …but it is counted, so the editor is not told the entry is governed
         // only by what they can see.
@@ -473,6 +474,104 @@ test.describe('Entry editor — Access tab', () => {
         await expect(segmentsPage.accessControl('Acme Corp')).toBeVisible();
 
         await expectNoA11yViolations(makeAxe());
+    });
+    test.describe('with thirty audiences, thirteen decided', () => {
+        const many = MANY_SEGMENT_SEED.map((segment) => segment.id);
+
+        test.beforeEach(async ({ page }) => {
+            await mockSegmentsApi(page, {
+                segments: MANY_SEGMENT_SEED,
+                access: {
+                    [ENTRY]: {
+                        allow: many.slice(0, 8),
+                        deny: many.slice(8, 13)
+                    }
+                }
+            });
+        });
+
+        test('counts rather than names, in one line over the toolbar', async ({
+            contentLibraryPage,
+            segmentsPage
+        }) => {
+            await openAccessTab(contentLibraryPage);
+
+            await expect(segmentsPage.accessLine).toContainText(
+                'Only 8 audiences can see it — “Not set” counts as “Cannot see”.'
+            );
+            await expect(segmentsPage.accessLine).not.toContainText(
+                'Audience 01'
+            );
+        });
+
+        test('shows the decided ones under "Set", without moving rows', async ({
+            contentLibraryPage,
+            segmentsPage
+        }) => {
+            await openAccessTab(contentLibraryPage);
+            await expect(
+                segmentsPage.accessRowsOption('All')
+            ).toHaveAccessibleName('All, 30');
+            await expect(
+                segmentsPage.accessRowsOption('Set')
+            ).toHaveAccessibleName('Set, 13');
+
+            await segmentsPage.accessRowsOption('Set').click();
+            await expect(
+                segmentsPage.accessControl('Audience 01')
+            ).toBeVisible();
+            await expect(segmentsPage.accessControl('Audience 14')).toHaveCount(
+                0
+            );
+            await expect(segmentsPage.pageReadout).toHaveText('Page 1 of 2');
+
+            // Put back to "Not set" while the view is on, the row stays put…
+            await segmentsPage.setAccess('Audience 02', 'Not set');
+            await expect(
+                segmentsPage.accessControl('Audience 02')
+            ).toBeVisible();
+            await expect(
+                segmentsPage.accessRowsOption('Set')
+            ).toHaveAccessibleName('Set, 12');
+
+            // …until the view changes.
+            await segmentsPage.accessRowsOption('All').click();
+            await segmentsPage.accessRowsOption('Set').click();
+            await expect(segmentsPage.accessControl('Audience 02')).toHaveCount(
+                0
+            );
+        });
+
+        test('puts the tags under the name, not in a column', async ({
+            page,
+            contentLibraryPage,
+            segmentsPage
+        }) => {
+            await openAccessTab(contentLibraryPage);
+
+            await expect(
+                page.getByRole('columnheader', { name: 'Tags' })
+            ).toHaveCount(0);
+            await expect(
+                segmentsPage
+                    .accessRow('Audience 01')
+                    .getByTitle('audience-01, tag-01')
+            ).toBeVisible();
+        });
+
+        test('has no axe violations with the Set view on', async ({
+            contentLibraryPage,
+            segmentsPage,
+            makeAxe
+        }) => {
+            await openAccessTab(contentLibraryPage);
+            await segmentsPage.accessRowsOption('Set').click();
+            await expect(
+                segmentsPage.accessControl('Audience 01')
+            ).toBeVisible();
+
+            await expectNoA11yViolations(makeAxe());
+        });
     });
 });
 

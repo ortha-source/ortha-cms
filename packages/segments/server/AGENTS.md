@@ -17,6 +17,7 @@ src/lib/
     segment-catalog.service.ts  every segment, cached, read synchronously
     reader.store.ts             who is reading, for one request
     segments.service.ts         the directory CRUD
+    segment-usage.service.ts    where one audience is used, in one workspace
     entry-access.service.ts     one entry's two lists — the whole write path
   tools/
     segments-tool.provider.ts   the MCP/copilot tools — list, read, and (MCP) set
@@ -31,6 +32,7 @@ src/lib/
   http/
     reader.middleware.ts        resolves the reader once per request
     segments.controller.ts      /api/segments
+    segment-usage.controller.ts /api/segments/:id/usage
     entry-access.controller.ts  /api/segments/entries/:id
     public-entry-access.controller.ts  /api/v1/content/:type/:id/access
 ```
@@ -42,6 +44,7 @@ src/lib/
 | `/segments`                        | installation | `segments:read` / `segments:manage` |
 | `/segments/lookup`                 | installation | `segments:read`                     |
 | `/segments/:id`                    | installation | `segments:read`                     |
+| `/segments/:id/usage`              | workspace    | `segments:read` + `content:read`    |
 | `/segments/entries/:entryId`       | workspace    | `segments:read` / `segments:manage` |
 | `/v1/content/:typeName/:id/access` | token bucket | `segments:read` / `segments:manage` |
 
@@ -242,6 +245,21 @@ those would print a uuid, or claim an audience was deleted when it is merely on
 page three. Unknown ids are skipped rather than refused: a segment a revision
 captured really can have been deleted since, and that is a state the caller
 renders. It is declared **before** `:id` so the literal segment wins the match.
+
+**`GET /segments/:id/usage` is workspace-scoped, though the directory is not.**
+It answers the entries naming one audience — title, type, locale, trash state
+and whether each **allows** or **refuses** it — for the audience page's "Where
+it's used" and its delete confirmation. An entry's title is content, and content
+belongs to one workspace, so the route sits behind `WorkspaceGuard` (membership
+of the `X-Workspace-Id` it names) and asks for `content:read` beside
+`segments:read`; the service reads `entry_access` **and** the entry rows by that
+workspace, so a foreign entry id on an access row can never surface a title. The
+admin asks each workspace the caller can open in turn. A row naming the audience
+on both sides reads as `deny`, as `canRead` does. Orphaned access rows (a
+hard-deleted entry — deletes are not hooked) are neither listed nor counted;
+an entry of a type no longer registered is listed with a `null` title.
+`items` stops at `SEGMENT_USAGE_LIMIT` (100); `total` is exact. The directory's
+`usageCount` stays the installation-wide figure it always was.
 
 **Filtering the records list by access is five virtual fields, not a relation.**
 Two pairs of enums over the workspace's audiences and a boolean, contributed

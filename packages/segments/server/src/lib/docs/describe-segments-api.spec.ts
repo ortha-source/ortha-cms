@@ -22,6 +22,7 @@ function scannedDocument(): OpenApiDocument {
                 patch: ok(),
                 delete: { responses: { '204': { description: '' } } }
             },
+            '/api/segments/{id}/usage': { get: ok() },
             '/api/segments/entries/{entryId}': { get: ok(), put: ok() },
             '/api/v1/content/{typeName}/{id}/access': { get: ok(), put: ok() },
             // Neither of these belongs to this plugin. They are here so a
@@ -177,6 +178,35 @@ describe('describeSegmentsApi', () => {
         expect(
             successRef(document, '/api/content/{typeName}/{id}', 'get')
         ).toBeUndefined();
+    });
+
+    it('describes where a segment is used, as its own workspace-scoped shape', () => {
+        const document = scannedDocument();
+        describeSegmentsApi(document);
+
+        expect(successRef(document, '/api/segments/{id}/usage', 'get')).toBe(
+            '#/components/schemas/SegmentUsage'
+        );
+        const usage = document.components?.schemas?.['SegmentUsage'] as {
+            description: string;
+            required: string[];
+            properties: {
+                items: {
+                    items: { properties: { state: { enum: string[] } } };
+                };
+            };
+        };
+        expect(usage.description).toMatch(/workspace/i);
+        expect(usage.required).toEqual([
+            'segmentId',
+            'total',
+            'items',
+            'truncated'
+        ]);
+        expect(usage.properties.items.items.properties.state.enum).toEqual([
+            'allow',
+            'deny'
+        ]);
     });
 
     it('says an empty allow list means everyone, where a reader will look', () => {
