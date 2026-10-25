@@ -393,15 +393,20 @@ export function EntryAccessTab({
                         }
                     />
                 )}
+                {/* Icon-only, named and titled: with its words it wrapped
+                    onto a toolbar row of its own. */}
                 <Button
                     variant="ghost"
-                    size="sm"
-                    className="text-muted-foreground"
+                    size="icon"
+                    className="size-8 shrink-0 text-muted-foreground"
                     asChild
                 >
-                    <Link to="/segments">
+                    <Link
+                        to="/segments"
+                        aria-label={intl.formatMessage(messages.manage)}
+                        title={intl.formatMessage(messages.manage)}
+                    >
                         <ShieldCheck aria-hidden />
-                        {intl.formatMessage(messages.manage)}
                     </Link>
                 </Button>
             </div>
