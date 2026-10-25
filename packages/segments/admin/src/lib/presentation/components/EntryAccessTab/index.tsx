@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
-import { Globe, Lock, Search, ShieldCheck } from 'lucide-react';
+import { Search, ShieldCheck } from 'lucide-react';
 import { ChangedBadge, type EntryTabContext } from '@orthacms/content-admin';
 import { useHasPermission } from '@orthacms/identity-admin';
 import { useDebouncedValue } from '@orthacms/utils-admin';
@@ -15,7 +15,6 @@ import {
     cn
 } from '@orthacms/design-system';
 import {
-    isOpen,
     sameAccess,
     stateOf,
     withState,
@@ -36,7 +35,7 @@ import { ENTRY_ACCESS_PRESAVE_ID } from '../../../application/useEntryAccessPres
 import { SegmentStateControl } from '../SegmentStateControl';
 import { SegmentsPagination } from '../SegmentsPagination';
 import { EntryAccessBulkActions } from '../EntryAccessBulkActions';
-import { AccessSummary } from './AccessSummary';
+import { AccessLine } from './AccessLine';
 
 const messages = defineMessages({
     body: {
@@ -79,24 +78,10 @@ const messages = defineMessages({
         id: 'segments.entryTab.accessColumn',
         defaultMessage: 'Access'
     },
-    defaultOpen: {
-        id: 'segments.entryTab.defaultOpen',
-        defaultMessage:
-            'Audiences left on “Not set” follow the default: everyone can read.'
-    },
-    defaultRestricted: {
-        id: 'segments.entryTab.defaultRestricted',
-        defaultMessage:
-            'Audiences left on “Not set” cannot read it, because an audience is set to “Can see”.'
-    },
     pendingEveryLocale: {
         id: 'segments.entryTab.pendingEveryLocale',
         defaultMessage:
             'Access is saved with the entry and applies to every language of the record, not to this translation alone.'
-    },
-    howRules: {
-        id: 'segments.entryTab.howRules',
-        defaultMessage: 'How rules combine'
     },
     filterLabel: {
         id: 'segments.entryTab.filterLabel',
@@ -236,7 +221,7 @@ export function EntryAccessTab({
 
     // Every audience the entry decides about, whatever page or search it would
     // fall on — read by id, because the paginated list cannot promise them.
-    // It names the summary's audiences and is the "Set" view's rows.
+    // It is the "Set" view's rows.
     const setIds = useMemo(
         () => [...draft.allow, ...draft.deny],
         [draft.allow, draft.deny]
@@ -281,8 +266,6 @@ export function EntryAccessTab({
     const list = showingSet
         ? setView.slice((shownPage - 1) * pageSize, shownPage * pageSize)
         : allRows;
-    // Everything the tab can name: this page, and every decided audience.
-    const known = [...allRows, ...(decided.data ?? [])];
 
     // Nothing offered here at all — a different situation from a search that
     // matched nothing, and it needs a different sentence: the first is a setup
@@ -317,61 +300,30 @@ export function EntryAccessTab({
         staging?.stage(sameAccess(next, savedAccess) ? null : next);
     };
 
-    const restricted = !isOpen(draft);
     const changedRow = (id: string) =>
         stateOf(draft, id) !== stateOf(savedAccess, id);
 
     return (
         <div className="flex flex-col gap-5">
-            {/* What it adds up to, in one sentence, before the table that
-                decides it. */}
-            <section
-                aria-labelledby="entry-access-summary"
-                className="flex items-center gap-3.5 rounded-xl border p-4"
-            >
-                <span
-                    aria-hidden
-                    className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-muted text-muted-foreground"
-                >
-                    {restricted ? (
-                        <Lock className="size-4" />
-                    ) : (
-                        <Globe className="size-4" />
-                    )}
-                </span>
-                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <AccessSummary
-                        access={draft}
-                        known={known}
-                        headingId="entry-access-summary"
-                    />
-                    <p className="text-[13px] leading-[18px] text-muted-foreground">
-                        {intl.formatMessage(
-                            restricted
-                                ? messages.defaultRestricted
-                                : messages.defaultOpen
-                        )}{' '}
-                        <button
-                            type="button"
-                            aria-expanded={rulesOpen}
-                            aria-controls="entry-access-rules"
-                            onClick={() => setRulesOpen((open) => !open)}
-                            className="rounded-sm text-foreground underline underline-offset-2 hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        >
-                            {intl.formatMessage(messages.howRules)}
-                        </button>
+            {/* What it adds up to, in one line, right over the toolbar —
+                the outcome and the one rule the rows do not say. */}
+            <div className="-mb-2 flex flex-col gap-1">
+                <AccessLine
+                    access={draft}
+                    dirty={dirty}
+                    rulesOpen={rulesOpen}
+                    onToggleRules={() => setRulesOpen((open) => !open)}
+                    rulesId="entry-access-rules"
+                />
+                {rulesOpen ? (
+                    <p
+                        id="entry-access-rules"
+                        className="ml-6 max-w-xl text-[13px] leading-[18px] text-muted-foreground"
+                    >
+                        {intl.formatMessage(messages.body)}
                     </p>
-                    {rulesOpen ? (
-                        <p
-                            id="entry-access-rules"
-                            className="mt-1 max-w-xl text-[13px] leading-[18px] text-muted-foreground"
-                        >
-                            {intl.formatMessage(messages.body)}
-                        </p>
-                    ) : null}
-                </div>
-                {dirty ? <ChangedBadge /> : null}
-            </section>
+                ) : null}
+            </div>
 
             {/* Search across the row, then the two ways to act on many at
                 once: set them all, or go and manage the audiences. */}

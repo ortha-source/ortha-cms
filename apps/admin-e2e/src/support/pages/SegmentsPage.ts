@@ -246,17 +246,15 @@ export class SegmentsPage extends BasePage {
         return this.page.getByRole('menuitem', { name: label, exact: true });
     }
 
-    /** The tab's summary sentence — who can read the entry. */
-    get accessSummary(): Locator {
-        return this.page.getByTestId('access-summary');
+    /** The tab's one-line outcome over the toolbar. */
+    get accessLine(): Locator {
+        return this.page.getByTestId('access-line');
     }
 
-    /** The "Changed" pill the tab shows once something is staged. */
+    /** The "Changed" pill the line shows once something is staged. */
     get accessChanged(): Locator {
-        // The summary card's pill — each staged row carries one too.
-        return this.page
-            .getByRole('region', { name: /^Readable/ })
-            .getByText('Changed', { exact: true });
+        // The line's pill — each staged row carries one too.
+        return this.accessLine.getByText('Changed', { exact: true });
     }
 
     /** The Access tab's "All / Set" switch — one of its two options. */
@@ -264,16 +262,6 @@ export class SegmentsPage extends BasePage {
         return this.page
             .getByRole('radiogroup', { name: 'Show audiences' })
             .getByRole('radio', { name: new RegExp(`^${view}, \\d+$`) });
-    }
-
-    /** The summary's "and N more" disclosures (one per side, one region). */
-    get summaryMore(): Locator {
-        return this.page.getByRole('button', { name: /^and \d+ more$/ });
-    }
-
-    /** The full lists the disclosure opens under the summary. */
-    get summaryFull(): Locator {
-        return this.page.getByTestId('access-summary-full');
     }
 
     /** One row of the Access tab's table, by audience name. */

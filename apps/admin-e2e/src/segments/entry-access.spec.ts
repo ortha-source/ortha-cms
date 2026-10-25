@@ -151,8 +151,8 @@ test.describe('Entry editor — Access tab', () => {
         // The same "Changed" pill a field carries — the tab is part of the
         // record, so it says so the same way.
         await expect(segmentsPage.accessChanged).toBeVisible();
-        await expect(segmentsPage.accessSummary.first()).toHaveText(
-            /^Readable only by/
+        await expect(segmentsPage.accessLine).toContainText(
+            /^Only 1 audience can see it/
         );
 
         await contentLibraryPage.editorSave.click();
@@ -338,8 +338,8 @@ test.describe('Entry editor — Access tab', () => {
         await segmentsPage.openBulkMenu();
         await segmentsPage.bulkAction('Clear all').click();
 
-        await expect(segmentsPage.accessSummary.first()).toHaveText(
-            'Readable by everyone'
+        await expect(segmentsPage.accessLine).toContainText(
+            'Public — every reader can see it.'
         );
     });
 
@@ -376,8 +376,8 @@ test.describe('Entry editor — Access tab', () => {
         // Not on screen — it is not offered here, so it cannot be *decided*
         // here…
         await expect(segmentsPage.accessControl('Acme Corp')).toBeVisible();
-        await expect(segmentsPage.accessSummary.first()).toHaveText(
-            /^Readable only by/
+        await expect(segmentsPage.accessLine).toContainText(
+            /^Only 1 audience can see it/
         );
         // …but it is counted, so the editor is not told the entry is governed
         // only by what they can see.
@@ -490,25 +490,17 @@ test.describe('Entry editor — Access tab', () => {
             });
         });
 
-        test('names three per side in the summary, and opens the rest', async ({
+        test('counts rather than names, in one line over the toolbar', async ({
             contentLibraryPage,
             segmentsPage
         }) => {
             await openAccessTab(contentLibraryPage);
 
-            await expect(segmentsPage.accessSummary).toHaveText(
-                'Readable only by Audience 01, Audience 02, Audience 03 and 5 more — never by Audience 09, Audience 10, Audience 11 and 2 more'
+            await expect(segmentsPage.accessLine).toContainText(
+                'Only 8 audiences can see it — “Not set” counts as “Cannot see”.'
             );
-            await segmentsPage.summaryMore.first().click();
-            await expect(segmentsPage.summaryMore.first()).toHaveAttribute(
-                'aria-expanded',
-                'true'
-            );
-            await expect(segmentsPage.summaryFull).toContainText(
-                'Can see: Audience 01, Audience 02'
-            );
-            await expect(segmentsPage.summaryFull).toContainText(
-                'and Audience 13'
+            await expect(segmentsPage.accessLine).not.toContainText(
+                'Audience 01'
             );
         });
 
@@ -567,15 +559,16 @@ test.describe('Entry editor — Access tab', () => {
             ).toBeVisible();
         });
 
-        test('has no axe violations with the Set view and the full lists open', async ({
+        test('has no axe violations with the Set view on', async ({
             contentLibraryPage,
             segmentsPage,
             makeAxe
         }) => {
             await openAccessTab(contentLibraryPage);
             await segmentsPage.accessRowsOption('Set').click();
-            await segmentsPage.summaryMore.first().click();
-            await expect(segmentsPage.summaryFull).toBeVisible();
+            await expect(
+                segmentsPage.accessControl('Audience 01')
+            ).toBeVisible();
 
             await expectNoA11yViolations(makeAxe());
         });

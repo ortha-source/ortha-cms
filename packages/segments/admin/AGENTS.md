@@ -162,18 +162,18 @@ to rewrite the article and not to publish it to a new audience.
 inert server-side, so a badge claiming anything about access would be a claim
 about a system that is not running.
 
-**The Access tab leads with one sentence** (`EntryAccessTab/AccessSummary`):
-who can read the record — "Readable by everyone except Trial users" — in a
-summary card (globe/lock tile, a "Changed" pill while something is staged)
-before the table that decides it. **Each side names at most three audiences**
-(alphabetically) and counts the rest — "Readable only by A, B, C and 5 more —
-never by D and 4 more" — because thirty names made the lead a paragraph. "and N
-more" is a disclosure (`aria-expanded`, one region for both sides) opening the
-full "Can see: …" / "Cannot see: …" lists under the sentence. Names come from
-the page **and** a by-id lookup of every decided audience (`useSegmentLookup`),
-so a decision on page three is named, not counted; an id nobody can name is
-counted, never dropped. How the rules combine sits behind a second disclosure
-(ADR-0022's _Secondary views_).
+**The Access tab leads with one line** (`EntryAccessTab/AccessLine`), right
+over the toolbar, with no card around it: a globe or lock, the outcome and the
+one rule the rows do not say — "Public — every reader can see it.",
+"Everyone except 5 audiences can see it.", or "Only 8 audiences can see it —
+“Not set” counts as “Cannot see”." (with "Cannot see" rows beside an allow list
+needing no words: they are already outside). **Counts, not names**: the rows
+name every audience, and a sentence of names grew into a paragraph once an entry
+decided about thirty. It reflects the **staged** state and carries the
+"Changed" pill while something is staged; "How rules combine" is a disclosure
+after it (ADR-0022's _Secondary views_). It is not a live region — the old
+summary was not one either, and the row a change is made in announces its own
+state.
 
 **The Access tab's toolbar: an "All N · Set N" switch, the search, then "Set
 all…" and "Manage segments".** **Set** shows only the decided audiences, read by
