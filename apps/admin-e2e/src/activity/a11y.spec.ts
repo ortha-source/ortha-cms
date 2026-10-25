@@ -16,7 +16,7 @@ import { expectNoA11yViolations } from '../support/a11y';
  *
  * Open, because a closed dialog scans nothing: Radix renders no portal at all
  * until it is, so a scan of the page with the trigger sitting there says
- * precisely nothing about the table, the row buttons or the dialog's own name.
+ * precisely nothing about the list, the row buttons or the dialog's own name.
  *
  * Both themes, because the dark palette is a second, independently authored set
  * of colour tokens and a light scan is not a statement about it.
@@ -57,7 +57,7 @@ test.describe('Activity dead letters accessibility (axe, WCAG 2.1 A/AA)', () => 
     test('the dialog, open', async ({ activityLogPage, makeAxe }) => {
         await activityLogPage.goto();
         await activityLogPage.deadLettersTrigger().click();
-        await expect(activityLogPage.deadLettersTable()).toBeVisible();
+        await expect(activityLogPage.deadLettersList()).toBeVisible();
         await expectNoA11yViolations(makeAxe());
     });
 
@@ -70,7 +70,7 @@ test.describe('Activity dead letters accessibility (axe, WCAG 2.1 A/AA)', () => 
         await activityLogPage.goto();
         await expectDarkTheme(page);
         await activityLogPage.deadLettersTrigger().click();
-        await expect(activityLogPage.deadLettersTable()).toBeVisible();
+        await expect(activityLogPage.deadLettersList()).toBeVisible();
         await expectNoA11yViolations(makeAxe());
     });
 
@@ -106,7 +106,7 @@ test.describe('Activity dead letters accessibility (axe, WCAG 2.1 A/AA)', () => 
     }) => {
         await activityLogPage.goto();
         await activityLogPage.deadLettersTrigger().click();
-        await expect(activityLogPage.deadLettersTable()).toBeVisible();
+        await expect(activityLogPage.deadLettersList()).toBeVisible();
 
         // axe cannot make this check: three buttons all named "Retry" pass
         // every naming rule it has and are still useless to anyone listening
@@ -114,29 +114,57 @@ test.describe('Activity dead letters accessibility (axe, WCAG 2.1 A/AA)', () => 
         const names = await activityLogPage.deadLetterRetryLabels();
         expect(names).toHaveLength(3);
         expect(new Set(names).size).toBe(3);
-        expect(names.some((name) => name.includes('entry.published'))).toBe(
-            true
-        );
+        // Named the way the log labels the action, not by a wire token.
+        expect(
+            names.some((name) =>
+                name.startsWith('Retry Published content from ')
+            )
+        ).toBe(true);
     });
 
-    test('the table is named and its columns are real header cells', async ({
+    test('the list is named and each parked event is one item', async ({
         activityLogPage
     }) => {
         await activityLogPage.goto();
         await activityLogPage.deadLettersTrigger().click();
-        await expect(activityLogPage.deadLettersTable()).toBeVisible();
+        await expect(activityLogPage.deadLettersList()).toBeVisible();
 
-        // An `sr-only` <caption> says what the table lists; the header cells are
-        // `<th scope="col">`, not styled `<td>`s.
-        await expect(activityLogPage.deadLettersCaption()).toHaveText(
-            'Events that could not be recorded'
+        // The list says what it lists, and holds one item per parked event.
+        await expect(
+            activityLogPage.deadLettersList().getByRole('listitem')
+        ).toHaveCount(DEAD_LETTERS.length);
+        // The dialog is named by its count, like the banner that opened it.
+        await expect(activityLogPage.deadLettersDialog()).toHaveAccessibleName(
+            `${DEAD_LETTERS.length} actions were not recorded`
         );
-        const scopes = await activityLogPage.deadLettersHeaderScopes();
-        expect(scopes).not.toHaveLength(0);
-        expect(scopes.every((scope) => scope === 'col')).toBe(true);
 
-        // Nothing here is sortable, so nothing claims to be (`aria-sort` on a
-        // column with no sort control is a lie AT will repeat).
+        // Nothing here is sortable, so nothing claims to be.
         await expect(activityLogPage.sortedCells()).toHaveCount(0);
+    });
+
+    test('a queued row and Retry all stay accessible (axe)', async ({
+        activityLogPage,
+        makeAxe,
+        page
+    }) => {
+        await activityLogPage.goto();
+        await activityLogPage.deadLettersTrigger().click();
+        await expect(activityLogPage.deadLettersList()).toBeVisible();
+        await page.route('**/api/activity/dead-letters/*/retry', (route) =>
+            route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    ...DEAD_LETTERS[1],
+                    attempts: 0,
+                    nextAttemptAt: null
+                })
+            })
+        );
+        await activityLogPage.deadLetterRetry('Invited member').click();
+        await expect(
+            activityLogPage.deadLetterQueued('Invited member')
+        ).toBeVisible();
+        await expectNoA11yViolations(makeAxe());
     });
 });

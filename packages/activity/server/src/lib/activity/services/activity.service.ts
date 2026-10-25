@@ -8,7 +8,8 @@ import {
     gte,
     ilike,
     inArray,
-    lte
+    lte,
+    or
 } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@orthacms/database';
 import { applyFilterTree, parseFilterTree } from '@orthacms/utils-server';
@@ -19,12 +20,40 @@ import type {
 } from '@orthacms/identity-server';
 import { activityEvents } from '../../schema';
 import { ACTIVITY_FILTER_SCHEMA } from '../activity-filter';
-import { DEFAULT_PAGE_SIZE, type SortableField } from '../activity.constants';
+import {
+    DEFAULT_PAGE_SIZE,
+    EXPORT_MAX_ROWS,
+    type SortableField
+} from '../activity.constants';
 import type { ListActivityQueryDto } from '../dto/list-activity-query.dto';
 import type {
     ActivityEventView,
     ActivityListView
 } from '../types/activity-view';
+
+/**
+ * The columns every read selects — the row minus `created_at`, which never
+ * reaches the wire (`activity:I-20`). One object, so the page and the export
+ * cannot disagree about what a row is.
+ */
+const VIEW_COLUMNS = {
+    id: activityEvents.id,
+    kind: activityEvents.kind,
+    subjectType: activityEvents.subjectType,
+    subjectId: activityEvents.subjectId,
+    subjectLabel: activityEvents.subjectLabel,
+    actorId: activityEvents.actorId,
+    actorType: activityEvents.actorType,
+    actorEmail: activityEvents.actorEmail,
+    workspaceId: activityEvents.workspaceId,
+    meta: activityEvents.meta,
+    at: activityEvents.at
+} as const;
+
+/** Escapes LIKE's metacharacters, so a needle matches literally (`I-19`). */
+function likeEscape(needle: string): string {
+    return needle.replace(/[\\%_]/g, '\\$&');
+}
 
 /** The sortable wire fields mapped to their `activity_events` columns. */
 const SORT_COLUMNS = {
@@ -91,18 +120,7 @@ export class ActivityService implements ActivityRecorder {
                 .from(activityEvents)
                 .where(where),
             this.db
-                .select({
-                    id: activityEvents.id,
-                    kind: activityEvents.kind,
-                    subjectType: activityEvents.subjectType,
-                    subjectId: activityEvents.subjectId,
-                    actorId: activityEvents.actorId,
-                    actorType: activityEvents.actorType,
-                    actorEmail: activityEvents.actorEmail,
-                    workspaceId: activityEvents.workspaceId,
-                    meta: activityEvents.meta,
-                    at: activityEvents.at
-                })
+                .select(VIEW_COLUMNS)
                 .from(activityEvents)
                 .where(where)
                 .orderBy(direction(sortColumn), desc(activityEvents.id))
@@ -111,16 +129,43 @@ export class ActivityService implements ActivityRecorder {
         ]);
 
         return {
-            items: rows.map(
-                (row): ActivityEventView => ({
-                    ...row,
-                    meta: (row.meta as Record<string, unknown> | null) ?? null
-                })
-            ),
+            items: rows.map(toView),
             total,
             page,
             pageSize
         };
+    }
+
+    /**
+     * Every event matching the filters, for the CSV export — the same `where`
+     * and the same order as {@link list}, without the paging, capped at
+     * `limit` rows (newest first under the default sort, so a capped export
+     * keeps the most recent).
+     *
+     * `total` is the uncapped count, so the caller can say when the file is
+     * not the whole answer rather than let a truncated audit export pass for a
+     * complete one.
+     */
+    async exportRows(
+        query: ListActivityQueryDto,
+        limit: number = EXPORT_MAX_ROWS
+    ): Promise<{ rows: ActivityEventView[]; total: number }> {
+        const where = await this.listWhere(query);
+        const sortColumn = SORT_COLUMNS[query.sort ?? 'at'];
+        const direction = query.order === 'asc' ? asc : desc;
+        const [[{ total }], rows] = await Promise.all([
+            this.db
+                .select({ total: count() })
+                .from(activityEvents)
+                .where(where),
+            this.db
+                .select(VIEW_COLUMNS)
+                .from(activityEvents)
+                .where(where)
+                .orderBy(direction(sortColumn), desc(activityEvents.id))
+                .limit(limit)
+        ]);
+        return { rows: rows.map(toView), total };
     }
 
     /**
@@ -167,6 +212,7 @@ export class ActivityService implements ActivityRecorder {
                 ? inArray(activityEvents.kind, query.kind)
                 : undefined,
             this.actorEmailPredicate(query.actorEmail),
+            this.searchPredicate(query.q),
             query.from
                 ? gte(activityEvents.at, new Date(query.from))
                 : undefined,
@@ -184,7 +230,48 @@ export class ActivityService implements ActivityRecorder {
         if (!needle) {
             return undefined;
         }
-        const escaped = needle.replace(/[\\%_]/g, '\\$&');
-        return ilike(activityEvents.actorEmail, `%${escaped}%`);
+        return ilike(activityEvents.actorEmail, `%${likeEscape(needle)}%`);
     }
+
+    /**
+     * The free-text `?q=` clause, or `undefined` for no search: one
+     * case-insensitive substring match OR-ed across the readable, frozen
+     * columns — actor email, subject label, subject id, subject type and kind.
+     * Escaped like the actor search (`activity:I-19`).
+     *
+     * The kind is matched a second time with the needle's whitespace read as
+     * `_`, because a reader types "role changed" or "signed in" and the column
+     * holds `user.role_changed` / `user.signed_in`. `meta` is deliberately not
+     * a column here (`activity:I-16`); what a reader calls a record is in
+     * `subject_label`.
+     */
+    private searchPredicate(search: string | undefined) {
+        const needle = search?.trim();
+        if (!needle) {
+            return undefined;
+        }
+        const pattern = `%${likeEscape(needle)}%`;
+        const kindNeedle = needle.replace(/\s+/g, '_');
+        return or(
+            ilike(activityEvents.actorEmail, pattern),
+            ilike(activityEvents.subjectLabel, pattern),
+            ilike(activityEvents.subjectId, pattern),
+            ilike(activityEvents.subjectType, pattern),
+            ilike(activityEvents.kind, pattern),
+            kindNeedle === needle
+                ? undefined
+                : // The underscore here is literal: escaped like any other.
+                  ilike(activityEvents.kind, `%${likeEscape(kindNeedle)}%`)
+        );
+    }
+}
+
+/** A selected row as the wire view: `meta` narrowed from Drizzle's `unknown`. */
+function toView(row: {
+    [K in keyof typeof VIEW_COLUMNS]: unknown;
+}): ActivityEventView {
+    return {
+        ...(row as Omit<ActivityEventView, 'meta'>),
+        meta: (row.meta as Record<string, unknown> | null) ?? null
+    };
 }

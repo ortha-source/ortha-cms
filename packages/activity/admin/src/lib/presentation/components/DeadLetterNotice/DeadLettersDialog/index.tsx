@@ -1,9 +1,9 @@
-import { type RefObject } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { RefreshCw } from 'lucide-react';
+import { Check, RefreshCw } from 'lucide-react';
 import {
     Alert,
     AlertDescription,
+    Badge,
     Button,
     Dialog,
     DialogContent,
@@ -11,56 +11,35 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-    Spinner,
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow
+    Spinner
 } from '@orthacms/design-system';
 import { activityDateTime } from '../../../activityDateTime';
+import { formatActivityAction } from '../../../activityMessages';
+import { auditKindOf } from '../../../deadLetterKind';
 import type { DeadLetter } from '../../../../types/deadLetter';
 
 /** Intl descriptors for {@link DeadLettersDialog}, co-located with the component. */
 const messages = defineMessages({
     dialogTitle: {
         id: 'activity.deadLetters.dialogTitle',
-        defaultMessage: 'Events that were not recorded'
+        defaultMessage:
+            '{count, plural, =0 {Every action is recorded} one {# action was not recorded} other {# actions were not recorded}}'
     },
     dialogDescription: {
         id: 'activity.deadLetters.dialogDescription',
-        // "queued", never "recorded": the retry resets the attempt count, and
-        // whether the event is finally delivered is the dispatcher's business
-        // seconds later. Saying retrying is safe is a statement about
-        // `activity:I-03` — the audit insert is `ON CONFLICT DO NOTHING`, so a
-        // repeat is ignored — and it is why there is no confirmation step.
+        // "Retrying is safe" is a statement about `activity:I-03` — the audit
+        // insert is `ON CONFLICT DO NOTHING`, so a repeat is ignored — and it
+        // is why there is no confirmation step.
         defaultMessage:
-            'Each of these gave up after repeated delivery failures, so what happened is missing from the log. Fix the cause, then queue one to be tried again. Retrying is safe: a delivery that did go through is ignored.'
+            'The log is incomplete until they are recorded. Retrying is safe — nothing is done twice.'
     },
-    tableCaption: {
-        id: 'activity.deadLetters.tableCaption',
+    listLabel: {
+        id: 'activity.deadLetters.listLabel',
         defaultMessage: 'Events that could not be recorded'
     },
-    columnEvent: {
-        id: 'activity.deadLetters.columnEvent',
-        defaultMessage: 'Event'
-    },
-    columnWhen: {
-        id: 'activity.deadLetters.columnWhen',
-        defaultMessage: 'When'
-    },
-    columnAttempts: {
-        id: 'activity.deadLetters.columnAttempts',
-        defaultMessage: 'Attempts'
-    },
-    columnError: {
-        id: 'activity.deadLetters.columnError',
-        defaultMessage: 'Last error'
-    },
-    columnActions: {
-        id: 'activity.deadLetters.columnActions',
-        defaultMessage: 'Actions'
+    attempts: {
+        id: 'activity.deadLetters.attempts',
+        defaultMessage: '{count, plural, one {# attempt} other {# attempts}}'
     },
     retry: {
         id: 'activity.deadLetters.retry',
@@ -73,6 +52,19 @@ const messages = defineMessages({
     retrying: {
         id: 'activity.deadLetters.retrying',
         defaultMessage: 'Queueing {kind}…'
+    },
+    queued: {
+        id: 'activity.deadLetters.queued',
+        defaultMessage: 'Queued'
+    },
+    retryAll: {
+        id: 'activity.deadLetters.retryAll',
+        defaultMessage: 'Retry all'
+    },
+    retryAllLabel: {
+        id: 'activity.deadLetters.retryAllLabel',
+        defaultMessage:
+            '{count, plural, one {Retry the # event shown} other {Retry all # events shown}}'
     },
     noError: {
         id: 'activity.deadLetters.noError',
@@ -102,94 +94,93 @@ const messages = defineMessages({
 });
 
 /**
- * The parked events in full, and the one operator action that clears them.
+ * The parked events in full, and the operator actions that clear them.
  *
- * This is where `lastError`, `occurredAt` and `attempts` are finally rendered:
- * they have been on the wire since the read route shipped and were shown
- * nowhere, and `lastError` is the single field that tells an operator whether
- * the cause is fixed. The banner deliberately stays a headline — it shows five
- * of an unbounded `total` and no ids, which is exactly why the retry lives
- * **per row in here** and there is no "Retry all" on the banner: a bulk action
- * would act on rows the operator has never seen.
+ * Each row says **what** could not be recorded (the same label the log uses —
+ * "Changed role", not `member.role_changed`), **when** it happened, **how
+ * often** it was tried and **why** it last failed: `lastError` is the single
+ * field that tells an operator whether the cause is fixed, and it is arbitrary
+ * server text, rendered as a text node, never as markup and never behind a
+ * `title=`. A row that is retried stays, marked **Queued**, until the dialog
+ * closes.
  *
- * Unlike the banner, this surface renders its **error** state. The banner is
- * silent on error on purpose — a failed caveat must not be the reason the page
- * looks broken — but somebody who deliberately opened this dialog asked a
- * question, and answering an unanswered question with an empty table would say
+ * **Retry all** retries the rows **shown here**, one at a time — never
+ * "everything parked": the list is a capped page of an unbounded `total`, and
+ * a bulk action must not reach rows the operator has never seen. The footer
+ * says "Showing N of M" whenever the page is not the whole list.
+ *
+ * Unlike the banner, this surface renders its **error** state: somebody who
+ * deliberately opened it asked a question, and an empty list would answer
  * "nothing is stuck", which is the opposite of what is known.
- *
- * `lastError` is arbitrary server text: it is rendered as a text node, never as
- * markup, and never hidden behind a `title=`.
  */
 export function DeadLettersDialog({
     open,
     onOpenChange,
-    triggerRef,
+    onCloseFocus,
     items,
+    queuedIds,
     total,
     isPending,
     isError,
     onReload,
-    canRetry,
     retryingId,
-    onRetry
+    onRetry,
+    retryingAll,
+    onRetryAll
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     /**
-     * The button that opened this, so focus can go back to it on close.
-     *
-     * Not optional and not decoration. A **modal** Radix dialog does not
-     * restore focus to whatever had it before: `DialogContentModal` preventing
-     * its own `onCloseAutoFocus` and focusing `context.triggerRef` instead — and
-     * that ref is only set by a `DialogTrigger`. This dialog is opened by a
-     * button in the banner's own layout rather than by a `DialogTrigger`, so
-     * without this focus lands on `<body>` on Escape and the next Tab restarts
-     * at the top of the document (WCAG 2.4.3).
-     *
-     * When the trigger is on its way out — the last parked event was just
-     * retried — the node is detached and `focus()` is a no-op, which is exactly
-     * right: the notice moves focus to `<main>` in that case instead.
+     * Where focus goes on close. A **modal** Radix dialog only restores focus
+     * through a `DialogTrigger`, and this one is opened from the banner's own
+     * layout — and the banner may be gone by the time it closes.
      */
-    triggerRef: RefObject<HTMLButtonElement | null>;
-    /** The page the dialog fetched; empty while pending or on error. */
+    onCloseFocus: () => void;
+    /** The rows to list: the fetched page plus rows queued since. */
     items: DeadLetter[];
-    /** The unbounded count, so the footer can say "N of M". */
+    /** Rows this reader queued while the dialog was open. */
+    queuedIds: ReadonlyMap<string, unknown>;
+    /** The unbounded count, so the title and footer never imply it away. */
     total: number;
     isPending: boolean;
     isError: boolean;
     /** Refetch, for the error branch's own retry. */
     onReload: () => void;
-    /** Whether the reader holds `activity:manage`; hides the column if not. */
-    canRetry: boolean;
-    /** The row currently being queued, scoped from the mutation's variables. */
+    /** The row currently being queued. */
     retryingId: string | null;
     onRetry: (id: string) => void;
+    /** A "Retry all" pass is running. */
+    retryingAll: boolean;
+    onRetryAll: () => void;
 }) {
     const intl = useIntl();
 
-    /** The row's date, formatted once for the cell and its button's name. */
+    /** The row's date, formatted once for the line and its button's name. */
     const whenOf = (item: DeadLetter) =>
         intl.formatDate(item.occurredAt, {
-            dateStyle: 'medium',
-            timeStyle: 'short'
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
         });
+    const pending = items.filter((item) => !queuedIds.has(item.id));
+    const truncated = !isPending && !isError && items.length < total;
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent
-                className="max-w-lg sm:max-w-3xl"
+                className="max-w-lg sm:max-w-[600px]"
                 closeLabel={intl.formatMessage(messages.close)}
                 onCloseAutoFocus={(event) => {
                     event.preventDefault();
-                    triggerRef.current?.focus();
+                    onCloseFocus();
                 }}
             >
                 <DialogHeader>
-                    {/* A real DialogTitle: Radix uses it as the dialog's
-                        accessible name and warns when it is missing. */}
                     <DialogTitle>
-                        {intl.formatMessage(messages.dialogTitle)}
+                        {intl.formatMessage(messages.dialogTitle, {
+                            count: total
+                        })}
                     </DialogTitle>
                     <DialogDescription>
                         {intl.formatMessage(messages.dialogDescription)}
@@ -220,166 +211,150 @@ export function DeadLettersDialog({
                         </AlertDescription>
                     </Alert>
                 ) : (
-                    <div className="max-h-[60vh] overflow-auto rounded-xl border">
-                        <Table>
-                            <caption className="sr-only">
-                                {intl.formatMessage(messages.tableCaption)}
-                            </caption>
-                            <TableHeader>
-                                {/* No `aria-sort` anywhere: nothing here is
-                                    sortable, and claiming otherwise is worse
-                                    than saying nothing. */}
-                                <TableRow>
-                                    <TableHead scope="col">
-                                        {intl.formatMessage(
-                                            messages.columnEvent
-                                        )}
-                                    </TableHead>
-                                    <TableHead scope="col">
-                                        {intl.formatMessage(
-                                            messages.columnWhen
-                                        )}
-                                    </TableHead>
-                                    <TableHead scope="col">
-                                        {intl.formatMessage(
-                                            messages.columnAttempts
-                                        )}
-                                    </TableHead>
-                                    <TableHead scope="col">
-                                        {intl.formatMessage(
-                                            messages.columnError
-                                        )}
-                                    </TableHead>
-                                    {canRetry ? (
-                                        <TableHead scope="col" className="w-28">
-                                            {/* Redundant beside a column of
-                                                buttons, but an empty header
-                                                cell leaves the column unnamed
-                                                to a screen reader (axe
-                                                `empty-table-header`). */}
-                                            <span className="sr-only">
-                                                {intl.formatMessage(
-                                                    messages.columnActions
+                    <ul
+                        aria-label={intl.formatMessage(messages.listLabel)}
+                        className="max-h-[60vh] divide-y overflow-auto rounded-lg border"
+                    >
+                        {items.map((item) => {
+                            const label = formatActivityAction(
+                                intl,
+                                auditKindOf(item.kind)
+                            );
+                            const when = whenOf(item);
+                            const busy = retryingId === item.id;
+                            const isQueued = queuedIds.has(item.id);
+                            return (
+                                <li
+                                    key={item.id}
+                                    className="flex items-center gap-3 px-3 py-2.5"
+                                >
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-sm font-medium">
+                                            {label}
+                                        </p>
+                                        <p className="break-words text-xs text-muted-foreground">
+                                            {/* `activityDateTime` for the
+                                                attribute and `formatDate` for
+                                                the text: both are total, and an
+                                                unparseable wire timestamp must
+                                                not throw (`activity:I-25`). */}
+                                            <time
+                                                dateTime={activityDateTime(
+                                                    item.occurredAt
                                                 )}
-                                            </span>
-                                        </TableHead>
-                                    ) : null}
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {items.map((item) => {
-                                    const busy = retryingId === item.id;
-                                    const when = whenOf(item);
-                                    return (
-                                        <TableRow key={item.id}>
-                                            <TableCell className="font-mono text-xs">
-                                                {item.kind}
-                                            </TableCell>
-                                            <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
-                                                {/* `activityDateTime` for the
-                                                    machine-readable attribute
-                                                    and `intl.formatDate` for
-                                                    the visible text: both are
-                                                    total, and `toISOString()`
-                                                    on an unparseable wire
-                                                    timestamp throws
-                                                    (`activity:I-25`). */}
-                                                <time
-                                                    dateTime={activityDateTime(
-                                                        item.occurredAt
+                                            >
+                                                {when}
+                                            </time>
+                                            {' · '}
+                                            {intl.formatMessage(
+                                                messages.attempts,
+                                                { count: item.attempts }
+                                            )}
+                                            {' · '}
+                                            <span className="text-destructive">
+                                                {item.lastError ??
+                                                    intl.formatMessage(
+                                                        messages.noError
                                                     )}
-                                                >
-                                                    {when}
-                                                </time>
-                                            </TableCell>
-                                            <TableCell className="tabular-nums">
-                                                {item.attempts}
-                                            </TableCell>
-                                            <TableCell>
-                                                <span className="block max-w-sm break-words font-mono text-xs text-destructive">
-                                                    {item.lastError ??
-                                                        intl.formatMessage(
-                                                            messages.noError
-                                                        )}
-                                                </span>
-                                            </TableCell>
-                                            {canRetry ? (
-                                                <TableCell className="text-right">
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        className="shadow-none"
-                                                        // `aria-disabled`, not
-                                                        // `disabled`: a
-                                                        // disabled button
-                                                        // leaves the tab order,
-                                                        // so a keyboard user
-                                                        // pressing Retry would
-                                                        // lose their place the
-                                                        // moment it went busy.
-                                                        aria-disabled={busy}
-                                                        aria-label={intl.formatMessage(
-                                                            messages.retryLabel,
-                                                            {
-                                                                kind: item.kind,
-                                                                when
-                                                            }
-                                                        )}
-                                                        onClick={() => {
-                                                            if (busy) return;
-                                                            onRetry(item.id);
-                                                        }}
-                                                    >
-                                                        {busy ? (
-                                                            <>
-                                                                <Spinner
-                                                                    aria-hidden="true"
-                                                                    className="size-4"
-                                                                />
-                                                                <span className="sr-only">
-                                                                    {intl.formatMessage(
-                                                                        messages.retrying,
-                                                                        {
-                                                                            kind: item.kind
-                                                                        }
-                                                                    )}
-                                                                </span>
-                                                            </>
-                                                        ) : (
-                                                            <RefreshCw
-                                                                aria-hidden="true"
-                                                                className="size-4"
-                                                            />
-                                                        )}
+                                            </span>
+                                        </p>
+                                    </div>
+                                    {isQueued ? (
+                                        <Badge
+                                            variant="success"
+                                            size="xs"
+                                            className="shrink-0"
+                                        >
+                                            <Check
+                                                aria-hidden
+                                                className="size-3"
+                                            />
+                                            {intl.formatMessage(
+                                                messages.queued
+                                            )}
+                                        </Badge>
+                                    ) : (
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="shrink-0 shadow-none"
+                                            // `aria-disabled`, not `disabled`:
+                                            // a disabled button leaves the tab
+                                            // order, so a keyboard user would
+                                            // lose their place the moment it
+                                            // went busy.
+                                            aria-disabled={
+                                                busy || retryingAll || undefined
+                                            }
+                                            aria-label={intl.formatMessage(
+                                                messages.retryLabel,
+                                                { kind: label, when }
+                                            )}
+                                            onClick={() => {
+                                                if (busy || retryingAll) return;
+                                                onRetry(item.id);
+                                            }}
+                                        >
+                                            {busy ? (
+                                                <>
+                                                    <Spinner
+                                                        aria-hidden="true"
+                                                        className="size-4"
+                                                    />
+                                                    <span className="sr-only">
                                                         {intl.formatMessage(
-                                                            messages.retry
+                                                            messages.retrying,
+                                                            { kind: label }
                                                         )}
-                                                    </Button>
-                                                </TableCell>
+                                                    </span>
+                                                </>
                                             ) : null}
-                                        </TableRow>
-                                    );
-                                })}
-                            </TableBody>
-                        </Table>
-                    </div>
+                                            {intl.formatMessage(messages.retry)}
+                                        </Button>
+                                    )}
+                                </li>
+                            );
+                        })}
+                    </ul>
                 )}
 
-                <DialogFooter className="sm:items-center sm:justify-between">
-                    {!isPending && !isError ? (
-                        <span className="text-sm text-muted-foreground">
-                            {intl.formatMessage(messages.showingOf, {
-                                count: items.length,
-                                total
-                            })}
-                        </span>
-                    ) : (
-                        <span />
-                    )}
-                    <Button
-                        variant="outline"
-                        onClick={() => onOpenChange(false)}
-                    >
+                <DialogFooter className="gap-2 sm:items-center sm:justify-between">
+                    <div className="flex flex-wrap items-center gap-3">
+                        {!isPending && !isError && pending.length > 0 ? (
+                            <Button
+                                variant="outline"
+                                className="shadow-none"
+                                aria-disabled={retryingAll || undefined}
+                                aria-label={intl.formatMessage(
+                                    messages.retryAllLabel,
+                                    { count: pending.length }
+                                )}
+                                onClick={() => {
+                                    if (retryingAll) return;
+                                    onRetryAll();
+                                }}
+                            >
+                                {retryingAll ? (
+                                    <Spinner
+                                        aria-hidden="true"
+                                        className="size-4"
+                                    />
+                                ) : (
+                                    <RefreshCw aria-hidden="true" />
+                                )}
+                                {intl.formatMessage(messages.retryAll)}
+                            </Button>
+                        ) : null}
+                        {truncated ? (
+                            <span className="text-sm text-muted-foreground">
+                                {intl.formatMessage(messages.showingOf, {
+                                    count: items.length,
+                                    total
+                                })}
+                            </span>
+                        ) : null}
+                    </div>
+                    <Button onClick={() => onOpenChange(false)}>
                         {intl.formatMessage(messages.close)}
                     </Button>
                 </DialogFooter>

@@ -39,6 +39,12 @@ export type ActivityEvent = {
     subjectType: string;
     /** The acted-upon entity's id. */
     subjectId: string;
+    /**
+     * The subject's readable name **at the time of the event** (an entry's
+     * title, a token's label, an invitee's address), or `null` when the server
+     * recorded none — older rows, and kinds with nothing nameable.
+     */
+    subjectLabel: string | null;
     /** Who performed it, or `null` for a system event. */
     actor: ActivityActor;
     /** Per-kind extra payload, or `null` when the kind carries none. */

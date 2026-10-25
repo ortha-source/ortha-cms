@@ -161,6 +161,7 @@ describe('AuditEventSubscriber', () => {
                     kind: 'workspace.created',
                     subjectType: 'workspace',
                     subjectId: WORKSPACE_ID,
+                    subjectLabel: 'Docs',
                     actorId: ACTOR.id,
                     actorType: 'user',
                     actorEmail: ACTOR.email,

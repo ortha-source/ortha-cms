@@ -14,6 +14,13 @@ export interface ActivityEventView {
     subjectType: string;
     /** The acted-upon entity's id (text). */
     subjectId: string;
+    /**
+     * A readable name for the subject **at the time of the event** — an
+     * entry's title, a token's label, an invitee's address — or `null` when
+     * the kind carries nothing nameable. Frozen like `actorEmail`: it is what
+     * the subject was called then, not now.
+     */
+    subjectLabel: string | null;
     /** Who performed it, or `null` for a system-initiated event. */
     actorId: string | null;
     /**

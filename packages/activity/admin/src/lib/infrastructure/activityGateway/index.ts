@@ -1,6 +1,16 @@
 import type { ActivityList } from '../../types/activityEvent';
+import type { ActivityExport } from '../../types/activityExport';
 import type { DeadLetterList, RetriedDeadLetter } from '../../types/deadLetter';
 import type { ActivityListParams } from '../activityKeys';
+
+/**
+ * What `GET /api/activity/export` takes: the list's filters and search, without
+ * the paging — the export is the current view, not the current page.
+ */
+export type ActivityExportParams = Omit<
+    ActivityListParams,
+    'page' | 'pageSize'
+>;
 
 /**
  * The port over the remote activity API — the single seam the admin plugin
@@ -20,6 +30,17 @@ import type { ActivityListParams } from '../activityKeys';
 export type ActivityGateway = {
     /** Lists one page of audit events via `GET /api/activity`. */
     list(params: ActivityListParams): Promise<ActivityList>;
+    /**
+     * The current view as a CSV file, via `GET /api/activity/export` — the
+     * same filters as {@link list}, without paging, capped by the server.
+     */
+    exportCsv(params: ActivityExportParams): Promise<ActivityExport>;
+    /**
+     * Workspace id → name, via `GET /api/workspaces`, so the feed can say
+     * where an action happened. A workspace that was deleted since is simply
+     * absent; the log outlives its subjects and the row still reads.
+     */
+    workspaceNames(): Promise<ReadonlyMap<string, string>>;
     /**
      * The events that could not be recorded, via
      * `GET /api/activity/dead-letters`. `limit` caps the returned rows; `total`

@@ -3,7 +3,7 @@ import {
     ACTIVITY_SUBJECT_TYPES
 } from '../../types/activityKinds';
 import { ACTION_MESSAGES, SUBJECT_TYPE_MESSAGES } from '../activityMessages';
-import { ACTIVITY_FILTER_FIELDS } from './index';
+import { ACTIVITY_FILTER_FIELDS, activityFilterFieldsWith } from './index';
 
 /**
  * ORT-205 · `[activity:I-38]` — the filter offers what the table shows.
@@ -94,5 +94,45 @@ describe('the activity filter surface', () => {
     it('names the fields the way the table heads its columns', () => {
         expect(fieldFor('kind').label.defaultMessage).toBe('Action');
         expect(fieldFor('at').label.defaultMessage).toBe('When');
+    });
+});
+
+describe('the workspace, offered by name', () => {
+    const names = new Map([
+        ['22222222-2222-4222-8222-222222222222', 'Product docs'],
+        ['11111111-1111-4111-8111-111111111111', 'Marketing {site}']
+    ]);
+
+    it('stays the plain uuid field until the names are known', () => {
+        expect(activityFilterFieldsWith(undefined)).toBe(
+            ACTIVITY_FILTER_FIELDS
+        );
+        expect(activityFilterFieldsWith(new Map())).toBe(
+            ACTIVITY_FILTER_FIELDS
+        );
+    });
+
+    it('becomes a vocabulary of names over the same wire field [activity:I-37] [activity:I-38]', () => {
+        const fields = activityFilterFieldsWith(names);
+        expect(fields.map((field) => field.id)).toEqual(
+            ACTIVITY_FILTER_FIELDS.map((field) => field.id)
+        );
+        const workspace = fields.find((field) => field.id === 'workspaceId');
+        expect(workspace?.type).toBe('enum');
+        expect(workspace?.label.defaultMessage).toBe('Workspace');
+        // Sorted by name; the value on the wire is still the id.
+        expect(workspace?.enumValues?.map((option) => option.value)).toEqual([
+            '11111111-1111-4111-8111-111111111111',
+            '22222222-2222-4222-8222-222222222222'
+        ]);
+    });
+
+    it('escapes a name so ICU syntax in it is read as text', () => {
+        const workspace = activityFilterFieldsWith(names).find(
+            (field) => field.id === 'workspaceId'
+        );
+        expect(workspace?.enumValues?.[0].label.defaultMessage).toBe(
+            "Marketing '{'site'}'"
+        );
     });
 });

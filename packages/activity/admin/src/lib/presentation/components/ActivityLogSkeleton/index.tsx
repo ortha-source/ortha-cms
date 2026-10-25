@@ -23,12 +23,10 @@ const messages = defineMessages({
 });
 
 /**
- * The audit-log table placeholder shown while {@link useActivityLog} resolves.
- * Built from the real `Table` primitives so the columns (the leading expand
- * toggle + When · Actor · Action · Subject) match the loaded table exactly — no
- * reflow on swap. Drops into the page body in place of the table (header +
- * toolbar stay live), so it owns the single `role="status"` announcement; the
- * table itself is `aria-hidden`.
+ * The table placeholder shown while {@link useActivityLog} resolves, built
+ * from the real `Table` primitives so the When · Event · Workspace columns
+ * match the loaded table — no reflow on swap. It owns the single
+ * `role="status"` announcement; the table itself is `aria-hidden`.
  */
 export function ActivityLogTableSkeleton({ rows = 8 }: { rows?: number }) {
     const intl = useIntl();
@@ -42,44 +40,38 @@ export function ActivityLogTableSkeleton({ rows = 8 }: { rows?: number }) {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead className="w-8" />
-                            <TableHead>
-                                <Skeleton className="h-4 w-24" />
+                            <TableHead className="w-40">
+                                <Skeleton className="h-4 w-12" />
                             </TableHead>
                             <TableHead>
-                                <Skeleton className="h-4 w-16" />
+                                <Skeleton className="h-4 w-14" />
                             </TableHead>
-                            <TableHead>
-                                <Skeleton className="h-4 w-16" />
-                            </TableHead>
-                            <TableHead>
-                                <Skeleton className="h-4 w-16" />
+                            <TableHead className="w-48">
+                                <Skeleton className="h-4 w-20" />
                             </TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {Array.from({ length: rows }).map((_, index) => (
                             <TableRow key={index}>
-                                <TableCell>
-                                    <Skeleton className="size-5 rounded" />
+                                {/* The same row height as `ActivityTable`'s
+                                    roomier rows, so nothing jumps on load. */}
+                                <TableCell className="py-3.5">
+                                    <Skeleton className="h-4 w-24" />
                                 </TableCell>
-                                <TableCell>
-                                    <Skeleton className="h-4 w-28" />
-                                </TableCell>
-                                <TableCell>
+                                <TableCell className="py-3.5">
                                     <div className="flex items-center gap-3">
-                                        <Skeleton className="size-8 shrink-0 rounded-xl" />
-                                        <Skeleton className="h-4 w-32" />
+                                        <Skeleton className="size-8 shrink-0 rounded-lg" />
+                                        <Skeleton
+                                            className="h-4"
+                                            style={{
+                                                width: `${40 + ((index * 17) % 35)}%`
+                                            }}
+                                        />
                                     </div>
                                 </TableCell>
-                                <TableCell>
-                                    <Skeleton className="h-5 w-24 rounded-full" />
-                                </TableCell>
-                                <TableCell>
-                                    <div className="flex flex-col gap-1.5">
-                                        <Skeleton className="h-3.5 w-16" />
-                                        <Skeleton className="h-3 w-24" />
-                                    </div>
+                                <TableCell className="py-3.5">
+                                    <Skeleton className="h-4 w-24" />
                                 </TableCell>
                             </TableRow>
                         ))}
@@ -115,9 +107,10 @@ export function ActivityLogPageSkeleton() {
                 <Skeleton className="h-4 w-64 max-w-full" />
             </div>
 
-            <div className="mb-4 flex flex-wrap items-center gap-3">
-                <Skeleton className="h-9 w-full sm:max-w-[220px]" />
-                <Skeleton className="h-9 w-full sm:max-w-[280px]" />
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+                <Skeleton className="h-8 w-full sm:max-w-[320px]" />
+                <Skeleton className="h-8 w-28" />
+                <Skeleton className="h-8 w-20" />
             </div>
 
             <ActivityLogTableSkeleton />
