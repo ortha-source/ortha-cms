@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
-import { Globe, RotateCcw } from 'lucide-react';
+import { RotateCcw, Share2 } from 'lucide-react';
 import { initialsOf } from '@orthacms/utils-admin';
 import { Badge, Button, cn } from '@orthacms/design-system';
 import { WorkspaceAvatar } from '../../WorkspaceAvatar';
@@ -125,8 +125,18 @@ export function WorkspaceCard({
                                 {workspace.name}
                             </Link>
                             {workspace.isShared && !archived ? (
-                                <Badge variant="info" size="xs">
-                                    <Globe aria-hidden />
+                                <Badge
+                                    variant="info"
+                                    size="xs"
+                                    className="shrink-0 gap-1"
+                                >
+                                    {/* Sized here: the xs badge does not
+                                        shrink its icon, and the default 16px
+                                        glyph overran the pill. */}
+                                    <Share2
+                                        aria-hidden
+                                        className="size-3 shrink-0"
+                                    />
                                     {intl.formatMessage(messages.shared)}
                                 </Badge>
                             ) : null}
