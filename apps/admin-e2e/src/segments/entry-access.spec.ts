@@ -21,6 +21,7 @@ import {
 } from '../support/api/content';
 import {
     mockSegmentsApi,
+    MANY_SEGMENT_SEED,
     PAGED_SEGMENT_SEED,
     type SegmentsApiSpy
 } from '../support/api/segments';
@@ -473,6 +474,111 @@ test.describe('Entry editor — Access tab', () => {
         await expect(segmentsPage.accessControl('Acme Corp')).toBeVisible();
 
         await expectNoA11yViolations(makeAxe());
+    });
+    test.describe('with thirty audiences, thirteen decided', () => {
+        const many = MANY_SEGMENT_SEED.map((segment) => segment.id);
+
+        test.beforeEach(async ({ page }) => {
+            await mockSegmentsApi(page, {
+                segments: MANY_SEGMENT_SEED,
+                access: {
+                    [ENTRY]: {
+                        allow: many.slice(0, 8),
+                        deny: many.slice(8, 13)
+                    }
+                }
+            });
+        });
+
+        test('names three per side in the summary, and opens the rest', async ({
+            contentLibraryPage,
+            segmentsPage
+        }) => {
+            await openAccessTab(contentLibraryPage);
+
+            await expect(segmentsPage.accessSummary).toHaveText(
+                'Readable only by Audience 01, Audience 02, Audience 03 and 5 more — never by Audience 09, Audience 10, Audience 11 and 2 more'
+            );
+            await segmentsPage.summaryMore.first().click();
+            await expect(segmentsPage.summaryMore.first()).toHaveAttribute(
+                'aria-expanded',
+                'true'
+            );
+            await expect(segmentsPage.summaryFull).toContainText(
+                'Can see: Audience 01, Audience 02'
+            );
+            await expect(segmentsPage.summaryFull).toContainText(
+                'and Audience 13'
+            );
+        });
+
+        test('shows the decided ones under "Set", without moving rows', async ({
+            contentLibraryPage,
+            segmentsPage
+        }) => {
+            await openAccessTab(contentLibraryPage);
+            await expect(
+                segmentsPage.accessRowsOption('All')
+            ).toHaveAccessibleName('All, 30');
+            await expect(
+                segmentsPage.accessRowsOption('Set')
+            ).toHaveAccessibleName('Set, 13');
+
+            await segmentsPage.accessRowsOption('Set').click();
+            await expect(
+                segmentsPage.accessControl('Audience 01')
+            ).toBeVisible();
+            await expect(segmentsPage.accessControl('Audience 14')).toHaveCount(
+                0
+            );
+            await expect(segmentsPage.pageReadout).toHaveText('Page 1 of 2');
+
+            // Put back to "Not set" while the view is on, the row stays put…
+            await segmentsPage.setAccess('Audience 02', 'Not set');
+            await expect(
+                segmentsPage.accessControl('Audience 02')
+            ).toBeVisible();
+            await expect(
+                segmentsPage.accessRowsOption('Set')
+            ).toHaveAccessibleName('Set, 12');
+
+            // …until the view changes.
+            await segmentsPage.accessRowsOption('All').click();
+            await segmentsPage.accessRowsOption('Set').click();
+            await expect(segmentsPage.accessControl('Audience 02')).toHaveCount(
+                0
+            );
+        });
+
+        test('puts the tags under the name, not in a column', async ({
+            page,
+            contentLibraryPage,
+            segmentsPage
+        }) => {
+            await openAccessTab(contentLibraryPage);
+
+            await expect(
+                page.getByRole('columnheader', { name: 'Tags' })
+            ).toHaveCount(0);
+            await expect(
+                segmentsPage
+                    .accessRow('Audience 01')
+                    .getByTitle('audience-01, tag-01')
+            ).toBeVisible();
+        });
+
+        test('has no axe violations with the Set view and the full lists open', async ({
+            contentLibraryPage,
+            segmentsPage,
+            makeAxe
+        }) => {
+            await openAccessTab(contentLibraryPage);
+            await segmentsPage.accessRowsOption('Set').click();
+            await segmentsPage.summaryMore.first().click();
+            await expect(segmentsPage.summaryFull).toBeVisible();
+
+            await expectNoA11yViolations(makeAxe());
+        });
     });
 });
 

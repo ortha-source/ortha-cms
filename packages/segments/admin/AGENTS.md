@@ -165,14 +165,28 @@ about a system that is not running.
 **The Access tab leads with one sentence** (`EntryAccessTab/AccessSummary`):
 who can read the record — "Readable by everyone except Trial users" — in a
 summary card (globe/lock tile, a "Changed" pill while something is staged)
-before the table that decides it. Audiences the loaded page names are named, the rest
-counted, never dropped. How the rules combine sits behind a disclosure under
-it (ADR-0022's _Secondary views_).
+before the table that decides it. **Each side names at most three audiences**
+(alphabetically) and counts the rest — "Readable only by A, B, C and 5 more —
+never by D and 4 more" — because thirty names made the lead a paragraph. "and N
+more" is a disclosure (`aria-expanded`, one region for both sides) opening the
+full "Can see: …" / "Cannot see: …" lists under the sentence. Names come from
+the page **and** a by-id lookup of every decided audience (`useSegmentLookup`),
+so a decision on page three is named, not counted; an id nobody can name is
+counted, never dropped. How the rules combine sits behind a second disclosure
+(ADR-0022's _Secondary views_).
 
-**The Access tab's search sits left; "Set all…" and "Manage segments" right,
-on one row.** Below them the audiences are a real `<table>` (Audience · Tags ·
-Access), each decision a muted `SegmentStateControl` (Can see green, Cannot
-see red), a staged row tinted and marked "Changed". The bulk control is one menu (`EntryAccessBulkActions`) rather
+**The Access tab's toolbar: an "All N · Set N" switch, the search, then "Set
+all…" and "Manage segments".** **Set** shows only the decided audiences, read by
+id (`useSegmentLookup`, holding its previous answer while ids change) and paged
+here, narrowed by the same search. Rows are **never sorted** set-first in either
+view — a row would jump under the cursor that just changed it — and the Set view
+**pins** the ids it opened with: a row put back to "Not set" stays until the view
+changes. "Set all…" acts on the All view's matches, so it is offered there only.
+Below, the audiences are a real `<table>` (Audience · Access): **the tags are a
+second line under the name** (small muted mono, truncated, the full value in
+`title`), the name wraps to two lines at most, each decision a muted
+`SegmentStateControl` (Can see green, Cannot see red), a staged row tinted and
+marked "Changed". The bulk control is one menu (`EntryAccessBulkActions`) rather
 than a row of three buttons between the search and the list. The link is the
 way _out_ of this screen, so it belongs at the far edge rather than beside the
 heading, where it competed with the restricted/open badge.
@@ -219,7 +233,12 @@ field commits what was typed. The kernel's limit is counted under the field
 tags is tested against its key, as the server fills it in. Matching is exact,
 and a near miss that only differs in case is called out.
 
-**Where it's used sits beside the edit form** (`SegmentUsagePanel`), read from
+**Where it's used sits beside the edit form** (`SegmentUsagePanel`): eight
+rows, then **"Show all N"** — the same button becomes "Show fewer", with
+`aria-expanded`, so focus never moves — and expanded, every entry the server
+returned scrolls **inside** the panel (`max-h-[28rem]`, a bordered scroll edge)
+instead of pushing the delete card off the page. Entries past the server's page
+are counted ("N more are only in records"). It is read from
 `GET /segments/:id/usage` — workspace-scoped on the server, so
 `useSegmentUsage` asks **every workspace the caller can open**, one request
 apiece with an explicit `X-Workspace-Id` (the audience pages are outside any

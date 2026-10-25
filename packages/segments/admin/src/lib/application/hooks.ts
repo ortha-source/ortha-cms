@@ -62,12 +62,24 @@ export function useSegments(params: ListSegmentsParams = {}) {
  * them: the first page is not where their ids necessarily are, and reading a
  * miss as "deleted" would slander an audience that is merely on page three.
  */
-export function useSegmentLookup(ids: readonly string[]) {
+export function useSegmentLookup(
+    ids: readonly string[],
+    options: {
+        /**
+         * Hold the previous answer while a changed id list resolves. For a
+         * caller whose ids grow under the user's hand (the Access tab's "Set"
+         * view), so its rows do not blank on every toggle. Off by default: a
+         * caller showing *another* record's ids must not borrow these.
+         */
+        keepPrevious?: boolean;
+    } = {}
+) {
     const canRead = useHasPermission(SEGMENTS_READ);
     return useQuery({
         queryKey: segmentsKeys.lookup(ids),
         queryFn: () => httpSegmentsGateway.lookupSegments(ids),
-        enabled: canRead && ids.length > 0
+        enabled: canRead && ids.length > 0,
+        placeholderData: options.keepPrevious ? keepPreviousData : undefined
     });
 }
 

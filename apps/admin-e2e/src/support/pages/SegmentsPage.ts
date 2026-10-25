@@ -186,6 +186,13 @@ export class SegmentsPage extends BasePage {
         return this.usagePanel.getByRole('listitem').filter({ hasText: title });
     }
 
+    /** The usage panel's "Show all N" / "Show fewer" toggle. */
+    get usageToggle(): Locator {
+        return this.usagePanel.getByRole('button', {
+            name: /^Show all \d+$|^Show fewer$/
+        });
+    }
+
     /** The edit page's "Delete…" button. */
     get deleteButton(): Locator {
         return this.page.getByRole('button', { name: 'Delete…' });
@@ -250,6 +257,31 @@ export class SegmentsPage extends BasePage {
         return this.page
             .getByRole('region', { name: /^Readable/ })
             .getByText('Changed', { exact: true });
+    }
+
+    /** The Access tab's "All / Set" switch — one of its two options. */
+    accessRowsOption(view: 'All' | 'Set'): Locator {
+        return this.page
+            .getByRole('radiogroup', { name: 'Show audiences' })
+            .getByRole('radio', { name: new RegExp(`^${view}, \\d+$`) });
+    }
+
+    /** The summary's "and N more" disclosures (one per side, one region). */
+    get summaryMore(): Locator {
+        return this.page.getByRole('button', { name: /^and \d+ more$/ });
+    }
+
+    /** The full lists the disclosure opens under the summary. */
+    get summaryFull(): Locator {
+        return this.page.getByTestId('access-summary-full');
+    }
+
+    /** One row of the Access tab's table, by audience name. */
+    accessRow(audience: string): Locator {
+        return this.page
+            .getByRole('table', { name: 'Audiences' })
+            .getByRole('row')
+            .filter({ has: this.accessControl(audience) });
     }
 
     /** The access chip in the editor's Details block. */

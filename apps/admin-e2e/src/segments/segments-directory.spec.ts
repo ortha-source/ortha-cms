@@ -1,7 +1,11 @@
 import { test, expect } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
 import { mockWorkspaces } from '../support/api/workspaces';
-import { mockSegmentsApi, type SegmentSeed } from '../support/api/segments';
+import {
+    manyUsageItems,
+    mockSegmentsApi,
+    type SegmentSeed
+} from '../support/api/segments';
 import { expectNoA11yViolations } from '../support/a11y';
 
 test.beforeEach(async ({ page }) => {
@@ -495,6 +499,40 @@ test.describe('The audience editor', () => {
         expect(api.usageReads.map(([, workspace]) => workspace)).toContain(
             'ws_marketing'
         );
+    });
+
+    test('lists eight entries, then shows all of them inside the panel', async ({
+        page,
+        segmentsPage
+    }) => {
+        await mockSegmentsApi(page, {
+            usage: { 'seg-acme': { ws_marketing: manyUsageItems(60) } }
+        });
+        await segmentsPage.gotoEdit('seg-acme');
+
+        await expect(segmentsPage.usagePanel.getByRole('listitem')).toHaveCount(
+            8
+        );
+        await expect(segmentsPage.usageToggle).toHaveText('Show all 60');
+        await expect(segmentsPage.usageToggle).toHaveAttribute(
+            'aria-expanded',
+            'false'
+        );
+
+        // Keyboard: the toggle keeps focus whichever way it folds the list.
+        await segmentsPage.usageToggle.focus();
+        await page.keyboard.press('Enter');
+        await expect(segmentsPage.usagePanel.getByRole('listitem')).toHaveCount(
+            60
+        );
+        await expect(segmentsPage.usageToggle).toHaveText('Show fewer');
+        await expect(segmentsPage.usageToggle).toBeFocused();
+
+        await page.keyboard.press('Enter');
+        await expect(segmentsPage.usagePanel.getByRole('listitem')).toHaveCount(
+            8
+        );
+        await expect(segmentsPage.usageToggle).toBeFocused();
     });
 
     test('offers a retry when where-it-is-used cannot be read', async ({

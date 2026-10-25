@@ -132,6 +132,36 @@ export const PAGED_SEGMENT_SEED: SegmentSeed[] = Array.from(
     }
 );
 
+/**
+ * Thirty audiences — the "lots of data" case: more than a page of the Access
+ * tab, and enough decided ones that the summary has to count rather than name.
+ */
+export const MANY_SEGMENT_SEED: SegmentSeed[] = Array.from(
+    { length: 30 },
+    (_unused, index) => {
+        const n = String(index + 1).padStart(2, '0');
+        return {
+            id: `seg-many-${n}`,
+            key: `audience-${n}`,
+            label: `Audience ${n}`,
+            tags: [`audience-${n}`, `tag-${n}`],
+            workspaceIds: [],
+            usageCount: 0
+        };
+    }
+);
+
+/** `count` usage rows, all in one type — the "Used by 60 entries" case. */
+export function manyUsageItems(count: number): SegmentUsageItemSeed[] {
+    return Array.from({ length: count }, (_unused, index) =>
+        usageItem(
+            `entry-${String(index + 1).padStart(3, '0')}`,
+            `Entry ${String(index + 1).padStart(3, '0')}`,
+            index % 5 === 4 ? 'deny' : 'allow'
+        )
+    );
+}
+
 /** What the directory and the Access tab were asked for, and what they wrote. */
 export interface SegmentsApiSpy {
     /** Bodies of every `POST /api/segments`. */

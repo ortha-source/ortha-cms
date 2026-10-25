@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { IntlProvider } from 'react-intl';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -158,6 +158,51 @@ describe('SegmentUsagePanel', () => {
         );
         screen.getByRole('button', { name: 'Try again' }).click();
         expect(refetch).toHaveBeenCalled();
+    });
+
+    it('lists eight, then expands to everything returned and folds back', () => {
+        const items = Array.from({ length: 12 }, (_unused, index) =>
+            item(`e${index}`, `Entry ${index}`, USAGE_STATE.Allow)
+        );
+        usage.mockReturnValue(answered(items));
+        draw({ ...ACME, usageCount: 12 });
+
+        expect(screen.getAllByRole('listitem')).toHaveLength(8);
+        const toggle = screen.getByRole('button', { name: 'Show all 12' });
+        expect(toggle.getAttribute('aria-expanded')).toBe('false');
+
+        fireEvent.click(toggle);
+        expect(screen.getAllByRole('listitem')).toHaveLength(12);
+        // The same button, so focus stays on it either way.
+        expect(toggle.getAttribute('aria-expanded')).toBe('true');
+        expect(toggle.textContent).toBe('Show fewer');
+        const list = document.getElementById(
+            toggle.getAttribute('aria-controls') ?? ''
+        );
+        expect(list?.className).toContain('overflow-y-auto');
+
+        fireEvent.click(toggle);
+        expect(screen.getAllByRole('listitem')).toHaveLength(8);
+    });
+
+    it('offers no toggle when everything fits', () => {
+        usage.mockReturnValue(
+            answered([item('e1', 'Enterprise pricing', USAGE_STATE.Allow)])
+        );
+        draw({ ...ACME, usageCount: 1 });
+        expect(screen.queryByRole('button', { name: /Show all/ })).toBeNull();
+    });
+
+    it('counts the entries past the server’s page as only in records', () => {
+        const items = Array.from({ length: 10 }, (_unused, index) =>
+            item(`e${index}`, `Entry ${index}`, USAGE_STATE.Allow)
+        );
+        usage.mockReturnValue(answered(items, { total: 25, truncated: true }));
+        draw({ ...ACME, usageCount: 25 });
+
+        expect(
+            screen.getByText('15 more entries are only in records.')
+        ).toBeTruthy();
     });
 
     it('renders nothing for a caller who may not read content', () => {
