@@ -1,9 +1,21 @@
-import { daysBetween, groupByDay } from './index';
+import type { IntlShape, MessageDescriptor } from 'react-intl';
+import { daysBetween, formatActivityWhen } from './index';
 
-/** A minimal event: only `at` matters here. */
-const at = (date: Date, id = date.toISOString()) => ({ id, at: date });
+/** Enough of an `IntlShape` to see which wording was chosen. */
+const intl = {
+    formatTime: () => '10:42',
+    formatDate: () => 'Oct 22, 14:05',
+    formatMessage: (
+        descriptor: MessageDescriptor,
+        values?: Record<string, string>
+    ) =>
+        String(descriptor.defaultMessage).replace(
+            '{time}',
+            values?.['time'] ?? ''
+        )
+} as unknown as IntlShape;
 
-describe('the feed’s day groups', () => {
+describe('the When cell', () => {
     const now = new Date(2026, 9, 24, 12, 0, 0);
 
     it('counts calendar days in the reader’s timezone, not 24-hour spans', () => {
@@ -12,50 +24,21 @@ describe('the feed’s day groups', () => {
         expect(daysBetween(new Date(2026, 9, 20, 12, 0), now)).toBe(4);
     });
 
-    it('splits a newest-first list into Today, Yesterday and older dates', () => {
-        const groups = groupByDay(
-            [
-                at(new Date(2026, 9, 24, 10, 42)),
-                at(new Date(2026, 9, 24, 9, 12)),
-                at(new Date(2026, 9, 23, 17, 20)),
-                at(new Date(2026, 9, 21, 8, 0))
-            ],
-            now
+    it('says Today, Yesterday, or the date with the time', () => {
+        expect(
+            formatActivityWhen(intl, new Date(2026, 9, 24, 10, 42), now)
+        ).toBe('Today, 10:42');
+        expect(
+            formatActivityWhen(intl, new Date(2026, 9, 23, 10, 42), now)
+        ).toBe('Yesterday, 10:42');
+        expect(
+            formatActivityWhen(intl, new Date(2026, 9, 22, 14, 5), now)
+        ).toBe('Oct 22, 14:05');
+    });
+
+    it('does not throw on a timestamp the wire got wrong [activity:I-25]', () => {
+        expect(formatActivityWhen(intl, new Date('not-a-date'), now)).toBe(
+            'Oct 22, 14:05'
         );
-        expect(groups.map((group) => group.kind)).toEqual([
-            'today',
-            'yesterday',
-            'date'
-        ]);
-        expect(groups.map((group) => group.events.length)).toEqual([2, 1, 1]);
-    });
-
-    it('never re-sorts: a day that comes back later starts a new run', () => {
-        // Sorted by kind, the server can interleave days; the feed renders
-        // what it was given rather than disagreeing with the next page.
-        const groups = groupByDay(
-            [
-                at(new Date(2026, 9, 24, 10), 'a'),
-                at(new Date(2026, 9, 23, 10), 'b'),
-                at(new Date(2026, 9, 24, 9), 'c')
-            ],
-            now
-        );
-        expect(groups.map((group) => group.events.map((e) => e.id))).toEqual([
-            ['a'],
-            ['b'],
-            ['c']
-        ]);
-    });
-
-    it('keeps an event with an unparseable time instead of inventing a day [activity:I-25]', () => {
-        const groups = groupByDay([at(new Date('not-a-date'), 'bad')], now);
-        expect(groups).toHaveLength(1);
-        expect(groups[0].key).toBe('invalid');
-        expect(groups[0].events.map((e) => e.id)).toEqual(['bad']);
-    });
-
-    it('returns nothing for nothing', () => {
-        expect(groupByDay([], now)).toEqual([]);
     });
 });

@@ -5,7 +5,7 @@ import { ALL_KINDS_ACTIVITY, mockActivity } from '../support/api/activity';
 
 /**
  * The kind → sentence catalogue: that **every** audit kind the server writes
- * reads as a localized sentence in the feed, never as its raw wire token.
+ * reads as a localized sentence in the table, never as its raw wire token.
  *
  * This suite exists because the failure mode it guards is silent. The admin
  * restates the server's kind strings locally (it cannot import the server
@@ -31,7 +31,7 @@ test.describe('Activity kind catalogue', () => {
         // Pin the page size so one render covers every kind in the catalogue
         // (there are more of them than the default page holds).
         await activityLogPage.gotoWith('pageSize=100');
-        await expect(activityLogPage.feed).toBeVisible();
+        await expect(activityLogPage.table).toBeVisible();
 
         const rows = await activityLogPage.sentences();
         expect(rows.length).toBe(ALL_KINDS_ACTIVITY.length);
@@ -49,7 +49,7 @@ test.describe('Activity kind catalogue', () => {
         activityLogPage
     }) => {
         await activityLogPage.gotoWith('pageSize=100');
-        await expect(activityLogPage.feed).toBeVisible();
+        await expect(activityLogPage.table).toBeVisible();
 
         for (const sentence of [
             'ada@orthacms.dev uploaded hero.png',
@@ -73,7 +73,7 @@ test.describe('Activity kind catalogue', () => {
         // Publishing was the only content action the log could answer for:
         // create, edit, delete and restore raised no domain event at all.
         await activityLogPage.gotoWith('pageSize=100');
-        await expect(activityLogPage.feed).toBeVisible();
+        await expect(activityLogPage.table).toBeVisible();
 
         for (const verb of [
             'created an entry',

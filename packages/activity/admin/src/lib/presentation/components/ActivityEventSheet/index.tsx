@@ -156,7 +156,11 @@ export function ActivityEventSheet({
                 }}
                 onInteractOutside={(outside) => {
                     const target = outside.target as Element | null;
-                    if (target?.closest?.('[data-activity-row]')) {
+                    if (
+                        target?.closest?.(
+                            '[data-activity-row], [data-activity-row-container]'
+                        )
+                    ) {
                         // Another row: it switches the panel, not closes it.
                         outside.preventDefault();
                         return;

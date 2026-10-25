@@ -1,5 +1,14 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { Container, Skeleton } from '@orthacms/design-system';
+import {
+    Container,
+    Skeleton,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow
+} from '@orthacms/design-system';
 
 /** Intl descriptors for the activity skeletons, co-located here. */
 const messages = defineMessages({
@@ -14,11 +23,10 @@ const messages = defineMessages({
 });
 
 /**
- * The feed placeholder shown while {@link useActivityLog} resolves: a day
- * heading over rows shaped like the loaded ones (tile, avatar, a sentence, a
- * time), so the swap does not reflow. Drops into the page body in place of the
- * feed (header and toolbar stay live), so it owns the single `role="status"`
- * announcement; the shapes are `aria-hidden`.
+ * The table placeholder shown while {@link useActivityLog} resolves, built
+ * from the real `Table` primitives so the When · Event · Workspace columns
+ * match the loaded table — no reflow on swap. It owns the single
+ * `role="status"` announcement; the table itself is `aria-hidden`.
  */
 export function ActivityLogTableSkeleton({ rows = 8 }: { rows?: number }) {
     const intl = useIntl();
@@ -28,24 +36,45 @@ export function ActivityLogTableSkeleton({ rows = 8 }: { rows?: number }) {
             <span className="sr-only">
                 {intl.formatMessage(messages.loading)}
             </span>
-            <div aria-hidden className="overflow-hidden rounded-xl border">
-                <div className="bg-muted/40 px-4 py-2.5">
-                    <Skeleton className="h-3 w-16" />
-                </div>
-                {Array.from({ length: rows }).map((_, index) => (
-                    <div
-                        key={index}
-                        className="flex items-center gap-3 border-t px-4 py-3"
-                    >
-                        <Skeleton className="size-6 shrink-0 rounded-md" />
-                        <Skeleton className="size-6 shrink-0 rounded-full" />
-                        <Skeleton
-                            className="h-4"
-                            style={{ width: `${40 + ((index * 17) % 35)}%` }}
-                        />
-                        <Skeleton className="ml-auto h-3 w-10" />
-                    </div>
-                ))}
+            <div aria-hidden>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead className="w-40">
+                                <Skeleton className="h-4 w-12" />
+                            </TableHead>
+                            <TableHead>
+                                <Skeleton className="h-4 w-14" />
+                            </TableHead>
+                            <TableHead className="w-48">
+                                <Skeleton className="h-4 w-20" />
+                            </TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {Array.from({ length: rows }).map((_, index) => (
+                            <TableRow key={index}>
+                                <TableCell>
+                                    <Skeleton className="h-4 w-24" />
+                                </TableCell>
+                                <TableCell>
+                                    <div className="flex items-center gap-2.5">
+                                        <Skeleton className="size-6 shrink-0 rounded-md" />
+                                        <Skeleton
+                                            className="h-4"
+                                            style={{
+                                                width: `${40 + ((index * 17) % 35)}%`
+                                            }}
+                                        />
+                                    </div>
+                                </TableCell>
+                                <TableCell>
+                                    <Skeleton className="h-4 w-24" />
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
             </div>
         </div>
     );
@@ -54,7 +83,7 @@ export function ActivityLogTableSkeleton({ rows = 8 }: { rows?: number }) {
 /**
  * Full-page placeholder for the lazy-route `Suspense` fallback — before
  * {@link ActivityLogPage} mounts there is no header or toolbar yet, so this
- * sketches the whole page (header, toolbar, feed) to hold the layout steady
+ * sketches the whole page (header, toolbar, table) to hold the layout steady
  * while the chunk loads. Reuses {@link ActivityLogTableSkeleton} for the body.
  */
 export function ActivityLogPageSkeleton() {

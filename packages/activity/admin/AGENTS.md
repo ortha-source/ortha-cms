@@ -140,22 +140,27 @@ the top bar (`PageActionsPortal`), the dead-letter callout, a toolbar (one
 free-text search → server `?q=`, a time-range `Select` → `?range=`, default
 the last 7 days, and the labelled `ActivityFilterButton` that opens the
 `QueryBuilderPopover`), the applied conditions as removable chips
-(`QueryBuilderSummary`), then the **feed**: `ActivityFeed` groups the server's
-order into day runs (`activityDays.groupByDay`, never re-sorting) under `<h2>`
-headings, one `<li>` + `<button>` per event whose text is the sentence
-(`ActivitySentence`, one message per kind in `activitySentence`, typed
-`Record<ActivityKind, …>` like `ACTION_MESSAGES`), the workspace ("in Marketing
-site", names from `GET /workspaces` via `useWorkspaceNames`) and the time.
+(`QueryBuilderSummary`), then the **table**: `ActivityTable` on the
+design-system `Table` (`stale`, `aria-label="Activity log"`), columns
+**When · Event · Workspace**. When reads "Today, 10:42" / "Yesterday, 09:10" /
+"Oct 22, 14:05" (`activityDays.formatActivityWhen`) in a `<time dateTime>`;
+Event is the action tile plus the sentence (`ActivitySentence`, one message per
+kind in `activitySentence`, typed `Record<ActivityKind, …>` like
+`ACTION_MESSAGES`) — the actor is in the sentence, so there is no Actor column;
+Workspace is the name (from `GET /workspaces` via `useWorkspaceNames`) or "—".
 
-**The feed replaces the old When · Actor · Action · Subject table on purpose**
-(the R7 redesign) — an audit trail is read as a story. A row opens
+The R7 boards drew a day-grouped sentence feed; the table replaces it at the
+user's request, keeping the sentences. The sentence cell is a real `<button>`
+(`data-activity-row`, `aria-haspopup="dialog"`, `aria-expanded`), the whole row
+is also a mouse target (a click ending a text selection is ignored), and the
+open event's row is `data-state="selected"`. A row opens
 `ActivityEventSheet`, a **non-modal** right sheet: the sentence, exact time and
 origin, a before/after `Table` read from recorded `{ from, to }` transitions
 (`activityDiff` — nothing inferred), actor, subject link (`activitySubjectLink`,
 only routes this plugin can name, none for a subject the event removed), kind,
 event id with copy, raw metadata folded, "Open …" and "More by …" (which applies
-an `actorEmail equals` chip). Clicking another row (`data-activity-row`)
-switches the sheet; anything else or Escape closes it and focus returns to the
+an `actorEmail equals` chip). Clicking another row (`data-activity-row-container`
+on the `<tr>`) switches the sheet; anything else or Escape closes it and focus returns to the
 row unless the reader clicked elsewhere.
 
 The **URL query string is the source of truth** for `q`, `range`, `filter` and

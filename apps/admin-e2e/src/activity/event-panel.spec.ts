@@ -4,7 +4,7 @@ import { mockWorkspaces } from '../support/api/workspaces';
 import { ALL_KINDS_ACTIVITY, mockActivity } from '../support/api/activity';
 
 /**
- * The event panel — what one line of the feed says in full: the sentence and
+ * The event panel — what one row of the table says in full: the sentence and
  * its exact time, **what changed** as a before/after table, the actor, the
  * subject as a link, the kind and the event id, the raw metadata folded away,
  * and "More by …" to narrow the log to the actor.

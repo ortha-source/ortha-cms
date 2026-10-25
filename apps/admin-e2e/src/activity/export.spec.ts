@@ -23,7 +23,7 @@ test.describe('Activity CSV export', () => {
             JSON.stringify({ field: 'kind', op: 'eq', value: 'user.suspended' })
         );
         await activityLogPage.gotoWith(`q=grace&filter=${filter}&page=1`);
-        await expect(activityLogPage.feed).toBeVisible();
+        await expect(activityLogPage.table).toBeVisible();
 
         const download = page.waitForEvent('download');
         await activityLogPage.exportButton.click();
@@ -49,7 +49,7 @@ test.describe('Activity CSV export', () => {
     }) => {
         await spyActivityExport(page, { total: 12_345 });
         await activityLogPage.goto();
-        await expect(activityLogPage.feed).toBeVisible();
+        await expect(activityLogPage.table).toBeVisible();
         await activityLogPage.exportButton.click();
 
         await expect(
@@ -69,7 +69,7 @@ test.describe('Activity CSV export', () => {
             downloads += 1;
         });
         await activityLogPage.goto();
-        await expect(activityLogPage.feed).toBeVisible();
+        await expect(activityLogPage.table).toBeVisible();
         await activityLogPage.exportButton.click();
 
         await expect(
@@ -84,7 +84,7 @@ test.describe('Activity CSV export', () => {
     }) => {
         await spyActivityExport(page, { delayMs: 1_500 });
         await activityLogPage.goto();
-        await expect(activityLogPage.feed).toBeVisible();
+        await expect(activityLogPage.table).toBeVisible();
         await activityLogPage.exportButton.focus();
         await page.keyboard.press('Enter');
 

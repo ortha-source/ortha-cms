@@ -34,7 +34,6 @@ import {
 } from '../../components/ActivityEmpty';
 import { ActivityEventSheet } from '../../components/ActivityEventSheet';
 import { ActivityExportButton } from '../../components/ActivityExportButton';
-import { ActivityFeed } from '../../components/ActivityFeed';
 import { ActivityFilterButton } from '../../components/ActivityFilterButton';
 import { ActivityLogTableSkeleton } from '../../components/ActivityLogSkeleton';
 import { ActivityNoAccess } from '../../components/ActivityNoAccess';
@@ -42,6 +41,7 @@ import {
     ActivityPagination,
     PAGE_SIZE_OPTIONS
 } from '../../components/ActivityPagination';
+import { ActivityTable } from '../../components/ActivityTable';
 import { ActivityToolbar } from '../../components/ActivityToolbar';
 import { DeadLetterNotice } from '../../components/DeadLetterNotice';
 import { activityDateTime } from '../../activityDateTime';
@@ -115,7 +115,7 @@ const MAX_PAGE_SIZE = Math.max(...PAGE_SIZE_OPTIONS);
 const SEARCH_KEY = 'q';
 
 /**
- * The Activity page: the audit log as a day-grouped **feed of sentences**, with
+ * The Activity page: the audit log as a **table** (When · Event · Workspace) whose Event cell is a sentence, with
  * one search box (people, records, actions), a time range, filters that read
  * back as removable chips, an event panel with a before/after diff, a CSV export
  * of the current view, and the caveat about actions that were not recorded.
@@ -356,7 +356,7 @@ export function ActivityLogPage() {
                 />
 
                 {/*
-                  Above the toolbar, not below the feed: the caveat is about
+                  Above the toolbar, not below the table: the caveat is about
                   everything under it, and a reader who scrolls to the rows has
                   already started trusting them.
                 */}
@@ -393,7 +393,7 @@ export function ActivityLogPage() {
                 ) : null}
 
                 {/* Announce what changed to assistive tech after a filter or a
-                    page change moves the feed without a navigation (WCAG
+                    page change moves the table without a navigation (WCAG
                     4.1.3). The range and page ride along, because the count
                     alone is invariant across pages and pressing Next page
                     would otherwise announce nothing at all. */}
@@ -437,7 +437,7 @@ export function ActivityLogPage() {
                     />
                 ) : (
                     <div>
-                        <ActivityFeed
+                        <ActivityTable
                             events={events}
                             workspaceNames={names}
                             selectedId={selected?.id ?? null}

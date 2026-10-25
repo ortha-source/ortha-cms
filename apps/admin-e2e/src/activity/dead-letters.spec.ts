@@ -366,7 +366,7 @@ test.describe('Activity dead letters', () => {
     }) => {
         await mockDeadLetters(page, [], { total: 0 });
         await activityLogPage.goto();
-        await expect(activityLogPage.feed).toBeVisible();
+        await expect(activityLogPage.table).toBeVisible();
 
         // Absence, not a zero-state. There is deliberately no "0 problems"
         // row, no placeholder and no reserved space: the normal case is that
@@ -382,7 +382,7 @@ test.describe('Activity dead letters', () => {
     }) => {
         await mockDeadLetters(page, [], { status: 500 });
         await activityLogPage.goto();
-        await expect(activityLogPage.feed).toBeVisible();
+        await expect(activityLogPage.table).toBeVisible();
 
         // Deliberate, and the opposite of the dialog's rule below: a caveat
         // about a list must never be the reason the page looks broken, and a

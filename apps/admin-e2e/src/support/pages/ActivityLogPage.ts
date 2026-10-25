@@ -20,8 +20,8 @@ export class ActivityLogPage extends BasePage {
     readonly search: Locator;
     /** The time-range select ("Last 7 days"). */
     readonly rangeSelect: Locator;
-    /** The day-grouped feed of event sentences (a named region). */
-    readonly feed: Locator;
+    /** The audit-log table (When · Event · Workspace). */
+    readonly table: Locator;
     /** "Export CSV", portalled into the top bar. */
     readonly exportButton: Locator;
 
@@ -37,7 +37,7 @@ export class ActivityLogPage extends BasePage {
             name: 'Search people, records, actions'
         });
         this.rangeSelect = page.getByRole('combobox', { name: 'Time range' });
-        this.feed = page.getByRole('region', { name: 'Activity log' });
+        this.table = page.getByRole('table', { name: 'Activity log' });
         this.exportButton = page.getByRole('button', { name: /Export CSV/ });
     }
 
@@ -61,24 +61,24 @@ export class ActivityLogPage extends BasePage {
         );
     }
 
-    /** A feed row located by any visible text in its sentence. */
+    /** A table row located by any visible text in it. */
     row(text: string): Locator {
-        return this.feed.getByRole('listitem').filter({ hasText: text });
+        return this.table.getByRole('row').filter({ hasText: text });
     }
 
-    /** The button that is a feed row — it opens the event panel. */
+    /** The row's sentence button — it opens the event panel. */
     rowButton(text: string): Locator {
         return this.row(text).getByRole('button').first();
     }
 
-    /** Every row's text, in feed order (the sentence, workspace and time). */
+    /** Every body row's text, in table order (when, sentence, workspace). */
     async sentences(): Promise<string[]> {
-        return this.feed.getByRole('listitem').allInnerTexts();
+        return this.table.locator('tbody tr').allInnerTexts();
     }
 
-    /** A day heading in the feed ("Today", "Yesterday", a date). */
-    dayHeading(name: string | RegExp): Locator {
-        return this.feed.getByRole('heading', { level: 2, name });
+    /** One body row's cell texts, by any text in the row. */
+    async cells(text: string): Promise<string[]> {
+        return this.row(text).getByRole('cell').allInnerTexts();
     }
 
     /** Opens the event panel for the first row containing `text`. */
@@ -127,7 +127,7 @@ export class ActivityLogPage extends BasePage {
         return this.page.locator('span[title]').filter({ hasText: text });
     }
 
-    /** The feed loading skeleton — a `role="status"` region. */
+    /** The table loading skeleton — a `role="status"` region. */
     tableSkeleton(): Locator {
         return this.page
             .getByRole('status')
