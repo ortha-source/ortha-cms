@@ -54,12 +54,14 @@ export function ActivityLogTableSkeleton({ rows = 8 }: { rows?: number }) {
                     <TableBody>
                         {Array.from({ length: rows }).map((_, index) => (
                             <TableRow key={index}>
-                                <TableCell>
+                                {/* The same row height as `ActivityTable`'s
+                                    roomier rows, so nothing jumps on load. */}
+                                <TableCell className="py-3.5">
                                     <Skeleton className="h-4 w-24" />
                                 </TableCell>
-                                <TableCell>
-                                    <div className="flex items-center gap-2.5">
-                                        <Skeleton className="size-6 shrink-0 rounded-md" />
+                                <TableCell className="py-3.5">
+                                    <div className="flex items-center gap-3">
+                                        <Skeleton className="size-8 shrink-0 rounded-lg" />
                                         <Skeleton
                                             className="h-4"
                                             style={{
@@ -68,7 +70,7 @@ export function ActivityLogTableSkeleton({ rows = 8 }: { rows?: number }) {
                                         />
                                     </div>
                                 </TableCell>
-                                <TableCell>
+                                <TableCell className="py-3.5">
                                     <Skeleton className="h-4 w-24" />
                                 </TableCell>
                             </TableRow>

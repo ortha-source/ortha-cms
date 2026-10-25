@@ -95,14 +95,20 @@ export function ActivityTable({
                                 onSelect(event);
                             }}
                         >
-                            <TableCell className="whitespace-nowrap text-sm text-muted-foreground tabular-nums">
+                            <TableCell className="whitespace-nowrap py-3.5 text-sm text-muted-foreground tabular-nums">
                                 <time dateTime={activityDateTime(event.at)}>
                                     {formatActivityWhen(intl, event.at, now)}
                                 </time>
                             </TableCell>
-                            <TableCell>
-                                <div className="flex min-w-0 items-center gap-2.5">
-                                    <ActivityActionTile kind={event.kind} />
+                            {/* A roomier row than the table default: the log
+                                is read line by line, so each event gets air
+                                and a tile big enough to scan by. */}
+                            <TableCell className="py-3.5">
+                                <div className="flex min-w-0 items-center gap-3">
+                                    <ActivityActionTile
+                                        kind={event.kind}
+                                        className="size-8 rounded-lg [&>svg]:size-4"
+                                    />
                                     <button
                                         type="button"
                                         data-activity-row={event.id}
@@ -120,7 +126,7 @@ export function ActivityTable({
                                     </button>
                                 </div>
                             </TableCell>
-                            <TableCell className="text-sm text-muted-foreground">
+                            <TableCell className="py-3.5 text-sm text-muted-foreground">
                                 {workspace ?? intl.formatMessage(messages.none)}
                             </TableCell>
                         </TableRow>
