@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { FileText, Layers } from 'lucide-react';
+import { FileText, Table2 } from 'lucide-react';
 import { defineMessages, useIntl } from 'react-intl';
 import { useHasPermission } from '@orthacms/identity-admin';
 import { useCurrentWorkspace } from '@orthacms/workspaces-admin';
@@ -15,6 +15,7 @@ import {
 } from '@orthacms/design-system';
 import { protectedTypeRows } from '../../../domain/protectedTypeRows';
 import type { ProtectedTypeRow, ProtectionRule } from '../../../domain/types';
+import { readRule } from '../../../domain/ruleSummary';
 import { useProtectionRules } from '../../../application/hooks';
 import { RuleEditorDialog } from './RuleEditorDialog';
 
@@ -63,7 +64,6 @@ const messages = defineMessages({
         id: 'protection.settings.configure',
         defaultMessage: 'Configure'
     },
-    view: { id: 'protection.settings.view', defaultMessage: 'View' },
     configureFor: {
         id: 'protection.settings.configureFor',
         defaultMessage: 'Configure protection for {label}'
@@ -76,31 +76,27 @@ const messages = defineMessages({
         id: 'protection.settings.listHeading',
         defaultMessage: 'Publishable types'
     },
-    protectedCount: {
-        id: 'protection.settings.protectedCount',
-        defaultMessage: '{protected} of {total} protected'
-    },
     protectedBadge: {
         id: 'protection.settings.protectedBadge',
         defaultMessage: 'Protected'
     },
-    directly: {
-        id: 'protection.settings.directly',
-        defaultMessage: 'Publishes without review'
+    none: {
+        id: 'protection.settings.none',
+        defaultMessage: '—'
     },
-    otherPerson: {
-        id: 'protection.settings.summary.otherPerson',
-        defaultMessage: 'the author can’t approve'
+    authorMayApprove: {
+        id: 'protection.settings.summary.authorMayApprove',
+        defaultMessage: 'authors may approve their own'
     },
-    staleApprovals: {
-        id: 'protection.settings.summary.staleApprovals',
-        defaultMessage: 'earlier approvals count'
+    keepsAcrossSaves: {
+        id: 'protection.settings.summary.keepsAcrossSaves',
+        defaultMessage: 'approvals kept across saves'
     },
-    adminBypass: {
+    adminsOverride: {
         id: 'protection.settings.summary.adminBypass',
         defaultMessage: 'admins may bypass'
     },
-    tokenPublish: {
+    tokensPublish: {
         id: 'protection.settings.summary.tokenPublish',
         defaultMessage: 'API tokens may publish'
     },
@@ -112,11 +108,12 @@ const messages = defineMessages({
 });
 
 /**
- * The workspace settings **Publishing rules** section: every publishable type
- * the workspace holds in one framed list — its rule in a line (the count,
- * then each exception), a Protected / Not protected / Switched off badge, and
- * Configure — then any rule left on a type the workspace no longer has. The
- * settings page draws the `<h1>` and description from the slot item.
+ * The workspace settings **Publishing** section: every publishable type the
+ * workspace holds in one framed list — its name, its rule in a few words (the
+ * count, then each way it is loosened; "—" when none is in force), a Protected
+ * / Not protected / Switched off badge, and Configure — then any rule left on a
+ * type the workspace no longer has. The settings page draws the `<h1>` and
+ * description from the slot item.
  *
  * **The list is the workspace's content grants, not its rules.** A rule is
  * addressed by `(workspace, kind, slug)` — the same pair `workspace_content`
@@ -188,37 +185,25 @@ export function ProtectionSettings() {
         );
     }
 
-    const protectedTotal = rows.filter((row) => row.rule?.enabled).length;
-
-    /** The rule in one line: the count, then each exception it makes. */
-    const summarize = (rule: ProtectionRule) =>
-        [
-            intl.formatMessage(messages.approvals, {
-                count: rule.requiredApprovals
-            }),
-            rule.requireOtherPerson && intl.formatMessage(messages.otherPerson),
-            rule.countStaleApprovals &&
-                intl.formatMessage(messages.staleApprovals),
-            rule.adminBypass && intl.formatMessage(messages.adminBypass),
-            rule.allowTokenPublish && intl.formatMessage(messages.tokenPublish)
-        ]
-            .filter(Boolean)
-            .join(' · ');
+    /**
+     * The rule in one line: the count, then each way it is loosened — the same
+     * reading as the editor's "In short" sentence, cut to fit a row. A type
+     * with no rule in force says nothing ("—"), the badge beside it saying why.
+     */
+    const summarize = (rule: ProtectionRule | null) => {
+        const reading = readRule(rule);
+        if (reading.kind === 'off') return intl.formatMessage(messages.none);
+        return [
+            intl.formatMessage(messages.approvals, { count: reading.count }),
+            ...reading.exceptions.map((exception) =>
+                intl.formatMessage(messages[exception])
+            )
+        ].join(' · ');
+    };
 
     return (
         <>
             <div className="overflow-hidden rounded-xl border bg-card">
-                <div className="flex items-center gap-2 border-b bg-muted/40 px-4 py-2 text-xs font-medium text-muted-foreground">
-                    {intl.formatMessage(messages.listHeading)}
-                    {rows.length > 0 ? (
-                        <span className="ml-auto">
-                            {intl.formatMessage(messages.protectedCount, {
-                                protected: protectedTotal,
-                                total: rows.length
-                            })}
-                        </span>
-                    ) : null}
-                </div>
                 {rows.length === 0 ? (
                     <div className="px-4 py-5">
                         <p className="text-sm font-medium">
@@ -236,35 +221,30 @@ export function ProtectionSettings() {
                         {rows.map((row) => (
                             <li
                                 key={row.slug}
-                                className="flex min-h-[52px] items-center gap-3 px-4 py-2"
+                                className="flex min-h-12 items-center gap-3 px-4 py-2"
                             >
-                                <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                                    {row.kind === 'single' ? (
-                                        <FileText
-                                            className="size-4"
-                                            aria-hidden
-                                        />
-                                    ) : (
-                                        <Layers
-                                            className="size-4"
-                                            aria-hidden
-                                        />
-                                    )}
-                                </span>
-                                <div className="flex min-w-0 flex-1 flex-col">
+                                {row.kind === 'single' ? (
+                                    <FileText
+                                        className="size-4 shrink-0 text-muted-foreground"
+                                        aria-hidden
+                                    />
+                                ) : (
+                                    <Table2
+                                        className="size-4 shrink-0 text-muted-foreground"
+                                        aria-hidden
+                                    />
+                                )}
+                                <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2.5">
                                     <span className="truncate text-sm font-medium">
                                         {row.label}
                                     </span>
-                                    <span className="truncate text-xs text-muted-foreground">
-                                        {row.rule?.enabled
-                                            ? summarize(row.rule)
-                                            : intl.formatMessage(
-                                                  messages.directly
-                                              )}
+                                    <span className="truncate text-[13px] text-muted-foreground">
+                                        {summarize(row.rule)}
                                     </span>
                                 </div>
                                 {/* Text, never colour alone. */}
                                 <Badge
+                                    size="xs"
                                     variant={
                                         row.rule?.enabled ? 'success' : 'muted'
                                     }
@@ -279,7 +259,7 @@ export function ProtectionSettings() {
                                 </Badge>
                                 <Button
                                     type="button"
-                                    variant="outline"
+                                    variant="ghost"
                                     size="sm"
                                     onClick={(event) => {
                                         trigger.current = event.currentTarget;

@@ -1,44 +1,59 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { cn } from '@orthacms/design-system';
+import { Badge } from '@orthacms/design-system';
 
 const messages = defineMessages({
     days: {
         id: 'protection.queue.age.days',
-        defaultMessage: '{days, plural, one {# day} other {# days}} waiting'
+        defaultMessage: '{days, plural, one {# day} other {# days}}'
     },
     hours: {
         id: 'protection.queue.age.hours',
-        defaultMessage: '{hours, plural, one {# hour} other {# hours}} waiting'
+        defaultMessage: '{hours, plural, one {# hour} other {# hours}}'
+    },
+    minutes: {
+        id: 'protection.queue.age.minutes',
+        defaultMessage: '{minutes} min'
     },
     fresh: { id: 'protection.queue.age.fresh', defaultMessage: 'Just now' },
-    overdue: { id: 'protection.queue.age.overdue', defaultMessage: 'overdue' }
+    overdue: { id: 'protection.queue.age.overdue', defaultMessage: 'Overdue' }
 });
+
+/** Whole units of `unitMs` between `iso` and `now`, floored; skew reads as 0. */
+function elapsed(iso: string, unitMs: number, now: number): number {
+    const started = Date.parse(iso);
+    if (Number.isNaN(started)) return 0;
+    return Math.max(0, Math.floor((now - started) / unitMs));
+}
 
 /** Whole days between `iso` and `now`, floored; clock skew reads as 0. */
 export function ageInDays(iso: string, now = Date.now()): number {
-    const started = Date.parse(iso);
-    if (Number.isNaN(started)) return 0;
-    return Math.max(0, Math.floor((now - started) / 86_400_000));
-}
-
-/** Whole hours, for the under-a-day case. */
-function ageInHours(iso: string, now = Date.now()): number {
-    const started = Date.parse(iso);
-    if (Number.isNaN(started)) return 0;
-    return Math.max(0, Math.floor((now - started) / 3_600_000));
+    return elapsed(iso, 86_400_000, now);
 }
 
 /**
- * How long an ask has been waiting.
+ * Whether an ask opened at `iso` is past the server's overdue cut — the one
+ * test the table's badge and the side panel's header both make.
+ */
+export function isOverdue(
+    iso: string,
+    overdueAfterDays: number,
+    now = Date.now()
+): boolean {
+    return ageInDays(iso, now) >= overdueAfterDays;
+}
+
+/**
+ * How long an ask has been waiting — "5 days", "3 hours", "20 min" — and,
+ * once it is past the cut, an **Overdue** badge beside it.
  *
- * **The warning tone is never the only signal.** A request past
- * `overdueAfterDays` is coloured *and* carries the word "overdue" in
- * its text, so the fact survives a greyscale screen, a colour-blind reader and
- * a screen reader alike. It is the rule a queue gets wrong most easily, because
- * "this one is old" feels like something red says by itself.
+ * **The warning tone is never the only signal.** An overdue request carries
+ * the word in a badge, so the fact survives a greyscale screen, a colour-blind
+ * reader and a screen reader alike. It is the rule a queue gets wrong most
+ * easily, because "this one is old" feels like something red says by itself.
  *
  * The exact moment rides `<time datetime>` rather than the rounded phrase, so
- * nothing is lost to the rounding.
+ * nothing is lost to the rounding; the column header ("Waiting") says what the
+ * duration is of.
  */
 export function RequestAge({
     createdAt,
@@ -60,34 +75,36 @@ export function RequestAge({
     overdueAfterDays: number;
 }) {
     const intl = useIntl();
-    const days = ageInDays(createdAt);
-    const hours = ageInHours(createdAt);
+    const now = Date.now();
+    const days = ageInDays(createdAt, now);
+    const hours = elapsed(createdAt, 3_600_000, now);
+    const minutes = elapsed(createdAt, 60_000, now);
     const overdue = days >= overdueAfterDays;
 
     const waited = days
         ? intl.formatMessage(messages.days, { days })
         : hours
           ? intl.formatMessage(messages.hours, { hours })
-          : intl.formatMessage(messages.fresh);
+          : minutes
+            ? intl.formatMessage(messages.minutes, { minutes })
+            : intl.formatMessage(messages.fresh);
 
     return (
-        <time
-            dateTime={createdAt}
-            className={cn(
-                overdue
-                    ? 'inline-flex h-5 items-center gap-1.5 rounded-md bg-destructive-soft px-1.5 text-xs font-medium whitespace-nowrap text-destructive-soft-foreground'
-                    : 'text-sm text-muted-foreground'
-            )}
-        >
-            {overdue ? (
-                <span
-                    aria-hidden
-                    className="size-1.5 shrink-0 rounded-full bg-current"
-                />
-            ) : null}
-            {overdue
-                ? `${waited} — ${intl.formatMessage(messages.overdue)}`
-                : waited}
-        </time>
+        <span className="inline-flex items-center gap-2 whitespace-nowrap">
+            <time dateTime={createdAt} className="text-sm">
+                {waited}
+            </time>
+            {overdue ? <OverdueBadge /> : null}
+        </span>
+    );
+}
+
+/** The word, in the destructive tint — never the tint alone. */
+export function OverdueBadge() {
+    const intl = useIntl();
+    return (
+        <Badge variant="destructive-soft" size="xs">
+            {intl.formatMessage(messages.overdue)}
+        </Badge>
     );
 }

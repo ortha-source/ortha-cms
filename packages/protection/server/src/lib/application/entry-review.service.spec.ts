@@ -219,6 +219,36 @@ describe('EntryReviewService.state', () => {
     });
 
     /**
+     * The queue panel says "a new save asks again" only when it is true — so
+     * the rule's `countStaleApprovals` travels with the state, and an
+     * unprotected type reports `false` whatever a switched-off rule holds.
+     */
+    it('says whether approvals survive a save', async () => {
+        const keeps = makeService({
+            rule: { ...rule, countStaleApprovals: true }
+        });
+        const drops = makeService({ rule });
+        const off = makeService({
+            rule: { ...rule, enabled: false, countStaleApprovals: true }
+        });
+
+        for (const [made, expected] of [
+            [keeps, true],
+            [drops, false],
+            [off, false]
+        ] as const) {
+            expect(
+                await made.service.state(
+                    WORKSPACE,
+                    'article',
+                    ENTRY,
+                    caller(BORIS)
+                )
+            ).toMatchObject({ countsStaleApprovals: expected });
+        }
+    });
+
+    /**
      * A vote on an earlier version is reported **stale, with the version it was
      * given on** — that line is the only explanation the editor has for a count
      * that moved after a save, and the number comes from the revision timeline

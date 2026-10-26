@@ -31,6 +31,8 @@ export type EntryReviewSeed = {
     headPublished?: boolean;
     callerWroteHead?: boolean;
     callerApprovedHead?: boolean;
+    /** Whether the rule keeps approvals across saves. */
+    countsStaleApprovals?: boolean;
     /**
      * The verdict a save by the caller would meet. Defaults to what the default
      * rule gives: every approval off the new head, so held whenever a rule is.
@@ -89,6 +91,7 @@ function reviewBodyOf(seed: EntryReviewSeed) {
         headPublished: seed.headPublished ?? false,
         callerWroteHead: seed.callerWroteHead ?? false,
         callerApprovedHead: seed.callerApprovedHead ?? false,
+        countsStaleApprovals: seed.countsStaleApprovals ?? false,
         approvals: (seed.approvals ?? []).map((vote) => ({
             userId: vote.userId,
             revisionId: vote.revisionId ?? 'rev-7',
@@ -307,6 +310,12 @@ export type ReviewQueueSeed = {
     given?: number;
     /** ISO-8601. Defaults to now, so a seed is "fresh" unless it says otherwise. */
     createdAt?: string;
+    /** The head's version number. Defaults to 2. */
+    headRevisionNumber?: number | null;
+    /** The live version's number; `null` for never published. Defaults to 1. */
+    liveRevisionNumber?: number | null;
+    /** Fields changed since live. Defaults to 3. */
+    fieldsChanged?: number | null;
 };
 
 /** `createdAt` for an ask opened `days` ago — the age column's input. */
@@ -353,7 +362,8 @@ export async function mockReviewQueue(
                     reviewerIds: item.reviewerIds ?? [],
                     required: item.required ?? 2,
                     given: item.given ?? 0,
-                    createdAt: item.createdAt ?? new Date().toISOString()
+                    createdAt: item.createdAt ?? new Date().toISOString(),
+                    ...changesOf(item)
                 })),
                 total: items.length,
                 // The server's own cut, which the queue takes off the wire
@@ -364,6 +374,150 @@ export async function mockReviewQueue(
             })
         });
     });
+}
+
+/** A line's change summary, with the seed defaults filled in. */
+function changesOf(item: {
+    headRevisionNumber?: number | null;
+    liveRevisionNumber?: number | null;
+    fieldsChanged?: number | null;
+}) {
+    return {
+        headRevisionNumber:
+            item.headRevisionNumber === undefined ? 2 : item.headRevisionNumber,
+        liveRevisionNumber:
+            item.liveRevisionNumber === undefined ? 1 : item.liveRevisionNumber,
+        fieldsChanged: item.fieldsChanged === undefined ? 3 : item.fieldsChanged
+    };
+}
+
+/** One line of "Recently approved", as `GET /api/protection/queue/approved` returns it. */
+export type RecentlyApprovedSeed = {
+    entryId: string;
+    contentType?: string;
+    contentTypeLabel?: string;
+    entryTitle?: string | null;
+    /** Who asked; `null` when nobody did. */
+    requestedBy?: string | null;
+    reviewerIds?: string[];
+    required?: number;
+    given?: number;
+    /** ISO-8601. Defaults to a day ago. */
+    approvedAt?: string;
+    approvalCurrent?: boolean;
+    headPublished?: boolean;
+    headRevisionNumber?: number | null;
+    liveRevisionNumber?: number | null;
+    fieldsChanged?: number | null;
+};
+
+/**
+ * Serves the Reviews page's third tab — what the caller approved lately — and
+ * counts the reads, because the page asks only once the tab is opened and the
+ * assertion that it did not ask before is a negative one.
+ */
+export async function mockRecentlyApproved(
+    page: Page,
+    items: RecentlyApprovedSeed[] = [],
+    options: { status?: number; windowDays?: number } = {}
+): Promise<{ readonly reads: number }> {
+    let reads = 0;
+    await page.route('**/api/protection/queue/approved*', async (route) => {
+        reads += 1;
+        if (options.status && options.status >= 400) {
+            await route.fulfill({
+                status: options.status,
+                contentType: 'application/json',
+                body: JSON.stringify({ message: 'Unavailable' })
+            });
+            return;
+        }
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+                windowDays: options.windowDays ?? 30,
+                items: items.map((item) => ({
+                    id: item.entryId,
+                    contentType: item.contentType ?? 'blog_post',
+                    contentTypeLabel: item.contentTypeLabel ?? 'Blog posts',
+                    entryId: item.entryId,
+                    entryTitle:
+                        item.entryTitle === undefined
+                            ? `Post ${item.entryId}`
+                            : item.entryTitle,
+                    requestedBy:
+                        item.requestedBy === undefined
+                            ? null
+                            : item.requestedBy,
+                    reviewerIds: item.reviewerIds ?? [],
+                    required: item.required ?? 2,
+                    given: item.given ?? 1,
+                    approvedAt: item.approvedAt ?? daysAgo(1),
+                    approvalCurrent: item.approvalCurrent ?? true,
+                    headPublished: item.headPublished ?? false,
+                    ...changesOf(item)
+                }))
+            })
+        });
+    });
+    return {
+        get reads() {
+            return reads;
+        }
+    };
+}
+
+/**
+ * Serves one entry's revision snapshots — `GET /api/content/:type/:id/revisions/:n`
+ * — which the Reviews side panel compares (live against the version waiting
+ * for approval). Keyed by version number; an unknown number is a 404.
+ */
+export async function mockRevisionSnapshots(
+    page: Page,
+    type: string,
+    entryId: string,
+    versions: Record<number, Record<string, unknown>>,
+    options: { status?: number } = {}
+): Promise<void> {
+    await page.route(
+        new RegExp(`/api/content/${type}/${entryId}/revisions/(\\d+)(\\?.*)?$`),
+        async (route) => {
+            const number = Number(
+                new URL(route.request().url()).pathname.split('/').pop()
+            );
+            const values = versions[number];
+            if (options.status && options.status >= 400) {
+                await route.fulfill({
+                    status: options.status,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ message: 'Unavailable' })
+                });
+                return;
+            }
+            if (!values) {
+                await route.fulfill({
+                    status: 404,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ message: 'Not found' })
+                });
+                return;
+            }
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    id: `${entryId}-rev-${number}`,
+                    number,
+                    status: 'draft',
+                    isPublished: false,
+                    isLatest: false,
+                    createdAt: '2026-01-01T00:00:00.000Z',
+                    snapshot: { values, relations: {} }
+                })
+            });
+        }
+    );
 }
 
 /** One entry's row in the records column, as the batched read returns it. */

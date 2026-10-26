@@ -81,6 +81,45 @@ export class HeadRevisionQuery {
     }
 
     /**
+     * The entry's head **and** its live version, from one timeline read — what
+     * the reviewer queue needs to say how much changed since the entry was
+     * last published.
+     *
+     * `live` is `null` for an entry that has never been published (and for one
+     * whose live version is older than the lookup window, which a queue line
+     * then reports as if never published rather than guessing). When the head
+     * *is* the live version, both name the same revision.
+     */
+    async headAndLive(
+        contentType: string,
+        entryId: string,
+        workspaceId: string
+    ): Promise<{
+        head: HeadRevision;
+        live: { id: string; number: number } | null;
+    } | null> {
+        const { items } = await this.revisions.list(
+            contentType,
+            entryId,
+            workspaceId,
+            1,
+            TIMELINE_LOOKUP_CAP
+        );
+        const head = items[0];
+        if (!head) return null;
+        const live = items.find((item) => item.isPublished) ?? null;
+        return {
+            head: {
+                id: head.id,
+                number: head.number,
+                authorId: head.authorId ?? null,
+                isPublished: head.isPublished
+            },
+            live: live ? { id: live.id, number: live.number } : null
+        };
+    }
+
+    /**
      * Every revision of the entry, newest first — used only to put a **version
      * number** beside a stale vote.
      *

@@ -140,6 +140,12 @@ export interface EntryReviewView {
     callerWroteHead: boolean;
     /** Whether the caller has already approved the head — nothing left to press. */
     callerApprovedHead: boolean;
+    /**
+     * Whether the rule keeps approvals across saves (`countStaleApprovals`).
+     * `false` on an unprotected type. The queue panel reads it to say whether
+     * "a new save asks again".
+     */
+    countsStaleApprovals: boolean;
     /** Every vote on the entry, stale ones included. */
     approvals: ReviewApprovalView[];
     /** The open ask, or `null`. */
@@ -179,6 +185,22 @@ export interface ReviewQueueItemView {
     given: number;
     /** ISO-8601 — the age the page sorts and colours by. */
     createdAt: string;
+    /**
+     * The entry's current version number, or `null` when its revisions have
+     * gone — what the queue's side panel reads as "This version".
+     */
+    headRevisionNumber: number | null;
+    /**
+     * The live version's number, or `null` when the entry has never been
+     * published — the panel's "Live" side.
+     */
+    liveRevisionNumber: number | null;
+    /**
+     * How many fields the head changed since the live version (every filled
+     * field, for a never-published entry), compared through content's
+     * `diffSnapshots`. `null` when it could not be computed.
+     */
+    fieldsChanged: number | null;
 }
 
 /** A page of the reviewer queue. */
@@ -195,6 +217,53 @@ export interface ReviewQueueView {
      * without anything failing.
      */
     overdueAfterDays: number;
+}
+
+/**
+ * One entry the caller approved recently — a line of the Reviews page's
+ * "Recently approved" tab, which answers *did I already approve that?*.
+ *
+ * The request may have closed since (most approved entries get published), so
+ * who asked comes from the entry's **newest** request, open or resolved, and is
+ * `null` for an entry approved without anybody asking.
+ */
+export interface RecentlyApprovedItemView {
+    /** The entry id — one line per entry, however many versions were approved. */
+    id: string;
+    contentType: string;
+    contentTypeLabel: string;
+    entryId: string;
+    entryTitle: string | null;
+    /** Who asked for the review, or `null` when nobody did. */
+    requestedBy: string | null;
+    /** Whom that request named. Empty when nobody asked. */
+    reviewerIds: string[];
+    /** How many approvals the type's rule wants; `0` when unprotected. */
+    required: number;
+    /** Distinct approvals on the current head. */
+    given: number;
+    /** ISO-8601 — the caller's newest approval of the entry. */
+    approvedAt: string;
+    /**
+     * Whether the caller's approval is on the current head, and so still
+     * counts. `false` once a save has moved the head past it.
+     */
+    approvalCurrent: boolean;
+    /** Whether the head is the live version — published, no save since. */
+    headPublished: boolean;
+    /** See {@link ReviewQueueItemView.headRevisionNumber}. */
+    headRevisionNumber: number | null;
+    /** See {@link ReviewQueueItemView.liveRevisionNumber}. */
+    liveRevisionNumber: number | null;
+    /** See {@link ReviewQueueItemView.fieldsChanged}. */
+    fieldsChanged: number | null;
+}
+
+/** The "Recently approved" tab. */
+export interface RecentlyApprovedView {
+    items: RecentlyApprovedItemView[];
+    /** How far back the tab looks, so the page can say so. */
+    windowDays: number;
 }
 
 /**
