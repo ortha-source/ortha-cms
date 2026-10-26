@@ -192,6 +192,20 @@ export interface ToolDefinition {
      * Surfaces as MCP's `destructiveHint`.
      */
     destructive?: boolean;
+    /**
+     * True when {@link handler} has **no side effects** and may be run before
+     * the actor has allowed the call, to show them what it would do.
+     *
+     * Only meaningful on an `effect: 'propose'` tool, whose handler computes a
+     * draft and writes nothing (the copilot engine records and applies it
+     * afterwards). The copilot runs such a handler once *before* its
+     * permission prompt, through {@link ToolRegistry.preview}, so the prompt
+     * can show the before/after diff instead of raw arguments; allowing the
+     * call runs it again for real. Opt-in rather than inferred from `effect`,
+     * because "my handler is pure" is a claim only the binder can make — a
+     * propose tool that fetched a URL to build its draft must leave this off.
+     */
+    previewable?: boolean;
     /** Runs the tool. Throws to signal failure; see `toToolError`. */
     handler(
         input: Record<string, unknown>,

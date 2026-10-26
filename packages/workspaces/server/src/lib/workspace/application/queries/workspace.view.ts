@@ -6,6 +6,12 @@ export interface WorkspaceMemberView {
     name: string | null;
     /** Email address. */
     email: string;
+    /**
+     * The account's lifecycle in the directory. `pending` is someone invited
+     * by email who has not accepted yet — still a member, so the admin can say
+     * "1 invite" rather than counting them as an active teammate.
+     */
+    status: 'pending' | 'active' | 'disabled';
 }
 
 /**
@@ -61,4 +67,40 @@ export interface WorkspaceView {
      * records of a type each — ordered by slug, then source name.
      */
     sharedContent: WorkspaceSharedContentView[];
+    /**
+     * Content entries the workspace holds across every type (soft-deleted
+     * rows included, as the delete guard counts them). `0` when no content
+     * plugin is bound. Display only — never proof of emptiness.
+     */
+    recordCount: number;
+    /** {@link recordCount} split by content-type slug; a type with none is absent. */
+    recordCountByType: Record<string, number>;
+    /** When the workspace was created (ISO 8601). */
+    createdAt: string;
+    /**
+     * When the workspace last moved (ISO 8601): the later of its own last
+     * write and its newest entry's last edit. Sorts the cards by "recently
+     * edited".
+     */
+    lastEditedAt: string;
+    /** When it was archived (ISO 8601); `null` while it is active. */
+    archivedAt: string | null;
+}
+
+/**
+ * What archiving a workspace would touch — `GET /workspaces/:id/archive-impact`.
+ * Archiving deletes nothing; these are the counts the confirmation states
+ * before the button.
+ */
+export interface WorkspaceArchiveImpactView {
+    /** Entries the workspace holds; they stay where they are. */
+    records: number;
+    /** Members; they keep their accounts and their membership. */
+    members: number;
+    /**
+     * Other workspaces holding a **live** shared grant from this one — the
+     * ones that will see its records as unavailable once it is archived. `0`
+     * when it is not shared (their grants are already inert).
+     */
+    linkedWorkspaces: number;
 }

@@ -19,5 +19,8 @@ export const TEXT_MAX_LENGTH = 500;
  */
 export const MAX_BATCH_ENTRY_IDS = 100;
 
-/** How many matching ids the rule preview returns as a sample. */
-export const PREVIEW_SAMPLE_SIZE = 5;
+/**
+ * How many matching entries the rule preview returns as a sample — the four
+ * rows the editor lists under its count, with "and N more" beneath them.
+ */
+export const PREVIEW_SAMPLE_SIZE = 4;

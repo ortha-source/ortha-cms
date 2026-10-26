@@ -1,5 +1,6 @@
 import { apiClient, toApiError } from '@orthacms/utils-admin';
 import type { EntryAccess, Segment } from '../domain/types';
+import type { SegmentUsage } from '../domain/usage';
 
 /** What the editor page submits to create. */
 export type CreateSegmentInput = {
@@ -90,6 +91,12 @@ export type SegmentsGateway = {
     updateSegment(input: UpdateSegmentInput): Promise<Segment>;
     /** Delete a segment and drop it from every entry that named it. */
     deleteSegment(id: string): Promise<void>;
+    /**
+     * The entries of **one workspace** that name a segment. The workspace is
+     * sent explicitly rather than ambiently: the audience pages live outside
+     * any workspace shell, and ask each workspace the caller can open in turn.
+     */
+    getSegmentUsage(id: string, workspaceId: string): Promise<SegmentUsage>;
 
     /** One entry's lists. Two empty ones mean everyone. */
     getEntryAccess(entryId: string): Promise<EntryAccess>;
@@ -222,6 +229,28 @@ export const httpSegmentsGateway: SegmentsGateway = {
         }
     },
 
+    async getSegmentUsage(
+        id: string,
+        workspaceId: string
+    ): Promise<SegmentUsage> {
+        try {
+            const { data } = await apiClient.get<SegmentUsage>(
+                `/segments/${id}/usage`,
+                // An explicit header wins over the ambient one `apiClient`
+                // attaches, which is whatever workspace was last opened.
+                { headers: { 'X-Workspace-Id': workspaceId } }
+            );
+            return {
+                segmentId: data.segmentId,
+                total: data.total ?? 0,
+                items: data.items ?? [],
+                truncated: data.truncated ?? false
+            };
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
     async getEntryAccess(entryId: string): Promise<EntryAccess> {
         try {
             const { data } = await apiClient.get<EntryAccess>(
@@ -282,6 +311,12 @@ export const segmentsKeys = {
         ['segments', 'lookup', [...new Set(ids)].sort().join(',')] as const,
     /** One segment, for the editor page. */
     detail: (id: string) => ['segments', 'detail', id] as const,
+    /**
+     * Where one segment is used, in one workspace. Under the catalogue root, so
+     * a retag or a delete refreshes it with the rest of the directory.
+     */
+    usage: (id: string, workspaceId: string) =>
+        ['segments', 'usage', id, workspaceId] as const,
     /**
      * One entry's lists. The workspace is in the key because it reaches the
      * server only as an ambient header, which is never sent on a cache hit.

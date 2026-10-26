@@ -214,4 +214,78 @@ test.describe('Members filter (query builder)', () => {
             await expect(membersPage.row('Ada Lovelace')).toBeVisible();
         });
     });
+
+    /**
+     * The quick filters lead the toolbar: the usual questions in one click,
+     * the builder still behind its icon. Each is an ordinary list parameter
+     * (`?show=`), so it composes with search and the builder.
+     */
+    test.describe('quick filters', () => {
+        test('show directory-wide counts, Everyone pressed by default', async ({
+            membersPage
+        }) => {
+            await membersPage.goto();
+            await expect(membersPage.quickFilter('Everyone')).toHaveAttribute(
+                'aria-pressed',
+                'true'
+            );
+            await expect(membersPage.quickFilter('Everyone')).toHaveText(
+                'Everyone4'
+            );
+            await expect(membersPage.quickFilter('Admins')).toHaveText(
+                'Admins1'
+            );
+            await expect(membersPage.quickFilter('Invited')).toHaveText(
+                'Invited1'
+            );
+            await expect(membersPage.quickFilter('Disabled')).toHaveText(
+                'Disabled1'
+            );
+        });
+
+        test('narrow the roster in one click and deep-link the choice', async ({
+            membersPage,
+            page
+        }) => {
+            await membersPage.goto();
+            await membersPage.quickFilter('Admins').click();
+
+            await expect(membersPage.row('Ada Lovelace')).toBeVisible();
+            await expect(membersPage.row('Grace Hopper')).toHaveCount(0);
+            await expect(page).toHaveURL(/[?&]show=admins/);
+            // The counts describe the directory, not the narrowed page.
+            await expect(membersPage.quickFilter('Everyone')).toHaveText(
+                'Everyone4'
+            );
+
+            await membersPage.quickFilter('Invited').click();
+            await expect(membersPage.row('alan@orthacms.dev')).toBeVisible();
+            await expect(membersPage.row('Ada Lovelace')).toHaveCount(0);
+
+            await membersPage.quickFilter('Everyone').click();
+            await expect(page).not.toHaveURL(/show=/);
+            await expect(membersPage.row('Grace Hopper')).toBeVisible();
+        });
+
+        test('restore from a deep link, and compose with search', async ({
+            membersPage,
+            page
+        }) => {
+            await page.goto('/users?show=disabled');
+            await expect(membersPage.quickFilter('Disabled')).toHaveAttribute(
+                'aria-pressed',
+                'true'
+            );
+            await expect(membersPage.row('Katherine Johnson')).toBeVisible();
+
+            await membersPage.search.fill('ada');
+            await expect(
+                membersPage.emptyText('No members match')
+            ).toBeVisible();
+            // Clearing from the empty state drops the quick filter too.
+            await membersPage.clearSearchButton().click();
+            await expect(page).not.toHaveURL(/show=/);
+            await expect(membersPage.row('Ada Lovelace')).toBeVisible();
+        });
+    });
 });

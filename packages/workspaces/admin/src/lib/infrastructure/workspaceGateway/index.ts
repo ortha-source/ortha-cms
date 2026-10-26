@@ -1,5 +1,6 @@
 import type { AvatarColor } from '@orthacms/design-system';
 import type {
+    ArchiveImpact,
     SharedSource,
     Workspace,
     WorkspaceStatus
@@ -7,7 +8,8 @@ import type {
 import type {
     ContentType,
     CreateWorkspaceBody,
-    DirectoryUser
+    DirectoryUser,
+    InviteDelivery
 } from '../../domain/types/wizard';
 
 /**
@@ -120,6 +122,19 @@ export type WorkspaceGateway = {
     contentEntryCount(workspaceId: string, slug: string): Promise<number>;
     /** Total content entries a workspace holds across all its types. */
     entryCount(workspaceId: string): Promise<number>;
+    /**
+     * What archiving a workspace would touch, via
+     * `GET /api/workspaces/:id/archive-impact`.
+     */
+    archiveImpact(workspaceId: string): Promise<ArchiveImpact>;
+    /**
+     * Issues the invitation of a pending account the create provisioned, via
+     * the users plugin's `POST /api/users/:id/invites/resend` (which mints the
+     * token and, with a mail provider, sends it). Answers `sent` when the mail
+     * carries it and `link` when the token came back for an admin to hand over
+     * — this never shows it; Members can reveal it again.
+     */
+    sendInvite(userId: string): Promise<Exclude<InviteDelivery, 'pending'>>;
     /** Searches the user directory for the member typeahead. */
     searchUsers(query: string): Promise<DirectoryUser[]>;
     /** Loads the content-type catalogue. */

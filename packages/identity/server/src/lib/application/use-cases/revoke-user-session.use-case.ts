@@ -1,5 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { attachActor, OutboxWriter, UnitOfWork } from '@orthacms/database';
+import {
+    attachActor,
+    OutboxWriter,
+    UnitOfWork,
+    type DomainEvent
+} from '@orthacms/database';
 import {
     IDENTITY_EVENT_KINDS,
     identityEvent
@@ -64,14 +69,63 @@ export class RevokeUserSessionUseCase {
                 userId,
                 { sessionId }
             );
-            await this.outbox.append(
-                actor
-                    ? attachActor([event], {
-                          id: actor.id,
-                          email: actor.email ?? null
-                      })
-                    : [event]
-            );
+            await this.outbox.append(this.withActor([event], actor));
         });
+    }
+
+    /**
+     * Signs a member out **everywhere** on an administrator's behalf — the
+     * member page's "Sign out everywhere" — returning how many sessions ended.
+     *
+     * `exceptSessionId` keeps the caller's own session alive: on their own
+     * page an admin means "every other device", and ending the request's own
+     * session would sign them out mid-click. Elsewhere it matches nothing.
+     *
+     * One `user.session_revoked` per session actually ended, in the same unit
+     * of work as the revocations — the existing audit kind, so the log reads
+     * the same whether sessions were ended one by one or all at once, and no
+     * new mapping is needed downstream. Already-dead sessions are skipped, as
+     * {@link execute} skips them.
+     */
+    async executeAll(
+        userId: string,
+        options: { exceptSessionId?: string | null; actor?: PublicUser } = {}
+    ): Promise<number> {
+        return this.uow.run(async () => {
+            const live = await this.sessions.listForUser(userId);
+            const events: DomainEvent[] = [];
+            for (const session of live) {
+                if (session.id === options.exceptSessionId) {
+                    continue;
+                }
+                if (await this.sessions.revokeById(userId, session.id)) {
+                    events.push(
+                        identityEvent(
+                            IDENTITY_EVENT_KINDS.SESSION_REVOKED,
+                            userId,
+                            { sessionId: session.id }
+                        )
+                    );
+                }
+            }
+            if (events.length > 0) {
+                await this.outbox.append(this.withActor(events, options.actor));
+            }
+            return events.length;
+        });
+    }
+
+    /**
+     * Stamps the administrator on the events. A revocation with no
+     * identifiable caller still records the fact, actor-less, rather than
+     * skipping the row.
+     */
+    private withActor(
+        events: DomainEvent[],
+        actor?: PublicUser
+    ): DomainEvent[] {
+        return actor
+            ? attachActor(events, { id: actor.id, email: actor.email ?? null })
+            : events;
     }
 }

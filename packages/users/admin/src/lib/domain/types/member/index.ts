@@ -57,6 +57,11 @@ export type Member = {
     isLastAdmin: boolean;
     /** The workspaces this member belongs to. */
     workspaces: MemberWorkspace[];
+    /**
+     * The last authenticated request from any of the member's sessions, or
+     * `null` if they have never signed in (every invite, until accepted).
+     */
+    lastActiveAt: Date | null;
 };
 
 /**
@@ -75,6 +80,8 @@ export type InvitedMember = Member & {
      * when the invitation was emailed instead.
      */
     inviteToken: string | null;
+    /** When the invite link stops working, when the server said. */
+    inviteExpiresAt: Date | null;
 };
 
 /**
@@ -89,6 +96,8 @@ export type MemberWithResetToken = Member & {
      * `null` when the link was emailed instead.
      */
     resetToken: string | null;
+    /** When the reset link stops working, when the server said. */
+    resetExpiresAt: Date | null;
 };
 
 /** One page of members plus the pagination envelope. */
@@ -101,4 +110,41 @@ export type MemberList = {
     page: number;
     /** Rows per page. */
     pageSize: number;
+    /** Directory-wide head counts behind the quick filters. */
+    counts: MemberCounts;
+};
+
+/**
+ * Head counts over the whole directory — not narrowed by the page's search or
+ * filters, so a chip's number stays put while the user types.
+ */
+export type MemberCounts = {
+    /** Every member, whatever their status. */
+    everyone: number;
+    /** Members who can sign in today. */
+    active: number;
+    /** Members holding the admin role, in any status. */
+    admins: number;
+    /** Invites not yet accepted. */
+    invited: number;
+    /** Suspended members. */
+    disabled: number;
+};
+
+/** One assignable role and the permission keys the server grants it. */
+export type RoleCatalogEntry = {
+    /** The role's key. */
+    key: MemberRole;
+    /** The server's label (e.g. `Administrator`). */
+    name: string;
+    /** Every permission key the role grants. */
+    permissions: readonly string[];
+};
+
+/** How a member can sign in: a password, linked SSO providers, or both. */
+export type MemberSignIn = {
+    /** Whether a password is set (false until an invite is accepted). */
+    hasPassword: boolean;
+    /** Registered names of the linked SSO providers (`google`, `entra`). */
+    ssoProviders: string[];
 };

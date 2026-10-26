@@ -7,6 +7,7 @@ import { EntryReviewService } from './application/entry-review.service';
 import { ProtectionRulesService } from './application/protection-rules.service';
 import { ReviewQueueService } from './application/review-queue.service';
 import { HeadRevisionQuery } from './infrastructure/head-revision.query';
+import { EntryChangesQuery } from './infrastructure/entry-changes.query';
 import { ReviewApprovalRepository } from './infrastructure/review-approval.repository';
 import { ReviewRequestRepository } from './infrastructure/review-request.repository';
 import { EntryReviewController } from './http/controllers/entry-review.controller';
@@ -73,6 +74,9 @@ export class ProtectionModule {
                 // `content_entry_revisions` directly would tie this package to
                 // a table it does not own and cannot migrate.
                 HeadRevisionQuery,
+                // How many fields each queued entry changed since it was live —
+                // through content's own `diffSnapshots`, never a second diff.
+                EntryChangesQuery,
                 // Who may be asked to review — one list for the picker and for
                 // the check the request route makes.
                 ReviewerCandidatesQuery,

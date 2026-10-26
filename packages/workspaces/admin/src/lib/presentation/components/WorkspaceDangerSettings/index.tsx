@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { TriangleAlert } from 'lucide-react';
-import { Button, ConfirmDialog, toast } from '@orthacms/design-system';
+import { Button, toast } from '@orthacms/design-system';
+import { ArchiveWorkspaceDialog } from '../ArchiveWorkspaceDialog';
 import type { Workspace } from '../../../domain/types/workspace';
 import { useSetWorkspaceStatus } from '../../../application/useSetWorkspaceStatus';
 import { useDeleteWorkspace } from '../../../application/useDeleteWorkspace';
@@ -62,15 +63,6 @@ const messages = defineMessages({
     deleteAction: {
         id: 'workspaces.settings.danger.deleteAction',
         defaultMessage: 'Delete workspace'
-    },
-    archiveConfirmTitle: {
-        id: 'workspaces.settings.danger.archiveConfirmTitle',
-        defaultMessage: 'Archive “{name}”?'
-    },
-    archiveConfirmBody: {
-        id: 'workspaces.settings.danger.archiveConfirmBody',
-        defaultMessage:
-            'The workspace will be hidden from the default view. Members keep their access and you can unarchive it later.'
     },
     archived: {
         id: 'workspaces.settings.danger.archived',
@@ -269,14 +261,11 @@ export function WorkspaceDangerSettings({
                 ) : null}
             </div>
 
-            <ConfirmDialog
-                open={confirmingArchive}
-                onOpenChange={setConfirmingArchive}
-                title={intl.formatMessage(messages.archiveConfirmTitle, {
-                    name: workspace.name
-                })}
-                description={intl.formatMessage(messages.archiveConfirmBody)}
-                confirmLabel={intl.formatMessage(messages.archiveAction)}
+            {/* The same confirmation the cards' ⋯ menu opens: what stays and
+                who notices, counted before the button. */}
+            <ArchiveWorkspaceDialog
+                workspace={confirmingArchive ? workspace : null}
+                onClose={() => setConfirmingArchive(false)}
                 busy={setStatus.isPending}
                 onConfirm={toggleArchive}
             />

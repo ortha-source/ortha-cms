@@ -30,7 +30,8 @@ const messages = defineMessages({
 export function ReviewerLabel({
     userId,
     currentUserId,
-    compact = false
+    compact = false,
+    firstName = false
 }: {
     /** The reviewer, as the API reports them. */
     userId: string;
@@ -41,6 +42,11 @@ export function ReviewerLabel({
      * accessibility tree (`sr-only`) and shows on hover (`title`).
      */
     compact?: boolean;
+    /**
+     * Only the first name beside the avatar — the queue's "Asked by" column,
+     * where the avatar's tooltip and the accessible name keep the full one.
+     */
+    firstName?: boolean;
 }) {
     const intl = useIntl();
     const workspace = useCurrentWorkspace();
@@ -52,10 +58,17 @@ export function ReviewerLabel({
             : member.name
         : intl.formatMessage(messages.unknown);
 
+    // The first word of the name; "You" and "A former member" are already
+    // short, and are what the full name would have said anyway.
+    const shown =
+        firstName && member && userId !== currentUserId
+            ? (member.name.split(/\s+/)[0] ?? member.name)
+            : name;
+
     return (
         <span
             className="flex min-w-0 items-center gap-2"
-            title={compact ? name : undefined}
+            title={compact || shown !== name ? name : undefined}
         >
             <Avatar
                 className={cn(
@@ -77,9 +90,21 @@ export function ReviewerLabel({
                     {member?.initials ?? '—'}
                 </AvatarFallback>
             </Avatar>
-            <span className={cn('truncate text-sm', compact && 'sr-only')}>
-                {name}
-            </span>
+            {shown !== name && !compact ? (
+                <>
+                    <span
+                        aria-hidden
+                        className="truncate text-sm text-muted-foreground"
+                    >
+                        {shown}
+                    </span>
+                    <span className="sr-only">{name}</span>
+                </>
+            ) : (
+                <span className={cn('truncate text-sm', compact && 'sr-only')}>
+                    {name}
+                </span>
+            )}
         </span>
     );
 }

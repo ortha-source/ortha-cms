@@ -8,6 +8,8 @@ presentation`, as the tree shows.
 ```
 src/lib/
   domain/types.ts               Segment, EntryAccess, and the three-state algebra
+  domain/usage.ts               where an audience is used: groups, links, delete consequences
+  domain/readerTest.ts          "Try a reader" — through the kernel's own matcher
   infrastructure/               the gateway port + its HTTP impl + query keys
   application/hooks.ts          the TanStack hooks
   application/useEntryAccessPresave.ts   the save step + the tab's staging
@@ -20,7 +22,11 @@ src/lib/
       EntryAccessTab/           the Access tab — where every decision is made
       EntryAccessBulkActions/   set every matched audience at once
       SegmentStateControl/      one audience's three-state control
-      SegmentWorkspacesField/   where an audience is offered
+      OfferedInField/           where an audience is offered: Every / Some cards
+      ReaderTagsInput/          reader tags as chips
+      ReaderTester/             "Try a reader" beside the create form
+      SegmentUsagePanel/        "Used by N entries" beside the edit form
+      DeleteSegmentDialog/      the delete, with who will see what afterwards
       SegmentsPagination/       the pager both lists share
 ```
 
@@ -156,33 +162,109 @@ to rewrite the article and not to publish it to a new audience.
 inert server-side, so a badge claiming anything about access would be a claim
 about a system that is not running.
 
-**The Access tab leads with one sentence** (`EntryAccessTab/AccessSummary`):
-who can read the record — "Readable by everyone except Trial users" — in a
-summary card (globe/lock tile, a "Changed" pill while something is staged)
-before the table that decides it. Audiences the loaded page names are named, the rest
-counted, never dropped. How the rules combine sits behind a disclosure under
-it (ADR-0022's _Secondary views_).
+**The Access tab leads with one line** (`EntryAccessTab/AccessLine`), right
+over the toolbar, with no card around it: a globe or lock, the outcome and the
+one rule the rows do not say — "Public — every reader can see it.",
+"Everyone except 5 audiences can see it.", or "Only 8 audiences can see it —
+“Not set” counts as “Cannot see”." (with "Cannot see" rows beside an allow list
+needing no words: they are already outside). **Counts, not names**: the rows
+name every audience, and a sentence of names grew into a paragraph once an entry
+decided about thirty. It reflects the **staged** state and carries the
+"Changed" pill while something is staged; "How rules combine" is a disclosure
+after it (ADR-0022's _Secondary views_). It is not a live region — the old
+summary was not one either, and the row a change is made in announces its own
+state.
 
-**The Access tab's search sits left; "Set all…" and "Manage segments" right,
-on one row.** Below them the audiences are a real `<table>` (Audience · Tags ·
-Access), each decision a muted `SegmentStateControl` (Can see green, Cannot
-see red), a staged row tinted and marked "Changed". The bulk control is one menu (`EntryAccessBulkActions`) rather
+**The Access tab's toolbar: an "All N · Set N" switch, the search, then "Set
+all…" and "Manage segments".** **Set** shows only the decided audiences, read by
+id (`useSegmentLookup`, holding its previous answer while ids change) and paged
+here, narrowed by the same search. Rows are **never sorted** set-first in either
+view — a row would jump under the cursor that just changed it — and the Set view
+**pins** the ids it opened with: a row put back to "Not set" stays until the view
+changes. "Set all…" acts on the All view's matches, so it is offered there only.
+Below, the audiences are a real `<table>` (Audience · Access): **the tags are a
+second line under the name** (small muted mono, truncated, the full value in
+`title`), the name wraps to two lines at most, each decision a muted
+`SegmentStateControl` (Can see green, Cannot see red), a staged row tinted and
+marked "Changed". The bulk control is one menu (`EntryAccessBulkActions`) rather
 than a row of three buttons between the search and the list. The link is the
 way _out_ of this screen, so it belongs at the far edge rather than beside the
 heading, where it competed with the restricted/open badge.
 
 **Creating and editing are pages, not a dialog.** It was a dialog while an
 audience was three short fields; it now also decides which workspaces may use
-it, which is a list that grows with the installation. A modal that scrolls is a
+it, which is a list that grows with the installation, and shows a tester or its
+usage beside the form. A modal that scrolls is a
 modal that has outgrown being one — and a page gives each audience a URL, which
 is what makes "look at this one" a link instead of a set of directions.
 
-**Nothing ticked under "Offered in" means every workspace.** The same reading as
-an entry's empty allow list, and the state every audience starts in. The control
-says so on screen rather than leaving it to be inferred: the opposite reading —
-an audience nobody has scoped being offered nowhere — is the one that would make
-it look broken. A **failed** workspace read is not an empty one either; it
-renders as a warning that leaves the current scope alone.
+**The directory says what an audience is, twice.** The heading is "Audiences"
+(the nav item and the crumb keep the section's name, "Segments"), the lede says
+the model in one sentence, and a note under the table says it again in terms of
+tags. "Segments" alone told people nothing. Each row shows the key under the
+name, the tags as code chips, "Offered in" as the workspaces' monograms (named
+for a screen reader in one sentence) or an **Every workspace** badge, and
+"Used by" as a link to the audience's page — not straight to the records list
+the board drew, because a records list is one type in one workspace and this
+directory is installation-wide. The audience page is where the per-workspace
+"Open in records" links live.
+
+**"Offered in" is two cards: Every workspace, or Some workspaces.** Empty
+`workspaceIds` still means every workspace (I-10) — the cards only stop the UI
+from expressing that as "leave every box clear". The checkboxes appear under
+**Some**, and **Some with nothing ticked is refused by the form** ("Pick at least
+one workspace — or choose Every workspace"): saving it would send `[]`, which
+the server reads as _every_ workspace, the opposite of the choice on screen. The
+ticked set survives switching the radio back and forth; only the save decides
+what is sent. A **failed** workspace read is not an empty one either; it renders
+as a warning that leaves the current scope alone.
+
+**Reader tags are chips** (`ReaderTagsInput`). Enter or a comma commits; a
+paste of a list (commas or one per line) becomes as many chips in one go, so the
+common case — pasting identifiers out of the system that owns them — is still
+one action; Backspace on an empty input takes the last chip back for editing;
+each chip's × is a named button and returns focus to the input. Leaving the
+field commits what was typed. The kernel's limit is counted under the field
+("2 of 20 · …"), and every limit is still `validateSegment`'s.
+
+**"Try a reader" sits beside the create form** (`ReaderTester`). It answers
+"would this person be in it?" from the form **as typed**, through the kernel's
+`segmentIdsForTags`, so it cannot disagree with the server; an audience with no
+tags is tested against its key, as the server fills it in. Matching is exact,
+and a near miss that only differs in case is called out.
+
+**Where it's used sits beside the edit form** (`SegmentUsagePanel`): eight
+rows, then **"Show all N"** — the same button becomes "Show fewer", with
+`aria-expanded`, so focus never moves — and expanded, every entry the server
+returned scrolls **inside** the panel (`max-h-[28rem]`, a bordered scroll edge)
+instead of pushing the delete card off the page. Entries past the server's page
+are counted ("N more are only in records"). It is read from
+`GET /segments/:id/usage` — workspace-scoped on the server, so
+`useSegmentUsage` asks **every workspace the caller can open**, one request
+apiece with an explicit `X-Workspace-Id` (the audience pages are outside any
+workspace shell, so the ambient header would be whichever workspace was last
+open). A 403 from one workspace is "not yours" and is skipped, not an error. The
+difference between the directory's installation-wide `usageCount` and what the
+caller could see is counted under the list ("N more in workspaces you can't
+open") rather than dropped. "Open in records" opens the records list filtered
+by the two access fields that name the audience (`audienceAllowed` **or**
+`audienceDenied`, as the query builder's own wire JSON) — one link, or a menu
+when the entries span types or workspaces.
+
+**The delete says who will see what** (`DeleteSegmentDialog`, from the
+directory's row menu and from the audience page alike): the entries that
+**allow** the audience stop being shown to it only (they follow their other
+rules, or become public), the ones that **refuse** it can be seen by its readers
+again, and entries elsewhere are counted. If the usage cannot be read the dialog
+falls back to the rule in words rather than holding the delete hostage. A delete
+from the audience page navigates back to the directory; `useDeleteSegment`
+leaves the deleted segment's own detail and usage reads out of its invalidation,
+so the page it is leaving does not flash a 404 first.
+
+**Editing, Save is in the top bar** (the header action portals there and
+submits the form by id) and the page stays put after a save — the usage beside
+the form is what the next change is checked against. Creating ends with
+Create / Cancel under the form and returns to the directory.
 
 **The create form no longer pre-checks the key against a list.** The directory
 is paginated, so a local "existing keys" list would be one page of them, and a
@@ -245,8 +327,10 @@ audience form and the entry editor cannot drift — and it is `aria-hidden`, bec
 the control carries `aria-required` and announcing both would say "required"
 twice. The legend above the fields is what a sighted reader who does not know the
 convention needs; it is a line in the page rather than a tooltip, which is
-unreachable by keyboard and touch alike. Name and Key are marked; reader tags are
-not — an audience with none answers to its key.
+unreachable by keyboard and touch alike. Name and Key are marked on the create
+page; reader tags are not — an audience with none answers to its key. Editing,
+the key is read-only and carries no mark: it is a fact about the audience
+("Permanent — entries refer to it."), not an input.
 
 ## What is not here yet
 
@@ -259,6 +343,10 @@ not — an audience with none answers to its key.
 pages, the entry editor's Access tab (staging, the tab-switch survival, and what
 reaches the save **body**), and the records filter. Two harness notes:
 
+- `SEGMENT_USAGE_SEED` answers `GET /segments/:id/usage` **by the request's
+  `X-Workspace-Id`** (Acme Corp's three entries live in Marketing site), and
+  `usageReads` records which workspace each read named — the page asks every
+  workspace under its own header, and the mock is what proves it.
 - `SEGMENT_SEED` / `mockSegmentsApi` (`support/api/segments.ts`) **genuinely
   page** the list and carry every matched id in `ids`, because the pager and the
   "set every audience" control are the two things this feature got wrong most

@@ -45,6 +45,46 @@ test.describe('CMS ⇄ Agents switcher', () => {
         );
     });
 
+    test('in Agents the chats replace the content tree, and switching back restores it', async ({
+        page,
+        agentsPage,
+        contentLibraryPage
+    }) => {
+        await contentLibraryPage.goto(WORKSPACE_ID);
+        await expect(contentLibraryPage.sidebar).toBeVisible();
+        await expect(agentsPage.rail).toHaveCount(0);
+
+        await agentsPage.switchView('Agents');
+
+        // R7: "Agents mode swaps the content tree for your chats".
+        await expect(agentsPage.rail).toBeVisible();
+        await expect(contentLibraryPage.sidebar).toHaveCount(0);
+        await expect(
+            page.getByRole('navigation', { name: 'Tools' })
+        ).toHaveCount(0);
+        await expect(agentsPage.railNewChat()).toBeVisible();
+        await expect(agentsPage.manageSkillsLink()).toBeVisible();
+
+        await agentsPage.switchView('CMS');
+        await expect(contentLibraryPage.sidebar).toBeVisible();
+        await expect(agentsPage.rail).toHaveCount(0);
+    });
+
+    test('⌘J on the Agents view starts a new chat on the page', async ({
+        page,
+        agentsPage
+    }) => {
+        await agentsPage.gotoThread(WORKSPACE_ID, 'c_summary');
+        await expect(agentsPage.transcript()).toBeVisible();
+
+        await page.keyboard.press('Control+j');
+
+        await expect(page).toHaveURL(
+            new RegExp(`/workspaces/${WORKSPACE_ID}/agents$`)
+        );
+        await expect(agentsPage.welcomeHeading()).toBeVisible();
+    });
+
     test('goes back to the CMS page you left, not the workspace root', async ({
         page,
         agentsPage,
@@ -134,9 +174,6 @@ test.describe('CMS ⇄ Agents switcher', () => {
         await copilotDockPage.startChat();
         await copilotDockPage.ask('Set the summary please');
 
-        await expect(copilotDockPage.launcher).toHaveAccessibleName(
-            'Ask Ortha AI — 1 chat'
-        );
         await expect(agentsPage.viewTab('Agents')).toHaveAccessibleName(
             'Agents'
         );
@@ -158,7 +195,7 @@ test.describe('CMS ⇄ Agents switcher', () => {
         await copilotDockPage.ask('Set the summary please');
         await copilotDockPage.composer().press('Escape');
 
-        // Finished, as the list says…
+        // Finished, as the pill says…
         await copilotDockPage.openChatList();
         await expect(copilotDockPage.pill(/— finished/)).toBeVisible();
         // …and asking nothing of the user, so nothing on the way in.
@@ -183,9 +220,6 @@ test.describe('CMS ⇄ Agents switcher', () => {
             'Agents — 1 chat waiting for you'
         );
         await expect(agentsPage.viewTabMarker('Agents')).toHaveCount(1);
-        await expect(copilotDockPage.launcher).toHaveAccessibleName(
-            'Ask Ortha AI — 1 chat, 1 waiting for you'
-        );
 
         // The launcher stands down here, so this is the one place left that
         // still says the chat in the background is blocked on the user.
@@ -215,9 +249,8 @@ test.describe('CMS ⇄ Agents switcher', () => {
         await expect(agentsPage.viewTab('Agents')).toHaveAccessibleName(
             'Agents — 1 chat waiting for you'
         );
-        await expect(copilotDockPage.launcher).toHaveAccessibleName(
-            'Ask Ortha AI — 1 chat, 1 waiting for you'
-        );
+        // Handed to the dock as a pill, which says so in words.
+        await expect(copilotDockPage.pill(/— waiting for you$/)).toBeVisible();
 
         await agentsPage.switchView('Agents');
         await agentsPage

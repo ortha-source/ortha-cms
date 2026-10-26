@@ -25,7 +25,8 @@ src/lib/
     protection-rule.repository.ts  storage, and the upsert
     review-request.repository.ts   the ask; resolved, never deleted
     review-approval.repository.ts  the votes; every revision, not just the head
-    head-revision.query.ts         asks content which version is the head
+    head-revision.query.ts         asks content which version is the head (and which is live)
+    entry-changes.query.ts         fields changed since the live version, via content's diffSnapshots
     reviewer-candidates.query.ts   who may be asked: other members holding content:approve
     purge/                    clears all three when a workspace is deleted
   http/controllers/
@@ -51,6 +52,7 @@ src/lib/
 | `POST …/approve`                             | workspace | `content:approve`   |
 | `DELETE …/approve`                           | workspace | `content:approve`   |
 | `GET /protection/queue`                      | workspace | `content:read`      |
+| `GET /protection/queue/approved`             | workspace | `content:read`      |
 
 `protection:manage` is administrator-only and has **no `protection:read` beside
 it** — the only such asymmetry in the catalogue. A contributor does need to know
@@ -363,6 +365,28 @@ later. ADR-0017 §6 carries the argument. `protection:I-17` pins it against the
 **catalogue** rather than a list of names — anything that could record an
 approval would have to appear there to be callable — and until this PR the
 invariant held vacuously, because the plugin contributed no tools at all.
+
+## The queue says what changed, and what you approved
+
+Each queue line carries `headRevisionNumber`, `liveRevisionNumber` and
+`fieldsChanged` — how many fields the head changed since the live version (every
+filled field for a never-published entry). `HeadRevisionQuery.headAndLive` reads
+both from one timeline read; `EntryChangesQuery` compares the two snapshots
+through content's `diffSnapshots`, never a second diff, so the admin panel
+(which draws the same comparison with content-admin's `diffRevision`) and the
+line agree. It is per line of a bounded page (one timeline read, two snapshot
+reads), and a count that cannot be computed is `null` rather than a failed
+queue.
+
+`GET /protection/queue/approved` lists what **the caller** approved in the last
+30 days (`RECENTLY_APPROVED_DAYS`, at most 50 entries), one line per entry,
+newest first: `approvalCurrent` (their approval is on the head and still
+counts), `headPublished`, and who asked — the entry's newest request, open or
+resolved, or `null`. One grouped query over `review_approvals`, served by the
+`(workspace_id, user_id, created_at)` index migration `0004` adds.
+
+`EntryReviewView.countsStaleApprovals` reports the rule's switch (false when
+unprotected), so the panel can say whether "a new save asks again".
 
 ## Not here yet
 

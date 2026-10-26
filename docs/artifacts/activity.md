@@ -528,6 +528,7 @@ Four routes, three of them reads. Together they are the entire surface available
 | Method and path                           | Access                                    | Response                                    |
 | ----------------------------------------- | ----------------------------------------- | ------------------------------------------- |
 | GET /api/activity                         | `session` `activity:read`                 | { items\[\], total, page, pageSize }        |
+| GET /api/activity/export                  | `session` `activity:read`                 | CSV attachment (≤ 10,000 rows)              |
 | GET /api/activity/entries/:entryId        | `session` `content:read` `X-Workspace-Id` | { items\[\], total, page, pageSize }        |
 | GET /api/activity/dead-letters            | `session` `activity:read`                 | { total, items\[\] }                        |
 | POST /api/activity/dead-letters/:id/retry | `session` `activity:manage` `OriginGuard` | the reset dead letter, plus `nextAttemptAt` |
@@ -545,6 +546,8 @@ Paging only: the subject is the URL, the workspace is the header, and every othe
 `dispatched_at IS NULL AND attempts >= MAX_DELIVERY_ATTEMPTS`, newest first, each with the reason it parked (`outbox_events.last_error`). `total` is separate from `items` so a caller can render "3 events could not be recorded" without paging; `limit` caps at 200 and `since` narrows to recent failures.
 
 #### `/dead-letters/:id/retry` — the one thing this package writes
+
+> **R7 dialog.** The admin's dead-letter dialog is a list of the parked events, each named with the log's own action label (the outbox kind mapped onto its audit kind), its time, attempts and `last_error`. A retried row stays in the dialog marked **Queued** until it closes. **Retry all** is a client-side pass over the rows the dialog _shows_, sent one at a time through this same per-row route and stopped at the first refusal that is not 404/409 (`I-42`). There is still **no bulk route**: each request awaits its drain before the next row is reset, and nothing reaches a row the operator has not seen.
 
 `POST`, `activity:manage`, `OriginGuard`, one event at a time. It resets that row **in place** — `attempts = 0`, `next_attempt_at = NULL`, `last_error` kept — and answers with the row as it now stands. The id never changes: it is the idempotency key every subscriber deduplicates on, so a copy would be a second fact and a partly-succeeded delivery would be applied twice.
 
@@ -712,7 +715,7 @@ Statements that must always hold. Both a review list and a starting set of test 
 - **I-24** — The plugin takes no configuration: `ActivityPlugin()` and `forRoot()` are called with no arguments.
 - **I-25** — The admin-side mapper does not substitute for an unparseable timestamp; every `datetime` attribute goes through `activityDateTime` and every visible date through `intl.formatDate`.
 - **I-26** — Inside the admin package the kind catalogue and the label catalogue cannot diverge: `ACTION_MESSAGES` is typed as a record keyed by `ActivityKind`.
-- **I-27** — A collapsed details panel is removed from the accessibility tree entirely (`aria-hidden` and `inert`), so the number of announced table rows equals the number of events.
+- **I-27** — Each event is exactly one table row (with one button, its sentence) — no hidden detail rows sit between events, so the number of announced rows equals the number of events plus the header. (Before R7 the table had expandable detail rows, removed from the tree with `aria-hidden` + `inert`; the event panel replaced them.)
 - **I-28** — Without the `activity:read` permission the admin UI makes no request at all: every read hook's enablement equals the permission — `useDeadLetters` states its own rather than relying on the page's early return — and the home panel returns `null`. The retry control is gated separately on `activity:manage` and is **hidden** rather than disabled, so a reader who will never hold the key is offered no inert path.
 - **I-29** — The page does not stay beyond the last page after a filter narrows the result, but neither does it discard a deep `?page=N` link before the first response arrives.
 - **I-30** — The address bar is the single source of truth for every filter and for the page; any filtered state is reproducible from a link.
@@ -724,6 +727,10 @@ Statements that must always hold. Both a review list and a starting set of test 
 - **I-36** — `api_token.used` is raised only when `last_used_at` is actually touched, so a token produces at most one row per `LAST_USED_TOUCH_INTERVAL_MS` however much traffic it carries.
 - **I-37** — The admin's `ACTIVITY_FILTER_FIELDS` and the server's `ACTIVITY_FILTER_SCHEMA` name the same fields, in both directions: a column filterable over HTTP is offered in the UI, and a field the UI offers is one the server whitelists rather than answers `400` to. Asserted by a unit test that reads the admin module as text, like `I-34`.
 - **I-38** — A filter over a column the table renders as a localized label — `kind`, `subjectType` — offers that column's vocabulary rather than free text, and labels each option from the **same** descriptor map the cell renders from, so the filter and the table cannot name one row two ways.
+- **I-39** — `subject_label` is derived purely from the kind's own `meta` (string values of `title`, `name`, `label`, `email`, `key`, `slug`, in that order, trimmed, capped at 255) and never from `via`; the `0002` backfill reads the same keys in the same order.
+- **I-40** — The free-text `?q=` is one clause, OR-ed only over `actor_email`, `subject_label`, `subject_id`, `subject_type` and `kind`, escaped like the actor search, and AND-ed with every other filter; it never reads `meta`.
+- **I-41** — `GET /activity/export` takes the list's filters without paging, is gated `activity:read` by constant, returns at most `EXPORT_MAX_ROWS` rows with the uncapped count and a truncation flag in headers, writes nothing, and prefixes every cell a spreadsheet would read as a formula with `'`.
+- **I-42** — "Retry all" in the dead-letter dialog retries only the rows the dialog shows, one request at a time through the per-row route, and stops at the first refusal that is not 404/409; there is no bulk retry route.
 
 ## 13. Testing checklist
 

@@ -1,12 +1,12 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import {
+    ArrowUpRight,
     GripVertical,
     Maximize2,
-    MessageSquarePlus,
     Minimize2,
     Minus,
-    SquareArrowOutUpRight,
+    Plus,
     X
 } from 'lucide-react';
 import { Button, cn } from '@orthacms/design-system';
@@ -78,6 +78,10 @@ const messages = defineMessages({
     move: {
         id: 'copilot.panel.move',
         defaultMessage: 'Move Ortha CMS AI'
+    },
+    reply: {
+        id: 'copilot.panel.reply',
+        defaultMessage: 'Reply…'
     },
     moveHint: {
         id: 'copilot.panel.moveHint',
@@ -258,9 +262,9 @@ export function CopilotPanel({
     returnFocusRef
 }: CopilotPanelProps) {
     const intl = useIntl();
-    // Per instance, so three open windows do not collide on one id — the same
-    // discipline the honeycomb backdrop uses for its pattern ids.
+    // Per instance, so three open windows do not collide on one id.
     const headingId = useId();
+    const windowTitle = title ?? intl.formatMessage(messages.title);
     const [size, setSize] = useState<PanelSize>('docked');
     // Where the user dragged it to, if they have. `null` until then, which is
     // what keeps the docked/expanded classes below meaningful.
@@ -427,34 +431,62 @@ export function CopilotPanel({
                     // surface — starting a drag from Close would mean the panel
                     // walks across the screen on the way to being dismissed.
                     if ((event.target as HTMLElement).closest('button')) return;
+                    // React bubbles through portals: a press on the history
+                    // menu (portalled to `<body>`) arrives here too, and a drag
+                    // started from it captures the pointer, so the menu item
+                    // never gets its click.
+                    if (!event.currentTarget.contains(event.target as Node)) {
+                        return;
+                    }
                     frame.startMove(event);
                 }}
                 {...frame.handleProps}
             >
                 <MoveHandle controls={frame} />
 
-                <h2
-                    id={headingId}
-                    className="flex-1 truncate text-sm font-semibold"
-                >
-                    {title ?? intl.formatMessage(messages.title)}
+                {/* The window's name, for the dialog and a screen reader's
+                    heading list. What is *drawn* is the history picker below,
+                    which shows the same title with a chevron (R7). */}
+                <h2 id={headingId} className="sr-only">
+                    {windowTitle}
                 </h2>
+                <div className="flex min-w-0 flex-1 items-center">
+                    <ConversationPicker
+                        workspaceId={workspaceId}
+                        currentConversationId={chat.conversationId}
+                        title={windowTitle}
+                        onOpen={(conversationId, threadTitle, loaded) => {
+                            // Refused when another window already holds this
+                            // thread; that one is focused instead of a second
+                            // copy appearing here.
+                            if (
+                                onAdoptConversation?.(
+                                    conversationId,
+                                    threadTitle
+                                ) === false
+                            ) {
+                                return;
+                            }
+                            chat.load(conversationId, loaded);
+                        }}
+                    />
+                </div>
 
+                <IconButton
+                    icon={Plus}
+                    label={intl.formatMessage(messages.newChat)}
+                    onClick={onNewChat}
+                />
                 {/* Only with a thread to open — see `onOpenInAgents`. */}
                 {onOpenInAgents && chat.conversationId ? (
                     <IconButton
-                        icon={SquareArrowOutUpRight}
+                        icon={ArrowUpRight}
                         label={intl.formatMessage(messages.openInAgents)}
                         onClick={() =>
                             onOpenInAgents(chat.conversationId as string)
                         }
                     />
                 ) : null}
-                <IconButton
-                    icon={MessageSquarePlus}
-                    label={intl.formatMessage(messages.newChat)}
-                    onClick={onNewChat}
-                />
                 <IconButton
                     icon={Minus}
                     label={intl.formatMessage(messages.minimize)}
@@ -491,7 +523,6 @@ export function CopilotPanel({
                     onContextChange={onContextChange}
                     skills={skills}
                     onSkillsChange={onSkillsChange}
-                    {...(onAdoptConversation ? { onAdoptConversation } : {})}
                 />
             </div>
         </div>
@@ -518,7 +549,9 @@ function MoveHandle({ controls }: { controls: PanelFrameControls }) {
             type="button"
             aria-label={intl.formatMessage(messages.move)}
             title={intl.formatMessage(messages.moveHint)}
-            className="text-muted-foreground focus-visible:ring-ring -ml-1 shrink-0 cursor-move touch-none rounded p-0.5 focus-visible:ring-2 focus-visible:outline-none"
+            // Drawn only while focused (R7 draws no grip): the whole header
+            // is the pointer's grab surface, and this is the keyboard's.
+            className="text-muted-foreground focus-visible:ring-ring sr-only -ml-1 shrink-0 cursor-move touch-none rounded p-0.5 focus-visible:not-sr-only focus-visible:ring-2 focus-visible:outline-none"
             onPointerDown={(event) => controls.startMove(event)}
             onKeyDown={(event) => {
                 const arrow = ARROWS[event.key];
@@ -569,8 +602,7 @@ function PanelBody({
     context: attached,
     onContextChange: setAttached,
     skills: stagedSkills,
-    onSkillsChange,
-    onAdoptConversation
+    onSkillsChange
 }: {
     chat: CopilotChat;
     workspaceId: string;
@@ -581,8 +613,8 @@ function PanelBody({
     onContextChange(context: RouteContext | null): void;
     skills: readonly string[];
     onSkillsChange(names: readonly string[]): void;
-    onAdoptConversation?(conversationId: string, title: string | null): boolean;
 }) {
+    const intl = useIntl();
     const composerRef = useRef<HTMLTextAreaElement>(null);
     // Opt-in, and a snapshot rather than a live mirror of the URL: an attached
     // context should not silently change under the user as they navigate. From
@@ -619,30 +651,16 @@ function PanelBody({
 
     return (
         <>
-            {/* Threads only. The model picker used to sit here too, which
-                stated it as a property of the conversation — it is not, it
-                applies to the turn being written, so it now rides in the
-                composer where the Agents view already keeps it. */}
-            <div className="flex shrink-0 items-center justify-end gap-1 border-b px-3 py-1.5">
-                <ConversationPicker
-                    workspaceId={workspaceId}
-                    currentConversationId={chat.conversationId}
-                    onOpen={(conversationId, threadTitle, loaded) => {
-                        // Refused when another window already holds this
-                        // thread; that one is focused instead of a second copy
-                        // appearing here.
-                        if (
-                            onAdoptConversation?.(
-                                conversationId,
-                                threadTitle
-                            ) === false
-                        ) {
-                            return;
-                        }
-                        chat.load(conversationId, loaded);
-                    }}
-                />
-            </div>
+            {/* What is attached to the next turn, **at the top** of the
+                window (R7: "the list is its context") — the window was opened
+                from that page, and the chip says so before anything else. */}
+            <ContextChip
+                current={routeContext}
+                attached={attached}
+                onAttach={() => setAttached(routeContext)}
+                onDetach={() => setAttached(null)}
+                className="pt-3 pb-0"
+            />
 
             <MessageList
                 messages={chat.messages}
@@ -650,18 +668,15 @@ function PanelBody({
                 onExtend={chat.extendAnswer}
             />
 
-            {/* "Your message, plus where you are" (design §2) — but only when
-                the user asked for it. See ContextChip for why this is opt-in. */}
-            <ContextChip
-                current={routeContext}
-                attached={attached}
-                onAttach={() => setAttached(routeContext)}
-                onDetach={() => setAttached(null)}
-            />
-
             <Composer
                 busy={chat.busy}
                 inputRef={composerRef}
+                // A reply once there is something to reply to.
+                placeholder={
+                    chat.messages.length > 0
+                        ? intl.formatMessage(messages.reply)
+                        : undefined
+                }
                 onSend={(text) => {
                     chat.sendWith({
                         text,

@@ -51,6 +51,8 @@ export interface UserSessionResponse {
  *
  * - `GET /api/users/:id/sessions` — the member's live sessions
  *   (`users:update`).
+ * - `DELETE /api/users/:id/sessions` — revoke all but the caller's own
+ *   (`users:update`, `Origin`-guarded), one audit row per session ended.
  * - `DELETE /api/users/:id/sessions/:sessionId` — revoke one (`users:update`),
  *   `Origin`-guarded like the other state-changing routes. Idempotent: an
  *   unknown/already-revoked session, or one not owned by `:id`, still 204s —
@@ -110,6 +112,28 @@ export class UserSessionsController {
         @CurrentUser() actor?: PublicUser
     ): Promise<void> {
         await this.revokeSession.execute(id, sessionId, actor);
+    }
+
+    /**
+     * `DELETE /api/users/:id/sessions` — signs the member out of every device
+     * (`users:update`, `Origin`-guarded). The caller's own session survives, so
+     * an admin on their own page signs out every *other* device rather than
+     * the one they are clicking from. Answers how many sessions ended; `0` is
+     * a success, not an error — there was nothing left to end.
+     */
+    @Delete(':id/sessions')
+    @RequirePermissions(PERMISSIONS.USERS_UPDATE)
+    @UseGuards(OriginGuard)
+    async revokeAll(
+        @Req() req: Request,
+        @Param('id', ParseUUIDPipe) id: string,
+        @CurrentUser() actor?: PublicUser
+    ): Promise<{ revoked: number }> {
+        const revoked = await this.revokeSession.executeAll(id, {
+            exceptSessionId: this.currentSessionId(req),
+            actor
+        });
+        return { revoked };
     }
 
     /** Hashes the caller's session cookie to its row id, or `null` if absent. */

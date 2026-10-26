@@ -8,7 +8,9 @@ import type {
     InvitedMember,
     Member,
     MemberList,
-    MemberWithResetToken
+    MemberSignIn,
+    MemberWithResetToken,
+    RoleCatalogEntry
 } from '../../domain/types/member';
 import type { UserSession } from '../../domain/types/session';
 import type { WorkspaceOption } from '../../domain/types/workspaceOption';
@@ -16,14 +18,17 @@ import {
     toInvitedMember,
     toMember,
     toMemberWithResetToken,
+    toRoleCatalog,
     type InvitedMemberResponse,
     type MemberResponse,
-    type PasswordResetMemberResponse
+    type PasswordResetMemberResponse,
+    type RoleCatalogEntryResponse
 } from '../memberMapper';
 import type { MembersListParams } from '../membersKeys';
 import type {
     AddWorkspaceMemberInput,
     InviteMemberInput,
+    InviteMembersInput,
     MemberGateway,
     RemoveWorkspaceMemberInput,
     RevokeSessionInput,
@@ -37,6 +42,17 @@ type MemberListResponse = {
     total: number;
     page: number;
     pageSize: number;
+    /** Absent from a server older than the members redesign. */
+    counts?: MemberList['counts'];
+};
+
+/** Zero counts — what an older server's missing `counts` reads as. */
+const NO_COUNTS: MemberList['counts'] = {
+    everyone: 0,
+    active: 0,
+    admins: 0,
+    invited: 0,
+    disabled: 0
 };
 
 /** A session as returned by `GET /api/users/:id/sessions`. */
@@ -101,7 +117,8 @@ export const httpMemberGateway: MemberGateway = {
                 items: data.items.map(toMember),
                 total: data.total,
                 page: data.page,
-                pageSize: data.pageSize
+                pageSize: data.pageSize,
+                counts: data.counts ?? NO_COUNTS
             };
         } catch (error) {
             throw toApiError(error);
@@ -126,6 +143,74 @@ export const httpMemberGateway: MemberGateway = {
                 input
             );
             return toInvitedMember(data);
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async inviteMany(input: InviteMembersInput): Promise<InvitedMember[]> {
+        try {
+            const { data } = await apiClient.post<{
+                items: InvitedMemberResponse[];
+            }>('/users/invites/batch', input);
+            return data.items.map(toInvitedMember);
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async existingEmails(emails: readonly string[]): Promise<string[]> {
+        if (emails.length === 0) {
+            return [];
+        }
+        try {
+            const { data } = await apiClient.get<MemberListResponse>('/users', {
+                params: {
+                    filter: JSON.stringify({
+                        field: 'email',
+                        op: 'in',
+                        value: emails
+                    }),
+                    pageSize: Math.max(emails.length, 1)
+                }
+            });
+            return data.items.map((item) => item.email.toLowerCase());
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async listRoles(): Promise<RoleCatalogEntry[]> {
+        try {
+            const { data } = await apiClient.get<{
+                items: RoleCatalogEntryResponse[];
+            }>('/users/roles');
+            return toRoleCatalog(data.items);
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async getSignIn(id: string): Promise<MemberSignIn> {
+        try {
+            const { data } = await apiClient.get<MemberSignIn>(
+                `/users/${id}/sign-in`
+            );
+            return {
+                hasPassword: data.hasPassword,
+                ssoProviders: data.ssoProviders ?? []
+            };
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async revokeAllSessions(id: string): Promise<number> {
+        try {
+            const { data } = await apiClient.delete<{ revoked: number }>(
+                `/users/${id}/sessions`
+            );
+            return data?.revoked ?? 0;
         } catch (error) {
             throw toApiError(error);
         }

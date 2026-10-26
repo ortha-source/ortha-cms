@@ -24,6 +24,11 @@ interface OperationSpec {
     schema: string;
     /** The success response's description. */
     description: string;
+    /**
+     * The media type of the success body; `application/json` when omitted.
+     * The export answers `text/csv`, whose schema is a plain string.
+     */
+    mediaType?: string;
 }
 
 /**
@@ -42,6 +47,14 @@ const ROUTES: Record<string, Record<string, OperationSpec>> = {
             schema: 'ActivityListView',
             description:
                 'One page of the deployment-wide audit log, matching the filters.'
+        }
+    },
+    '/export': {
+        get: {
+            schema: 'ActivityCsvExport',
+            mediaType: 'text/csv',
+            description:
+                'The events matching the same filters as `GET /activity`, without paging, as a CSV download (capped; see `X-Total-Count` and `X-Export-Truncated`).'
         }
     },
     '/entries/{entryId}': {
@@ -75,7 +88,8 @@ const ROUTES: Record<string, Record<string, OperationSpec>> = {
 function setSuccessResponse(
     operation: Operation,
     schema: OpenApiSchema,
-    description: string
+    description: string,
+    mediaType = 'application/json'
 ): void {
     const responses = operation.responses ?? {};
     const key = Object.keys(responses).find((code) => /^2\d\d$/.test(code));
@@ -84,7 +98,7 @@ function setSuccessResponse(
     }
     responses[key] = {
         description,
-        content: { 'application/json': { schema } }
+        content: { [mediaType]: { schema } }
     };
     operation.responses = responses;
 }
@@ -115,7 +129,8 @@ export function describeActivityApi(document: OpenApiDocument): void {
             setSuccessResponse(
                 operation as Operation,
                 ref(spec.schema),
-                spec.description
+                spec.description,
+                spec.mediaType
             );
         }
     }

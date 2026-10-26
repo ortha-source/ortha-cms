@@ -22,6 +22,11 @@ import {
     type StatusFilter
 } from '../../components/WorkspaceToolbar';
 import type { Workspace } from '../../../domain/types/workspace';
+import {
+    DEFAULT_WORKSPACE_SORT,
+    sortWorkspaces,
+    type WorkspaceSort
+} from '../../../domain/workspaceSort';
 import { useRedirectNotice } from '../../hooks/useRedirectNotice';
 
 /** Intl descriptors for {@link WorkspacesPage}, co-located with the component. */
@@ -70,14 +75,17 @@ function matchesSearch(workspace: Workspace, query: string): boolean {
 }
 
 /**
- * The Workspaces management page: a searchable, status-filterable **grid of
- * cards**, one per workspace, with a create flow. Rendered at `/workspaces` inside the
+ * The Workspaces management page: a searchable, status-filterable, sortable
+ * **grid of cards**, one per workspace, saying what each holds and when it last
+ * moved — with archive (which says what it touches first) and restore on each
+ * card, and a create flow. Rendered at `/workspaces` inside the
  * authenticated shell.
  */
 export function WorkspacesPage() {
     const intl = useIntl();
     const navigate = useNavigate();
     const canCreate = useHasPermission('workspaces:create');
+    const canUpdate = useHasPermission('workspaces:update');
     const redirectNotice = useRedirectNotice();
     useDocumentTitle(intl.formatMessage(messages.title));
     const {
@@ -89,17 +97,22 @@ export function WorkspacesPage() {
 
     const [search, setSearch] = useState('');
     const [status, setStatus] = useState<StatusFilter>(DEFAULT_STATUS);
+    const [sort, setSort] = useState<WorkspaceSort>(DEFAULT_WORKSPACE_SORT);
 
     const openCreate = () => navigate('/workspaces/new');
 
     const filtered = useMemo(
         () =>
-            workspaces.filter(
-                (workspace) =>
-                    matchesStatus(workspace, status) &&
-                    matchesSearch(workspace, search)
+            sortWorkspaces(
+                workspaces.filter(
+                    (workspace) =>
+                        matchesStatus(workspace, status) &&
+                        matchesSearch(workspace, search)
+                ),
+                sort,
+                intl.locale
             ),
-        [workspaces, status, search]
+        [workspaces, status, search, sort, intl.locale]
     );
 
     // Per-status counts for the filter chips — over the full list, not the
@@ -163,6 +176,8 @@ export function WorkspacesPage() {
                     status={status}
                     onStatusChange={setStatus}
                     counts={counts}
+                    sort={sort}
+                    onSortChange={setSort}
                     shown={filtered.length}
                     total={workspaces.length}
                 />
@@ -204,6 +219,7 @@ export function WorkspacesPage() {
                         canCreate={
                             canCreate && !search && status !== 'Archived'
                         }
+                        canUpdate={canUpdate}
                     />
                 )}
             </Container>

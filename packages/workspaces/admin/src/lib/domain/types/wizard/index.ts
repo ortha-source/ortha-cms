@@ -36,6 +36,8 @@ export type MemberDraft = {
     email: string;
     /** Whether this is an invite-by-email rather than an existing user. */
     invited?: boolean;
+    /** Their global role's label (e.g. "Contributor"); absent for an invite. */
+    role?: string;
 };
 
 /** A user returned by the directory search. */
@@ -46,6 +48,24 @@ export type DirectoryUser = {
     name: string;
     /** Email address. */
     email: string;
+    /** Their global role's label (e.g. "Contributor"), when the directory says. */
+    role?: string;
+};
+
+/**
+ * How an invitation left after create: `sent` by mail, waiting as a `link`
+ * an admin hands over from Members (no mail provider is configured), or
+ * `pending` — not issued here (no `users:create`, or the request failed), so
+ * the account waits in Members until someone sends it.
+ */
+export type InviteDelivery = 'sent' | 'link' | 'pending';
+
+/** One invited address and how its invitation left. */
+export type InviteOutcome = {
+    /** The invited address. */
+    email: string;
+    /** What happened to its invitation. */
+    delivery: InviteDelivery;
 };
 
 /** Kind of a content type — drives the collections/pages split. */

@@ -77,7 +77,7 @@ describe('describeAlarmsApi', () => {
         ).toEqual({ $ref: '#/components/schemas/AlarmRulePreview' });
         expect(
             successSchema(document, '/api/alarms/rules/{id}', 'patch')
-        ).toEqual({ $ref: '#/components/schemas/AlarmRule' });
+        ).toEqual({ $ref: '#/components/schemas/AlarmRuleUpdated' });
         expect(
             successSchema(document, '/api/alarms/rules/{id}/rescan', 'post')
         ).toEqual({ $ref: '#/components/schemas/AlarmScanResult' });

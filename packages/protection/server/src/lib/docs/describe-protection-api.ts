@@ -28,6 +28,7 @@ import {
     PROTECTION_INSIGHTS_SCHEMA,
     PROTECTION_RULE_SCHEMA,
     REVIEWER_CANDIDATES_SCHEMA,
+    RECENTLY_APPROVED_SCHEMA,
     REVIEW_QUEUE_SCHEMA,
     REVIEW_STATUS_MAP_SCHEMA,
     buildProtectionSchemas
@@ -100,7 +101,15 @@ const ROUTES = {
             list: false,
             schema: REVIEW_QUEUE_SCHEMA,
             description:
-                'Open review requests across every content type in the workspace, newest first. `?mine=1` narrows to the caller’s own.'
+                'Open review requests across every content type in the workspace, newest first. `?mine=1` narrows to the caller’s own. Each line says how many fields changed since the entry was live.'
+        }
+    },
+    '/queue/approved': {
+        get: {
+            list: false,
+            schema: RECENTLY_APPROVED_SCHEMA,
+            description:
+                'The entries the caller approved in the last 30 days, newest first, one line per entry — whether that approval still counts, and whether the entry is live.'
         }
     }
 } as const;

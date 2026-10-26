@@ -15,7 +15,6 @@ import type { UserDetailContext } from '../../userDetailContext';
 import { MembersNoAccess } from '../MembersNoAccess';
 import { UserHero } from './UserHero';
 import { UserDetailTabs } from './UserDetailTabs';
-import { UserStatsStrip } from './UserStatsStrip';
 
 /** Intl descriptors for {@link UserDetailLayout}, co-located with the component. */
 const messages = defineMessages({
@@ -40,8 +39,8 @@ const messages = defineMessages({
 /**
  * The user detail page shell, mounted at `/users/:id/*`. Fetches the member
  * once and shares it with every tab through the Outlet context, so a tab read
- * is free. Renders the identity hero, stats strip, and the underline tab bar
- * above the active tab — the way back to the roster is the top bar's "Members"
+ * is free. Renders the header (name, status, role, last active, Change role
+ * and the `⋯` menu) and the underline tab bar above the active tab — the way back to the roster is the top bar's "Members"
  * crumb. Loading shows skeletons; a 404 shows a dedicated "no longer exists"
  * state; any other error is retryable by the tabs' own queries falling back
  * here.
@@ -60,7 +59,7 @@ export function UserDetailLayout() {
         error
     } = useUserDetail(id, canRead);
 
-    // Titled here rather than in each of the seven tabs: the page is *this
+    // Titled here rather than in each of the tabs: the page is *this
     // member*, and their name is the thing that tells one open tab from another
     // (WCAG 2.4.2, `ORT-140`). Falls back to a generic label until the read
     // lands, so the title never claims a name the page is not showing.
@@ -160,10 +159,9 @@ export function UserDetailLayout() {
                 iconClassName="bg-success-soft text-success-soft-foreground"
                 crumbs={crumbs}
             />
-            <Container className="space-y-6">
+            <Container className="flex flex-col gap-6">
                 <UserHero member={member} />
-                <UserStatsStrip member={member} />
-                <div className="flex flex-col gap-6">
+                <div className="flex flex-col gap-5">
                     <UserDetailTabs member={member} />
                     {/*
                      * Key the tab subtree by member id so navigating straight from

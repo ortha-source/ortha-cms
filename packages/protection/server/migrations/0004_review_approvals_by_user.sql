@@ -1,0 +1,1 @@
+CREATE INDEX "review_approvals_workspace_user_idx" ON "review_approvals" USING btree ("workspace_id","user_id","created_at");

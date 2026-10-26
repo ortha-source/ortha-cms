@@ -1,5 +1,5 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { Badge, cn } from '@orthacms/design-system';
+import { Badge, BadgeDot } from '@orthacms/design-system';
 import type { MemberStatus } from '../../../../domain/types/member';
 
 /** Intl descriptors for {@link MemberStatusBadge}, co-located with the component. */
@@ -18,54 +18,25 @@ const messages = defineMessages({
     }
 });
 
-/**
- * Dot color, pill variant, and label per status; the label keeps color from
- * being the sole signal.
- */
+/** Badge tone and label per status; the word keeps colour from being the only signal. */
 const APPEARANCE = {
-    active: {
-        dot: 'bg-status-active',
-        variant: 'success',
-        message: messages.active
-    },
-    pending: {
-        dot: 'bg-status-invited',
-        variant: 'warning',
-        message: messages.invited
-    },
-    disabled: {
-        dot: 'bg-muted-foreground',
-        variant: 'secondary',
-        message: messages.disabled
-    }
+    active: { variant: 'success', message: messages.active },
+    pending: { variant: 'warning', message: messages.invited },
+    disabled: { variant: 'muted', message: messages.disabled }
 } as const;
 
 /**
- * The Status column's pill: a leading colored dot plus the status label —
- * green "Active", amber "Invited" (a sent, unaccepted invite), muted
- * "Disabled".
+ * A member's status as a dotted badge — green "Active", amber "Invited" (a
+ * sent, unaccepted invite), muted "Disabled".
  */
 export function MemberStatusBadge({ status }: { status: MemberStatus }) {
     const intl = useIntl();
     const appearance = APPEARANCE[status];
 
     return (
-        <Badge
-            variant={appearance.variant}
-            className={cn(
-                'gap-1.5 rounded-xl',
-                status === 'disabled' && 'border-border'
-            )}
-        >
-            <span
-                aria-hidden
-                className={cn('size-1.5 rounded-full', appearance.dot)}
-            />
-            <span
-                className={cn(status === 'disabled' && 'text-muted-foreground')}
-            >
-                {intl.formatMessage(appearance.message)}
-            </span>
+        <Badge size="xs" variant={appearance.variant}>
+            <BadgeDot />
+            {intl.formatMessage(appearance.message)}
         </Badge>
     );
 }

@@ -12,6 +12,7 @@ import { useTabBadge } from '../../application/useTabBadge';
 import {
     COPILOT_USE,
     agentThreadPath,
+    agentsPath,
     isAgentsPath
 } from '../../domain/agentsRoute';
 import { CopilotDock } from '../CopilotDock';
@@ -83,7 +84,23 @@ export function CopilotLauncher() {
     // awaiting and unseen, but it costs nothing to be right about it.
     useTabBadge(badgeCount(sessions.all));
 
-    const { start, visible } = sessions;
+    const { start, setContext, visible } = sessions;
+    /**
+     * A new chat **about the page it was asked from** (R7, `AiWindow`: "⌘J
+     * opens the assistant beside the page it was asked from — the list is its
+     * context"). The page is attached as the chip at the top of the window,
+     * where it is seen first and removed with one click — so a question that
+     * is not about this page loses one click, and one that is needs no "this
+     * list" spelled out. A page with no content in view attaches nothing.
+     */
+    const startHere = useCallback(() => {
+        const id = start();
+        if (routeContext.contentType) {
+            setContext(id, routeContext);
+        }
+        return id;
+    }, [start, setContext, routeContext]);
+
     // ⌘J / Ctrl+J starts a chat (design §2). Registered only while the launcher
     // is actually available, so the shortcut can't open a chat the user isn't
     // allowed to have or that has no workspace to run against.
@@ -94,20 +111,20 @@ export function CopilotLauncher() {
         const onKeyDown = (event: KeyboardEvent) => {
             if (event.key.toLowerCase() !== 'j') return;
             if (!event.metaKey && !event.ctrlKey) return;
-            // Yield while the user is writing. The binding is on `window`, so it
-            // fired wherever focus was: putting the caret in a rich-text body
-            // and pressing ⌘J took focus out of the document and opened the dock
-            // — a change of context in response to input into a different
-            // control (WCAG 3.2.2), with the keystroke destroyed by the
-            // `preventDefault` below (`ORT-163`). ⌘B and ⌘K already yield this
-            // way; no editor binds ⌘J, so nothing is lost by being consistent.
             if (isComposingText(event.target)) return;
             event.preventDefault();
-            start();
+            // On the Agents view the page *is* the chat surface and the dock
+            // stands down, so the shortcut the sidebar advertises there opens
+            // a new chat on the page rather than a window nobody can see.
+            if (dockStandsDown && workspaceId) {
+                navigate(agentsPath(workspaceId));
+                return;
+            }
+            startHere();
         };
         window.addEventListener('keydown', onKeyDown);
         return () => window.removeEventListener('keydown', onKeyDown);
-    }, [available, start]);
+    }, [available, startHere, dockStandsDown, navigate, workspaceId]);
 
     const slotOf = useCallback(
         (id: string) => visible.findIndex((s) => s.id === id),
@@ -217,7 +234,7 @@ export function CopilotLauncher() {
                                     title
                                 )
                             }
-                            onNewChat={() => sessions.start()}
+                            onNewChat={startHere}
                             // Navigate and nothing else: the Agents page
                             // presents the chat already on that thread, so the
                             // session changes surface and leaves the dock by
@@ -260,7 +277,7 @@ export function CopilotLauncher() {
                         sessions={sessions.dock}
                         onToggle={sessions.toggle}
                         onClose={sessions.close}
-                        onNewChat={() => sessions.start()}
+                        onNewChat={startHere}
                         newChatRef={newChatRef}
                     />
                 </InsetFooterEnd>

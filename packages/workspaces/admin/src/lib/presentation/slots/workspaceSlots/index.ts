@@ -75,6 +75,18 @@ export type WorkspaceSectionItem = {
     order: number;
     /** The section to render. Receives no props — it reads what it needs. */
     Component: ComponentType;
+    /**
+     * When true for the current location, this section **is** the sidebar's
+     * content: {@link WorkspaceNav} renders it alone, without the other
+     * sections or the Tools group. Optional — a section without it is one
+     * region among several, as every section was before this existed.
+     *
+     * For a mode that replaces the navigation rather than adding to it: the
+     * copilot's Agents view swaps the content tree for the chat list while it
+     * is open, and leaving it brings the tree back. The workspace header (the
+     * back link and the switcher) stays either way.
+     */
+    takeover?: (pathname: string) => boolean;
 };
 
 /**

@@ -155,7 +155,7 @@ export function AddToWorkspacesDialog({
                                 {intl.formatMessage(messages.noMatch)}
                             </p>
                         ) : (
-                            <ul className="max-h-64 space-y-1 overflow-y-auto">
+                            <ul className="max-h-[26rem] space-y-1 overflow-y-auto">
                                 {filtered.map((workspace) => {
                                     const id = `add-workspace-${workspace.id}`;
                                     const checked = selected.has(workspace.id);
@@ -188,8 +188,16 @@ export function AddToWorkspacesDialog({
                                                     <span className="block truncate text-sm">
                                                         {workspace.name}
                                                     </span>
+                                                    {/* One line per option, so a long
+                                                        list stays scannable; the
+                                                        full text is the title. */}
                                                     {workspace.description ? (
-                                                        <span className="line-clamp-3 text-xs text-muted-foreground">
+                                                        <span
+                                                            className="block truncate text-xs text-muted-foreground"
+                                                            title={
+                                                                workspace.description
+                                                            }
+                                                        >
                                                             {
                                                                 workspace.description
                                                             }

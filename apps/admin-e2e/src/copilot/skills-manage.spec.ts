@@ -33,12 +33,46 @@ test.describe('Copilot skills — management', () => {
         await expect(copilotSkillsPage.row('House style')).toContainText(
             'From code'
         );
-        // Absent rather than disabled: a disabled control invites a click and
-        // then explains nothing. The badge is what says why.
-        await expect(copilotSkillsPage.editSkill('House style')).toHaveCount(0);
-        await expect(copilotSkillsPage.editSkill('Tone of voice')).toHaveCount(
+        // No ⋯ menu on a code skill: a menu of disabled items explains
+        // nothing. The badge is what says why.
+        await expect(copilotSkillsPage.rowActions('House style')).toHaveCount(
+            0
+        );
+        await expect(copilotSkillsPage.rowActions('Tone of voice')).toHaveCount(
             1
         );
+        // Its switch is drawn, on — and cannot be moved here.
+        await expect(
+            copilotSkillsPage.availableSwitch('House style')
+        ).toBeDisabled();
+        await expect(
+            copilotSkillsPage.availableSwitch('House style')
+        ).toBeChecked();
+        await expect(
+            copilotSkillsPage.availableSwitch('Tone of voice')
+        ).toBeEnabled();
+    });
+
+    test('turns a skill off and on from its row, without the editor', async ({
+        page,
+        copilotSkillsPage
+    }) => {
+        await mockSignedIn(page);
+        const spy = await mockCopilotApi(page);
+        await copilotSkillsPage.goto(WORKSPACE_ID);
+
+        await copilotSkillsPage.availableSwitch('Tone of voice').click();
+
+        await expect.poll(() => spy.skillWrites.length).toBe(1);
+        expect(spy.skillWrites[0]).toMatchObject({
+            method: 'PATCH',
+            id: 'sk_tone',
+            body: { enabled: false }
+        });
+        await expect(copilotSkillsPage.dialog()).toHaveCount(0);
+        await expect(
+            copilotSkillsPage.availableSwitch('Tone of voice')
+        ).not.toBeChecked();
     });
 
     test('creates a skill, deriving its identifier from the name', async ({
@@ -69,13 +103,45 @@ test.describe('Copilot skills — management', () => {
         await expect(copilotSkillsPage.row('Release notes')).toBeVisible();
     });
 
+    test('the sheet sets where a skill applies, and counts what is typed', async ({
+        page,
+        copilotSkillsPage
+    }) => {
+        await mockSignedIn(page);
+        const spy = await mockCopilotApi(page);
+        await copilotSkillsPage.goto(WORKSPACE_ID);
+
+        await copilotSkillsPage.newSkill().click();
+        await copilotSkillsPage.dialog().waitFor();
+        await copilotSkillsPage.field('Name').fill('Release notes');
+        await copilotSkillsPage
+            .field('When to use it')
+            .fill('Writing or editing the monthly changelog.');
+        await expect(copilotSkillsPage.dialog()).toContainText(
+            'Shown when people pick skills. 41 / 240'
+        );
+        await copilotSkillsPage.field('Instructions').fill('Group by kind.');
+        await expect(copilotSkillsPage.dialog()).toContainText('14 / 8,000');
+        // "Applies" is two cards; the second names the workspace.
+        await copilotSkillsPage.dialog().getByText('Every chat here').click();
+        await expect(copilotSkillsPage.dialog()).toContainText(
+            'In Marketing site.'
+        );
+        await copilotSkillsPage.save().click();
+
+        await expect(copilotSkillsPage.dialog()).toHaveCount(0);
+        expect(spy.skillWrites[0]).toMatchObject({
+            method: 'POST',
+            body: { name: 'release-notes', mode: 'always', enabled: true }
+        });
+    });
+
     test('edits an existing skill', async ({ page, copilotSkillsPage }) => {
         await mockSignedIn(page);
         const spy = await mockCopilotApi(page);
         await copilotSkillsPage.goto(WORKSPACE_ID);
 
-        await copilotSkillsPage.editSkill('Tone of voice').click();
-        await copilotSkillsPage.dialog().waitFor();
+        await copilotSkillsPage.openEditor('Tone of voice');
         await copilotSkillsPage.field('Name').fill('Tone');
         await copilotSkillsPage.save().click();
 
@@ -98,8 +164,7 @@ test.describe('Copilot skills — management', () => {
         const spy = await mockCopilotApi(page);
         await copilotSkillsPage.goto(WORKSPACE_ID);
 
-        await copilotSkillsPage.editSkill('Tone of voice').click();
-        await copilotSkillsPage.dialog().waitFor();
+        await copilotSkillsPage.openEditor('Tone of voice');
         await copilotSkillsPage.field('Name').fill('Something else entirely');
         await copilotSkillsPage.save().click();
 
@@ -114,7 +179,7 @@ test.describe('Copilot skills — management', () => {
         const spy = await mockCopilotApi(page);
         await copilotSkillsPage.goto(WORKSPACE_ID);
 
-        await copilotSkillsPage.deleteSkill('Tone of voice').click();
+        await copilotSkillsPage.openDelete('Tone of voice');
         await copilotSkillsPage.confirmDelete().click();
 
         await expect(copilotSkillsPage.row('Tone of voice')).toHaveCount(0);
@@ -173,7 +238,7 @@ test.describe('Copilot skills — management', () => {
         expect(spy.skillWrites).toHaveLength(0);
     });
 
-    test('a role without the permission gets no page and no rail link', async ({
+    test('a role without the permission gets no page and no sidebar link', async ({
         page,
         agentsPage,
         copilotSkillsPage
@@ -191,7 +256,7 @@ test.describe('Copilot skills — management', () => {
         await expect(copilotSkillsPage.forbidden()).toBeVisible();
     });
 
-    test('the rail links an admin to the page', async ({
+    test('the sidebar links an admin to the page', async ({
         page,
         agentsPage,
         copilotSkillsPage

@@ -8,6 +8,9 @@ import {
     Public
 } from '@orthacms/identity-server';
 import { UsersModule } from './users.module';
+import { GetMemberController } from './member/http/controllers/get-member.controller';
+import { InviteMembersController } from './member/http/controllers/invite-members.controller';
+import { RoleCatalogController } from './member/http/controllers/role-catalog.controller';
 
 /** Nest's own metadata keys — string literals in `@nestjs/common/constants`. */
 const GUARDS_METADATA = '__guards__';
@@ -128,5 +131,33 @@ describe('UsersModule.forRoot', () => {
         expect(module.exports).toBeUndefined();
         expect(module.global).toBeFalsy();
         expect(module.module).toBe(UsersModule);
+    });
+});
+
+describe('UsersModule route order', () => {
+    it('mounts `GET /users/roles` ahead of `GET /users/:id`', () => {
+        // Express tries routes in registration order, and Nest registers a
+        // module's controllers in array order. Behind `/:id`'s ParseUUIDPipe a
+        // request for `roles` is a 400, not a fall-through, so the catalogue
+        // only answers at all while it comes first.
+        expect(CONTROLLERS.indexOf(RoleCatalogController)).toBeGreaterThan(-1);
+        expect(CONTROLLERS.indexOf(RoleCatalogController)).toBeLessThan(
+            CONTROLLERS.indexOf(GetMemberController)
+        );
+    });
+});
+
+describe('UsersModule batch invite authorization', () => {
+    it('requires users:read as well as users:create — its 409 names existing addresses', () => {
+        const required: unknown[] =
+            Reflect.getMetadata(PERMISSIONS_KEY, InviteMembersController) ?? [];
+        // Without `users:read` the per-address 409 would be an enumeration
+        // oracle for a caller who cannot list the directory.
+        expect(required).toEqual(
+            expect.arrayContaining([
+                PERMISSIONS.USERS_CREATE,
+                PERMISSIONS.USERS_READ
+            ])
+        );
     });
 });

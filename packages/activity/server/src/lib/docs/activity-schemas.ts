@@ -58,6 +58,12 @@ export const ACTIVITY_SCHEMAS: Record<string, OpenApiSchema> = {
                 description:
                     'The acted-upon entity’s id. **Text, not a uuid** — subjects are not always uuid-keyed.'
             },
+            subjectLabel: {
+                type: 'string',
+                nullable: true,
+                description:
+                    'A readable name for the subject **at the time of the event** — an entry’s title, a token’s label, an invitee’s address — or `null` when the kind carries nothing nameable. Frozen like `actorEmail`, and what `?q=` searches instead of `meta`.'
+            },
             actorId: {
                 type: 'string',
                 format: 'uuid',
@@ -102,6 +108,7 @@ export const ACTIVITY_SCHEMAS: Record<string, OpenApiSchema> = {
             'kind',
             'subjectType',
             'subjectId',
+            'subjectLabel',
             'actorId',
             'actorType',
             'actorEmail',
@@ -240,5 +247,10 @@ export const ACTIVITY_SCHEMAS: Record<string, OpenApiSchema> = {
             items: { type: 'array', items: ref('ActivityDeadLetter') }
         },
         required: ['total', 'items']
+    },
+    ActivityCsvExport: {
+        type: 'string',
+        description:
+            "UTF-8 CSV with a byte-order mark and CRLF line ends. Header: `at,kind,actor_type,actor_id,actor_email,subject_type,subject_id,subject_label,workspace_id,event_id,meta` (`meta` as JSON). A cell a spreadsheet would read as a formula is prefixed with `'`."
     }
 };

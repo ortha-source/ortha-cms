@@ -5,6 +5,8 @@ interface WorkspaceMemberView {
     id: string;
     name: string | null;
     email: string;
+    /** Directory status; absent reads as an active account. */
+    status?: 'pending' | 'active' | 'disabled';
 }
 
 /** A workspace as the server's workspace endpoints return it. */
@@ -30,6 +32,19 @@ export interface WorkspaceView {
      * server predating per-source grants sends.
      */
     sharedContent?: SharedContentGrantSeed[];
+    /** Entries across every type; absent reads as none. */
+    recordCount?: number;
+    /** Entries per content-type slug. */
+    recordCountByType?: Record<string, number>;
+    /** ISO timestamps; absent reads as unknown. */
+    createdAt?: string;
+    lastEditedAt?: string;
+    archivedAt?: string | null;
+}
+
+/** An ISO timestamp `minutes` before the test run. */
+export function minutesAgo(minutes: number): string {
+    return new Date(Date.now() - minutes * 60_000).toISOString();
 }
 
 /** One grant from a shared workspace, as `WorkspaceView.sharedContent` sends it. */
@@ -78,7 +93,11 @@ export const WORKSPACES_SEED: WorkspaceView[] = [
         // Granted content types (slugs line up with the content support mock's
         // CONTENT_SCHEMA_SEED) so opening this workspace renders the Content
         // Library rather than the "no content types" empty state.
-        content: ['blog_post', 'product', 'home', 'about']
+        content: ['blog_post', 'product', 'home', 'about'],
+        recordCount: 842,
+        recordCountByType: { blog_post: 800, product: 42 },
+        createdAt: minutesAgo(60 * 24 * 300),
+        lastEditedAt: minutesAgo(12)
     },
     {
         id: 'ws_docs',
@@ -94,7 +113,11 @@ export const WORKSPACES_SEED: WorkspaceView[] = [
             member('u_margaret', 'Margaret Hamilton', 'margaret@orthacms.dev'),
             member('u_dennis', 'Dennis Ritchie', 'dennis@orthacms.dev'),
             member('u_katherine', 'Katherine Johnson', 'katherine@orthacms.dev')
-        ]
+        ],
+        recordCount: 1204,
+        recordCountByType: { blog_post: 1204 },
+        createdAt: minutesAgo(60 * 24 * 200),
+        lastEditedAt: minutesAgo(60)
     },
     {
         id: 'ws_support',
@@ -107,7 +130,10 @@ export const WORKSPACES_SEED: WorkspaceView[] = [
         members: [
             member('u_margaret', 'Margaret Hamilton', 'margaret@orthacms.dev'),
             member('u_alan', 'Alan Turing', 'alan@orthacms.dev')
-        ]
+        ],
+        recordCount: 318,
+        createdAt: minutesAgo(60 * 24 * 100),
+        lastEditedAt: minutesAgo(60 * 26)
     },
     {
         id: 'ws_internal',
@@ -132,7 +158,9 @@ export const WORKSPACES_SEED: WorkspaceView[] = [
             'Retired experiments and old design explorations kept for reference.',
         color: 'slate',
         status: 'archived',
-        members: [member('u_alan', 'Alan Turing', 'alan@orthacms.dev')]
+        members: [member('u_alan', 'Alan Turing', 'alan@orthacms.dev')],
+        recordCount: 1032,
+        archivedAt: minutesAgo(60 * 24 * 40)
     },
     {
         id: 'ws_events',
@@ -283,7 +311,9 @@ export async function mockWorkspacesApi(
     initial: WorkspaceView[] = WORKSPACES_SEED,
     {
         slugAvailabilityStatus,
-        createStatus
+        createStatus,
+        inviteDelivery = 'sent',
+        inviteStatus
     }: {
         /**
          * Force `GET /slug-available` to fail with this status, so a suite can
@@ -297,6 +327,10 @@ export async function mockWorkspacesApi(
          * to report as such rather than as a retryable error.
          */
         createStatus?: number;
+        /** How `POST /users/:id/invites/resend` answers: mailed or a link. */
+        inviteDelivery?: 'sent' | 'link';
+        /** Fail the invitation request with this status instead. */
+        inviteStatus?: number;
     } = {}
 ): Promise<void> {
     const store = initial.map((w) => ({ ...w }));
@@ -319,8 +353,22 @@ export async function mockWorkspacesApi(
                 slug: string;
                 description: string;
                 color: string;
-                members: { id: string; name: string; email: string }[];
+                members: {
+                    id: string;
+                    name: string;
+                    email: string;
+                    invited: boolean;
+                }[];
+                content:
+                    | { mode: 'all' }
+                    | {
+                          mode: 'specific';
+                          collections: { mode: string; ids?: string[] };
+                          pages: { mode: string; ids?: string[] };
+                      };
             };
+            // An invited address becomes a pending account, keyed like the
+            // server's provisioner: one per normalised address.
             const created: WorkspaceView = {
                 id: `ws_${body.slug}`,
                 name: body.name,
@@ -330,8 +378,29 @@ export async function mockWorkspacesApi(
                 status: 'active',
                 members: [
                     OWNER,
-                    ...body.members.map((m) => member(m.id, m.name, m.email))
-                ]
+                    ...body.members.map((m) =>
+                        m.invited
+                            ? {
+                                  id: `u_invited_${m.email.toLowerCase()}`,
+                                  name: null,
+                                  email: m.email.toLowerCase(),
+                                  status: 'pending' as const
+                              }
+                            : member(m.id, m.name, m.email)
+                    )
+                ],
+                content:
+                    body.content.mode === 'all'
+                        ? CONTENT_TYPES.map((t) => t.name)
+                        : [
+                              ...(body.content.collections.ids ?? []),
+                              ...(body.content.pages.ids ?? [])
+                          ],
+                recordCount: 0,
+                recordCountByType: {},
+                createdAt: new Date().toISOString(),
+                lastEditedAt: new Date().toISOString(),
+                archivedAt: null
             };
             store.unshift(created);
             await route.fulfill({ ...json(created), status: 201 });
@@ -378,7 +447,12 @@ export async function mockWorkspacesApi(
             : DIRECTORY;
         await route.fulfill(
             json({
-                items,
+                // Each with its global role, as the users plugin lists it.
+                items: items.map((user) => ({
+                    ...user,
+                    status: 'active',
+                    role: { name: 'Contributor' }
+                })),
                 page: 1,
                 pageSize: items.length,
                 total: items.length
@@ -389,6 +463,25 @@ export async function mockWorkspacesApi(
     await page.route(/\/api\/content-types(\?.*)?$/, async (route) => {
         await route.fulfill(json(CONTENT_TYPES));
     });
+
+    // Issuing an invitation after create — the users plugin's endpoint. With
+    // `inviteDelivery: 'link'` it answers as a host without mail would: the
+    // token comes back instead of an email going out.
+    await page.route(
+        /\/api\/users\/([^/?]+)\/invites\/resend$/,
+        async (route) => {
+            if (route.request().method() !== 'POST') return route.fallback();
+            if (inviteStatus) {
+                return route.fulfill(jsonError(inviteStatus, 'Invite refused'));
+            }
+            return route.fulfill({
+                ...json(
+                    inviteDelivery === 'link' ? { inviteToken: 'tok_e2e' } : {}
+                ),
+                status: 201
+            });
+        }
+    );
 }
 
 /** The path segments of a routed request (`['', 'api', 'workspaces', …]`). */
@@ -474,6 +567,14 @@ export interface WorkspaceSettingsApiOptions {
     sharedSources?: Record<string, SharedSourceSeed[]>;
     /** Fail `GET /:id/shared-sources` with this status instead. */
     sharedSourcesStatus?: number;
+    /**
+     * What `GET /:id/archive-impact` counts as linking workspaces, per
+     * workspace (`{ [workspaceId]: 2 }`); records and members come from the
+     * store. Defaults to `0`.
+     */
+    linkedWorkspaces?: Record<string, number>;
+    /** Fail `GET /:id/archive-impact` with this status instead. */
+    archiveImpactStatus?: number;
 }
 
 /**
@@ -506,7 +607,9 @@ export async function mockWorkspaceSettingsApi(
         patchDelayMs,
         patchStatus,
         sharedSources = {},
-        sharedSourcesStatus
+        sharedSourcesStatus,
+        linkedWorkspaces = {},
+        archiveImpactStatus
     }: WorkspaceSettingsApiOptions = {}
 ): Promise<void> {
     const store = initial.map((w) => ({
@@ -664,6 +767,29 @@ export async function mockWorkspaceSettingsApi(
         }
     );
 
+    // What archiving would touch: GET /api/workspaces/:id/archive-impact
+    await page.route(
+        /\/api\/workspaces\/([^/?]+)\/archive-impact$/,
+        async (route) => {
+            if (route.request().method() !== 'GET') return route.fallback();
+            if (archiveImpactStatus) {
+                return route.fulfill(
+                    jsonError(archiveImpactStatus, 'Impact unavailable')
+                );
+            }
+            const id = segments(route.request().url())[3];
+            const workspace = find(id);
+            if (!workspace) return route.fulfill(jsonError(403, 'Forbidden'));
+            return route.fulfill(
+                json({
+                    records: workspace.recordCount ?? 0,
+                    members: workspace.members.length,
+                    linkedWorkspaces: linkedWorkspaces[id] ?? 0
+                })
+            );
+        }
+    );
+
     // Archive / unarchive: POST /api/workspaces/:id/archive|unarchive
     await page.route(
         /\/api\/workspaces\/([^/?]+)\/(archive|unarchive)$/,
@@ -673,6 +799,8 @@ export async function mockWorkspaceSettingsApi(
             const workspace = find(id);
             if (!workspace) return route.fulfill(jsonError(404, 'Not found'));
             workspace.status = action === 'archive' ? 'archived' : 'active';
+            workspace.archivedAt =
+                action === 'archive' ? new Date().toISOString() : null;
             return view(route, workspace, 201);
         }
     );

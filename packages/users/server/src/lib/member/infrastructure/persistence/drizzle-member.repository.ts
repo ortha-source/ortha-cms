@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { and, count, eq, sql } from 'drizzle-orm';
+import { and, count, eq, inArray, sql } from 'drizzle-orm';
 import { UnitOfWork } from '@orthacms/database';
 import { roles, users } from '@orthacms/identity-server';
 import { Member } from '../../domain/member';
@@ -66,6 +66,21 @@ export class DrizzleMemberRepository implements MemberRepository {
             .where(eq(sql`lower(${users.email})`, email))
             .limit(1);
         return !!existing;
+    }
+
+    /** {@inheritDoc MemberRepository.takenEmails} */
+    async takenEmails(emails: readonly string[]): Promise<string[]> {
+        const wanted = emails.map((email) => email.toLowerCase());
+        if (wanted.length === 0) {
+            return [];
+        }
+        const rows = await this.uow
+            .current()
+            .select({ email: users.email })
+            .from(users)
+            .where(inArray(sql`lower(${users.email})`, wanted));
+        const taken = new Set(rows.map((row) => row.email.toLowerCase()));
+        return wanted.filter((email) => taken.has(email));
     }
 
     /** {@inheritDoc MemberRepository.save} */

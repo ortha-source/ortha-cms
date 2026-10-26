@@ -1,9 +1,20 @@
-import { test, expect } from '../support/fixtures';
+import { test as base, expect } from '../support/fixtures';
 import { expectNoA11yViolations } from '../support/a11y';
 import { mockSignedIn } from '../support/api/auth';
 import { mockWorkspaces } from '../support/api/workspaces';
 import { LIBRARY_WORKSPACE, mockContentSchema } from '../support/api/content';
 import { mockProtectionRules } from '../support/api/protection';
+import { PublishingSettingsPage } from '../support/pages/PublishingSettingsPage';
+
+/**
+ * Registered here rather than in the shared fixtures, so this suite's page
+ * object is the only file it adds to the harness.
+ */
+const test = base.extend<{ publishing: PublishingSettingsPage }>({
+    publishing: async ({ page }, use) => {
+        await use(new PublishingSettingsPage(page));
+    }
+});
 
 const WS = LIBRARY_WORKSPACE.id;
 const SETTINGS = `/workspaces/${WS}/settings/protection`;
@@ -36,15 +47,16 @@ const TYPES = [
 ];
 
 /**
- * The workspace settings **Publishing rules** section — the surface that makes a rule
- * exist at all. Until this shipped a rule could only be written with SQL.
+ * The workspace settings **Publishing** section — the surface that makes a
+ * rule exist at all. Until this shipped a rule could only be written with SQL.
  *
  * The server side is covered by `server-e2e`; what only a browser can answer is
- * whether an administrator can tell what a rule will do before saving it — and
- * in particular whether the workspace that would lock itself out is told so at
- * the moment it happens rather than a week later.
+ * whether an administrator can tell what a rule will do before saving it — the
+ * switches in plain words and the sentence that reads the rule back — and
+ * whether the workspace that would lock itself out is told so at the moment it
+ * happens rather than a week later.
  */
-test.describe('Workspace settings, Publishing rules', () => {
+test.describe('Workspace settings, Publishing', () => {
     test.beforeEach(async ({ page }) => {
         await mockSignedIn(page);
         await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
@@ -52,32 +64,45 @@ test.describe('Workspace settings, Publishing rules', () => {
     });
 
     test('lists the granted publishable types, protected or not', async ({
-        page
+        page,
+        publishing
     }) => {
         await mockProtectionRules(page, [
             { slug: 'blog_post', enabled: true, requiredApprovals: 2 }
         ]);
-        await page.goto(SETTINGS);
+        await publishing.goto(WS);
 
+        await expect(publishing.heading).toBeVisible();
+        // The protected one says how many and what it lets through, the
+        // granted-but-unprotected one says so in words — a badge tone alone
+        // would be colour carrying meaning.
         await expect(
-            page.getByRole('heading', { name: 'Publishing rules', level: 1 })
+            publishing
+                .row('Blog posts')
+                .getByText('2 approvals · admins may bypass')
         ).toBeVisible();
-        // The protected one says how many, the granted-but-unprotected one says
-        // so in words — a badge tone alone would be colour carrying meaning.
-        await expect(page.getByText('2 approvals')).toBeVisible();
-        await expect(page.getByText('Not protected')).toBeVisible();
+        await expect(
+            publishing.row('Blog posts').getByText('Protected', { exact: true })
+        ).toBeVisible();
+        await expect(
+            publishing.row('Products').getByText('Not protected')
+        ).toBeVisible();
         // Non-publishable: no draft→published step, so no rule to offer.
         await expect(
             page.getByText('Site config', { exact: true })
         ).toHaveCount(0);
     });
 
-    test('is reachable from the settings side nav', async ({ page }) => {
+    test('is reachable from the settings side nav', async ({
+        page,
+        publishing
+    }) => {
         await mockProtectionRules(page, []);
         await page.goto(`/workspaces/${WS}/settings/general`);
 
-        await page.getByRole('link', { name: 'Publishing rules' }).click();
+        await publishing.navLink().click();
         await expect(page).toHaveURL(new RegExp(`${SETTINGS}$`));
+        await expect(publishing.heading).toBeVisible();
     });
 
     /**
@@ -86,7 +111,8 @@ test.describe('Workspace settings, Publishing rules', () => {
      * switched on**. This is that moment, in a real browser.
      */
     test('warns the moment a lone member switches the rule on', async ({
-        page
+        page,
+        publishing
     }) => {
         await mockWorkspaces(page, [
             {
@@ -95,25 +121,46 @@ test.describe('Workspace settings, Publishing rules', () => {
             }
         ]);
         await mockProtectionRules(page, []);
-        await page.goto(SETTINGS);
+        await publishing.goto(WS);
 
-        await page
-            .getByRole('button', {
-                name: 'Configure protection for Blog posts'
-            })
-            .click();
+        await publishing.configure('Blog posts').click();
+        await expect(publishing.status).not.toContainText(
+            /Nobody could publish/
+        );
 
-        const dialog = page.getByRole('dialog');
-        await expect(dialog.getByText(/Nobody could publish/)).toHaveCount(0);
-
-        await dialog
-            .getByRole('switch', { name: 'Require review before publishing' })
-            .click();
+        await publishing.switch('Require review before publishing').click();
 
         // In a live region, so it is spoken rather than only drawn.
-        await expect(
-            dialog.getByRole('status').getByText(/Nobody could publish/)
-        ).toBeVisible();
+        await expect(publishing.status).toContainText(/Nobody could publish/);
+    });
+
+    /**
+     * The rule read back as one sentence — the point of the redesign: what the
+     * switches do together, which no single switch says.
+     */
+    test('reads the rule back in one sentence as it is edited', async ({
+        page,
+        publishing
+    }) => {
+        await mockProtectionRules(page, []);
+        await publishing.goto(WS);
+        await publishing.configure('Blog posts').click();
+
+        await expect(publishing.inShort).toHaveText(
+            'In short: a record in Blog posts publishes without review.'
+        );
+
+        await publishing.switch('Require review before publishing').click();
+        await publishing.approvalsOption('2').click();
+        await expect(publishing.inShort).toHaveText(
+            'In short: a record in Blog posts needs 2 approvals from people other than its author; admins can override.'
+        );
+
+        await publishing.switch('Admins may publish without review').click();
+        await publishing.switch('Keep approvals across new saves').click();
+        await expect(publishing.inShort).toHaveText(
+            'In short: a record in Blog posts needs 2 approvals from people other than its author; approvals stay after a new save.'
+        );
     });
 
     /**
@@ -121,25 +168,17 @@ test.describe('Workspace settings, Publishing rules', () => {
      * Asserted on the captured request: a partial body looks identical on
      * screen and only differs in what the server then stores.
      */
-    test('submits all six fields, and the count that was typed', async ({
-        page
+    test('submits all six fields, and the count that was picked', async ({
+        page,
+        publishing
     }) => {
         const writes = await mockProtectionRules(page, []);
-        await page.goto(SETTINGS);
+        await publishing.goto(WS);
 
-        await page
-            .getByRole('button', {
-                name: 'Configure protection for Blog posts'
-            })
-            .click();
-        const dialog = page.getByRole('dialog');
-        await dialog
-            .getByRole('switch', { name: 'Require review before publishing' })
-            .click();
-        await dialog
-            .getByRole('spinbutton', { name: 'Approvals needed' })
-            .fill('3');
-        await dialog.getByRole('button', { name: 'Save' }).click();
+        await publishing.configure('Blog posts').click();
+        await publishing.switch('Require review before publishing').click();
+        await publishing.approvalsOption('3').click();
+        await publishing.save.click();
 
         await expect.poll(() => writes.length).toBe(1);
         expect(writes[0].path).toBe('collection/blog_post');
@@ -155,16 +194,35 @@ test.describe('Workspace settings, Publishing rules', () => {
         expect(writes[0].body.enabled).toBe(true);
     });
 
+    test('takes a count beyond the presets through Other…', async ({
+        page,
+        publishing
+    }) => {
+        const writes = await mockProtectionRules(page, []);
+        await publishing.goto(WS);
+
+        await publishing.configure('Blog posts').click();
+        await publishing.switch('Require review before publishing').click();
+        await expect(publishing.otherCount).toHaveCount(0);
+        await publishing.approvalsOption('Other…').click();
+        await publishing.otherCount.fill('5');
+        await publishing.save.click();
+
+        await expect.poll(() => writes.length).toBe(1);
+        expect(writes[0].body.requiredApprovals).toBe(5);
+    });
+
     /**
      * A failed read is not an empty one. "Nothing is protected" is a claim
      * about the workspace, and making it when the truth is "we could not ask"
      * is how somebody concludes a rule they set has vanished.
      */
     test('says the rules could not be loaded, not that none exist', async ({
-        page
+        page,
+        publishing
     }) => {
         await mockProtectionRules(page, [], { status: 500 });
-        await page.goto(SETTINGS);
+        await publishing.goto(WS);
 
         // A 5xx is retried three times with backoff before `isError`, so the
         // error state is seconds away — see the admin-e2e gotchas.
@@ -174,8 +232,9 @@ test.describe('Workspace settings, Publishing rules', () => {
         await expect(page.getByText('Not protected')).toHaveCount(0);
     });
 
-    test('hides the tab from somebody without protection:manage', async ({
-        page
+    test('hides the section from somebody without protection:manage', async ({
+        page,
+        publishing
     }) => {
         await mockSignedIn(page, {
             permissions: ['workspaces:read', 'content:read']
@@ -183,50 +242,46 @@ test.describe('Workspace settings, Publishing rules', () => {
         await mockProtectionRules(page, []);
         await page.goto(`/workspaces/${WS}/settings/general`);
 
-        await expect(
-            page.getByRole('link', { name: 'Publishing rules' })
-        ).toHaveCount(0);
+        await expect(publishing.navLink()).toHaveCount(0);
     });
 
-    test('is operable from the keyboard', async ({ page }) => {
+    test('is operable from the keyboard', async ({ page, publishing }) => {
         await mockProtectionRules(page, []);
-        await page.goto(SETTINGS);
+        await publishing.goto(WS);
 
-        const configure = page.getByRole('button', {
-            name: 'Configure protection for Blog posts'
-        });
+        const configure = publishing.configure('Blog posts');
         await configure.focus();
         await page.keyboard.press('Enter');
+        await expect(publishing.dialog).toBeVisible();
 
-        const dialog = page.getByRole('dialog');
-        await expect(dialog).toBeVisible();
+        // The switches toggle from the keyboard, as switches do.
+        const enabled = publishing.switch('Require review before publishing');
+        await enabled.focus();
+        await page.keyboard.press('Space');
+        await expect(enabled).toHaveAttribute('aria-checked', 'true');
 
         // Escape closes and puts focus back where it came from, so a keyboard
         // user is not left at the top of the page.
         await page.keyboard.press('Escape');
-        await expect(dialog).toHaveCount(0);
+        await expect(publishing.dialog).toHaveCount(0);
         await expect(configure).toBeFocused();
     });
 
     test('has no accessibility violations, list or editor', async ({
         page,
+        publishing,
         makeAxe
     }) => {
         await mockProtectionRules(page, [
             { slug: 'blog_post', enabled: true, requiredApprovals: 2 }
         ]);
-        await page.goto(SETTINGS);
-        await expect(
-            page.getByRole('heading', { name: 'Publishing rules', level: 1 })
-        ).toBeVisible();
+        await publishing.goto(WS);
+        await expect(publishing.heading).toBeVisible();
         await expectNoA11yViolations(makeAxe());
 
-        await page
-            .getByRole('button', {
-                name: 'Configure protection for Blog posts'
-            })
-            .click();
-        await expect(page.getByRole('dialog')).toBeVisible();
+        await publishing.configure('Blog posts').click();
+        await expect(publishing.dialog).toBeVisible();
+        await expect(publishing.removeRule).toBeVisible();
         await expectNoA11yViolations(makeAxe());
     });
 });

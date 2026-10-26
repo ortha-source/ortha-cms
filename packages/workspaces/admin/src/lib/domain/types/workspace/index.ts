@@ -15,6 +15,11 @@ export type WorkspaceMember = {
     email: string;
     /** Accent color tinting the member's avatar. */
     color: AvatarColor;
+    /**
+     * Invited by email and not yet accepted — still a member, but the admin
+     * counts them as an invite rather than an active teammate.
+     */
+    pending: boolean;
 };
 
 /**
@@ -54,6 +59,36 @@ export type Workspace = {
      * removed on its own.
      */
     sharedContent: SharedContentGrant[];
+    /**
+     * Content entries the workspace holds across every type. Display only —
+     * `0` from a server without a content plugin, so never proof of emptiness
+     * (the delete pre-check reads its own count).
+     */
+    recordCount: number;
+    /** {@link recordCount} per content-type slug; a type with none is absent. */
+    recordCountByType: Record<string, number>;
+    /** When it was created (ISO 8601); `null` from an older server. */
+    createdAt: string | null;
+    /**
+     * When it last moved (ISO 8601) — its own last write or its newest entry's
+     * edit, whichever is later. `null` from an older server.
+     */
+    lastEditedAt: string | null;
+    /** When it was archived (ISO 8601); `null` while active or unknown. */
+    archivedAt: string | null;
+};
+
+/**
+ * What archiving a workspace would touch, counted before the confirmation's
+ * button. Archiving deletes nothing — these say what stays and who notices.
+ */
+export type ArchiveImpact = {
+    /** Records the workspace holds; they stay. */
+    records: number;
+    /** Members; they keep their accounts. */
+    members: number;
+    /** Other workspaces linking its shared records; they lose sight of them. */
+    linkedWorkspaces: number;
 };
 
 /** Kind of a granted content type — drives the collections/pages split. */

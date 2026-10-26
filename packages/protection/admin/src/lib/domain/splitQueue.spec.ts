@@ -15,7 +15,10 @@ const ask = (
     reviewerIds,
     required: 2,
     given: 0,
-    createdAt: '2026-09-01T00:00:00.000Z'
+    createdAt: '2026-09-01T00:00:00.000Z',
+    headRevisionNumber: 2,
+    liveRevisionNumber: 1,
+    fieldsChanged: 1
 });
 
 describe('splitQueue', () => {

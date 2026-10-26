@@ -62,6 +62,13 @@ export const reviewApprovals = pgTable(
         index('review_approvals_workspace_entry_idx').on(
             table.workspaceId,
             table.entryId
+        ),
+        // The Reviews page's "Recently approved" tab: what *I* approved in this
+        // workspace lately, newest first.
+        index('review_approvals_workspace_user_idx').on(
+            table.workspaceId,
+            table.userId,
+            table.createdAt
         )
     ]
 );

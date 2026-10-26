@@ -14,6 +14,7 @@ import type {
     ProtectionInsights,
     ProtectionRule,
     ProtectionRuleRecord,
+    RecentlyApproved,
     ReviewerCandidate,
     ReviewQueue
 } from '../domain/types';
@@ -25,6 +26,8 @@ import {
     newEntryProtectionKey,
     newEntryProtectionPrefix,
     queueKey,
+    queuePrefix,
+    recentlyApprovedKey,
     reviewerCandidatesKey,
     reviewStatusKey,
     rulesKey
@@ -256,6 +259,38 @@ export function useApprove(scope: EntryReviewScope) {
     });
 }
 
+/**
+ * Approves the head revision **from the Reviews page** — the queue's side
+ * panel, where the vote moves more than the one entry's review.
+ *
+ * It refreshes that review (by prefix, as {@link useApprove} does), the queue
+ * windows (the line's "1 of 2" moved), "Recently approved" (the entry now
+ * belongs there) and the Insights figures — the four places on this page and
+ * the next that state the number. It is a separate hook rather than a wider
+ * {@link useApprove} because the editor's rail has none of those on screen,
+ * and refetching them on every vote there would be the over-invalidation the
+ * rail's own hook avoids.
+ */
+export function useApproveFromQueue(scope: EntryReviewScope) {
+    const queryClient = useQueryClient();
+    return useMutation<void, ApiError, EntryRef>({
+        mutationFn: (ref) => httpProtectionGateway.approve(ref),
+        onSuccess: () =>
+            Promise.all([
+                refreshReview(queryClient, scope),
+                queryClient.invalidateQueries({
+                    queryKey: queuePrefix(scope.workspaceId)
+                }),
+                queryClient.invalidateQueries({
+                    queryKey: recentlyApprovedKey(scope.workspaceId)
+                }),
+                queryClient.invalidateQueries({
+                    queryKey: insightsKey(scope.workspaceId)
+                })
+            ])
+    });
+}
+
 /** Withdraws this person's own approval. */
 export function useWithdrawVote(scope: EntryReviewScope) {
     const queryClient = useQueryClient();
@@ -370,6 +405,21 @@ export function useReviewQueue(
         queryKey: queueKey(workspaceId, params),
         queryFn: () => httpProtectionGateway.listQueue(params),
         placeholderData: keepPreviousData,
+        enabled
+    });
+}
+
+/**
+ * What the caller approved lately — the Reviews page's third tab.
+ *
+ * Enabled by the caller, and the page enables it only once the tab is opened:
+ * the two other tabs share one queue read, and a third request on every visit
+ * would be paid for by everybody who never looks.
+ */
+export function useRecentlyApproved(workspaceId: string, enabled = true) {
+    return useQuery<RecentlyApproved, ApiError>({
+        queryKey: recentlyApprovedKey(workspaceId),
+        queryFn: () => httpProtectionGateway.listRecentlyApproved(),
         enabled
     });
 }

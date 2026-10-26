@@ -2,6 +2,9 @@ import { DynamicModule, Module } from '@nestjs/common';
 import { ListMembersController } from './member/http/controllers/list-members.controller';
 import { GetMemberController } from './member/http/controllers/get-member.controller';
 import { InviteMemberController } from './member/http/controllers/invite-member.controller';
+import { InviteMembersController } from './member/http/controllers/invite-members.controller';
+import { RoleCatalogController } from './member/http/controllers/role-catalog.controller';
+import { MemberSignInController } from './member/http/controllers/member-sign-in.controller';
 import { UpdateMemberController } from './member/http/controllers/update-member.controller';
 import { SetMemberStatusController } from './member/http/controllers/set-member-status.controller';
 import { ResendInviteController } from './member/http/controllers/resend-invite.controller';
@@ -9,6 +12,7 @@ import { IssuePasswordResetController } from './member/http/controllers/issue-pa
 import { RevealLinkController } from './member/http/controllers/reveal-link.controller';
 import { RevokeInviteController } from './member/http/controllers/revoke-invite.controller';
 import { InviteMemberUseCase } from './member/application/use-cases/invite-member.use-case';
+import { InviteMembersUseCase } from './member/application/use-cases/invite-members.use-case';
 import { UpdateMemberUseCase } from './member/application/use-cases/update-member.use-case';
 import { SetMemberStatusUseCase } from './member/application/use-cases/set-member-status.use-case';
 import { ResendInviteUseCase } from './member/application/use-cases/resend-invite.use-case';
@@ -17,6 +21,7 @@ import { RevokeInviteUseCase } from './member/application/use-cases/revoke-invit
 import { RevealLinkUseCase } from './member/application/use-cases/reveal-link.use-case';
 import { MemberViewQuery } from './member/infrastructure/queries/member-view.query';
 import { WorkspaceMembersQuery } from './member/infrastructure/queries/workspace-members.query';
+import { MemberSignInQuery } from './member/infrastructure/queries/member-sign-in.query';
 import { WorkspaceCopilotToolProvider } from './copilot/workspace-tool.provider';
 import { MEMBER_REPOSITORY } from './member/domain/member.repository';
 import { SESSION_REVOKER } from './member/application/ports/session-revoker.port';
@@ -54,8 +59,15 @@ export class UsersModule {
             module: UsersModule,
             controllers: [
                 ListMembersController,
+                // Ahead of `GetMemberController` on purpose: both answer
+                // `GET /users/…`, routes match in registration order, and
+                // behind `/:id`'s `ParseUUIDPipe` a request for `roles` would
+                // be a 400 rather than a fall-through.
+                RoleCatalogController,
                 GetMemberController,
+                MemberSignInController,
                 InviteMemberController,
+                InviteMembersController,
                 UpdateMemberController,
                 SetMemberStatusController,
                 ResendInviteController,
@@ -68,6 +80,7 @@ export class UsersModule {
             providers: [
                 // Application — one use case per state-changing operation.
                 InviteMemberUseCase,
+                InviteMembersUseCase,
                 UpdateMemberUseCase,
                 SetMemberStatusUseCase,
                 ResendInviteUseCase,
@@ -77,6 +90,7 @@ export class UsersModule {
                 // Read model — thin CQRS query service (bypasses the aggregate).
                 MemberViewQuery,
                 WorkspaceMembersQuery,
+                MemberSignInQuery,
                 // The copilot's workspace-scoped member list. Both no-op when
                 // no copilot plugin is registered — the registrar injects the
                 // registry optionally.

@@ -2,8 +2,10 @@
 
 The **workspaces feature plugin** for the Ortha CMS admin UI. It owns the
 Workspaces management experience: the private `/workspaces` route (a searchable,
-status-filterable **grid of cards**, one per workspace), the full-page **create wizard** at
-`/workspaces/new`, and its sidebar nav entry + a "Workspaces" quick-list section.
+status-filterable, sortable **grid of cards**, one per workspace), the full-page
+**create wizard** at `/workspaces/new`, the **ready screen** a new workspace
+lands on (`/workspaces/:id/ready`), and its sidebar nav entry + a "Workspaces"
+quick-list section.
 It also owns the **workspace shell** at `/workspaces/:id/*` — which, when a row
 is clicked, **injects a per-workspace nav (`WorkspaceNav`: switcher + Content +
 Workspace sections) into the app sidebar** (via `useSidebarContent`) and renders
@@ -20,8 +22,9 @@ ADR-0003. `src/lib` is organized into four layers, not the legacy per-hook
   helpers.
 - **`application/`** — the TanStack Query hooks (reads + mutation/use-case hooks).
   Each calls the gateway, never `apiClient`. The create wizard's submit
-  orchestration is `useCreateWorkspaceFlow` (validate `Slug` → create → toast →
-  navigate), so the wizard page is layout + fields.
+  orchestration is `useCreateWorkspaceFlow` (validate `Slug` → create →
+  `issueInvites` → navigate to the ready screen), so the wizard page is layout +
+  fields.
 - **`infrastructure/`** — the `WorkspaceGateway` **port** + its `httpWorkspaceGateway`
   implementation (the one place `apiClient` is used) and `workspaceMapper` (the
   wire→view anti-corruption layer, formerly the inline `toWorkspace`).
@@ -57,7 +60,10 @@ business truth (ADR-0003 frontend guidance).
 - `Workspace` / `WorkspaceMember` / `WorkspaceStatus` — the data model.
 - **Workspace shell slots** — `WORKSPACE_NAV_SLOT` (the "Workspace" section's
   labeled nav rows), `WORKSPACE_SECTION_SLOT` (custom sidebar sections, e.g. the
-  Content Library's content-type list), `WORKSPACE_ROUTE_SLOT` (pages mounted
+  Content Library's content-type list; an item's optional `takeover(pathname)`
+  makes it the sidebar's only content where it returns true — the copilot's
+  Agents view swaps the content tree for its chat list that way),
+  `WORKSPACE_ROUTE_SLOT` (pages mounted
   inside the shell; `WorkspaceRoute.order` picks the default landing), and
   `WORKSPACE_SETTINGS_TAB_SLOT` (a section on the **settings** page — see
   below), plus the `WorkspaceNavItem` / `WorkspaceSectionItem` /
@@ -155,8 +161,10 @@ exist", mirroring the API's flat 403.
       membership wire carries none. Access is purely permission-based — but the
       **last** member cannot go: the server answers 409 `LastMemberError`, and
       the toast says what would help.
-    - **Danger zone** — archive/unarchive behind a confirm and permanent delete
-      through `DeleteWorkspaceDialog`, as rows of one red-ruled card. While the
+    - **Danger zone** — archive/unarchive and permanent delete
+      through `DeleteWorkspaceDialog`, as rows of one red-ruled card. Archive
+      opens the same `ArchiveWorkspaceDialog` the cards' ⋯ menu does (below);
+      unarchive applies directly. While the
       workspace still holds entries the Delete row **says so on the page**
       (`useWorkspaceEntryCount(…, 'summary')`: how many, and a link to
       Content); the dialog still reads `GET /workspaces/:id/entry-count` itself
@@ -248,21 +256,63 @@ exist", mirroring the API's flat 403.
 
 ## Create wizard (`/workspaces/new`)
 
-- A full-page, 3-step wizard (Basics → Members → Content), **not** a dialog. The
-  page (`pages/CreateWorkspacePage`) owns navigation + submission; all form state
-  lives in `hooks/useWizard` (the single source of truth) so it survives moving
-  between steps. The active step is mirrored to `?step=` and clamped.
-- The generic wizard **chrome lives in the design-system** — `Stepper` (the
-  progress rail), `WizardStepCard` (the animated step card), and `WizardFooter`
-  (back/skip/primary). The page configures them with its steps + intl labels; the
-  workspace-specific step bodies (Basics/Members/Content) stay here.
-- Supporting hooks: `useSlug` (auto-fill + regenerate + availability),
-  `useResourceSelection` (controlled `specific`/`all` model), `useBasicsSchema`
-  (localized Zod). Generic helpers (`slugify`, `useDebouncedValue`) come from
-  `@orthacms/utils-admin`.
-- Step entrance motion is the `wizard-step-in` keyframe shipped by the
-  design-system stylesheet — **transform only** (opacity stays 1), disabled under
-  `prefers-reduced-motion`, replayed via `key={step}` on the `WizardStepCard`.
+- A full-page, 3-step wizard — **Basics → Content → People** — beside a live
+  **preview** column, **not** a dialog. The page (`pages/CreateWorkspacePage`)
+  owns navigation + submission; all form state lives in `hooks/useWizard` (the
+  single source of truth) so it survives moving between steps. The active step
+  is mirrored to `?step=` and clamped, and falls back to Basics while the basics
+  are invalid (a deep link or reload can't reach a live Create).
+- **Progress** is `CreateWorkspaceWizard/WizardProgress`, a horizontal line
+  (✓ Basics — 2 Content — 3 People; `aria-current="step"`, a reached step is a
+  button back). The design-system `Stepper` rail is vertical and stays as it is;
+  `WizardStepCard` still frames the step (keyed on it, so the entrance replays
+  and focus moves to the step's `<h2>` — an `sr-only` "Basics" on step 1).
+- **Basics** (`IdentityFields`): the name (the only required field), the
+  **Address** — the slug shown as `/workspaces/<slug>` in an `InputGroup` with
+  its availability badge inline (`SlugField`; a failed check is the
+  `role="alert"` Unknown state, workspaces I-33) — the **Colour** (the shared
+  `ColorSwatchRow` at `size="sm"` with a `label`), and the description with its
+  "n / 2000" counter. Footer: Cancel · Continue.
+- **Content** (`ContentStep`): two answers first — **Everything** (every type
+  the catalogue holds, as own grants; resolved at create, so the copy says
+  "this site defines", not "and new ones as they are added") or **Pick content
+  types**, which opens **one** framed list (`ContentPicker`): Collections, Pages
+  and "From shared workspaces", each a labelled `role="group"` under a header
+  row with "N of M". Each own type says how many records it already holds in
+  your workspaces ("842 records elsewhere", summed from `recordCountByType`
+  over the membership-scoped list) or carries a **new** badge when none of your
+  workspaces is granted it. Shared rows read "{Type} from {Workspace}" and are
+  sent as `content.sharedContent`; there is no workspace yet to ask
+  `shared-sources` about, so the sources come from `useSharedSourceCandidates`
+  (active, shared workspaces in the list and their own grants).
+- **People** (`PeopleStep`): members and invites in **one** box — the
+  directory typeahead (`MemberTypeahead`, an ARIA combobox: a name lists
+  accounts with their global role; an email offers "Invite … by email") over
+  one list: the creator as "You" (no role, no owner — I-07), each added
+  account with its role badge, each invite saying what will happen. Footer:
+  Back · Skip — just me · Create workspace.
+- **The preview** (`WizardPreview`) is the card the workspace becomes on
+  Basics (`CardPreview`), then a compact summary of the content ("4 content
+  types · 1 shared" + tags) and the people ("· 3 people" + faces and invite
+  chips). It repeats the form, so it is `aria-hidden` and holds nothing
+  focusable.
+- **Invitations.** The create provisions a pending account per invited
+  address but sends nothing; `application/issueInvites` then calls the users
+  plugin's `POST /users/:id/invites/resend` for each pending invitee (one at a
+  time), when the creator holds `users:create`. Best effort: a failure or a
+  missing permission reports the invite `pending`, never rolls back the
+  workspace. The raw token a mail-less host returns is **dropped** — Members can
+  reveal the link again.
+- **The ready screen** (`pages/WorkspaceReadyPage`, `/workspaces/:id/ready`,
+  outside the workspace shell because its static `ready` segment outranks the
+  shell's splat): "{name} is ready", a summary ("4 content types · 2 members ·
+  1 invite sent to …", the invite part from the router state the flow passes —
+  `WorkspaceReadyState` — and from the pending members after a reload), then
+  **Next steps** (`NextStepRow`): write the first record (a "New record" link
+  into the first granted collection), invite more people (settings → Members),
+  share its published records (settings → General); then "Open {name}" and
+  "Back to workspaces". An id outside the list reads as missing, like the
+  shell's no-access state.
 
 ## Architecture
 
@@ -280,24 +330,42 @@ exist", mirroring the API's flat 403.
   `useDebouncedValue`) live in `@orthacms/utils-admin`, not here.
 - **Membership is a pure link; there is no per-member role and no owner.** The
   server ignores any role on a member — a user's permissions come from their
-  single global role. The Members step adds people (existing or invite-by-email)
-  with no role control; the creator is just the first member (added from the
-  session), with no special status.
+  single global role. The People step adds people (existing or invite-by-email)
+  with no role control — the badge beside an account is its **global** role,
+  read from the directory; the creator is just the first member (added from the
+  session), shown as "You", with no special status. `WorkspaceMember.pending`
+  (the account's directory status) is what tells an invite from a teammate.
 - **Accent color.** Workspace and member avatars are tinted with the shared
   `AvatarColor` palette from `@orthacms/design-system` (the `--color-avatar-*`
   tokens in the host's `styles.css`) — the only color in the otherwise-neutral
   admin. New tokens/types live in the design-system, not here.
 - **The list is a grid of cards** (`WorkspaceCards` → `WorkspaceCard`, a
-  labelled `<ul>`): the workspace's tile, its name (the card's link) and
-  description, a **Shared** badge when it is shared, an **Archived** chip on an
-  archived one, up to four member avatars with the member and content-type
-  counts, and **Open** / **Settings**. A click anywhere else on the card opens
-  it too, for the mouse, without adding a tab stop. It shows **no role** — role
-  is a property of the current user, not the workspace. Whoever may create a
-  workspace gets a trailing dashed **New workspace** card (not while searching
-  or on Archived). The status filter is a segmented chip group
-  (All/Active/Archived); the header is the shared `ContainerHeader` (`<h1>` and description),
-  with **New workspace** in the top bar.
+  labelled `<ul>`) that say what is inside: the tile, the name (the card's
+  link) with a **Shared** or **Archived** badge, "Edited {when}" (or "Archived
+  {when}") from `lastEditedAt` / `archivedAt` (`useSinceLabel`), the
+  description, "N records · N content types" (own + shared, a type once) and
+  who is in it as faces (`MemberFaces`: four, then "+N", one `role="img"` name
+  for the roster), then **Open** / **Settings** — or **Restore** on an archived
+  card for whoever holds `workspaces:update`. The ⋯ menu (`WorkspaceCardMenu`)
+  repeats Open/Settings and adds **Archive…** / **Restore**. A click anywhere
+  else on the card opens it too, for the mouse, without adding a tab stop. It
+  shows **no role**. Whoever may create a workspace gets a trailing dashed
+  **New workspace** card (not while searching or on Archived). The toolbar is
+  sort and filter, nothing more: search, the All/Active/Archived segmented
+  filter, and a sort `Select` (Recently edited — the default — Name, Recently
+  created; `domain/workspaceSort`). The "{shown} of {total}" count is a polite
+  `sr-only` status only. The header is the shared `ContainerHeader`, with
+  **New workspace** in the top bar.
+- **Archiving says what it does** (`ArchiveWorkspaceDialog`, shared by the
+  cards and the Danger zone): on open it reads
+  `GET /workspaces/:id/archive-impact` (`useArchiveImpact`, never cached) and
+  lists what stays — records, members — and how many workspaces linking its
+  shared records will see them as unavailable, then "Restore it any time from
+  Workspaces → Archived". Archiving is reversible and deletes nothing, so an
+  unreadable count does **not** block the button (unlike the delete dialog);
+  the dialog says so. The copy deliberately does **not** claim records become
+  read-only: archiving is an interface state (see the dossier, §06). Restore
+  applies directly.
 
 ## Conventions
 
@@ -313,13 +381,15 @@ exist", mirroring the API's flat 403.
   child component folders. Every component lives under `components/`. A
   component used only by **another component** nests inside that component's
   folder; a component used by a **page** sits at the top of `components/`. So
-  the whole `components/CreateWorkspaceWizard/` subtree (Basics/Members/Content
-  step bodies and their parts) nests under the wizard, and `WorkspaceNavButton`
-  / `WorkspaceSwitcher` nest under `components/WorkspaceNav/`. The page-level
-  components — `WorkspaceCards`, `WorkspaceToolbar`, `WorkspacesEmpty`,
-  `CreateWorkspaceWizard` — and the shared pieces — `WorkspaceAvatar`,
-  `StatusChip`, `WorkspacesSkeleton`, `WorkspaceNav`, `WorkspacesNavSection`,
-  `WorkspaceStats`, `WorkspacesHomePanel` — all sit at the top of `components/`.
+  the whole `components/CreateWorkspaceWizard/` subtree (Basics/Content/People
+  step bodies, the progress line, the preview and their parts) nests under the
+  wizard, and `WorkspaceNavButton` / `WorkspaceSwitcher` nest under
+  `components/WorkspaceNav/`. The page-level components — `WorkspaceCards`,
+  `WorkspaceToolbar`, `WorkspacesEmpty`, `CreateWorkspaceWizard`,
+  `NextStepRow` — and the shared pieces — `WorkspaceAvatar`, `MemberFaces`,
+  `ArchiveWorkspaceDialog`, `StatusChip`, `WorkspacesSkeleton`, `WorkspaceNav`,
+  `WorkspacesNavSection`, `WorkspaceStats`, `WorkspacesHomePanel` — all sit at
+  the top of `components/`.
 - User-facing strings go through `react-intl` (`defineMessages` + `useIntl`),
   co-located in the component file; ids namespaced `workspaces.<area>.<key>`
 - Simple forms use TanStack Form + a `use<Name>Schema` Zod hook. The **create

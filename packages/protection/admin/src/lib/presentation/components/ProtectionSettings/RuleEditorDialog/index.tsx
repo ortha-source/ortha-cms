@@ -1,18 +1,18 @@
 import { useEffect, useId, useState, type RefObject } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
+import { Info } from 'lucide-react';
 import {
     Button,
-    Checkbox,
     Dialog,
     DialogContent,
     DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
-    Field,
-    FieldDescription,
-    FieldLabel,
     Input,
+    Label,
+    SegmentedControl,
+    SegmentedControlItem,
     Switch,
     toast
 } from '@orthacms/design-system';
@@ -24,6 +24,11 @@ import {
     type ProtectionRule
 } from '../../../../domain/types';
 import {
+    APPROVAL_PRESETS,
+    approvalSegment,
+    readRule
+} from '../../../../domain/ruleSummary';
+import {
     useDeleteProtectionRule,
     useSaveProtectionRule
 } from '../../../../application/hooks';
@@ -31,61 +36,95 @@ import {
 const messages = defineMessages({
     title: {
         id: 'protection.settings.editor.title',
-        defaultMessage: 'Protection for {label}'
+        defaultMessage: 'Publishing {label}'
     },
     body: {
         id: 'protection.settings.editor.body',
-        defaultMessage:
-            'A protected type needs approvals before an entry can be published. Drafts are edited freely — publication is protected, not the record.'
+        defaultMessage: 'Who must approve before a record in {label} goes live.'
     },
     enabled: {
         id: 'protection.settings.editor.enabled',
         defaultMessage: 'Require review before publishing'
     },
+    enabledHelp: {
+        id: 'protection.settings.editor.enabledHelp',
+        defaultMessage:
+            'Every publish of a record in {label} needs approvals first.'
+    },
     count: {
         id: 'protection.settings.editor.count',
         defaultMessage: 'Approvals needed'
     },
-    countHelp: {
-        id: 'protection.settings.editor.countHelp',
-        defaultMessage:
-            'Counted on the current version only. Saving the entry starts the count again.'
+    other: {
+        id: 'protection.settings.editor.countOther',
+        defaultMessage: 'Other…'
+    },
+    otherCount: {
+        id: 'protection.settings.editor.countOtherInput',
+        defaultMessage: 'Number of approvals'
     },
     otherPerson: {
         id: 'protection.settings.editor.otherPerson',
-        defaultMessage: 'The author cannot approve their own version'
-    },
-    otherPersonHelp: {
-        id: 'protection.settings.editor.otherPersonHelp',
-        defaultMessage:
-            'Whoever saved the current version is left out of the count, administrators included.'
+        defaultMessage: 'The author can’t approve their own changes'
     },
     stale: {
         id: 'protection.settings.editor.stale',
-        defaultMessage: 'Count approvals from earlier versions'
+        defaultMessage: 'Keep approvals across new saves'
     },
     staleHelp: {
         id: 'protection.settings.editor.staleHelp',
-        defaultMessage:
-            'Not recommended. An approval that outlives the edit it approved is the thing this feature exists to prevent.'
+        defaultMessage: 'Off: any save after an approval asks again.'
     },
     bypass: {
         id: 'protection.settings.editor.bypass',
-        defaultMessage: 'An administrator may publish in spite of the rule'
+        defaultMessage: 'Admins may publish without review'
     },
     bypassHelp: {
         id: 'protection.settings.editor.bypassHelp',
-        defaultMessage:
-            'Every override needs a reason and appears in the activity log. Turning this off makes the rule absolute, administrators included.'
+        defaultMessage: 'They confirm it, and it is recorded in Activity.'
     },
     token: {
         id: 'protection.settings.editor.token',
-        defaultMessage: 'An API token may publish this type'
+        defaultMessage: 'API tokens may publish'
     },
     tokenHelp: {
         id: 'protection.settings.editor.tokenHelp',
         defaultMessage:
-            'A token still needs the approvals — this only stops it being refused outright. It is off by default because a token names nobody in the log.'
+            'A token still needs the approvals. Off, it can’t publish this type at all.'
+    },
+    inShort: {
+        id: 'protection.settings.editor.inShort',
+        defaultMessage: 'In short:'
+    },
+    sentenceOff: {
+        id: 'protection.settings.editor.sentenceOff',
+        defaultMessage: 'a record in {label} publishes without review.'
+    },
+    sentenceCount: {
+        id: 'protection.settings.editor.sentenceCount',
+        defaultMessage:
+            'a record in {label} needs {count, plural, one {# approval} other {# approvals}}'
+    },
+    sentenceFromOthers: {
+        id: 'protection.settings.editor.sentenceFromOthers',
+        defaultMessage:
+            '{count, plural, one {from someone other than its author} other {from people other than its author}}'
+    },
+    authorMayApprove: {
+        id: 'protection.settings.editor.sentence.authorMayApprove',
+        defaultMessage: 'its author’s own approval counts'
+    },
+    keepsAcrossSaves: {
+        id: 'protection.settings.editor.sentence.keepsAcrossSaves',
+        defaultMessage: 'approvals stay after a new save'
+    },
+    adminsOverride: {
+        id: 'protection.settings.editor.sentence.adminsOverride',
+        defaultMessage: 'admins can override'
+    },
+    tokensPublish: {
+        id: 'protection.settings.editor.sentence.tokensPublish',
+        defaultMessage: 'API tokens may publish it once approved'
     },
     aloneTitle: {
         id: 'protection.settings.editor.aloneTitle',
@@ -115,11 +154,11 @@ const messages = defineMessages({
     },
     saved: {
         id: 'protection.settings.editor.saved',
-        defaultMessage: 'Protection updated for {label}.'
+        defaultMessage: 'Publishing rule saved for {label}.'
     },
     removed: {
         id: 'protection.settings.editor.removed',
-        defaultMessage: 'Protection removed from {label}.'
+        defaultMessage: 'Publishing rule removed from {label}.'
     },
     failed: {
         id: 'protection.settings.editor.failed',
@@ -127,7 +166,7 @@ const messages = defineMessages({
     }
 });
 
-/** The four boolean options, so the list is declared once. */
+/** The four boolean options after the count, so the list is declared once. */
 type OptionKey =
     | 'requireOtherPerson'
     | 'countStaleApprovals'
@@ -135,12 +174,24 @@ type OptionKey =
     | 'allowTokenPublish';
 
 /**
- * The rule editor for one content type.
+ * The publishing rule for one content type — switches in plain words, and a
+ * sentence under them that reads the rule back.
  *
  * **It edits all six fields and submits all six**, because `PUT` replaces
  * rather than patches: a form that sent only what it showed would silently
  * reset the rest to their defaults, and "what does this rule do" would become a
  * question about the order somebody edited it in.
+ *
+ * **The "In short" sentence is the point of the redesign.** A row of switches
+ * says what each one does; only a sentence says what they do together, and
+ * "count approvals from earlier versions" stops being a puzzle once the dialog
+ * reads the whole rule back. It comes from `readRule`, the same reading the
+ * settings list's one-line hint uses, so the two cannot describe one rule two
+ * ways.
+ *
+ * The count is three quick picks and **Other…**, which reveals a real number
+ * input — the picks are a radio group (arrow keys, a value a screen reader reads
+ * back) and the input keeps the clamp on whatever is typed.
  *
  * It restores focus itself. The dialog is mounted only while a row is being
  * edited, so closing it unmounts the whole subtree in the same commit — and
@@ -177,17 +228,25 @@ export function RuleEditorDialog({
     returnFocusTo?: RefObject<HTMLElement | null>;
 }) {
     const intl = useIntl();
-    const countId = useId();
+    const baseId = useId();
     const save = useSaveProtectionRule(workspaceId);
     const remove = useDeleteProtectionRule(workspaceId);
 
     const stored: ProtectionRule = row.rule ?? DEFAULT_PROTECTION_RULE;
     const [draft, setDraft] = useState<ProtectionRule>(stored);
+    // "Other…" is a choice of its own: picking it keeps the count as it is and
+    // reveals the input, rather than snapping back to the preset it matches.
+    const [otherCount, setOtherCount] = useState(
+        approvalSegment(stored.requiredApprovals) === 'other'
+    );
 
     // Re-baseline when the dialog opens: a rule another administrator changed
     // while this was closed must not be overwritten by a stale form.
     useEffect(() => {
-        if (open) setDraft(row.rule ?? DEFAULT_PROTECTION_RULE);
+        if (!open) return;
+        const next = row.rule ?? DEFAULT_PROTECTION_RULE;
+        setDraft(next);
+        setOtherCount(approvalSegment(next.requiredApprovals) === 'other');
     }, [open, row.rule]);
 
     const set = <K extends keyof ProtectionRule>(
@@ -197,12 +256,15 @@ export function RuleEditorDialog({
 
     const alone = blocksEveryone(draft, memberCount);
     const busy = save.isPending || remove.isPending;
+    const label = row.label;
+    const segment = otherCount
+        ? 'other'
+        : approvalSegment(draft.requiredApprovals);
 
-    const options: { key: OptionKey; label: string; help: string }[] = [
+    const options: { key: OptionKey; label: string; help?: string }[] = [
         {
             key: 'requireOtherPerson',
-            label: intl.formatMessage(messages.otherPerson),
-            help: intl.formatMessage(messages.otherPersonHelp)
+            label: intl.formatMessage(messages.otherPerson)
         },
         {
             key: 'countStaleApprovals',
@@ -221,13 +283,36 @@ export function RuleEditorDialog({
         }
     ];
 
+    const reading = readRule(draft);
+    const sentence =
+        reading.kind === 'off'
+            ? intl.formatMessage(messages.sentenceOff, { label })
+            : `${[
+                  [
+                      intl.formatMessage(messages.sentenceCount, {
+                          label,
+                          count: reading.count
+                      }),
+                      reading.fromOthers
+                          ? intl.formatMessage(messages.sentenceFromOthers, {
+                                count: reading.count
+                            })
+                          : null
+                  ]
+                      .filter(Boolean)
+                      .join(' '),
+                  ...reading.exceptions.map((exception) =>
+                      intl.formatMessage(messages[exception])
+                  )
+              ].join('; ')}.`;
+
     const submit = () =>
         save.mutate(
             { kind: row.kind, slug: row.slug, rule: draft },
             {
                 onSuccess: () => {
                     toast.success(
-                        intl.formatMessage(messages.saved, { label: row.label })
+                        intl.formatMessage(messages.saved, { label })
                     );
                     onOpenChange(false);
                 },
@@ -241,9 +326,7 @@ export function RuleEditorDialog({
             {
                 onSuccess: () => {
                     toast.success(
-                        intl.formatMessage(messages.removed, {
-                            label: row.label
-                        })
+                        intl.formatMessage(messages.removed, { label })
                     );
                     onOpenChange(false);
                 },
@@ -251,10 +334,12 @@ export function RuleEditorDialog({
             }
         );
 
+    const countLabelId = `${baseId}-count`;
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent
-                className="max-w-lg"
+                className="max-w-[560px]"
                 onCloseAutoFocus={(event) => {
                     const target = returnFocusTo?.current;
                     // Focusing a detached node silently does nothing, which is
@@ -268,12 +353,10 @@ export function RuleEditorDialog({
             >
                 <DialogHeader>
                     <DialogTitle>
-                        {intl.formatMessage(messages.title, {
-                            label: row.label
-                        })}
+                        {intl.formatMessage(messages.title, { label })}
                     </DialogTitle>
                     <DialogDescription>
-                        {intl.formatMessage(messages.body)}
+                        {intl.formatMessage(messages.body, { label })}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -285,64 +368,105 @@ export function RuleEditorDialog({
                 ) : null}
 
                 <div className="flex flex-col gap-4">
-                    <Field orientation="horizontal">
-                        <span className="text-sm font-medium">
-                            {intl.formatMessage(messages.enabled)}
-                        </span>
-                        <Switch
-                            checked={draft.enabled}
-                            disabled={!canManage}
-                            aria-label={intl.formatMessage(messages.enabled)}
-                            onCheckedChange={(next) => set('enabled', next)}
-                        />
-                    </Field>
+                    <SwitchRow
+                        id={`${baseId}-enabled`}
+                        label={intl.formatMessage(messages.enabled)}
+                        help={intl.formatMessage(messages.enabledHelp, {
+                            label
+                        })}
+                        checked={draft.enabled}
+                        disabled={!canManage}
+                        onCheckedChange={(next) => set('enabled', next)}
+                    />
 
-                    <Field>
-                        <FieldLabel htmlFor={countId}>
+                    <div className="flex flex-col gap-2">
+                        <span id={countLabelId} className="text-sm font-medium">
                             {intl.formatMessage(messages.count)}
-                        </FieldLabel>
-                        {/* A real number input: the mockup's −/+ pair around a
-                            span is not operable by keyboard and carries no
-                            value a screen reader can read back. */}
-                        <Input
-                            id={countId}
-                            type="number"
-                            inputMode="numeric"
-                            min={1}
-                            max={REQUIRED_APPROVALS_MAX}
-                            className="w-24"
-                            disabled={!canManage}
-                            value={draft.requiredApprovals}
-                            onChange={(event) =>
-                                set(
-                                    'requiredApprovals',
-                                    clamp(Number(event.target.value))
-                                )
-                            }
-                        />
-                        <FieldDescription>
-                            {intl.formatMessage(messages.countHelp)}
-                        </FieldDescription>
-                    </Field>
-
-                    {options.map(({ key, label, help }) => (
-                        <Field key={key} orientation="horizontal">
-                            <Checkbox
-                                id={`${countId}-${key}`}
-                                checked={draft[key]}
+                        </span>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <SegmentedControl
+                                variant="muted"
+                                aria-labelledby={countLabelId}
+                                className="self-start"
+                                value={segment}
                                 disabled={!canManage}
-                                onCheckedChange={(next) =>
-                                    set(key, next === true)
-                                }
-                            />
-                            <div className="min-w-0">
-                                <FieldLabel htmlFor={`${countId}-${key}`}>
-                                    {label}
-                                </FieldLabel>
-                                <FieldDescription>{help}</FieldDescription>
-                            </div>
-                        </Field>
+                                onValueChange={(next) => {
+                                    // Re-pressing the selected segment
+                                    // reports '' — it is still selected.
+                                    if (!next) return;
+                                    if (next === 'other') {
+                                        setOtherCount(true);
+                                        return;
+                                    }
+                                    setOtherCount(false);
+                                    set('requiredApprovals', Number(next));
+                                }}
+                            >
+                                {APPROVAL_PRESETS.map((preset) => (
+                                    <SegmentedControlItem
+                                        key={preset}
+                                        value={String(preset)}
+                                        className="min-w-8 justify-center px-2.5"
+                                    >
+                                        {intl.formatNumber(preset)}
+                                    </SegmentedControlItem>
+                                ))}
+                                <SegmentedControlItem
+                                    value="other"
+                                    className="px-2.5"
+                                >
+                                    {intl.formatMessage(messages.other)}
+                                </SegmentedControlItem>
+                            </SegmentedControl>
+                            {otherCount ? (
+                                <Input
+                                    type="number"
+                                    inputMode="numeric"
+                                    min={1}
+                                    max={REQUIRED_APPROVALS_MAX}
+                                    className="h-8 w-20"
+                                    aria-label={intl.formatMessage(
+                                        messages.otherCount
+                                    )}
+                                    disabled={!canManage}
+                                    value={draft.requiredApprovals}
+                                    onChange={(event) =>
+                                        set(
+                                            'requiredApprovals',
+                                            clamp(Number(event.target.value))
+                                        )
+                                    }
+                                />
+                            ) : null}
+                        </div>
+                    </div>
+
+                    {options.map(({ key, label: optionLabel, help }) => (
+                        <SwitchRow
+                            key={key}
+                            id={`${baseId}-${key}`}
+                            label={optionLabel}
+                            help={help}
+                            checked={draft[key]}
+                            disabled={!canManage}
+                            onCheckedChange={(next) => set(key, next)}
+                        />
                     ))}
+
+                    {/* The rule read back as one sentence — what the switches
+                        do together, which no single switch says. */}
+                    <div className="flex gap-2.5 rounded-lg border border-info/30 bg-info-soft px-3.5 py-3 text-sm text-info-soft-foreground">
+                        <Info
+                            aria-hidden
+                            className="mt-0.5 size-4 shrink-0 text-info"
+                        />
+                        <p>
+                            <b className="font-semibold">
+                                {intl.formatMessage(messages.inShort)}
+                            </b>{' '}
+                            {sentence}
+                        </p>
+                    </div>
                 </div>
 
                 {/* Announced, not merely rendered — see the component's note. */}
@@ -359,12 +483,13 @@ export function RuleEditorDialog({
                     ) : null}
                 </div>
 
-                <DialogFooter className="sm:justify-between">
+                <DialogFooter className="items-center border-t pt-4 sm:justify-between">
                     <div>
                         {canManage && row.rule ? (
                             <Button
                                 type="button"
                                 variant="ghost"
+                                className="text-destructive hover:text-destructive"
                                 onClick={drop}
                                 disabled={busy}
                             >
@@ -396,6 +521,54 @@ export function RuleEditorDialog({
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+    );
+}
+
+/**
+ * One switch with its label beside it and an optional line of help under the
+ * label — the board's row. The switch is named by the label and described by
+ * the help, so a screen reader reads both.
+ */
+function SwitchRow({
+    id,
+    label,
+    help,
+    checked,
+    disabled,
+    onCheckedChange
+}: {
+    id: string;
+    label: string;
+    help?: string;
+    checked: boolean;
+    disabled: boolean;
+    onCheckedChange: (checked: boolean) => void;
+}) {
+    const helpId = `${id}-help`;
+    return (
+        <div className="flex items-start gap-3">
+            <Switch
+                id={id}
+                checked={checked}
+                disabled={disabled}
+                aria-describedby={help ? helpId : undefined}
+                onCheckedChange={onCheckedChange}
+                className="mt-0.5"
+            />
+            <div className="flex min-w-0 flex-col gap-0.5">
+                <Label htmlFor={id} className="leading-5">
+                    {label}
+                </Label>
+                {help ? (
+                    <span
+                        id={helpId}
+                        className="text-[13px] leading-5 text-muted-foreground"
+                    >
+                        {help}
+                    </span>
+                ) : null}
+            </div>
+        </div>
     );
 }
 

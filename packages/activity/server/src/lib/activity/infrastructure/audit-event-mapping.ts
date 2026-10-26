@@ -18,6 +18,11 @@ export interface AuditRow {
     subjectType: string;
     /** The acted-upon entity's id (text). */
     subjectId: string;
+    /**
+     * A readable name for the subject at the time of the event, or `null` —
+     * see {@link subjectLabelOf}.
+     */
+    subjectLabel: string | null;
     /** Who performed it, or `null` for a system-initiated event. */
     actorId: string | null;
     /**
@@ -1146,6 +1151,51 @@ function readActor(payload: Record<string, unknown>): {
 }
 
 /**
+ * The `meta` keys that name a subject, in the order they are tried. Each kind
+ * stores its readable name under whichever key its producer uses — an entry's
+ * `title`, a token's or an asset's `name`, an audience's `label` (then its
+ * `key`), an invitee's `email`, a content grant's `slug` — so the first string
+ * found is the name. The migration that added `subject_label` backfills older
+ * rows with the same order, and the two must stay in step.
+ */
+export const SUBJECT_LABEL_KEYS = [
+    'title',
+    'name',
+    'label',
+    'email',
+    'key',
+    'slug'
+] as const;
+
+/** Longest label kept — a search handle, not a copy of the payload. */
+export const SUBJECT_LABEL_MAX_LENGTH = 255;
+
+/**
+ * A readable name for the subject, lifted from the kind's own `meta`, or
+ * `null` when it carries none.
+ *
+ * Only a **string** counts: `user.profile_updated` stores `name` as a
+ * `{ from, to }` transition, and the JSON of that is not a name. Pure, like the
+ * rest of this module — the label is frozen at the moment of the event, which
+ * is exactly what a trail that outlives its subjects wants (a purged entry is
+ * still findable by the title it had).
+ */
+export function subjectLabelOf(
+    meta: Record<string, unknown> | null
+): string | null {
+    if (!meta) {
+        return null;
+    }
+    for (const key of SUBJECT_LABEL_KEYS) {
+        const value = meta[key];
+        if (typeof value === 'string' && value.trim() !== '') {
+            return value.trim().slice(0, SUBJECT_LABEL_MAX_LENGTH);
+        }
+    }
+    return null;
+}
+
+/**
  * Maps a domain event to the audit row it should produce, or `null` when the
  * kind is not audited. Pure and DB-free — the safety-net unit test asserts each
  * kind's row equals what the old in-band recorder wrote.
@@ -1175,6 +1225,9 @@ export function toAuditRow(event: DomainEvent): AuditRow | null {
         kind: facet.kind,
         subjectType: facet.subjectType,
         subjectId: facet.subjectId,
+        // From the kind's own facet, before `via` is merged in: how an action
+        // was performed never names what it was performed on.
+        subjectLabel: subjectLabelOf(facet.meta),
         actorId: actor.id,
         actorType: actor.type,
         actorEmail: actor.email,

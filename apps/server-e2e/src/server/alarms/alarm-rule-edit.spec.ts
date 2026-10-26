@@ -115,10 +115,18 @@ describe('Editing an alarm rule’s condition', () => {
         const ruleId = created.body.rule.id as string;
         expect(created.body.scan.open).toBe(0);
 
-        await client
+        const updated = await client
             .patch(`/api/alarms/rules/${ruleId}`)
             .send({ filter: CONTAINS_QWERT })
             .expect(200);
+        // The rescan the edit ran, in the response — what the editor's
+        // "checked N, M flagged, K cleared" toast is built from.
+        expect(updated.body.scan).toMatchObject({
+            ruleId,
+            opened: 1,
+            resolved: 0,
+            open: 1
+        });
 
         // No rescan call and no entry write in between: `update` rescans before
         // it answers, precisely so the findings table never describes the
@@ -128,8 +136,65 @@ describe('Editing an alarm rule’s condition', () => {
         expect(findings.body.items[0]).toMatchObject({
             ruleId,
             entryId: hit,
-            title: 'Title Does not Match'
+            title: 'Title Does not Match',
+            // The record by name: its first short text field.
+            entryTitle: 'Has QWERT inside'
         });
+    });
+
+    it('answers scan: null for an edit that cannot change what matches', async () => {
+        const client = await api();
+        await publishArticle(client, { text: 'Has QWERT inside' });
+        const created = await client
+            .post('/api/alarms/rules')
+            .send({
+                contentType: 'test_article',
+                name: 'Should Have',
+                findingTitle: 'Title Does not Match',
+                severity: 'error',
+                filter: CONTAINS_QWERT
+            })
+            .expect(201);
+        const ruleId = created.body.rule.id as string;
+
+        const renamed = await client
+            .patch(`/api/alarms/rules/${ruleId}`)
+            .send({ name: 'Renamed' })
+            .expect(200);
+        expect(renamed.body.name).toBe('Renamed');
+        expect(renamed.body.scan).toBeNull();
+    });
+
+    it('rescans a rule switched back on, so it reports on today', async () => {
+        const client = await api();
+        const created = await client
+            .post('/api/alarms/rules')
+            .send({
+                contentType: 'test_article',
+                name: 'Should Have',
+                findingTitle: 'Title Does not Match',
+                severity: 'error',
+                filter: CONTAINS_QWERT
+            })
+            .expect(201);
+        const ruleId = created.body.rule.id as string;
+
+        const paused = await client
+            .patch(`/api/alarms/rules/${ruleId}`)
+            .send({ enabled: false })
+            .expect(200);
+        expect(paused.body.scan).toBeNull();
+
+        // Written while the rule was off: no event path evaluates it.
+        await publishArticle(client, { text: 'Has QWERT inside' });
+
+        const resumed = await client
+            .patch(`/api/alarms/rules/${ruleId}`)
+            .send({ enabled: true })
+            .expect(200);
+        expect(resumed.body.enabled).toBe(true);
+        expect(resumed.body.scan).toMatchObject({ open: 1 });
+        expect(resumed.body.openCount).toBe(1);
     });
 
     it('stores the edited condition, so a later rescan still uses it', async () => {

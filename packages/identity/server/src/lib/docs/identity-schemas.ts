@@ -196,7 +196,8 @@ const API_TOKEN_SCHEMA: OpenApiSchema = {
         'expiresAt',
         'lastUsedAt',
         'revokedAt',
-        'createdAt'
+        'createdAt',
+        'createdBy'
     ],
     properties: {
         id: UUID,
@@ -217,7 +218,19 @@ const API_TOKEN_SCHEMA: OpenApiSchema = {
         expiresAt: NULLABLE_DATE_TIME,
         lastUsedAt: NULLABLE_DATE_TIME,
         revokedAt: NULLABLE_DATE_TIME,
-        createdAt: DATE_TIME
+        createdAt: DATE_TIME,
+        createdBy: {
+            type: 'object',
+            nullable: true,
+            description:
+                'The member who minted the token. Attribution only — the token never acts with their permissions. `null` only if the account row is gone.',
+            required: ['id', 'name', 'email'],
+            properties: {
+                id: UUID,
+                name: nullableString('Display name, if the member set one.'),
+                email: { type: 'string', format: 'email' }
+            }
+        }
     }
 };
 
@@ -251,7 +264,7 @@ const MINTED_API_TOKEN_SCHEMA: OpenApiSchema = {
 /** One page of token metadata. */
 const API_TOKEN_PAGE_SCHEMA: OpenApiSchema = {
     type: 'object',
-    required: ['items', 'total', 'page', 'pageSize'],
+    required: ['items', 'total', 'page', 'pageSize', 'summary'],
     properties: {
         items: { type: 'array', items: ref('ApiToken') },
         total: {
@@ -264,7 +277,35 @@ const API_TOKEN_PAGE_SCHEMA: OpenApiSchema = {
             minimum: 1,
             description: '1-based page number, echoed back.'
         },
-        pageSize: { type: 'integer', minimum: 1 }
+        pageSize: { type: 'integer', minimum: 1 },
+        summary: {
+            type: 'object',
+            description:
+                'Per-status totals and the expiring-soon figures, over the `workspaceId` filter only — `status` and `q` do not narrow it, so each total says how many tokens that status would show.',
+            required: [
+                'active',
+                'expired',
+                'revoked',
+                'expiringSoon',
+                'nextExpiresAt'
+            ],
+            properties: {
+                active: { type: 'integer', minimum: 0 },
+                expired: { type: 'integer', minimum: 0 },
+                revoked: { type: 'integer', minimum: 0 },
+                expiringSoon: {
+                    type: 'integer',
+                    minimum: 0,
+                    description:
+                        'Active tokens that expire within the next 30 days.'
+                },
+                nextExpiresAt: {
+                    ...NULLABLE_DATE_TIME,
+                    description:
+                        'The soonest of those expiries, or `null` when none falls in the window.'
+                }
+            }
+        }
     }
 };
 

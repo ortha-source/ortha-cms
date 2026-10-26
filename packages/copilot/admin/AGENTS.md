@@ -19,11 +19,21 @@ Layout: **layered (ADR-0003)** — `domain / application / presentation`, with n
   Ortha AI" — into the strip under the work area's card** (design-system
   `InsetFooterEnd`). A chat is a window
   over whatever page you are on, which is the point of it being a persistent
-  surface rather than a destination, and there can be **several at once**,
-  listed under the launcher.
+  surface rather than a destination, and there can be **several at once** —
+  collapsed ones wait as **pills** beside the launcher.
 - **The Agents view**, a full page inside the workspace at
-  `/workspaces/:id/agents` — history as a column, the transcript with the width
-  to render a table or a diff. See [Agents view](#the-agents-view) below.
+  `/workspaces/:id/agents` — the chats in the **workspace sidebar** (in place of
+  the content tree), the transcript with the width to render a table or a diff.
+  See [Agents view](#the-agents-view) below.
+
+> **R7 redesign.** The boards `AiNewChat`, `AiConversation`, `AiSkills`,
+> `AiSkillEditor` and `AiWindow` are implemented: chats in the sidebar, openers
+> written for the workspace (`GET /copilot/suggestions`), steps as quiet lines,
+> one `ChangeCard` ("N changes", Was → Now per record) for both the receipt and
+> the **permission preview**, a permission prompt that says what will happen in
+> words, a skills table with an Available switch and a sheet editor, and dock
+> pills. Where this file describes an older shape (the rail column, the
+> honeycomb, the launcher's list), the sections below say what replaced it.
 
 Both render the _same_ transcript, composer, tool steps, permission prompts and
 change cards. Two chat surfaces that diverge is two chat surfaces to keep
@@ -53,6 +63,7 @@ application/
   useCopilotChat.ts        # a view of one chat in the store; drives its stream
   useComposerAttachments.ts # staged files for the next turn; uploads on add
   useSkills.ts             # the workspace's skill catalogue (query)
+  useCopilotSuggestions.ts # the new chat's openers (query) — structure, worded in AgentsWelcome
   useComposerSkills.ts     # joins that catalogue to the chat's staged selection
   useManageSkills.ts       # the admin list, one skill, and the three writes
   tabBadge.ts              # pure: what the tab's (n) counts (tested)
@@ -78,13 +89,14 @@ presentation/
   copilotPlugin/           # the plugin object: footer slot + route + section
   ViewSwitcher/            # CMS ⇄ Agents, in the workspace sidebar
   AgentsPage/              # the full-page surface
-    AgentsTopBar/          #   the one bar: breadcrumb, mobile Chats sheet, model
-    AgentsRail/            #   the thread column (md+)
-    AgentsRailList/        #   its contents — shared with the mobile sheet
+    AgentsTopBar/          #   the one bar: icon, breadcrumb, New chat / New skill
     AgentsThread/          #   the conversation column
-    AgentsWelcome/         #   the empty thread: greeting + four openers
+    AgentsWelcome/         #   the new chat: greeting, openers (suggestionCopy), composer
+  AgentsSidebar/           # the chat list, in the workspace sidebar on Agents paths
+    AgentsChatRow/  RenameChatDialog/
+  ChangeCard/              # "N changes", Was → Now per record — receipt and preview
   CopilotLauncher/         # ⌘J + the dock, permission-gated
-  CopilotDock/             # the top-bar launcher: start a chat, or list the open ones
+  CopilotDock/             # the strip's pills (collapsed chats) and "Ask Ortha AI"
   CopilotSession/          # a dock chat's window + its markers
   CopilotPanel/            # the window a visible chat renders in
   PanelResizeHandles/      # the eight grab strips
@@ -97,7 +109,7 @@ presentation/
   SkillPicker/             # the composer's skills popover
   SkillChip/               # one skill — staged, and on the turn it was sent with
   SkillsPage/              # authoring, at /workspaces/:id/agents/skills
-    SkillFormDialog/       #   create and edit, in one dialog
+    SkillSheet/            #   create and edit, in a sheet over the list
   ContextChip/             # what context is attached to the next turn
   PermissionPrompt/        # "may I?" — the inline gate before a write runs
   ProposalCard/            # the receipt for a change, and its diff
@@ -189,12 +201,19 @@ presentation/
 
 A page at `/workspaces/:id/agents`, contributed to the workspace shell's
 `WORKSPACE_ROUTE_SLOT` at `order: 50` — a **high** order on purpose, so the
-Content Library (10) stays what `/workspaces/:id` lands on. Three columns: the
-app sidebar's workspace nav, the thread rail, the conversation.
+Content Library (10) stays what `/workspaces/:id` lands on. Two columns: the
+workspace sidebar — which in this view **is the chat list** — and the
+conversation.
 
-**The third column is the point.** Keeping the CMS navigation on screen is what
-makes leaving the Agents view one click on something already visible, rather than
-a hunt for the way back. The `ViewSwitcher` — a two-segment CMS / Agents control
+**The sidebar swaps, it does not stack.** The `ViewSwitcher`'s section item
+declares `takeover: isAgentsPath` (an optional field on workspaces-admin's
+`WorkspaceSectionItem`), so on every Agents path `WorkspaceNav` renders that
+section alone: the switcher, then `AgentsSidebar` — Chats with the `⌘J` hint,
+New chat, the filter, the day groups, and Tools (Skills, Archived). The content
+tree and the workspace Tools group come back the moment you switch to CMS. It
+used to be a third, resizable column beside the sidebar plus a mobile sheet;
+that spent 18rem of the page on a list the sidebar had room for. The
+`ViewSwitcher` — a two-segment CMS / Agents control
 at the top of the workspace sidebar, `WORKSPACE_SECTION_SLOT` at `order: 5` — is
 the two-way control, and going back to the CMS returns you to **the page you
 left** (remembered per workspace in `sessionStorage`), not to the workspace's
@@ -281,7 +300,7 @@ Four things about how that is wired are load-bearing:
   frame, and its `catch`/`finally` are guarded the same way — otherwise a
   cancelled answer appends itself to whichever conversation replaced it.
 
-### The rail
+### The chat list (`AgentsSidebar`)
 
 **A row is its name and nothing else.** It carried a timestamp under the title
 once; it was true and it was noise, because the group heading above already says
@@ -319,17 +338,12 @@ threads (a search box over three rows is furniture that pushes the rows it
 searches down the rail), and an **untitled thread matches nothing but the empty
 query** — the title is the only text the list route carries.
 
-The rail is a `md:` column; below that it is the same `AgentsRailList` inside a
-sheet, opened from the top bar's **Chats** button. Both render it, which is why
-that component navigates and holds no chat state: which thread is open is a fact
-about the URL.
-
-As a column the rail is **resizable**: a design-system `ResizeHandle` on its
-right edge drags its width (`AGENTS_RAIL_PANEL` in `AgentsRail` — 288px by
-default, 224–448px, at most 25% of the viewport), remembered per user in the
-shell's panel layout alongside the sidebar's. It does not collapse — dragged
-past the minimum it stops there, since the conversation beside it is what the
-page is for.
+The list lives in the sidebar, so a phone finds it wherever it finds the
+sidebar; it navigates and holds no chat state — which thread is open is a fact
+about the URL. Group headings and rows use the sidebar's own tokens
+(`text-sidebar-foreground`, the shell's row height), so the Agents view reads as
+the same sidebar in another mode. Skills and Archived sit under **Tools**, the
+way the CMS mode's Media Library and Insights do.
 
 ### Renaming and archiving
 
@@ -372,36 +386,31 @@ answer for.
   the reason. The field also carries no `maxLength`, so a pasted title too long
   gets an explanation instead of a silent truncation.
 
-### The empty state has a honeycomb behind it
+### The new chat: openers written for the workspace
 
-`HoneycombBackdrop` — an SVG lattice of large hexagons in `text-border`, the
-same hairline grey as every divider in the admin, masked by a radial fade centred
-above the greeting. **Not the brand orange**, which is what it was first: a
-lattice covering the whole panel plus an orange hexagon mark and an orange card
-hover is far more surface than a single accent is meant to carry, and the empty
-state read as a different product from the rest of the admin. **And the mark is
-gone entirely** — it was one more thing to read before the question it sat on
-top of, and the lattice already carries the motif. The greeting is the first
-thing on the screen. A honeycomb because
-it is what the surface _is_: a workspace's content is a lattice of small things
-that fit together. Three things keep it a backdrop rather than decoration:
+`AgentsWelcome` is an icon tile, the greeting ("What can I help you with in
+{workspace}?"), four openers and **the composer directly under them** — on an
+empty chat the question is the only thing on screen, so the box sits beside the
+suggestions for it, and moves to the foot of the transcript once there is one.
+`AgentsThread` carries focus across that move on the first send (a remount
+would drop it on `<body>`), and only for a send.
 
-- **Big cells.** At half the size it tiled into texture — legible as pattern but
-  not as hexagons, which is the difference between a backdrop and a shade of
-  grey.
-- **The fade ends before the cards do.** It haloes the greeting and has
-  dissolved by the time the suggestions start, so they sit on clean ground.
-  Tuned by looking at it; the first pass reached them and the panel read as graph
-  paper.
-- **`currentColor` off a token class**, so it follows the theme instead of being
-  a light-mode flourish that turns into scratches on the dark canvas.
-
-The pattern ids come from `useId()`: two of these can be on screen at once, and
-duplicate SVG ids make the second reference the first's pattern.
+- **The openers come from `GET /copilot/suggestions`**, which picks them from
+  the workspace's granted types, its enabled skills and the tools the caller
+  is offered, and returns **structure** (`{ kind, type, skill }`), never prose.
+  `suggestionCopy` words them, so they translate with the UI; a viewer gets
+  read-only openers, and a type the workspace only reaches through a shared
+  source is never offered for writing. A failed or empty answer falls back to
+  the one opener that needs nothing ("What can I work with here?").
+- **"Check … against the {skill} skill" turns that skill on** for the chat and
+  sends it with the turn, so the opener does what it says.
+- The honeycomb backdrop is gone: the board draws a plain surface, and the
+  icon tile carries the mark.
 
 ### One bar, not two
 
-`AgentsTopBar` composes the design-system `TopBar` directly, the way
+`AgentsTopBar` (icon tile, "Ortha CMS AI › {leaf}", and the page's action — New
+chat, or New skill on the Skills page) composes the design-system `TopBar` directly, the way
 `ContentTopBar` does, instead of a `PageTopBar` plus a header of the thread's
 own — that pairing would spend 6rem of a chat surface on chrome. Rendering a real
 `TopBar` also matters beyond looks: it is what hosts the sidebar-reveal trigger
@@ -469,6 +478,28 @@ disguised Stop — back on the CMS the launcher lists them again.
 
 Ask three things, go back to work, come back when the dock says one finished.
 That is the feature; everything below is what it costs.
+
+- **The dock is pills, in the strip under the card (R7).** A collapsed chat is
+  a pill beside "Ask Ortha AI" that says what it is doing in words — "… —
+  waiting for you" (amber dot), "… — finished" (tick), "… — working…"
+  (spinner) — restores on click, and has its own named Close. Past three they
+  fold into "N more". A chat on screen has its window and no pill. The launcher
+  **always starts a chat** now; it used to turn into a popover listing every
+  chat, which hid "a background chat wants you" behind a click. The board
+  draws the pills floating over the page's bottom-left; they stay in the strip
+  instead, because a pill bar fixed over the page is what once covered the
+  records pagination (see _The launcher lives under the card_).
+- **A chat started from a content page carries it** (R7: "the list is its
+  context"). The launcher, `⌘J` and a window's **+** attach the current page as
+  the chip at the **top** of the window — "Blog posts · this list" — removable
+  with its ×. A page with nothing in view attaches nothing, and the Agents view
+  still never attaches on its own. On the Agents view `⌘J` opens a new chat on
+  the page instead of a hidden window.
+- **The window's header is its title.** The history picker draws the thread's
+  name with a chevron ("{title} — Previous chats" is its name, starting with the
+  visible text); then New chat, Open in Agents, Minimize, Expand and Close. The
+  keyboard move grip is visually hidden until focused — the header is the
+  pointer's grab surface. The `<h2>` naming the dialog stays, visually hidden.
 
 - **Chat state lives in `copilotStore`, outside React.** It used to live in
   `CopilotSession`, one level above the panel, because a hook inside an
@@ -538,6 +569,25 @@ purpose (you act on answers while reading them), and a dialog demanding an
 answer would block the very page you need in order to decide, often the entry
 the change is about.
 
+- **Permission in words, with the change on screen (R7).** When the server
+  could compute the draft first — a `propose` tool whose binder declared
+  `previewable` (the content tools do) — the frame carries a `preview`, and
+  the prompt renders it as a `ChangeCard` marked **Not saved** above an amber
+  box: "Ortha CMS AI wants to save 23 records as drafts" / "Published versions
+  stay live until someone publishes the drafts." (`permissionCopy`, keyed on
+  the preview's kind, `records` and `lands`; it never claims a draft it was not
+  told about). Without a preview the sentence is the generic one and the
+  arguments are shown open; with one they are one click away under "What it
+  will send". Buttons read Allow once (focused) · Allow for this chat · Don't
+  allow. The preview is a picture: allowing runs the tool again, and the
+  receipt is the authority on what happened.
+- **One card for both moments.** `ChangeCard` groups rows **under the record**
+  they belong to (`groupChanges`, keyed like the server's record count by
+  `ProposalChange.record`, else the batch position), reads `Summary ·
+~~empty~~ → …`, folds past three records behind Show all, and keeps the
+  tool's own summary line — a write that also rewrites other locales says so
+  there. `ProposalCard` is that card with a status of Saved / Not saved and its
+  failure alert.
 - **Focus moves to the prompt's primary button when it appears.** The panel
   stays non-modal — nothing is trapped and Tab still leaves — but this is the
   one control that stops a prompt-injected write before anything happens
@@ -1156,7 +1206,17 @@ doc's §11; what follows is only what is true of _this_ package.
   top-level route. Its route is declared **before** the `agents/*` wildcard and
   `readAgentThreadId` excludes the segment explicitly — a belt-and-braces pair,
   since the ranking alone is a fact about React Router rather than about us.
-- **The rail's link is permission-gated and fail-closed.** Skills are visible to
+- **The page (R7, `AiSkills` / `AiSkillEditor`).** Columns Skill · Identifier ·
+  Applies · Available · ⋯. **Available is a switch on the row** (a `PATCH` of
+  `enabled`, only that row's switch disabled while it lands); a code skill says
+  "From code", has no ⋯ menu, and its switch is drawn on but disabled — it is
+  the deployment's configuration, identical in every workspace, and changes
+  with a deploy. Editing is `SkillSheet`, a sheet over the list: name and
+  identifier side by side, "when to use it" with its count, the instructions
+  with theirs (text counters, no `maxLength`), "applies" as two radio cards,
+  and Available as a switch. A skill write also invalidates the new chat's
+  openers, which can name a skill.
+- **The sidebar's Skills link is permission-gated and fail-closed.** Skills are visible to
   everyone in the picker; authoring is admin-only, so a contributor gets no link
   rather than a page that greets them with "no access".
 

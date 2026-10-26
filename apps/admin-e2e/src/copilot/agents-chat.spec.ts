@@ -160,12 +160,7 @@ test.describe('Agents view — asking', () => {
         // to the dock as a live pill and keeps streaming.
         await agentsPage.switchView('CMS');
 
-        // The closed launcher lists it without a marker — a finished answer
-        // asks nothing of the user, and only "waiting for you" earns a dot…
-        await expect(agentsPage.dockLauncher).toHaveAccessibleName(
-            'Ask Ortha AI — 1 chat'
-        );
-        // …while the list names it.
+        // It is a pill in the dock, and the pill says when it finished.
         await agentsPage.openDockList();
         await expect(agentsPage.dockPill(/finished/)).toBeVisible({
             timeout: 15_000

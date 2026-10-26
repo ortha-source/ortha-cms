@@ -10,6 +10,7 @@ import {
     FindingsByEntryQueryDto,
     ListFindingsQueryDto
 } from '../../application/dto/list-findings-query.dto';
+import { AlarmFindingsService } from '../../application/alarm-findings.service';
 import { AlarmFindingStore } from '../../infrastructure/alarm-finding.store';
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '../../alarms.constants';
 import type {
@@ -37,7 +38,10 @@ export interface AlarmSummaryView {
 @UseGuards(PermissionsGuard, WorkspaceGuard)
 @Controller('alarms/findings')
 export class AlarmFindingsController {
-    constructor(private readonly findings: AlarmFindingStore) {}
+    constructor(
+        private readonly findings: AlarmFindingStore,
+        private readonly pages: AlarmFindingsService
+    ) {}
 
     /**
      * Live findings for a batch of entries, keyed by entry id.
@@ -90,8 +94,9 @@ export class AlarmFindingsController {
     @ApiOperation({
         summary: 'List findings',
         description:
-            'Findings in the open workspace, newest activity first. Without ' +
-            'an explicit `state`, resolved findings are excluded.'
+            'Findings in the open workspace, newest activity first, each ' +
+            "carrying its entry's display title. Without an explicit " +
+            '`state`, resolved findings are excluded.'
     })
     @RequirePermissions(PERMISSIONS.ALARMS_READ)
     @Get()
@@ -99,7 +104,7 @@ export class AlarmFindingsController {
         @CurrentWorkspace() workspaceId: string,
         @Query() query: ListFindingsQueryDto
     ): Promise<AlarmFindingListView> {
-        return this.findings.list(workspaceId, {
+        return this.pages.list(workspaceId, {
             state: query.state,
             ruleId: query.ruleId,
             severity: query.severity,

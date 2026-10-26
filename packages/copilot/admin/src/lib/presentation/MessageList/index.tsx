@@ -418,13 +418,11 @@ function Turn({
                 aria-label={intl.formatMessage(messages.youSaid)}
                 className="flex flex-col items-end gap-1.5"
             >
-                <div className="bg-primary text-primary-foreground max-w-[85%] rounded-lg rounded-br-sm px-3 py-2 text-sm whitespace-pre-wrap">
+                <div className="bg-muted text-foreground max-w-[85%] rounded-xl px-3.5 py-2.5 text-sm whitespace-pre-wrap">
                     {turn.text}
                 </div>
-                {/* Below the bubble rather than inside it: a chip on the
-                    primary fill would need its own colour pair to stay legible,
-                    and the file is a companion to the message, not part of the
-                    sentence. */}
+                {/* Below the bubble rather than inside it: the file is a
+                    companion to the message, not part of the sentence. */}
                 {turn.attachments?.length ? (
                     <ul
                         className="flex max-w-[85%] flex-wrap justify-end gap-1.5"

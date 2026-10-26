@@ -63,7 +63,7 @@ content:delete, which this token does not hold.` goes back to a third-party
 model verbatim. That is deliberate ([ADR-0007](../../../docs/adr/0007-one-tool-registry-two-surfaces.md)
 §6): the tool set is derived from the caller's own scope and reveals nothing
 about anyone else, and an undiagnosable permission problem costs more than the
-key name. Be aware it leaks the *shape* of the permission model — so keep the
+key name. Be aware it leaks the _shape_ of the permission model — so keep the
 message to `requires` and never let a handler's own reason join it.
 
 ## Validation
@@ -118,12 +118,12 @@ MCP client that has no way to accept the resulting proposal.
 **But the split is not the default, and it is not total.** These are shared —
 offered to both, with no `surfaces` field:
 
-| Tool                  | Why it is shared                                             |
-| --------------------- | ------------------------------------------------------------ |
+| Tool                  | Why it is shared                                                |
+| --------------------- | --------------------------------------------------------------- |
 | `i18n_locales_list`   | deployment config; identical for every caller, no publish state |
-| `media_assets_search` | assets have no draft/published state to leak                 |
-| `media_folders_list`  | same, and workspace-scoped identically for a token and a user |
-| `media_asset_read`    | same; both token scopes carry `media:read`                   |
+| `media_assets_search` | assets have no draft/published state to leak                    |
+| `media_folders_list`  | same, and workspace-scoped identically for a token and a user   |
+| `media_asset_read`    | same; both token scopes carry `media:read`                      |
 
 ## Adding a tool: decide `surfaces` deliberately
 
@@ -173,8 +173,8 @@ authorized against, never something a caller asserts. Use it for
 ```typescript
 // Right: same asset, same scoping, a link the caller can actually fetch.
 downloadPath: surface === 'mcp'
-    ? `/api/v1/media/assets/${id}/raw`   // bearer-fetchable
-    : `/api/media/assets/${id}/raw`;     // session + membership
+    ? `/api/v1/media/assets/${id}/raw` // bearer-fetchable
+    : `/api/media/assets/${id}/raw`; // session + membership
 ```
 
 Never for **authority**. A tool that wants `if (surface === 'copilot')` around a
@@ -201,7 +201,7 @@ stamps, which is what makes that pair complete rather than a sample.
   token is and is not shown; `copilot-read-catalogue.spec.ts` does the same for
   a run. A tool absent from both lists is a tool nobody is checking.
 - **`requires` still needs its own authorization test** (see above). `surfaces`
-  narrows who is *offered* a tool; it is not a substitute for the permission it
+  narrows who is _offered_ a tool; it is not a substitute for the permission it
   declares.
 
 ### Worked examples of a "no"
@@ -211,7 +211,7 @@ reopened from scratch:
 
 - **`admin_content_revisions` / `admin_content_diff`** — no MCP analogue exists,
   and they already re-check workspace content grants, so they read like free
-  capability. They fail (2): a revision timeline *is* the draft history, on
+  capability. They fail (2): a revision timeline _is_ the draft history, on
   `content:read`. Tightening `requires` to include `content:update` would fix
   MCP and **regress the copilot** — a viewer would lose version history they can
   see in the admin UI today, which `copilot-read-catalogue.spec.ts` pins. The
@@ -237,6 +237,16 @@ Two vocabularies, because they answer different questions:
 A `propose` tool is not read-only in the MCP sense (it is half of a write flow),
 and a direct-write tool is not `propose` however destructive it is. Neither
 field can be derived from the other.
+
+## `previewable`
+
+An `effect: 'propose'` tool may declare `previewable: true` — a claim, by the
+binder, that its handler has **no side effects** (it reads, computes a draft,
+writes nothing). `ToolRegistry.preview` runs only such tools, with exactly the
+checks `call` makes, and refuses everything else as unknown. The copilot uses it
+to show a write's diff on its permission prompt before the person answers. Leave
+it off a propose tool whose draft fetches anything or touches state; the
+content plugin's three propose tools are the reference.
 
 ## Naming
 

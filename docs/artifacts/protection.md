@@ -69,7 +69,7 @@ exists on the current version or it does not.
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | A contributor writing an entry | A **Review** block in the properties rail headed by a "Needs review · 0 of 2" chip, a Publish button held with the reason, and a way to ask named people to look               |
 | A reviewer                     | The workspace's **Reviews** page (an ask arrives against whichever type someone was editing, so no single collection's list can hold it), plus an Approve control on the entry |
-| An administrator               | The workspace settings **Publishing rules** section, where a rule is written; and a confirmed bypass on a held entry                                                           |
+| An administrator               | The workspace settings **Publishing** section, where a rule is written; and a confirmed bypass on a held entry                                                                 |
 | A viewer                       | `content:approve` is withheld from them, so they read the state but never vote                                                                                                 |
 | A reader of the public API     | **Nothing.** No status is added, and no review state is readable through REST, GraphQL, MCP or a webhook payload                                                               |
 
@@ -520,7 +520,8 @@ All paths sit under the host's global prefix (`/api` by default) and carry
 | `POST /protection/entries/:type/:id/approve`    | `content:approve`   | —                                                              | `201`, upsert on `(revision, user)`                                                                                                                                                      | 404, 409 `protection.self_approval_refused`                                      |
 | `DELETE /protection/entries/:type/:id/approve`  | `content:approve`   | —                                                              | `204`, idempotent, head only                                                                                                                                                             | 404                                                                              |
 | `GET /protection/entries/:typeName/status?ids=` | `content:read`      | ≤ 100 comma-separated uuids                                    | `{ byEntry: { … } }`; an unreachable entry is **absent** rather than invented                                                                                                            | 400                                                                              |
-| `GET /protection/queue?mine&limit&offset`       | `content:read`      | `mine` accepts `1`/`true`; `limit` ≤ 100, default 50           | `{ items, total }`, newest first                                                                                                                                                         | 400                                                                              |
+| `GET /protection/queue?mine&limit&offset`       | `content:read`      | `mine` accepts `1`/`true`; `limit` ≤ 100, default 50           | `{ items, total, overdueAfterDays }`, newest first; each line with `headRevisionNumber`, `liveRevisionNumber`, `fieldsChanged`                                                           | 400                                                                              |
+| `GET /protection/queue/approved`                | `content:read`      | —                                                              | `{ items, windowDays }` — what the caller approved in the last 30 days, one line per entry, with `approvalCurrent` and `headPublished`                                                   | 403                                                                              |
 | `GET /protection/types/:type`                   | `content:read`      | —                                                              | `NewEntryProtectionView` for a create form                                                                                                                                               | 404                                                                              |
 | `GET /insights/protection/reviews`              | `content:read`      | —                                                              | `{ open, overdue, overdueAfterDays }`                                                                                                                                                    | 403                                                                              |
 
@@ -611,9 +612,14 @@ hardcoded. Both are recorded in ADR-0017's consequences.
   otherwise — with the version their stale approval sits on, which is what turns "pending"
   into an explanation. Somebody who approved without being asked is still listed, because
   leaving them out would make the count disagree with the names beside it.
-- **The Reviews page has two tabs**, both computed from one fetched page by `splitQueue`:
-  _Waiting on me_ (the open requests naming me) and _My requests_ (the ones I opened). The
-  counts cannot disagree because they come from one split.
+- **The Reviews page has three tabs.** _Waiting on me_ (the open requests naming me) and _My
+  requests_ (the ones I opened) are computed from one fetched page by `splitQueue`, so their
+  counts cannot disagree. _Recently approved_ is its own read, made when the tab is opened.
+  **Review** opens a non-modal side panel with the changes since the live version (content's
+  `diffRevision`; the line's "N fields changed" is the server's `diffSnapshots` over the same
+  two versions) and **Approve**, offered exactly when the editor's rail would offer it.
+- **The settings section is called Publishing**; its editor reads the rule back in one
+  sentence ("In short: …") from the same `readRule` the list's one-line hint uses.
 - **The settings tab distinguishes three states** — not protected, switched off, and in force
   — and has its own denied, error and empty states. The error copy is explicit that a failed
   load "is not the same as nothing is protected".

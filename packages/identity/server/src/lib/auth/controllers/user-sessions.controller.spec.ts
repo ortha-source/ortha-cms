@@ -40,6 +40,12 @@ describe('UserSessionsController permission metadata', () => {
         ]);
     });
 
+    it('gates signing a member out everywhere on users:update', () => {
+        expect(requiredOn(UserSessionsController.prototype.revokeAll)).toEqual([
+            PERMISSIONS.USERS_UPDATE
+        ]);
+    });
+
     it('asks the same permission of the read as of the write', () => {
         // Deliberate: reading where somebody works from is not a lesser act
         // than ending one of their sessions.

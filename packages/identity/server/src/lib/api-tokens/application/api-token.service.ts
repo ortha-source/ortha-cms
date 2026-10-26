@@ -12,6 +12,7 @@ import {
 } from '../../domain/events/identity-events';
 import { HashingService } from '../../auth/services/hashing.service';
 import type { ApiTokenScope } from '../domain/api-token-scope';
+import type { ApiTokenStatus } from '../domain/api-token-status';
 import { UnknownWorkspaceError } from '../domain/unknown-workspace.error';
 import {
     WORKSPACE_DIRECTORY,
@@ -19,8 +20,12 @@ import {
 } from './ports/workspace-directory.port';
 import {
     DrizzleApiTokenRepository,
-    type ApiTokenRecord
+    type ApiTokenCreator,
+    type ApiTokenRecord,
+    type ApiTokenSummary
 } from '../infrastructure/persistence/drizzle-api-token.repository';
+
+export type { ApiTokenCreator, ApiTokenSummary };
 
 /** Human-readable prefix so a raw token is recognisable as an Ortha CMS API key. */
 const TOKEN_PREFIX = 'orthacms_';
@@ -75,6 +80,38 @@ export interface ApiTokenView {
     lastUsedAt: Date | null;
     revokedAt: Date | null;
     createdAt: Date;
+    /**
+     * Who minted the token — the answer to "whose is this, and can I revoke
+     * it?". `null` only if the account row is gone, which `created_by`'s
+     * cascade makes unexpected rather than impossible to type away.
+     */
+    createdBy: ApiTokenCreator | null;
+}
+
+/** Options for {@link ApiTokenService.list}. */
+export interface ListApiTokensInput {
+    /** Narrow to tokens whose bucket contains this workspace. */
+    workspaceId?: string;
+    /** Narrow to one derived status. */
+    status?: ApiTokenStatus;
+    /** Case-insensitive substring of the name or the display prefix. */
+    search?: string;
+    page: number;
+    pageSize: number;
+}
+
+/** One page of the management list, plus the page-wide summary. */
+export interface ApiTokenPage {
+    items: ApiTokenView[];
+    /** Tokens matching every filter, across all pages. */
+    total: number;
+    page: number;
+    pageSize: number;
+    /**
+     * Per-status totals and the expiring-soon figures, over the workspace
+     * filter only — the status and search filters do not narrow it.
+     */
+    summary: ApiTokenSummary;
 }
 
 /** The mint result: the view plus the plaintext token, returned exactly once. */
@@ -164,7 +201,8 @@ export class ApiTokenService {
             return inserted;
         });
 
-        return { token: toView(row), secret };
+        const creators = await this.repo.creatorsFor([row.createdBy]);
+        return { token: toView(row, creators), secret };
     }
 
     /**
@@ -188,30 +226,37 @@ export class ApiTokenService {
     }
 
     /**
-     * One page of token metadata for the management UI. `workspaceId` narrows
-     * to the tokens whose bucket **contains** it — a multi-workspace token
-     * shows up under each of its workspaces.
+     * One page of token metadata for the management UI, with who minted each
+     * token and the page-wide summary the filter chips and the subtitle read.
+     * `workspaceId` narrows to the tokens whose bucket **contains** it — a
+     * multi-workspace token shows up under each of its workspaces.
+     *
+     * Statuses are derived at one instant, shared by the page and the summary,
+     * so a token expiring mid-request cannot be counted under one status and
+     * listed under another.
      */
-    async list(options: {
-        workspaceId?: string;
-        page: number;
-        pageSize: number;
-    }): Promise<{
-        items: ApiTokenView[];
-        total: number;
-        page: number;
-        pageSize: number;
-    }> {
-        const { items, total } = await this.repo.list({
-            workspaceId: options.workspaceId,
-            limit: options.pageSize,
-            offset: (options.page - 1) * options.pageSize
-        });
+    async list(options: ListApiTokensInput): Promise<ApiTokenPage> {
+        const now = new Date();
+        const [{ items, total }, summary] = await Promise.all([
+            this.repo.list({
+                workspaceId: options.workspaceId,
+                status: options.status,
+                search: options.search,
+                now,
+                limit: options.pageSize,
+                offset: (options.page - 1) * options.pageSize
+            }),
+            this.repo.summarize({ workspaceId: options.workspaceId, now })
+        ]);
+        const creators = await this.repo.creatorsFor(
+            items.map((item) => item.createdBy)
+        );
         return {
-            items: items.map(toView),
+            items: items.map((item) => toView(item, creators)),
             total,
             page: options.page,
-            pageSize: options.pageSize
+            pageSize: options.pageSize,
+            summary
         };
     }
 
@@ -325,8 +370,11 @@ export class ApiTokenService {
     }
 }
 
-/** Projects a stored record to the secret-free view. */
-function toView(row: ApiTokenRecord): ApiTokenView {
+/** Projects a stored record to the secret-free view, naming its creator. */
+function toView(
+    row: ApiTokenRecord,
+    creators: ReadonlyMap<string, ApiTokenCreator>
+): ApiTokenView {
     return {
         id: row.id,
         name: row.name,
@@ -336,6 +384,7 @@ function toView(row: ApiTokenRecord): ApiTokenView {
         expiresAt: row.expiresAt,
         lastUsedAt: row.lastUsedAt,
         revokedAt: row.revokedAt,
-        createdAt: row.createdAt
+        createdAt: row.createdAt,
+        createdBy: creators.get(row.createdBy) ?? null
     };
 }

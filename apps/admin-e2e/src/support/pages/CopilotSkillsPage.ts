@@ -51,20 +51,33 @@ export class CopilotSkillsPage extends BasePage {
 
     /** Opens the create form. */
     newSkill(): Locator {
-        return this.main.getByRole('button', { name: 'New skill' });
+        // The top bar's, and the empty state's when there is one.
+        return this.main.getByRole('button', { name: 'New skill' }).first();
     }
 
-    /** Opens a row's edit form. */
-    editSkill(title: string): Locator {
-        return this.main.getByRole('button', { name: `Edit ${title}` });
+    /** A row's ⋯ menu — absent on a code skill. Named after the skill. */
+    rowActions(title: string): Locator {
+        return this.main.getByRole('button', { name: `Actions for ${title}` });
     }
 
-    /** Opens a row's delete confirmation. */
-    deleteSkill(title: string): Locator {
-        return this.main.getByRole('button', { name: `Delete ${title}` });
+    /** A row's Available switch. */
+    availableSwitch(title: string): Locator {
+        return this.main.getByRole('switch', { name: `${title} available` });
     }
 
-    /** The create/edit dialog. */
+    /** Open a row's editor through its ⋯ menu. */
+    async openEditor(title: string) {
+        await this.rowActions(title).click();
+        await this.page.getByRole('menuitem', { name: 'Edit…' }).click();
+        await this.dialog().waitFor();
+    }
+
+    /** Ask to delete a row through its ⋯ menu. */
+    async openDelete(title: string) {
+        await this.rowActions(title).click();
+        await this.page.getByRole('menuitem', { name: 'Delete' }).click();
+    }
+
     dialog(): Locator {
         return this.page.getByRole('dialog');
     }

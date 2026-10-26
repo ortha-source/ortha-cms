@@ -110,53 +110,74 @@ case ADR-0003 says not to build a `domain/` layer for.
   be the reason the page looks broken.
 
     Its **Review and retry** button — gated on `activity:manage` and **hidden**
-    rather than disabled without it — opens `DeadLettersDialog`, nested inside
-    the notice's folder because nothing else uses it. The dialog is where
-    `lastError`, `occurredAt` and `attempts` are finally rendered: they have
-    been on the wire since the read route shipped and appeared nowhere, and
-    `lastError` is the one field that says whether the cause is fixed. The retry
-    is **per row and only per row** — the banner shows five of an unbounded
-    `total` and no ids, so a bulk action would act on rows the operator has
-    never seen. No confirmation step: the audit insert is
-    `ON CONFLICT DO NOTHING` (`activity:I-03`), so a repeat is ignored.
+    rather than disabled without it — opens `DeadLettersDialog`: a list (not a
+    table) of the parked events, each named with the log's own label
+    (`deadLetterKind.auditKindOf` maps the outbox event kind onto the audit
+    kind), its time, attempts and `lastError` as text. A per-row **Retry**
+    leaves the row in the dialog marked **Queued** until the dialog closes
+    (snapshots kept in the notice's state, since the refetch removes the row).
+    **Retry all** retries the rows _shown_ — never "everything parked" —
+    sequentially through the existing per-row route (`useRetryAllDeadLetters`
+    / `retrySequentially`): 404/409 count as gone, any other failure stops the
+    pass. There is deliberately **no bulk server route**: one request at a
+    time means each reset row is drained before the next goes to the head of
+    the claim, and the operator only acts on rows they can see. No
+    confirmation step: the audit insert is `ON CONFLICT DO NOTHING`
+    (`activity:I-03`).
 
     The dialog **does** render its error state, which is the opposite of the
-    banner's rule and deliberately so: the banner is a caveat nobody asked for,
-    the dialog is an answer somebody asked for, and an empty table would answer
-    "nothing is stuck".
+    banner's rule and deliberately so.
 
-    Retrying the last one is a focus trap in waiting: `total` hits 0, the notice
-    returns `null`, and Radix restores focus to a trigger that no longer exists.
-    So the notice closes the dialog in `onSuccess` and moves focus to
-    `#main-content` on the transition to zero — the same fix `ActivityLogPage`'s
-    `clearFilters` already carries, and only when this reader's own retry caused
-    it.
-
-    "Caused it" is a flag armed by the retry and **spent by the very next answer
-    the list gives**, whatever that answer says — which is why the effect depends
-    on the query's `dataUpdatedAt`/`errorUpdatedAt` and not only on `total`. A
-    flag that survived until some later fetch happened to reach zero is a latch,
-    and a latch moves focus for the retention sweep clearing the last row, for
-    another operator's retry, or for a poll landing on a tab regaining focus —
-    the precise theft the flag was added to prevent.
+    **The dialog outlives the banner.** Retrying the last row empties the
+    banner while the dialog is still open, so the notice keeps the dialog
+    mounted whenever it is open, and on close focus goes to the trigger if it
+    still exists, else to `#main-content` (WCAG 2.4.3).
 
 ## The page
 
-`ActivityLogPage` — `Container`/`ContainerHeader`, a filter toolbar (action/kind
-select + actor-email search), the **When · Actor · Action · Subject** table with
-**expandable rows** (a leading toggle reveals a details panel — subject, actor,
-exact time, raw metadata — animated via a grid-rows `0fr↔1fr` transition,
-`aria-hidden` + `inert` on the whole detail `<tr>` when collapsed, reduced-motion
-aware), pagination, and a loading **skeleton** (`ActivityLogSkeleton`, used for
-both the lazy fallback and `isPending`) plus empty/error/no-access states. The
-**URL query string is the source of truth** for every filter and page
-(deep-linkable); `page` is clamped to `pageCount` after a filter narrows the
-result, and `pageSize` is clamped to the largest option the server accepts.
+`ActivityLogPage` — `Container`/`ContainerHeader`, "Export CSV" portalled into
+the top bar (`PageActionsPortal`), the dead-letter callout, a toolbar (one
+free-text search → server `?q=`, a time-range `Select` → `?range=`, default
+the last 7 days, and the labelled `ActivityFilterButton` that opens the
+`QueryBuilderPopover`), the applied conditions as removable chips
+(`QueryBuilderSummary`), then the **table**: `ActivityTable` on the
+design-system `Table` (`stale`, `aria-label="Activity log"`), columns
+**When · Event · Workspace**. When reads "Today, 10:42" / "Yesterday, 09:10" /
+"Oct 22, 14:05" (`activityDays.formatActivityWhen`) in a `<time dateTime>`;
+Event is the action tile plus the sentence (`ActivitySentence`, one message per
+kind in `activitySentence`, typed `Record<ActivityKind, …>` like
+`ACTION_MESSAGES`) — the actor is in the sentence, so there is no Actor column;
+Workspace is the name (from `GET /workspaces` via `useWorkspaceNames`) or "—".
+
+The R7 boards drew a day-grouped sentence feed; the table replaces it at the
+user's request, keeping the sentences. The sentence cell is a real `<button>`
+(`data-activity-row`, `aria-haspopup="dialog"`, `aria-expanded`), the whole row
+is also a mouse target (a click ending a text selection is ignored), and the
+open event's row is `data-state="selected"`. A row opens
+`ActivityEventSheet`, a **non-modal** right sheet: the sentence, exact time and
+origin, a before/after `Table` read from recorded `{ from, to }` transitions
+(`activityDiff` — nothing inferred), actor, subject link (`activitySubjectLink`,
+only routes this plugin can name, none for a subject the event removed), kind,
+event id with copy, raw metadata folded, "Open …" and "More by …" (which applies
+an `actorEmail equals` chip). Clicking another row (`data-activity-row-container`
+on the `<tr>`) switches the sheet; anything else or Escape closes it and focus returns to the
+row unless the reader clicked elsewhere.
+
+The **URL query string is the source of truth** for `q`, `range`, `filter` and
+`page` (deep-linkable); a legacy `?actorEmail=` link is moved to `q`. `page` is
+clamped to `pageCount` after a filter narrows the result, and `pageSize` to the
+largest option the server accepts. The empty state distinguishes a filtered
+miss ("Clear filters"), a quiet range ("Show all time") and an empty log.
+
+"Export CSV" (`useExportActivity`, a mutation) sends the current view's `q`,
+`filter` and `from` — no paging — and toasts a warning when the server says the
+file was capped (`X-Export-Truncated`).
 
 ## Three things about this page that are load-bearing
 
 **The log is deployment-wide, and the copy must say so.** This page sends no
-workspace context, and the subtitle and empty state must keep saying "this
+workspace context, and the subtitle ("… across every workspace") and empty
+state must keep saying it is not scoped — the empty state still says "this
 deployment": telling an admin of a multi-workspace deployment that the figure is
 scoped, on the page whose whole job is being the record of record, is the defect
 that copy exists to prevent.

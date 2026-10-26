@@ -135,7 +135,7 @@ test.describe('Workspaces keyboard accessibility', () => {
             // stop and Enter follows it. Asserting the run in order is what
             // would catch a stray focusable slipped between two tabs.
             //
-            // **Publishing rules is a plugin's section**, contributed through
+            // **Publishing is a plugin's section** (protection's), contributed through
             // `WORKSPACE_SETTINGS_TAB_SLOT`, and it is in this list because
             // contributed sections land between Members and Danger zone — Danger
             // zone stays last, because it is where a workspace is destroyed.
@@ -149,7 +149,7 @@ test.describe('Workspaces keyboard accessibility', () => {
             for (const next of [
                 'Content types',
                 'Members',
-                'Publishing rules',
+                'Publishing',
                 'Danger zone'
             ]) {
                 await page.keyboard.press('Tab');
@@ -271,12 +271,11 @@ test.describe('Workspaces keyboard accessibility', () => {
             createWorkspacePage
         }) => {
             await createWorkspacePage.goto();
-            await createWorkspacePage.nameInput.fill('Keyboard workspace');
-            await createWorkspacePage.continueToMembers.click();
+            await createWorkspacePage.toPeopleStep('Keyboard workspace');
 
             const search = createWorkspacePage.memberSearch;
             await search.fill('bar');
-            await createWorkspacePage.memberOption('Barbara Liskov').waitFor();
+            await createWorkspacePage.memberOption(/Barbara Liskov/).waitFor();
 
             // The ARIA combobox contract: focus stays in the input while
             // `aria-activedescendant` points at the active option, so typing is
@@ -289,7 +288,9 @@ test.describe('Workspaces keyboard accessibility', () => {
             await expect(search).toHaveAttribute('aria-activedescendant', /.+/);
 
             await page.keyboard.press('Enter');
-            await expect(page.getByText('barbara@orthacms.dev')).toBeVisible();
+            await expect(
+                createWorkspacePage.person('Barbara Liskov')
+            ).toBeVisible();
         });
 
         test('a step change moves focus to the new step heading', async ({
@@ -297,14 +298,59 @@ test.describe('Workspaces keyboard accessibility', () => {
         }) => {
             await createWorkspacePage.goto();
             await createWorkspacePage.nameInput.fill('Keyboard workspace');
-            await createWorkspacePage.continueToMembers.click();
+            await createWorkspacePage.continueButton.click();
 
             // The card is keyed on the step, so the button the user pressed is
             // unmounted; without an explicit move, focus fell to <body> and the
             // next Tab restarted at the top of the document.
             await expect(
-                createWorkspacePage.stepHeading('Members')
+                createWorkspacePage.stepHeading('What can people write here?')
             ).toBeFocused();
+
+            // Back on the progress line returns there, and focus follows.
+            await createWorkspacePage.progressStep(/Step 1: Basics/).click();
+            await expect(
+                createWorkspacePage.stepHeading('Basics')
+            ).toBeFocused();
+        });
+
+        test('the content answers are one radio group driven by arrows', async ({
+            page,
+            createWorkspacePage
+        }) => {
+            await createWorkspacePage.goto();
+            await createWorkspacePage.toContentStep('Keyboard workspace');
+
+            await createWorkspacePage.everythingTile.focus();
+            await page.keyboard.press('ArrowRight');
+            await expect(createWorkspacePage.specificContentTile).toBeFocused();
+            await expect(
+                createWorkspacePage.specificContentTile
+            ).toHaveAttribute('aria-checked', 'true');
+
+            // The list opens; a type is a checkbox Space toggles.
+            const blogPosts = createWorkspacePage.contentCheckbox('Blog posts');
+            await blogPosts.focus();
+            await page.keyboard.press('Space');
+            await expect(blogPosts).toHaveAttribute('aria-checked', 'true');
+        });
+
+        test('an invite is added from the typeahead with Enter', async ({
+            page,
+            createWorkspacePage
+        }) => {
+            await createWorkspacePage.goto();
+            await createWorkspacePage.toPeopleStep('Keyboard workspace');
+
+            await createWorkspacePage.memberSearch.fill('lena@growth.io');
+            await createWorkspacePage.memberOption(/Invite/).waitFor();
+            await page.keyboard.press('ArrowDown');
+            await page.keyboard.press('Enter');
+
+            await expect(
+                createWorkspacePage.person('lena@growth.io')
+            ).toBeVisible();
+            await expect(createWorkspacePage.memberSearch).toHaveValue('');
         });
     });
 });

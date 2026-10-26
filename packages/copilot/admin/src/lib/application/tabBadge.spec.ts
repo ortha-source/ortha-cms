@@ -66,9 +66,7 @@ describe('badgedTitle', () => {
 
     it('cannot stack, because it always builds from the base', () => {
         const base = 'Ortha CMS';
-        expect(badgedTitle(badgedTitle(base, 1), 2)).toBe(
-            '(2) (1) Ortha CMS'
-        );
+        expect(badgedTitle(badgedTitle(base, 1), 2)).toBe('(2) (1) Ortha CMS');
         // …which is why the caller captures `base` once and never re-reads
         // `document.title`. Stated here so the rule has a test that fails if
         // someone "simplifies" it.

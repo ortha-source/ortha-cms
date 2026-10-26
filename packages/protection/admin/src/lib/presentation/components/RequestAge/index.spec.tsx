@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { IntlProvider } from 'react-intl';
-import { RequestAge, ageInDays } from './index';
+import { RequestAge, ageInDays, isOverdue } from './index';
 
 /**
  * The cut this component used to hold as a constant of its own. It is the
@@ -39,17 +39,34 @@ describe('ageInDays', () => {
     });
 });
 
+describe('isOverdue', () => {
+    it('is past the cut from the day it is reached', () => {
+        expect(isOverdue(daysAgo(OVERDUE_AFTER_DAYS), OVERDUE_AFTER_DAYS)).toBe(
+            true
+        );
+        expect(
+            isOverdue(daysAgo(OVERDUE_AFTER_DAYS - 0.5), OVERDUE_AFTER_DAYS)
+        ).toBe(false);
+    });
+});
+
 describe('RequestAge', () => {
     it('says how long an ask has waited', () => {
         show(daysAgo(2));
 
-        expect(screen.getByText(/2 days waiting/)).toBeTruthy();
+        expect(screen.getByText('2 days')).toBeTruthy();
     });
 
     it('falls back to hours under a day', () => {
         show(new Date(Date.now() - 5 * 3_600_000).toISOString());
 
-        expect(screen.getByText(/5 hours waiting/)).toBeTruthy();
+        expect(screen.getByText('5 hours')).toBeTruthy();
+    });
+
+    it('falls back to minutes under an hour', () => {
+        show(new Date(Date.now() - 20 * 60_000).toISOString());
+
+        expect(screen.getByText('20 min')).toBeTruthy();
     });
 
     /**
@@ -60,13 +77,13 @@ describe('RequestAge', () => {
     it('says "overdue" in words, not only in colour', () => {
         show(daysAgo(OVERDUE_AFTER_DAYS));
 
-        expect(screen.getByText(/overdue/)).toBeTruthy();
+        expect(screen.getByText('Overdue')).toBeTruthy();
     });
 
     it('does not call a fresh request overdue', () => {
         show(daysAgo(OVERDUE_AFTER_DAYS - 1));
 
-        expect(screen.queryByText(/overdue/)).toBeNull();
+        expect(screen.queryByText('Overdue')).toBeNull();
     });
 
     it('carries the exact moment on the element, not just the rounded phrase', () => {

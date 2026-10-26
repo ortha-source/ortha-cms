@@ -241,6 +241,12 @@ describe('Alarm rules (/api/alarms/rules)', () => {
                 .expect(200);
 
             expect(res.body).toMatchObject({ matched: 1, total: 3 });
+            // The sample the editor lists, by title, in the order of the ids.
+            expect(res.body.sample).toEqual(
+                (res.body.sampleIds as string[]).map((id) =>
+                    expect.objectContaining({ id })
+                )
+            );
         });
     });
 
@@ -272,6 +278,7 @@ describe('Alarm rules (/api/alarms/rules)', () => {
                 .expect(200);
 
             expect(updated.body.openCount).toBe(2);
+            expect(updated.body.scan).toMatchObject({ opened: 1, open: 2 });
         });
     });
 

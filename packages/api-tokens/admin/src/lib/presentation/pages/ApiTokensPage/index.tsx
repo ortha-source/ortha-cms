@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { KeyRound, Plus } from 'lucide-react';
-import { PageTopBar } from '@orthacms/shell-admin';
+import { PageActionsPortal, PageTopBar } from '@orthacms/shell-admin';
 import { useHasPermission } from '@orthacms/identity-admin';
 import {
     Alert,
@@ -10,8 +10,10 @@ import {
     Button,
     Container,
     ContainerHeader,
+    SearchToolbar,
     toast
 } from '@orthacms/design-system';
+import { useDocumentTitle, useTableUrlState } from '@orthacms/utils-admin';
 import {
     useApiTokens,
     DEFAULT_PAGE_SIZE
@@ -21,23 +23,48 @@ import {
     useCreateApiToken,
     useRevokeApiToken
 } from '../../../application/useApiTokensMutation';
+import { daysUntil } from '../../../domain/apiTokenExpiry';
+import type {
+    ApiToken,
+    ApiTokenStatus,
+    ApiTokenSummary,
+    CreatedApiToken
+} from '../../../domain/types/apiToken';
+import type { ApiTokensListParams } from '../../../infrastructure/apiTokensKeys';
+import type { CreateApiTokenInput } from '../../../infrastructure/apiTokenGateway';
 import { ApiTokensTable } from '../../components/ApiTokensTable';
 import { ApiTokensSkeleton } from '../../components/ApiTokensSkeleton';
 import { ApiTokensEmpty } from '../../components/ApiTokensEmpty';
 import { ApiTokensNoAccess } from '../../components/ApiTokensNoAccess';
+import { ApiTokensNoMatch } from '../../components/ApiTokensNoMatch';
+import {
+    ApiTokensStatusChips,
+    STATUS_CHIPS
+} from '../../components/ApiTokensStatusChips';
 import { CreateApiTokenDialog } from '../../components/CreateApiTokenDialog';
 import { RevealSecretDialog } from '../../components/RevealSecretDialog';
-import type { CreateApiTokenInput } from '../../../infrastructure/apiTokenGateway';
-import { useDocumentTitle } from '@orthacms/utils-admin';
+import { RevokeApiTokenDialog } from '../../components/RevokeApiTokenDialog';
 
 const messages = defineMessages({
     title: { id: 'apiTokens.page.title', defaultMessage: 'API tokens' },
     subtitle: {
         id: 'apiTokens.page.subtitle',
+        defaultMessage: 'Bearer tokens for the content API'
+    },
+    subtitleActive: {
+        id: 'apiTokens.page.subtitleActive',
+        defaultMessage: '{active, number} active'
+    },
+    subtitleSoon: {
+        id: 'apiTokens.page.subtitleSoon',
         defaultMessage:
-            'Bearer tokens for reading content through the external API.'
+            '{active, number} active, {soon, plural, one {# expires} other {# expire, the first}} {days, plural, =0 {today} one {in # day} other {in # days}}'
     },
     create: { id: 'apiTokens.page.create', defaultMessage: 'New token' },
+    searchLabel: {
+        id: 'apiTokens.page.searchLabel',
+        defaultMessage: 'Search tokens'
+    },
     error: {
         id: 'apiTokens.page.error',
         defaultMessage: 'Couldn’t load API tokens. Please try again.'
@@ -68,64 +95,99 @@ const messages = defineMessages({
     }
 });
 
-/** Reads a 1-based page number off `?page=`, falling back to the first page. */
-function readPage(value: string | null): number {
-    const parsed = Number(value);
-    return Number.isInteger(parsed) && parsed >= 1 ? parsed : 1;
+/** Reads the `?status=` chip, falling back to the default Active view. */
+function readStatus(value: string | null): ApiTokenStatus {
+    return STATUS_CHIPS.find((status) => status === value) ?? 'active';
+}
+
+/** Every token the summary counts, whatever its status. */
+function summaryTotal(summary: ApiTokenSummary | undefined): number {
+    return summary ? summary.active + summary.expired + summary.revoked : 0;
 }
 
 /**
  * The global "API tokens" management page (rendered at `/api-tokens` in the main
- * admin sidebar's directory group — no workspace context). Lists tokens, creates
- * them (choosing the target workspace in the dialog), reveals the plaintext once
- * on creation, and revokes them. Gated on `tokens:read`; the create/revoke
+ * admin sidebar's directory group — no workspace context). Lists tokens with
+ * who made them and what is about to expire, filters them by status chip and
+ * search, creates them (choosing the workspaces in the dialog), reveals the
+ * plaintext once on creation together with a ready request, and revokes them
+ * after saying what will break. Gated on `tokens:read`; the create/revoke
  * controls additionally require `tokens:create`/`tokens:delete`.
  */
 export function ApiTokensPage() {
     const intl = useIntl();
     // Names this route in the tab strip, the window list, the history
-    // and a screen reader's window announcement. Every private route but
-    // Workspaces was still titled a bare "Admin" (WCAG 2.4.2, `ORT-140`).
+    // and a screen reader's window announcement (WCAG 2.4.2, `ORT-140`).
     useDocumentTitle(intl.formatMessage(messages.title));
     const canRead = useHasPermission('tokens:read');
     const canCreate = useHasPermission('tokens:create');
     const canRevoke = useHasPermission('tokens:delete');
 
-    // The page lives in the URL, like `/users` and `/activity`: a token list
-    // page is then linkable, bookmarkable, and survives a reload or a Back.
-    const [searchParams, setSearchParams] = useSearchParams();
-    const page = readPage(searchParams.get('page'));
+    // The page, the status chip and the search all live in the URL, like
+    // `/users` and `/activity`: a filtered token list is linkable,
+    // bookmarkable, and survives a reload or a Back.
+    const [searchParams] = useSearchParams();
+    const status = readStatus(searchParams.get('status'));
+    const {
+        page,
+        searchParam,
+        searchInput,
+        setSearchInput,
+        searchPending,
+        updateParams
+    } = useTableUrlState({
+        searchKey: 'q',
+        defaultPageSize: DEFAULT_PAGE_SIZE
+    });
     const setPage = useCallback(
-        (next: number) => {
-            setSearchParams(
-                (prev) => {
-                    const params = new URLSearchParams(prev);
-                    if (next <= 1) {
-                        params.delete('page');
-                    } else {
-                        params.set('page', String(next));
-                    }
-                    return params;
-                },
-                { replace: true }
-            );
-        },
-        [setSearchParams]
+        (next: number) =>
+            updateParams({ page: next <= 1 ? undefined : String(next) }, false),
+        [updateParams]
     );
-    const [createOpen, setCreateOpen] = useState(false);
-    const [secret, setSecret] = useState<string | null>(null);
+    const setStatus = (next: ApiTokenStatus) =>
+        // Active is the default view, so it keeps no `?status=` of its own.
+        updateParams({ status: next === 'active' ? undefined : next });
 
-    const { data, isPending, isError, isPlaceholderData, refetch } =
-        useApiTokens({ page, pageSize: DEFAULT_PAGE_SIZE }, canRead);
-    // Workspace names for the table's Workspace column; the create dialog reuses
-    // the same cached query.
+    const [createOpen, setCreateOpen] = useState(false);
+    const [revealed, setRevealed] = useState<CreatedApiToken | null>(null);
+    const [revoking, setRevoking] = useState<ApiToken | null>(null);
+
+    const params = useMemo<ApiTokensListParams>(() => {
+        const next: ApiTokensListParams = {
+            page,
+            pageSize: DEFAULT_PAGE_SIZE,
+            status
+        };
+        if (searchParam) {
+            next.q = searchParam;
+        }
+        return next;
+    }, [page, status, searchParam]);
+
+    const { data, isPending, isError, isFetching, isPlaceholderData, refetch } =
+        useApiTokens(params, canRead);
+    // The search field's spinner answers "is my search running?", so it
+    // tracks only fetches the search caused — switching a status chip or a
+    // page refetches too, and lighting the search field then reads as if the
+    // chip had started a search. `searchedFor` is the term the list on screen
+    // was last fetched with; the field is busy until the list catches up.
+    const [searchedFor, setSearchedFor] = useState(searchParam);
+    useEffect(() => {
+        if (!isFetching) setSearchedFor(searchParam);
+    }, [isFetching, searchParam]);
+    const searchBusy =
+        searchPending ||
+        (isFetching && !isPending && searchParam !== searchedFor);
+    // Workspace names and tiles for the table, the reveal summary and the
+    // revoke confirmation; the create dialog reuses the same cached query.
     const { data: workspaces = [] } = useWorkspaceOptions(canRead);
-    const workspaceNames = useMemo(
-        () =>
-            new Map(
-                workspaces.map((workspace) => [workspace.id, workspace.name])
-            ),
+    const workspacesById = useMemo(
+        () => new Map(workspaces.map((workspace) => [workspace.id, workspace])),
         [workspaces]
+    );
+    const resolveWorkspace = useCallback(
+        (id: string) => workspacesById.get(id),
+        [workspacesById]
     );
 
     const createToken = useCreateApiToken();
@@ -133,17 +195,16 @@ export function ApiTokensPage() {
 
     /**
      * Drops the plaintext from the mutation cache. Closing the reveal dialog
-     * clears the page's own `secret`, but the create mutation's cached *result*
+     * clears the page's own copy, but the create mutation's cached *result*
      * carries the secret too, and TanStack keeps a settled mutation for its
-     * `gcTime` (5 minutes by default) — so without this the credential outlives
-     * the dialog that promised it was gone and follows the user around the SPA.
-     * Pinned in a ref so the unmount cleanup below can never re-run on an
-     * identity change.
+     * `gcTime` — so without this the credential outlives the dialog that
+     * promised it was gone and follows the user around the SPA. Pinned in a
+     * ref so the unmount cleanup below can never re-run on an identity change.
      */
     const resetCreateRef = useRef(createToken.reset);
     resetCreateRef.current = createToken.reset;
     const forgetSecret = useCallback(() => {
-        setSecret(null);
+        setRevealed(null);
         resetCreateRef.current();
     }, []);
 
@@ -151,8 +212,8 @@ export function ApiTokensPage() {
     // above, so scrub the mutation on unmount as well.
     useEffect(() => () => resetCreateRef.current(), []);
 
-    // Focus anchor for after a revoke: the kebab that opened the confirm dialog
-    // is unmounted by the same re-render that lands the new status, so Radix
+    // Focus anchor for after a revoke: the kebab that opened the confirmation
+    // is unmounted by the same re-render that lands the new list, so Radix
     // restores focus to a dead element and it falls to `<body>` (WCAG 2.4.3).
     const resultsRef = useRef<HTMLDivElement>(null);
     const wasRevoking = useRef(false);
@@ -175,16 +236,13 @@ export function ApiTokensPage() {
         });
     }, [revokeToken.isPending]);
 
-    // The same anchor for the reveal dialog, which needed it more and had it
-    // less. It is opened programmatically with no `DialogTrigger`, and the
-    // element that was focused when it opened — the create dialog's submit
-    // button — was unmounted in the very same tick by `setCreateOpen(false)`.
-    // Radix therefore has neither a trigger nor a live element to restore to,
-    // and focus lands on `<body>`: a keyboard user who has just been handed a
-    // credential is dropped at the top of the document (WCAG 2.4.3).
+    // The same anchor for the reveal dialog, which is opened programmatically
+    // with no `DialogTrigger`, while the element focused when it opened — the
+    // create dialog's submit — was unmounted in the very same tick. Radix has
+    // nothing to restore to and focus would land on `<body>`.
     const hadSecret = useRef(false);
     useEffect(() => {
-        if (secret) {
+        if (revealed) {
             hadSecret.current = true;
             return;
         }
@@ -198,7 +256,7 @@ export function ApiTokensPage() {
                 resultsRef.current?.focus();
             }
         });
-    }, [secret]);
+    }, [revealed]);
 
     const total = data?.total ?? 0;
     const effectivePageSize = data?.pageSize ?? DEFAULT_PAGE_SIZE;
@@ -212,18 +270,22 @@ export function ApiTokensPage() {
         }
     }, [data, page, pageCount, setPage]);
 
+    const topBar = (
+        <PageTopBar
+            icon={KeyRound}
+            crumbs={[
+                {
+                    key: 'api-tokens',
+                    label: intl.formatMessage(messages.title)
+                }
+            ]}
+        />
+    );
+
     if (!canRead) {
         return (
             <>
-                <PageTopBar
-                    icon={KeyRound}
-                    crumbs={[
-                        {
-                            key: 'api-tokens',
-                            label: intl.formatMessage(messages.title)
-                        }
-                    ]}
-                />
+                {topBar}
                 <Container>
                     <ContainerHeader
                         title={intl.formatMessage(messages.title)}
@@ -235,54 +297,94 @@ export function ApiTokensPage() {
     }
 
     const tokens = data?.items ?? [];
+    const summary = data?.summary;
+    // A deployment with no tokens at all gets the "create your first" state;
+    // an empty *view* of one that has some gets the no-match state instead.
+    const noTokensAtAll =
+        data !== undefined &&
+        tokens.length === 0 &&
+        summaryTotal(summary) === 0 &&
+        !searchParam;
+
+    const openCreate = () => setCreateOpen(true);
 
     const submitCreate = (input: CreateApiTokenInput) => {
         createToken.mutate(input, {
             onSuccess: (created) => {
                 setCreateOpen(false);
-                setSecret(created.secret);
+                setRevealed(created);
             },
             onError: () => toast.error(intl.formatMessage(messages.createError))
         });
     };
 
-    const revoke = (id: string) => {
-        revokeToken.mutate(id, {
+    const confirmRevoke = (token: ApiToken) => {
+        revokeToken.mutate(token.id, {
             onSuccess: () =>
                 toast.success(intl.formatMessage(messages.revoked)),
-            onError: () => toast.error(intl.formatMessage(messages.revokeError))
+            onError: () =>
+                toast.error(intl.formatMessage(messages.revokeError)),
+            // Closed either way: on failure the toast says so and the row is
+            // still there, live, to try again from.
+            onSettled: () => setRevoking(null)
         });
     };
 
+    const subtitleParts = [intl.formatMessage(messages.subtitle)];
+    if (summary) {
+        subtitleParts.push(
+            summary.expiringSoon > 0 && summary.nextExpiresAt
+                ? intl.formatMessage(messages.subtitleSoon, {
+                      active: summary.active,
+                      soon: summary.expiringSoon,
+                      days: daysUntil(summary.nextExpiresAt)
+                  })
+                : intl.formatMessage(messages.subtitleActive, {
+                      active: summary.active
+                  })
+        );
+    }
+
     return (
         <>
-            <PageTopBar
-                icon={KeyRound}
-                crumbs={[
-                    {
-                        key: 'api-tokens',
-                        label: intl.formatMessage(messages.title)
-                    }
-                ]}
-            />
+            {topBar}
+            {canCreate ? (
+                <PageActionsPortal>
+                    <Button size="sm" onClick={openCreate}>
+                        <Plus />
+                        {intl.formatMessage(messages.create)}
+                    </Button>
+                </PageActionsPortal>
+            ) : null}
             <Container>
                 <ContainerHeader
                     title={intl.formatMessage(messages.title)}
-                    subtitle={intl.formatMessage(messages.subtitle)}
-                    actions={
-                        canCreate ? (
-                            <Button onClick={() => setCreateOpen(true)}>
-                                <Plus />
-                                {intl.formatMessage(messages.create)}
-                            </Button>
-                        ) : undefined
-                    }
+                    subtitle={subtitleParts.join(' · ')}
                 />
 
-                {/* Creating, revoking and paging all change the table without a
-                    navigation and without a heading change, so announce the
-                    result count (WCAG 4.1.3) — the same region `/users` and
-                    `/activity` carry. */}
+                {noTokensAtAll ? null : (
+                    <SearchToolbar
+                        value={searchInput}
+                        onValueChange={setSearchInput}
+                        busy={searchBusy}
+                        searchLabel={intl.formatMessage(messages.searchLabel)}
+                        searchPlaceholder={intl.formatMessage(
+                            messages.searchLabel
+                        )}
+                        leading={
+                            <ApiTokensStatusChips
+                                value={status}
+                                summary={summary}
+                                onChange={setStatus}
+                            />
+                        }
+                    />
+                )}
+
+                {/* Creating, revoking, filtering and paging all change the
+                    table without a navigation and without a heading change, so
+                    announce the result count (WCAG 4.1.3) — the same region
+                    `/users` and `/activity` carry. */}
                 {!isPending && !isError ? (
                     <p role="status" aria-live="polite" className="sr-only">
                         {intl.formatMessage(messages.results, { count: total })}
@@ -297,11 +399,7 @@ export function ApiTokensPage() {
                     {isPending ? (
                         <ApiTokensSkeleton />
                     ) : isError ? (
-                        <Alert
-                            variant="destructive"
-                            role="alert"
-                            className="mt-4"
-                        >
+                        <Alert variant="destructive" role="alert">
                             <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
                                 <span>
                                     {intl.formatMessage(messages.error)}
@@ -316,28 +414,24 @@ export function ApiTokensPage() {
                                 </Button>
                             </AlertDescription>
                         </Alert>
-                    ) : tokens.length === 0 ? (
+                    ) : noTokensAtAll ? (
                         <ApiTokensEmpty
-                            onCreate={
-                                canCreate
-                                    ? () => setCreateOpen(true)
-                                    : undefined
-                            }
+                            onCreate={canCreate ? openCreate : undefined}
+                        />
+                    ) : tokens.length === 0 ? (
+                        <ApiTokensNoMatch
+                            status={status}
+                            search={searchParam}
+                            onClearSearch={() => setSearchInput('')}
+                            onCreate={canCreate ? openCreate : undefined}
                         />
                     ) : (
                         <>
                             <ApiTokensTable
                                 tokens={tokens}
                                 canRevoke={canRevoke}
-                                onRevoke={revoke}
-                                revokingId={
-                                    revokeToken.isPending
-                                        ? (revokeToken.variables ?? null)
-                                        : null
-                                }
-                                resolveWorkspaceName={(id) =>
-                                    workspaceNames.get(id) ?? id
-                                }
+                                onRevoke={setRevoking}
+                                resolveWorkspace={resolveWorkspace}
                                 stale={isPlaceholderData}
                             />
                             {pageCount > 1 ? (
@@ -384,13 +478,25 @@ export function ApiTokensPage() {
                 submitting={createToken.isPending}
             />
             <RevealSecretDialog
-                secret={secret}
-                open={secret !== null}
+                token={revealed}
+                open={revealed !== null}
                 onOpenChange={(open) => {
                     if (!open) {
                         forgetSecret();
                     }
                 }}
+                resolveWorkspace={resolveWorkspace}
+            />
+            <RevokeApiTokenDialog
+                token={revoking}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setRevoking(null);
+                    }
+                }}
+                onConfirm={confirmRevoke}
+                busy={revokeToken.isPending}
+                resolveWorkspace={resolveWorkspace}
             />
         </>
     );

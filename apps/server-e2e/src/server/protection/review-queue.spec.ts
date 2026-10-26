@@ -135,8 +135,11 @@ describe('/api/protection/queue', () => {
             'createdAt',
             'entryId',
             'entryTitle',
+            'fieldsChanged',
             'given',
+            'headRevisionNumber',
             'id',
+            'liveRevisionNumber',
             'requestedBy',
             'required',
             'reviewerIds'
@@ -153,6 +156,78 @@ describe('/api/protection/queue', () => {
         ).toMatchObject({
             contentTypeLabel: 'Articles',
             entryTitle: 'Quarterly results'
+        });
+    });
+
+    /**
+     * "3 fields changed" — what a reviewer reads before opening anything. A
+     * never-published entry is compared against nothing, so every field it
+     * fills counts; the live version is `null` and the head is its first.
+     */
+    it('says how many fields changed since the entry was live', async () => {
+        const { agent } = await member(AUTHOR, 'contributor');
+        await askFor(agent, 'test_article', {
+            text: 'Never published',
+            select: 'article'
+        });
+
+        const response = await agent.get('/api/protection/queue').expect(200);
+        expect(response.body.items[0]).toMatchObject({
+            headRevisionNumber: 1,
+            liveRevisionNumber: null,
+            fieldsChanged: 2
+        });
+    });
+
+    /**
+     * “Recently approved” answers *did I already approve that?* — the
+     * caller's own votes, one line per entry, and whether a later save left the
+     * approval behind.
+     */
+    it('lists what the caller approved, and says when a save moved past it', async () => {
+        const { agent: author } = await member(AUTHOR, 'contributor');
+        const id = await askFor(author, 'test_article', {
+            text: 'Approve me',
+            select: 'article'
+        });
+        const { agent: reviewer } = await member(REVIEWER, 'contributor');
+
+        const before = await reviewer
+            .get('/api/protection/queue/approved')
+            .expect(200);
+        expect(before.body).toEqual({ items: [], windowDays: 30 });
+
+        await reviewer
+            .post(`/api/protection/entries/test_article/${id}/approve`)
+            .expect(201);
+        const after = await reviewer
+            .get('/api/protection/queue/approved')
+            .expect(200);
+        expect(after.body.items).toHaveLength(1);
+        expect(after.body.items[0]).toMatchObject({
+            entryId: id,
+            entryTitle: 'Approve me',
+            approvalCurrent: true,
+            headPublished: false,
+            given: 1
+        });
+        // The author's own list is theirs: they approved nothing.
+        const authors = await author
+            .get('/api/protection/queue/approved')
+            .expect(200);
+        expect(authors.body.items).toEqual([]);
+
+        await author
+            .patch(`/api/content/test_article/${id}`)
+            .send({ values: { text: 'Edited after approval' } })
+            .expect(200);
+        const stale = await reviewer
+            .get('/api/protection/queue/approved')
+            .expect(200);
+        expect(stale.body.items[0]).toMatchObject({
+            entryId: id,
+            approvalCurrent: false,
+            given: 0
         });
     });
 

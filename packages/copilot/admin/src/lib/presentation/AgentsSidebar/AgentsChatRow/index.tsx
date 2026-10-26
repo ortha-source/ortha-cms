@@ -1,0 +1,208 @@
+import { useRef } from 'react';
+import { defineMessages, useIntl } from 'react-intl';
+import {
+    ArchiveRestore,
+    Archive,
+    Loader2,
+    MoreHorizontal,
+    Pencil
+} from 'lucide-react';
+import {
+    Button,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+    cn
+} from '@orthacms/design-system';
+import type { CopilotConversation } from '../../../application/useConversations';
+import type { ThreadActivity } from '../../../application/threadActivity';
+
+const messages = defineMessages({
+    // The rail's own word for a thread with no server-derived title yet.
+    // Deliberately not "New chat": that is the name of the button above the
+    // list, and two controls in one region answering to the same name is
+    // ambiguous by voice and in a screen reader's control list.
+    untitled: {
+        id: 'copilot.agents.rail.untitled',
+        defaultMessage: 'Untitled chat'
+    },
+    // Named after the chat it acts on, so a screen reader's control list is a
+    // list of distinct actions rather than a column of identical "More" buttons.
+    actions: {
+        id: 'copilot.agents.rail.actions',
+        defaultMessage: 'Actions for {title}'
+    },
+    rename: {
+        id: 'copilot.agents.rail.rename',
+        defaultMessage: 'Rename…'
+    },
+    archive: {
+        id: 'copilot.agents.rail.archive',
+        defaultMessage: 'Archive'
+    },
+    unarchive: {
+        id: 'copilot.agents.rail.unarchive',
+        defaultMessage: 'Unarchive'
+    },
+    working: {
+        id: 'copilot.agents.rail.working',
+        defaultMessage: 'Working…'
+    },
+    awaiting: {
+        id: 'copilot.agents.rail.awaiting',
+        defaultMessage: 'Waiting for your answer'
+    }
+});
+
+export interface AgentsChatRowProps {
+    /** The thread this row opens. */
+    conversation: CopilotConversation;
+    /** Whether it is the thread on screen. */
+    active: boolean;
+    /** What the thread is doing right now, if anything — see `threadActivity`. */
+    activity?: ThreadActivity;
+    /** Opens the thread. */
+    onSelect(): void;
+    /**
+     * Opens the rename dialog on this thread.
+     *
+     * Handed a callback that puts focus back on this row's menu button. The
+     * dialog is opened *from a menu item*, which unmounts as the menu closes —
+     * so Radix has nothing left to restore focus to and drops it on `<body>`,
+     * stranding a keyboard user at the top of the page.
+     */
+    onRename(returnFocus: () => void): void;
+    /** Files it away, or brings it back — whichever this list is showing. */
+    onToggleArchived(): void;
+}
+
+/**
+ * One thread in the rail: **its name, and nothing else.**
+ *
+ * The row used to carry a timestamp under the title. It was true and it was
+ * noise: the group heading above already says Today / Yesterday / Previous 7
+ * days, so the second line spent half the row's height restating the section it
+ * sat in. Dropping it halves the row, which is what lets twice as many
+ * conversations be scannable at a glance — and scanning is the only thing this
+ * list is for.
+ *
+ * Hierarchy carries the selection rather than an accent bar: an inactive row is
+ * muted, the open one is solid on a filled ground. Colour is not doing it alone
+ * — `aria-current` announces it, and the weight changes too.
+ *
+ * The one exception to "nothing else" is **what the thread is doing**: a
+ * spinner while an answer streams, an amber dot while a run waits on a
+ * question only the user can answer — the dock's colour for the same state.
+ * Both say so in words too (in the row's name and its tooltip), and both stay
+ * in place when the row is hovered, since the menu sits to their right.
+ */
+export function AgentsChatRow({
+    conversation,
+    active,
+    activity,
+    onSelect,
+    onRename,
+    onToggleArchived
+}: AgentsChatRowProps) {
+    const intl = useIntl();
+    const menuRef = useRef<HTMLButtonElement>(null);
+    const title = conversation.title ?? intl.formatMessage(messages.untitled);
+    const status = activity && intl.formatMessage(messages[activity]);
+
+    return (
+        // `group` drives the menu button's reveal on hover. The row is a
+        // *relative* container so the button can sit over the title's text
+        // rather than stealing width from it — a second column would truncate
+        // every title in the rail to make room for a control most rows never
+        // need.
+        <li className="group/row relative">
+            <button
+                type="button"
+                onClick={onSelect}
+                // The full name, for a title the 18rem column has to truncate.
+                title={status ? `${title} — ${status}` : title}
+                // `aria-current="page"` rather than a styled-only selection:
+                // this is a list of destinations and the open one has to be
+                // announced, not merely tinted.
+                {...(active ? { 'aria-current': 'page' as const } : {})}
+                className={cn(
+                    'focus-visible:ring-sidebar-ring text-sidebar-foreground flex h-8 w-full items-center rounded-md pr-8 pl-2 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none',
+                    active
+                        ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
+                        : 'hover:bg-sidebar-accent/60'
+                )}
+            >
+                <span className="min-w-0 flex-1 truncate">{title}</span>
+                {activity === 'working' && (
+                    <Loader2
+                        aria-hidden
+                        data-activity="working"
+                        className="text-info ml-2 size-3.5 shrink-0 animate-spin motion-reduce:animate-none"
+                    />
+                )}
+                {activity === 'awaiting' && (
+                    <span
+                        aria-hidden
+                        data-activity="awaiting"
+                        className="bg-warning ml-2 size-2 shrink-0 rounded-full"
+                    />
+                )}
+                {/* The marker in words: part of the row's accessible name, so
+                    a screen reader's list says which chat needs you. */}
+                {status && <span className="sr-only">, {status}</span>}
+            </button>
+
+            {/* `modal={false}` so the open menu doesn't aria-hide the page root
+                (which holds focusable content) — a row menu needs no background
+                trap, and axe fails the modal one as `aria-hidden-focus`. */}
+            <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild>
+                    {/* Hidden until hover **or focus** — `focus-visible` alone
+                        would leave it invisible while its own menu is open, and
+                        `group-focus-within` is what keeps it reachable by
+                        keyboard at all. */}
+                    <Button
+                        ref={menuRef}
+                        variant="ghost"
+                        size="icon"
+                        className="text-sidebar-foreground hover:bg-sidebar-accent absolute top-1/2 right-1 size-6 -translate-y-1/2 opacity-0 transition-opacity group-focus-within/row:opacity-100 group-hover/row:opacity-100 data-[state=open]:opacity-100"
+                        aria-label={intl.formatMessage(messages.actions, {
+                            title
+                        })}
+                    >
+                        <MoreHorizontal className="size-4" />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44">
+                    <DropdownMenuItem
+                        onSelect={() =>
+                            onRename(() => menuRef.current?.focus())
+                        }
+                    >
+                        <Pencil className="size-3.5" />
+                        {intl.formatMessage(messages.rename)}
+                    </DropdownMenuItem>
+                    {/* Archiving is reversible and loses nothing, so it takes no
+                        confirm step and no destructive styling — the row simply
+                        moves to the other list, and the same menu brings it
+                        back. There is no Delete: a thread's proposals are the
+                        receipts for changes actually made to your content. */}
+                    <DropdownMenuItem onSelect={onToggleArchived}>
+                        {conversation.archived ? (
+                            <>
+                                <ArchiveRestore className="size-3.5" />
+                                {intl.formatMessage(messages.unarchive)}
+                            </>
+                        ) : (
+                            <>
+                                <Archive className="size-3.5" />
+                                {intl.formatMessage(messages.archive)}
+                            </>
+                        )}
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </li>
+    );
+}

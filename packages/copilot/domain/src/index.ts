@@ -118,6 +118,13 @@ export {
 
 // --- proposals (phase 3) ---
 export { isProposalDraft } from './lib/proposals/proposal';
+export {
+    MAX_PREVIEW_CHANGES,
+    changeRecordKey,
+    countRecords,
+    permissionPreview
+} from './lib/proposals/permission-preview';
+export type { PermissionPreview } from './lib/proposals/permission-preview';
 export type {
     ProposalChange,
     ProposalDraft,

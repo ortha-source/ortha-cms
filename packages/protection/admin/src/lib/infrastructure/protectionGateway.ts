@@ -7,6 +7,8 @@ import type {
     ProtectionRule,
     ProtectionRuleRecord,
     PublishOutlook,
+    RecentlyApproved,
+    RecentlyApprovedItem,
     ReviewApproval,
     ReviewerCandidate,
     ReviewQueue,
@@ -84,6 +86,7 @@ export type ProtectionGateway = {
         params?: ReviewQueueParams,
         workspaceId?: string
     ): Promise<ReviewQueue>;
+    listRecentlyApproved(): Promise<RecentlyApproved>;
     /**
      * Every rule the open workspace holds, including any addressed at a type it
      * is no longer granted — those are the rows an administrator needs in order
@@ -147,6 +150,34 @@ type ReviewQueueItemResponse = {
     required: number;
     given: number;
     createdAt: string;
+} & EntryChangesResponse;
+
+/** Where a line's entry stands against its live version. */
+type EntryChangesResponse = {
+    headRevisionNumber?: number | null;
+    liveRevisionNumber?: number | null;
+    fieldsChanged?: number | null;
+};
+
+/** One line of "Recently approved", as the wire returns it. */
+type RecentlyApprovedItemResponse = {
+    id: string;
+    contentType: string;
+    contentTypeLabel?: string;
+    entryId: string;
+    entryTitle?: string | null;
+    requestedBy?: string | null;
+    reviewerIds?: string[];
+    required: number;
+    given: number;
+    approvedAt: string;
+    approvalCurrent: boolean;
+    headPublished: boolean;
+} & EntryChangesResponse;
+
+type RecentlyApprovedResponse = {
+    items: RecentlyApprovedItemResponse[];
+    windowDays: number;
 };
 
 /** A page of the queue as the wire returns it. */
@@ -193,6 +224,7 @@ type EntryReviewResponse = {
     headPublished?: boolean;
     callerWroteHead: boolean;
     callerApprovedHead: boolean;
+    countsStaleApprovals?: boolean;
     approvals: ApprovalResponse[];
     request: {
         id: string;
@@ -239,6 +271,7 @@ function toEntryReview(dto: EntryReviewResponse): EntryReview {
         headPublished: dto.headPublished ?? false,
         callerWroteHead: dto.callerWroteHead,
         callerApprovedHead: dto.callerApprovedHead,
+        countsStaleApprovals: dto.countsStaleApprovals ?? false,
         approvals: (dto.approvals ?? []).map(toApproval),
         request: dto.request
     };
@@ -291,7 +324,41 @@ function toQueueItem(dto: ReviewQueueItemResponse): ReviewQueueItem {
         reviewerIds: dto.reviewerIds,
         required: dto.required,
         given: dto.given,
-        createdAt: dto.createdAt
+        createdAt: dto.createdAt,
+        ...toChanges(dto)
+    };
+}
+
+/**
+ * The change summary a line carries. Absent fields read as unknown (`null`),
+ * never as zero: "0 fields changed" is a claim, and a server that predates the
+ * field has not made it.
+ */
+function toChanges(dto: EntryChangesResponse) {
+    return {
+        headRevisionNumber: dto.headRevisionNumber ?? null,
+        liveRevisionNumber: dto.liveRevisionNumber ?? null,
+        fieldsChanged: dto.fieldsChanged ?? null
+    };
+}
+
+function toRecentlyApprovedItem(
+    dto: RecentlyApprovedItemResponse
+): RecentlyApprovedItem {
+    return {
+        id: dto.id,
+        contentType: dto.contentType,
+        contentTypeLabel: dto.contentTypeLabel ?? dto.contentType,
+        entryId: dto.entryId,
+        entryTitle: dto.entryTitle ?? null,
+        requestedBy: dto.requestedBy ?? null,
+        reviewerIds: dto.reviewerIds ?? [],
+        required: dto.required,
+        given: dto.given,
+        approvedAt: dto.approvedAt,
+        approvalCurrent: dto.approvalCurrent,
+        headPublished: dto.headPublished,
+        ...toChanges(dto)
     };
 }
 
@@ -378,6 +445,20 @@ export const httpProtectionGateway: ProtectionGateway = {
                 items: data.items.map(toQueueItem),
                 total: data.total,
                 overdueAfterDays: data.overdueAfterDays
+            };
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async listRecentlyApproved(): Promise<RecentlyApproved> {
+        try {
+            const { data } = await apiClient.get<RecentlyApprovedResponse>(
+                '/protection/queue/approved'
+            );
+            return {
+                items: data.items.map(toRecentlyApprovedItem),
+                windowDays: data.windowDays
             };
         } catch (error) {
             throw toApiError(error);

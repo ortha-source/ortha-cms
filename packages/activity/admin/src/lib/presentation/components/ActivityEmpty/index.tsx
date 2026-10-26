@@ -24,6 +24,19 @@ const messages = defineMessages({
         id: 'activity.empty.clear',
         defaultMessage: 'Clear filters'
     },
+    rangeTitle: {
+        id: 'activity.empty.range.title',
+        defaultMessage: 'Nothing happened in this period'
+    },
+    rangeDescription: {
+        id: 'activity.empty.range.description',
+        defaultMessage:
+            'No action was recorded in the time range you chose. Older activity is still in the log.'
+    },
+    showAll: {
+        id: 'activity.empty.showAll',
+        defaultMessage: 'Show all time'
+    },
     emptyTitle: {
         id: 'activity.empty.none.title',
         defaultMessage: 'No activity yet'
@@ -39,21 +52,34 @@ const messages = defineMessages({
     }
 });
 
+/** Why the log is empty, which decides what the state offers. */
+export type ActivityEmptyReason = 'filtered' | 'range' | 'none';
+
 /**
- * The empty state under the toolbar. A filtered miss offers to clear the
- * filters; a genuinely empty log explains that activity will appear as actions
- * are taken.
+ * The empty state under the toolbar, for three different answers:
+ * - **filtered** — a search or a filter matched nothing; offers to clear them.
+ * - **range** — nothing in the chosen time range, with no other filter; offers
+ *   the whole log. The page opens on the last 7 days, so a quiet week must not
+ *   read as "no activity yet" on a deployment with years of it.
+ * - **none** — the log itself is empty.
  */
 export function ActivityEmpty({
-    filtered,
-    onClear
+    reason,
+    onClear,
+    onShowAll
 }: {
-    /** Whether any filter is currently narrowing the log. */
-    filtered: boolean;
-    /** Clears every filter. */
+    reason: ActivityEmptyReason;
+    /** Clears the search and every filter. */
     onClear: () => void;
+    /** Widens the time range to all time. */
+    onShowAll: () => void;
 }) {
     const intl = useIntl();
+    const copy = {
+        filtered: [messages.filteredTitle, messages.filteredDescription],
+        range: [messages.rangeTitle, messages.rangeDescription],
+        none: [messages.emptyTitle, messages.emptyDescription]
+    }[reason];
 
     return (
         <Empty className="border">
@@ -61,30 +87,26 @@ export function ActivityEmpty({
                 <EmptyMedia variant="icon">
                     <Activity />
                 </EmptyMedia>
-                <EmptyTitle>
-                    {intl.formatMessage(
-                        filtered ? messages.filteredTitle : messages.emptyTitle
-                    )}
-                </EmptyTitle>
+                <EmptyTitle>{intl.formatMessage(copy[0])}</EmptyTitle>
                 <EmptyDescription>
-                    {intl.formatMessage(
-                        filtered
-                            ? messages.filteredDescription
-                            : messages.emptyDescription
-                    )}
+                    {intl.formatMessage(copy[1])}
                 </EmptyDescription>
             </EmptyHeader>
-            {filtered ? (
+            {reason === 'none' ? null : (
                 <EmptyContent>
                     <Button
                         variant="outline"
                         className="shadow-none"
-                        onClick={onClear}
+                        onClick={reason === 'filtered' ? onClear : onShowAll}
                     >
-                        {intl.formatMessage(messages.clear)}
+                        {intl.formatMessage(
+                            reason === 'filtered'
+                                ? messages.clear
+                                : messages.showAll
+                        )}
                     </Button>
                 </EmptyContent>
-            ) : null}
+            )}
         </Empty>
     );
 }

@@ -39,6 +39,7 @@ const messages = defineMessages({
         id: 'activity.filter.workspaceId',
         defaultMessage: 'Workspace ID'
     },
+    workspace: { id: 'activity.filter.workspace', defaultMessage: 'Workspace' },
     when: { id: 'activity.filter.when', defaultMessage: 'When' }
 });
 
@@ -89,3 +90,51 @@ export const ACTIVITY_FILTER_FIELDS: readonly FilterField[] = [
     { id: 'workspaceId', label: messages.workspaceId, type: FIELD_TYPE.Uuid },
     { id: 'at', label: messages.when, type: FIELD_TYPE.Date }
 ];
+
+/**
+ * Escapes a literal for use as an ICU message: a workspace name is data, and a
+ * `{` or an apostrophe in it would otherwise be read as message syntax.
+ */
+function icuLiteral(text: string): string {
+    return text.replace(/'/g, "''").replace(/[{}#<>]/g, (char) => `'${char}'`);
+}
+
+/**
+ * {@link ACTIVITY_FILTER_FIELDS} with the workspace offered **by name** once
+ * the names are known — "Workspace is Marketing site" rather than a uuid to
+ * paste. Same wire field (`workspaceId`, `eq`/`in` over uuids), so the server
+ * schema is unchanged (`activity:I-37`); the vocabulary is the one the feed
+ * renders ("in Marketing site"), which is `activity:I-38`'s rule for a column
+ * shown as a label.
+ *
+ * Until the names arrive — or if they never do — the field stays the plain
+ * uuid one, so a deep-linked workspace rule still reads and still edits. A
+ * workspace deleted since keeps its id in a saved rule and its chip falls
+ * back to that id rather than vanishing.
+ */
+export function activityFilterFieldsWith(
+    workspaceNames: ReadonlyMap<string, string> | undefined
+): readonly FilterField[] {
+    if (!workspaceNames || workspaceNames.size === 0) {
+        return ACTIVITY_FILTER_FIELDS;
+    }
+    const enumValues = [...workspaceNames.entries()]
+        .sort(([, a], [, b]) => a.localeCompare(b))
+        .map(([value, name]) => ({
+            value,
+            label: {
+                id: `activity.filter.workspace.${value}`,
+                defaultMessage: icuLiteral(name)
+            }
+        }));
+    return ACTIVITY_FILTER_FIELDS.map((field) =>
+        field.id === 'workspaceId'
+            ? {
+                  ...field,
+                  label: messages.workspace,
+                  type: FIELD_TYPE.Enum,
+                  enumValues
+              }
+            : field
+    );
+}

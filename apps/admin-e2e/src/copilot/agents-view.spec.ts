@@ -41,14 +41,14 @@ test.describe('Agents view — the rail and the thread', () => {
         // for it, which is deliberately not "New chat".
         await expect(agentsPage.railRow('Untitled chat')).toBeVisible();
 
-        // Newest bucket first, and no heading over an empty bucket. Upper-cased
-        // because the headings are, in CSS — this is the rendered text.
+        // Newest bucket first, and no heading over an empty bucket — in the
+        // sidebar's own sentence case (R7).
         expect(await agentsPage.railGroupNames()).toEqual([
-            'TODAY',
-            'YESTERDAY',
-            'PREVIOUS 7 DAYS',
-            'PREVIOUS 30 DAYS',
-            'OLDER'
+            'Today',
+            'Yesterday',
+            'Previous 7 days',
+            'Previous 30 days',
+            'Older'
         ]);
     });
 
@@ -206,14 +206,57 @@ test.describe('Agents view — the rail and the thread', () => {
             )
         ).toBeVisible();
 
+        // The openers are the server's, for this workspace (R7): a summary
+        // sweep over its own collection, the week's changes, a translation,
+        // and a check against its manual skill.
+        await expect(
+            agentsPage.suggestion(/Find articles missing a summary/)
+        ).toBeVisible();
+        await expect(
+            agentsPage.suggestion(/What changed this week\?/)
+        ).toBeVisible();
+        await expect(
+            agentsPage.suggestion(/Translate Pricing FAQ/)
+        ).toBeVisible();
+
+        await agentsPage.suggestion(/Find articles missing a summary/).click();
+
+        await expect.poll(() => spy.runs.length).toBe(1);
+        expect(spy.runs[0]).toMatchObject({
+            message:
+                'Find articles with no summary and draft one for each. Show me the changes before anything is saved.'
+        });
+    });
+
+    test('an opener that names a skill turns it on for the chat', async ({
+        page,
+        agentsPage
+    }) => {
+        const spy = await mockCopilotApi(page);
+        await agentsPage.goto(WORKSPACE_ID);
+
         await agentsPage
-            .suggestion(/What content types can I work with/)
+            .suggestion(/Check recent articles.*SEO checklist skill/)
             .click();
 
         await expect.poll(() => spy.runs.length).toBe(1);
         expect(spy.runs[0]).toMatchObject({
-            message: 'What content types can I work with here?'
+            skills: [{ name: 'seo-checklist' }]
         });
+    });
+
+    test('with no openers to offer, it still offers one', async ({
+        page,
+        agentsPage
+    }) => {
+        await mockCopilotApi(page, { suggestions: { status: 500 } });
+        await agentsPage.goto(WORKSPACE_ID);
+
+        // A failed request is not an empty page: the one opener that needs
+        // nothing but the catalogue.
+        await expect(
+            agentsPage.suggestion(/What can I work with here\?/)
+        ).toBeVisible({ timeout: 15_000 });
     });
 
     test('a thread that will not open offers a retry', async ({

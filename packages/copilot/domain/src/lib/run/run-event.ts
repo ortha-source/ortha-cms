@@ -4,6 +4,7 @@ import type {
     ProposalStatus,
     ProposalTarget
 } from '../proposals/proposal';
+import type { PermissionPreview } from '../proposals/permission-preview';
 import type { RunStopReason } from './run-limits';
 
 /**
@@ -121,6 +122,14 @@ export interface RunPermissionRequestEvent {
      * offer the extension the broker now grants.
      */
     expiresAt: string;
+    /**
+     * What the call would change, when it is a `propose` tool whose draft the
+     * engine could compute before asking — the "Was → Now" diff, marked *Not
+     * saved*. Absent for an `apply` tool (it writes as it runs, so there is
+     * nothing to compute in advance) and whenever the draft could not be
+     * built; the prompt then falls back to the arguments.
+     */
+    preview?: PermissionPreview;
 }
 
 /**

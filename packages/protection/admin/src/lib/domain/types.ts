@@ -87,6 +87,11 @@ export type EntryReview = {
     callerWroteHead: boolean;
     /** Whether the caller already approved the head — nothing left to press. */
     callerApprovedHead: boolean;
+    /**
+     * Whether the rule keeps approvals across saves. `false` means any save
+     * after an approval asks again — what the queue panel says under Approve.
+     */
+    countsStaleApprovals: boolean;
     /** Every approval on the entry, stale ones included. */
     approvals: ReviewApproval[];
     /** The open ask, or `null`. */
@@ -238,6 +243,52 @@ export type ReviewQueueItem = {
     given: number;
     /** ISO-8601 — what the age is measured from. */
     createdAt: string;
+} & EntryChanges;
+
+/**
+ * Where a line's entry stands against its live version — what the queue says
+ * as "3 fields changed" and what its side panel compares, field by field.
+ * Counted on the server through content's `diffSnapshots`, the rule
+ * content-admin's `diffRevision` mirrors, so the number and the rows agree.
+ */
+export type EntryChanges = {
+    /** The current version's number; `null` when its revisions have gone. */
+    headRevisionNumber: number | null;
+    /** The live version's number; `null` when never published. */
+    liveRevisionNumber: number | null;
+    /** Fields changed since the live version; `null` when unknown. */
+    fieldsChanged: number | null;
+};
+
+/**
+ * One entry the caller approved lately — a line of "Recently approved", which
+ * answers *did I already approve that?*.
+ */
+export type RecentlyApprovedItem = {
+    /** The entry id — one line per entry. */
+    id: string;
+    contentType: string;
+    contentTypeLabel: string;
+    entryId: string;
+    entryTitle: string | null;
+    /** Who asked for the newest review of the entry, or `null` if nobody did. */
+    requestedBy: string | null;
+    reviewerIds: string[];
+    required: number;
+    given: number;
+    /** ISO-8601 — the caller's newest approval of the entry. */
+    approvedAt: string;
+    /** Whether that approval is on the current version and still counts. */
+    approvalCurrent: boolean;
+    /** Whether the current version is live. */
+    headPublished: boolean;
+} & EntryChanges;
+
+/** The "Recently approved" tab. */
+export type RecentlyApproved = {
+    items: RecentlyApprovedItem[];
+    /** How far back it looks. */
+    windowDays: number;
 };
 
 /** A page of the reviewer queue. */

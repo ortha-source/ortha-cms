@@ -21,9 +21,14 @@ src/lib/
         RequestReviewDialog/     the people picker behind Request review
         ReviewActions/           request review / approve
       BypassDialog/            the way past a rule — a confirmation
-      ProtectionSettings/      the settings tab (WORKSPACE_SETTINGS_TAB_SLOT)
-        RuleEditorDialog/        the six fields, submitted whole
-      ReviewQueueTable/        one tab's rows, as a real table
+      ProtectionSettings/      the settings section "Publishing" (WORKSPACE_SETTINGS_TAB_SLOT)
+        RuleEditorDialog/        switches + 1/2/3/Other…, an "In short" sentence; six fields, submitted whole
+      ReviewQueueTable/        one queue tab's rows, as a real table
+      RecentlyApprovedTable/   "Recently approved": what I approved, and where it stands now
+      ReviewPanel/             Review → the side panel: who asked, the tally, the changes, Approve
+      ReviewChanges/           live vs this version, through content-admin's diffRevision
+      ApprovalProgress/        pips + "1 of 2"
+      RecordSummary/           title over "Articles · 3 fields changed"
       ReviewQueueTableSkeleton/  the same card and columns while it loads
       RequestAge/              how long an ask has waited, in words
       ReviewsSkeleton/         the lazy route's fallback
@@ -35,16 +40,16 @@ Layered per [ADR-0003](../../../docs/adr/0003-tactical-ddd-inside-plugins.md).
 
 ## What it contributes
 
-| Surface          | Where                         | What it says                                                                         |
-| ---------------- | ----------------------------- | ------------------------------------------------------------------------------------ |
-| Review block     | `ENTRY_SIDEBAR_WIDGET_SLOT`   | "Needs review · 0 of 2" in its heading, who was asked, who approved, and the actions |
-| Publish verdict  | `ENTRY_PUBLISH_GUARD_SLOT`    | whether Publish is held, and why                                                     |
-| Publishing rules | `WORKSPACE_SETTINGS_TAB_SLOT` | which types are protected, and how                                                   |
-| Review column    | `RECORDS_COLUMN_SLOT`         | where each row stands, one request per page                                          |
-| `reviewState`    | `RECORDS_FILTER_FIELDS_SLOT`  | waiting on review / not requested                                                    |
-| Insights line    | `INSIGHTS_SIGNAL_SLOT`        | how much review is outstanding, and the longest wait — opening the queue             |
-| Reviews page     | `WORKSPACE_ROUTE_SLOT` + nav  | what is waiting, and on whom                                                         |
-| Home card        | `HOME_SECTION_SLOT`           | entries awaiting review across workspaces — "0" when none                            |
+| Surface         | Where                         | What it says                                                                         |
+| --------------- | ----------------------------- | ------------------------------------------------------------------------------------ |
+| Review block    | `ENTRY_SIDEBAR_WIDGET_SLOT`   | "Needs review · 0 of 2" in its heading, who was asked, who approved, and the actions |
+| Publish verdict | `ENTRY_PUBLISH_GUARD_SLOT`    | whether Publish is held, and why                                                     |
+| Publishing      | `WORKSPACE_SETTINGS_TAB_SLOT` | which types are protected, and how                                                   |
+| Review column   | `RECORDS_COLUMN_SLOT`         | where each row stands, one request per page                                          |
+| `reviewState`   | `RECORDS_FILTER_FIELDS_SLOT`  | waiting on review / not requested                                                    |
+| Insights line   | `INSIGHTS_SIGNAL_SLOT`        | how much review is outstanding, and the longest wait — opening the queue             |
+| Reviews page    | `WORKSPACE_ROUTE_SLOT` + nav  | what is waiting, and on whom                                                         |
+| Home card       | `HOME_SECTION_SLOT`           | entries awaiting review across workspaces — "0" when none                            |
 
 **The three entry contributions render nothing on an unprotected type** and on a
 non-publishable one. `reviewScopeOf` is the single place that decides, so the
@@ -186,9 +191,10 @@ name beside a vote costs no request. Somebody who has left is named as such
 rather than given a fabricated label: a vote records who looked, and inventing a
 name over a gap in the roster misreports the one fact the row carries.
 
-## The settings section (Publishing rules)
+## The settings section (Publishing)
 
-Listed in the workspace settings side nav as **Publishing rules**; the page
+Listed in the workspace settings side nav as **Publishing** ("Content types
+that need a review before they go live."); the page
 draws its `<h1>` and description from the slot item, and the section is one
 framed list — each publishable type with its rule in one line (the count, then
 each exception), a Protected / Not protected / Switched off badge, and
@@ -220,10 +226,18 @@ is looking at the toggle, so the warning lives in a `role="status"` live region.
 `blocksEveryone` is the predicate; both halves are pinned by tests, and both
 mutations fail them.
 
-**The count is a number input, not a stepper.** The mockup draws −/+ around a
-value; a pair of buttons around a `<span>` has no value a screen reader can read
-back and no keyboard behaviour of its own. A real `type="number"` with a label
-gets both for free, and the clamp still runs on what is typed.
+**The rule is read back in one sentence.** Under the switches, "In short: a
+record in Articles needs 2 approvals from people other than its author; admins
+can override." It comes from `readRule` (`domain/ruleSummary.ts`, pure and
+unit-tested), the same reading the list row's hint ("2 approvals · admins may
+bypass") uses, so the two cannot describe one rule two ways. A switched-off rule
+reads as off whatever else it holds. The sentence says "a record in {type}"
+because content types carry only a plural label.
+
+**The count is 1 / 2 / 3 / Other….** The picks are a radio group (Radix
+`ToggleGroup` via `SegmentedControl`); **Other…** reveals a real
+`type="number"` input ("Number of approvals") and the clamp runs on what is
+typed. A stored count beyond 3 opens on Other….
 
 **`allow_token_publish`'s helper text says what it actually does.** A token that
 is let through still meets the approval count — the flag stops it being refused
@@ -239,10 +253,36 @@ a page rather than a saved view of a records list because an ask arrives against
 whichever type somebody happened to be editing, and a saved view can only ever
 ask about the collection it belongs to.
 
-**One request feeds both tabs.** `splitQueue` splits one fetched window, so
-the two counts cannot disagree with each other, switching tabs costs nothing,
-and no ask can appear in both for the render where a second request had not yet
-landed.
+**One request feeds the first two tabs.** `splitQueue` splits one fetched
+window, so the two counts cannot disagree with each other, switching tabs costs
+nothing, and no ask can appear in both for the render where a second request had
+not yet landed. The third tab, **Recently approved** (_did I already approve
+that?_), is a different question with its own read
+(`GET /protection/queue/approved`), made only the first time the tab is opened.
+Each line says where the approval stands now — **Published**, **Changed
+since** (a save moved past it), or **Still counts** — in words.
+
+**Review opens a side panel, not the record.** A non-modal `Sheet` beside the
+table (`onInteractOutside` prevented, so Review on another row switches it):
+who asked whom and when, the pips and who approved last, the changes since the
+live version, what approving will do ("Approving lets Grace publish. A new save
+asks again." — the second sentence from the review's `countsStaleApprovals`),
+and **Approve**. **Open record** links to the editor. Every number comes from
+`useEntryReview`, the read the rail and the publish button obey, not from the
+queue line. Approve is offered exactly when the rail offers it, and each reason
+it is not (live version, author of the head, already approved, no
+`content:approve`) is a sentence. `useApproveFromQueue` refreshes the review,
+the queue windows, Recently approved and the Insights figures; the rail's
+`useApprove` still refreshes only the review. Escape/Close return focus to the
+row's Review button.
+
+**The changes are content's comparison.** `ReviewChanges` reads both revisions
+with content-admin's `useRevisionDetail`, compares them with `diffRevision` and
+renders values with `formatRevisionValue` / `RelationRefList` /
+`MediaRefList` (exported from content-admin for this). The queue line's "3
+fields changed" is counted server-side by `diffSnapshots`, which mirrors
+`diffRevision` rule for rule, so the number and the rows agree. A never-published
+record is compared against an empty document.
 
 **"Waiting on me" is every ask that names me.** A request says who was asked, so
 that is the true answer; an ask naming somebody else is in neither tab, even
@@ -257,15 +297,16 @@ its type by its label — both sent by the queue route, one read per line of a
 bounded page — and loads behind a skeleton of the same shape. A record with no
 title to show falls back to a fragment of its id, as "Open 1a2b3c4d".
 
-**A row reads like the canvas draws it**: the record's title over its type
-(one column, not two), who asked, the reviewers as overlapping avatars
-(`ReviewerLabel compact` — the names stay in the list as `sr-only` text and
-on hover), the approvals as pips beside "1 of 2" (with an `sr-only`
-"approvals", so the tally is still a sentence), and a **Review** button —
-a duplicate of the title link, so it is taken out of the tab order.
+**A row reads like the canvas draws it**: the record's title over its type and
+how many fields changed ("Articles · 3 fields changed"), who asked (avatar and
+first name — `ReviewerLabel firstName`, the full name kept for screen readers),
+the reviewers as overlapping avatars (`ReviewerLabel compact`), the approvals as
+pips beside "1 of 2" (with an `sr-only` "approvals"), how long it has waited
+("5 days", "20 min"), and a **Review** button named for its row ("Review
+Pricing FAQ") — the row's one action.
 
-**The age says "overdue" in words, not only in colour** — and an overdue one
-is a badge. A greyscale screen, a
+**The age says "Overdue" in words, not only in colour** — an overdue one
+carries an **Overdue** badge, in the table and in the panel header. A greyscale screen, a
 colour-blind reader and a screen reader all have to get the same fact — the rule
 a queue breaks most easily, because "this one is old" feels like something red
 says by itself. The exact moment rides `<time datetime>` so nothing is lost to

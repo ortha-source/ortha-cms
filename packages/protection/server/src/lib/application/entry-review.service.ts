@@ -180,6 +180,7 @@ export class EntryReviewService {
             headRevisionNumber: entry.head.number,
             headPublished: entry.head.isPublished,
             callerWroteHead: entry.head.authorId === actor.id,
+            countsStaleApprovals: !!(rule?.enabled && rule.countStaleApprovals),
             callerApprovedHead: votes.some(
                 (vote) =>
                     vote.userId === actor.id &&

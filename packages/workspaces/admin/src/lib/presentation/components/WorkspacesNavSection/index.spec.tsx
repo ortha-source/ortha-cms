@@ -71,6 +71,11 @@ function workspace(overrides: Partial<Workspace> = {}): Workspace {
         content: [],
         isShared: false,
         sharedContent: [],
+        recordCount: 0,
+        recordCountByType: {},
+        createdAt: null,
+        lastEditedAt: null,
+        archivedAt: null,
         ...overrides
     };
 }

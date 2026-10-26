@@ -145,3 +145,19 @@ describe('GET /api/activity — deterministic ordering', () => {
         });
     });
 });
+
+describe('the CSV export’s query [activity:I-41]', () => {
+    it('reuses the list order and takes no offset, capped at the given limit', async () => {
+        const { db, captured } = capturingDb();
+        await new ActivityService(db).exportRows(
+            { sort: 'kind', order: 'asc' } as ListActivityQueryDto,
+            500
+        );
+        expect(captured.orderBy).toEqual([
+            asc(activityEvents.kind),
+            desc(activityEvents.id)
+        ]);
+        expect(captured.limit).toBe(500);
+        expect(captured.offset).toBeUndefined();
+    });
+});

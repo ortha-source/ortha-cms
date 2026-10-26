@@ -66,14 +66,23 @@ test.describe('API tokens accessibility (axe, WCAG 2.1 A/AA)', () => {
         await expectNoA11yViolations(makeAxe());
     });
 
-    // The workspace selector's **open** popover is deliberately not scanned:
-    // Radix gives a `PopoverContent` `role="dialog"`, the design-system
-    // `MultiSelect` passes it no name, and `aria-dialog-name` would fire on it
-    // in every consumer at once. The fix belongs in the component (the Content
-    // Library's column picker already does it with `aria-labelledby`); add the
-    // scan here in the same change.
+    // The workspace picker is the plugin's own now, and its popover is named
+    // by the field label (`aria-labelledby`), so the open state is scanned too.
+    test('create dialog — workspace picker open, one picked', async ({
+        page,
+        apiTokensPage,
+        makeAxe
+    }) => {
+        await mockApiTokensApi(page);
+        await apiTokensPage.goto();
+        await apiTokensPage.table.waitFor();
+        await apiTokensPage.openCreate();
+        await apiTokensPage.pickWorkspace('Marketing site');
+        await apiTokensPage.openWorkspacePopover();
+        await expectNoA11yViolations(makeAxe());
+    });
 
-    test('create dialog — the two selects carry real names', async ({
+    test('create dialog — access and expiry groups carry real names', async ({
         page,
         apiTokensPage
     }) => {
@@ -82,12 +91,16 @@ test.describe('API tokens accessibility (axe, WCAG 2.1 A/AA)', () => {
         await apiTokensPage.table.waitFor();
         await apiTokensPage.openCreate();
 
-        // A `<Label>` with no `htmlFor` labels nothing: both triggers used to
-        // announce only their current value ("Read-only", "Never"), leaving no
-        // way to tell the access control from the expiry one — and the choice
-        // decides whether the credential can publish and delete content.
-        await expect(apiTokensPage.accessSelect()).toBeVisible();
-        await expect(apiTokensPage.expiresSelect()).toBeVisible();
+        // Both choices used to announce only their current value ("Read-only",
+        // "Never"), leaving no way to tell the access control from the expiry
+        // one — and the choice decides whether the credential can publish and
+        // delete content. Each group is named by its field label, and each
+        // option by its own title.
+        await expect(apiTokensPage.accessGroup()).toBeVisible();
+        await expect(apiTokensPage.accessCard('Read-only')).toBeVisible();
+        await expect(apiTokensPage.accessCard('Full access')).toBeVisible();
+        await expect(apiTokensPage.expiresGroup()).toBeVisible();
+        await expect(apiTokensPage.expiryOption('90 days')).toBeVisible();
     });
 
     test('create dialog — workspace fetch failed', async ({
@@ -135,6 +148,28 @@ test.describe('API tokens accessibility (axe, WCAG 2.1 A/AA)', () => {
         // swaps one button for two. Whoever has to read that alert to keep
         // their token is exactly the user least able to recover from it being
         // unannounced.
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('table — a filtered view (Revoked)', async ({
+        page,
+        apiTokensPage,
+        makeAxe
+    }) => {
+        await mockApiTokensApi(page);
+        await apiTokensPage.goto();
+        await apiTokensPage.table.waitFor();
+        await apiTokensPage.showStatus('Revoked');
+        await apiTokensPage.row('Leaked laptop token').waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('a search with no match', async ({ page, apiTokensPage, makeAxe }) => {
+        await mockApiTokensApi(page);
+        await apiTokensPage.goto();
+        await apiTokensPage.table.waitFor();
+        await apiTokensPage.searchBox().fill('zzz');
+        await apiTokensPage.noMatchHeading('No tokens match “zzz”').waitFor();
         await expectNoA11yViolations(makeAxe());
     });
 
