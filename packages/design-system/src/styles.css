@@ -628,6 +628,28 @@ html[data-ds-page-transition] [data-slot='sidebar-inset'] {
     }
 }
 
+/* Browser autofill keeps the field's own look. Chrome paints an autofilled
+   field light blue with `!important` UA styles that no utility can beat,
+   and in a grouped control (the password field and its show/hide button)
+   only the input half turns blue. A transition the UA's colour never
+   finishes keeps the page's background; the text keeps the theme's ink.
+   `box-shadow: inset` — the other usual fix — is not used: every focus
+   ring here is a box-shadow, and it would paint over it.
+
+   Unlayered on purpose: `Input`'s `transition-colors` utility lives in a
+   higher layer than `base` and would replace this transition. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+    -webkit-text-fill-color: var(--color-foreground);
+    caret-color: var(--color-foreground);
+    transition:
+        background-color 100000s ease-in-out 0s,
+        color 100000s ease-in-out 0s;
+}
+
 /* ---------------------------------------------------------------------------
    Forced colors — Windows High Contrast, and any UA that swaps the palette out
    from under the page (`forced-colors: active`).
