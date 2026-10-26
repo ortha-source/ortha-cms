@@ -28,12 +28,24 @@ const ROLE_MESSAGE: Record<
 };
 
 /**
- * The Role column's read-only chip: the member's role as a labelled badge.
- * Changing a role happens through the row's edit action (and the server gates
- * it on `users:update`), so the column itself carries no inline editor.
+ * Tone per role, loudest first: an admin is the one worth noticing in a list
+ * of people, so it takes the tinted chip; a contributor gets a hairline; a
+ * viewer — who changes nothing — the quietest.
+ */
+const ROLE_VARIANT = {
+    admin: 'info',
+    contributor: 'line',
+    viewer: 'muted'
+} as const;
+
+/**
+ * A member's role as a small read-only badge — the roster's Role column and
+ * the member page's header. Changing it happens through the role dialog (and
+ * the server gates it on `users:update`), so the chip itself is never a
+ * control.
  *
  * A member holding a **custom** role has `role: null`; the chip then shows the
- * server's own `roleName` rather than a guessed system role, so the column never
+ * server's own `roleName` rather than a guessed system role, so it never
  * misstates someone's privileges.
  */
 export function MemberRoleChip({
@@ -48,10 +60,7 @@ export function MemberRoleChip({
     const intl = useIntl();
 
     return (
-        <Badge
-            variant={role === 'admin' ? 'primary-soft' : 'secondary'}
-            className="rounded-xl"
-        >
+        <Badge size="xs" variant={role === null ? 'line' : ROLE_VARIANT[role]}>
             {role === null ? roleName : intl.formatMessage(ROLE_MESSAGE[role])}
         </Badge>
     );

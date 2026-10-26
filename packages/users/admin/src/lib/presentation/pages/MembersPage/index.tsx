@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
-import { UserPlus, Users } from 'lucide-react';
+import { Plus, Users } from 'lucide-react';
 import { PageTopBar } from '@orthacms/shell-admin';
 import {
     QueryBuilderPopover,
@@ -28,7 +28,13 @@ import { MembersPagination } from '../../components/MembersPagination';
 import { MEMBERS_RESULTS_ANCHOR_ID } from '../../membersResultsAnchor';
 import { MembersTable } from '../../components/MembersTable';
 import { MembersToolbar } from '../../components/MembersToolbar';
+import { MembersQuickFilters } from '../../components/MembersQuickFilters';
 import { MEMBERS_FILTER_FIELDS } from '../../membersFilterFields';
+import {
+    QUICK_FILTER_PARAM,
+    quickFilterFrom,
+    quickFilterParams
+} from '../../membersQuickFilter';
 import type { MembersListParams } from '../../../infrastructure/membersKeys';
 
 /** Intl descriptors for {@link MembersPage}, co-located with the component. */
@@ -40,11 +46,11 @@ const messages = defineMessages({
     subtitle: {
         id: 'users.page.subtitle',
         defaultMessage:
-            '{count, plural, one {# person} other {# people}} who can sign in to this workspace.'
+            '{active, plural, one {# person can} other {# people can}} sign in{invited, plural, =0 {} one { · # invite waiting} other { · # invites waiting}}'
     },
     invite: {
         id: 'users.page.invite',
-        defaultMessage: 'Invite member'
+        defaultMessage: 'Invite people'
     },
     error: {
         id: 'users.page.error',
@@ -74,6 +80,7 @@ const messages = defineMessages({
  */
 export function MembersPage() {
     const intl = useIntl();
+    const [searchParams] = useSearchParams();
     // Names this route in the tab strip, the window list, the history
     // and a screen reader's window announcement. Every private route but
     // Workspaces was still titled a bare "Admin" (WCAG 2.4.2, `ORT-140`).
@@ -104,9 +111,12 @@ export function MembersPage() {
     );
     const ruleCount = countRules(appliedFilter);
 
+    const quickFilter = quickFilterFrom(searchParams.get(QUICK_FILTER_PARAM));
+
     const params: MembersListParams = {
         search: searchParam || undefined,
         filter: filterParam || undefined,
+        ...quickFilterParams(quickFilter),
         page,
         pageSize
     };
@@ -166,15 +176,22 @@ export function MembersPage() {
     }
 
     const members = data?.items ?? [];
-    const hasFilters = searchInput.trim().length > 0 || ruleCount > 0;
+    const hasFilters =
+        searchInput.trim().length > 0 ||
+        ruleCount > 0 ||
+        quickFilter !== 'everyone';
 
     /**
-     * Clear the filters (search + query builder) and reset to the first page,
-     * while preserving the user's page-size choice.
+     * Clear the filters (search, quick filter, query builder) and reset to the
+     * first page, while preserving the user's page-size choice.
      */
     const clearFilters = () => {
         setSearchInput('');
-        updateParams({ search: undefined, filter: undefined });
+        updateParams({
+            search: undefined,
+            filter: undefined,
+            [QUICK_FILTER_PARAM]: undefined
+        });
     };
 
     const openInvite = () => navigate('/users/invite');
@@ -198,16 +215,17 @@ export function MembersPage() {
                     // landed, and "0 people" is a claim about the directory
                     // rather than a description of what happened.
                     subtitle={
-                        isPending || isError
+                        isPending || isError || !data
                             ? undefined
                             : intl.formatMessage(messages.subtitle, {
-                                  count: total
+                                  active: data.counts.active,
+                                  invited: data.counts.invited
                               })
                     }
                     actions={
                         canInvite ? (
                             <Button onClick={openInvite}>
-                                <UserPlus />
+                                <Plus />
                                 {intl.formatMessage(messages.invite)}
                             </Button>
                         ) : undefined
@@ -218,6 +236,18 @@ export function MembersPage() {
                     search={searchInput}
                     onSearchChange={setSearchInput}
                     busy={searchPending || isFetching}
+                    quickFilters={
+                        <MembersQuickFilters
+                            value={quickFilter}
+                            counts={data?.counts}
+                            onChange={(next) =>
+                                updateParams({
+                                    [QUICK_FILTER_PARAM]:
+                                        next === 'everyone' ? undefined : next
+                                })
+                            }
+                        />
+                    }
                     filterControl={
                         // The filter builder in a popover anchored to an
                         // icon-only "Filters" button — the same surface the

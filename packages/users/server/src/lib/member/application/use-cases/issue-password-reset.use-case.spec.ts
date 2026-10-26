@@ -65,6 +65,7 @@ describe('IssuePasswordResetUseCase', () => {
             },
             countActiveAdmins: async () => 5,
             existsByEmail: async () => false,
+            takenEmails: async () => [],
             save: async () => {
                 trace.push('save');
             },
@@ -144,9 +145,10 @@ describe('IssuePasswordResetUseCase', () => {
     it('returns the raw token for an active member [users:I-08]', async () => {
         const test = harness(member());
 
-        await expect(test.useCase.execute(ACTOR, MEMBER_ID)).resolves.toBe(
-            'raw-reset-token'
-        );
+        await expect(test.useCase.execute(ACTOR, MEMBER_ID)).resolves.toEqual({
+            resetToken: 'raw-reset-token',
+            expiresAt: EXPIRES_AT
+        });
         expect(test.rotations).toEqual([
             {
                 userId: MEMBER_ID,
@@ -160,9 +162,10 @@ describe('IssuePasswordResetUseCase', () => {
 
         // covers: mail:I-02 — with a provider configured no route hands back a
         // raw token; the message carries it and `reveal-link` is the exception.
-        await expect(
-            test.useCase.execute(ACTOR, MEMBER_ID)
-        ).resolves.toBeNull();
+        await expect(test.useCase.execute(ACTOR, MEMBER_ID)).resolves.toEqual({
+            resetToken: null,
+            expiresAt: EXPIRES_AT
+        });
 
         expect(test.queued).toEqual([
             {
@@ -190,9 +193,10 @@ describe('IssuePasswordResetUseCase', () => {
     it('returns the token alongside the message in link-revealing mode', async () => {
         const test = harness(member(), { revealsLinks: true });
 
-        await expect(test.useCase.execute(ACTOR, MEMBER_ID)).resolves.toBe(
-            'raw-reset-token'
-        );
+        await expect(test.useCase.execute(ACTOR, MEMBER_ID)).resolves.toEqual({
+            resetToken: 'raw-reset-token',
+            expiresAt: EXPIRES_AT
+        });
         expect(test.queued).toHaveLength(1);
     });
 

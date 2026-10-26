@@ -1,4 +1,6 @@
 import { defineMessages, useIntl } from 'react-intl';
+import { Users } from 'lucide-react';
+import { PageTopBar } from '@orthacms/shell-admin';
 import {
     Container,
     Skeleton,
@@ -7,8 +9,7 @@ import {
     TableCell,
     TableHead,
     TableHeader,
-    TableRow,
-    WizardPageSkeleton
+    TableRow
 } from '@orthacms/design-system';
 
 /** Intl descriptors for the members skeletons, co-located here. */
@@ -21,49 +22,19 @@ const messages = defineMessages({
         id: 'users.skeleton.loading',
         defaultMessage: 'Loading members…'
     },
-    loadingForm: {
-        id: 'users.skeleton.loadingForm',
-        defaultMessage: 'Loading…'
+    inviteHeading: {
+        id: 'users.skeleton.inviteHeading',
+        defaultMessage: 'Loading the invite form'
     },
-    loadingWorkspaces: {
-        id: 'users.skeleton.loadingWorkspaces',
-        defaultMessage: 'Loading workspaces…'
+    crumbMembers: {
+        id: 'users.invitePage.crumbMembers',
+        defaultMessage: 'Members'
+    },
+    inviteCrumb: {
+        id: 'users.inviteSheet.title',
+        defaultMessage: 'Invite people'
     }
 });
-
-/**
- * Section placeholder shown while {@link useWorkspaceOptions} resolves in the
- * invite wizard's "assign workspaces" step — two mode tiles over a short list of
- * option rows. Replaces the inline spinner so the step keeps its shape while the
- * list loads. Owns a single `role="status"`; the tiles are `aria-hidden`.
- */
-export function WorkspaceOptionsSkeleton({ rows = 3 }: { rows?: number }) {
-    const intl = useIntl();
-
-    return (
-        <div role="status">
-            <span className="sr-only">
-                {intl.formatMessage(messages.loadingWorkspaces)}
-            </span>
-            <div aria-hidden className="flex flex-col gap-3">
-                <div className="grid gap-3 sm:grid-cols-2">
-                    <Skeleton className="h-20 w-full rounded-xl" />
-                    <Skeleton className="h-20 w-full rounded-xl" />
-                </div>
-                {Array.from({ length: rows }).map((_, index) => (
-                    <div
-                        key={index}
-                        className="flex items-center gap-3 rounded-xl border p-3"
-                    >
-                        <Skeleton className="size-8 shrink-0 rounded-xl" />
-                        <Skeleton className="h-4 w-40" />
-                        <Skeleton className="ml-auto size-5 rounded" />
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-}
 
 /**
  * The members-table placeholder shown while {@link useMembers} resolves. Built
@@ -99,7 +70,7 @@ export function MembersTableSkeleton({ rows = 5 }: { rows?: number }) {
                             <TableHead>
                                 <Skeleton className="h-4 w-12" />
                             </TableHead>
-                            <TableHead className="w-12" />
+                            <TableHead className="w-28" />
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -107,7 +78,7 @@ export function MembersTableSkeleton({ rows = 5 }: { rows?: number }) {
                             <TableRow key={index}>
                                 <TableCell>
                                     <div className="flex items-center gap-3">
-                                        <Skeleton className="size-9 shrink-0 rounded-xl" />
+                                        <Skeleton className="size-7 shrink-0 rounded-full" />
                                         <div className="flex flex-col gap-1.5">
                                             <Skeleton className="h-3.5 w-28" />
                                             <Skeleton className="h-3 w-36" />
@@ -115,16 +86,16 @@ export function MembersTableSkeleton({ rows = 5 }: { rows?: number }) {
                                     </div>
                                 </TableCell>
                                 <TableCell>
-                                    <Skeleton className="h-5 w-16 rounded-full" />
+                                    <Skeleton className="h-[18px] w-16 rounded-md" />
                                 </TableCell>
                                 <TableCell>
-                                    <Skeleton className="h-5 w-16 rounded-full" />
-                                </TableCell>
-                                <TableCell>
-                                    <div className="flex -space-x-2">
-                                        <Skeleton className="size-6 rounded-xl" />
-                                        <Skeleton className="size-6 rounded-xl" />
+                                    <div className="flex gap-[3px]">
+                                        <Skeleton className="size-5 rounded-[5px]" />
+                                        <Skeleton className="size-5 rounded-[5px]" />
                                     </div>
+                                </TableCell>
+                                <TableCell>
+                                    <Skeleton className="h-[18px] w-16 rounded-md" />
                                 </TableCell>
                                 <TableCell>
                                     <Skeleton className="h-4 w-20" />
@@ -175,8 +146,12 @@ export function MembersPageSkeleton() {
                 <Skeleton className="h-9 w-36 shrink-0" />
             </div>
 
-            <div className="mb-4 flex flex-wrap items-center gap-3">
-                <Skeleton className="h-9 w-full sm:max-w-[360px]" />
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+                <Skeleton className="h-7 w-24 rounded-full" />
+                <Skeleton className="h-7 w-20 rounded-full" />
+                <Skeleton className="h-7 w-20 rounded-full" />
+                <Skeleton className="h-7 w-24 rounded-full" />
+                <Skeleton className="h-9 w-full sm:ml-auto sm:w-[260px]" />
             </div>
 
             <MembersTableSkeleton />
@@ -185,13 +160,55 @@ export function MembersPageSkeleton() {
 }
 
 /**
- * Lazy-route `Suspense` fallback for {@link InviteMemberPage}. Wraps the shared
- * {@link WizardPageSkeleton} so the `sr-only` status stays localized.
+ * The invite page's lazy-route fallback, in the page's own frame — the top
+ * bar's "Members › Invite people", a header, and the form card's sections — so
+ * nothing shifts when the chunk lands. Its `<h1>` names the loading state, as
+ * {@link MembersPageSkeleton}'s does.
  */
-export function InviteMemberPageSkeleton() {
+export function InviteMembersPageSkeleton() {
     const intl = useIntl();
 
     return (
-        <WizardPageSkeleton label={intl.formatMessage(messages.loadingForm)} />
+        <>
+            <PageTopBar
+                icon={Users}
+                iconClassName="bg-success-soft text-success-soft-foreground"
+                crumbs={[
+                    {
+                        key: 'members',
+                        label: intl.formatMessage(messages.crumbMembers),
+                        to: '/users'
+                    },
+                    {
+                        key: 'invite',
+                        label: intl.formatMessage(messages.inviteCrumb)
+                    }
+                ]}
+            />
+            <Container aria-busy="true" className="max-w-[720px]">
+                <h1 className="sr-only">
+                    {intl.formatMessage(messages.inviteHeading)}
+                </h1>
+                <div aria-hidden className="mb-5 flex flex-col gap-2">
+                    <Skeleton className="h-8 w-48" />
+                    <Skeleton className="h-4 w-80 max-w-full" />
+                </div>
+                <div
+                    aria-hidden
+                    className="flex flex-col gap-6 rounded-xl border p-6"
+                >
+                    <Skeleton className="h-16 w-full rounded-md" />
+                    <div className="flex flex-col gap-1.5">
+                        <Skeleton className="h-14 w-full rounded-lg" />
+                        <Skeleton className="h-14 w-full rounded-lg" />
+                        <Skeleton className="h-14 w-full rounded-lg" />
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                        <Skeleton className="h-10 rounded-lg" />
+                        <Skeleton className="h-10 rounded-lg" />
+                    </div>
+                </div>
+            </Container>
+        </>
     );
 }

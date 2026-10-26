@@ -9,9 +9,10 @@ import {
 } from '../support/api/members';
 import { mockWorkspaces } from '../support/api/workspaces';
 import {
-    mockEmptyActivity,
+    mockMemberPage,
     mockUserDetail,
-    mockUserSessions
+    mockUserSessions,
+    spyRevokeAllSessions
 } from '../support/api/userDetail';
 
 /** Alan — the roster's one pending invite, the only member Revoke applies to. */
@@ -19,17 +20,17 @@ const PENDING_MEMBER = DEFAULT_MEMBERS.filter(
     (member) => member.status === 'pending'
 )[0];
 
-/** Grace — an ordinary active member, so no guardrail blocks Disable. */
+/** Grace — an ordinary active member, so no guardrail blocks Suspend. */
 const ACTIVE_MEMBER = DEFAULT_MEMBERS.find(
     (member) => member.id === 'u_grace'
 )!;
 
-/** Ada — the sole active admin, so the guardrail vetoes disabling her. */
+/** Ada — the sole active admin, so the guardrail vetoes suspending her. */
 const LAST_ADMIN = DEFAULT_MEMBERS.find((member) => member.isLastAdmin)!;
 
 /** The reason the sole-admin guardrail gives, verbatim. */
 const LAST_ADMIN_REASON =
-    'The last remaining admin cannot be disabled. Promote another member to admin first.';
+    'Ada is the last admin — make someone else admin first.';
 
 /**
  * The row menu's two irreversible actions. Revoking **deletes** the pending
@@ -144,7 +145,7 @@ test.describe('Destructive member actions', () => {
         await expect(page.locator('body:focus')).toHaveCount(0);
     });
 
-    test('confirms before disabling a member, naming them', async ({
+    test('confirms before suspending a member, naming them', async ({
         membersPage,
         page
     }) => {
@@ -152,14 +153,14 @@ test.describe('Destructive member actions', () => {
         await membersPage.goto();
 
         await membersPage.openActions(ACTIVE_MEMBER.name!);
-        await membersPage.menuItem('Disable').click();
+        await membersPage.menuItem('Suspend').click();
 
         await expect(
-            membersPage.confirmTitle(`Disable ${ACTIVE_MEMBER.name}?`)
+            membersPage.confirmTitle(`Suspend ${ACTIVE_MEMBER.name}?`)
         ).toBeVisible();
         expect(status.disabled).toBe(0);
 
-        await membersPage.confirmAction('Disable').click();
+        await membersPage.confirmAction('Suspend member').click();
         await expect.poll(() => status.disabled).toBe(1);
     });
 
@@ -171,18 +172,18 @@ test.describe('Destructive member actions', () => {
         await membersPage.goto();
 
         await membersPage.openActions(ACTIVE_MEMBER.name!);
-        await membersPage.menuItem('Disable').click();
-        await membersPage.confirmAction('Disable').click();
+        await membersPage.menuItem('Suspend').click();
+        await membersPage.confirmAction('Suspend member').click();
         await expect(membersPage.confirmDialog()).toHaveCount(0);
 
-        // Disabling only flips the status pill, so the kebab is still mounted
+        // Suspending only flips the status badge, so the kebab is still mounted
         // and is where the user was.
         await expect(
             membersPage.actionsTrigger(ACTIVE_MEMBER.name!)
         ).toBeFocused();
     });
 
-    test('leaves the sole admin’s Disable inert, with the reason on it [users:I-16]', async ({
+    test('leaves the sole admin’s Suspend and Change role inert, with the reason written inline [users:I-16]', async ({
         membersPage,
         page
     }) => {
@@ -195,17 +196,20 @@ test.describe('Destructive member actions', () => {
         await membersPage.goto();
 
         await membersPage.openActions(LAST_ADMIN.name!);
-        const disable = membersPage.menuItem('Disable');
+        const disable = membersPage.menuItem('Suspend');
+        const changeRole = membersPage.menuItem('Change role');
 
-        // Radix's real `disabled` would suppress the pointer and focus events a
-        // tooltip needs, so the item is inert by `aria-disabled` instead. That
-        // flag is not decorative: it is what makes the item unclickable to every
-        // caller that honours ARIA, Playwright included — an ordinary `click()`
-        // here times out rather than firing.
+        // Radix's real `disabled` would skip the item in keyboard navigation,
+        // so it is inert by `aria-disabled` instead — still reachable, so the
+        // reason can be heard. That flag is what makes the item unclickable to
+        // every caller that honours ARIA, Playwright included.
         await expect(disable).toBeDisabled();
-        // The reason rides along as the item's description, so a screen-reader
-        // user hears it; the tooltip alone would be visual only.
-        await expect(disable).toContainText(LAST_ADMIN_REASON);
+        await expect(changeRole).toBeDisabled();
+        // The reason is written in the menu, not a hover-only tooltip, and it
+        // is each item's description — written once, shared by both.
+        await expect(membersPage.menuReason(LAST_ADMIN_REASON)).toBeVisible();
+        await expect(disable).toHaveAccessibleDescription(LAST_ADMIN_REASON);
+        await expect(changeRole).toHaveAccessibleDescription(LAST_ADMIN_REASON);
 
         // Force past the actionability check to prove the second guard too:
         // Radix still delivers `onSelect`, and the handler's `preventDefault()`
@@ -216,7 +220,7 @@ test.describe('Destructive member actions', () => {
         expect(status.disabled).toBe(0);
     });
 
-    test('puts focus back on the kebab when the disable fails', async ({
+    test('puts focus back on the kebab when the suspend fails', async ({
         membersPage,
         page
     }) => {
@@ -230,8 +234,8 @@ test.describe('Destructive member actions', () => {
         await membersPage.goto();
 
         await membersPage.openActions(ACTIVE_MEMBER.name!);
-        await membersPage.menuItem('Disable').click();
-        await membersPage.confirmAction('Disable').click();
+        await membersPage.menuItem('Suspend').click();
+        await membersPage.confirmAction('Suspend member').click();
 
         await expect(
             membersPage.toast('Something went wrong. Please try again.')
@@ -251,7 +255,7 @@ test.describe('Destructive member actions', () => {
     }) => {
         // The menu groups navigation and actions under separate headings, and
         // arrow keys have to cross those group boundaries — a keyboard user who
-        // cannot reach the last item cannot disable anyone.
+        // cannot reach the last item cannot suspend anyone.
         await membersPage.goto();
         await membersPage.actionsTrigger(ACTIVE_MEMBER.name!).focus();
         await page.keyboard.press('Enter');
@@ -275,7 +279,7 @@ test.describe('Destructive member actions', () => {
         ).toBeFocused();
     });
 
-    test('returns focus to the sessions card once a revoked card unmounts', async ({
+    test('returns focus to the sessions card once a revoked row unmounts', async ({
         userDetailPage,
         page
     }) => {
@@ -285,11 +289,11 @@ test.describe('Destructive member actions', () => {
         // header instead.
         await mockWorkspaces(page);
         await mockUserDetail(page);
-        await mockEmptyActivity(page);
+        await mockMemberPage(page);
         const sessions = await mockUserSessions(page);
 
         await userDetailPage.goto('u_grace');
-        await userDetailPage.openTab('Sessions');
+        await userDetailPage.openTab('Sessions & access');
         await page
             .getByRole('button', {
                 name: /Revoke the session on Chrome on macOS/
@@ -361,5 +365,31 @@ test.describe('Destructive member actions', () => {
 
         // Captured, so there is nothing left to lose — no second prompt.
         await expect(membersPage.inviteLinkDialog()).toHaveCount(0);
+    });
+
+    test('signs a member out everywhere from the row, behind a confirm', async ({
+        membersPage,
+        page
+    }) => {
+        const revokeAll = await spyRevokeAllSessions(page, 2);
+        await membersPage.goto();
+
+        await membersPage.openActions(ACTIVE_MEMBER.name!);
+        await membersPage.menuItem('Sign out everywhere').click();
+        await expect(
+            membersPage.confirmTitle(
+                `Sign ${ACTIVE_MEMBER.name} out everywhere?`
+            )
+        ).toBeVisible();
+        expect(revokeAll.count).toBe(0);
+
+        await membersPage.confirmAction('Sign out everywhere').click();
+        await expect.poll(() => revokeAll.count).toBe(1);
+        await expect(
+            membersPage.toast(`Signed ${ACTIVE_MEMBER.name} out of 2 sessions.`)
+        ).toBeVisible();
+        await expect(
+            membersPage.actionsTrigger(ACTIVE_MEMBER.name!)
+        ).toBeFocused();
     });
 });

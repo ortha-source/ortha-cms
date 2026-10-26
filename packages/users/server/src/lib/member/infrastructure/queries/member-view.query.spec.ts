@@ -68,14 +68,34 @@ describe('MemberViewQuery', () => {
         row?: Row | null;
         adminCount?: number;
         captured?: Captured;
+        lastActive?: { userId: string; lastActiveAt: Date | string | null }[];
+        counts?: Record<string, number | string>;
     }): Database {
-        const { row = null, adminCount = 1, captured = {} } = options;
+        const {
+            row = null,
+            adminCount = 1,
+            captured = {},
+            lastActive = [],
+            counts = {
+                everyone: 7,
+                active: 5,
+                admins: 2,
+                invited: 1,
+                disabled: 1
+            }
+        } = options;
 
         const select = (fields: Record<string, unknown>) => {
             let joined = false;
             let table: unknown;
 
             const resolve = async (): Promise<unknown[]> => {
+                if ('everyone' in fields) {
+                    return [counts];
+                }
+                if ('lastActiveAt' in fields) {
+                    return lastActive;
+                }
                 if ('total' in fields) {
                     // The list's own count has no join; the active-admin count
                     // joins `roles` to filter on the key.
@@ -103,6 +123,7 @@ describe('MemberViewQuery', () => {
                     return chain;
                 },
                 orderBy: () => chain,
+                groupBy: () => chain,
                 limit: () => chain,
                 offset: () => chain,
                 then: (
@@ -156,6 +177,81 @@ describe('MemberViewQuery', () => {
             const query = new MemberViewQuery(dbDouble({ row: null }));
 
             expect(await query.byId(MEMBER_ID)).toBeNull();
+        });
+    });
+
+    describe('lastActiveAt', () => {
+        it('is the newest session use, as a Date', async () => {
+            const query = new MemberViewQuery(
+                dbDouble({
+                    row: memberRow(),
+                    lastActive: [
+                        {
+                            userId: MEMBER_ID,
+                            // pg hands `max(timestamptz)` back as a string
+                            // when it is an aggregate rather than a column.
+                            lastActiveAt: '2026-10-20T09:30:00.000Z'
+                        }
+                    ]
+                })
+            );
+
+            const view = await query.byId(MEMBER_ID);
+
+            expect(view?.lastActiveAt).toEqual(
+                new Date('2026-10-20T09:30:00.000Z')
+            );
+        });
+
+        it('is null for someone who never signed in', async () => {
+            const query = new MemberViewQuery(
+                dbDouble({ row: memberRow({ status: 'pending' }) })
+            );
+
+            const view = await query.byId(MEMBER_ID);
+
+            expect(view?.lastActiveAt).toBeNull();
+        });
+    });
+
+    describe('counts', () => {
+        it('rides on every list page, coerced to numbers', async () => {
+            const query = new MemberViewQuery(
+                dbDouble({
+                    row: memberRow(),
+                    // `count(*) filter (…)` arrives as a string from pg.
+                    counts: {
+                        everyone: '7',
+                        active: '5',
+                        admins: '2',
+                        invited: '1',
+                        disabled: '1'
+                    }
+                })
+            );
+
+            const page = await query.list({} as ListMembersQueryDto);
+
+            expect(page.counts).toEqual({
+                everyone: 7,
+                active: 5,
+                admins: 2,
+                invited: 1,
+                disabled: 1
+            });
+        });
+    });
+
+    describe('role filter', () => {
+        it('narrows the list by role key', async () => {
+            const captured: Captured = {};
+            const query = new MemberViewQuery(
+                dbDouble({ row: memberRow(), captured })
+            );
+
+            await query.list({ role: 'admin' } as ListMembersQueryDto);
+
+            expect(paramsOf(captured.listWhere)).toContain('admin');
         });
     });
 

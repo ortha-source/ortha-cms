@@ -54,6 +54,7 @@ describe('UpdateMemberUseCase', () => {
                 return options.activeAdmins ?? 5;
             },
             existsByEmail: async () => false,
+            takenEmails: async () => [],
             save: async (aggregate) => {
                 trace.push('save');
                 saved.push(aggregate);

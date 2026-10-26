@@ -50,6 +50,7 @@ describe('GET /api/users', () => {
         const res = await agent.get('/api/users').expect(200);
 
         expect(Object.keys(res.body).sort()).toEqual([
+            'counts',
             'items',
             'page',
             'pageSize',
@@ -64,6 +65,7 @@ describe('GET /api/users', () => {
             'email',
             'id',
             'isLastAdmin',
+            'lastActiveAt',
             'name',
             'role',
             'status',

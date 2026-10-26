@@ -3,7 +3,9 @@ import type {
     Member,
     MemberList,
     MemberRole,
-    MemberWithResetToken
+    MemberSignIn,
+    MemberWithResetToken,
+    RoleCatalogEntry
 } from '../../domain/types/member';
 import type { UserSession } from '../../domain/types/session';
 import type { WorkspaceOption } from '../../domain/types/workspaceOption';
@@ -18,6 +20,16 @@ export type InviteMemberInput = {
     /** Optional display name (the invitee can set their own on accept). */
     name?: string;
     /** Workspaces to grant the new member access to (optional). */
+    workspaceIds?: string[];
+};
+
+/** The shape the invite sheet submits: several addresses, one role. */
+export type InviteMembersInput = {
+    /** The invitees' addresses (lower-cased, de-duplicated). */
+    emails: string[];
+    /** The global role every invitee is granted on acceptance. */
+    role: MemberRole;
+    /** Workspaces every invitee joins (optional). */
     workspaceIds?: string[];
 };
 
@@ -84,6 +96,27 @@ export type MemberGateway = {
      * mail provider sent the link instead.
      */
     invite(input: InviteMemberInput): Promise<InvitedMember>;
+    /**
+     * Invites several people via `POST /api/users/invites/batch`,
+     * all-or-nothing. A `409` (`EMAIL_TAKEN`) carries every colliding address
+     * in its `emails`, and nobody was invited.
+     */
+    inviteMany(input: InviteMembersInput): Promise<InvitedMember[]>;
+    /**
+     * Which of `emails` already belong to members — `GET /api/users` with an
+     * `email in […]` filter, so the invite sheet can flag a chip before the
+     * admin presses Send. Answers lower-cased addresses.
+     */
+    existingEmails(emails: readonly string[]): Promise<string[]>;
+    /** The assignable roles and their grants via `GET /api/users/roles`. */
+    listRoles(): Promise<RoleCatalogEntry[]>;
+    /** How a member signs in via `GET /api/users/:id/sign-in`. */
+    getSignIn(id: string): Promise<MemberSignIn>;
+    /**
+     * Signs a member out of every device via `DELETE /api/users/:id/sessions`
+     * (the caller's own session survives), resolving with how many ended.
+     */
+    revokeAllSessions(id: string): Promise<number>;
     /**
      * Rotates a pending invite via `POST /api/users/:id/invites/resend`,
      * resolving with the member and the fresh token. Rotating kills the

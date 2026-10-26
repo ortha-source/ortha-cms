@@ -12,7 +12,10 @@ function scannedDocument(): OpenApiDocument {
         paths: {
             '/api/users': { get: scanned('200') },
             '/api/users/invites': { post: scanned('201') },
+            '/api/users/invites/batch': { post: scanned('201') },
+            '/api/users/roles': { get: scanned('200') },
             '/api/users/{id}': { get: scanned('200'), patch: scanned('200') },
+            '/api/users/{id}/sign-in': { get: scanned('200') },
             '/api/users/{id}/disable': { post: scanned('201') },
             '/api/users/{id}/enable': { post: scanned('201') },
             '/api/users/{id}/invites': { delete: scanned('204') },
@@ -57,7 +60,11 @@ describe('describeUsersApi', () => {
                 'MemberWorkspace',
                 'MemberPage',
                 'InvitedMember',
-                'PasswordResetMember'
+                'PasswordResetMember',
+                'MemberCounts',
+                'InvitedMemberBatch',
+                'RoleCatalog',
+                'MemberSignIn'
             ])
         );
     });
@@ -81,6 +88,21 @@ describe('describeUsersApi', () => {
         expect(
             successSchema(document, '/api/users/{id}/enable', 'post')
         ).toEqual({ $ref: '#/components/schemas/Member' });
+    });
+
+    it('describes the batch invite, the role catalogue and the sign-in summary', () => {
+        const document = scannedDocument();
+        describeUsersApi(document);
+
+        expect(
+            successSchema(document, '/api/users/invites/batch', 'post')
+        ).toEqual({ $ref: '#/components/schemas/InvitedMemberBatch' });
+        expect(successSchema(document, '/api/users/roles', 'get')).toEqual({
+            $ref: '#/components/schemas/RoleCatalog'
+        });
+        expect(
+            successSchema(document, '/api/users/{id}/sign-in', 'get')
+        ).toEqual({ $ref: '#/components/schemas/MemberSignIn' });
     });
 
     it('gives the two token-revealing routes their own schemas', () => {

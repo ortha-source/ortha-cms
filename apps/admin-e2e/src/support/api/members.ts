@@ -11,7 +11,7 @@ interface RoleSeed {
  * A member's workspace as the API returns it (server `MemberWorkspaceView`).
  *
  * `description` is on the wire and **required** — `memberMapper` reads
- * `dto.description` and `WorkspaceMembershipCard` renders it behind a
+ * `dto.description` and `WorkspaceMembershipRow` renders it behind a
  * truthiness check. It was missing here, so every suite saw `undefined`, the
  * card's description line never rendered, and nothing in the repo would have
  * noticed the server dropping the field. `null` is the real "none" value, not
@@ -34,9 +34,24 @@ export interface MemberSeed {
     createdAt: string;
     isLastAdmin: boolean;
     workspaces: WorkspaceSeed[];
+    /**
+     * The newest session use (ISO), or `null` for someone who never signed
+     * in. Optional so a suite's ad-hoc seed can leave it out — the admin reads
+     * a missing value as "never".
+     */
+    lastActiveAt?: string | null;
 }
 
 const TIMESTAMP = '2026-01-01T00:00:00.000Z';
+
+/**
+ * A timestamp `minutesAgo` before now. "Last active" is read relative to the
+ * browser's clock, so a seed that wants "12 min ago" on screen has to be
+ * relative too.
+ */
+export function minutesAgo(minutes: number): string {
+    return new Date(Date.now() - minutes * 60_000).toISOString();
+}
 
 const ROLES: Record<string, RoleSeed> = {
     admin: { id: 'role_admin', key: 'admin', name: 'Administrator' },
@@ -63,6 +78,7 @@ export const DEFAULT_MEMBERS: MemberSeed[] = [
         status: 'active',
         createdAt: TIMESTAMP,
         isLastAdmin: true,
+        lastActiveAt: minutesAgo(12),
         // One described and one not, so the card's two branches are both
         // reachable from the default seed rather than only the empty one.
         workspaces: [
@@ -89,6 +105,7 @@ export const DEFAULT_MEMBERS: MemberSeed[] = [
         status: 'active',
         createdAt: TIMESTAMP,
         isLastAdmin: false,
+        lastActiveAt: minutesAgo(60),
         workspaces: [
             {
                 id: 'ws_docs',
@@ -107,7 +124,8 @@ export const DEFAULT_MEMBERS: MemberSeed[] = [
         status: 'pending',
         createdAt: TIMESTAMP,
         isLastAdmin: false,
-        workspaces: []
+        workspaces: [],
+        lastActiveAt: null
     },
     {
         id: 'u_katherine',
@@ -117,7 +135,8 @@ export const DEFAULT_MEMBERS: MemberSeed[] = [
         status: 'disabled',
         createdAt: TIMESTAMP,
         isLastAdmin: false,
-        workspaces: []
+        workspaces: [],
+        lastActiveAt: '2025-09-30T12:00:00.000Z'
     }
 ];
 
@@ -135,10 +154,12 @@ export function manyMembers(count: number): MemberSeed[] {
     }));
 }
 
-/** Reads `search`/`filter`/`page`/`pageSize` from the intercepted request URL. */
+/** Reads the list query's parameters from the intercepted request URL. */
 function paramsOf(route: Route): {
     search: string;
     filter: string;
+    status: string;
+    role: string;
     page: number;
     pageSize: number;
 } {
@@ -146,8 +167,25 @@ function paramsOf(route: Route): {
     return {
         search: (url.searchParams.get('search') ?? '').trim().toLowerCase(),
         filter: url.searchParams.get('filter') ?? '',
+        status: url.searchParams.get('status') ?? '',
+        role: url.searchParams.get('role') ?? '',
         page: Number(url.searchParams.get('page') ?? '1'),
         pageSize: Number(url.searchParams.get('pageSize') ?? '10')
+    };
+}
+
+/**
+ * The directory-wide head counts the server returns beside every page —
+ * computed over the **whole** roster, never the filtered page, exactly as the
+ * server does.
+ */
+export function countsOf(members: MemberSeed[]) {
+    return {
+        everyone: members.length,
+        active: members.filter((m) => m.status === 'active').length,
+        admins: members.filter((m) => m.role.key === 'admin').length,
+        invited: members.filter((m) => m.status === 'pending').length,
+        disabled: members.filter((m) => m.status === 'disabled').length
     };
 }
 
@@ -258,16 +296,24 @@ export async function mockMembers(
             });
             return;
         }
-        const { search, filter, page: pageNum, pageSize } = paramsOf(route);
-        const searched = search
-            ? members.filter(
-                  (m) =>
-                      (m.name ?? '').toLowerCase().includes(search) ||
-                      m.email.toLowerCase().includes(search)
-              )
-            : members;
-        // The query-builder `?filter=` intersects with `search`, mirroring the
-        // server's AND composition.
+        const {
+            search,
+            filter,
+            status: statusParam,
+            role,
+            page: pageNum,
+            pageSize
+        } = paramsOf(route);
+        const searched = members.filter(
+            (m) =>
+                (!search ||
+                    (m.name ?? '').toLowerCase().includes(search) ||
+                    m.email.toLowerCase().includes(search)) &&
+                (!statusParam || m.status === statusParam) &&
+                (!role || m.role.key === role)
+        );
+        // The query-builder `?filter=` intersects with `search`, `status` and
+        // `role`, mirroring the server's AND composition.
         const matched = applyFilter(searched, filter);
         const start = (pageNum - 1) * pageSize;
         const items = matched.slice(start, start + pageSize);
@@ -279,7 +325,8 @@ export async function mockMembers(
                 items,
                 total: matched.length,
                 page: pageNum,
-                pageSize
+                pageSize,
+                counts: countsOf(members)
             })
         });
     });
@@ -452,6 +499,117 @@ export async function spySetMemberStatus(
         },
         get enabled() {
             return enabled;
+        }
+    };
+}
+
+/** What {@link spyInviteMany} recorded. */
+export interface InviteManySpy {
+    /** How many `POST /api/users/invites/batch` requests were answered. */
+    readonly count: number;
+    /** The bodies posted, in order. */
+    readonly bodies: {
+        emails: string[];
+        role: string;
+        workspaceIds?: string[];
+    }[];
+}
+
+/**
+ * Stub `POST /api/users/invites/batch` — the invite page's submit. Echoes one
+ * pending member per address, each with its own one-time token
+ * (`tok_<local part>`) and an expiry seven days out, unless `mailed` is set:
+ * then, like a server with a mail provider, no token comes back at all.
+ *
+ * Pass `taken` to answer the way the server does when some of the addresses
+ * already belong to members — an all-or-nothing `409 EMAIL_TAKEN` naming every
+ * one of them, with nobody invited. `delayMs` holds the request open so a test
+ * can observe the pending button.
+ */
+export async function spyInviteMany(
+    page: Page,
+    {
+        taken = [],
+        mailed = false,
+        status = 201,
+        delayMs
+    }: {
+        taken?: string[];
+        mailed?: boolean;
+        status?: number;
+        delayMs?: number;
+    } = {}
+): Promise<InviteManySpy> {
+    let count = 0;
+    const bodies: InviteManySpy['bodies'] = [];
+    await page.route('**/api/users/invites/batch', async (route) => {
+        if (route.request().method() !== 'POST') {
+            await route.fallback();
+            return;
+        }
+        count += 1;
+        const body = JSON.parse(route.request().postData() ?? '{}');
+        bodies.push(body);
+        if (delayMs) {
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
+        }
+        const collisions = (body.emails as string[]).filter((email) =>
+            taken.includes(email)
+        );
+        if (collisions.length > 0) {
+            await route.fulfill({
+                status: 409,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    statusCode: 409,
+                    error: 'Conflict',
+                    message:
+                        'Some of these addresses already belong to members',
+                    code: 'EMAIL_TAKEN',
+                    emails: collisions
+                })
+            });
+            return;
+        }
+        if (status >= 400) {
+            await route.fulfill({
+                status,
+                contentType: 'application/json',
+                body: JSON.stringify({ statusCode: status, message: 'Nope' })
+            });
+            return;
+        }
+        const expires = new Date(
+            Date.now() + 7 * 24 * 60 * 60 * 1000
+        ).toISOString();
+        await route.fulfill({
+            status: 201,
+            contentType: 'application/json',
+            body: JSON.stringify({
+                items: (body.emails as string[]).map((email, index) => ({
+                    id: `u_new_${index}`,
+                    email,
+                    name: null,
+                    role: ROLES[body.role] ?? ROLES.viewer,
+                    status: 'pending',
+                    createdAt: new Date().toISOString(),
+                    isLastAdmin: false,
+                    workspaces: [],
+                    lastActiveAt: null,
+                    inviteExpiresAt: expires,
+                    ...(mailed
+                        ? {}
+                        : { inviteToken: `tok_${email.split('@')[0]}` })
+                }))
+            })
+        });
+    });
+    return {
+        get count() {
+            return count;
+        },
+        get bodies() {
+            return bodies;
         }
     };
 }

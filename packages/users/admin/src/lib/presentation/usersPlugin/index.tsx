@@ -8,7 +8,7 @@ import {
 } from '@orthacms/shell-admin';
 import { Users } from 'lucide-react';
 import {
-    InviteMemberPageSkeleton,
+    InviteMembersPageSkeleton,
     MembersPageSkeleton
 } from '../components/MembersSkeleton';
 import { AccountMenu } from '../components/AccountMenu';
@@ -24,9 +24,9 @@ const MembersPage = lazyPage(
     'MembersPage'
 );
 
-const InviteMemberPage = lazyPage(
-    () => import('../pages/InviteMemberPage'),
-    'InviteMemberPage'
+const InviteMembersPage = lazyPage(
+    () => import('../pages/InviteMembersPage'),
+    'InviteMembersPage'
 );
 
 // The detail page (its nested tab router) is its own chunk, likewise.
@@ -46,6 +46,8 @@ export type UsersAdminPlugin = AdminPlugin;
  * private routes — `/users` (the Members page), `/users/invite` (the invite
  * wizard) and `/users/:id/*` (the member card's own nested router) — rendered
  * inside the shell's authenticated layout.
+ *
+ * `/users/invite` is the invite page: the form, then a link per person.
  *
  * It contributes to two slots. The nav entry goes to {@link SIDEBAR_NAV_SLOT}
  * with `group: 'directory'`, `order: 20` and `permission: 'users:read'` —
@@ -84,14 +86,14 @@ export function UsersPlugin(): UsersAdminPlugin {
             {
                 path: '/users/invite',
                 element: (
-                    <Suspense fallback={<InviteMemberPageSkeleton />}>
-                        <InviteMemberPage />
+                    <Suspense fallback={<InviteMembersPageSkeleton />}>
+                        <InviteMembersPage />
                     </Suspense>
                 )
             },
             {
                 // Splat so the detail page owns its nested tab routes
-                // (`general`, `roles`, …). `/users/invite` outranks `/users/:id`
+                // (`overview`, `access`, …). `/users/invite` outranks `/users/:id`
                 // in the router, so the static invite route is unaffected.
                 path: '/users/:id/*',
                 element: (

@@ -42,17 +42,19 @@ export class InviteMemberController {
         @Body() body: InviteMemberDto
     ): Promise<InvitedMemberView> {
         try {
-            const { id, inviteToken } = await this.inviteMember.execute(
-                actor,
-                body
-            );
+            const { id, inviteToken, expiresAt } =
+                await this.inviteMember.execute(actor, body);
             const view = await this.views.byId(id);
             if (!view) {
                 throw new NotFoundException();
             }
             // Absent rather than null when a mailer has it: a client reading
             // the field blindly should fail, not build a link to `undefined`.
-            return { ...view, ...(inviteToken ? { inviteToken } : {}) };
+            return {
+                ...view,
+                ...(inviteToken ? { inviteToken } : {}),
+                inviteExpiresAt: expiresAt
+            };
         } catch (error) {
             if (error instanceof EmailTakenError) {
                 throw conflict(

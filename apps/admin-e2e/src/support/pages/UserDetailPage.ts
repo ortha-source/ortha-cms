@@ -11,18 +11,18 @@ import { BasePage } from './BasePage';
 export class UserDetailPage extends BasePage {
     /** The shell's primary nav — proof the gated layout wrapped the page. */
     readonly nav: Locator;
-    /** The detail side rail (its own `nav` landmark). */
+    /** The member page's tab bar (its own `nav` landmark). */
     readonly rail: Locator;
 
     constructor(page: Page) {
         super(page);
         this.nav = page.getByRole('navigation', { name: 'Primary' });
         this.rail = page.getByRole('navigation', {
-            name: 'User detail sections'
+            name: 'Member sections'
         });
     }
 
-    /** Open a member's detail page directly (defaults to the General tab). */
+    /** Open a member's page directly (it opens on the Overview tab). */
     async goto(id: string) {
         await this.page.goto(`/users/${id}`);
     }
@@ -42,9 +42,9 @@ export class UserDetailPage extends BasePage {
         return this.page.getByRole('heading', { name, level: 1 });
     }
 
-    /** A side-rail tab link, by its visible label (e.g. "Sessions"). */
+    /** A tab link, by its visible label (e.g. "Sessions & access"). */
     tab(label: string): Locator {
-        return this.rail.getByRole('link', { name: label });
+        return this.rail.getByRole('link', { name: label, exact: true });
     }
 
     /** Open a tab by label. */
@@ -52,12 +52,12 @@ export class UserDetailPage extends BasePage {
         await this.tab(label).click();
     }
 
-    /** The General tab's full-name input. */
+    /** The Overview's full-name input. */
     nameInput(): Locator {
         return this.page.getByLabel('Full name');
     }
 
-    /** The General tab's "Save changes" button. */
+    /** The Overview's "Save changes" button (shown once the name is edited). */
     saveButton(): Locator {
         return this.page.getByRole('button', { name: 'Save changes' });
     }
@@ -83,14 +83,34 @@ export class UserDetailPage extends BasePage {
     }
 
     /**
-     * The Sessions card's header — the anchor the tab hands focus back to when
-     * a revoked card unmounts. It is a `div` with `tabIndex={-1}` rather than a
-     * heading element, so it is located by the copy it carries.
+     * The Sessions card's heading — the anchor the tab hands focus back to
+     * when a revoked row unmounts (`tabIndex={-1}`).
      */
     sessionsCardHeader(): Locator {
-        return this.page
-            .locator('div[tabindex="-1"]')
-            .filter({ hasText: 'Devices currently signed in as this member.' });
+        return this.page.getByRole('heading', {
+            name: 'Sessions',
+            level: 2
+        });
+    }
+
+    /** A card on the page — a region named by its `<h2>` title. */
+    card(title: string | RegExp): Locator {
+        return this.page.getByRole('region', { name: title, exact: true });
+    }
+
+    /** The header's "Change role" button. */
+    changeRoleButton(): Locator {
+        return this.page.getByRole('button', { name: 'Change role' });
+    }
+
+    /** The header's `⋯` menu trigger. */
+    moreActions(name: string): Locator {
+        return this.page.getByRole('button', { name: `Actions for ${name}` });
+    }
+
+    /** The Sessions card's "Sign out everywhere". */
+    signOutEverywhere(): Locator {
+        return this.page.getByRole('button', { name: 'Sign out everywhere' });
     }
 
     /** A confirm-dialog button by label (e.g. "Revoke", "Suspend member"). */
@@ -100,7 +120,7 @@ export class UserDetailPage extends BasePage {
             .getByRole('button', { name: label });
     }
 
-    // --- Access tab: sign-in access + the password reset link ---
+    // --- Sessions & access tab: sessions, the password link, suspend ---
 
     /**
      * The sign-in access card's one action, whichever direction it is offering.
@@ -124,26 +144,31 @@ export class UserDetailPage extends BasePage {
         return this.page.getByText(text, exact ? { exact: true } : undefined);
     }
 
-    /** The Access tab's "Generate reset link" button. */
+    /** The Password card's "Generate reset link" button. */
     generateResetLink(): Locator {
         return this.page.getByRole('button', {
             name: /Generate reset link|Generating reset link/
         });
     }
 
-    /** The reveal-once dialog that shows the minted reset link. */
+    /** The reveal-once dialog the row menu's "Password reset link" opens. */
     resetLinkDialog(): Locator {
         return this.page.getByRole('dialog');
     }
 
-    /** The read-only link field inside the reveal dialog, by the member's email. */
+    /**
+     * The read-only reset link field, by the member's email — inline on the
+     * Password card, or inside the row menu's dialog.
+     */
     resetLinkField(email: string): Locator {
         return this.page.getByLabel(`Password reset link for ${email}`);
     }
 
-    /** The dialog's copy button. */
+    /** The Password card's inline copy button. */
     copyResetLink(): Locator {
-        return this.page.getByRole('button', { name: 'Copy link' });
+        return this.page.getByRole('button', {
+            name: 'Copy the password reset link'
+        });
     }
 
     /** The dialog's dismiss button (guarded until the link has been copied). */

@@ -6,11 +6,7 @@ import {
     mockWorkspaces
 } from '../support/api/workspaces';
 import { mockPreferences } from '../support/api/preferences';
-import {
-    mockEmptyActivity,
-    mockUserDetail,
-    mockUserSessions
-} from '../support/api/userDetail';
+import { mockMemberPage, mockUserDetail } from '../support/api/userDetail';
 import { expectNoA11yViolations } from '../support/a11y';
 
 /**
@@ -32,8 +28,7 @@ test.describe('User preferences (theme)', () => {
         await mockSignedIn(page, SELF);
         await mockMembers(page);
         await mockWorkspaces(page);
-        await mockEmptyActivity(page);
-        await mockUserSessions(page);
+        await mockMemberPage(page);
         await mockUserDetail(page);
     });
 
@@ -60,8 +55,8 @@ test.describe('User preferences (theme)', () => {
         await mockPreferences(page);
         await page.goto('/users/u_grace/preferences');
 
-        // Self-only route → falls back to that member's General tab.
-        await expect(page).toHaveURL(/\/users\/u_grace\/general/);
+        // Self-only route → falls back to that member's Overview.
+        await expect(page).toHaveURL(/\/users\/u_grace\/overview/);
         await expect(userDetailPage.nameInput()).toHaveValue('Grace Hopper');
     });
 
@@ -133,7 +128,7 @@ test.describe('User preferences (theme)', () => {
         // scanned on a page dense with semantic surfaces (badges, buttons,
         // status pills) rather than the picker alone.
         await mockPreferences(page, { theme: 'dark' });
-        await page.goto('/users/u_ada/general');
+        await page.goto('/users/u_ada/overview');
         await expect.poll(() => userDetailPage.isDark()).toBe(true);
         // `.dark` only means ThemeSync's own request came back — it says
         // nothing about the member's. Those are two independent reads, and the
