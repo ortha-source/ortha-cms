@@ -1,8 +1,9 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { cn } from '@orthacms/design-system';
 import {
+    BarRows,
     WidgetCard,
     toneBackground,
+    type BarRowSpec,
     type ChartTone
 } from '@orthacms/insights-admin';
 import { useContentPipeline } from '../../../application/useContentInsights';
@@ -74,7 +75,7 @@ export function ContentPipelineWidget() {
         0
     );
 
-    const rows = types.map((type) => {
+    const rows: BarRowSpec[] = types.map((type) => {
         const modified = Math.min(type.modified ?? 0, type.drafts);
         const values = {
             published: type.published,
@@ -86,12 +87,11 @@ export function ContentPipelineWidget() {
             modified: messages.tipModified,
             drafts: messages.tipDrafts
         };
-        const total = type.published + type.drafts;
         return {
             id: type.name,
             label: type.label,
-            total,
-            values,
+            readout: intl.formatNumber(type.published + type.drafts),
+            detail: intl.formatMessage(messages.breakdown, values),
             segments: STATES.map((state) => ({
                 id: state.id,
                 value: values[state.id],
@@ -127,56 +127,7 @@ export function ContentPipelineWidget() {
             isEmpty={types.length === 0}
             skeletonRows={5}
         >
-            {/* Its own rows rather than the shared `BarRows`: a type reads
-                as name and total, one track whose filled length compares it
-                with the biggest type, and the breakdown in words. The
-                segments sit flush inside a single rounded fill, so the bar
-                reads as one quantity split three ways. */}
-            <ul className="flex flex-col gap-4">
-                {rows.map((row) => (
-                    <li key={row.id} className="flex flex-col gap-1.5">
-                        <div className="flex items-baseline justify-between gap-3 text-sm">
-                            <span className="truncate font-medium">
-                                {row.label}
-                            </span>
-                            <span className="shrink-0 tabular-nums">
-                                {intl.formatNumber(row.total)}
-                            </span>
-                        </div>
-                        <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                            <div
-                                role="img"
-                                aria-label={row.segments
-                                    .map((segment) => segment.label)
-                                    .join('. ')}
-                                className="flex h-full divide-x divide-background overflow-hidden rounded-full"
-                                style={{
-                                    width: `${max > 0 ? Math.max(2, (row.total / max) * 100) : 0}%`
-                                }}
-                            >
-                                {row.segments
-                                    .filter((segment) => segment.value > 0)
-                                    .map((segment) => (
-                                        <span
-                                            key={segment.id}
-                                            title={segment.label}
-                                            style={{
-                                                flexGrow: segment.value
-                                            }}
-                                            className={cn(
-                                                'h-full min-w-[3px] basis-0',
-                                                toneBackground(segment.tone)
-                                            )}
-                                        />
-                                    ))}
-                            </div>
-                        </div>
-                        <span className="text-xs tabular-nums text-muted-foreground">
-                            {intl.formatMessage(messages.breakdown, row.values)}
-                        </span>
-                    </li>
-                ))}
-            </ul>
+            <BarRows rows={rows} max={max} />
         </WidgetCard>
     );
 }
