@@ -103,17 +103,22 @@ inside the menu** and set as its description — never a hover-only tooltip.
 The member page's `⋯` is the same component (`variant="detail"`) minus what
 the page already shows.
 
-**The invite sheet** (`InviteMembersSheet`) is `/users/invite` — the roster
-page rendered with `inviting`, so Home's "Invite member" and bookmarks open
-it. Addresses are chips (`EmailChipsInput`, split by `Email.splitList`),
-one role (`RolePicker`), workspaces as tiles (+ "all workspaces"), and a Send
-that counts the invites. A malformed address or one that already belongs to a
-member (`useExistingEmails`: the ordinary list with an `email in […]` filter)
-is flagged on its chip and blocks Send; the server's batch `409 EMAIL_TAKEN`
-naming addresses lands in the same place. Then **a link per person**
-(`InviteMembersSent`), each with Copy; Done / Invite more / Esc ask first while
-any link is uncopied, and `useUnsavedChanges` covers navigation. With a
-mailer it is one line ("Emails sent to 2 people.").
+**The invite page** (`InviteMembersPage`, lazy, at `/users/invite`, with
+`InviteMembersPageSkeleton` as its fallback) sits in the app's ordinary frame:
+a `PageTopBar` reading "Members › Invite people" and a `ContainerHeader`; no
+roster renders behind it. Gated on `users:create` (otherwise it returns to
+`/users`). The form: addresses as chips (`EmailChipsInput`, split by
+`Email.splitList`), one role (`RolePicker`), workspaces as tiles
+(`InviteWorkspaceTiles`, + "all workspaces"), and Cancel / a Send that counts
+the invites. A malformed address or one that already belongs to a member
+(`useExistingEmails`: the ordinary list with an `email in […]` filter) is
+flagged on its chip and blocks Send; the server's batch `409 EMAIL_TAKEN`
+naming addresses lands in the same place. The page's **second state, on the
+same route**, is a link per person (`InviteMembersSent`), each with Copy.
+Leaving while any link is uncopied — Done, the breadcrumb, a reload — is held
+by the app-wide unsaved-changes guard (`useUnsavedChanges`); **Invite more**
+asks inline before resetting the form. With a mailer it is one line ("Emails
+sent to 2 people.").
 
 `UserDetailLayout` (`/users/:id/*`, via `UserDetailRouter`) fetches the member
 once and shares it through the Outlet context. The header (`UserHero`) is the
@@ -128,6 +133,10 @@ shown in place, and Suspend/Reactivate apart as the risky card) and
 **Activity** (`activity:read`). **Preferences** remains a fifth tab on your
 own page only. The old paths redirect: `general`/`roles` → `overview`,
 `sessions` → `access`. Cards are `MemberCard` — named regions with an `<h2>`.
+
+Callouts with a leading icon use `presentation/calloutAlert`'s classes on the
+design-system `Alert`: its default absolutely-positioned icon is tuned for an
+alert with a title and sits off-centre beside a bare one-line description.
 
 **The role dialog** shows what changes: the role cards, then a "What changes"
 table computed by `domain/roleChanges` from the server's grants
@@ -175,7 +184,7 @@ delivery channel** and the raw token comes back exactly once. Two surfaces exist
 for that one moment, both built on `InviteLinkPanel` (read-only link + copy
 button + a plain warning that whoever opens it becomes that person):
 
-- the invite sheet ends on a link per person instead of closing — leaving
+- the invite page ends on a link per person instead of redirecting — leaving
   before copying would mean resending;
 - **Resend invite** and **Copy invite link** open `InviteLinkDialog` with a
   rotated link: only the token's hash is stored, so "copy" can only mean a
@@ -257,8 +266,8 @@ and points at identity's `/identity/reset-password` route.
 ## Tests
 
 Component _behaviour_ lives in `apps/admin-e2e`, which drives a real browser —
-`src/users/` covers the roster and its quick filters, the invite sheet
-(`invite-sheet.spec.ts`), the member page's tabs and summaries, the role dialog
+`src/users/` covers the roster and its quick filters, the invite page
+(`invite-page.spec.ts`), the member page's tabs and summaries, the role dialog
 (`roles.spec.ts`), the destructive-action confirmations and the guardrails. The
 package's own `vitest` specs (`npx nx test @orthacms/users-admin`) hold the pure
 rules (mapper coercion, `MemberEntity` guardrails, query-key scoping, recency

@@ -1,4 +1,6 @@
 import { defineMessages, useIntl } from 'react-intl';
+import { Users } from 'lucide-react';
+import { PageTopBar } from '@orthacms/shell-admin';
 import {
     Container,
     Skeleton,
@@ -19,6 +21,18 @@ const messages = defineMessages({
     loading: {
         id: 'users.skeleton.loading',
         defaultMessage: 'Loading members…'
+    },
+    inviteHeading: {
+        id: 'users.skeleton.inviteHeading',
+        defaultMessage: 'Loading the invite form'
+    },
+    crumbMembers: {
+        id: 'users.invitePage.crumbMembers',
+        defaultMessage: 'Members'
+    },
+    inviteCrumb: {
+        id: 'users.inviteSheet.title',
+        defaultMessage: 'Invite people'
     }
 });
 
@@ -142,5 +156,59 @@ export function MembersPageSkeleton() {
 
             <MembersTableSkeleton />
         </Container>
+    );
+}
+
+/**
+ * The invite page's lazy-route fallback, in the page's own frame — the top
+ * bar's "Members › Invite people", a header, and the form card's sections — so
+ * nothing shifts when the chunk lands. Its `<h1>` names the loading state, as
+ * {@link MembersPageSkeleton}'s does.
+ */
+export function InviteMembersPageSkeleton() {
+    const intl = useIntl();
+
+    return (
+        <>
+            <PageTopBar
+                icon={Users}
+                iconClassName="bg-success-soft text-success-soft-foreground"
+                crumbs={[
+                    {
+                        key: 'members',
+                        label: intl.formatMessage(messages.crumbMembers),
+                        to: '/users'
+                    },
+                    {
+                        key: 'invite',
+                        label: intl.formatMessage(messages.inviteCrumb)
+                    }
+                ]}
+            />
+            <Container aria-busy="true" className="max-w-[720px]">
+                <h1 className="sr-only">
+                    {intl.formatMessage(messages.inviteHeading)}
+                </h1>
+                <div aria-hidden className="mb-5 flex flex-col gap-2">
+                    <Skeleton className="h-8 w-48" />
+                    <Skeleton className="h-4 w-80 max-w-full" />
+                </div>
+                <div
+                    aria-hidden
+                    className="flex flex-col gap-6 rounded-xl border p-6"
+                >
+                    <Skeleton className="h-16 w-full rounded-md" />
+                    <div className="flex flex-col gap-1.5">
+                        <Skeleton className="h-14 w-full rounded-lg" />
+                        <Skeleton className="h-14 w-full rounded-lg" />
+                        <Skeleton className="h-14 w-full rounded-lg" />
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                        <Skeleton className="h-10 rounded-lg" />
+                        <Skeleton className="h-10 rounded-lg" />
+                    </div>
+                </div>
+            </Container>
+        </>
     );
 }

@@ -7,7 +7,7 @@ import { mockMemberPage, mockUserDetail } from '../support/api/userDetail';
 
 /**
  * Accessibility scans (axe, WCAG 2.1 A/AA) of the Members page and its dynamic
- * states — the table, the invite sheet, a quick filter, the row menu (with
+ * states — the table, the invite page, a quick filter, the row menu (with
  * its inline guard reasons), the member page, and the no-access state. A regression guard, not a conformance claim.
  */
 test.describe('Members accessibility (axe, WCAG 2.1 A/AA)', () => {
@@ -31,7 +31,7 @@ test.describe('Members accessibility (axe, WCAG 2.1 A/AA)', () => {
         await expectNoA11yViolations(makeAxe());
     });
 
-    test('invite sheet — open', async ({ membersPage, page, makeAxe }) => {
+    test('invite page — form', async ({ membersPage, page, makeAxe }) => {
         await mockWorkspaces(page);
         await membersPage.goto();
         await membersPage.inviteButton.click();

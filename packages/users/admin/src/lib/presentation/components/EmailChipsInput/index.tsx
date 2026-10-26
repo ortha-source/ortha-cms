@@ -7,7 +7,7 @@ import {
 import { defineMessages, useIntl } from 'react-intl';
 import { X } from 'lucide-react';
 import { cn } from '@orthacms/design-system';
-import { Email } from '../../../../domain/value-objects/email';
+import { Email } from '../../../domain/value-objects/email';
 
 /** Intl descriptors for {@link EmailChipsInput}, co-located. */
 const messages = defineMessages({

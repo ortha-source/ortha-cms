@@ -1,9 +1,9 @@
 import { defineMessages, useIntl } from 'react-intl';
 import { Button, Checkbox, Skeleton, cn } from '@orthacms/design-system';
-import type { WorkspaceOption } from '../../../../domain/types/workspaceOption';
-import { MemberAvatar } from '../../MemberAvatar';
+import type { WorkspaceOption } from '../../../domain/types/workspaceOption';
+import { MemberAvatar } from '../MemberAvatar';
 
-/** Intl descriptors for {@link WorkspaceTiles}, co-located. */
+/** Intl descriptors for {@link InviteWorkspaceTiles}, co-located. */
 const messages = defineMessages({
     allHint: {
         id: 'users.inviteSheet.allWorkspacesHint',
@@ -34,7 +34,7 @@ const messages = defineMessages({
  * workspace that exists today. It says plainly that a workspace created later
  * is not included — access is by membership, so "all" is a snapshot.
  */
-export function WorkspaceTiles({
+export function InviteWorkspaceTiles({
     options,
     loading,
     failed,

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo } from 'react';
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { Plus, Users } from 'lucide-react';
 import { PageTopBar } from '@orthacms/shell-admin';
@@ -29,7 +29,6 @@ import { MEMBERS_RESULTS_ANCHOR_ID } from '../../membersResultsAnchor';
 import { MembersTable } from '../../components/MembersTable';
 import { MembersToolbar } from '../../components/MembersToolbar';
 import { MembersQuickFilters } from '../../components/MembersQuickFilters';
-import { InviteMembersSheet } from '../../components/InviteMembersSheet';
 import { MEMBERS_FILTER_FIELDS } from '../../membersFilterFields';
 import {
     QUICK_FILTER_PARAM,
@@ -79,18 +78,8 @@ const messages = defineMessages({
  * Gated on `users:read`: without it the page shows a no-access state and
  * fetches nothing (the server would refuse the request anyway).
  */
-export function MembersPage({
-    inviting = false
-}: {
-    /**
-     * Whether the invite sheet is open — the `/users/invite` route renders this
-     * page with it open, so Home's "Invite member" and a bookmark both land on
-     * the roster with the sheet over it.
-     */
-    inviting?: boolean;
-}) {
+export function MembersPage() {
     const intl = useIntl();
-    const location = useLocation();
     const [searchParams] = useSearchParams();
     // Names this route in the tab strip, the window list, the history
     // and a screen reader's window announcement. Every private route but
@@ -205,13 +194,7 @@ export function MembersPage({
         });
     };
 
-    // The sheet is a route (`/users/invite`), so it carries the list's query
-    // string both ways: closing it lands on the same filtered page it opened
-    // over.
-    const openInvite = () =>
-        navigate({ pathname: '/users/invite', search: location.search });
-    const closeInvite = () =>
-        navigate({ pathname: '/users', search: location.search });
+    const openInvite = () => navigate('/users/invite');
 
     return (
         <>
@@ -356,9 +339,6 @@ export function MembersPage({
                     )}
                 </div>
             </Container>
-            {inviting && canInvite ? (
-                <InviteMembersSheet onClose={closeInvite} />
-            ) : null}
         </>
     );
 }

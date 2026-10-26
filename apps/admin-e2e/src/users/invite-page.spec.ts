@@ -8,20 +8,20 @@ import {
 import { expectNoA11yViolations } from '../support/a11y';
 
 /**
- * The invite sheet (`/users/invite`, `@orthacms/users-admin`): several people
- * from one sheet — addresses as chips, one role, workspaces as tiles — then a
- * link per person. Backed by `spyInviteMany` (`POST /api/users/invites/batch`);
+ * The invite page (`/users/invite`, `@orthacms/users-admin`): several people
+ * from one form — addresses as chips, one role, workspaces as tiles — then, on
+ * the same route, a link per person. Backed by `spyInviteMany` (`POST /api/users/invites/batch`);
  * the "already a member" check reads the ordinary `GET /api/users` mock with an
  * `email in […]` filter.
  */
-test.describe('Invite sheet', () => {
+test.describe('Invite page', () => {
     test.beforeEach(async ({ page }) => {
         await mockSignedIn(page);
         await mockMembers(page);
         await mockWorkspaces(page);
     });
 
-    test('opens over the roster from the header, as its own route', async ({
+    test('opens as its own page from the header', async ({
         membersPage,
         page
     }) => {
@@ -29,19 +29,32 @@ test.describe('Invite sheet', () => {
         await membersPage.inviteButton.click();
 
         await expect(page).toHaveURL(/\/users\/invite$/);
-        await expect(membersPage.inviteSheet()).toBeVisible();
-        // The roster is still underneath — it is a sheet, not a page.
-        await expect(membersPage.heading).toBeAttached();
+        await expect(membersPage.inviteHeading()).toHaveText('Invite people');
+        await expect(
+            page
+                .getByRole('navigation', { name: 'Breadcrumb' })
+                .getByRole('link', { name: 'Members', exact: true })
+        ).toBeVisible();
+        // A page, not a sheet over the roster: the table is not rendered.
+        await expect(page.locator('table')).toHaveCount(0);
+        await expect(page.getByRole('dialog')).toHaveCount(0);
         // Contributor is the default role.
         await expect(membersPage.inviteRole('Contributor')).toBeChecked();
     });
 
-    test('a deep link to /users/invite opens the sheet', async ({
+    test('a deep link to /users/invite opens the page', async ({
         membersPage,
         page
     }) => {
         await page.goto('/users/invite');
-        await expect(membersPage.inviteSheet()).toBeVisible();
+        await expect(membersPage.inviteHeading()).toHaveText('Invite people');
+    });
+
+    test('Cancel goes back to the roster', async ({ membersPage, page }) => {
+        await page.goto('/users/invite');
+        await membersPage.pageButton('Cancel').click();
+        await expect(page).toHaveURL(/\/users$/);
+        await expect(membersPage.heading).toBeVisible();
     });
 
     test('turns a pasted list into one chip per address', async ({
@@ -155,7 +168,7 @@ test.describe('Invite sheet', () => {
             }
         ]);
         await expect(
-            membersPage.inviteSheet().getByText(/expire in 7 days/)
+            membersPage.invitePage().getByText(/expire in 7 days/)
         ).toBeVisible();
         await expect(membersPage.inviteLinkField('lena@growth.io')).toHaveValue(
             /\/identity\/accept-invite\?token=tok_lena$/
@@ -164,7 +177,7 @@ test.describe('Invite sheet', () => {
             /token=tok_sam$/
         );
         await expect(
-            membersPage.inviteSheet().getByText('Viewer · Marketing site')
+            membersPage.invitePage().getByText('Viewer · Marketing site')
         ).toHaveCount(2);
     });
 
@@ -214,18 +227,18 @@ test.describe('Invite sheet', () => {
         await membersPage.sendInvites().click();
 
         await expect(
-            membersPage.inviteSheet().getByText('Emails sent to 2 people.')
+            membersPage.invitePage().getByText('Emails sent to 2 people.')
         ).toBeVisible();
         await expect(membersPage.inviteLinkField('lena@growth.io')).toHaveCount(
             0
         );
-        // Nothing to lose, so Done just closes.
-        await membersPage.sheetButton('Done').click();
-        await expect(membersPage.inviteSheet()).toHaveCount(0);
+        // Nothing to lose, so Done just goes back.
+        await membersPage.pageButton('Done').click();
+        await expect(membersPage.leaveGuard()).toHaveCount(0);
         await expect(page).toHaveURL(/\/users$/);
     });
 
-    test('Done asks first while a link was never copied', async ({
+    test('leaving with a link never copied asks first', async ({
         membersPage,
         page
     }) => {
@@ -236,25 +249,37 @@ test.describe('Invite sheet', () => {
         await membersPage.sendInvites().click();
         await expect(membersPage.inviteSentHeading()).toBeVisible();
 
-        await membersPage.sheetButton('Done').click();
-        await expect(
-            membersPage.inviteSheet().getByText(/hasn’t been copied yet/)
-        ).toBeVisible();
-        // Esc is the same exit, and is held the same way.
-        await page.keyboard.press('Escape');
-        await expect(membersPage.inviteSheet()).toBeVisible();
-
-        await membersPage.sheetButton('Keep it open').click();
+        // Done is an ordinary navigation, held by the app-wide guard.
+        await membersPage.pageButton('Done').click();
+        await expect(membersPage.leaveGuard()).toBeVisible();
+        await membersPage
+            .leaveGuard()
+            .getByRole('button', { name: 'Keep editing' })
+            .click();
+        await expect(page).toHaveURL(/\/users\/invite$/);
         await expect(
             membersPage.inviteLinkField('lena@growth.io')
         ).toBeVisible();
 
-        await membersPage.sheetButton('Done').click();
-        await membersPage.sheetButton('Leave without copying').click();
-        await expect(membersPage.inviteSheet()).toHaveCount(0);
+        // Invite more would clear the links too, so it asks inline.
+        await membersPage.pageButton('Invite more').click();
+        await expect(
+            membersPage.invitePage().getByText(/hasn’t been copied yet/)
+        ).toBeVisible();
+        await membersPage.pageButton('Keep it open').click();
+        await expect(
+            membersPage.inviteLinkField('lena@growth.io')
+        ).toBeVisible();
+
+        await membersPage.pageButton('Done').click();
+        await membersPage
+            .leaveGuard()
+            .getByRole('button', { name: 'Leave and discard' })
+            .click();
+        await expect(page).toHaveURL(/\/users$/);
     });
 
-    test('closes freely once every link was copied, and Invite more starts over', async ({
+    test('leaves freely once every link was copied, and Invite more starts over', async ({
         membersPage,
         page,
         context
@@ -268,15 +293,16 @@ test.describe('Invite sheet', () => {
 
         await membersPage.copyInviteLinkFor('lena@growth.io').click();
         await expect(
-            membersPage.inviteSheet().getByText('Copied', { exact: true })
+            membersPage.invitePage().getByText('Copied', { exact: true })
         ).toBeVisible();
 
-        await membersPage.sheetButton('Invite more').click();
+        await membersPage.pageButton('Invite more').click();
         await expect(membersPage.inviteEmails()).toBeVisible();
         await expect(membersPage.emailChip('lena@growth.io')).toHaveCount(0);
 
-        await membersPage.sheetButton('Cancel').click();
-        await expect(membersPage.inviteSheet()).toHaveCount(0);
+        await membersPage.pageButton('Cancel').click();
+        await expect(membersPage.leaveGuard()).toHaveCount(0);
+        await expect(page).toHaveURL(/\/users$/);
     });
 
     test('offers a retry when the workspaces could not be read', async ({
@@ -302,8 +328,10 @@ test.describe('Invite sheet', () => {
     }) => {
         await mockSignedIn(page, { permissions: ['users:read'] });
         await page.goto('/users/invite');
+        // Back to the roster, as before the redesign.
+        await expect(page).toHaveURL(/\/users$/);
         await expect(membersPage.heading).toBeVisible();
-        await expect(membersPage.inviteSheet()).toHaveCount(0);
+        await expect(membersPage.inviteButton).toHaveCount(0);
     });
 
     test('accessibility — composing, with a flagged address', async ({

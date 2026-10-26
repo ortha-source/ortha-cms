@@ -5,7 +5,7 @@ import { mockWorkspaces } from '../support/api/workspaces';
 
 /**
  * Keyboard operability for the Members page — what axe can't assert: the
- * search box takes focus and typing filters, the invite sheet works from the
+ * search box takes focus and typing filters, the invite page works from the
  * keyboard, the quick filters toggle, and the row menu is keyboard-reachable.
  */
 test.describe('Members keyboard operability', () => {
@@ -23,7 +23,7 @@ test.describe('Members keyboard operability', () => {
         await expect(membersPage.row('Ada Lovelace')).toHaveCount(0);
     });
 
-    test('the invite sheet works from the keyboard alone', async ({
+    test('the invite page works from the keyboard alone', async ({
         membersPage,
         page
     }) => {
@@ -35,7 +35,7 @@ test.describe('Members keyboard operability', () => {
         await page.keyboard.press('Enter');
 
         await expect(page).toHaveURL(/\/users\/invite$/);
-        await expect(membersPage.inviteSheet()).toBeVisible();
+        await expect(membersPage.inviteHeading()).toHaveText('Invite people');
 
         // Each address becomes a chip on Enter; Backspace in the empty box
         // takes the last one back.

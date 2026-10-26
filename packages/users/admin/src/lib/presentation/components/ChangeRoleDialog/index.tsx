@@ -27,6 +27,7 @@ import {
 } from '../../../domain/roleChanges';
 import type { Member, MemberRole } from '../../../domain/types/member';
 import { shortNameOf } from '../../memberNames';
+import { CALLOUT_ALERT_CLASS, CALLOUT_ICON_CLASS } from '../../calloutAlert';
 import { RolePicker, ROLE_NAME_MESSAGES } from '../RolePicker';
 
 /** Intl descriptors for {@link ChangeRoleDialog}, co-located with the component. */
@@ -361,8 +362,15 @@ export function ChangeRoleDialog({
                             })}
                         </p>
                     ) : (
-                        <Alert variant="warning" role="note">
-                            <TriangleAlert aria-hidden />
+                        <Alert
+                            variant="warning"
+                            role="note"
+                            className={CALLOUT_ALERT_CLASS}
+                        >
+                            <TriangleAlert
+                                aria-hidden
+                                className={CALLOUT_ICON_CLASS}
+                            />
                             <AlertDescription>
                                 {intl.formatMessage(messages.nextRequest, {
                                     name

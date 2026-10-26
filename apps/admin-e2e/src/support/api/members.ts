@@ -516,7 +516,7 @@ export interface InviteManySpy {
 }
 
 /**
- * Stub `POST /api/users/invites/batch` — the invite sheet's submit. Echoes one
+ * Stub `POST /api/users/invites/batch` — the invite page's submit. Echoes one
  * pending member per address, each with its own one-time token
  * (`tok_<local part>`) and an expiry seven days out, unless `mailed` is set:
  * then, like a server with a mail provider, no token comes back at all.

@@ -232,16 +232,24 @@ export class MembersPage extends BasePage {
         return this.page.locator('#members-results');
     }
 
-    // --- the invite sheet (/users/invite) ---
+    // --- the invite page (/users/invite) ---
 
-    /** The invite sheet — a dialog named by its title. */
-    inviteSheet(): Locator {
-        return this.page.getByRole('dialog', { name: /Invite people|created/ });
+    /**
+     * The invite page's content — the `<main>` region, so its locators never
+     * reach the shell around it.
+     */
+    invitePage(): Locator {
+        return this.page.getByRole('main');
     }
 
-    /** The sheet's address field (the chip input's text box). */
+    /** The invite page's `<h1>` ("Invite people", or "2 invites created"). */
+    inviteHeading(): Locator {
+        return this.page.getByRole('heading', { level: 1 });
+    }
+
+    /** The page's address field (the chip input's text box). */
     inviteEmails(): Locator {
-        return this.inviteSheet().getByRole('textbox', { name: 'Emails' });
+        return this.invitePage().getByRole('textbox', { name: 'Emails' });
     }
 
     /** Type addresses into the chip field and commit them with Enter. */
@@ -252,58 +260,59 @@ export class MembersPage extends BasePage {
 
     /** One address chip, by its address. */
     emailChip(email: string): Locator {
-        return this.inviteSheet()
+        return this.invitePage()
             .getByRole('listitem')
             .filter({ hasText: email });
     }
 
     /** The remove button on an address chip. */
     removeEmailChip(email: string): Locator {
-        return this.inviteSheet().getByRole('button', {
+        return this.invitePage().getByRole('button', {
             name: `Remove ${email}`
         });
     }
 
-    /** A role card's radio in the sheet (or the role dialog). */
+    /** A role card's radio on the invite page (or in the role dialog). */
     inviteRole(label: 'Admin' | 'Contributor' | 'Viewer'): Locator {
         return this.page.getByRole('radio', { name: new RegExp(`^${label}`) });
     }
 
-    /** A workspace tile's checkbox in the sheet, by its visible name. */
+    /** A workspace tile's checkbox on the invite page, by its visible name. */
     inviteWorkspace(name: string): Locator {
-        return this.inviteSheet().getByRole('checkbox', { name });
+        return this.invitePage().getByRole('checkbox', { name });
     }
 
     /** "all workspaces" — ticks every workspace there is. */
     allWorkspaces(): Locator {
-        return this.inviteSheet().getByRole('button', {
+        return this.invitePage().getByRole('button', {
             name: 'all workspaces'
         });
     }
 
-    /** The sheet's submit, whose label counts the invites ("Send 2 invites"). */
+    /** The page's submit, whose label counts the invites ("Send 2 invites"). */
     sendInvites(): Locator {
-        return this.inviteSheet().getByRole('button', { name: /^Send/ });
+        return this.invitePage().getByRole('button', { name: /^Send/ });
     }
 
-    /** The sheet's "3 people · Contributor · 2 workspaces" read-out. */
+    /** The page's "3 people · Contributor · 2 workspaces" read-out. */
     inviteSummary(): Locator {
-        return this.inviteSheet().getByText(/\b(person|people) · /);
+        return this.invitePage().getByText(/\b(person|people) · /);
     }
 
     /** The field's error text (malformed or already-a-member addresses). */
     inviteFieldError(text: string | RegExp): Locator {
-        return this.inviteSheet().getByText(text);
+        return this.invitePage().getByText(text);
     }
 
-    /** The sent step's heading ("2 invites created"). */
+    /** The result state's heading ("2 invites created"). */
     inviteSentHeading(): Locator {
-        return this.inviteSheet().getByRole('heading', {
+        return this.page.getByRole('heading', {
+            level: 1,
             name: /invites? created/
         });
     }
 
-    /** The sheet's "Couldn’t load workspaces." state. */
+    /** The page's "Couldn’t load workspaces." state. */
     workspacesError(): Locator {
         return this.page.getByText('Couldn’t load workspaces.');
     }
@@ -317,8 +326,8 @@ export class MembersPage extends BasePage {
 
     /**
      * The read-only field holding a shareable invite link. Scoped by its
-     * accessible name so it works in both places a link appears — the sheet's
-     * result and the resend dialog.
+     * accessible name so it works in both places a link appears — the invite
+     * page's result and the resend dialog.
      */
     inviteLinkField(email: string): Locator {
         return this.page.getByRole('textbox', {
@@ -331,16 +340,16 @@ export class MembersPage extends BasePage {
         return this.page.getByRole('button', { name: 'Copy link' });
     }
 
-    /** The sheet result's per-person copy button. */
+    /** The invite result's per-person copy button. */
     copyInviteLinkFor(email: string): Locator {
-        return this.inviteSheet().getByRole('button', {
+        return this.invitePage().getByRole('button', {
             name: `Copy link for ${email}`
         });
     }
 
-    /** A button in the sheet's footer, by label ("Done", "Invite more", …). */
-    sheetButton(label: string): Locator {
-        return this.inviteSheet().getByRole('button', {
+    /** A button on the invite page, by label ("Done", "Invite more", …). */
+    pageButton(label: string): Locator {
+        return this.invitePage().getByRole('button', {
             name: label,
             exact: true
         });
@@ -350,6 +359,16 @@ export class MembersPage extends BasePage {
     inviteLinkDialog(): Locator {
         return this.page.getByRole('dialog').filter({
             hasText: /Send this link to/
+        });
+    }
+
+    /**
+     * The app-wide unsaved-changes guard ("Discard your unsaved changes?"),
+     * raised when leaving the invite page with a link still uncopied.
+     */
+    leaveGuard(): Locator {
+        return this.page.getByRole('dialog', {
+            name: 'Discard your unsaved changes?'
         });
     }
 

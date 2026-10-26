@@ -1,19 +1,18 @@
 import { useId, useState, type FormEvent } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { Check, Send, TriangleAlert } from 'lucide-react';
+import { Navigate, useNavigate } from 'react-router-dom';
+import { Send, TriangleAlert, Users } from 'lucide-react';
+import { PageTopBar } from '@orthacms/shell-admin';
 import { useHasPermission } from '@orthacms/identity-admin';
-import { useUnsavedChanges } from '@orthacms/utils-admin';
+import { useDocumentTitle, useUnsavedChanges } from '@orthacms/utils-admin';
 import {
     Alert,
     AlertDescription,
     Button,
+    Card,
+    Container,
+    ContainerHeader,
     Label,
-    Sheet,
-    SheetContent,
-    SheetDescription,
-    SheetFooter,
-    SheetHeader,
-    SheetTitle,
     Spinner
 } from '@orthacms/design-system';
 import {
@@ -24,13 +23,18 @@ import { useExistingEmails } from '../../../application/useExistingEmails';
 import { useWorkspaceOptions } from '../../../application/useWorkspaceOptions';
 import { Email } from '../../../domain/value-objects/email';
 import type { MemberRole } from '../../../domain/types/member';
-import { RolePicker, ROLE_NAME_MESSAGES } from '../RolePicker';
-import { EmailChipsInput } from './EmailChipsInput';
-import { InviteMembersSent } from './InviteMembersSent';
-import { WorkspaceTiles } from './WorkspaceTiles';
+import { EmailChipsInput } from '../../components/EmailChipsInput';
+import { InviteMembersSent } from '../../components/InviteMembersSent';
+import { InviteWorkspaceTiles } from '../../components/InviteWorkspaceTiles';
+import { RolePicker, ROLE_NAME_MESSAGES } from '../../components/RolePicker';
+import { CALLOUT_ALERT_CLASS, CALLOUT_ICON_CLASS } from '../../calloutAlert';
 
-/** Intl descriptors for {@link InviteMembersSheet}, co-located. */
+/** Intl descriptors for {@link InviteMembersPage}, co-located. */
 const messages = defineMessages({
+    crumbMembers: {
+        id: 'users.invitePage.crumbMembers',
+        defaultMessage: 'Members'
+    },
     title: { id: 'users.inviteSheet.title', defaultMessage: 'Invite people' },
     description: {
         id: 'users.inviteSheet.description',
@@ -113,8 +117,7 @@ const messages = defineMessages({
     leaveAnyway: {
         id: 'users.inviteSheet.leaveAnyway',
         defaultMessage: 'Leave without copying'
-    },
-    close: { id: 'users.inviteSheet.close', defaultMessage: 'Close' }
+    }
 });
 
 /** The finished batch, frozen as it was sent. */
@@ -124,34 +127,37 @@ type SentBatch = {
     workspaceNames: string[];
 };
 
-/** Where an uncopied-links guard was raised from. */
-type Leaving = 'close' | 'more' | null;
-
 /**
- * **Invite people**, from one sheet: addresses as chips (several at once —
- * paste a list), one role as cards, workspaces as tiles, and a button that
- * says how many invites go out. Mounted by the members page only while open,
- * so every opening starts clean.
+ * **Invite people** — a page at `/users/invite` in the app's ordinary frame
+ * (top bar "Members › Invite people", `ContainerHeader`), with two states on
+ * the one route:
  *
- * **Problems are flagged at the address.** A malformed address, or one that
- * already belongs to a member, turns its chip red with the reason under the
- * field, and Send stays off until it is removed: the batch is all-or-nothing
- * server-side, so sending around a bad chip would only fail. The "already a
- * member" check reads the ordinary member list as the admin types
- * (`useExistingEmails`); the server's `409` naming addresses stays the
- * authority and lands in the same place.
+ * 1. **The form.** Addresses as chips (several at once — paste a list), one
+ *    role as cards, workspaces as tiles (or "all workspaces"), and Send, which
+ *    counts the invites. A malformed address, or one that already belongs to
+ *    a member, turns its chip red with the reason under the field, and Send
+ *    stays off until it is removed: the batch is all-or-nothing server-side,
+ *    so sending around a bad chip would only fail. The "already a member"
+ *    check reads the ordinary member list as the admin types
+ *    (`useExistingEmails`); the server's `409` naming addresses stays the
+ *    authority and lands in the same place.
+ * 2. **A link per person.** With no mailer every invite's link is shown once
+ *    with its own Copy. Leaving the page while one is uncopied — Done, the
+ *    breadcrumb, the sidebar, a reload — asks first through the app-wide
+ *    unsaved-changes guard, because none of them can be shown again; "Invite
+ *    more" asks inline before clearing them. With a mailer it is one line:
+ *    who was sent an email.
  *
- * **Then a link per person.** With no mailer every invite's link is shown once
- * with its own Copy, and leaving — Done, Invite more, Esc, the close button,
- * or navigating away — asks first while any link has not been copied, because
- * none of them can be shown again. With a mailer it is one line: who was sent
- * an email.
+ * Gated on `users:create`; without it the route returns to the roster.
  */
-export function InviteMembersSheet({ onClose }: { onClose: () => void }) {
+export function InviteMembersPage() {
     const intl = useIntl();
+    useDocumentTitle(intl.formatMessage(messages.title));
+    const navigate = useNavigate();
+    const canInvite = useHasPermission('users:create');
     const canRead = useHasPermission('users:read');
     const flow = useInviteMembersFlow();
-    const workspaces = useWorkspaceOptions(true);
+    const workspaces = useWorkspaceOptions(canInvite);
 
     const [emails, setEmails] = useState<string[]>([]);
     const [role, setRole] = useState<MemberRole>('contributor');
@@ -159,14 +165,30 @@ export function InviteMembersSheet({ onClose }: { onClose: () => void }) {
     const [triedEmpty, setTriedEmpty] = useState(false);
     const [sent, setSent] = useState<SentBatch | null>(null);
     const [copied, setCopied] = useState<Set<string>>(new Set());
-    const [leaving, setLeaving] = useState<Leaving>(null);
+    const [confirmingMore, setConfirmingMore] = useState(false);
 
     const fieldId = useId();
     const errorId = useId();
     const roleLabelId = useId();
     const workspacesLabelId = useId();
 
-    const existing = useExistingEmails(emails, canRead && sent === null);
+    const existing = useExistingEmails(
+        emails,
+        canInvite && canRead && sent === null
+    );
+
+    const uncopied =
+        sent?.invites.filter(
+            (invite) => invite.link !== null && !copied.has(invite.id)
+        ) ?? [];
+
+    // The links exist only in this page's state. Leaving by any route — Done,
+    // a link, a reload — asks first while one has not been copied.
+    useUnsavedChanges(uncopied.length > 0, 'users.invite.links');
+
+    if (!canInvite) {
+        return <Navigate to="/users" replace />;
+    }
 
     const malformed = emails.filter((email) => !Email.isValid(email));
     const taken = emails.filter(
@@ -198,14 +220,6 @@ export function InviteMembersSheet({ onClose }: { onClose: () => void }) {
 
     const options = workspaces.data ?? [];
     const roleLabel = intl.formatMessage(ROLE_NAME_MESSAGES[role]);
-    const uncopied =
-        sent?.invites.filter(
-            (invite) => invite.link !== null && !copied.has(invite.id)
-        ) ?? [];
-
-    // The links exist only in this component's state. Leaving by any route
-    // the sheet cannot intercept itself — a link, a reload — asks first.
-    useUnsavedChanges(uncopied.length > 0, 'users.invite.links');
 
     const submit = async (event: FormEvent) => {
         event.preventDefault();
@@ -233,29 +247,13 @@ export function InviteMembersSheet({ onClose }: { onClose: () => void }) {
         }
     };
 
+    /** Back to an empty form, keeping the role and workspaces just used. */
     const startOver = () => {
         flow.reset();
         setSent(null);
         setEmails([]);
         setTriedEmpty(false);
-        setLeaving(null);
-    };
-
-    /** Every way out of the sent step funnels here, so none slips past the guard. */
-    const requestLeave = (to: Exclude<Leaving, null>) => {
-        if (uncopied.length > 0 && leaving === null) {
-            setLeaving(to);
-            return;
-        }
-        leave(to);
-    };
-    const leave = (to: Exclude<Leaving, null>) => {
-        setLeaving(null);
-        if (to === 'more') {
-            startOver();
-        } else {
-            onClose();
-        }
+        setConfirmingMore(false);
     };
 
     const toggleWorkspace = (id: string) =>
@@ -283,87 +281,85 @@ export function InviteMembersSheet({ onClose }: { onClose: () => void }) {
     })();
     const mailed = sent !== null && sent.invites.every((i) => !i.link);
 
-    return (
-        <Sheet
-            open
-            onOpenChange={(open) => {
-                if (open || flow.submitting) {
-                    return;
+    const topBar = (
+        <PageTopBar
+            icon={Users}
+            iconClassName="bg-success-soft text-success-soft-foreground"
+            crumbs={[
+                {
+                    key: 'members',
+                    label: intl.formatMessage(messages.crumbMembers),
+                    to: '/users'
+                },
+                {
+                    key: 'invite',
+                    label: intl.formatMessage(messages.title)
                 }
-                if (sent) {
-                    requestLeave('close');
-                } else {
-                    onClose();
-                }
-            }}
-        >
-            <SheetContent
-                className="flex w-full flex-col gap-0 p-0 sm:max-w-[520px]"
-                closeLabel={intl.formatMessage(messages.close)}
-            >
-                {sent ? (
-                    <>
-                        <SheetHeader className="gap-1.5 border-b px-6 pb-4 pt-6">
-                            <div className="flex items-center gap-2.5 pr-8">
-                                <span
+            ]}
+        />
+    );
+
+    if (sent) {
+        return (
+            <>
+                {topBar}
+                <Container className="max-w-[720px]">
+                    <ContainerHeader
+                        title={intl.formatMessage(messages.sentTitle, {
+                            count: sent.invites.length
+                        })}
+                        subtitle={
+                            mailed
+                                ? intl.formatMessage(messages.sentMailed, {
+                                      count: sent.invites.length
+                                  })
+                                : intl.formatMessage(messages.sentLinks, {
+                                      days: expiresInDays
+                                  })
+                        }
+                    />
+                    <div className="flex flex-col gap-4">
+                        <InviteMembersSent
+                            invites={sent.invites}
+                            roleLabel={intl.formatMessage(
+                                ROLE_NAME_MESSAGES[sent.role]
+                            )}
+                            workspaceNames={sent.workspaceNames}
+                            copied={copied}
+                            onCopied={(id) =>
+                                setCopied(
+                                    (previous) => new Set([...previous, id])
+                                )
+                            }
+                        />
+                        {confirmingMore ? (
+                            <Alert
+                                variant="destructive"
+                                className={CALLOUT_ALERT_CLASS}
+                            >
+                                <TriangleAlert
                                     aria-hidden
-                                    className="flex size-8 shrink-0 items-center justify-center rounded-full bg-success-soft text-success-soft-foreground"
-                                >
-                                    <Check className="size-4" />
-                                </span>
-                                <SheetTitle>
-                                    {intl.formatMessage(messages.sentTitle, {
-                                        count: sent.invites.length
+                                    className={CALLOUT_ICON_CLASS}
+                                />
+                                <AlertDescription>
+                                    {intl.formatMessage(messages.uncopied, {
+                                        count: uncopied.length
                                     })}
-                                </SheetTitle>
-                            </div>
-                            <SheetDescription>
-                                {mailed
-                                    ? intl.formatMessage(messages.sentMailed, {
-                                          count: sent.invites.length
-                                      })
-                                    : intl.formatMessage(messages.sentLinks, {
-                                          days: expiresInDays
-                                      })}
-                            </SheetDescription>
-                        </SheetHeader>
-                        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 py-5">
-                            <InviteMembersSent
-                                invites={sent.invites}
-                                roleLabel={intl.formatMessage(
-                                    ROLE_NAME_MESSAGES[sent.role]
-                                )}
-                                workspaceNames={sent.workspaceNames}
-                                copied={copied}
-                                onCopied={(id) =>
-                                    setCopied(
-                                        (previous) => new Set([...previous, id])
-                                    )
-                                }
-                            />
-                            {leaving ? (
-                                <Alert variant="destructive">
-                                    <TriangleAlert aria-hidden />
-                                    <AlertDescription>
-                                        {intl.formatMessage(messages.uncopied, {
-                                            count: uncopied.length
-                                        })}
-                                    </AlertDescription>
-                                </Alert>
-                            ) : null}
-                        </div>
-                        <SheetFooter className="items-center border-t px-6 py-4 sm:justify-between">
-                            {leaving ? (
+                                </AlertDescription>
+                            </Alert>
+                        ) : null}
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            {confirmingMore ? (
                                 <>
                                     <Button
                                         variant="outline"
-                                        onClick={() => setLeaving(null)}
+                                        onClick={() => setConfirmingMore(false)}
                                     >
                                         {intl.formatMessage(messages.keepOpen)}
                                     </Button>
                                     <Button
                                         variant="destructive"
-                                        onClick={() => leave(leaving)}
+                                        onClick={startOver}
                                     >
                                         {intl.formatMessage(
                                             messages.leaveAnyway
@@ -374,36 +370,42 @@ export function InviteMembersSheet({ onClose }: { onClose: () => void }) {
                                 <>
                                     <Button
                                         variant="ghost"
-                                        onClick={() => requestLeave('more')}
+                                        onClick={() =>
+                                            uncopied.length > 0
+                                                ? setConfirmingMore(true)
+                                                : startOver()
+                                        }
                                     >
                                         {intl.formatMessage(
                                             messages.inviteMore
                                         )}
                                     </Button>
-                                    <Button
-                                        onClick={() => requestLeave('close')}
-                                    >
+                                    {/* The app-wide guard asks while a link
+                                        is uncopied; this is an ordinary
+                                        navigation. */}
+                                    <Button onClick={() => navigate('/users')}>
                                         {intl.formatMessage(messages.done)}
                                     </Button>
                                 </>
                             )}
-                        </SheetFooter>
-                    </>
-                ) : (
-                    <form
-                        noValidate
-                        onSubmit={submit}
-                        className="flex min-h-0 flex-1 flex-col"
-                    >
-                        <SheetHeader className="gap-1 border-b px-6 pb-4 pt-6">
-                            <SheetTitle className="pr-8">
-                                {intl.formatMessage(messages.title)}
-                            </SheetTitle>
-                            <SheetDescription>
-                                {intl.formatMessage(messages.description)}
-                            </SheetDescription>
-                        </SheetHeader>
-                        <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-6 py-5">
+                        </div>
+                    </div>
+                </Container>
+            </>
+        );
+    }
+
+    return (
+        <>
+            {topBar}
+            <Container className="max-w-[720px]">
+                <ContainerHeader
+                    title={intl.formatMessage(messages.title)}
+                    subtitle={intl.formatMessage(messages.description)}
+                />
+                <Card className="overflow-hidden">
+                    <form noValidate onSubmit={submit}>
+                        <div className="flex flex-col gap-6 p-6">
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor={fieldId}>
                                     {intl.formatMessage(messages.emails)}
@@ -466,7 +468,7 @@ export function InviteMembersSheet({ onClose }: { onClose: () => void }) {
                                 >
                                     {intl.formatMessage(messages.workspaces)}
                                 </span>
-                                <WorkspaceTiles
+                                <InviteWorkspaceTiles
                                     options={options}
                                     loading={workspaces.isPending}
                                     failed={workspaces.isError}
@@ -487,15 +489,21 @@ export function InviteMembersSheet({ onClose }: { onClose: () => void }) {
                             </div>
 
                             {flow.error === 'failed' ? (
-                                <Alert variant="destructive">
-                                    <TriangleAlert aria-hidden />
+                                <Alert
+                                    variant="destructive"
+                                    className={CALLOUT_ALERT_CLASS}
+                                >
+                                    <TriangleAlert
+                                        aria-hidden
+                                        className={CALLOUT_ICON_CLASS}
+                                    />
                                     <AlertDescription>
                                         {intl.formatMessage(messages.failed)}
                                     </AlertDescription>
                                 </Alert>
                             ) : null}
                         </div>
-                        <SheetFooter className="items-center gap-2 border-t px-6 py-4">
+                        <div className="flex flex-wrap items-center gap-2 border-t bg-muted/30 px-6 py-4">
                             <p className="mr-auto text-[13px] text-muted-foreground">
                                 {intl.formatMessage(messages.summary, {
                                     people: emails.length,
@@ -507,7 +515,7 @@ export function InviteMembersSheet({ onClose }: { onClose: () => void }) {
                                 type="button"
                                 variant="outline"
                                 disabled={flow.submitting}
-                                onClick={onClose}
+                                onClick={() => navigate('/users')}
                             >
                                 {intl.formatMessage(messages.cancel)}
                             </Button>
@@ -535,10 +543,10 @@ export function InviteMembersSheet({ onClose }: { onClose: () => void }) {
                                     count: sendable.length
                                 })}
                             </Button>
-                        </SheetFooter>
+                        </div>
                     </form>
-                )}
-            </SheetContent>
-        </Sheet>
+                </Card>
+            </Container>
+        </>
     );
 }

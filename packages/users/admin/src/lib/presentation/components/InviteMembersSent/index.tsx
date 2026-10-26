@@ -7,7 +7,8 @@ import {
     Button,
     toast
 } from '@orthacms/design-system';
-import type { SentInvite } from '../../../../application/useInviteMembersFlow';
+import type { SentInvite } from '../../../application/useInviteMembersFlow';
+import { CALLOUT_ALERT_CLASS, CALLOUT_ICON_CLASS } from '../../calloutAlert';
 
 /** Intl descriptors for {@link InviteMembersSent}, co-located. */
 const messages = defineMessages({
@@ -50,9 +51,9 @@ const messages = defineMessages({
 });
 
 /**
- * The invite sheet's result: **a link per person**. Without mail each invite
+ * The invite page's result: **a link per person**. Without mail each invite
  * shows its own link with Copy, and a "Copied" badge once it reached the
- * clipboard — the sheet uses that to ask before closing over a link nobody
+ * clipboard — the page uses that to ask before closing over a link nobody
  * copied. With mail the links were sent, and this is just the list of who.
  */
 export function InviteMembersSent({
@@ -160,8 +161,8 @@ export function InviteMembersSent({
                 ))}
             </ul>
 
-            <Alert variant="info" role="note">
-                <Info aria-hidden />
+            <Alert variant="info" role="note" className={CALLOUT_ALERT_CLASS}>
+                <Info aria-hidden className={CALLOUT_ICON_CLASS} />
                 <AlertDescription>
                     {intl.formatMessage(messages.untilAccepted, {
                         b: (chunks) => (

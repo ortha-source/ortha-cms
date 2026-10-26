@@ -20,7 +20,7 @@ const PENDING_MEMBER = DEFAULT_MEMBERS.filter(
  * entry that points at it, and of the request behind it. The backend is the
  * `GET /api/users` mock; `mockSignedIn` satisfies the shell's auth probe.
  *
- * The invite sheet has its own suite (`invite-sheet.spec.ts`). The row
+ * The invite page has its own suite (`invite-page.spec.ts`). The row
  * menu's **guardrails** (the sole admin, your own account) live in
  * `destructive-actions.spec.ts` beside the actions they veto; the Access tab's
  * equivalents are in `user-access.spec.ts`. This docstring used to claim them,
