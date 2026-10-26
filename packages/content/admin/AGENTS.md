@@ -1235,12 +1235,22 @@ This plugin contributes the **content cards** on the Insights page via
 it owns the widgets; the Insights plugin ships only the page, the grid and the
 card shell and knows nothing about entries.
 
-Eight contributions: three Overview stat tiles (Entries / Published / Drafts),
-**Gone quiet** (staleness buckets), **Draft and published, by type**,
-**Publishing velocity**, **Waiting to go live**, and the Team **punchcard**.
-Velocity is `lg` (8/12) rather than `full` so **Waiting to go live** (`sm`, 4/12)
-shares its row — the grid is twelfths, and 8 + 4 is what makes that one row
-instead of two. Data layer mirrors the rest
+Eight widgets: on Overview three stat tiles (Entries / Published / Drafts —
+deltas name the period, "+184 this month", via `presentation/insightsPeriod`),
+**Publishing velocity** (columns over every bucket of the window —
+`domain/insightsSeries` fills the quiet ones in — with "N publishes · busiest
+Thursday") and **By type** (published · modified · draft); on Content **Gone
+quiet** and **Waiting to go live**; on Team the **punchcard**, grouped in the
+viewer's time zone (`?tz=`) across all 24 hours.
+
+Two **Needs-attention lines** on `INSIGHTS_SIGNAL_SLOT`: **Waiting to go live**
+(`UnshippedChangesSignal` / `UnshippedChangesDrill`) and **Gone quiet**
+(`StaleEntriesSignal` / `StaleEntriesDrill`, with the 30–90 days / 3–12 months /
+over a year bands). Each panel lists the oldest records first with their last
+editor, and leads out to the records table through
+`presentation/insightsRecordsLink` — the **Modified** chip's own conditions, or
+Published plus the band's `updatedAt` edges — one link per type, since records
+tables are per type. Data layer mirrors the rest
 of the package — `infrastructure/contentInsightsGateway` (the port),
 `httpContentInsightsGateway` (the only `apiClient` use),
 `contentInsightsKeys`, and the read hooks in

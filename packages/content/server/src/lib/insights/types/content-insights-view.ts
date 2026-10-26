@@ -55,6 +55,70 @@ export interface ContentStaleView {
     buckets: StaleBucketView[];
     /** Total across all buckets, so the client needn't re-add them. */
     total: number;
+    /**
+     * The content type holding the most entries in the `older` bucket — the
+     * Needs-attention line's "most in Guides". `null` when nothing is that old.
+     */
+    olderTopType: { name: string; label: string } | null;
+}
+
+/**
+ * The age bands the "Gone quiet" drill-down filters by. Coarser than the five
+ * chart buckets on purpose: the panel answers "which records", and three bands
+ * a reader can name ("over a year") beat five they have to decode.
+ *
+ * - `recent` — last edited 30–90 days ago (the chart's `d90` bucket)
+ * - `months` — 90–365 days (`d180` + `d365`)
+ * - `year` — over a year (`older`)
+ */
+export type StaleAge = 'recent' | 'months' | 'year';
+
+/** One record behind an Insights figure, as the drill-down panel lists it. */
+export interface InsightsRecordView {
+    /** Entry id. */
+    id: string;
+    /** The content type's machine name — the admin builds the link from it. */
+    type: string;
+    /** The content type's display label. */
+    typeLabel: string;
+    /**
+     * The entry's display title, or `null` when it has no title-eligible value
+     * (the admin then names it by a fragment of its id, as the review queue
+     * does).
+     */
+    title: string | null;
+    /** ISO last-edit timestamp — the age the list is sorted by. */
+    updatedAt: string;
+    /**
+     * Who saved the newest revision, as a user id, or `null` when unknown. The
+     * API stays id-only; the admin resolves it against the workspace roster it
+     * already holds.
+     */
+    editorId: string | null;
+}
+
+/** How many of a drill-down's records sit in one content type. */
+export interface InsightsRecordTypeCountView {
+    /** The type's machine name. */
+    name: string;
+    /** Its display label. */
+    label: string;
+    /** Matching records of this type. */
+    count: number;
+}
+
+/**
+ * The records behind one Needs-attention figure: the true total, where they
+ * sit per type (so "open all in Records" can link each type's table with the
+ * same filter), and the oldest `limit` of them.
+ */
+export interface ContentRecordsView {
+    /** Every matching record, not just the listed ones. */
+    total: number;
+    /** Per type, biggest first. Types with none are omitted. */
+    types: InsightsRecordTypeCountView[];
+    /** The oldest matches first, capped at the requested limit. */
+    records: InsightsRecordView[];
 }
 
 /** Draft/published split for one content type. */
@@ -67,6 +131,12 @@ export interface PipelineTypeView {
     published: number;
     /** Entries currently in draft. */
     drafts: number;
+    /**
+     * The drafts that are **live with pending edits** — `draft` with a
+     * `published_at`, the admin's **Modified** badge. A subset of `drafts`, so
+     * `drafts - modified` is what has never shipped.
+     */
+    modified: number;
 }
 
 /** Draft/published split across every content type in the workspace. */
@@ -81,6 +151,12 @@ export interface ContentVelocityView {
     points: InsightsSeriesPoint[];
     /** Bucket width, so the client can label the axis correctly. */
     granularity: 'day' | 'week' | 'month';
+    /**
+     * The ISO weekday (1 = Monday … 7 = Sunday, UTC) with the most publishes in
+     * the window, or `null` when nothing was published. Grouped database-side
+     * because a week- or month-wide bucket cannot say which day it was.
+     */
+    busiestWeekday: number | null;
 }
 
 /** Live-vs-unpublished-edits split for one content type. */
@@ -120,7 +196,7 @@ export interface ContentUnshippedView {
 export interface PunchcardCellView {
     /** ISO weekday, 1 = Monday … 7 = Sunday. */
     weekday: number;
-    /** Hour of day, 0–23, in the database session's timezone (UTC). */
+    /** Hour of day, 0–23, in the response's `timeZone`. */
     hour: number;
     /** Revisions written in that slot. */
     count: number;
@@ -141,4 +217,11 @@ export interface ContentPunchcardView {
     max: number;
     /** Revisions across the whole window. */
     total: number;
+    /**
+     * The IANA zone the weekday and hour were computed in — the one the caller
+     * asked for with `?tz=`, or `UTC` when it named none or one the database
+     * does not know. Sent back so the caption can say which zone it is
+     * reading, rather than claiming "your time zone" over UTC buckets.
+     */
+    timeZone: string;
 }

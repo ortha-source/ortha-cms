@@ -42,6 +42,35 @@ export type StaleBucket = {
 export type ContentStale = {
     buckets: StaleBucket[];
     total: number;
+    /** The type holding most of the `older` bucket — "most in Guides". */
+    olderTopType: { name: string; label: string } | null;
+};
+
+/**
+ * The age bands of the "Gone quiet" drill-down: 30–90 days, 3–12 months,
+ * over a year — the stale chart's own edges, coarsened to three.
+ */
+export type StaleAge = 'recent' | 'months' | 'year';
+
+/** One record behind an Insights figure. */
+export type InsightsRecord = {
+    id: string;
+    /** The content type's machine name. */
+    type: string;
+    typeLabel: string;
+    /** `null` when the entry has no title-eligible value. */
+    title: string | null;
+    /** ISO last-edit timestamp. */
+    updatedAt: string;
+    /** Who saved the newest revision — resolved against the roster. */
+    editorId: string | null;
+};
+
+/** The records behind a Needs-attention line: total, per type, oldest few. */
+export type ContentRecords = {
+    total: number;
+    types: { name: string; label: string; count: number }[];
+    records: InsightsRecord[];
 };
 
 /** Draft/published split for one content type. */
@@ -49,7 +78,10 @@ export type PipelineType = {
     name: string;
     label: string;
     published: number;
+    /** Every draft, modified ones included. */
     drafts: number;
+    /** Drafts with live content behind them — a subset of `drafts`. */
+    modified: number;
 };
 
 /** Draft/published split across the workspace's content types. */
@@ -88,13 +120,15 @@ export type ContentUnshipped = {
 export type ContentVelocity = {
     points: InsightsSeriesPoint[];
     granularity: 'day' | 'week' | 'month';
+    /** ISO weekday (1 = Monday) with the most publishes, or `null`. */
+    busiestWeekday: number | null;
 };
 
 /** One weekday x hour cell of the editing punchcard. */
 export type PunchcardCell = {
     /** ISO weekday, 1 = Monday ... 7 = Sunday. */
     weekday: number;
-    /** Hour of day, 0-23, in UTC (the grouping is done database-side). */
+    /** Hour of day, 0-23, in the response's `timeZone`. */
     hour: number;
     count: number;
 };
@@ -108,6 +142,8 @@ export type ContentPunchcard = {
     cells: PunchcardCell[];
     max: number;
     total: number;
+    /** The zone the grid was grouped in — the one asked for, or `UTC`. */
+    timeZone: string;
 };
 
 /**
@@ -130,5 +166,9 @@ export type ContentInsightsGateway = {
     /** `GET /insights/content/velocity` — entries published per bucket. */
     velocity(days: number): Promise<ContentVelocity>;
     /** `GET /insights/content/punchcard` — edits by weekday and hour. */
-    punchcard(days: number): Promise<ContentPunchcard>;
+    punchcard(days: number, timeZone: string): Promise<ContentPunchcard>;
+    /** `GET /insights/content/stale/records` — the records in one age band. */
+    staleRecords(age: StaleAge, limit: number): Promise<ContentRecords>;
+    /** `GET /insights/content/unshipped/records` — live records with edits. */
+    unshippedRecords(limit: number): Promise<ContentRecords>;
 };

@@ -1,6 +1,7 @@
 import { apiClient, toApiError } from '@orthacms/utils-admin';
 import type {
     MediaAltCoverage,
+    MediaAltMissing,
     MediaInsightsGateway,
     MediaStorage,
     MediaUploads
@@ -39,6 +40,18 @@ export const httpMediaInsightsGateway: MediaInsightsGateway = {
         try {
             const { data } = await apiClient.get<MediaAltCoverage>(
                 '/insights/media/alt'
+            );
+            return data;
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async altMissing(limit: number): Promise<MediaAltMissing> {
+        try {
+            const { data } = await apiClient.get<MediaAltMissing>(
+                '/insights/media/alt/missing',
+                { params: { limit } }
             );
             return data;
         } catch (error) {

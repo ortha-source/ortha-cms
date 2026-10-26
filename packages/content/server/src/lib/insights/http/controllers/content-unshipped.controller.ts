@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import {
     PERMISSIONS,
     PermissionsGuard,
@@ -6,7 +6,11 @@ import {
 } from '@orthacms/identity-server';
 import { CurrentWorkspace, WorkspaceGuard } from '@orthacms/workspaces-server';
 import { ContentInsightsQuery } from '../../infrastructure/queries/content-insights.query';
-import type { ContentUnshippedView } from '../../types/content-insights-view';
+import type {
+    ContentRecordsView,
+    ContentUnshippedView
+} from '../../types/content-insights-view';
+import { toDrillLimit } from '../../infrastructure/queries/insights-drill.helpers';
 
 /**
  * `GET /api/insights/content/unshipped` — entries that are live but carry
@@ -28,5 +32,21 @@ export class ContentUnshippedController {
         @CurrentWorkspace() workspaceId: string
     ): Promise<ContentUnshippedView> {
         return this.insights.unshipped(workspaceId);
+    }
+
+    /**
+     * `GET /api/insights/content/unshipped/records?limit=` — the live records
+     * carrying unpublished edits, the longest-waiting edit first, with the
+     * per-type split the admin needs to link each type's records table.
+     */
+    @Get('unshipped/records')
+    unshippedRecords(
+        @CurrentWorkspace() workspaceId: string,
+        @Query('limit') limit?: string
+    ): Promise<ContentRecordsView> {
+        return this.insights.unshippedRecords(
+            workspaceId,
+            toDrillLimit(limit)
+        );
     }
 }

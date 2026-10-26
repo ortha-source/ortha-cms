@@ -124,4 +124,18 @@ describe('describeMediaInsightsApi', () => {
         expect(Object.keys(operation.responses)).toEqual(['203']);
         expect(operation.responses['203'].content).toBeDefined();
     });
+    it('describes the alt-text drill-down with its own schema', () => {
+        const document: OpenApiDocument = {
+            paths: {
+                '/api/insights/media/alt/missing': {
+                    get: { responses: { '200': { description: '' } } }
+                }
+            }
+        };
+        describeMediaInsightsApi(document);
+
+        expect(
+            successSchema(document, '/api/insights/media/alt/missing')
+        ).toEqual({ $ref: '#/components/schemas/InsightsMediaAltMissing' });
+    });
 });

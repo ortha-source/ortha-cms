@@ -23,6 +23,10 @@ export const contentInsightsKeys = {
         ['content-insights', workspaceId, 'unshipped'] as const,
     velocity: (workspaceId: string, days: number) =>
         ['content-insights', workspaceId, 'velocity', days] as const,
-    punchcard: (workspaceId: string, days: number) =>
-        ['content-insights', workspaceId, 'punchcard', days] as const
+    punchcard: (workspaceId: string, days: number, timeZone: string) =>
+        ['content-insights', workspaceId, 'punchcard', days, timeZone] as const,
+    staleRecords: (workspaceId: string, age: string) =>
+        ['content-insights', workspaceId, 'stale-records', age] as const,
+    unshippedRecords: (workspaceId: string) =>
+        ['content-insights', workspaceId, 'unshipped-records'] as const
 };

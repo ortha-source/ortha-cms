@@ -5,7 +5,10 @@ import {
     WidgetCard,
     type HeatRow
 } from '@orthacms/insights-admin';
-import { useContentPunchcard } from '../../../application/useContentInsights';
+import {
+    useContentPunchcard,
+    viewerTimeZone
+} from '../../../application/useContentInsights';
 
 /** Intl descriptors for the punchcard widget, co-located here. */
 const messages = defineMessages({
@@ -15,7 +18,11 @@ const messages = defineMessages({
     },
     description: {
         id: 'content.insights.punchcard.description',
-        defaultMessage: 'Saves by weekday and hour (UTC)'
+        defaultMessage: 'saves per hour, your time zone'
+    },
+    descriptionIn: {
+        id: 'content.insights.punchcard.descriptionIn',
+        defaultMessage: 'saves per hour, {zone}'
     },
     quiet: { id: 'content.insights.punchcard.quiet', defaultMessage: 'quiet' },
     busy: { id: 'content.insights.punchcard.busy', defaultMessage: 'busy' },
@@ -27,11 +34,6 @@ const messages = defineMessages({
         id: 'content.insights.punchcard.ariaLabel',
         defaultMessage:
             'Editing activity by weekday and hour. {total, number} saves in the period, busiest slot {max, number}.'
-    },
-    footer: {
-        id: 'content.insights.punchcard.footer',
-        defaultMessage:
-            'Hours are UTC — the grouping happens in the database, so shifting the labels would mislabel the buckets.'
     },
     mon: { id: 'content.insights.punchcard.mon', defaultMessage: 'Mon' },
     tue: { id: 'content.insights.punchcard.tue', defaultMessage: 'Tue' },
@@ -54,19 +56,14 @@ const WEEKDAYS = [
 ] as const;
 
 /**
- * Working hours the grid covers.
- *
- * A full 24 columns would be mostly empty at any realistic team size, shrinking
- * every cell to keep space for hours nothing happens in. Activity outside this
- * window is not lost — it is simply not plotted, which the caption's UTC note
- * covers.
+ * Every hour of the day. The grid is grouped in the viewer's own zone, so a
+ * "working hours" window cut from UTC no longer meant anybody's working day —
+ * and a team spread over time zones works at hours a fixed window would hide.
  */
-const FIRST_HOUR = 7;
-const LAST_HOUR = 20;
-const HOURS = Array.from(
-    { length: LAST_HOUR - FIRST_HOUR + 1 },
-    (_, index) => FIRST_HOUR + index
-);
+const HOURS = Array.from({ length: 24 }, (_, index) => index);
+
+/** A column heading — `09` reads as an hour where `9` reads as a count. */
+const hourLabel = (hour: number) => String(hour).padStart(2, '0');
 
 /**
  * Editing activity by weekday and hour, from the revision store — every save,
@@ -85,6 +82,14 @@ export function ContentPunchcardWidget() {
         ])
     );
     const max = data?.max ?? 0;
+    // The caption says "your time zone" only when the grid really is in it;
+    // a zone the server could not use comes back as UTC, and says so.
+    const description =
+        !data || data.timeZone === viewerTimeZone()
+            ? intl.formatMessage(messages.description)
+            : intl.formatMessage(messages.descriptionIn, {
+                  zone: data.timeZone
+              });
 
     const rows: HeatRow[] = WEEKDAYS.map((descriptor, index) => {
         const weekday = index + 1;
@@ -101,7 +106,7 @@ export function ContentPunchcardWidget() {
                     intensity: max > 0 ? count / max : 0,
                     title: intl.formatMessage(messages.cell, {
                         day,
-                        hour,
+                        hour: hourLabel(hour),
                         count
                     })
                 };
@@ -112,8 +117,7 @@ export function ContentPunchcardWidget() {
     return (
         <WidgetCard
             title={intl.formatMessage(messages.title)}
-            description={intl.formatMessage(messages.description)}
-            footer={intl.formatMessage(messages.footer)}
+            description={description}
             isPending={isPending}
             isError={isError}
             isEmpty={(data?.total ?? 0) === 0}
@@ -121,7 +125,7 @@ export function ContentPunchcardWidget() {
         >
             <div className="flex flex-col gap-3">
                 <HeatGrid
-                    columns={HOURS.map(String)}
+                    columns={HOURS.map(hourLabel)}
                     rows={rows}
                     labelWidth="2.5rem"
                     ariaLabel={intl.formatMessage(messages.ariaLabel, {

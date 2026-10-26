@@ -12,12 +12,15 @@ export type {
 export {
     INSIGHTS_WIDGET_SLOT,
     INSIGHTS_SECTION_SLOT,
+    INSIGHTS_SIGNAL_SLOT,
     INSIGHTS_SECTION_IDS
 } from './lib/presentation/slots/insightsSlots';
 export { DEFAULT_INSIGHTS_ORDER } from './lib/presentation/slots/insightsSlots';
 export type {
     InsightsWidget,
     InsightsSection,
+    InsightsSignal,
+    InsightsSignalRowProps,
     InsightsWidgetSize
 } from './lib/presentation/slots/insightsSlots';
 
@@ -28,6 +31,20 @@ export type {
     InsightsBand,
     ResolveInsightsLayoutInput
 } from './lib/utils/resolveInsightsLayout';
+export { resolveInsightsSignals } from './lib/utils/resolveInsightsSignals';
+export type { ResolveInsightsSignalsInput } from './lib/utils/resolveInsightsSignals';
+
+/* The Needs-attention line and its drill-down — what a contributed signal
+   renders, so every line and every panel reads the same way. */
+export { SignalRow } from './lib/presentation/components/SignalRow';
+export type {
+    SignalRowProps,
+    SignalTone
+} from './lib/presentation/components/SignalRow';
+export { SignalDrill } from './lib/presentation/components/SignalDrill';
+export type { SignalDrillProps } from './lib/presentation/components/SignalDrill';
+export { DrillRecordRow } from './lib/presentation/components/DrillRecordRow';
+export type { DrillRecordRowProps } from './lib/presentation/components/DrillRecordRow';
 
 /* The shared window every widget reports against. */
 export {

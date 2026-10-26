@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { Card, CardContent, Skeleton } from '@orthacms/design-system';
+import { Card, Skeleton } from '@orthacms/design-system';
 
 /** Intl descriptors for the shared widget shell, co-located here. */
 const messages = defineMessages({
@@ -27,7 +27,10 @@ export type WidgetCardProps = {
      * the harness scans only the WCAG tag set, so nothing caught it.
      */
     title: ReactNode;
-    /** One line under the title saying what is being measured. */
+    /**
+     * What is being measured, or what the figure is compared against — shown
+     * at the right of the header row, opposite the title.
+     */
     description?: ReactNode;
     /** Top-right accent, typically a `WidgetChip` driven by the loaded data. */
     action?: ReactNode;
@@ -77,32 +80,36 @@ export function WidgetCard({
     const hasData = !isPending && !isError;
 
     return (
-        <Card className="h-full shadow-none">
-            <CardContent className="flex h-full flex-col gap-3 p-4">
-                <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                        <h3 className="text-sm font-semibold tracking-[-0.005em]">
-                            {title}
-                        </h3>
-                        {description ? (
-                            <p className="mt-0.5 text-xs text-muted-foreground">
-                                {description}
-                            </p>
-                        ) : null}
-                    </div>
-                    {/* Suppressed until there is data behind it — a "156 over a
-                        year" chip beside a skeleton asserts a number the widget
-                        has not actually loaded. */}
+        <Card className="flex h-full flex-col overflow-hidden shadow-none">
+            {/* One header row: the name at the left, what is being measured
+                ("142 publishes · busiest Thursday", "of 842 localized
+                records") at the right, over a rule — the card says what it
+                compares against before the reader reaches the chart. */}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-4 py-3">
+                <h3 className="text-[15px] font-semibold tracking-[-0.005em]">
+                    {title}
+                </h3>
+                <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-x-3 gap-y-1">
+                    {description ? (
+                        <p className="text-xs text-muted-foreground">
+                            {description}
+                        </p>
+                    ) : null}
+                    {/* Suppressed until there is data behind it — a "156 over
+                        a year" chip beside a skeleton asserts a number the
+                        widget has not actually loaded. */}
                     {action && hasData ? action : null}
                 </div>
+            </div>
 
+            <div className="flex flex-1 flex-col gap-3 p-4">
                 {isPending ? (
                     // `role="status"` + an `sr-only` label, per the design
                     // system's `Skeleton` contract: bare placeholder bars are
                     // invisible to assistive tech, so the transition into
                     // loading was silent on a page that puts nine widgets into
-                    // it at once. Named by title so nine simultaneous
-                    // announcements say which card each one is.
+                    // it at once. Named by title so simultaneous announcements
+                    // say which card each one is.
                     <div
                         role="status"
                         className="flex flex-col gap-2.5"
@@ -143,7 +150,7 @@ export function WidgetCard({
                         {footer}
                     </p>
                 ) : null}
-            </CardContent>
+            </div>
         </Card>
     );
 }

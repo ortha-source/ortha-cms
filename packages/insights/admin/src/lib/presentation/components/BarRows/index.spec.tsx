@@ -52,7 +52,8 @@ describe('BarRows zero segments', () => {
         // locale with nothing missing — the chart stating the opposite of its
         // data — so the zero is filtered out before it is drawn.
         expect(complete.children).toHaveLength(1);
-        expect((complete.children[0] as HTMLElement).style.width).toBe('100%');
+        // The fill is the whole track: 12 of 12, the zero adding nothing.
+        expect(complete.style.width).toBe('100%');
 
         // Dropped from the drawing, kept in the name: "0 missing" is
         // information the bar cannot draw but the row still means, and the

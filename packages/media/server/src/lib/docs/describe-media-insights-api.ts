@@ -121,6 +121,42 @@ const ALT_COVERAGE: OpenApiSchema = {
     }
 };
 
+/** The images behind the "missing alt text" figure — the drill-down. */
+const ALT_MISSING: OpenApiSchema = {
+    type: 'object',
+    required: ['total', 'assets'],
+    properties: {
+        total: {
+            type: 'integer',
+            description:
+                'Every image missing alt text — the same figure as `/alt`’s `missing`.'
+        },
+        assets: {
+            type: 'array',
+            description: 'Oldest upload first, at most `limit` (≤ 50) of them.',
+            items: {
+                type: 'object',
+                required: ['id', 'name', 'folderId', 'uploadedBy', 'createdAt'],
+                properties: {
+                    id: { type: 'string', format: 'uuid' },
+                    name: { type: 'string' },
+                    folderId: {
+                        type: 'string',
+                        format: 'uuid',
+                        nullable: true
+                    },
+                    uploadedBy: {
+                        type: 'string',
+                        format: 'uuid',
+                        description: 'An id; the admin resolves the name.'
+                    },
+                    createdAt: { type: 'string', format: 'date-time' }
+                }
+            }
+        }
+    }
+};
+
 /** The routes, keyed by what follows `/insights/media`. */
 const ROUTES: Record<string, { schema: string; description: string }> = {
     '/storage': {
@@ -134,6 +170,10 @@ const ROUTES: Record<string, { schema: string; description: string }> = {
     '/alt': {
         schema: 'InsightsMediaAltCoverage',
         description: 'Alt-text coverage across the workspace’s images.'
+    },
+    '/alt/missing': {
+        schema: 'InsightsMediaAltMissing',
+        description: 'The images missing alt text, oldest upload first.'
     }
 };
 
@@ -147,14 +187,15 @@ const ROUTES: Record<string, { schema: string; description: string }> = {
  */
 const ROUTE_RE = /^(?:\/[^/{}]+)*\/insights\/media(\/.*)?$/;
 
-/** Adds the three schemas and describes the three widget routes. */
+/** Adds the schemas and describes the widget and drill-down routes. */
 export function describeMediaInsightsApi(document: OpenApiDocument): void {
     document.components ??= {};
     document.components.schemas ??= {};
     Object.assign(document.components.schemas, {
         InsightsMediaStorage: STORAGE,
         InsightsMediaUploads: UPLOADS,
-        InsightsMediaAltCoverage: ALT_COVERAGE
+        InsightsMediaAltCoverage: ALT_COVERAGE,
+        InsightsMediaAltMissing: ALT_MISSING
     });
 
     for (const [route, item] of Object.entries(document.paths)) {

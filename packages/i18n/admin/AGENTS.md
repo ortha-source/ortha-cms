@@ -193,26 +193,22 @@ defaultLocale`) — the plugin's single decision point, which the menu must not
 ## The Insights card (`INSIGHTS_WIDGET_SLOT` → `LocalizationCoverageWidget`)
 
 The one contribution that is **not** to a content-admin slot. **Translation
-coverage** sits in the Insights page's _Localisation & media_ band (`full`
-width, `order: 5`, so media's three `sm` cards fill their own row below it):
-three headline counts beside a bar list that switches between **By language**
-and **By type**.
+coverage** sits on the Insights page's _Localisation & media_ tab (`full`
+width, `order: 5`, so media's two `md` cards fill their own row below it): "of N
+localized records" in the header, and a bar list that switches between **By
+language** and **By type**, each row a share and what is missing — "86% · 118
+missing", "14% · 76 to translate". The bar draws the done part over an empty
+track; its text alternative names both halves.
 
 **The two breakdowns are a view swap over one payload, not two cards and not a
 second request.** "Which language is behind?" and "which content type is the
-work in?" are asked by the same person a moment apart; splitting them across
-cards would put the shared headline figures on one of them arbitrarily. The
-figures are workspace-wide and stay put when the axis changes — only the bars,
-the legend and the card's subtitle move, and all three have to move together or
-the card describes a chart that is no longer on screen.
+work in?" are asked by the same person a moment apart.
 
-The two axes use the same palette roles for the same meaning — `series-1` is
-work done, `series-2` is work outstanding — but the _denominator_ differs, which
-is what the legend swap is for. By language every bar is scaled against the
-workspace's record count, so a bar's length is that language's reach. By type it
-is the biggest type's record count, so length reads as how much content the type
-holds and the blue portion as how much of it is finished; that is what makes
-"the debt is in Article" visible at a glance.
+The bar is `series-1`, work done, over the empty track; what is outstanding is
+the readout's "N missing" and the bar's text alternative, never a hue alone.
+By language every bar is scaled against the workspace's record count, so a
+bar's length is that language's reach. By type it is the biggest type's record
+count, so length reads as how much of that type's work is done.
 
 **This plugin owns the card because it owns the question.** Coverage is about
 the _configured_ locale set — content-admin knows which slugs appear on a row

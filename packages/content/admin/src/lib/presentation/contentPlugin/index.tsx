@@ -8,6 +8,7 @@ import {
 } from '@orthacms/workspaces-admin';
 import {
     INSIGHTS_SECTION_IDS,
+    INSIGHTS_SIGNAL_SLOT,
     INSIGHTS_WIDGET_SLOT
 } from '@orthacms/insights-admin';
 import { CONTENT_READ, CONTENT_SEGMENT } from '../../domain/constants';
@@ -22,6 +23,10 @@ import { ContentPipelineWidget } from '../components/ContentPipelineWidget';
 import { PublishingVelocityWidget } from '../components/PublishingVelocityWidget';
 import { UnshippedChangesWidget } from '../components/UnshippedChangesWidget';
 import { ContentPunchcardWidget } from '../components/ContentPunchcardWidget';
+import { StaleEntriesSignal } from '../components/StaleEntriesSignal';
+import { StaleEntriesDrill } from '../components/StaleEntriesDrill';
+import { UnshippedChangesSignal } from '../components/UnshippedChangesSignal';
+import { UnshippedChangesDrill } from '../components/UnshippedChangesDrill';
 
 const ContentLibraryPage = lazyPage(
     () => import('../pages/ContentLibraryPage'),
@@ -94,33 +99,32 @@ export function ContentPlugin(): ContentAdminPlugin {
                         Component: StaleEntriesWidget
                     },
                     {
-                        id: 'insights.content.pipeline',
-                        section: INSIGHTS_SECTION_IDS.Content,
-                        order: 20,
-                        size: 'md',
-                        permission: CONTENT_READ,
-                        titleId: 'content.insights.pipeline.title',
-                        defaultTitle: 'Draft and published, by type',
-                        Component: ContentPipelineWidget
-                    },
-                    {
-                        // `lg` rather than `full` so the unshipped tile below
-                        // shares its row — the grid is twelfths, and 8 + 4 is
-                        // what makes that one row instead of two.
+                        // On Overview, beside Needs attention: the two charts
+                        // the page leads with once the work is listed.
                         id: 'insights.content.velocity',
-                        section: INSIGHTS_SECTION_IDS.Content,
-                        order: 30,
-                        size: 'lg',
+                        section: INSIGHTS_SECTION_IDS.Overview,
+                        order: 50,
+                        size: 'md',
                         permission: CONTENT_READ,
                         titleId: 'content.insights.velocity.title',
                         defaultTitle: 'Publishing velocity',
                         Component: PublishingVelocityWidget
                     },
                     {
+                        id: 'insights.content.pipeline',
+                        section: INSIGHTS_SECTION_IDS.Overview,
+                        order: 60,
+                        size: 'md',
+                        permission: CONTENT_READ,
+                        titleId: 'content.insights.pipeline.title',
+                        defaultTitle: 'By type',
+                        Component: ContentPipelineWidget
+                    },
+                    {
                         id: 'insights.content.unshipped',
                         section: INSIGHTS_SECTION_IDS.Content,
-                        order: 40,
-                        size: 'sm',
+                        order: 20,
+                        size: 'md',
                         permission: CONTENT_READ,
                         titleId: 'content.insights.unshipped.title',
                         defaultTitle: 'Waiting to go live',
@@ -137,6 +141,31 @@ export function ContentPlugin(): ContentAdminPlugin {
                         titleId: 'content.insights.punchcard.title',
                         defaultTitle: 'When the work happens',
                         Component: ContentPunchcardWidget
+                    }
+                ]
+            },
+            {
+                // Needs-attention lines: the two content debts somebody can
+                // clear, each opening the records behind its count.
+                slot: INSIGHTS_SIGNAL_SLOT,
+                items: [
+                    {
+                        id: 'content.unshipped',
+                        order: 10,
+                        permission: CONTENT_READ,
+                        titleId: 'content.insights.signal.unshipped.title',
+                        defaultTitle: 'Waiting to go live',
+                        Component: UnshippedChangesSignal,
+                        Drill: UnshippedChangesDrill
+                    },
+                    {
+                        id: 'content.stale',
+                        order: 30,
+                        permission: CONTENT_READ,
+                        titleId: 'content.insights.signal.stale.title',
+                        defaultTitle: 'Gone quiet',
+                        Component: StaleEntriesSignal,
+                        Drill: StaleEntriesDrill
                     }
                 ]
             },

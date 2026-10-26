@@ -49,3 +49,25 @@ export interface MediaAltCoverageView {
     /** Images with no alt text — the number that needs work. */
     missing: number;
 }
+
+/** One image with no alt text, as the Insights drill-down lists it. */
+export interface MediaAltMissingAssetView {
+    /** Asset id. */
+    id: string;
+    /** The asset's file name. */
+    name: string;
+    /** Its folder, or `null` at the library root. */
+    folderId: string | null;
+    /** Who uploaded it — an id; the admin resolves it against its roster. */
+    uploadedBy: string;
+    /** ISO upload timestamp — the age the list is sorted by. */
+    createdAt: string;
+}
+
+/** The images behind the "missing alt text" figure, oldest upload first. */
+export interface MediaAltMissingView {
+    /** Every image missing alt text, not only the listed ones. */
+    total: number;
+    /** The oldest uploads first, capped at the requested limit. */
+    assets: MediaAltMissingAssetView[];
+}

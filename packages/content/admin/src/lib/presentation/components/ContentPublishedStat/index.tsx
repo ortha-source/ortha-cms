@@ -1,6 +1,7 @@
 import { defineMessages, useIntl } from 'react-intl';
 import { StatWidget } from '@orthacms/insights-admin';
 import { useContentTotals } from '../../../application/useContentInsights';
+import { usePeriodPhrase } from '../../insightsPeriod';
 
 /** Intl descriptors for the published stat tile, co-located here. */
 const messages = defineMessages({
@@ -8,18 +9,15 @@ const messages = defineMessages({
         id: 'content.insights.published.label',
         defaultMessage: 'Published'
     },
-    delta: {
-        id: 'content.insights.published.delta',
-        defaultMessage: '+{count, number} this period'
-    },
     flat: {
         id: 'content.insights.published.flat',
-        defaultMessage: 'Nothing published'
+        defaultMessage: 'none published {period}'
     }
 });
 
 /**
- * Entries currently live, with how many went live inside the selected range.
+ * Entries currently live, with how many went live inside the selected range
+ * ("+142 this month").
  *
  * Shares its query with the other content stat tiles — same key, so TanStack
  * Query issues one request for all three while each keeps its own loading and
@@ -27,6 +25,7 @@ const messages = defineMessages({
  */
 export function ContentPublishedStat() {
     const intl = useIntl();
+    const period = usePeriodPhrase();
     const { data, isPending, isError } = useContentTotals();
 
     const delta = data?.publishedDelta ?? 0;
@@ -36,10 +35,13 @@ export function ContentPublishedStat() {
             label={intl.formatMessage(messages.label)}
             count={data?.published ?? 0}
             formatCount={(value) => intl.formatNumber(value)}
+            deltaValue={
+                delta > 0 ? `+${intl.formatNumber(delta)}` : undefined
+            }
             delta={
                 delta > 0
-                    ? intl.formatMessage(messages.delta, { count: delta })
-                    : intl.formatMessage(messages.flat)
+                    ? period
+                    : intl.formatMessage(messages.flat, { period })
             }
             deltaTone={delta > 0 ? 'up' : 'flat'}
             history={data?.publishedHistory}

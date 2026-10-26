@@ -502,9 +502,13 @@ export function useReviewStatusByEntry(
  * the shared client's defaults are what keep the page from re-reading them on
  * every focus.
  */
-export function useProtectionInsights(workspaceId: string) {
+export function useProtectionInsights(workspaceId: string, enabled = true) {
     return useQuery<ProtectionInsights, ApiError>({
         queryKey: insightsKey(workspaceId),
-        queryFn: () => httpProtectionGateway.insights()
+        queryFn: () => httpProtectionGateway.insights(),
+        // One retry, as every Insights read (`[insights:I-16]`): a line that
+        // cannot load must say so rather than sit on a skeleton for seconds.
+        retry: 1,
+        enabled
     });
 }

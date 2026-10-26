@@ -24,8 +24,13 @@ export type BarRowSpec = {
     segments: BarSegment[];
     /** The right-hand readout — the row's value in ink, not inside the fill. */
     readout: ReactNode;
-    /** An optional second readout column (e.g. a share of total). */
+    /** An optional second readout, beside the first (e.g. a share of total). */
     secondary?: ReactNode;
+    /**
+     * An optional line under the track, small and muted — the row's breakdown
+     * in words ("412 published · 51 modified · 37 draft").
+     */
+    detail?: ReactNode;
 };
 
 /** Props for {@link BarRows}. */
@@ -45,14 +50,16 @@ export type BarRowsProps = {
 /**
  * A horizontal bar list — the workhorse form for "which of these is biggest".
  *
- * Two deliberate constraints:
+ * Each row reads top to bottom: the label and its readout on one line, a
+ * full-width track under them, and an optional `detail` line. The track's
+ * filled length compares the row with `max`; inside the fill the segments sit
+ * flush, split by a hairline, in one rounded shape — the bar reads as one
+ * quantity divided, not as separate pills.
  *
- * - **No text inside the fills.** Every value sits in the readout column in an
- *   ink colour. A number printed on a bar has to stay legible against whichever
+ * - **No text inside the fills.** Every value sits in the readout in an ink
+ *   colour. A number printed on a bar has to stay legible against whichever
  *   palette step it lands on, in both themes; moving it out sidesteps the whole
  *   class of contrast bugs rather than managing it.
- * - **Square at the baseline, rounded at the data end.** The rounding marks
- *   where the value *stops*; rounding the origin too would blur where it starts.
  *
  * A **zero segment is dropped, not drawn**. Segments carry a 3px floor so a
  * small-but-real value stays visible, and that floor turned an absent category
@@ -76,60 +83,71 @@ export function BarRows({ rows, max, className }: BarRowsProps) {
     const denominator = max > 0 ? max : 1;
 
     return (
-        <div className={cn('flex flex-col gap-2.5', className)}>
-            {rows.map((row) => (
-                <div
-                    key={row.id}
-                    className="grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)_auto] items-center gap-2.5"
-                >
-                    <span className="truncate text-xs text-muted-foreground">
-                        {row.label}
-                    </span>
-
-                    <div
-                        role="img"
-                        // Every drawn segment, in order. Dropped (zero) segments
-                        // are named too — "0 missing" is information the bar
-                        // cannot draw but the row still means.
-                        aria-label={row.segments
-                            .map((segment) => segment.label)
-                            .join('. ')}
-                        className="flex h-3.5 min-w-0 gap-0.5"
-                    >
-                        {row.segments
-                            .filter((segment) => segment.value > 0)
-                            .map((segment) => (
-                                <span
-                                    key={segment.id}
-                                    title={segment.label}
-                                    style={{
-                                        width: `${Math.max(
-                                            0,
-                                            Math.min(
-                                                100,
-                                                (segment.value / denominator) *
-                                                    100
-                                            )
-                                        )}%`
-                                    }}
-                                    className={cn(
-                                        'min-w-[3px] rounded-none last:rounded-r',
-                                        toneBackground(segment.tone)
-                                    )}
-                                />
-                            ))}
-                    </div>
-
-                    <span className="flex items-baseline justify-end gap-2 text-xs tabular-nums">
-                        <span className="text-foreground">{row.readout}</span>
-                        {row.secondary ? (
-                            <span className="w-9 text-right text-muted-foreground">
-                                {row.secondary}
+        <ul className={cn('flex flex-col gap-4', className)}>
+            {rows.map((row) => {
+                const drawn = row.segments.filter(
+                    (segment) => segment.value > 0
+                );
+                const sum = drawn.reduce(
+                    (total, segment) => total + segment.value,
+                    0
+                );
+                const fill = Math.max(
+                    0,
+                    Math.min(100, (sum / denominator) * 100)
+                );
+                return (
+                    <li key={row.id} className="flex flex-col gap-1.5">
+                        <div className="flex items-baseline justify-between gap-3 text-sm">
+                            <span className="truncate font-medium">
+                                {row.label}
+                            </span>
+                            <span className="flex shrink-0 items-baseline gap-2 tabular-nums">
+                                <span className="text-foreground">
+                                    {row.readout}
+                                </span>
+                                {row.secondary ? (
+                                    <span className="text-xs text-muted-foreground">
+                                        {row.secondary}
+                                    </span>
+                                ) : null}
+                            </span>
+                        </div>
+                        <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                            <div
+                                role="img"
+                                aria-label={row.segments
+                                    .map((segment) => segment.label)
+                                    .join('. ')}
+                                style={{ width: `${fill}%` }}
+                                className={cn(
+                                    'flex h-full divide-x divide-background overflow-hidden rounded-full',
+                                    // A small-but-real value keeps a visible
+                                    // sliver rather than vanishing.
+                                    sum > 0 && 'min-w-[3px]'
+                                )}
+                            >
+                                {drawn.map((segment) => (
+                                    <span
+                                        key={segment.id}
+                                        title={segment.label}
+                                        style={{ flexGrow: segment.value }}
+                                        className={cn(
+                                            'h-full min-w-[3px] basis-0',
+                                            toneBackground(segment.tone)
+                                        )}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                        {row.detail ? (
+                            <span className="text-xs tabular-nums text-muted-foreground">
+                                {row.detail}
                             </span>
                         ) : null}
-                    </span>
-                </div>
-            ))}
-        </div>
+                    </li>
+                );
+            })}
+        </ul>
     );
 }

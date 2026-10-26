@@ -1,12 +1,12 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { TrendingUp } from 'lucide-react';
 import {
-    AreaTrend,
+    ColumnTrend,
     WidgetCard,
-    WidgetChip,
+    useInsightsRange,
     type TrendPoint
 } from '@orthacms/insights-admin';
 import { useContentVelocity } from '../../../application/useContentInsights';
+import { denseSeries } from '../../../domain/insightsSeries';
 
 /** Intl descriptors for the velocity widget, co-located here. */
 const messages = defineMessages({
@@ -14,25 +14,22 @@ const messages = defineMessages({
         id: 'content.insights.velocity.title',
         defaultMessage: 'Publishing velocity'
     },
-    descriptionDay: {
-        id: 'content.insights.velocity.descriptionDay',
-        defaultMessage: 'Entries published per day'
+    summary: {
+        id: 'content.insights.velocity.summary',
+        defaultMessage:
+            '{count, number} {count, plural, one {publish} other {publishes}}'
     },
-    descriptionWeek: {
-        id: 'content.insights.velocity.descriptionWeek',
-        defaultMessage: 'Entries published per week'
-    },
-    descriptionMonth: {
-        id: 'content.insights.velocity.descriptionMonth',
-        defaultMessage: 'Entries published per month'
-    },
-    chip: {
-        id: 'content.insights.velocity.chip',
-        defaultMessage: '{count, number} this period'
+    busiest: {
+        id: 'content.insights.velocity.busiest',
+        defaultMessage: 'busiest {weekday}'
     },
     valueHeading: {
         id: 'content.insights.velocity.valueHeading',
         defaultMessage: 'Published'
+    },
+    column: {
+        id: 'content.insights.velocity.column',
+        defaultMessage: '{period} — {count, number} published'
     },
     ariaLabel: {
         id: 'content.insights.velocity.ariaLabel',
@@ -41,57 +38,74 @@ const messages = defineMessages({
     }
 });
 
-/** Description per bucket width, so the subtitle matches what is plotted. */
-const DESCRIPTION = {
-    day: messages.descriptionDay,
-    week: messages.descriptionWeek,
-    month: messages.descriptionMonth
-} as const;
-
 /** Date format per bucket width. A month bucket labelled `12 Mar` reads wrong. */
 const LABEL_FORMAT = {
-    day: { day: 'numeric', month: 'short' },
-    week: { day: 'numeric', month: 'short' },
-    month: { month: 'short', year: '2-digit' }
+    day: { day: 'numeric', month: 'short', timeZone: 'UTC' },
+    week: { day: 'numeric', month: 'short', timeZone: 'UTC' },
+    month: { month: 'short', year: '2-digit', timeZone: 'UTC' }
 } as const;
 
+/** A Monday, so `+ (isoWeekday - 1)` days names any ISO weekday. */
+const A_MONDAY = Date.UTC(2024, 0, 1);
+
 /**
- * Entries published per bucket across the selected range.
+ * Entries published per bucket across the selected range, as columns — each
+ * one a tally of separate publishes — with the total and the busiest weekday
+ * in the header.
  *
  * The server chooses the bucket width from the range, and this widget takes it
  * from the response rather than re-deriving it — two places computing the same
  * rule is two places to get it wrong, and the axis would silently mislabel.
+ * Empty buckets are filled in here: the server sends only the ones something
+ * happened in, and a column chart drawn from those closes every quiet gap.
  */
 export function PublishingVelocityWidget() {
     const intl = useIntl();
+    const { days } = useInsightsRange();
     const { data, isPending, isError } = useContentVelocity();
 
     const granularity = data?.granularity ?? 'week';
-    const points: TrendPoint[] = (data?.points ?? []).map((point) => ({
-        label: intl.formatDate(point.bucket, LABEL_FORMAT[granularity]),
+    const series = data ? denseSeries(data.points, granularity, days) : [];
+    const points: TrendPoint[] = series.map((point) => ({
+        label: intl.formatDate(
+            `${point.bucket}T00:00:00Z`,
+            LABEL_FORMAT[granularity]
+        ),
         value: point.value
     }));
     const total = points.reduce((sum, point) => sum + point.value, 0);
+    const busiest = data?.busiestWeekday;
+
+    const summary = intl.formatMessage(messages.summary, { count: total });
+    const description =
+        busiest && total > 0
+            ? `${summary} · ${intl.formatMessage(messages.busiest, {
+                  weekday: intl.formatDate(
+                      A_MONDAY + (busiest - 1) * 24 * 60 * 60 * 1000,
+                      { weekday: 'long', timeZone: 'UTC' }
+                  )
+              })}`
+            : summary;
 
     return (
         <WidgetCard
             title={intl.formatMessage(messages.title)}
-            description={intl.formatMessage(DESCRIPTION[granularity])}
-            action={
-                total > 0 ? (
-                    <WidgetChip tone="ok" icon={TrendingUp}>
-                        {intl.formatMessage(messages.chip, { count: total })}
-                    </WidgetChip>
-                ) : undefined
-            }
+            description={data ? description : undefined}
             isPending={isPending}
             isError={isError}
-            isEmpty={points.length === 0}
+            isEmpty={total === 0}
             skeletonRows={6}
         >
-            <AreaTrend
+            <ColumnTrend
+                size="full"
                 points={points}
                 valueHeading={intl.formatMessage(messages.valueHeading)}
+                describe={(point) =>
+                    intl.formatMessage(messages.column, {
+                        period: point.label,
+                        count: point.value
+                    })
+                }
                 ariaLabel={intl.formatMessage(messages.ariaLabel, {
                     total,
                     points: points.length

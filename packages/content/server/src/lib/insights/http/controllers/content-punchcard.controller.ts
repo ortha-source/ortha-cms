@@ -7,10 +7,9 @@ import {
 import { CurrentWorkspace, WorkspaceGuard } from '@orthacms/workspaces-server';
 import { ContentInsightsQuery } from '../../infrastructure/queries/content-insights.query';
 import type { ContentPunchcardView } from '../../types/content-insights-view';
-import {
-    DEFAULT_INSIGHTS_DAYS,
-    InsightsRangeQueryDto
-} from '../dto/insights-range-query.dto';
+import { DEFAULT_INSIGHTS_DAYS } from '../dto/insights-range-query.dto';
+import { InsightsPunchcardQueryDto } from '../dto/insights-punchcard-query.dto';
+import { normaliseTimeZone } from '../../infrastructure/queries/insights-drill.helpers';
 
 /**
  * `GET /api/insights/content/punchcard` — editing activity by weekday and hour.
@@ -29,12 +28,13 @@ export class ContentPunchcardController {
 
     @Get('punchcard')
     punchcard(
-        @Query() query: InsightsRangeQueryDto,
+        @Query() query: InsightsPunchcardQueryDto,
         @CurrentWorkspace() workspaceId: string
     ): Promise<ContentPunchcardView> {
         return this.insights.punchcard(
             workspaceId,
-            query.days ?? DEFAULT_INSIGHTS_DAYS
+            query.days ?? DEFAULT_INSIGHTS_DAYS,
+            normaliseTimeZone(query.tz)
         );
     }
 }

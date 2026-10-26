@@ -140,4 +140,32 @@ describe('describeContentInsightsApi', () => {
             )
         ).toBeUndefined();
     });
+    it('describes both drill-down routes with the one records schema', () => {
+        const get = () => ({
+            get: { responses: { '200': { description: '' } } }
+        });
+        const document: OpenApiDocument = {
+            paths: {
+                '/api/insights/content/stale/records': get(),
+                '/api/insights/content/unshipped/records': get()
+            }
+        };
+        describeContentInsightsApi(document);
+
+        for (const route of [
+            '/api/insights/content/stale/records',
+            '/api/insights/content/unshipped/records'
+        ]) {
+            expect(successSchema(document, route)).toEqual({
+                $ref: '#/components/schemas/InsightsContentRecords'
+            });
+        }
+        const records = (
+            document.components?.schemas as Record<
+                string,
+                { required: string[] }
+            >
+        )['InsightsContentRecords'];
+        expect(records.required).toEqual(['total', 'types', 'records']);
+    });
 });

@@ -9,6 +9,8 @@ import {
     useContentPipeline,
     useContentPunchcard,
     useContentStale,
+    useContentStaleRecords,
+    useContentUnshippedRecords,
     useContentTotals,
     useContentUnshipped,
     useContentVelocity
@@ -36,7 +38,9 @@ const gateway = vi.hoisted(() => ({
     pipeline: vi.fn(),
     unshipped: vi.fn(),
     velocity: vi.fn(),
-    punchcard: vi.fn()
+    punchcard: vi.fn(),
+    staleRecords: vi.fn(),
+    unshippedRecords: vi.fn()
 }));
 
 vi.mock('../../infrastructure/httpContentInsightsGateway', () => ({
@@ -82,7 +86,13 @@ const hooks = [
     ['pipeline', useContentPipeline, gateway.pipeline],
     ['unshipped', useContentUnshipped, gateway.unshipped],
     ['velocity', useContentVelocity, gateway.velocity],
-    ['punchcard', useContentPunchcard, gateway.punchcard]
+    ['punchcard', useContentPunchcard, gateway.punchcard],
+    [
+        'stale records',
+        () => useContentStaleRecords('year'),
+        gateway.staleRecords
+    ],
+    ['unshipped records', useContentUnshippedRecords, gateway.unshippedRecords]
 ] as const;
 
 beforeEach(() => {

@@ -406,8 +406,31 @@ export function buildProtectionSchemas(): Record<string, OpenApiSchema> {
         },
         [PROTECTION_INSIGHTS_SCHEMA]: {
             type: 'object',
-            required: ['open', 'overdue', 'overdueAfterDays'],
+            required: ['open', 'overdue', 'overdueAfterDays', 'oldestOpen'],
             properties: {
+                oldestOpen: {
+                    type: 'object',
+                    nullable: true,
+                    description:
+                        'The request that has waited longest, so a summary can name it; `null` when nothing is open.',
+                    required: [
+                        'contentType',
+                        'contentTypeLabel',
+                        'entryId',
+                        'entryTitle',
+                        'waitingDays'
+                    ],
+                    properties: {
+                        contentType: { type: 'string' },
+                        contentTypeLabel: { type: 'string' },
+                        entryId: { type: 'string', format: 'uuid' },
+                        entryTitle: { type: 'string', nullable: true },
+                        waitingDays: {
+                            type: 'integer',
+                            description: 'Whole days since it was opened.'
+                        }
+                    }
+                },
                 open: {
                     type: 'integer',
                     description:

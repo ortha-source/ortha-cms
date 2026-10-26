@@ -47,7 +47,7 @@ Layered per [ADR-0003](../../../docs/adr/0003-tactical-ddd-inside-plugins.md).
 | Publishing      | `WORKSPACE_SETTINGS_TAB_SLOT` | which types are protected, and how                                                   |
 | Review column   | `RECORDS_COLUMN_SLOT`         | where each row stands, one request per page                                          |
 | `reviewState`   | `RECORDS_FILTER_FIELDS_SLOT`  | waiting on review / not requested                                                    |
-| Insights card   | `INSIGHTS_WIDGET_SLOT`        | how much review is outstanding                                                       |
+| Insights line   | `INSIGHTS_SIGNAL_SLOT`        | how much review is outstanding, and the longest wait — opening the queue             |
 | Reviews page    | `WORKSPACE_ROUTE_SLOT` + nav  | what is waiting, and on whom                                                         |
 | Home card       | `HOME_SECTION_SLOT`           | entries awaiting review across workspaces — "0" when none                            |
 
@@ -344,14 +344,20 @@ absent for the reason it is absent from i18n's fields: `ne` would negate _inside
 the EXISTS. "Not waiting" is its own value in the enum, which is the honest
 spelling.
 
-## The Insights card
+## The Insights line
 
-**The four-branch state ladder is `WidgetCard`'s, not the card's.** That is why
-the shell owns it: "nothing is waiting on a review" and "we could not ask" look
-identical and mean opposite things, and the second one tells a reviewer they are
-free when they are not. The overdue threshold arrives **with** the figure rather
-than being restated here, so the caption cannot come to say "3 days" over a
-number counted against something else.
+**Waiting on review** is a Needs-attention line (`ReviewsSignal`), not a card:
+the open count, and "1 overdue — Pricing FAQ, 5 days" from the summary's
+`oldestOpen`. It opens `ReviewsDrill` — the Reviews page's own first page under
+its own key, the longest-waiting ask first, with who asked — and leads out to
+the Reviews page.
+
+**The state ladder is `SignalRow`'s, not the line's.** "Nothing is waiting on a
+review" and "we could not ask" look identical and mean opposite things, and the
+second one tells a reviewer they are free when they are not — so a failed read
+shows no count at all. The overdue threshold arrives **with** the figure rather
+than being restated here, so the line cannot come to say "3 days" over a number
+counted against something else. `retry: 1`, as every Insights read.
 
 ## The Home card
 

@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { and, eq, sql, type SQL } from 'drizzle-orm';
+import { and, asc, eq, sql, type SQL } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@orthacms/database';
 import { mediaAsset } from '../schema/media-asset';
 import type {
     MediaAltCoverageView,
+    MediaAltMissingView,
     MediaStorageView,
     MediaUploadsView
 } from '../../types/media-insights-view';
@@ -150,5 +151,46 @@ export class MediaInsightsQuery {
         const images = row?.images ?? 0;
         const withAlt = row?.withAlt ?? 0;
         return { images, withAlt, missing: images - withAlt };
+    }
+
+    /**
+     * The images with no alt text, oldest upload first — the records behind
+     * the Needs-attention line. "No alt text" is exactly the complement of
+     * {@link altCoverage}'s `withAlt`, so the list's total and the line's count
+     * cannot disagree.
+     */
+    async altMissing(
+        workspaceId: string,
+        limit: number
+    ): Promise<MediaAltMissingView> {
+        const where = and(
+            eq(mediaAsset.workspaceId, workspaceId),
+            eq(mediaAsset.kind, 'image'),
+            sql`(${mediaAsset.alt} is null or length(trim(${mediaAsset.alt})) = 0)`
+        );
+        const [row] = await this.db
+            .select({ total: sql<number>`cast(count(*) as int)` })
+            .from(mediaAsset)
+            .where(where);
+        const rows = await this.db
+            .select({
+                id: mediaAsset.id,
+                name: mediaAsset.name,
+                folderId: mediaAsset.folderId,
+                uploadedBy: mediaAsset.uploadedBy,
+                createdAt: mediaAsset.createdAt
+            })
+            .from(mediaAsset)
+            .where(where)
+            .orderBy(asc(mediaAsset.createdAt), asc(mediaAsset.id))
+            .limit(limit);
+
+        return {
+            total: row?.total ?? 0,
+            assets: rows.map((asset) => ({
+                ...asset,
+                createdAt: asset.createdAt.toISOString()
+            }))
+        };
     }
 }

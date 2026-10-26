@@ -346,6 +346,7 @@ Every path carries the global `/api` prefix the host sets. Access legend: `sessi
 | GET /insights/media/storage | `media:read` Workspace | —                                                                     | counts and bytes per kind + totals              | `401`; `403`; `400` the workspace |
 | GET /insights/media/uploads | `media:read` Workspace | `?days=` — 30 by default, 365 at most, an invalid value silently → 30 | assets by time bucket                           | the same                          |
 | GET /insights/media/alt     | `media:read` Workspace | — **no window, deliberately**                                         | alt-text coverage across the workspace's images | the same                          |
+| GET /insights/media/alt/missing | `media:read` Workspace | `?limit=` — 20 by default, clamped to 50                         | the images without alt text, oldest upload first, and their true total — the Insights drill-down | the same |
 
 They are gathered into **one** controller, unlike content's five: these are three projections of one table with one dependency and one permission — the reading side of a single resource, not three separate use cases. Each still has a route of its own, so that every widget owns its request and one slow aggregation does not stall the rest.
 

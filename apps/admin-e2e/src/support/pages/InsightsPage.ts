@@ -29,6 +29,47 @@ export class InsightsPage extends BasePage {
         return this.page.getByRole('heading', { name: 'Insights', level: 1 });
     }
 
+    // --- tabs ---
+
+    /** The strip of section tabs. */
+    tabList(): Locator {
+        return this.page.getByRole('tablist', { name: 'Insights sections' });
+    }
+
+    /** One section's tab, by its visible name (e.g. "Localisation & media"). */
+    tab(name: string): Locator {
+        return this.tabList().getByRole('tab', { name, exact: true });
+    }
+
+    /** Opens a section's tab. */
+    async openTab(name: string) {
+        await this.tab(name).click();
+    }
+
+    // --- needs attention ---
+
+    /** The Needs-attention card the first tab leads with. */
+    attention(): Locator {
+        return this.page.getByTestId('needs-attention');
+    }
+
+    /** One line of the card, by the slot id its signal registered. */
+    signalLine(id: string): Locator {
+        return this.page.locator(`[data-signal-id="${id}"]`);
+    }
+
+    /** A line's button, by the name it counts (e.g. "Gone quiet"). */
+    signal(title: string): Locator {
+        return this.attention().getByRole('button', {
+            name: new RegExp(title)
+        });
+    }
+
+    /** The drill-down panel a line opens. */
+    drill(): Locator {
+        return this.page.getByRole('dialog');
+    }
+
     /**
      * A section band's heading (e.g. "Content", "Team").
      *

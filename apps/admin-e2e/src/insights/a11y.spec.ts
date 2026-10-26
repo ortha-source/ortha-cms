@@ -27,8 +27,34 @@ test.describe('Insights accessibility', () => {
     }) => {
         await mockInsightsApi(page);
         await insightsPage.goto(WORKSPACE_ID);
-        await expect(insightsPage.card('When the work happens')).toBeVisible();
+        await expect(insightsPage.card('Publishing velocity')).toBeVisible();
         await expect(insightsPage.anySkeleton()).toHaveCount(0);
+        await expectNoA11yViolations(makeAxe());
+
+        // Every tab, not just the one the page opens on.
+        for (const [tab, card] of [
+            ['Content', 'Gone quiet'],
+            ['Localisation & media', 'Translation coverage'],
+            ['Team', 'When the work happens']
+        ] as const) {
+            await insightsPage.openTab(tab);
+            await expect(insightsPage.card(card)).toBeVisible();
+            await expect(insightsPage.anySkeleton()).toHaveCount(0);
+            await expectNoA11yViolations(makeAxe());
+        }
+    });
+
+    test('has no axe violations with a drill-down open', async ({
+        page,
+        insightsPage,
+        makeAxe
+    }) => {
+        await mockInsightsApi(page);
+        await insightsPage.goto(WORKSPACE_ID);
+        await insightsPage.signal('Gone quiet').click();
+        await expect(insightsPage.drill()).toContainText(
+            'A guide to content modelling'
+        );
 
         await expectNoA11yViolations(makeAxe());
     });
@@ -40,7 +66,9 @@ test.describe('Insights accessibility', () => {
     }) => {
         await mockInsightsApi(page, { delayMs: 2000 });
         await insightsPage.goto(WORKSPACE_ID);
-        await expect(insightsPage.cardSkeleton('Gone quiet')).toBeVisible();
+        await expect(
+            insightsPage.cardSkeleton('Publishing velocity')
+        ).toBeVisible();
 
         await expectNoA11yViolations(makeAxe());
     });
@@ -62,12 +90,18 @@ test.describe('Insights accessibility', () => {
         // own scroll container, a pre-existing condition of any loading page in
         // this app and nothing to do with these widgets. The loading state has
         // its own case above.
-        await expect(insightsPage.cardError('Gone quiet')).toBeVisible();
         await expect(
-            insightsPage.cardError('Images missing alt text')
+            insightsPage.signalLine('content.stale').getByRole('alert')
         ).toBeVisible();
-        await expect(insightsPage.card('When the work happens')).toBeVisible();
+        await expect(
+            insightsPage.signalLine('media.alt').getByRole('alert')
+        ).toBeVisible();
+        await expect(insightsPage.card('Publishing velocity')).toBeVisible();
         await expect(insightsPage.anySkeleton()).toHaveCount(0);
+        await expectNoA11yViolations(makeAxe());
+
+        await insightsPage.openTab('Content');
+        await expect(insightsPage.cardError('Gone quiet')).toBeVisible();
 
         await expectNoA11yViolations(makeAxe());
     });
@@ -78,7 +112,7 @@ test.describe('Insights accessibility', () => {
     }) => {
         await mockInsightsApi(page);
         await insightsPage.goto(WORKSPACE_ID);
-        await expect(insightsPage.card('Gone quiet')).toBeVisible();
+        await expect(insightsPage.card('Publishing velocity')).toBeVisible();
 
         // The control is arrow-navigated, not tabbed through. Radix's toggle
         // group moves *focus* on an arrow key and commits on Enter/Space —
@@ -109,15 +143,9 @@ test.describe('Insights accessibility', () => {
     }) => {
         await mockInsightsApi(page);
         await insightsPage.goto(WORKSPACE_ID);
-        await expect(insightsPage.card('When the work happens')).toBeVisible();
 
         // Charts are `role="img"` with a label that states the series, so a
         // screen-reader user gets the shape of the data rather than silence.
-        await expect(
-            insightsPage
-                .card('When the work happens')
-                .getByRole('img', { name: /Editing activity by weekday/ })
-        ).toBeVisible();
         await expect(
             insightsPage
                 .card('Publishing velocity')
@@ -125,8 +153,53 @@ test.describe('Insights accessibility', () => {
         ).toBeVisible();
         await expect(
             insightsPage
-                .card('Images missing alt text')
-                .getByRole('img', { name: /% of images have alt text/ })
+                .card('By type')
+                .getByRole('img', { name: /Article — 412 published/ })
         ).toBeVisible();
+        await insightsPage.openTab('Team');
+        await expect(
+            insightsPage
+                .card('When the work happens')
+                .getByRole('img', { name: /Editing activity by weekday/ })
+        ).toBeVisible();
+    });
+
+    test('the section tabs move with the arrow keys', async ({
+        page,
+        insightsPage
+    }) => {
+        await mockInsightsApi(page);
+        await insightsPage.goto(WORKSPACE_ID);
+
+        await insightsPage.tab('Overview').focus();
+        await page.keyboard.press('ArrowRight');
+        // Radix tabs follow focus with selection (automatic activation).
+        await expect(insightsPage.tab('Content')).toBeFocused();
+        await expect(insightsPage.tab('Content')).toHaveAttribute(
+            'aria-selected',
+            'true'
+        );
+        await expect(insightsPage.card('Gone quiet')).toBeVisible();
+    });
+
+    test('a line opens its panel by keyboard, and Escape hands focus back', async ({
+        page,
+        insightsPage
+    }) => {
+        await mockInsightsApi(page);
+        await insightsPage.goto(WORKSPACE_ID);
+
+        const line = insightsPage.signal('Gone quiet');
+        await line.focus();
+        await page.keyboard.press('Enter');
+        await expect(insightsPage.drill()).toHaveAccessibleName(
+            'Gone quiet · 156 records'
+        );
+        // Focus moves into the dialog, as a modal panel's should.
+        await expect(insightsPage.drill().locator(':focus')).toHaveCount(1);
+
+        await page.keyboard.press('Escape');
+        await expect(insightsPage.drill()).toHaveCount(0);
+        await expect(line).toBeFocused();
     });
 });

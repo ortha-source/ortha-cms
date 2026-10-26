@@ -12,7 +12,7 @@
  * reference (the host tags by first route segment), and the widgets are read by
  * the Insights page rather than by anything reading content.
  *
- * Pure: it takes the document and mutates only these six operations.
+ * Pure: it takes the document and mutates only these operations.
  */
 
 import type { OpenApiDocument } from '@orthacms/bootstrap-server';
@@ -104,12 +104,20 @@ const PIPELINE: OpenApiSchema = {
                 'One row per type that has at least one entry, biggest first. A type the workspace has never used is omitted, not listed at zero.',
             items: {
                 type: 'object',
-                required: ['name', 'label', 'published', 'drafts'],
+                required: ['name', 'label', 'published', 'drafts', 'modified'],
                 properties: {
                     name: { type: 'string' },
                     label: { type: 'string' },
                     published: { type: 'integer' },
-                    drafts: { type: 'integer' }
+                    drafts: {
+                        type: 'integer',
+                        description: 'Every draft, modified ones included.'
+                    },
+                    modified: {
+                        type: 'integer',
+                        description:
+                            'The drafts with live content behind them (the admin’s **Modified** badge). A subset of `drafts`.'
+                    }
                 }
             }
         }
@@ -119,14 +127,22 @@ const PIPELINE: OpenApiSchema = {
 /** Entries published per bucket. */
 const VELOCITY: OpenApiSchema = {
     type: 'object',
-    required: ['points', 'granularity'],
+    required: ['points', 'granularity', 'busiestWeekday'],
     properties: {
         points: {
             type: 'array',
             items: SERIES_POINT,
             description: 'Oldest bucket first.'
         },
-        granularity: GRANULARITY
+        granularity: GRANULARITY,
+        busiestWeekday: {
+            type: 'integer',
+            nullable: true,
+            minimum: 1,
+            maximum: 7,
+            description:
+                'ISO weekday (1 = Monday, UTC) with the most publishes in the window; `null` when nothing was published.'
+        }
     }
 };
 
@@ -139,7 +155,7 @@ const VELOCITY: OpenApiSchema = {
  */
 const PUNCHCARD: OpenApiSchema = {
     type: 'object',
-    required: ['cells', 'max', 'total'],
+    required: ['cells', 'max', 'total', 'timeZone'],
     properties: {
         cells: {
             type: 'array',
@@ -159,7 +175,7 @@ const PUNCHCARD: OpenApiSchema = {
                         minimum: 0,
                         maximum: 23,
                         description:
-                            'Hour of day in the database session’s timezone (UTC).'
+                            'Hour of day in the response’s `timeZone`.'
                     },
                     count: {
                         type: 'integer',
@@ -173,7 +189,13 @@ const PUNCHCARD: OpenApiSchema = {
             description:
                 'The busiest cell’s count, or 0 when there is no activity.'
         },
-        total: { type: 'integer', description: 'Revisions across the window.' }
+        total: { type: 'integer', description: 'Revisions across the window.' },
+        timeZone: {
+            type: 'string',
+            description:
+                'The IANA zone weekdays and hours were grouped in — the requested `tz`, or `UTC` when none usable was given.',
+            example: 'Europe/Berlin'
+        }
     }
 };
 
@@ -210,6 +232,82 @@ const STALE: OpenApiSchema = {
             type: 'integer',
             description:
                 'Across all buckets, so the client needn’t re-add them.'
+        },
+        olderTopType: {
+            type: 'object',
+            nullable: true,
+            required: ['name', 'label'],
+            description:
+                'The content type holding the most entries in the `older` bucket; `null` when nothing is that old.',
+            properties: {
+                name: { type: 'string' },
+                label: { type: 'string' }
+            }
+        }
+    }
+};
+
+/**
+ * The records behind one Needs-attention figure — the drill-down panel.
+ *
+ * Ids, not names, for the last editor: the admin resolves them against the
+ * workspace roster it already holds, as the review queue does.
+ */
+const RECORDS: OpenApiSchema = {
+    type: 'object',
+    required: ['total', 'types', 'records'],
+    properties: {
+        total: {
+            type: 'integer',
+            description: 'Every matching record, not only the listed ones.'
+        },
+        types: {
+            type: 'array',
+            description:
+                'Matching records per content type, biggest first; empty types omitted.',
+            items: {
+                type: 'object',
+                required: ['name', 'label', 'count'],
+                properties: {
+                    name: { type: 'string' },
+                    label: { type: 'string' },
+                    count: { type: 'integer' }
+                }
+            }
+        },
+        records: {
+            type: 'array',
+            description: 'The oldest matches first, at most `limit` of them.',
+            items: {
+                type: 'object',
+                required: [
+                    'id',
+                    'type',
+                    'typeLabel',
+                    'title',
+                    'updatedAt',
+                    'editorId'
+                ],
+                properties: {
+                    id: { type: 'string', format: 'uuid' },
+                    type: { type: 'string' },
+                    typeLabel: { type: 'string' },
+                    title: {
+                        type: 'string',
+                        nullable: true,
+                        description:
+                            'The entry’s display title; `null` when it has no title-eligible value.'
+                    },
+                    updatedAt: { type: 'string', format: 'date-time' },
+                    editorId: {
+                        type: 'string',
+                        format: 'uuid',
+                        nullable: true,
+                        description:
+                            'Who saved the newest revision, or `null` when unknown.'
+                    }
+                }
+            }
         }
     }
 };
@@ -273,7 +371,8 @@ export function buildContentInsightsSchemas(): Record<string, OpenApiSchema> {
         InsightsContentVelocity: VELOCITY,
         InsightsContentPunchcard: PUNCHCARD,
         InsightsContentStale: STALE,
-        InsightsContentUnshipped: UNSHIPPED
+        InsightsContentUnshipped: UNSHIPPED,
+        InsightsContentRecords: RECORDS
     };
 }
 
@@ -304,6 +403,16 @@ const ROUTES: Record<string, { schema: string; description: string }> = {
         schema: 'InsightsContentUnshipped',
         description:
             'Live entries with unpublished edits, and what has never shipped.'
+    },
+    '/stale/records': {
+        schema: 'InsightsContentRecords',
+        description:
+            'The published records in one age band (`?age=recent|months|year`), oldest first.'
+    },
+    '/unshipped/records': {
+        schema: 'InsightsContentRecords',
+        description:
+            'Live records carrying unpublished edits, the longest-waiting first.'
     }
 };
 
@@ -336,7 +445,7 @@ function setSuccessResponse(
     operation.responses = responses;
 }
 
-/** Adds the content-insights schemas and describes the six widget routes. */
+/** Adds the content-insights schemas and describes the widget and drill-down routes. */
 export function describeContentInsightsApi(document: OpenApiDocument): void {
     document.components ??= {};
     document.components.schemas ??= {};
