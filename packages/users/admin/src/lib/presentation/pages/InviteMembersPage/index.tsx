@@ -51,6 +51,10 @@ const messages = defineMessages({
         id: 'users.inviteSheet.workspaces',
         defaultMessage: 'Workspaces'
     },
+    selectedCount: {
+        id: 'users.inviteSheet.selectedCount',
+        defaultMessage: '{count} selected'
+    },
     taken: {
         id: 'users.inviteSheet.taken',
         defaultMessage:
@@ -462,12 +466,27 @@ export function InviteMembersPage() {
                                 aria-labelledby={workspacesLabelId}
                                 className="flex flex-col gap-2"
                             >
-                                <span
-                                    id={workspacesLabelId}
-                                    className="text-sm font-medium"
-                                >
-                                    {intl.formatMessage(messages.workspaces)}
-                                </span>
+                                <div className="flex items-baseline gap-2">
+                                    <span
+                                        id={workspacesLabelId}
+                                        className="text-sm font-medium"
+                                    >
+                                        {intl.formatMessage(
+                                            messages.workspaces
+                                        )}
+                                    </span>
+                                    {/* Live, because a tick can be off-screen
+                                        in the scrolled box or filtered out. */}
+                                    <span
+                                        aria-live="polite"
+                                        className="text-[13px] text-muted-foreground"
+                                    >
+                                        {intl.formatMessage(
+                                            messages.selectedCount,
+                                            { count: workspaceIds.size }
+                                        )}
+                                    </span>
+                                </div>
                                 <InviteWorkspaceTiles
                                     options={options}
                                     loading={workspaces.isPending}

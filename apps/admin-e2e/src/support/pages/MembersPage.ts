@@ -277,9 +277,32 @@ export class MembersPage extends BasePage {
         return this.page.getByRole('radio', { name: new RegExp(`^${label}`) });
     }
 
-    /** A workspace tile's checkbox on the invite page, by its visible name. */
-    inviteWorkspace(name: string): Locator {
-        return this.invitePage().getByRole('checkbox', { name });
+    /**
+     * A workspace tile's checkbox on the invite page, by its visible name.
+     * Pass `exact` where one name is a prefix of another ("Workspace 1" /
+     * "Workspace 10").
+     */
+    inviteWorkspace(name: string, exact = false): Locator {
+        return this.invitePage().getByRole('checkbox', { name, exact });
+    }
+
+    /** The search box above the invite page's workspace tiles. */
+    inviteWorkspaceSearch(): Locator {
+        return this.invitePage().getByRole('searchbox', {
+            name: 'Search workspaces'
+        });
+    }
+
+    /** The capped, scrolling box the workspace tiles sit in. */
+    inviteWorkspaceBox(): Locator {
+        return this.invitePage()
+            .locator('div.overflow-y-auto')
+            .filter({ has: this.page.getByRole('checkbox') });
+    }
+
+    /** The "N selected" read-out beside the Workspaces label. */
+    inviteSelectedCount(): Locator {
+        return this.invitePage().getByText(/^\d+ selected$/);
     }
 
     /** "all workspaces" — ticks every workspace there is. */

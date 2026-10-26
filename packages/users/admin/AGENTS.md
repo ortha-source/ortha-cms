@@ -109,7 +109,9 @@ a `PageTopBar` reading "Members › Invite people" and a `ContainerHeader`; no
 roster renders behind it. Gated on `users:create` (otherwise it returns to
 `/users`). The form: addresses as chips (`EmailChipsInput`, split by
 `Email.splitList`), one role (`RolePicker`), workspaces as tiles
-(`InviteWorkspaceTiles`, + "all workspaces"), and Cancel / a Send that counts
+(`InviteWorkspaceTiles`: a search box over tiles capped at about six rows that
+scroll inside a ruled box; a tick filtered or scrolled out of view stays
+ticked; a live "N selected" beside the label; + "all workspaces"), and Cancel / a Send that counts
 the invites. A malformed address or one that already belongs to a member
 (`useExistingEmails`: the ordinary list with an `email in […]` filter) is
 flagged on its chip and blocks Send; the server's batch `409 EMAIL_TAKEN`
@@ -126,8 +128,11 @@ page's `<h1>` (via `ContainerHeader`) with status, role, address, member
 since and last active on one line, **Change role** (the `ChangeRoleDialog`)
 and the `⋯` menu. **Four tabs instead of seven** (`UserDetailTabs`, a
 `TabNav` under the header): **Overview** (Profile — name edit, email fixed —
-Recent activity, and summary cards for Workspaces and Sign-in, each with a way
-into its tab), **Workspaces**, **Sessions & access** (`users:update`: sessions
+Recent activity, and summary cards for Workspaces — the first five, then "See
+all N" — and Sign-in, each with a way into its tab), **Workspaces** (one
+compact bordered list, a ~44px `WorkspaceMembershipRow` per workspace with a
+ghost Remove, a search past ten, and `AddToWorkspacesDialog`, whose options
+keep their description to one truncated line with the full text as `title`), **Sessions & access** (`users:update`: sessions
 with per-row Revoke and Sign out everywhere, the password link generated and
 shown in place, and Suspend/Reactivate apart as the risky card) and
 **Activity** (`activity:read`). **Preferences** remains a fifth tab on your

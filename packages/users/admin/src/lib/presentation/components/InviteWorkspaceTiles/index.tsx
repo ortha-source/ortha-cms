@@ -1,10 +1,28 @@
+import { useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { Button, Checkbox, Skeleton, cn } from '@orthacms/design-system';
+import { Search } from 'lucide-react';
+import {
+    Button,
+    Checkbox,
+    InputGroup,
+    InputGroupAddon,
+    InputGroupInput,
+    Skeleton,
+    cn
+} from '@orthacms/design-system';
 import type { WorkspaceOption } from '../../../domain/types/workspaceOption';
 import { MemberAvatar } from '../MemberAvatar';
 
 /** Intl descriptors for {@link InviteWorkspaceTiles}, co-located. */
 const messages = defineMessages({
+    search: {
+        id: 'users.inviteSheet.searchWorkspaces',
+        defaultMessage: 'Search workspaces'
+    },
+    noMatch: {
+        id: 'users.inviteSheet.noWorkspaceMatch',
+        defaultMessage: 'No workspaces match'
+    },
     allHint: {
         id: 'users.inviteSheet.allWorkspacesHint',
         defaultMessage: 'Or <all>all workspaces</all> — new ones not included.'
@@ -29,8 +47,9 @@ const messages = defineMessages({
 });
 
 /**
- * The invite sheet's workspaces: a two-column grid of checkbox tiles (the
- * workspace's colour tile and name), and a shortcut that ticks every
+ * The invite page's workspaces: a search box over a two-column grid of
+ * checkbox tiles (the workspace's colour tile and name) capped at about six
+ * rows, scrolling inside a ruled box, and a shortcut that ticks every
  * workspace that exists today. It says plainly that a workspace created later
  * is not included — access is by membership, so "all" is a snapshot.
  */
@@ -62,6 +81,7 @@ export function InviteWorkspaceTiles({
     onRetry: () => void;
 }) {
     const intl = useIntl();
+    const [query, setQuery] = useState('');
 
     if (loading) {
         return (
@@ -95,39 +115,69 @@ export function InviteWorkspaceTiles({
         );
     }
 
+    const needle = query.trim().toLowerCase();
+    // Filtering only narrows what is shown: a ticked workspace scrolled or
+    // filtered out of view stays in `selected`, and still goes with the invite.
+    const visible = needle
+        ? options.filter((option) => option.name.toLowerCase().includes(needle))
+        : options;
+
     return (
         <div className="flex flex-col gap-2">
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {options.map((option) => {
-                    const id = `invite-workspace-${option.id}`;
-                    const on = selected.has(option.id);
-                    return (
-                        <label
-                            key={option.id}
-                            htmlFor={id}
-                            className={cn(
-                                'flex h-10 cursor-pointer items-center gap-2.5 rounded-lg border px-3 text-sm transition-colors',
-                                on
-                                    ? 'border-foreground ring-1 ring-foreground'
-                                    : 'hover:bg-muted/50',
-                                disabled && 'cursor-not-allowed opacity-60'
-                            )}
-                        >
-                            <Checkbox
-                                id={id}
-                                checked={on}
-                                disabled={disabled}
-                                onCheckedChange={() => onToggle(option.id)}
-                            />
-                            <MemberAvatar
-                                initials={option.initials}
-                                color={option.color}
-                                className="size-5 shrink-0 rounded-[5px] text-[9px]"
-                            />
-                            <span className="truncate">{option.name}</span>
-                        </label>
-                    );
-                })}
+            <InputGroup className="shadow-none">
+                <InputGroupAddon>
+                    <Search />
+                </InputGroupAddon>
+                <InputGroupInput
+                    type="search"
+                    value={query}
+                    disabled={disabled}
+                    onChange={(event) => setQuery(event.target.value)}
+                    aria-label={intl.formatMessage(messages.search)}
+                    placeholder={intl.formatMessage(messages.search)}
+                />
+            </InputGroup>
+            {/* About six rows, then it scrolls inside a ruled box — thirty
+                workspaces must not push Send off the page. `p-0.5` keeps the
+                selected tiles' ring inside the clip. */}
+            <div className="max-h-[18rem] overflow-y-auto rounded-lg border bg-muted/20 p-2">
+                {visible.length === 0 ? (
+                    <p className="py-6 text-center text-sm text-muted-foreground">
+                        {intl.formatMessage(messages.noMatch)}
+                    </p>
+                ) : null}
+                <div className="grid grid-cols-1 gap-2 p-0.5 sm:grid-cols-2">
+                    {visible.map((option) => {
+                        const id = `invite-workspace-${option.id}`;
+                        const on = selected.has(option.id);
+                        return (
+                            <label
+                                key={option.id}
+                                htmlFor={id}
+                                className={cn(
+                                    'flex h-10 cursor-pointer items-center gap-2.5 rounded-lg border bg-background px-3 text-sm transition-colors',
+                                    on
+                                        ? 'border-foreground ring-1 ring-foreground'
+                                        : 'hover:bg-muted/50',
+                                    disabled && 'cursor-not-allowed opacity-60'
+                                )}
+                            >
+                                <Checkbox
+                                    id={id}
+                                    checked={on}
+                                    disabled={disabled}
+                                    onCheckedChange={() => onToggle(option.id)}
+                                />
+                                <MemberAvatar
+                                    initials={option.initials}
+                                    color={option.color}
+                                    className="size-5 shrink-0 rounded-[5px] text-[9px]"
+                                />
+                                <span className="truncate">{option.name}</span>
+                            </label>
+                        );
+                    })}
+                </div>
             </div>
             <p className="text-[13px] text-muted-foreground">
                 {intl.formatMessage(messages.allHint, {

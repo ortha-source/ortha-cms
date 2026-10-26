@@ -1,13 +1,11 @@
 import { useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { Plus } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import {
     Button,
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
+    InputGroup,
+    InputGroupAddon,
+    InputGroupInput,
     toast
 } from '@orthacms/design-system';
 import { useHasPermission } from '@orthacms/identity-admin';
@@ -16,8 +14,12 @@ import { useRemoveWorkspaceMember } from '../../../application/useRemoveWorkspac
 import { useUserDetailContext } from '../../userDetailContext';
 import { AddToWorkspacesDialog } from '../../components/AddToWorkspacesDialog';
 import { ConfirmDialog } from '@orthacms/design-system';
-import { WorkspaceMembershipCard } from '../../components/WorkspaceMembershipCard';
+import { WorkspaceMembershipRow } from '../../components/WorkspaceMembershipRow';
+import { MemberCard } from '../../components/MemberCard';
 import type { MemberWorkspace } from '../../../domain/types/member';
+
+/** Past this many memberships the list gets a search box. */
+const SEARCH_FROM = 10;
 
 /** Intl descriptors for {@link UserWorkspacesPage}. */
 const messages = defineMessages({
@@ -27,6 +29,14 @@ const messages = defineMessages({
         defaultMessage: 'The workspaces this member can access.'
     },
     add: { id: 'users.workspaces.add', defaultMessage: 'Add to workspace' },
+    search: {
+        id: 'users.workspaces.search',
+        defaultMessage: 'Search this member’s workspaces'
+    },
+    noMatch: {
+        id: 'users.workspaces.noMatch',
+        defaultMessage: 'No workspaces match'
+    },
     empty: {
         id: 'users.workspaces.empty',
         defaultMessage: 'This member isn’t in any workspace yet.'
@@ -64,8 +74,9 @@ const messages = defineMessages({
 });
 
 /**
- * The Workspaces tab: the member's workspace memberships, with add (a
- * multi-select dialog) and per-card remove (confirmed). Memberships come from
+ * The Workspaces tab: the member's memberships as one compact bordered list
+ * (a row per workspace, Remove on the right, confirmed), a search box once
+ * there are more than ten, and add (a multi-select dialog). Memberships come from
  * the shared detail record; mutations invalidate it so the list refreshes.
  * Editing requires `users:update`.
  */
@@ -78,6 +89,7 @@ export function UserWorkspacesPage() {
 
     const [adding, setAdding] = useState(false);
     const [removing, setRemoving] = useState<MemberWorkspace | null>(null);
+    const [query, setQuery] = useState('');
 
     const onAdd = async (workspaceIds: string[]) => {
         const { added, failed } = await addMember.add(workspaceIds);
@@ -116,41 +128,84 @@ export function UserWorkspacesPage() {
         );
     };
 
+    const needle = query.trim().toLowerCase();
+    const visible = needle
+        ? member.workspaces.filter((workspace) =>
+              workspace.name.toLowerCase().includes(needle)
+          )
+        : member.workspaces;
+
     return (
-        <Card>
-            <CardHeader className="flex-row items-start justify-between gap-4 space-y-0">
-                <div className="space-y-1.5">
-                    <CardTitle>{intl.formatMessage(messages.title)}</CardTitle>
-                    <CardDescription>
-                        {intl.formatMessage(messages.description)}
-                    </CardDescription>
-                </div>
-                {canManage ? (
-                    <Button size="sm" onClick={() => setAdding(true)}>
+        <MemberCard
+            title={intl.formatMessage(messages.title)}
+            count={member.workspaces.length}
+            action={
+                canManage ? (
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setAdding(true)}
+                    >
                         <Plus aria-hidden className="size-4" />
                         {intl.formatMessage(messages.add)}
                     </Button>
-                ) : null}
-            </CardHeader>
-            <CardContent className="space-y-3">
-                {member.workspaces.length === 0 ? (
-                    <p className="py-6 text-center text-sm text-muted-foreground">
-                        {intl.formatMessage(messages.empty)}
-                    </p>
-                ) : (
-                    member.workspaces.map((workspace) => (
-                        <WorkspaceMembershipCard
-                            key={workspace.id}
-                            workspace={workspace}
-                            onRemove={canManage ? setRemoving : undefined}
-                            removing={
-                                removeMember.isPending &&
-                                removing?.id === workspace.id
-                            }
-                        />
-                    ))
-                )}
-            </CardContent>
+                ) : null
+            }
+        >
+            {member.workspaces.length === 0 ? (
+                <p className="px-4 py-6 text-center text-sm text-muted-foreground">
+                    {intl.formatMessage(messages.empty)}
+                </p>
+            ) : (
+                <>
+                    {member.workspaces.length > SEARCH_FROM ? (
+                        <div className="border-b p-3">
+                            <InputGroup className="shadow-none">
+                                <InputGroupAddon>
+                                    <Search />
+                                </InputGroupAddon>
+                                <InputGroupInput
+                                    type="search"
+                                    value={query}
+                                    onChange={(event) =>
+                                        setQuery(event.target.value)
+                                    }
+                                    aria-label={intl.formatMessage(
+                                        messages.search
+                                    )}
+                                    placeholder={intl.formatMessage(
+                                        messages.search
+                                    )}
+                                />
+                            </InputGroup>
+                        </div>
+                    ) : null}
+                    {visible.length === 0 ? (
+                        <p className="px-4 py-6 text-center text-sm text-muted-foreground">
+                            {intl.formatMessage(messages.noMatch)}
+                        </p>
+                    ) : (
+                        <ul
+                            aria-label={intl.formatMessage(messages.title)}
+                            className="divide-y"
+                        >
+                            {visible.map((workspace) => (
+                                <WorkspaceMembershipRow
+                                    key={workspace.id}
+                                    workspace={workspace}
+                                    onRemove={
+                                        canManage ? setRemoving : undefined
+                                    }
+                                    removing={
+                                        removeMember.isPending &&
+                                        removing?.id === workspace.id
+                                    }
+                                />
+                            ))}
+                        </ul>
+                    )}
+                </>
+            )}
 
             <AddToWorkspacesDialog
                 open={adding}
@@ -176,6 +231,6 @@ export function UserWorkspacesPage() {
                 confirmVariant="destructive"
                 onConfirm={onRemove}
             />
-        </Card>
+        </MemberCard>
     );
 }

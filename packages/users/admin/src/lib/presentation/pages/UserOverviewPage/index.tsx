@@ -29,6 +29,9 @@ const NAME_MAX_LENGTH = 80;
 /** How many events the Recent activity card shows before "See all". */
 const RECENT_EVENTS = 3;
 
+/** How many workspaces the Workspaces card lists before "See all N". */
+const SUMMARY_WORKSPACES = 5;
+
 /** Everyday names for the SSO providers Ortha ships adapters for. */
 const SSO_NAMES: Record<string, string> = {
     google: 'Google',
@@ -86,6 +89,14 @@ const messages = defineMessages({
     addLabel: {
         id: 'users.overview.addWorkspaceLabel',
         defaultMessage: 'Add {name} to workspaces'
+    },
+    seeAllWorkspaces: {
+        id: 'users.overview.seeAllWorkspaces',
+        defaultMessage: 'See all {count}'
+    },
+    seeAllWorkspacesLabel: {
+        id: 'users.overview.seeAllWorkspacesLabel',
+        defaultMessage: 'See all {count} of {name}’s workspaces'
     },
     noWorkspaces: {
         id: 'users.overview.noWorkspaces',
@@ -353,19 +364,42 @@ function WorkspacesCard({
                 </p>
             ) : (
                 <ul>
-                    {member.workspaces.map((workspace) => (
-                        <li
-                            key={workspace.id}
-                            className="flex min-h-12 items-center gap-3 border-b px-4 py-2.5 text-sm last:border-b-0"
-                        >
-                            <MemberAvatar
-                                initials={workspace.initials}
-                                color={workspace.color}
-                                className="size-6 shrink-0 rounded-md text-[10px]"
-                            />
-                            <span className="truncate">{workspace.name}</span>
+                    {member.workspaces
+                        .slice(0, SUMMARY_WORKSPACES)
+                        .map((workspace) => (
+                            <li
+                                key={workspace.id}
+                                className="flex min-h-12 items-center gap-3 border-b px-4 py-2.5 text-sm last:border-b-0"
+                            >
+                                <MemberAvatar
+                                    initials={workspace.initials}
+                                    color={workspace.color}
+                                    className="size-6 shrink-0 rounded-md text-[10px]"
+                                />
+                                <span className="truncate">
+                                    {workspace.name}
+                                </span>
+                            </li>
+                        ))}
+                    {member.workspaces.length > SUMMARY_WORKSPACES ? (
+                        <li className="flex min-h-11 items-center px-4 py-2.5">
+                            <Link
+                                to={`/users/${member.id}/workspaces`}
+                                aria-label={intl.formatMessage(
+                                    messages.seeAllWorkspacesLabel,
+                                    {
+                                        count: member.workspaces.length,
+                                        name: member.name
+                                    }
+                                )}
+                                className="rounded-sm text-[13px] text-muted-foreground underline underline-offset-2 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                            >
+                                {intl.formatMessage(messages.seeAllWorkspaces, {
+                                    count: member.workspaces.length
+                                })}
+                            </Link>
                         </li>
-                    ))}
+                    ) : null}
                 </ul>
             )}
             {canManage ? (

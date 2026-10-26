@@ -11,7 +11,7 @@ interface RoleSeed {
  * A member's workspace as the API returns it (server `MemberWorkspaceView`).
  *
  * `description` is on the wire and **required** — `memberMapper` reads
- * `dto.description` and `WorkspaceMembershipCard` renders it behind a
+ * `dto.description` and `WorkspaceMembershipRow` renders it behind a
  * truthiness check. It was missing here, so every suite saw `undefined`, the
  * card's description line never rendered, and nothing in the repo would have
  * noticed the server dropping the field. `null` is the real "none" value, not
