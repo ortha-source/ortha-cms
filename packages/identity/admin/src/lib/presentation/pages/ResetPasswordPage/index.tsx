@@ -1,14 +1,11 @@
 import { useSearchParams } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    Skeleton
-} from '@orthacms/design-system';
 import { HTTP_STATUS, useDocumentTitle } from '@orthacms/utils-admin';
 import { AuthLayout } from '../../components/AuthLayout';
 import { ResetLinkUnavailable } from '../../components/ResetLinkUnavailable';
+import { LinkIncomplete } from '../../components/LinkIncomplete';
+import { AuthCardSkeleton } from '../../components/AuthCardSkeleton';
+import { isCompleteLinkToken } from '../../../domain/value-objects/linkToken';
 import { ResetLinkLookupFailed } from '../../components/ResetLinkLookupFailed';
 import { PasswordResetDone } from '../../components/PasswordResetDone';
 import {
@@ -36,7 +33,7 @@ const messages = defineMessages({
     linkExpired: {
         id: 'identity.resetPassword.error.linkExpired',
         defaultMessage:
-            'This link was used or expired while you were filling the form. Ask an administrator for a new one and try again.'
+            'This link was used or expired while you were filling the form. Get a new one from “Forgot it?” on the sign-in page.'
     },
     rejected: {
         id: 'identity.resetPassword.error.rejected',
@@ -52,7 +49,8 @@ const messages = defineMessages({
 /**
  * Reset-password page — the route container the identity router mounts at
  * `/identity/reset-password?token=…`, the far end of the link an admin
- * generates from a member's Access tab. It reads the token from the query
+ * generates from a member's Sessions & access tab, or that self-service
+ * recovery mails. It reads the token from the query
  * string, resolves it to the account it belongs to, and lets that person set a
  * new password.
  *
@@ -78,10 +76,12 @@ export function ResetPasswordPage() {
         mutate({ token, ...values });
     };
 
-    if (!token) {
+    // A link with no token, or one cut short on its way here, cannot be
+    // valid — said before any request, with the reason it broke.
+    if (!isCompleteLinkToken(token)) {
         return (
             <AuthLayout surface="reset-missing-token">
-                <ResetLinkUnavailable missingToken />
+                <LinkIncomplete />
             </AuthLayout>
         );
     }
@@ -101,36 +101,11 @@ export function ResetPasswordPage() {
     if (reset.isPending) {
         return (
             <AuthLayout surface="reset-loading" focusHeading={false}>
-                {/* The busy state's `<h1>`, visually hidden: it is a
-                    full page like any other and was reporting none
-                    (`ORT-167`). */}
-                <h1 className="sr-only">
-                    {intl.formatMessage(messages.loadingHeading)}
-                </h1>
-                <div role="status">
-                    <span className="sr-only">
-                        {intl.formatMessage(messages.loading)}
-                    </span>
-                    <Card aria-hidden>
-                        <CardHeader className="gap-2">
-                            <Skeleton className="h-6 w-44" />
-                            <Skeleton className="h-4 w-60 max-w-full" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="flex flex-col gap-6">
-                                <div className="flex flex-col gap-2">
-                                    <Skeleton className="h-4 w-16" />
-                                    <Skeleton className="h-9 w-full" />
-                                </div>
-                                <div className="flex flex-col gap-2">
-                                    <Skeleton className="h-4 w-24" />
-                                    <Skeleton className="h-9 w-full" />
-                                </div>
-                                <Skeleton className="h-9 w-full" />
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
+                <AuthCardSkeleton
+                    heading={intl.formatMessage(messages.loadingHeading)}
+                    status={intl.formatMessage(messages.loading)}
+                    fields={1}
+                />
             </AuthLayout>
         );
     }

@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
-import { Logo } from '@orthacms/design-system';
+import { Logo, cn } from '@orthacms/design-system';
 
 /**
  * Props for the {@link AuthLayout} component.
@@ -30,6 +30,12 @@ type AuthLayoutProps = {
      * layout deliberately never took focus for.
      */
     focusHeading?: boolean;
+    /**
+     * The column's width: `default` (400px) for sign-in and the one-field
+     * screens, `wide` (440px) for accepting an invitation, whose name and
+     * email sit side by side.
+     */
+    width?: 'default' | 'wide';
 };
 
 /**
@@ -49,7 +55,8 @@ type AuthLayoutProps = {
 export function AuthLayout({
     children,
     surface,
-    focusHeading = true
+    focusHeading = true,
+    width = 'default'
 }: AuthLayoutProps) {
     const columnRef = useRef<HTMLDivElement>(null);
 
@@ -94,12 +101,15 @@ export function AuthLayout({
         // bring their own (`ORT-166`). It wraps the centering wrapper, not the
         // inner column, so the brand mark is inside the landmark too and nothing
         // is left over for `region` to report.
-        <main className="flex min-h-svh flex-col items-center justify-center gap-6 bg-muted p-6 md:p-10">
+        <main className="flex min-h-svh flex-col items-center justify-center bg-muted/40 p-4 md:p-10">
             <div
                 ref={columnRef}
-                className="flex w-full max-w-sm flex-col gap-6"
+                className={cn(
+                    'flex w-full flex-col gap-5',
+                    width === 'wide' ? 'max-w-[440px]' : 'max-w-[400px]'
+                )}
             >
-                <Logo className="self-center" />
+                <Logo className="self-center text-[15px] font-semibold" />
                 {children}
             </div>
         </main>

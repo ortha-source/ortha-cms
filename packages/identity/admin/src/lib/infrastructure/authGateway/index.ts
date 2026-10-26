@@ -73,4 +73,19 @@ export type AuthGateway = {
      * failed the server's rules).
      */
     resetPassword(input: ResetPasswordInput): Promise<void>;
+    /**
+     * Whether the deployment sends password-recovery mail, via
+     * `GET /api/auth/password-recovery`. A `404` — a server from before the
+     * route existed — reads as `false`, which is the truth for it. Any other
+     * failure throws an `ApiError`.
+     */
+    passwordRecoveryAvailable(): Promise<boolean>;
+    /**
+     * Asks for a reset link to be sent to `email`, via
+     * `POST /api/auth/password-recovery`. Resolves the same way whether or not
+     * an account uses the address — the server answers `202` before it looks.
+     * Throws an `ApiError` (`404` = this deployment sends no mail, `429` = too
+     * many requests from this device, `400` = not an email address).
+     */
+    requestPasswordRecovery(email: string): Promise<void>;
 };

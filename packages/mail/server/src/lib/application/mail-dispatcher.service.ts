@@ -77,9 +77,14 @@ export class MailDispatcherService implements MailDispatcher {
         };
     }
 
-    /** Which admin route this kind of message points at. */
+    /**
+     * Which admin route this kind of message points at. An admin-issued reset
+     * and a self-service recovery redeem the same kind of token, so they share
+     * the reset route.
+     */
     private linkFor(kind: MailKind, token: string): string {
-        return kind === MAIL_KINDS.PASSWORD_RESET
+        return kind === MAIL_KINDS.PASSWORD_RESET ||
+            kind === MAIL_KINDS.PASSWORD_RECOVERY
             ? passwordResetLink(this.config.appUrl, token)
             : inviteLink(this.config.appUrl, token);
     }

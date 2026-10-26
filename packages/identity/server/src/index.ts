@@ -119,6 +119,15 @@ export type {
 export { WORKSPACE_DIRECTORY } from './lib/api-tokens/application/ports/workspace-directory.port';
 export type { WorkspaceDirectory } from './lib/api-tokens/application/ports/workspace-directory.port';
 export { UnknownWorkspaceError } from './lib/api-tokens/domain/unknown-workspace.error';
+// The port the accept-invite screen's "in Marketing site and Support hub"
+// comes from. Identity owns it and the workspaces plugin binds it, the same
+// inversion as `WORKSPACE_DIRECTORY`.
+export { INVITE_WORKSPACE_DIRECTORY } from './lib/application/ports/invite-workspace-directory.port';
+export type { InviteWorkspaceDirectory } from './lib/application/ports/invite-workspace-directory.port';
+// Self-service password recovery: identity owns the public route, the plugin
+// that owns reset tokens registers the issuer behind it.
+export { PasswordRecoveryRegistry } from './lib/application/password-recovery.registry';
+export type { PasswordRecoveryIssuer } from './lib/application/ports/password-recovery.port';
 // --- SSO ---
 //
 // The port itself lives in `@orthacms/identity-domain`, so an adapter can

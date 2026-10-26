@@ -19,8 +19,8 @@ function resetPasswordSchema() {
 
 /** Every message the schema reports for `field`, in order. */
 function messagesFor(
-    field: 'password' | 'confirmPassword',
-    values: { password: string; confirmPassword: string }
+    field: 'password',
+    values: { password: string }
 ): string[] {
     const result = resetPasswordSchema().safeParse(values);
     if (result.success) {
@@ -32,9 +32,9 @@ function messagesFor(
         .map((issue) => issue.message);
 }
 
-/** A confirm field that always agrees, so only the password rule is in play. */
+/** The form's only value. */
 function bothFields(password: string) {
-    return { password, confirmPassword: password };
+    return { password };
 }
 
 /**
@@ -106,55 +106,12 @@ describe('useResetPasswordSchema', () => {
         });
     });
 
-    describe('confirmPassword', () => {
-        // One message, not two — see the note on the same test in
-        // `useAcceptInviteSchema.spec.tsx`. An object-level `.refine` still
-        // runs when a field-level check on the same path has already failed,
-        // so it has to skip an empty box or the field accuses the visitor of a
-        // mismatch before they have typed a second password.
-        it('asks for the confirmation once, not once per rule', () => {
-            expect(
-                messagesFor('confirmPassword', {
-                    password: 'a'.repeat(12),
-                    confirmPassword: ''
-                })
-            ).toEqual(['Type your new password once more to confirm it']);
-        });
-
-        it('says nothing about a mismatch when both boxes are empty', () => {
-            expect(
-                messagesFor('confirmPassword', {
-                    password: '',
-                    confirmPassword: ''
-                })
-            ).toEqual(['Type your new password once more to confirm it']);
-        });
-
-        // The mismatch is reported on the confirm field, not the password one:
-        // that is the box to go back and retype, and it is where the form
-        // renders the error.
-        it('reports a mismatch against the confirm field', () => {
-            const result = resetPasswordSchema().safeParse({
-                password: 'correct horse battery',
-                confirmPassword: 'correct horse batttery'
-            });
-
-            expect(result.success).toBe(false);
-            expect(result.error?.issues).toEqual([
-                expect.objectContaining({
-                    path: ['confirmPassword'],
-                    message: expect.stringContaining('don’t match')
-                })
-            ]);
-        });
-
-        it('accepts two identical passwords', () => {
-            expect(
-                resetPasswordSchema().safeParse({
-                    password: 'correct horse battery',
-                    confirmPassword: 'correct horse battery'
-                }).success
-            ).toBe(true);
-        });
+    it('validates the password alone — there is no confirmation field', () => {
+        // One field since the redesign: the show/hide toggle, not a second
+        // blind copy, is how the person checks what they typed.
+        const schema = resetPasswordSchema();
+        expect(schema.safeParse({ password: 'a'.repeat(12) }).success).toBe(
+            true
+        );
     });
 });

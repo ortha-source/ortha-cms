@@ -13,6 +13,11 @@ export interface PendingInvite {
     email: string;
     /** The display name the inviting admin set, or `null` when they set none. */
     name: string | null;
+    /**
+     * The display name of the role the inviting admin granted (`Contributor`),
+     * or `null` if the role row is somehow gone. Shown, never collected.
+     */
+    role: string | null;
 }
 
 /**

@@ -1,16 +1,11 @@
 import { defineMessages, useIntl } from 'react-intl';
-import {
-    Button,
-    Field,
-    FieldDescription,
-    Spinner
-} from '@orthacms/design-system';
+import { Button, Spinner } from '@orthacms/design-system';
 
 /** Intl descriptors for {@link LoginActions}, co-located with the component. */
 const messages = defineMessages({
     loginButton: {
         id: 'identity.login.button',
-        defaultMessage: 'Login'
+        defaultMessage: 'Sign in'
     },
     loginButtonPending: {
         id: 'identity.login.buttonPending',
@@ -18,8 +13,7 @@ const messages = defineMessages({
     },
     inviteOnly: {
         id: 'identity.login.inviteOnly',
-        defaultMessage:
-            'Accounts are created by invitation — ask an administrator to send you one.'
+        defaultMessage: 'No account? Ortha is invite-only — ask an admin.'
     }
 });
 
@@ -36,22 +30,21 @@ type LoginActionsProps = {
 };
 
 /**
- * Submit button (a spinner replaces the label while submitting) followed by a
- * note on how accounts come about. The extra `gap-5` widens the spacing between
- * the button and the note below it.
+ * The full-width Sign in button (a spinner replaces the label while
+ * submitting) and, under it, how accounts come about.
  *
  * The note is plain text, not a "Sign up" control: there is no self-service
  * sign-up to route to, and there cannot be one — an account exists because an
- * admin invited it (`/identity/accept-invite`). Offering the control anyway
- * (previously a `<button>` with no handler) told a keyboard or screen-reader
- * user the page was broken; saying how to get an account tells them what to do.
+ * admin invited it (`/identity/accept-invite`). It says "an admin" and names
+ * nobody: this page is public, and a list of who holds the keys is the last
+ * thing it should hand a stranger.
  */
 export function LoginActions({ isPending }: LoginActionsProps) {
     const intl = useIntl();
 
     return (
-        <Field className="gap-5">
-            <Button type="submit" className="w-full" disabled={isPending}>
+        <div className="flex flex-col gap-4">
+            <Button type="submit" className="h-9 w-full" disabled={isPending}>
                 {isPending ? (
                     <>
                         <Spinner aria-hidden="true" />
@@ -63,9 +56,9 @@ export function LoginActions({ isPending }: LoginActionsProps) {
                     intl.formatMessage(messages.loginButton)
                 )}
             </Button>
-            <FieldDescription className="text-center">
+            <p className="text-center text-[13px] text-muted-foreground">
                 {intl.formatMessage(messages.inviteOnly)}
-            </FieldDescription>
-        </Field>
+            </p>
+        </div>
     );
 }

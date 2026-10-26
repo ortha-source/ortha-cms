@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, MinLength } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
 import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from '../auth.constants';
 import { MatchesField } from './matches-field.validator';
 import { MaxByteLength } from './max-byte-length.validator';
@@ -30,14 +30,22 @@ export class ResetPasswordDto {
     password!: string;
 
     /**
-     * Re-typed password. Checked server-side too, not just in the form — the
-     * endpoint is public, and a mismatch here means the user does not know the
-     * credential they are about to be locked into, with the link that would have
-     * let them try again already spent.
+     * Re-typed password — **optional** since the R7 auth redesign. The screens
+     * now collect one password field with a strength meter and a show-password
+     * toggle instead of asking for it twice: the toggle is what lets someone
+     * check the credential they are about to be locked into, and it does so
+     * without making them type it again.
+     *
+     * When a client still sends it, it must match — checked server-side, not
+     * just in a form, because the endpoint is public and a mismatch means the
+     * caller does not know the password they are setting. `@IsOptional()` skips
+     * the rules only for an absent (or `null`) value; an empty string is still
+     * a mismatch.
      */
+    @IsOptional()
     @IsString()
     @MatchesField('password', {
         message: 'confirmPassword must match password'
     })
-    confirmPassword!: string;
+    confirmPassword?: string;
 }

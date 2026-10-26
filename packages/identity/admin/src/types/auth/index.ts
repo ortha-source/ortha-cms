@@ -28,28 +28,40 @@ export type CurrentUser = {
 };
 
 /**
- * Who an invite link is for, as returned by `GET /api/auth/invite/:token`. The
- * inviting admin already chose both, so the accept screen shows them back
- * rather than asking for them.
+ * What an invite link is for, as returned by `GET /api/auth/invite/:token`:
+ * who it was addressed to and what it grants. Never who sent it — the page is
+ * public, and a leaked link must not hand a stranger an administrator's name.
  */
 export type InviteDetails = {
     /** The email the invite was addressed to. */
     email: string;
     /** The display name the admin set, or `null` when they set none. */
     name: string | null;
+    /**
+     * The display name of the role the invite grants (`Contributor`), or
+     * `null` when the server could not resolve it. Optional on the type so an
+     * older server that sends only email and name still renders.
+     */
+    role?: string | null;
+    /** The workspaces the invitee will be a member of, by name. */
+    workspaces?: string[];
 };
 
 /**
- * What the accept-invite form submits. The password is typed twice — the field
- * being set is the one thing the invitee cannot recover if they mistype it.
+ * What the accept-invite form submits. One password field with a show/hide
+ * toggle — the toggle, not a second blind copy, is how the invitee checks what
+ * they typed.
  */
 export type AcceptInviteInput = {
     /** The raw one-time token lifted from the invite link's `?token=`. */
     token: string;
     /** The password to set as this account's first credential. */
     password: string;
-    /** Re-typed password; must equal `password`. */
-    confirmPassword: string;
+    /**
+     * Re-typed password. Optional since the redesign, which collects one
+     * field; the server still checks it when a client sends it.
+     */
+    confirmPassword?: string;
 };
 
 /**
@@ -66,16 +78,27 @@ export type PasswordResetDetails = {
 };
 
 /**
- * What the reset form submits. The password is typed twice — the link is
- * single-use, so a mistyped password cannot be corrected by opening it again.
+ * What the reset form submits: one new password, checked by the person with
+ * the field's show/hide toggle rather than by typing it twice.
  */
 export type ResetPasswordInput = {
     /** The raw one-time token lifted from the reset link's `?token=`. */
     token: string;
     /** The password to set as this account's credential. */
     password: string;
-    /** Re-typed password; must equal `password`. */
-    confirmPassword: string;
+    /** Re-typed password. Optional; the server checks it when sent. */
+    confirmPassword?: string;
+};
+
+/**
+ * Whether this deployment sends password-recovery mail, as returned by
+ * `GET /api/auth/password-recovery`. A property of the deployment — the same
+ * answer for everyone — so the sign-in page can offer the request form or say
+ * who to ask instead.
+ */
+export type PasswordRecoveryAvailability = {
+    /** `true` only when a mail provider is configured. */
+    available: boolean;
 };
 
 /**

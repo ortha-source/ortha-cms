@@ -101,6 +101,16 @@ const AUTH_ROUTES: Record<string, Record<string, OperationSpec>> = {
             'The password is set and every live session on the account is revoked. Unlike accepting an invite, this sets **no** session cookie: the caller finishes at the sign-in form.'
         )
     },
+    '/password-recovery': {
+        get: answers(
+            'PasswordRecoveryAvailability',
+            'Whether this deployment sends recovery mail, so the sign-in page can offer the form or say who to ask instead.'
+        ),
+        post: answers(
+            'AuthAck',
+            'Accepted — the same status and body whether or not an account uses the address, and before any work is done. `404` when no mail provider is configured.'
+        )
+    },
     '/sso': {
         get: answersList(
             'SsoProvider',

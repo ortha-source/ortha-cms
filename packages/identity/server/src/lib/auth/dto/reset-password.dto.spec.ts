@@ -100,13 +100,17 @@ describe('ResetPasswordDto (against AcceptInviteDto)', () => {
                 );
             });
 
-            it('rejects a missing confirmation', async () => {
+            it('accepts a missing confirmation — the redesigned screens send one password field', async () => {
                 const errors = await errorsFor(Dto, {
                     token: 'a-one-time-token',
                     password: 'a'.repeat(12)
                 });
-                expect(constraintKeys(errors).sort()).toEqual([
-                    'confirmPassword.isString',
+                expect(errors).toEqual([]);
+            });
+
+            it('still rejects an empty confirmation, which is a mismatch rather than an absence', async () => {
+                const errors = await errorsFor(Dto, body('a'.repeat(12), ''));
+                expect(constraintKeys(errors)).toEqual([
                     'confirmPassword.matchesField'
                 ]);
             });

@@ -47,10 +47,13 @@ admin's Members page drives. Exposes, under `/api/users`:
   placeholder row (cascades drop token + memberships). Real accounts are
   **never deleted** through this API.
 - `POST /users/:id/password-reset` — mint a single-use password-reset link for
-  an **active** member (`users:update`), returned the same reveal-once way. This
-  is the whole password-recovery story today: with no mailer, a public "forgot
-  password" form would have nowhere to send a link, so the flow runs through an
-  admin. Redeeming the link is identity's job (`POST /api/auth/reset`); this
+  an **active** member (`users:update`), returned the same reveal-once way. With no
+  mailer this is the whole password-recovery story. With one, the public
+  "forgot password" route (identity's `/api/auth/password-recovery`) calls
+  `IssuePasswordRecoveryUseCase`, which this package registers with identity's
+  `PasswordRecoveryRegistry` on init — no public route here (users:I-12): same
+  rotation and cooldown, only `active` members, a `password_recovery` message,
+  and `member.password_reset_issued` with the member as their own actor. Redeeming the link is identity's job (`POST /api/auth/reset`); this
   context only decides **who** may be reset. 409s a `pending` member (no
   password yet — resend their invite) and a `disabled` one (locked out on
   purpose). Carries `resetExpiresAt` so the admin can say how long it works.

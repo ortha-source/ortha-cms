@@ -1,15 +1,12 @@
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { defineMessages, useIntl } from 'react-intl';
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    Skeleton
-} from '@orthacms/design-system';
 import { HTTP_STATUS, useDocumentTitle } from '@orthacms/utils-admin';
 import { AuthLayout } from '../../components/AuthLayout';
 import { InviteUnavailable } from '../../components/InviteUnavailable';
+import { LinkIncomplete } from '../../components/LinkIncomplete';
+import { AuthCardSkeleton } from '../../components/AuthCardSkeleton';
+import { isCompleteLinkToken } from '../../../domain/value-objects/linkToken';
 import { InviteLookupFailed } from '../../components/InviteLookupFailed';
 import {
     AcceptInviteForm,
@@ -37,7 +34,7 @@ const messages = defineMessages({
     linkExpired: {
         id: 'identity.acceptInvite.error.linkExpired',
         defaultMessage:
-            'This invite was accepted or expired while you were filling the form. Ask for a new one and try again.'
+            'This invite was accepted or expired while you were filling the form. Ask whoever invited you for a new one.'
     },
     rejected: {
         id: 'identity.acceptInvite.error.rejected',
@@ -90,47 +87,28 @@ export function AcceptInvitePage() {
         );
     };
 
-    if (!token) {
+    // A link with no token, or one cut short on its way here, cannot be
+    // valid — and saying *why* it broke tells the holder what to do. Decided
+    // before any request.
+    if (!isCompleteLinkToken(token)) {
         return (
             <AuthLayout surface="invite-missing-token">
-                <InviteUnavailable missingToken />
+                <LinkIncomplete />
             </AuthLayout>
         );
     }
 
     if (invite.isPending) {
         return (
-            <AuthLayout surface="invite-loading" focusHeading={false}>
-                {/* The busy state's `<h1>`, visually hidden: it is a
-                    full page like any other and was reporting none
-                    (`ORT-167`). */}
-                <h1 className="sr-only">
-                    {intl.formatMessage(messages.loadingHeading)}
-                </h1>
-                <div role="status">
-                    <span className="sr-only">
-                        {intl.formatMessage(messages.loading)}
-                    </span>
-                    <Card aria-hidden>
-                        <CardHeader className="gap-2">
-                            <Skeleton className="h-6 w-44" />
-                            <Skeleton className="h-4 w-60 max-w-full" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="flex flex-col gap-6">
-                                <div className="flex flex-col gap-2">
-                                    <Skeleton className="h-4 w-16" />
-                                    <Skeleton className="h-9 w-full" />
-                                </div>
-                                <div className="flex flex-col gap-2">
-                                    <Skeleton className="h-4 w-24" />
-                                    <Skeleton className="h-9 w-full" />
-                                </div>
-                                <Skeleton className="h-9 w-full" />
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
+            <AuthLayout
+                surface="invite-loading"
+                focusHeading={false}
+                width="wide"
+            >
+                <AuthCardSkeleton
+                    heading={intl.formatMessage(messages.loadingHeading)}
+                    status={intl.formatMessage(messages.loading)}
+                />
             </AuthLayout>
         );
     }
@@ -173,7 +151,7 @@ export function AcceptInvitePage() {
         : undefined;
 
     return (
-        <AuthLayout surface="invite-form">
+        <AuthLayout surface="invite-form" width="wide">
             <AcceptInviteForm
                 token={token}
                 invite={invite.data}

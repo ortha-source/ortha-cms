@@ -101,13 +101,22 @@ const AUTH_ACK_SCHEMA: OpenApiSchema = {
 const INVITE_DESCRIPTION_SCHEMA: OpenApiSchema = {
     type: 'object',
     description:
-        'The invite behind a token. Every invalid token — unknown, expired, already accepted, revoked — is one generic 404 instead, so this cannot be used to probe for live invites.',
-    required: ['email', 'name'],
+        'The invite behind a token: who it is for and what it grants — never who sent it. Every invalid token — unknown, expired, already accepted, revoked — is one generic 404 instead, so this cannot be used to probe for live invites.',
+    required: ['email', 'name', 'role', 'workspaces'],
     properties: {
         email: { type: 'string', format: 'email' },
         name: nullableString(
             'The display name the inviting admin set, or null when they set none.'
-        )
+        ),
+        role: nullableString(
+            'The display name of the role the invite grants, or null when it cannot be resolved.'
+        ),
+        workspaces: {
+            type: 'array',
+            description:
+                'Display names of the workspaces the invitee will be a member of. Empty when none, or when no workspaces plugin is registered.',
+            items: { type: 'string' }
+        }
     }
 };
 
@@ -121,6 +130,15 @@ const PASSWORD_RESET_DESCRIPTION_SCHEMA: OpenApiSchema = {
         email: { type: 'string', format: 'email' },
         name: nullableString("The account's display name, or null.")
     }
+};
+
+/** Whether the public "forgot your password?" form can send anything. */
+const PASSWORD_RECOVERY_AVAILABILITY_SCHEMA: OpenApiSchema = {
+    type: 'object',
+    description:
+        'A property of the deployment — true only when a mail provider is configured — and the same answer for every caller.',
+    required: ['available'],
+    properties: { available: { type: 'boolean' } }
 };
 
 /** One sign-in button, as the sign-in page renders it. */
@@ -315,6 +333,7 @@ export const IDENTITY_SCHEMAS: Record<string, OpenApiSchema> = {
     AuthAck: AUTH_ACK_SCHEMA,
     InviteDescription: INVITE_DESCRIPTION_SCHEMA,
     PasswordResetDescription: PASSWORD_RESET_DESCRIPTION_SCHEMA,
+    PasswordRecoveryAvailability: PASSWORD_RECOVERY_AVAILABILITY_SCHEMA,
     SsoProvider: SSO_PROVIDER_SCHEMA,
     SsoBackchannelLogoutResult: SSO_BACKCHANNEL_LOGOUT_SCHEMA,
     UserSession: USER_SESSION_SCHEMA,

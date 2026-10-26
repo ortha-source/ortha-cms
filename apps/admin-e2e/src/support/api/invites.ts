@@ -6,12 +6,18 @@ export interface InviteSeed {
     email: string;
     /** The display name the inviting admin set, or `null`. */
     name: string | null;
+    /** The display name of the role the invite grants. */
+    role?: string | null;
+    /** The workspaces the invitee will join, by name. */
+    workspaces?: string[];
 }
 
 /** The default invite the accept suite works with. */
 export const DEFAULT_INVITE: InviteSeed = {
     email: 'ada@orthacms.dev',
-    name: 'Ada Lovelace'
+    name: 'Ada Lovelace',
+    role: 'Contributor',
+    workspaces: ['Marketing site', 'Support hub']
 };
 
 /**

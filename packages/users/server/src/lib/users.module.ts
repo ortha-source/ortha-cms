@@ -19,6 +19,8 @@ import { ResendInviteUseCase } from './member/application/use-cases/resend-invit
 import { IssuePasswordResetUseCase } from './member/application/use-cases/issue-password-reset.use-case';
 import { RevokeInviteUseCase } from './member/application/use-cases/revoke-invite.use-case';
 import { RevealLinkUseCase } from './member/application/use-cases/reveal-link.use-case';
+import { IssuePasswordRecoveryUseCase } from './member/application/use-cases/issue-password-recovery.use-case';
+import { RecoveryAccountQuery } from './member/infrastructure/queries/recovery-account.query';
 import { MemberViewQuery } from './member/infrastructure/queries/member-view.query';
 import { WorkspaceMembersQuery } from './member/infrastructure/queries/workspace-members.query';
 import { MemberSignInQuery } from './member/infrastructure/queries/member-sign-in.query';
@@ -87,6 +89,10 @@ export class UsersModule {
                 RevokeInviteUseCase,
                 IssuePasswordResetUseCase,
                 RevealLinkUseCase,
+                // Self-service recovery's issuer. No route here — identity owns
+                // the public one and this registers with it on init.
+                IssuePasswordRecoveryUseCase,
+                RecoveryAccountQuery,
                 // Read model — thin CQRS query service (bypasses the aggregate).
                 MemberViewQuery,
                 WorkspaceMembersQuery,

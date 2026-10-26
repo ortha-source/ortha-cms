@@ -37,9 +37,9 @@ click (ADR-0018 §5). `assertAppUrl` refuses a relative, non-HTTP or
 query-carrying value at construction, not at send time.
 
 **`MAIL_KINDS` lists only what something can actually produce.** The
-self-service `password_recovery` message is phase 2 of ADR-0018 and is
-deliberately absent: a kind with a template and no producer is a branch nobody
-executes.
+self-service `password_recovery` message joined it with the recovery route
+(ADR-0018 phase 2), produced by the users plugin's
+`IssuePasswordRecoveryUseCase`; it links to the reset route and names no actor.
 
 **Templates are English, and the gap is named rather than papered over.**
 `users` has no locale column and the server has no i18n (ORT-113 records the

@@ -1,20 +1,21 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { Button, Field, FieldSeparator } from '@orthacms/design-system';
+import { Button } from '@orthacms/design-system';
 import { useSsoProviders } from '../../../application/useSsoProviders';
+import { KeyIcon } from '../AuthIcons';
 
 /** Intl descriptors for {@link SsoProviders}, co-located with the component. */
 const messages = defineMessages({
     separator: {
         id: 'identity.login.sso.separator',
-        defaultMessage: 'or continue with'
-    },
-    signInWith: {
-        id: 'identity.login.sso.signInWith',
-        defaultMessage: 'Sign in with {provider}'
+        defaultMessage: 'or with email'
     },
     continueWith: {
         id: 'identity.login.sso.continueWith',
         defaultMessage: 'Continue with {provider}'
+    },
+    acceptWith: {
+        id: 'identity.acceptInvite.sso.acceptWith',
+        defaultMessage: 'Accept with {provider}'
     }
 });
 
@@ -41,10 +42,36 @@ type SsoProvidersProps = {
     inviteToken?: string;
     /** The separator's text, which differs between the two screens. */
     separatorLabel?: string;
+    /**
+     * Which side of the buttons the separator goes on. `after` on sign-in,
+     * where single sign-on **leads** and the password form follows ("or with
+     * email"); `before` on the invitation, where the password form is the
+     * main path and a provider is the alternative ("or").
+     */
+    separatorPosition?: 'before' | 'after';
 };
 
+/** The "— or with email —" rule between the two ways in. */
+function OrLine({ label }: { label: string }) {
+    return (
+        <div
+            data-slot="sso-separator"
+            className="flex items-center gap-2.5 text-xs text-muted-foreground before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border"
+        >
+            {label}
+        </div>
+    );
+}
+
 /**
- * The "or continue with" block: one button per registered identity provider.
+ * The single sign-on block: one button per registered identity provider, and
+ * the "or" rule that separates it from the password form.
+ *
+ * **Single sign-on leads on the sign-in screen** (the R7 redesign): where a
+ * deployment has a provider, it is how most people are expected to come in, so
+ * its buttons come first in reading and tab order and the password form
+ * follows under "or with email". On the invitation they follow the password
+ * form instead, under "or".
  *
  * **These are links, not buttons with click handlers.** Signing in through a
  * provider is a full-page navigation to `/api/auth/sso/:name/start`, which
@@ -63,7 +90,8 @@ type SsoProvidersProps = {
 export function SsoProviders({
     redirectTo,
     inviteToken,
-    separatorLabel
+    separatorLabel,
+    separatorPosition = 'after'
 }: SsoProvidersProps) {
     const intl = useIntl();
     const { data: providers } = useSsoProviders();
@@ -72,18 +100,22 @@ export function SsoProviders({
         return null;
     }
 
+    const separator = (
+        <OrLine
+            label={separatorLabel ?? intl.formatMessage(messages.separator)}
+        />
+    );
+
     return (
         <>
-            <FieldSeparator>
-                {separatorLabel ?? intl.formatMessage(messages.separator)}
-            </FieldSeparator>
-            <Field className="gap-3">
+            {separatorPosition === 'before' && separator}
+            <div className="flex flex-col gap-3">
                 {providers.map((provider) => (
                     <Button
                         key={provider.name}
                         asChild
                         variant="outline"
-                        className="w-full"
+                        className="h-9 w-full"
                     >
                         <a
                             href={startUrl(
@@ -92,16 +124,18 @@ export function SsoProviders({
                                 inviteToken
                             )}
                         >
+                            <KeyIcon />
                             {intl.formatMessage(
                                 inviteToken
-                                    ? messages.continueWith
-                                    : messages.signInWith,
+                                    ? messages.acceptWith
+                                    : messages.continueWith,
                                 { provider: provider.label }
                             )}
                         </a>
                     </Button>
                 ))}
-            </Field>
+            </div>
+            {separatorPosition === 'after' && separator}
         </>
     );
 }

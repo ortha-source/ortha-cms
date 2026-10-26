@@ -1,23 +1,11 @@
 import { useForm } from '@tanstack/react-form';
 import { defineMessages, useIntl } from 'react-intl';
-import {
-    Button,
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-    Field,
-    FieldDescription,
-    FieldGroup,
-    InputField,
-    Spinner,
-    cn
-} from '@orthacms/design-system';
+import { Button, Spinner, cn } from '@orthacms/design-system';
 import type { PasswordResetDetails } from '../../../../types/auth';
-import { PASSWORD_MIN_LENGTH } from '../../../domain/value-objects/password';
-import { AuthField } from '../AuthField';
 import { AuthAlert } from '../AuthAlert';
+import { AuthCallout } from '../AuthCallout';
+import { AuthCard } from '../AuthCard';
+import { PasswordField } from '../PasswordField';
 import { useResetPasswordSchema } from './useResetPasswordSchema';
 
 /** Intl descriptors for {@link ResetPasswordForm}, co-located with the component. */
@@ -26,45 +14,13 @@ const messages = defineMessages({
         id: 'identity.resetPassword.title',
         defaultMessage: 'Choose a new password'
     },
-    descriptionNamed: {
-        id: 'identity.resetPassword.descriptionNamed',
-        defaultMessage:
-            'Hi {name} — set a new password and you can sign in with it right away.'
-    },
-    description: {
-        id: 'identity.resetPassword.description',
-        defaultMessage:
-            'Set a new password and you can sign in with it right away.'
-    },
-    emailLabel: {
-        id: 'identity.resetPassword.emailLabel',
-        defaultMessage: 'Email'
-    },
-    emailHint: {
-        id: 'identity.resetPassword.emailHint',
-        defaultMessage:
-            'The account this link resets. If this isn’t your address, close this page and ask an administrator for a link of your own.'
+    forAccount: {
+        id: 'identity.resetPassword.forAccount',
+        defaultMessage: 'for {email}'
     },
     passwordLabel: {
         id: 'identity.resetPassword.passwordLabel',
         defaultMessage: 'New password'
-    },
-    passwordPlaceholder: {
-        id: 'identity.resetPassword.passwordPlaceholder',
-        defaultMessage: '••••••••••••'
-    },
-    passwordHint: {
-        id: 'identity.resetPassword.passwordHint',
-        defaultMessage:
-            'At least {min} characters. A short phrase you’ll actually remember beats a scrambled word you won’t.'
-    },
-    confirmLabel: {
-        id: 'identity.resetPassword.confirmLabel',
-        defaultMessage: 'Confirm new password'
-    },
-    confirmPlaceholder: {
-        id: 'identity.resetPassword.confirmPlaceholder',
-        defaultMessage: 'Type it once more'
     },
     submit: {
         id: 'identity.resetPassword.submit',
@@ -76,8 +32,7 @@ const messages = defineMessages({
     },
     signOutNote: {
         id: 'identity.resetPassword.signOutNote',
-        defaultMessage:
-            'This signs the account out everywhere, including any device you left signed in. The link stops working after this.'
+        defaultMessage: 'You’ll be signed out on every other device.'
     },
     errorTitle: {
         id: 'identity.resetPassword.errorTitle',
@@ -89,13 +44,11 @@ const messages = defineMessages({
 export type ResetPasswordFormValues = {
     /** The chosen password. */
     password: string;
-    /** The re-typed password; the server checks the match too. */
-    confirmPassword: string;
 };
 
 /** Props for the {@link ResetPasswordForm} component. */
 type ResetPasswordFormProps = Omit<React.ComponentProps<'div'>, 'onSubmit'> & {
-    /** Which account the link resets; rendered read-only, never collected. */
+    /** Which account the link resets; named, never collected. */
     reset: PasswordResetDetails;
     /** Called when the form is submitted with valid values. */
     onSubmit?: (values: ResetPasswordFormValues) => void;
@@ -106,17 +59,19 @@ type ResetPasswordFormProps = Omit<React.ComponentProps<'div'>, 'onSubmit'> & {
 };
 
 /**
- * The form someone completes to set a new password from a reset link.
- * Presentation-only: field state is TanStack Form's, submission is delegated to
- * `onSubmit`, and `isPending`/`error` drive the button and alert — no API call
- * lives here.
+ * The form someone completes to set a new password from a reset link (R7):
+ * the account it is for under the heading, **one** password field with a
+ * strength meter and a show/hide toggle, and the consequence — every other
+ * device is signed out (identity:I-06) — said *before* the button, where it
+ * can still change someone's mind, rather than after.
  *
- * The email is shown **read-only**, taken from the link rather than typed. It is
- * not a field to fill in: which account is being reset is decided by the token,
- * and an editable box would only invite someone to think they can point the
- * link at a different address. Showing it is still worth the space — a reset
- * link arrives out-of-band, so confirming whose account it opens is the one
- * check the person following it can actually make.
+ * Presentation only: TanStack Form holds the field, `onSubmit` is the page's.
+ *
+ * The address is named, not editable: which account is reset is decided by
+ * the token, and a reset link arrives out-of-band, so seeing whose account it
+ * opens is the one check the person following it can make. It also rides along
+ * in a hidden `username` field, so a password manager saves the new password
+ * against the right account.
  */
 export function ResetPasswordForm({
     className,
@@ -130,128 +85,95 @@ export function ResetPasswordForm({
     const resetPasswordSchema = useResetPasswordSchema();
 
     const form = useForm({
-        defaultValues: { password: '', confirmPassword: '' },
-        // `onChange` validates as the user types and also runs on submit, so an
-        // empty form flags both fields when the button is pressed. Don't also
-        // set `onSubmit` to the same schema — each error would render twice.
+        defaultValues: { password: '' },
+        // `onChange` validates as the user types and also runs on submit.
+        // Don't also set `onSubmit` to the same schema — the error would
+        // render twice.
         validators: { onChange: resetPasswordSchema },
         onSubmit: ({ value }) => onSubmit?.(value)
     });
 
     return (
-        <div className={cn('flex flex-col gap-6', className)} {...props}>
-            <Card>
-                <CardHeader className="text-center">
-                    <CardTitle asChild className="text-xl">
-                        <h1>{intl.formatMessage(messages.title)}</h1>
-                    </CardTitle>
-                    <CardDescription>
-                        {reset.name
-                            ? intl.formatMessage(messages.descriptionNamed, {
-                                  name: reset.name
-                              })
-                            : intl.formatMessage(messages.description)}
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <form
-                        noValidate
-                        onSubmit={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            form.handleSubmit();
-                        }}
-                    >
-                        <FieldGroup>
-                            {error && (
-                                <AuthAlert
-                                    title={intl.formatMessage(
-                                        messages.errorTitle
+        <div className={cn('flex flex-col', className)} {...props}>
+            <AuthCard
+                title={intl.formatMessage(messages.title)}
+                description={intl.formatMessage(messages.forAccount, {
+                    email: reset.email
+                })}
+            >
+                {error && (
+                    <AuthAlert
+                        title={intl.formatMessage(messages.errorTitle)}
+                        message={error}
+                    />
+                )}
+                <form
+                    noValidate
+                    className="flex flex-col gap-4"
+                    onSubmit={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        form.handleSubmit();
+                    }}
+                >
+                    {/* For password managers only: which account the new
+                        password belongs to. `hidden`, so it is neither seen,
+                        focused nor announced. */}
+                    <input
+                        type="email"
+                        name="username"
+                        autoComplete="username"
+                        value={reset.email}
+                        readOnly
+                        hidden
+                    />
+                    <form.Field name="password">
+                        {(field) => {
+                            const invalid =
+                                field.state.meta.isTouched &&
+                                field.state.meta.errors.length > 0;
+                            return (
+                                <PasswordField
+                                    id="reset-password-password"
+                                    name={field.name}
+                                    label={intl.formatMessage(
+                                        messages.passwordLabel
                                     )}
-                                    message={error}
+                                    autoComplete="new-password"
+                                    meter
+                                    value={field.state.value}
+                                    onChange={field.handleChange}
+                                    onBlur={field.handleBlur}
+                                    errors={
+                                        invalid
+                                            ? field.state.meta.errors
+                                            : undefined
+                                    }
                                 />
-                            )}
-
-                            <InputField
-                                id="reset-password-email"
-                                type="email"
-                                label={intl.formatMessage(messages.emailLabel)}
-                                value={reset.email}
-                                // `readOnly`, not `disabled`: the value stays
-                                // focusable and announced, so a screen-reader
-                                // user can read whose account they are about to
-                                // change. It just can't be changed.
-                                readOnly
-                                description={intl.formatMessage(
-                                    messages.emailHint
-                                )}
-                            />
-
-                            <form.Field name="password">
-                                {(field) => (
-                                    <AuthField
-                                        field={field}
-                                        id="reset-password-password"
-                                        type="password"
-                                        autoComplete="new-password"
-                                        label={intl.formatMessage(
-                                            messages.passwordLabel
-                                        )}
-                                        placeholder={intl.formatMessage(
-                                            messages.passwordPlaceholder
-                                        )}
-                                        description={intl.formatMessage(
-                                            messages.passwordHint,
-                                            { min: PASSWORD_MIN_LENGTH }
-                                        )}
-                                    />
-                                )}
-                            </form.Field>
-
-                            <form.Field name="confirmPassword">
-                                {(field) => (
-                                    <AuthField
-                                        field={field}
-                                        id="reset-password-confirm-password"
-                                        type="password"
-                                        autoComplete="new-password"
-                                        label={intl.formatMessage(
-                                            messages.confirmLabel
-                                        )}
-                                        placeholder={intl.formatMessage(
-                                            messages.confirmPlaceholder
-                                        )}
-                                    />
-                                )}
-                            </form.Field>
-
-                            <Field className="gap-5">
-                                <Button
-                                    type="submit"
-                                    className="w-full"
-                                    disabled={isPending}
-                                >
-                                    {isPending ? (
-                                        <>
-                                            <Spinner aria-hidden="true" />
-                                            <span className="sr-only">
-                                                {intl.formatMessage(
-                                                    messages.submitting
-                                                )}
-                                            </span>
-                                        </>
-                                    ) : (
-                                        intl.formatMessage(messages.submit)
-                                    )}
-                                </Button>
-                                <FieldDescription className="text-center">
-                                    {intl.formatMessage(messages.signOutNote)}
-                                </FieldDescription>
-                            </Field>
-                        </FieldGroup>
-                    </form>
-                </CardContent>
-            </Card>
+                            );
+                        }}
+                    </form.Field>
+                    <AuthCallout>
+                        {intl.formatMessage(messages.signOutNote)}
+                    </AuthCallout>
+                    <Button
+                        type="submit"
+                        className="h-9 w-full"
+                        disabled={isPending}
+                    >
+                        {isPending ? (
+                            <>
+                                <Spinner aria-hidden="true" />
+                                <span className="sr-only">
+                                    {intl.formatMessage(messages.submitting)}
+                                </span>
+                            </>
+                        ) : (
+                            intl.formatMessage(messages.submit)
+                        )}
+                    </Button>
+                </form>
+            </AuthCard>
         </div>
     );
 }
