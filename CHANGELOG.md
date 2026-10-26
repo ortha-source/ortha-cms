@@ -1,3 +1,41 @@
+## 0.13.0 (2026-10-26)
+
+### 🚀 Features
+
+- **identity:** self-service password recovery — a "Forgot it?" screen that answers the same for every address; redrawn sign-in, invitation and dead-link pages, one password field with a reveal toggle and a strength meter ([#350](https://github.com/ortha-source/ortha-cms/pull/350))
+- **schema-builder:** the type page is fields first; adding a field is a kind picker plus a field panel with a live preview; templates for new types; the review is one page with each destructive change confirmed on its own ([#349](https://github.com/ortha-source/ortha-cms/pull/349))
+- **users:** members get quick filters, last active, an invite sheet that invites several people at once, a four-tab member page and "sign out everywhere" ([#352](https://github.com/ortha-source/ortha-cms/pull/352))
+- **workspaces:** cards that say what is inside and when it last moved, a three-step create with a ready page, and archiving that says what it touches first ([#353](https://github.com/ortha-source/ortha-cms/pull/353))
+- **protection:** Reviews as tabs (Waiting on me, My requests, Recently approved), a review panel with the changes since live and Approve, and publishing rules as switches read back in one sentence ([#359](https://github.com/ortha-source/ortha-cms/pull/359))
+- **insights:** Needs attention first, sections as tabs, and a drill-down panel behind every signal ([#358](https://github.com/ortha-source/ortha-cms/pull/358))
+- **activity:** free-text search, an event panel with a before/after diff, CSV export of the current view, and Retry all for unrecorded events ([#357](https://github.com/ortha-source/ortha-cms/pull/357))
+- **segments:** audiences show which entries use them, a "Try a reader" tester, and a delete dialog that says who will see what ([#351](https://github.com/ortha-source/ortha-cms/pull/351))
+- **alarms:** flagged records by title, rules as cards with an on/off switch, and a live "Right now" preview in the editor; switching a rule back on rescans ([#354](https://github.com/ortha-source/ortha-cms/pull/354))
+- **copilot:** chats in the sidebar, openers per workspace, a write shown as "Was → Now" before you allow it, a skills sheet, and collapsed chats as pills in the dock ([#355](https://github.com/ortha-source/ortha-cms/pull/355))
+- **api-tokens:** the list names each token's creator and flags expiries, access as two cards, a ready curl request on reveal, and revoking says what stops ([#356](https://github.com/ortha-source/ortha-cms/pull/356))
+
+### 🩹 Fixes
+
+- **copilot-admin:** picking a thread from the history menu opens it instead of starting a window drag ([#355](https://github.com/ortha-source/ortha-cms/pull/355))
+- **design-system:** no Chrome autofill tint on form fields ([#350](https://github.com/ortha-source/ortha-cms/pull/350))
+- **admin:** the accept-invite page no longer scrolls sideways at 320px, closing an Insights drill-down returns focus to its line, and Done on the invite results asks before leaving an uncopied link ([9c4e000d](https://github.com/ortha-source/ortha-cms/commit/9c4e000d))
+
+### 🗄️ Migrations
+
+Run `orthacms migrate` after upgrading. All three are additive:
+
+- **activity:** `0002_subject_label` — a `subject_label` column, backfilled
+- **workspaces:** `0003_workspace_archived_at` — an `archived_at` column, backfilled from `updated_at`
+- **protection:** `0004_review_approvals_by_user` — an index for Recently approved
+
+### ❤️ Thank You
+
+- Claude
+- Claude Opus 5.5
+- Claude Opus 5.5 (1M context)
+- Pavel Makhanko @pmknk
+- pmknk
+
 ## 0.12.0 (2026-10-23)
 
 ### 🚀 Features
