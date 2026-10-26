@@ -107,17 +107,22 @@ describe('accept an invite', () => {
             });
         });
 
-        it('leaks nothing beyond the email and name', async () => {
+        it('leaks nothing beyond the email, name, role and workspaces', async () => {
             const { token } = await invite();
 
             const res = await request(harness.server)
                 .get(`/api/auth/invite/${token}`)
                 .expect(200);
 
-            // Notably absent: the user id, the role, and the account status —
+            // Notably absent: the user id, the account status and the inviter —
             // an unauthenticated caller holding one link learns only who it is
-            // addressed to.
-            expect(Object.keys(res.body).sort()).toEqual(['email', 'name']);
+            // addressed to and what it grants.
+            expect(Object.keys(res.body).sort()).toEqual([
+                'email',
+                'name',
+                'role',
+                'workspaces'
+            ]);
         });
 
         it('does not consume the token — the link survives a page refresh', async () => {
