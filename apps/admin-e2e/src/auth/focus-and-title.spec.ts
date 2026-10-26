@@ -131,7 +131,7 @@ test.describe('auth focus management', () => {
     }) => {
         await mockSignedOut(page);
         await loginPage.goto();
-        await expect(loginPage.heading).toBeVisible();
+        await expect(loginPage.heading).toBeFocused();
 
         // With no error showing, the first Tab must still land on the email
         // field — `tabIndex={-1}` makes the banner a focus *target*, never a stop.
@@ -190,7 +190,7 @@ test.describe('auth focus management', () => {
     }) => {
         await mockSignedOut(page);
         await loginPage.goto();
-        await expect(loginPage.heading).toBeVisible();
+        await expect(loginPage.heading).toBeFocused();
 
         // The guard on the two tests above: suppressing the indicator on
         // non-interactive focus targets must not have leaked into anything a

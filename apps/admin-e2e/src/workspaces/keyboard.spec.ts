@@ -321,12 +321,17 @@ test.describe('Workspaces keyboard accessibility', () => {
             await createWorkspacePage.goto();
             await createWorkspacePage.toContentStep('Keyboard workspace');
 
+            // Held, not pressed: Radix moves roving focus a tick after the
+            // keydown and only checks the radio it lands on while the arrow is
+            // still down — as it is for a person, and is not for an instant
+            // `press` (see `api-tokens/keyboard.spec.ts`).
             await createWorkspacePage.everythingTile.focus();
-            await page.keyboard.press('ArrowRight');
+            await page.keyboard.down('ArrowRight');
             await expect(createWorkspacePage.specificContentTile).toBeFocused();
             await expect(
                 createWorkspacePage.specificContentTile
             ).toHaveAttribute('aria-checked', 'true');
+            await page.keyboard.up('ArrowRight');
 
             // The list opens; a type is a checkbox Space toggles.
             const blogPosts = createWorkspacePage.contentCheckbox('Blog posts');

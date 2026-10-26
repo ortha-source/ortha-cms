@@ -65,6 +65,19 @@ export class InsightsPage extends BasePage {
         });
     }
 
+    /**
+     * The same button while its drill-down is open. The panel is modal, so
+     * Radix `aria-hidden`s the page behind it and {@link signal} finds
+     * nothing. This one looks behind the panel on purpose, to read the line's
+     * `aria-expanded`. Use {@link signal} for anything a reader can reach.
+     */
+    signalBehindPanel(title: string): Locator {
+        return this.attention().getByRole('button', {
+            name: new RegExp(title),
+            includeHidden: true
+        });
+    }
+
     /** The drill-down panel a line opens. */
     drill(): Locator {
         return this.page.getByRole('dialog');

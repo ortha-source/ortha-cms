@@ -29,7 +29,9 @@ test.describe('Single sign-on on the sign-in page', () => {
                 { name: 'entra', label: 'Microsoft', kind: 'oidc' }
             ]);
             await loginPage.goto();
-            await expect(loginPage.heading).toBeVisible();
+            // Focused, not merely visible: the Suspense fallback carries a
+            // hidden "Sign in" heading too (see `auth/keyboard.spec.ts`).
+            await expect(loginPage.heading).toBeFocused();
         });
 
         test('renders one link per provider, in registration order', async ({
@@ -65,7 +67,9 @@ test.describe('Single sign-on on the sign-in page', () => {
             // R7: single sign-on leads where a deployment has it — it is how
             // most people there are expected to come in — and the password
             // form follows under "or with email". The heading has focus on
-            // arrival, so the first Tab reaches the first provider.
+            // arrival, so the first Tab reaches the first provider — once the
+            // provider list has loaded.
+            await expect(loginPage.ssoLink('Microsoft')).toBeVisible();
             await page.keyboard.press('Tab');
             await expect(loginPage.ssoLink('Google')).toBeFocused();
             await page.keyboard.press('Tab');

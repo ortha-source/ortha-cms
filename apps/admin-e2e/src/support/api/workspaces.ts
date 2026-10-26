@@ -42,7 +42,12 @@ export interface WorkspaceView {
     archivedAt?: string | null;
 }
 
-/** An ISO timestamp `minutes` before the test run. */
+/**
+ * An ISO timestamp `minutes` before now. Seeds read it through a getter so it
+ * is computed when the mock answers, not once per worker. A worker lives for
+ * the whole run, and "Edited 12 min. ago" used to drift past the cards'
+ * `1\d min.` assertion in full runs.
+ */
 export function minutesAgo(minutes: number): string {
     return new Date(Date.now() - minutes * 60_000).toISOString();
 }
@@ -96,8 +101,12 @@ export const WORKSPACES_SEED: WorkspaceView[] = [
         content: ['blog_post', 'product', 'home', 'about'],
         recordCount: 842,
         recordCountByType: { blog_post: 800, product: 42 },
-        createdAt: minutesAgo(60 * 24 * 300),
-        lastEditedAt: minutesAgo(12)
+        get createdAt() {
+            return minutesAgo(60 * 24 * 300);
+        },
+        get lastEditedAt() {
+            return minutesAgo(12);
+        }
     },
     {
         id: 'ws_docs',
@@ -116,8 +125,12 @@ export const WORKSPACES_SEED: WorkspaceView[] = [
         ],
         recordCount: 1204,
         recordCountByType: { blog_post: 1204 },
-        createdAt: minutesAgo(60 * 24 * 200),
-        lastEditedAt: minutesAgo(60)
+        get createdAt() {
+            return minutesAgo(60 * 24 * 200);
+        },
+        get lastEditedAt() {
+            return minutesAgo(60);
+        }
     },
     {
         id: 'ws_support',
@@ -132,8 +145,12 @@ export const WORKSPACES_SEED: WorkspaceView[] = [
             member('u_alan', 'Alan Turing', 'alan@orthacms.dev')
         ],
         recordCount: 318,
-        createdAt: minutesAgo(60 * 24 * 100),
-        lastEditedAt: minutesAgo(60 * 26)
+        get createdAt() {
+            return minutesAgo(60 * 24 * 100);
+        },
+        get lastEditedAt() {
+            return minutesAgo(60 * 26);
+        }
     },
     {
         id: 'ws_internal',
@@ -160,7 +177,9 @@ export const WORKSPACES_SEED: WorkspaceView[] = [
         status: 'archived',
         members: [member('u_alan', 'Alan Turing', 'alan@orthacms.dev')],
         recordCount: 1032,
-        archivedAt: minutesAgo(60 * 24 * 40)
+        get archivedAt() {
+            return minutesAgo(60 * 24 * 40);
+        }
     },
     {
         id: 'ws_events',

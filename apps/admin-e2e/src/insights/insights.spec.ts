@@ -203,10 +203,9 @@ test.describe('Insights', () => {
         await insightsPage.signal('Gone quiet').click();
         const drill = insightsPage.drill();
         await expect(drill).toHaveAccessibleName('Gone quiet · 156 records');
-        await expect(insightsPage.signal('Gone quiet')).toHaveAttribute(
-            'aria-expanded',
-            'true'
-        );
+        await expect(
+            insightsPage.signalBehindPanel('Gone quiet')
+        ).toHaveAttribute('aria-expanded', 'true');
         expect(spy.params['content/stale/records']?.['age']).toBe('year');
 
         // Oldest first, each with its type, age and last editor.
@@ -295,12 +294,7 @@ test.describe('Insights', () => {
     }) => {
         await mockInsightsApi(page);
         const day = 86_400_000;
-        const ask = (
-            id: string,
-            title: string,
-            by: string,
-            age: number
-        ) => ({
+        const ask = (id: string, title: string, by: string, age: number) => ({
             id,
             contentType: 'blog_post',
             contentTypeLabel: 'Blog posts',

@@ -354,10 +354,30 @@ export class WorkspaceSettingsPage extends BasePage {
         return this.page.getByRole('dialog', { name: 'Switch workspace' });
     }
 
-    /** Open the switcher popover and wait for it. */
+    /**
+     * Open the switcher popover and wait for it to come to rest. The popover
+     * zooms in as it opens. A box measured mid-entrance is a fraction of a
+     * pixel off where it ends up, and that is enough to fail the switcher
+     * suite's "the heading stays put" comparison when the box is read before
+     * the entrance finishes.
+     */
     async openWorkspaceSwitcher() {
         await this.workspaceSwitcher.click();
         await this.workspaceSwitcherPopover.waitFor();
+        // No DOM lib in this project, so the element is typed structurally.
+        await this.workspaceSwitcherPopover.evaluate((element) =>
+            Promise.allSettled(
+                (
+                    element as unknown as {
+                        getAnimations(options: { subtree: boolean }): {
+                            finished: Promise<unknown>;
+                        }[];
+                    }
+                )
+                    .getAnimations({ subtree: true })
+                    .map((animation) => animation.finished)
+            )
+        );
     }
 
     /**

@@ -128,7 +128,11 @@ test.describe('Members with many workspaces', () => {
         const list = page.getByRole('list', { name: 'Workspaces' });
         await expect(list.getByRole('listitem')).toHaveCount(12);
         await expect(
-            page.getByRole('button', { name: 'Remove from Workspace 1' })
+            // Exact: by substring this also names Workspaces 10, 11 and 12.
+            page.getByRole('button', {
+                name: 'Remove from Workspace 1',
+                exact: true
+            })
         ).toBeVisible();
 
         await page

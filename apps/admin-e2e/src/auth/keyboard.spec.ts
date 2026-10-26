@@ -23,9 +23,12 @@ test.describe('keyboard accessibility', () => {
     }) => {
         await mockSignedOut(page);
         await loginPage.goto();
-        // The login page is lazy-loaded behind Suspense; wait for the form so
-        // Tab lands on the email field rather than the loading fallback.
-        await expect(loginPage.heading).toBeVisible();
+        // The login page is lazy-loaded behind Suspense, and the fallback has
+        // a visually-hidden "Sign in" `<h1>` of its own — so a *visible*
+        // heading proves nothing. Focus is the arrival signal: `AuthLayout`
+        // moves it to the real page's heading, never the skeleton's. Tab
+        // pressed before that lands on the loading state and goes nowhere.
+        await expect(loginPage.heading).toBeFocused();
         await page.keyboard.press('Tab');
         await expect(loginPage.email).toBeFocused();
     });
@@ -36,7 +39,7 @@ test.describe('keyboard accessibility', () => {
     }) => {
         await mockSignedOut(page);
         await loginPage.goto();
-        await expect(loginPage.heading).toBeVisible();
+        await expect(loginPage.heading).toBeFocused();
 
         // A "Forgot your password?" placeholder used to sit in the label row
         // and do nothing. R7 puts a live one there ("Forgot it?" → the
@@ -137,7 +140,7 @@ test.describe('keyboard accessibility', () => {
         await mockSignedOut(page);
         await mockPasswordReset(page);
         await resetPasswordPage.goto();
-        await expect(resetPasswordPage.heading).toBeVisible();
+        await expect(resetPasswordPage.heading).toBeFocused();
 
         // Which account the link resets is said under the heading, which has
         // focus on arrival — read before the first Tab. Then the one field,
@@ -175,7 +178,7 @@ test.describe('keyboard accessibility', () => {
         await mockSignedOut(page);
         await mockInvite(page);
         await acceptInvitePage.goto();
-        await expect(acceptInvitePage.heading).toBeVisible();
+        await expect(acceptInvitePage.heading).toBeFocused();
 
         // The prefilled name and email are `readOnly`, not `disabled`, so they
         // stay in the tab order — a screen-reader user has to be able to reach

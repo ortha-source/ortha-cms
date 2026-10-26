@@ -92,14 +92,20 @@ test.describe('Members page', () => {
         const resend = await spyResendInvite(page, PENDING_MEMBER);
         await membersPage.goto();
 
+        // Only the invited row carries one. Counted before the click: the
+        // link dialog is modal and hides the table from the accessibility
+        // tree, so a count taken while it is open finds none.
+        await expect(
+            membersPage.inlineResend(PENDING_MEMBER.email)
+        ).toBeVisible();
+        await expect(
+            page.getByRole('button', { name: /^Resend the invite to/ })
+        ).toHaveCount(1);
+
         await membersPage.inlineResend(PENDING_MEMBER.email).click();
 
         await expect(membersPage.inviteLinkDialog()).toBeVisible();
         expect(resend.count).toBe(1);
-        // Only the invited row carries one.
-        await expect(
-            page.getByRole('button', { name: /^Resend the invite to/ })
-        ).toHaveCount(1);
     });
 
     test('marks your own row', async ({ membersPage, page }) => {

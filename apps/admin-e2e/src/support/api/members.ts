@@ -48,6 +48,11 @@ const TIMESTAMP = '2026-01-01T00:00:00.000Z';
  * A timestamp `minutesAgo` before now. "Last active" is read relative to the
  * browser's clock, so a seed that wants "12 min ago" on screen has to be
  * relative too.
+ *
+ * A seed reads it through a **getter**, not a value. A value is computed
+ * once, when the worker imports this file, and a worker lives for the whole
+ * run. Twenty minutes in, "12 min ago" read "26 min ago" and the Members
+ * suite failed only in full runs.
  */
 export function minutesAgo(minutes: number): string {
     return new Date(Date.now() - minutes * 60_000).toISOString();
@@ -78,7 +83,9 @@ export const DEFAULT_MEMBERS: MemberSeed[] = [
         status: 'active',
         createdAt: TIMESTAMP,
         isLastAdmin: true,
-        lastActiveAt: minutesAgo(12),
+        get lastActiveAt() {
+            return minutesAgo(12);
+        },
         // One described and one not, so the card's two branches are both
         // reachable from the default seed rather than only the empty one.
         workspaces: [
@@ -105,7 +112,9 @@ export const DEFAULT_MEMBERS: MemberSeed[] = [
         status: 'active',
         createdAt: TIMESTAMP,
         isLastAdmin: false,
-        lastActiveAt: minutesAgo(60),
+        get lastActiveAt() {
+            return minutesAgo(60);
+        },
         workspaces: [
             {
                 id: 'ws_docs',

@@ -293,10 +293,16 @@ export class MembersPage extends BasePage {
         });
     }
 
-    /** The capped, scrolling box the workspace tiles sit in. */
+    /**
+     * The capped, scrolling box the workspace tiles sit in. The shell's own
+     * page scroller is an `overflow-y-auto` div inside `<main>` too, and it
+     * holds the same checkboxes, so it is left out by its slot.
+     */
     inviteWorkspaceBox(): Locator {
         return this.invitePage()
-            .locator('div.overflow-y-auto')
+            .locator(
+                'div.overflow-y-auto:not([data-slot="sidebar-inset-scroll"])'
+            )
             .filter({ has: this.page.getByRole('checkbox') });
     }
 

@@ -246,6 +246,34 @@ export class CopilotDockPage extends BasePage {
      */
     async dragBy(dx: number, dy: number, index = 0) {
         const handle = this.moveHandle(index);
+        // The window animates in as it opens. A box read mid-entrance is not
+        // where the handle comes to rest, and on a loaded machine the press
+        // then lands beside it. No drag starts, nothing is stored, and the
+        // failure shows up only at the next assertion. Let finite animations
+        // finish first; an infinite one (a spinner) is never waited for.
+        await this.page.evaluate(async () => {
+            type Running = {
+                playState: string;
+                finished: Promise<unknown>;
+                effect: { getTiming(): { iterations?: number } } | null;
+            };
+            const doc = (
+                globalThis as unknown as {
+                    document: { getAnimations(): Running[] };
+                }
+            ).document;
+            await Promise.allSettled(
+                doc
+                    .getAnimations()
+                    .filter(
+                        (animation) =>
+                            animation.playState === 'running' &&
+                            animation.effect?.getTiming().iterations !==
+                                Infinity
+                    )
+                    .map((animation) => animation.finished)
+            );
+        });
         const box = await handle.boundingBox();
         if (!box) throw new Error('no move handle');
         const from = {
