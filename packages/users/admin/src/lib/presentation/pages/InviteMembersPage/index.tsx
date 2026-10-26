@@ -4,7 +4,11 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { Send, TriangleAlert, Users } from 'lucide-react';
 import { PageTopBar } from '@orthacms/shell-admin';
 import { useHasPermission } from '@orthacms/identity-admin';
-import { useDocumentTitle, useUnsavedChanges } from '@orthacms/utils-admin';
+import {
+    useDocumentTitle,
+    useUnsavedChanges,
+    useUnsavedChangesApi
+} from '@orthacms/utils-admin';
 import {
     Alert,
     AlertDescription,
@@ -189,6 +193,15 @@ export function InviteMembersPage() {
     // The links exist only in this page's state. Leaving by any route — Done,
     // a link, a reload — asks first while one has not been copied.
     useUnsavedChanges(uncopied.length > 0, 'users.invite.links');
+    // The guard catches link clicks on its own, but Done is a button that
+    // calls `navigate()`, and a programmatic navigation is held only when it
+    // asks the guard first.
+    const guard = useUnsavedChangesApi();
+    const leaveToMembers = () => {
+        const run = () => navigate('/users');
+        if (guard) guard.confirmNavigation(run);
+        else run();
+    };
 
     if (!canInvite) {
         return <Navigate to="/users" replace />;
@@ -385,9 +398,8 @@ export function InviteMembersPage() {
                                         )}
                                     </Button>
                                     {/* The app-wide guard asks while a link
-                                        is uncopied; this is an ordinary
-                                        navigation. */}
-                                    <Button onClick={() => navigate('/users')}>
+                                        is uncopied. */}
+                                    <Button onClick={leaveToMembers}>
                                         {intl.formatMessage(messages.done)}
                                     </Button>
                                 </>

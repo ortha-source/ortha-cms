@@ -348,18 +348,24 @@ function ReadOnlyField({
     return (
         <Field className="min-w-0">
             <FieldLabel htmlFor={id}>{label}</FieldLabel>
-            <Input
-                id={id}
-                type={type}
-                value={value}
-                readOnly
-                autoComplete={autoComplete}
-                aria-describedby={descriptionId}
-                className={cn('truncate', muted && 'bg-muted/50')}
-            />
-            <p id={descriptionId} className="sr-only">
-                {reason}
-            </p>
+            {/* The hidden reason sits in a wrapper, not directly in `Field`:
+                its vertical variant sets `[&>.sr-only]:w-auto`, which undoes
+                `sr-only`'s 1px width, and a nowrap sentence that wide pushed
+                the page 235px sideways at 320px (WCAG 1.4.10). */}
+            <div>
+                <Input
+                    id={id}
+                    type={type}
+                    value={value}
+                    readOnly
+                    autoComplete={autoComplete}
+                    aria-describedby={descriptionId}
+                    className={cn('truncate', muted && 'bg-muted/50')}
+                />
+                <p id={descriptionId} className="sr-only">
+                    {reason}
+                </p>
+            </div>
         </Field>
     );
 }
