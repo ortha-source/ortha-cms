@@ -24,7 +24,7 @@ hand-written):
   overlay entrances (dropdowns, tooltip, dialog, sheet — entrance only), the
   collapsible open/close, the wizard step, the skeleton reveal, the opt-in
   `ds-fade-in` / `ds-item-enter` / `ds-flash` classes and the page cross-fade
-  — plus the cursor, `forced-colors` and panel-resize rules. Read the comment
+  — plus the cursor, `forced-colors`, panel-resize and browser-autofill rules. Read the comment
   above a block before changing it: most of them record a bug the obvious
   version caused. Generic multi-step wizard chrome (`Stepper`,
   `WizardStepCard`, `WizardFooter`) lives in `ui/wizard.tsx` — copy-free and
