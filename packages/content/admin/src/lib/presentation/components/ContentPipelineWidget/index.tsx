@@ -1,9 +1,8 @@
 import { defineMessages, useIntl } from 'react-intl';
+import { cn } from '@orthacms/design-system';
 import {
-    BarRows,
     WidgetCard,
     toneBackground,
-    type BarRowSpec,
     type ChartTone
 } from '@orthacms/insights-admin';
 import { useContentPipeline } from '../../../application/useContentInsights';
@@ -37,6 +36,11 @@ const messages = defineMessages({
     tipDrafts: {
         id: 'content.insights.pipeline.tipDrafts',
         defaultMessage: '{type} — {count, number} draft'
+    },
+    breakdown: {
+        id: 'content.insights.pipeline.breakdown',
+        defaultMessage:
+            '{published, number} published · {modified, number} modified · {drafts, number} draft'
     }
 });
 
@@ -70,8 +74,7 @@ export function ContentPipelineWidget() {
         0
     );
 
-    const rows: BarRowSpec[] = types.map((type) => {
-        // `drafts` counts every draft; the modified ones are a subset of it.
+    const rows = types.map((type) => {
         const modified = Math.min(type.modified ?? 0, type.drafts);
         const values = {
             published: type.published,
@@ -83,9 +86,12 @@ export function ContentPipelineWidget() {
             modified: messages.tipModified,
             drafts: messages.tipDrafts
         };
+        const total = type.published + type.drafts;
         return {
             id: type.name,
             label: type.label,
+            total,
+            values,
             segments: STATES.map((state) => ({
                 id: state.id,
                 value: values[state.id],
@@ -94,18 +100,14 @@ export function ContentPipelineWidget() {
                     type: type.label,
                     count: values[state.id]
                 })
-            })),
-            readout: intl.formatNumber(type.published + type.drafts)
+            }))
         };
     });
 
     const legend = (
         <span className="inline-flex flex-wrap items-center gap-x-2.5 gap-y-1">
             {STATES.map((state) => (
-                <span
-                    key={state.id}
-                    className="inline-flex items-center gap-1"
-                >
+                <span key={state.id} className="inline-flex items-center gap-1">
                     <span
                         aria-hidden="true"
                         className={`block size-2 rounded-full ${toneBackground(state.tone)}`}
@@ -125,7 +127,56 @@ export function ContentPipelineWidget() {
             isEmpty={types.length === 0}
             skeletonRows={5}
         >
-            <BarRows rows={rows} max={max} />
+            {/* Its own rows rather than the shared `BarRows`: a type reads
+                as name and total, one track whose filled length compares it
+                with the biggest type, and the breakdown in words. The
+                segments sit flush inside a single rounded fill, so the bar
+                reads as one quantity split three ways. */}
+            <ul className="flex flex-col gap-4">
+                {rows.map((row) => (
+                    <li key={row.id} className="flex flex-col gap-1.5">
+                        <div className="flex items-baseline justify-between gap-3 text-sm">
+                            <span className="truncate font-medium">
+                                {row.label}
+                            </span>
+                            <span className="shrink-0 tabular-nums">
+                                {intl.formatNumber(row.total)}
+                            </span>
+                        </div>
+                        <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                            <div
+                                role="img"
+                                aria-label={row.segments
+                                    .map((segment) => segment.label)
+                                    .join('. ')}
+                                className="flex h-full divide-x divide-background overflow-hidden rounded-full"
+                                style={{
+                                    width: `${max > 0 ? Math.max(2, (row.total / max) * 100) : 0}%`
+                                }}
+                            >
+                                {row.segments
+                                    .filter((segment) => segment.value > 0)
+                                    .map((segment) => (
+                                        <span
+                                            key={segment.id}
+                                            title={segment.label}
+                                            style={{
+                                                flexGrow: segment.value
+                                            }}
+                                            className={cn(
+                                                'h-full min-w-[3px] basis-0',
+                                                toneBackground(segment.tone)
+                                            )}
+                                        />
+                                    ))}
+                            </div>
+                        </div>
+                        <span className="text-xs tabular-nums text-muted-foreground">
+                            {intl.formatMessage(messages.breakdown, row.values)}
+                        </span>
+                    </li>
+                ))}
+            </ul>
         </WidgetCard>
     );
 }
