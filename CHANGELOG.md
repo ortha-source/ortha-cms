@@ -1,3 +1,14 @@
+## 0.13.1 (2026-10-27)
+
+### 🩹 Fixes
+
+- **content:** list the inverse of a single relation read-only ([#361](https://github.com/ortha-source/ortha-cms/pull/361))
+
+### ❤️ Thank You
+
+- Claude
+- Pavel Makhanko @pmknk
+
 ## 0.13.0 (2026-10-26)
 
 ### 🚀 Features
