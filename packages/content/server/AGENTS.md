@@ -1034,7 +1034,11 @@ order? } }`): inside the create/update transaction `applyDelta` unlinks the
   422, no enumeration signal). Join rows carry a float `position` (the source's
   own ordering) so a reorder survives a reload; the inverse reads by it but can't
   set it. An inverse of a _single_ relation (one-to-many) owns no writable link
-  from its side. The whole-document write still supports a many-relation
+  from its side. That test is one function, `fields/relation-delta.ts`'s
+  `acceptsRelationDelta`, read by the writer's 400 and by the schema
+  serializer, which reports it as `relation.inverse.writable` — so the admin
+  draws a one-to-many inverse read-only instead of offering an edit the save
+  then refuses. The whole-document write still supports a many-relation
   submitted in the entry body (`writeLinks`, replace-set, position = array
   index) — used on **create** and by any legacy/bulk caller; a field absent from
   the body is left untouched (never wiped).

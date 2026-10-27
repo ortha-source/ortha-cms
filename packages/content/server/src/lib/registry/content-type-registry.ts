@@ -7,6 +7,7 @@
 
 import { checkTypeSet } from '@orthacms/content-domain';
 import { toRuleType } from '../collection/to-rule-type';
+import { acceptsRelationDelta } from '../fields/relation-delta';
 import type { AnyContentType, ContentTypeKind } from '../types/content-type';
 import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../types/fields';
 import {
@@ -51,8 +52,13 @@ export interface SerializedField {
          * "editing this changes every language" and "this is yours alone".
          */
         localeSync?: RelationLocaleSync;
-        /** Present when this field is the inverse side of a two-way relation. */
-        inverse?: { field: string };
+        /**
+         * Present when this field is the inverse side of a two-way relation.
+         * `writable` is false for the inverse of a **single** relation
+         * (one-to-many): its links are the owners' FKs, so they are set on the
+         * owning side and a save's relation delta for this field is a 400.
+         */
+        inverse?: { field: string; writable: boolean };
     };
     /** Holds an ordered list of asset ids — present only on media fields. */
     multiple?: boolean;
@@ -195,7 +201,10 @@ export class ContentTypeRegistry {
                           ...(spec.relation.inverse
                               ? {
                                     inverse: {
-                                        field: spec.relation.inverse.field
+                                        field: spec.relation.inverse.field,
+                                        // The same test the writer applies
+                                        // before it accepts a delta here.
+                                        writable: acceptsRelationDelta(spec)
                                     }
                                 }
                               : spec.relation.many

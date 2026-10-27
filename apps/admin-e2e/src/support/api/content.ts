@@ -51,7 +51,7 @@ interface ContentFieldSchema {
         many: boolean;
         onDelete?: string;
         unique?: boolean;
-        inverse?: { field: string };
+        inverse?: { field: string; writable?: boolean };
     };
     /** `media` fields: an ordered list of asset ids rather than one id. */
     multiple?: boolean;
@@ -739,6 +739,20 @@ export const RELATIONS_DETAIL_SEED: Record<string, ContentTypeDetail> = {
                 required: false,
                 validation: {},
                 admin: { label: 'Bio' }
+            },
+            {
+                // Inverse of the single article.author — one-to-many, so its
+                // links are the articles' FKs: listed here, set on the article.
+                name: 'articles',
+                type: 'relation',
+                required: false,
+                validation: {},
+                admin: { label: 'Articles by this author' },
+                relation: {
+                    to: 'article',
+                    many: true,
+                    inverse: { field: 'author', writable: false }
+                }
             }
         ]
     },
@@ -771,7 +785,7 @@ export const RELATIONS_DETAIL_SEED: Record<string, ContentTypeDetail> = {
                 relation: {
                     to: 'article',
                     many: true,
-                    inverse: { field: 'tags' }
+                    inverse: { field: 'tags', writable: true }
                 }
             }
         ]

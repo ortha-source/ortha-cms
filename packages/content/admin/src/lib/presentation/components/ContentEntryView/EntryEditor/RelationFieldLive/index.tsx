@@ -135,7 +135,11 @@ export function RelationFieldLive({
 }) {
     const intl = useIntl();
     const workspace = useCurrentWorkspace();
-    const readOnly = useEntryReadOnly();
+    // The inverse of a single relation (one-to-many) lists links it does not
+    // own: each is an owner's FK, set on the owner. Drawn exactly like a
+    // reader's preview, so it never stages a delta the server refuses.
+    const readOnly =
+        useEntryReadOnly() || field.relation?.inverse?.writable === false;
     const [open, setOpen] = useState(false);
     const [preparing, setPreparing] = useState(false);
     const sensors = useSensors(
