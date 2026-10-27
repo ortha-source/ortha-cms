@@ -204,7 +204,35 @@ describe('ContentTypeRegistry', () => {
             expect(byName['stories'].relation).toEqual({
                 to: 'story',
                 many: true,
-                inverse: { field: 'cats' }
+                inverse: { field: 'cats', writable: true }
+            });
+        });
+
+        it('marks the inverse of a single relation read-only', () => {
+            // owner.pet (owning, single) ⇄ pet.owners (inverse, one-to-many):
+            // the links are owner rows' FKs, so a delta from pet's side is a 400.
+            const pet = collection('pet', {
+                fields: {
+                    name: field.text(),
+                    owners: field.relationInverse({
+                        of: (): AnyContentType => owner,
+                        field: 'pet'
+                    })
+                }
+            });
+            const owner = collection('owner', {
+                fields: {
+                    name: field.text(),
+                    pet: field.relation({ to: (): AnyContentType => pet })
+                }
+            });
+            const registry = new ContentTypeRegistry([pet, owner]);
+            const owners = registry
+                .serialize('pet')!
+                .fields.find((x) => x.name === 'owners')!;
+            expect(owners.relation?.inverse).toEqual({
+                field: 'pet',
+                writable: false
             });
         });
 

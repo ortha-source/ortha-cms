@@ -162,7 +162,7 @@ describe('isValueField', () => {
                     relation: {
                         to: 'comment',
                         many: true,
-                        inverse: { field: 'article' }
+                        inverse: { field: 'article', writable: false }
                     }
                 })
             )

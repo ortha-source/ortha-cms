@@ -29,6 +29,10 @@ const messages = defineMessages({
     descInverse: {
         id: 'content.relations.section.descInverse',
         defaultMessage: 'Linked from {target}.'
+    },
+    descInverseReadOnly: {
+        id: 'content.relations.section.descInverseReadOnly',
+        defaultMessage: 'Linked from {target} — change it there.'
     }
 });
 
@@ -109,9 +113,14 @@ export function RelationFieldSection({
 
     // Only an inverse relation says where it comes from: its links are made
     // on the other side. A single or many relation is drawn as what it is.
-    const description = intl.formatMessage(messages.descInverse, {
-        target: targetLabel
-    });
+    // The inverse of a single relation can only be changed there, so it says
+    // where to go rather than merely where the links come from.
+    const description = intl.formatMessage(
+        field.relation?.inverse?.writable === false
+            ? messages.descInverseReadOnly
+            : messages.descInverse,
+        { target: targetLabel }
+    );
 
     // The schema's own description, under the field like any field's.
     const authored = adminProps(field).description;

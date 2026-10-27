@@ -234,6 +234,27 @@ test.describe('Relation picker', () => {
         ).toBeVisible();
     });
 
+    test('lists the inverse of a single relation read-only', async ({
+        page,
+        relationsEditorPage
+    }) => {
+        // `author.articles` mirrors the single `article.author`: each link is
+        // an article's FK, so it is changed on the article. The editor offers
+        // no way to stage a link the server would refuse with a 400.
+        await relationsEditorPage.gotoNewType(RELATIONS_WORKSPACE.id, 'author');
+        await relationsEditorPage.openRelationsTab();
+
+        const section = relationsEditorPage.section('Articles by this author');
+        await expect(section).toBeVisible();
+        await expect(
+            section.getByText('Linked from Articles — change it there.')
+        ).toBeVisible();
+        await expect(relationsEditorPage.addRelatedButton).toHaveCount(0);
+        await expect(
+            page.getByRole('button', { name: /^Remove / })
+        ).toHaveCount(0);
+    });
+
     test('hides relations whose target collection the workspace lacks', async ({
         page,
         relationsEditorPage

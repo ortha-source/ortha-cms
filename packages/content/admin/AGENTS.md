@@ -493,7 +493,10 @@ staged.added`), not the values bag it doesn't live in — mirroring the server's
       **landed** clears the staging it sent (even when a publish chained after
       it is refused) and `useSaveEntry` invalidates the field queries. Owning
       many-relations reorder (persisted via `position`); the inverse reads order
-      but isn't sortable.
+      but isn't sortable. An inverse whose schema says `inverse.writable: false`
+      — the far side of a **single** relation, whose links are the owners' FKs —
+      is listed read-only (no Add, no Remove, "Linked from {Target} — change it
+      there."), since the server refuses any delta for it.
       A field with pending edits shows a **"Changed" badge** (`ChangedBadge`): general
       fields (dirty vs the seed) in `EntryFieldSections`, and relation sections
       (dirty staging, or a dirty single value) in the section header — so the user

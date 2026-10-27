@@ -141,8 +141,13 @@ export type ContentField = {
          * `field` is the storage-owning relation on `to`. The picker treats it
          * like any relation (pick records of `to`); the link is shared with the
          * owning side.
+         *
+         * `writable: false` marks the inverse of a **single** relation
+         * (one-to-many): its links are the owners' own FKs, so the editor
+         * lists them read-only and never stages a delta the server refuses.
+         * Absent (an older server) reads as writable.
          */
-        inverse?: { field: string };
+        inverse?: { field: string; writable?: boolean };
     };
     /** Holds an ordered list of assets — present only for `media`. */
     multiple?: boolean;
