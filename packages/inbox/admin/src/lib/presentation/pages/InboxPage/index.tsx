@@ -246,7 +246,7 @@ export function InboxPage() {
                         <TabsContent
                             key={value}
                             value={value}
-                            className="flex flex-col gap-6"
+                            className="mt-4 flex flex-col gap-6"
                         >
                             {value === tab ? list : null}
                         </TabsContent>
