@@ -66,83 +66,83 @@ describe('required deploy values', () => {
     });
 });
 
+/** What production needs on top of `DATABASE_URL`. */
+const PRODUCTION = {
+    NODE_ENV: 'production',
+    PUBLIC_URL: 'https://cms.example.com'
+} as const;
+
 describe('numeric settings', () => {
     it('falls back to the default when unset or empty', () => {
-        // `.env.example` ships several keys with no value on the right-hand side,
-        // so empty has to mean "not configured", not "configured badly".
-        expect(
-            loadConfig({ SESSION_TTL_SECONDS: undefined }).plugins.identity
-                .session.ttlSeconds
-        ).toBe(60 * 60 * 24 * 7);
-        expect(
-            loadConfig({ SESSION_TTL_SECONDS: '' }).plugins.identity.session
-                .ttlSeconds
-        ).toBe(60 * 60 * 24 * 7);
+        // `.env.example` ships keys with no value on the right-hand side, so
+        // empty has to mean "not configured", not "configured badly".
+        expect(loadConfig({ PORT: undefined }).port).toBe(3000);
+        expect(loadConfig({ PORT: '' }).port).toBe(3000);
     });
 
     it('reads a plain positive integer', () => {
-        expect(
-            loadConfig({ SESSION_TTL_SECONDS: '3600' }).plugins.identity.session
-                .ttlSeconds
-        ).toBe(3600);
+        expect(loadConfig({ PORT: '8080' }).port).toBe(8080);
     });
 
-    it('rejects a negative value instead of accepting it', () => {
-        // Measured before this check existed: `SESSION_TTL_SECONDS=-1` boots,
-        // login answers `201` with `Max-Age=-1`, and the next request is `401` —
-        // an instance where nobody can stay signed in and nothing says why.
-        expect(loadError({ SESSION_TTL_SECONDS: '-1' })).toContain(
-            'SESSION_TTL_SECONDS'
-        );
-        expect(loadError({ MEDIA_MAX_UPLOAD_BYTES: '-1' })).toContain(
-            'positive whole number'
-        );
-    });
-
-    it('rejects zero instead of silently substituting the default', () => {
-        // `LOGIN_RATE_LIMIT=0` reads as "allow no logins" and used to mean 10.
-        expect(loadError({ LOGIN_RATE_LIMIT: '0' })).toContain(
-            'LOGIN_RATE_LIMIT'
-        );
-    });
-
-    it('keeps a documented zero off-switch loadable [database:I-23]', () => {
-        // `OUTBOX_RETENTION_DAYS=0` is documented as "never prune" in
-        // `.env.example`, the scaffolder's `env.tmpl`, this file's comment and
-        // `OrthaCmsDatabaseConfig`. Read through `readPositiveInt` it threw, so
-        // the documented way to switch retention off made the server refuse to
-        // start — the value has to arrive at the plugin as `0`, which is the
-        // form `pruneIfDue` reads as "never".
-        expect(
-            loadConfig({ OUTBOX_RETENTION_DAYS: '0' }).database
-                .outboxRetentionDays
-        ).toBe(0);
-        expect(
-            loadConfig({ OUTBOX_RETENTION_DAYS: '7' }).database
-                .outboxRetentionDays
-        ).toBe(7);
-        expect(
-            loadConfig({ OUTBOX_RETENTION_DAYS: undefined }).database
-                .outboxRetentionDays
-        ).toBe(30);
-        // Zero is the only thing that moved: a negative is still a refusal,
-        // because it is a typo rather than an off-switch.
-        expect(loadError({ OUTBOX_RETENTION_DAYS: '-1' })).toContain(
-            'OUTBOX_RETENTION_DAYS'
-        );
-    });
-
-    it('rejects exponent notation, which quietly removed the GraphQL cost budget', () => {
-        // `Number('1e9')` is a finite integer, so `GRAPHQL_MAX_DEPTH=1e9` passed
-        // every check and deleted the bound ADR-0008 relies on in place of the
-        // structural one REST gave for free.
-        expect(loadError({ GRAPHQL_MAX_DEPTH: '1e9' })).toContain(
-            'GRAPHQL_MAX_DEPTH'
-        );
+    it('rejects a negative, a zero and exponent notation', () => {
+        // `Number(x) || default` accepted a negative, swallowed a zero and
+        // parsed `1e9` — all three silently.
+        for (const value of ['-1', '0', '1e3']) {
+            expect(loadError({ COPILOT_USER_DAILY_TOKENS: value })).toContain(
+                'COPILOT_USER_DAILY_TOKENS'
+            );
+        }
     });
 
     it('rejects a non-numeric value', () => {
         expect(loadError({ PORT: 'eight-thousand' })).toContain('PORT');
+    });
+});
+
+describe('settings that are code, not environment', () => {
+    it('keeps the lifetimes, limits and budgets in the config itself', () => {
+        const config = loadConfig({});
+        expect(config.plugins.identity.session.ttlSeconds).toBe(
+            60 * 60 * 24 * 7
+        );
+        expect(config.plugins.identity.rateLimit).toEqual({
+            ttlSeconds: 60,
+            limit: 10
+        });
+        expect(config.database.outboxRetentionDays).toBe(30);
+        expect(config.plugins.contentGraphql.limits?.maxDepth).toBe(8);
+    });
+
+    it('ignores a retired variable set to its old default, with a warning', () => {
+        const warn = jest.spyOn(console, 'warn').mockImplementation();
+        expect(
+            loadConfig({ SESSION_TTL_SECONDS: '604800' }).plugins.identity
+                .session.ttlSeconds
+        ).toBe(60 * 60 * 24 * 7);
+        expect(warn).toHaveBeenCalledWith(
+            expect.stringContaining('SESSION_TTL_SECONDS is no longer read')
+        );
+        warn.mockRestore();
+    });
+
+    it('refuses a retired variable set to anything else, saying where it went', () => {
+        // Ignoring it would quietly loosen a security setting:
+        // `GRAPHQL_MAX_DEPTH=4` becoming 8, `LOGIN_RATE_LIMIT=3` becoming 10.
+        const message = loadError({
+            LOGIN_RATE_LIMIT: '3',
+            GRAPHQL_MAX_DEPTH: '4'
+        });
+        expect(message).toContain('LOGIN_RATE_LIMIT=3');
+        expect(message).toContain('config/identity.ts');
+        expect(message).toContain('GRAPHQL_MAX_DEPTH=4');
+        expect(message).toContain('config/graphql.ts');
+    });
+
+    it('points a renamed provider at code, where renaming is a reviewed change', () => {
+        // The name is what every `sso_identities` row refers to.
+        expect(loadError({ SSO_OIDC_NAME: 'staff' })).toContain(
+            'the `oidc` provider in config/identity.ts'
+        );
     });
 });
 
@@ -154,10 +154,7 @@ describe('NODE_ENV', () => {
     });
 
     it('withholds the reference and sets Secure in production', () => {
-        const config = loadConfig({
-            NODE_ENV: 'production',
-            API_DOCS: undefined
-        });
+        const config = loadConfig({ ...PRODUCTION, API_DOCS: undefined });
         expect(config.docs.enabled).toBe(false);
         expect(config.plugins.identity.session.cookieSecure).toBe(true);
     });
@@ -174,8 +171,7 @@ describe('NODE_ENV', () => {
 
     it('lets API_DOCS override in both directions', () => {
         expect(
-            loadConfig({ NODE_ENV: 'production', API_DOCS: 'true' }).docs
-                .enabled
+            loadConfig({ ...PRODUCTION, API_DOCS: 'true' }).docs.enabled
         ).toBe(true);
         expect(
             loadConfig({ NODE_ENV: undefined, API_DOCS: 'false' }).docs.enabled
@@ -209,7 +205,7 @@ describe('schema builder', () => {
         // plugin decides that, and needs to be told which one it is in.
         const config = loadConfig({
             ...off,
-            NODE_ENV: 'production',
+            ...PRODUCTION,
             SCHEMA_BUILDER: 'true'
         }).plugins.schemaBuilder;
         expect(config.enabled).toBe(true);
@@ -240,65 +236,16 @@ describe('schema builder', () => {
 });
 
 describe('copilot run ceilings', () => {
-    const unset = {
-        COPILOT_MAX_STEPS: undefined,
-        COPILOT_WALL_CLOCK_MS: undefined,
-        COPILOT_MAX_TOTAL_TOKENS: undefined
-    };
-
-    it('omits `limits` entirely when none are set', () => {
-        // Spreading `limits: { maxSteps: undefined }` would overwrite the
-        // plugin's own ceiling with nothing, so each key is conditional — and
-        // so is the object, or an untouched `.env` would pin `limits: {}` here
-        // instead of leaving DEFAULT_RUN_LIMITS visible.
-        expect(loadConfig(unset).plugins.copilot.limits).toBeUndefined();
-        expect(
-            loadConfig({
-                ...unset,
-                COPILOT_MAX_STEPS: '',
-                COPILOT_WALL_CLOCK_MS: '',
-                COPILOT_MAX_TOTAL_TOKENS: ''
-            }).plugins.copilot.limits
-        ).toBeUndefined();
+    it('leaves `limits` to the plugin defaults, which are code', () => {
+        // Spreading `limits: {}` would pin nothing, but naming them here would
+        // shadow DEFAULT_RUN_LIMITS; raising one is an edit to config/copilot.ts.
+        expect(loadConfig({}).plugins.copilot.limits).toBeUndefined();
     });
 
-    it('passes each configured ceiling through on its own', () => {
-        expect(
-            loadConfig({ ...unset, COPILOT_MAX_STEPS: '20' }).plugins.copilot
-                .limits
-        ).toEqual({ maxSteps: 20 });
-        expect(
-            loadConfig({ ...unset, COPILOT_WALL_CLOCK_MS: '600000' }).plugins
-                .copilot.limits
-        ).toEqual({ wallClockMs: 600_000 });
-        expect(
-            loadConfig({ ...unset, COPILOT_MAX_TOTAL_TOKENS: '900000' }).plugins
-                .copilot.limits
-        ).toEqual({ maxTotalTokens: 900_000 });
-    });
-
-    it('carries a partial override without inventing the other two', () => {
-        // The point of the conditional keys: raising one must not silently pin
-        // the other two to whatever this file happened to think they were.
-        expect(
-            loadConfig({
-                ...unset,
-                COPILOT_MAX_STEPS: '50',
-                COPILOT_MAX_TOTAL_TOKENS: '900000'
-            }).plugins.copilot.limits
-        ).toEqual({ maxSteps: 50, maxTotalTokens: 900_000 });
-    });
-
-    it('rejects zero, which would make every run end before its first step', () => {
-        expect(loadError({ ...unset, COPILOT_MAX_STEPS: '0' })).toContain(
-            'COPILOT_MAX_STEPS'
+    it('refuses the retired ceilings when they hold anything but the old default', () => {
+        expect(loadError({ COPILOT_MAX_STEPS: '50' })).toContain(
+            'config/copilot.ts'
         );
-        expect(loadError({ ...unset, COPILOT_WALL_CLOCK_MS: '0' })).toContain(
-            'COPILOT_WALL_CLOCK_MS'
-        );
-        expect(
-            loadError({ ...unset, COPILOT_MAX_TOTAL_TOKENS: '0' })
-        ).toContain('COPILOT_MAX_TOTAL_TOKENS');
     });
 });
 
@@ -353,18 +300,28 @@ describe('copilot usage limits', () => {
     });
 });
 
-describe('settings whose documented value used to be refused', () => {
-    it('takes 0 for the webhook send interval and retention window', () => {
-        // "Queue but never send from this process" and "keep the log
-        // forever" are both spelt 0 in `.env.example`, and both refused boot.
-        const { webhooks } = loadConfig({
-            WEBHOOKS_DELIVERY_INTERVAL: '0',
-            WEBHOOKS_RETENTION_DAYS: '0'
-        }).plugins;
-        expect(webhooks).toMatchObject({
-            deliveryIntervalMs: 0,
-            retentionDays: 0
+describe('ORTHACMS_WORKERS', () => {
+    it('sends webhooks and mail from this process by default', () => {
+        const config = loadConfig({
+            ORTHACMS_WORKERS: undefined,
+            MAIL_URL: 'console://',
+            MAIL_FROM: 'CMS <cms@example.com>'
         });
+        expect(config.plugins.webhooks.deliveryIntervalMs).toBeUndefined();
+        expect(config.plugins.mail?.deliveryIntervalMs).toBeUndefined();
+    });
+
+    it('queues without sending when false — a web node in front of a worker', () => {
+        // The plugins read an interval of 0 as "this process sends nothing";
+        // the two variables that used to say so separately could not both say
+        // it (the mail one refused 0).
+        const config = loadConfig({
+            ORTHACMS_WORKERS: 'false',
+            MAIL_URL: 'console://',
+            MAIL_FROM: 'CMS <cms@example.com>'
+        });
+        expect(config.plugins.webhooks.deliveryIntervalMs).toBe(0);
+        expect(config.plugins.mail?.deliveryIntervalMs).toBe(0);
     });
 });
 
@@ -396,30 +353,77 @@ describe('a value outside what a setting accepts', () => {
     });
 });
 
-describe('ALLOWED_ORIGINS', () => {
-    it('trims and drops empties', () => {
+describe('PUBLIC_URL and the allowed origins', () => {
+    const unset = {
+        ALLOWED_ORIGINS: undefined,
+        PUBLIC_URL: undefined,
+        APP_URL: undefined,
+        EXTRA_ORIGINS: undefined,
+        ADMIN_PORT: undefined,
+        PORT: undefined
+    };
+
+    it('allows the dev server and the server port outside production', () => {
+        // A browser sends `Origin` on every POST, so the port `npm start`
+        // serves the admin from has to be on the list too.
+        expect(loadConfig(unset).plugins.identity.allowedOrigins).toEqual([
+            'http://localhost:4200',
+            'http://localhost:3000'
+        ]);
+    });
+
+    it('follows ADMIN_PORT, so a parallel worktree stack is not rejected', () => {
+        expect(
+            loadConfig({ ...unset, ADMIN_PORT: '4207' }).plugins.identity
+                .allowedOrigins[0]
+        ).toBe('http://localhost:4207');
+    });
+
+    it('puts PUBLIC_URL first, then EXTRA_ORIGINS — and nothing else in production', () => {
+        // SSO builds its callbacks from the first entry.
         expect(
             loadConfig({
+                ...unset,
+                ...PRODUCTION,
+                EXTRA_ORIGINS:
+                    'https://admin.example.com/, https://cms.example.com'
+            }).plugins.identity.allowedOrigins
+        ).toEqual(['https://cms.example.com', 'https://admin.example.com']);
+    });
+
+    it('refuses to start in production without PUBLIC_URL', () => {
+        expect(loadError({ ...unset, NODE_ENV: 'production' })).toContain(
+            'Missing required environment variable PUBLIC_URL'
+        );
+    });
+
+    it('refuses a URL without a scheme', () => {
+        expect(
+            loadError({ ...unset, PUBLIC_URL: 'cms.example.com' })
+        ).toContain('PUBLIC_URL must be an absolute URL');
+    });
+
+    it('still reads APP_URL as PUBLIC_URL, with a warning', () => {
+        const warn = jest.spyOn(console, 'warn').mockImplementation();
+        expect(
+            loadConfig({
+                ...unset,
+                NODE_ENV: 'production',
+                APP_URL: 'https://old.example.com'
+            }).plugins.identity.allowedOrigins
+        ).toEqual(['https://old.example.com']);
+        warn.mockRestore();
+    });
+
+    it('still honours ALLOWED_ORIGINS verbatim, trimmed, with a warning', () => {
+        const warn = jest.spyOn(console, 'warn').mockImplementation();
+        expect(
+            loadConfig({
+                ...unset,
                 ALLOWED_ORIGINS: ' http://a.test , ,http://b.test '
             }).plugins.identity.allowedOrigins
         ).toEqual(['http://a.test', 'http://b.test']);
-    });
-
-    it('follows ADMIN_PORT when unset, so a parallel worktree stack is not rejected', () => {
-        expect(
-            loadConfig({ ALLOWED_ORIGINS: undefined, ADMIN_PORT: '4207' })
-                .plugins.identity.allowedOrigins
-        ).toEqual(['http://localhost:4207']);
-    });
-
-    it('yields an empty list when set to empty, refusing every browser origin', () => {
-        // Fail-closed, and worth pinning as deliberate: an operator who blanks
-        // the variable locks the admin out of every state-changing request
-        // (measured: `403` from the OriginGuard on login), with a `.env` that
-        // looks configured.
-        expect(
-            loadConfig({ ALLOWED_ORIGINS: '' }).plugins.identity.allowedOrigins
-        ).toEqual([]);
+        warn.mockRestore();
     });
 });
 
@@ -513,15 +517,7 @@ describe('a variable that is set but empty', () => {
         expect(provider?.name).toBe('oidc');
     });
 
-    it('honours a name that was actually set', () => {
-        // The other half: "empty means absent" must not become "ignore it".
-        expect(
-            loadConfig({ ...oidc, SSO_OIDC_NAME: 'staff' }).plugins.identity
-                .ssoProviders.oidc?.name
-        ).toBe('staff');
-    });
-
-    it('lets SSO_PUBLIC_BASE_URL through a blank SSO_SAML_ISSUER', () => {
+    it('lets API_PUBLIC_URL through a blank SSO_SAML_ISSUER', () => {
         // The worst of the set, because the blank was not merely losing its own
         // default — it was shadowing a value the operator *had* set, one `??`
         // to its right, and leaving the SAML entity id empty.
@@ -529,7 +525,7 @@ describe('a variable that is set but empty', () => {
             SSO_SAML_ENTRY_POINT: 'https://idp.test/sso',
             SSO_SAML_IDP_CERT: 'CERT',
             SSO_SAML_ISSUER: '',
-            SSO_PUBLIC_BASE_URL: 'https://cms.example.test'
+            API_PUBLIC_URL: 'https://cms.example.test'
         }).plugins.identity.ssoProviders;
 
         expect(saml?.issuer).toBe('https://cms.example.test');

@@ -153,6 +153,7 @@
         "@nestjs/platform-express": "^11.0.0",
         "@orthacms/activity-server": "*",
         "@orthacms/bootstrap-server": "*",
+        "@orthacms/config": "*",
         "@orthacms/content-graphql": "*",
         "@orthacms/content-server": "*",
         "@orthacms/schema-builder-domain": "*",

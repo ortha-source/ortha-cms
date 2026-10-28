@@ -23,7 +23,7 @@ import { buildPlugins } from './plugins';
 
 // orthacms:if mail
 /**
- * Mail is registered only when `MAIL_PROVIDER` names a backend — see
+ * Mail is registered only when `MAIL_URL` names a backend — see
  * `config/mail.ts`. So the expected list follows the same condition rather than
  * asserting a plugin whose presence is a `.env` decision: an app that sends
  * nothing is a valid app, and this spec has to be green in both states.

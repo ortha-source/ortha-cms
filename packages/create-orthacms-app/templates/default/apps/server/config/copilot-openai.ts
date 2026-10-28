@@ -1,21 +1,13 @@
 // orthacms:if copilot-openai
 import type { OpenAiProviderConfig } from '@orthacms/copilot-provider-openai';
-import { readEnv, readList } from '@orthacms/utils-server';
+import { openAiFromEnv } from '@orthacms/config';
 
 /**
- * An OpenAI-wire backend, or nothing. No default endpoint: an unset variable
- * means "this deployment has no such backend", not "assume one is running on
- * this laptop".
+ * An OpenAI-compatible endpoint, or nothing. `COPILOT_OPENAI_BASE_URL` is what
+ * registers it, and there is no default: an endpoint nobody named is a backend
+ * that can only time out. A local Ollama is http://localhost:11434/v1.
  */
 export function openAiProvider(): OpenAiProviderConfig | undefined {
-    const baseUrl = readEnv('COPILOT_OPENAI_BASE_URL');
-    if (!baseUrl) {
-        return undefined;
-    }
-    return {
-        baseUrl,
-        apiKey: readEnv('COPILOT_OPENAI_API_KEY') ?? '',
-        models: readList('COPILOT_OPENAI_MODELS', 'llama3.1')
-    };
+    return openAiFromEnv();
 }
 // orthacms:end

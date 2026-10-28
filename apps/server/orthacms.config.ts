@@ -1,17 +1,17 @@
 /**
  * Typed application configuration for the Ortha CMS server.
  *
- * `config/` is the single place that reads the environment, and it reads it
- * **only** through the readers in `@orthacms/utils-server` — no module in the
- * folder touches `process.env` itself, which `src/orthacms.config.spec.ts`
- * enforces. That is not style: `readEnv` is where "an empty value means the
- * setting is absent" is decided, and `.env.example` ships forty-odd keys with
- * nothing on the right-hand side. A raw `process.env['X'] ?? default` skips
- * that decision, so a key left blank from the example wins over the default it
- * was supposed to fall back to. Everything downstream (`createServer`,
- * plugins) receives typed config; nothing else should reach for environment
- * variables. Deploy-specific values come from the environment; stable tuning
- * lives in the builders as literals.
+ * **Which environment variables exist, and how each is read, is not decided in
+ * this app.** `@orthacms/config` holds the catalog — every variable, its
+ * default, what it means — and the builders that read them; the scaffolder's
+ * template calls the same builders, so a generated app reads exactly the
+ * variables this one does, and `.env.example`, `env.tmpl` and
+ * `docs/configuration.md` are generated from the catalog. `config/` composes
+ * those builders with what is **code** here: lifetimes, rate limits, GraphQL
+ * cost budgets, retry counts, provider names — settings no deployment needs to
+ * vary per environment, and which would change in silence if a variable set by
+ * accident could move them. No module in `config/` touches `process.env`
+ * itself, which `src/orthacms.config.spec.ts` enforces.
  *
  * **Shape:** one module per plugin under `config/`, each exporting a builder,
  * and this file assembling them into one object. So the literal below is the
@@ -25,12 +25,6 @@
  * (`LAYOUT.compiledConfig`), `@orthacms/nx` infers the migration targets onto
  * the project that has an `orthacms.config.ts`, and the types below are imported
  * from here by `src/plugins.ts` and by `apps/server-e2e`.
- *
- * *How* a value is parsed is not decided in this folder at all: the readers
- * come from `@orthacms/utils-server`, shared with the scaffolder's template so
- * a generated app validates its environment exactly as this one does. `config/`
- * names the variables and their defaults; the readers decide what a value has
- * to look like to be honoured, and refuse it otherwise.
  */
 
 import type {
@@ -44,11 +38,7 @@ import type { TransferPluginConfig } from '@orthacms/transfer-server';
 import type { SchemaBuilderPluginConfig } from '@orthacms/schema-builder-server';
 import type { SegmentsPluginConfig } from '@orthacms/segments-server';
 import type { WebhooksPluginConfig } from '@orthacms/webhooks-server';
-import {
-    readNonNegativeInt,
-    readPositiveInt,
-    requireEnv
-} from '@orthacms/utils-server';
+import { checkRetiredEnv, databaseUrl, port } from '@orthacms/config';
 
 import { bodyLimit, trustProxy } from './config/server';
 import { docsConfig } from './config/docs';
@@ -81,8 +71,7 @@ export interface OrthaCmsDatabaseConfig {
     /** PostgreSQL connection string. Sourced from `DATABASE_URL`. */
     url: string;
     /**
-     * How long a delivered outbox event is kept, in days. Sourced from
-     * `OUTBOX_RETENTION_DAYS`; `0` never prunes.
+     * How long a delivered outbox event is kept, in days; `0` never prunes.
      */
     outboxRetentionDays: number;
 }
@@ -101,8 +90,7 @@ export interface OrthaCmsConfig {
      */
     trustProxy?: TrustProxySetting;
     /**
-     * Cap on a JSON / urlencoded request body, sourced from
-     * `MAX_REQUEST_BODY`. Defaults to 1 MB — see `config/server.ts`.
+     * Cap on a JSON / urlencoded request body. 1 MB — see `config/server.ts`.
      */
     bodyLimit?: string | number;
     /** Database connection settings. */
@@ -139,7 +127,7 @@ export interface OrthaCmsConfig {
          * from, and the backend `plugins.ts` constructs.
          *
          * **`undefined` is the default and a complete configuration**: with no
-         * `MAIL_PROVIDER` set the host registers no mail plugin, nothing is
+         * `MAIL_URL` set the host registers no mail plugin, nothing is
          * sent, and the invite and reset routes keep returning the raw token
          * for an administrator to relay (ADR-0018).
          */
@@ -147,26 +135,24 @@ export interface OrthaCmsConfig {
     };
 }
 
+// A variable that used to tune something here and is no longer read refuses
+// to load when it holds anything but its old default — ignoring it would
+// change this deployment without a word. Before any builder runs.
+checkRetiredEnv();
+
 const config: OrthaCmsConfig = {
-    port: readPositiveInt('PORT', 3000),
+    port: port(),
     globalPrefix: 'api',
     trustProxy: trustProxy(),
     bodyLimit: bodyLimit(),
     database: {
-        url: requireEnv(
-            'DATABASE_URL',
+        url: databaseUrl(
             'Copy `.env.example` to `.env` and set it (see `README.md`); ' +
                 'the server has no usable default for this value.'
         ),
-        // Days of history kept, `0` for "keep everything". It applies to
-        // delivered rows only — a pending or parked event is never deleted by
-        // age.
-        //
-        // `readNonNegativeInt`, not `readPositiveInt`, and that is the whole
-        // point of the setting: `0` is the documented off-switch, and the
-        // positive reader refuses it, so the documented way to turn retention
-        // off stopped the server from booting (ORT-211).
-        outboxRetentionDays: readNonNegativeInt('OUTBOX_RETENTION_DAYS', 30)
+        // Days of delivered outbox history kept, `0` for "keep everything".
+        // A pending or parked event is never deleted by age.
+        outboxRetentionDays: 30
     },
     docs: docsConfig(),
     plugins: {

@@ -170,16 +170,16 @@ cannot answer.
 <!-- orthacms:if mail -->
 ### Outgoing mail
 
-Installed, and **off** until `MAIL_PROVIDER=smtp` is set in `.env`. With it
+Installed, and **off** until `MAIL_URL` names a relay in `.env`
+(`smtp://user:password@smtp.example.com:587`, or `smtps://` on port 465). With it
 empty this app sends nothing: no queue, no worker, and the invite and reset
 routes hand the raw link back for you to pass on — which is a complete
 configuration, and the one a fresh app runs in, so `npm run dev` works before
 you have a relay.
 
-Setting it makes two more variables required, and the app refuses to boot
-without them: `APP_URL`, because every link in a message is built from it, and
-`MAIL_FROM`, because a message with no sender is refused by every relay. The
-URL is deliberately not taken from the request — the caller controls the `Host`
+Setting it makes `MAIL_FROM` required — a message with no sender is refused by
+every relay — and every link in a message is built from `PUBLIC_URL`, which
+production requires anyway. The URL is deliberately not taken from the request — the caller controls the `Host`
 header, and an invitation is the one message a recipient is certain to click.
 
 It also changes the API: with mail configured the invite and reset routes stop
@@ -241,9 +241,13 @@ the admin bundle on one origin. Set in the environment:
 - `DATABASE_URL` — required
 - `NODE_ENV=production` — spelled exactly; anything else drops `Secure` from the
   session cookie and publishes the API reference
-- `ALLOWED_ORIGINS` — the origin people open the admin on, e.g.
-  `https://cms.example.com`. Browsers send `Origin` on every sign-in, and one
-  not on this list is refused with a 403
+- `PUBLIC_URL` — the address people open the admin on, e.g.
+  `https://cms.example.com`. Sign-in accepts only that origin (browsers send
+  `Origin` on every sign-in), and SSO callbacks and email links are built from
+  it; production refuses to start without it
 - `TRUST_PROXY` — required behind a load balancer, or every client shares one
   rate-limit bucket
 - `MEDIA_LOCAL_ROOT` — a persistent volume, or uploads vanish on each deploy
+
+Any of them can come from a file instead (`DATABASE_URL_FILE=/run/secrets/db`).
+`npx orthacms doctor` shows what is in effect and where each value came from.

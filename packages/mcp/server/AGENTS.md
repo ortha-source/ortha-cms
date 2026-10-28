@@ -197,7 +197,7 @@ in-process loop does not:
 | Bound                                                                 | Where                  | Over it                                                                                       |
 | --------------------------------------------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------- |
 | **Request body**, 1 MB (`MAX_REQUEST_BODY`)                           | the host's `bodyLimit` | `413`, as a plain Nest body — this is above the JSON-RPC layer, so it is not a JSON-RPC frame |
-| **One `tools/call`**, `callTimeoutMs` (30s; `MCP_CALL_TIMEOUT_MS`)    | `build-mcp-server.ts`  | an `isError` result, `504` / `timeout`                                                        |
+| **One `tools/call`**, `callTimeoutMs` (30s, in `config/mcp.ts`)       | `build-mcp-server.ts`  | an `isError` result, `504` / `timeout`                                                        |
 | **One tool result**, `maxResultBytes` (4 MiB; `MCP_MAX_RESULT_BYTES`) | `build-mcp-server.ts`  | an `isError` result, `413` / `result_too_large`, naming both sizes                            |
 
 The deadline **abandons, it does not cancel**: the handler is handed a signal

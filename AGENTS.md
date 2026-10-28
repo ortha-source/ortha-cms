@@ -12,6 +12,7 @@
 - [`CONTEXT-MAP.md`](CONTEXT-MAP.md) — glossary + the full project map (every app & package, one line each)
 - [`docs/adr/`](docs/adr/README.md) — Architecture Decision Records (why things are the way they are)
 - [`docs/artifacts/`](docs/artifacts/) — one dossier per package group, each ending in its numbered invariants
+- [`docs/configuration.md`](docs/configuration.md) — every environment variable, generated from `packages/config`'s catalog
 - [`docs/design/`](docs/design/) — engineering design docs for features with phases still unbuilt: [`copilot.md`](docs/design/copilot.md), [`entry-editor.md`](docs/design/entry-editor.md), [`mail.md`](docs/design/mail.md), [`protection.md`](docs/design/protection.md)
 - [`README.md`](README.md) — human-facing project overview & getting started
 - `.cursor/BUGBOT.md` — recurring bug-patterns reviewers and agents must watch for
@@ -64,6 +65,11 @@ The full map — every app and package, one line each — is
   `// @orthacms-generated`.
 - `packages/design-system`, `packages/utils/*` — the shadcn/ui library and
   shared plumbing (`apiClient`, slots, env readers).
+- `packages/config` — **which environment variables exist**: the catalog, the
+  builders `apps/server/config/` and the scaffolder's template both read them
+  through, and the generator for `.env.example`, `env.tmpl` and
+  `docs/configuration.md`. A setting no deployment varies is a literal in
+  `config/`, not a variable.
 - `packages/{nx,cli,create-orthacms-app}` — the workspace Nx plugin, the
   `orthacms` command (`dev` / `build` / `start` / `migrate` / `generate` /
   `content sync` / `studio`), and the scaffolder. The Nx database targets are
@@ -130,7 +136,7 @@ package; the admin app's Vite transpiles the design-system source directly.
   (`@orthacms/nx`, `@orthacms/copilot-provider-fake`) publishes together, in
   lockstep. `npm run release` from a clean checkout of `main` versions, tags,
   publishes and opens the GitHub Release, reading `NPM_TOKEN` / `GITHUB_TOKEN`
-  from `.env`; `npm run release:dry-run` rehearses it. The **Release** Actions
+  from `.env.release`; `npm run release:dry-run` rehearses it. The **Release** Actions
   workflow does the same unattended. A package's tarball is not its checked-in
   manifest: `build` compiles it and `pack` stages a rewritten manifest under
   `dist/pack/`, because the workspace resolves from source and a consumer

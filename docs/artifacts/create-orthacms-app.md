@@ -217,7 +217,7 @@ There is an important asymmetry here between what is offered and what is wired u
    _the provider registers only when both SSO_OIDC_ISSUER and SSO_OIDC_CLIENT_ID are set — a sign-in button that can only fail is worse than no button_
 2. **`sso-github` or `sso-saml` chosen.** The package is added to the manifest — and **nothing else**. There are no `orthacms:if sso-github` or `orthacms:if sso-saml` markers in any template file: no import, no registration, no environment variables. Wiring the adapter up is a manual job.
    _the USAGE text confirms it too: only sso-oidc is named in the flag's parentheses_
-3. **Nothing chosen.** `IdentityPlugin(config.plugins.identity)` in its one-argument form. The shared handshake settings (`SSO_PUBLIC_BASE_URL`, `SSO_REQUEST_TTL_SECONDS`) are written into `.env` anyway — they are unconditional.
+3. **Nothing chosen.** `IdentityPlugin(config.plugins.identity)` in its one-argument form. The shared handshake settings are read anyway — `API_PUBLIC_URL` and the provisioning rules, through `ssoFromEnv()` — and the request lifetime is a literal in `config/identity.ts`.
 
 ### 3.4 Choice four — which protocols the content API speaks
 
@@ -270,7 +270,7 @@ Both packages in the manifest; a derived **`mail`** group flag (the second after
 
 > **Conditional twice over**
 >
-> Choosing SMTP installs the code; `MAIL_PROVIDER` in `.env` decides whether it runs. `mailConfig()` returns `undefined` while the variable is empty, and `mailPlugin()` returns `[]` for that — so a freshly scaffolded application **boots before you have a relay**, with the invite response still carrying the link. Naming a backend makes `APP_URL` and `MAIL_FROM` required at boot, and stops those routes returning a secret at all.
+> Choosing SMTP installs the code; `MAIL_URL` in `.env` decides whether it runs. `mailConfig()` returns `undefined` while the variable is empty, and `mailPlugin()` returns `[]` for that — so a freshly scaffolded application **boots before you have a relay**, with the invite response still carrying the link. Naming a backend makes `APP_URL` and `MAIL_FROM` required at boot, and stops those routes returning a secret at all.
 >
 > That second condition is also why the generated `plugins.spec.ts` derives its expected entry (`config.plugins.mail ? ['mail'] : []`) instead of listing `'mail'`: the spec has to be green in both states, and it loads a real `.env` when there is one. The template-side guard for the feature is in `composition.spec.ts` instead.
 

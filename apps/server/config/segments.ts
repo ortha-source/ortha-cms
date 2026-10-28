@@ -4,8 +4,6 @@ import {
     type SegmentsPluginConfig
 } from '@orthacms/segments-server';
 
-import { readEnv } from '@orthacms/utils-server';
-
 /** Reader entitlements — where a reader's tags come from. */
 export function segmentsConfig(): SegmentsPluginConfig {
     return {
@@ -13,7 +11,7 @@ export function segmentsConfig(): SegmentsPluginConfig {
         // public API — your site's backend, holding the API token — names the
         // reader in a comma-separated header, `X-Reader-Tags: premium, eu`, and
         // every read is checked against the audiences each entry admits and
-        // refuses. `SEGMENTS_READER_TAGS_HEADER` renames the header.
+        // refuses. Rename the header here if your backend sends another.
         //
         // A request without the header is the anonymous reader: unrestricted
         // content serves and restricted content does not — exactly what every
@@ -31,8 +29,6 @@ export function segmentsConfig(): SegmentsPluginConfig {
         //   resolver: {
         //       resolve: async (request) => readTagsFrom(request)
         //   }
-        resolver: headerSegmentResolver(
-            readEnv('SEGMENTS_READER_TAGS_HEADER') ?? 'x-reader-tags'
-        )
+        resolver: headerSegmentResolver('x-reader-tags')
     };
 }
