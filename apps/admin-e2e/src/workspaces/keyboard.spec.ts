@@ -135,23 +135,16 @@ test.describe('Workspaces keyboard accessibility', () => {
             // stop and Enter follows it. Asserting the run in order is what
             // would catch a stray focusable slipped between two tabs.
             //
-            // **Publishing is a plugin's section** (protection's), contributed through
-            // `WORKSPACE_SETTINGS_TAB_SLOT`, and it is in this list because
-            // contributed sections land between Members and Danger zone — Danger
-            // zone stays last, because it is where a workspace is destroyed.
-            // A second contributor would extend this run rather than reorder
-            // it.
+            // A plugin's section (`WORKSPACE_SETTINGS_TAB_SLOT`) lands between
+            // Members and Danger zone, which stays last because it is where a
+            // workspace is destroyed. None contributes one today: protection's
+            // Publishing rules moved to the Reviews page.
             await workspaceSettingsPage.navItem('General').focus();
             await expect(
                 workspaceSettingsPage.navItem('General')
             ).toBeFocused();
 
-            for (const next of [
-                'Content types',
-                'Members',
-                'Publishing',
-                'Danger zone'
-            ]) {
+            for (const next of ['Content types', 'Members', 'Danger zone']) {
                 await page.keyboard.press('Tab');
                 await expect(workspaceSettingsPage.navItem(next)).toBeFocused();
             }

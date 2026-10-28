@@ -7,7 +7,8 @@
  * show one spike. This moves each entry back by a stable number of days
  * derived from its id (the same entry lands on the same day every reset),
  * keeping the order of its own versions, and pushes one entry past a year so
- * the "stale" bucket has something in it.
+ * the "stale" bucket has something in it. Inbox items move too, read ones
+ * into the past, so the inbox has an Earlier as well as a Today.
  *
  * Raw SQL by necessity: no service writes a timestamp it was given.
  */
@@ -59,5 +60,21 @@ export async function seedBackdate(ctx: SeedContext): Promise<void> {
 
     await db.execute(sql`
         update media_asset set created_at = created_at - make_interval(days => ${offset('id')}) / 3
+    `);
+
+    // The inbox: a request's item is as old as the request (the overdue one is
+    // five days old), and what its reader already read is 1–14 days old, read
+    // an hour after it arrived — so the page has an Earlier as well as a Today.
+    await db.execute(sql`
+        update inbox_items i set created_at = r.created_at
+        from review_requests r
+        where i.kind = 'review.requested'
+          and r.id::text = split_part(i.dedupe_key, ':', 2)
+    `);
+    await db.execute(sql`
+        update inbox_items set
+            created_at = created_at - make_interval(days => 1 + abs(hashtext(id::text)) % 14),
+            read_at = created_at - make_interval(days => 1 + abs(hashtext(id::text)) % 14) + interval '1 hour'
+        where read_at is not null
     `);
 }
