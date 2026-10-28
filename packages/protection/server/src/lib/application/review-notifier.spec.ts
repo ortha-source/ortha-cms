@@ -1,10 +1,13 @@
 import { NOTIFICATION_KINDS } from '@orthacms/mail-domain';
+import { INBOX_KINDS } from '@orthacms/inbox-domain';
 import { ReviewNotifier, type RequestedReview } from './review-notifier';
 
 const review: RequestedReview = {
     workspaceId: 'ws-1',
     contentType: 'article',
     entryId: 'entry-1',
+    requestId: 'request-1',
+    revisionId: 'rev-7',
     requesterId: 'anna',
     reviewerIds: ['boris', 'carla'],
     newReviewerIds: ['carla'],
@@ -54,9 +57,67 @@ describe('ReviewNotifier', () => {
         ]);
     });
 
-    // No provider configured: the mail plugin is not registered, nothing is
-    // bound, and asking for a review must work exactly as before.
-    it('does nothing without a mail dispatcher', async () => {
+    it('puts one item in each newly asked reviewer’s inbox', async () => {
+        const delivered: unknown[] = [];
+        const notifier = new ReviewNotifier(notices as never, undefined, {
+            deliver: async (items) => {
+                delivered.push(...items);
+            }
+        });
+
+        await notifier.reviewRequested(review);
+
+        expect(delivered).toEqual([
+            {
+                kind: INBOX_KINDS.REVIEW_REQUESTED,
+                userId: 'carla',
+                workspaceId: 'ws-1',
+                payload: {
+                    contentType: 'article',
+                    contentTypeLabel: 'Articles',
+                    entryId: 'entry-1',
+                    entryTitle: 'Spring launch',
+                    requesterName: 'Anna Ash',
+                    required: 2
+                },
+                link: 'workspaces/ws-1/reviews',
+                // The request on this head: asking again on the same version
+                // is the same item, a new version a new one.
+                dedupeKey: 'review.requested:request-1:rev-7'
+            }
+        ]);
+    });
+
+    it('tells the requester once per head that it is ready', async () => {
+        const delivered: { dedupeKey: string; userId: string }[] = [];
+        const notifier = new ReviewNotifier(notices as never, undefined, {
+            deliver: async (items) => {
+                delivered.push(...(items as unknown as typeof delivered));
+            }
+        });
+
+        await notifier.reviewReady({
+            workspaceId: 'ws-1',
+            contentType: 'article',
+            entryId: 'entry-1',
+            requesterId: 'anna',
+            revisionId: 'rev-7',
+            requiredApprovals: 2
+        });
+
+        expect(delivered).toEqual([
+            expect.objectContaining({
+                kind: INBOX_KINDS.REVIEW_READY,
+                userId: 'anna',
+                link: 'workspaces/ws-1/content/article/entry-1',
+                dedupeKey: 'review.ready:entry-1:rev-7'
+            })
+        ]);
+    });
+
+    // No provider configured and no inbox: neither plugin is registered,
+    // nothing is bound, and asking for a review must work exactly as before.
+    it('does nothing with neither mail nor an inbox', async () => {
         const people = jest.fn(notices.people);
         const notifier = new ReviewNotifier({ ...notices, people } as never);
 

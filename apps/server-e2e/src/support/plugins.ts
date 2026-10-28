@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 import type { ServerPlugin } from '@orthacms/bootstrap-server';
 import { ActivityPlugin } from '@orthacms/activity-server';
+import { InboxPlugin } from '@orthacms/inbox-server';
 import { ContentPlugin, ContentViewsPlugin } from '@orthacms/content-server';
 import { ContentGraphqlPlugin } from '@orthacms/content-graphql';
 import { CopilotPlugin } from '@orthacms/copilot-server';
@@ -175,6 +176,7 @@ export function buildTestPlugins(
         }),
         WorkspacesPlugin(),
         ActivityPlugin(),
+        InboxPlugin(),
         // Mail before users, as in the host: `users` queues its three messages
         // through the port this binds, and this plugin owns `mail_deliveries`
         // (migrations run in this array's order). The provider captures rather

@@ -4,6 +4,7 @@ import { ActivityPlugin } from '@orthacms/activity-server';
 import { ContentPlugin, ContentViewsPlugin } from '@orthacms/content-server';
 import { DatabasePlugin } from '@orthacms/database';
 import { I18nServerPlugin } from '@orthacms/i18n-server';
+import { InboxPlugin } from '@orthacms/inbox-server';
 import { IdentityPlugin } from '@orthacms/identity-server';
 // orthacms:if sso
 import type { SsoRegistration } from '@orthacms/identity-domain';
@@ -241,6 +242,10 @@ export function buildPlugins(config: OrthaCmsConfig): ServerPlugin[] {
         // orthacms:end
         WorkspacesPlugin(),
         ActivityPlugin(),
+        // The in-app inbox: review requests, alarms and news about a person's
+        // own requests, across workspaces. Before protection and alarms,
+        // which write to it — optionally, so either runs without it.
+        InboxPlugin(),
         // orthacms:if mail
         // Mail, before users: the dispatcher it binds is what the invite,
         // resend and reset use cases queue their messages through, and what

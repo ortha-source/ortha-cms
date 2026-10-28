@@ -48,6 +48,7 @@ import { ReviewRequestRepository } from '../infrastructure/review-request.reposi
 import { PROTECTION_EVENT_KINDS, reviewEvent } from '../protection.events';
 import { ReviewNotifier } from './review-notifier';
 import type {
+    ProtectionRuleView,
     EntryReviewView,
     NewEntryProtectionView,
     PublishOutlookView,
@@ -337,6 +338,8 @@ export class EntryReviewService {
                 workspaceId,
                 contentType: entry.contentType,
                 entryId: entry.entryId,
+                requestId: request.id,
+                revisionId: entry.head.id,
                 requesterId: actor.id,
                 reviewerIds: reviewers,
                 newReviewerIds: reviewers.filter((id) => !alreadyAsked.has(id)),
@@ -399,6 +402,10 @@ export class EntryReviewService {
         }
 
         await this.uow.run(async () => {
+            const before = await this.approvals.listForEntry(
+                workspaceId,
+                entry.entryId
+            );
             await this.approvals.cast({
                 workspaceId,
                 contentType: entry.contentType,
@@ -423,7 +430,54 @@ export class EntryReviewService {
                 ),
                 actor
             );
+            await this.tellRequesterIfReady(entry, rule, before, actor);
         });
+    }
+
+    /**
+     * Tells the requester their record has every approval it needs, when
+     * **this** vote is the one that completed the count — the kernel's count,
+     * before and after it, so "ready" means what the publish button will say.
+     */
+    private async tellRequesterIfReady(
+        entry: ResolvedEntry,
+        rule: ProtectionRuleView | null,
+        before: readonly { revisionId: string; userId: string }[],
+        actor: ReviewActor
+    ): Promise<void> {
+        if (!this.notifier || !rule?.enabled) return;
+        const request = await this.requests.findOpen(
+            entry.workspaceId,
+            entry.entryId
+        );
+        if (!request || request.requestedBy === actor.id) return;
+        const counted = (
+            approvals: readonly { revisionId: string; userId: string }[]
+        ) =>
+            countApprovals({
+                rule,
+                headRevisionId: entry.head.id,
+                headAuthorId: entry.head.authorId,
+                approvals,
+                actor: { userId: actor.id, isAdmin: false, isToken: false }
+            }).given;
+        const after = [
+            ...before,
+            { revisionId: entry.head.id, userId: actor.id }
+        ];
+        if (
+            counted(before) < rule.requiredApprovals &&
+            counted(after) >= rule.requiredApprovals
+        ) {
+            await this.notifier.reviewReady({
+                workspaceId: entry.workspaceId,
+                contentType: entry.contentType,
+                entryId: entry.entryId,
+                requesterId: request.requestedBy,
+                revisionId: entry.head.id,
+                requiredApprovals: rule.requiredApprovals
+            });
+        }
     }
 
     /**

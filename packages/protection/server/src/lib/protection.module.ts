@@ -27,6 +27,7 @@ import { ProtectionInsightsQuery } from './application/protection-insights.query
 import { ProtectionInsightsController } from './http/controllers/protection-insights.controller';
 import { ProtectionToolProvider } from './tools/protection-tool.provider';
 import { ReviewNotifier } from './application/review-notifier';
+import { ApprovalStaleSubscriber } from './infrastructure/approval-stale.subscriber';
 import { ReviewNoticeQuery } from './infrastructure/review-notice.query';
 
 /**
@@ -106,6 +107,9 @@ export class ProtectionModule {
                 // Reopens it for the same reviewers when the entry is edited
                 // after that publish — the next version needs them again.
                 EntryEditedSubscriber,
+                // Tells approvers a save left their approval behind — an inbox
+                // item, when the inbox plugin is registered.
+                ApprovalStaleSubscriber,
                 // The records column's batched read, and the aggregate behind
                 // the Insights card. Both go through the kernel's counting, so
                 // a cell, a card and the publish gate cannot disagree.

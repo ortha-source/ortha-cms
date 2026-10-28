@@ -25,34 +25,37 @@
             "path": "../../packages/mail/domain/tsconfig.lib.json"
         },
         {
-            "path": "../../packages/protection/server/tsconfig.lib.json"
-        },
-        {
-            "path": "../../packages/alarms/server/tsconfig.lib.json"
-        },
-        {
-            "path": "../../packages/workspaces/server/tsconfig.lib.json"
-        },
-        {
             "path": "../../packages/users/server/tsconfig.lib.json"
-        },
-        {
-            "path": "../../packages/mail/provider-console/tsconfig.lib.json"
-        },
-        {
-            "path": "../../packages/identity/domain/tsconfig.lib.json"
-        },
-        {
-            "path": "../../packages/database/tsconfig.lib.json"
         },
         {
             "path": "../../packages/schema-builder/domain/tsconfig.lib.json"
         },
         {
-            "path": "../../packages/content/server/tsconfig.lib.json"
+            "path": "../../packages/mail/provider-console/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/inbox/server/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/identity/domain/tsconfig.lib.json"
         },
         {
             "path": "../../packages/activity/server/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/alarms/server/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/protection/server/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/workspaces/server/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/database/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/content/server/tsconfig.lib.json"
         },
         {
             "path": "../../packages/webhooks/server/tsconfig.lib.json"

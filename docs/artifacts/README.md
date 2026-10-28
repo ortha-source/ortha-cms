@@ -38,6 +38,7 @@ will diverge from these.
 | mcp                 | [mcp.md](mcp.md)                                 |
 | webhooks            | [webhooks.md](webhooks.md)                       |
 | mail                | [mail.md](mail.md)                               |
+| inbox               | [inbox.md](inbox.md)                             |
 | shell               | [shell.md](shell.md)                             |
 | design-system       | [design-system.md](design-system.md)             |
 | insights            | [insights.md](insights.md)                       |

@@ -106,6 +106,9 @@ function makeService(
         {
             reviewRequested: async (review: unknown) => {
                 notified.push(review);
+            },
+            reviewReady: async (review: unknown) => {
+                notified.push({ ready: review });
             }
         } as never
     );
@@ -577,5 +580,70 @@ describe('EntryReviewService.requestReview notices', () => {
                 requiredApprovals: 0
             })
         ]);
+    });
+});
+
+/**
+ * "Ready to publish" goes to the requester once — from the vote that
+ * completes the kernel's count, never from a vote past it.
+ */
+describe('EntryReviewService.approve tells the requester', () => {
+    const rule = {
+        enabled: true,
+        requiredApprovals: 2,
+        requireOtherPerson: true,
+        countStaleApprovals: false,
+        adminBypass: true,
+        allowTokenPublish: false
+    };
+    const openRequest = {
+        id: 'request-1',
+        requestedBy: ANNA,
+        reviewerIds: [BORIS, 'carla'],
+        revisionId: 'rev-7',
+        createdAt: new Date()
+    };
+
+    it('when this vote completes the count', async () => {
+        const { service, notified } = makeService({
+            rule,
+            openRequest,
+            votes: [{ userId: 'carla', revisionId: 'rev-7' }]
+        });
+
+        await service.approve(WORKSPACE, 'article', ENTRY, caller(BORIS));
+
+        expect(notified).toEqual([
+            {
+                ready: expect.objectContaining({
+                    requesterId: ANNA,
+                    revisionId: 'rev-7',
+                    requiredApprovals: 2
+                })
+            }
+        ]);
+    });
+
+    it('not while the count is still short', async () => {
+        const { service, notified } = makeService({ rule, openRequest });
+
+        await service.approve(WORKSPACE, 'article', ENTRY, caller(BORIS));
+
+        expect(notified).toEqual([]);
+    });
+
+    it('not again for a vote past the count', async () => {
+        const { service, notified } = makeService({
+            rule,
+            openRequest,
+            votes: [
+                { userId: 'carla', revisionId: 'rev-7' },
+                { userId: 'dmitri', revisionId: 'rev-7' }
+            ]
+        });
+
+        await service.approve(WORKSPACE, 'article', ENTRY, caller(BORIS));
+
+        expect(notified).toEqual([]);
     });
 });

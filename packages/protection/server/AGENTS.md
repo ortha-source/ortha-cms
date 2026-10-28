@@ -404,8 +404,18 @@ It mails a `review_requested` notice through the **optional**
 `NOTIFICATION_DISPATCHER` to the reviewers this write **adds** — the open
 request's previous list is read first, because changing the reviewers replaces
 it whole and "add Grace" must not be a second message to everyone else.
-Approvals, saves and `EntryEditedSubscriber`'s reopen send nothing. With no
-mail provider configured nothing is bound and the notifier is a no-op.
+Approvals, saves and `EntryEditedSubscriber`'s reopen send no mail. With no
+mail provider configured nothing is bound.
+
+The same notifier writes **inbox items** through the optional `INBOX_WRITER`
+(`@orthacms/inbox-domain`): `review.requested` to the reviewers a write adds;
+`review.ready` to the requester from the vote that completes the kernel's
+count (`countApprovals` before and after it — never from a vote past it);
+and `review.approval_stale` from `ApprovalStaleSubscriber`, on `entry.updated`,
+to whoever approved the version the save replaced — only on an enabled rule
+that does not count stale approvals, with a review open and the head not live,
+and never to the saver. Each item's `dedupeKey` makes a retried delivery a
+no-op. Without the inbox plugin nothing is bound and none of this runs.
 `ReviewNoticeQuery` supplies the words (the workspace's name, the record's
 title, people's names) from the schema objects their plugins export.
 

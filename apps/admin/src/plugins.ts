@@ -16,6 +16,7 @@ import { transferAdminPlugin } from '@orthacms/transfer-admin';
 import { AlarmsPlugin } from '@orthacms/alarms-admin';
 import { SegmentsPlugin } from '@orthacms/segments-admin';
 import { ProtectionPlugin } from '@orthacms/protection-admin';
+import { InboxPlugin } from '@orthacms/inbox-admin';
 import { SchemaBuilderPlugin } from '@orthacms/schema-builder-admin';
 
 /**
@@ -96,6 +97,10 @@ export function buildPlugins(): AdminPlugin[] {
         ProtectionPlugin(),
         UsersPlugin(),
         ActivityPlugin(),
+        // The inbox (ADR-0023): its sidebar row and the button in the
+        // workspace sidebar's header. After ShellPlugin() and
+        // WorkspacesPlugin(), whose slots it fills.
+        InboxPlugin(),
         // Global token-management page in the main sidebar (no workspace
         // context); backs the external content API.
         ApiTokensPlugin(),
