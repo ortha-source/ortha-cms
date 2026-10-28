@@ -10,6 +10,7 @@ import {
     type EntryRecord
 } from '@orthacms/content-admin';
 import {
+    WORKSPACE_LIST_BADGE_SLOT,
     WORKSPACE_NAV_SLOT,
     WORKSPACE_ROUTE_SLOT
 } from '@orthacms/workspaces-admin';
@@ -21,6 +22,7 @@ import { AlarmsSkeleton } from '../../presentation/components/AlarmsSkeleton';
 import { AlarmsColumnCell } from '../../presentation/components/AlarmsColumnCell';
 import { EntryAlarmsWidget } from '../../presentation/components/EntryAlarmsWidget';
 import { useAlarmsStatusItem } from '../../presentation/hooks/useAlarmsStatusItem';
+import { useAlarmsNavBadge } from '../../presentation/hooks/useAlarmsNavBadge';
 import { SaveFilterAsRuleAction } from '../../presentation/components/SaveFilterAsRuleAction';
 import { FindingsToolResult } from '../../presentation/components/FindingsToolResult';
 import { useFindingsByEntry } from '../../application/useFindingsByEntry';
@@ -140,7 +142,20 @@ export function AlarmsPlugin(): AlarmsAdminPlugin {
                         to: 'alarms',
                         order: 40,
                         icon: BellRing,
-                        permission: 'alarms:read'
+                        permission: 'alarms:read',
+                        // Open errors and warnings in this workspace.
+                        useBadge: useAlarmsNavBadge
+                    }
+                ]
+            },
+            {
+                // The same count on the workspace's row in the global sidebar.
+                slot: WORKSPACE_LIST_BADGE_SLOT,
+                items: [
+                    {
+                        id: 'alarms.findings',
+                        order: 20,
+                        useBadge: useAlarmsNavBadge
                     }
                 ]
             },

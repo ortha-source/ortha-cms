@@ -89,6 +89,29 @@ test.describe('Review queue', () => {
     });
 
     /**
+     * The Reviews row in the workspace sidebar says how much is waiting on the
+     * reader — the "Waiting on me" count, in the link's name as well as on the
+     * chip, so it is not colour and a bare digit alone.
+     */
+    test('counts what is waiting on me in the sidebar', async ({
+        page,
+        reviewsPage
+    }) => {
+        await mockReviewQueue(page, [
+            { id: 'r1', requestedBy: SOMEBODY_ELSE, reviewerIds: [ME] },
+            { id: 'r2', requestedBy: SOMEBODY_ELSE, reviewerIds: [ME] },
+            { id: 'r3', requestedBy: ME, reviewerIds: [SOMEBODY_ELSE] }
+        ]);
+        await reviewsPage.goto(WS);
+
+        await expect(
+            page.getByRole('navigation', { name: 'Tools' }).getByRole('link', {
+                name: /^Reviews ?, 2 reviews waiting on you$/
+            })
+        ).toBeVisible();
+    });
+
+    /**
      * Colour is not information. An overdue ask carries the word in a badge,
      * which is the half a greyscale screen and a screen reader depend on.
      */

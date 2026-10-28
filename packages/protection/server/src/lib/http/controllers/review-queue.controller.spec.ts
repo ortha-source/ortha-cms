@@ -13,6 +13,10 @@ describe('ReviewQueueController', () => {
                 calls.push({ method: 'list', args });
                 return { items: [], total: 0, overdueAfterDays: 3 };
             },
+            summary: async (...args: unknown[]) => {
+                calls.push({ method: 'summary', args });
+                return { waitingOnMe: 2, mine: 1 };
+            },
             recentlyApproved: async (...args: unknown[]) => {
                 calls.push({ method: 'recentlyApproved', args });
                 return { items: [], windowDays: 30 };
@@ -46,6 +50,17 @@ describe('ReviewQueueController', () => {
                 method: 'list',
                 args: ['ws-1', { mine: true, limit: 10, offset: 20 }, 'user-1']
             }
+        ]);
+    });
+
+    it('counts the caller’s own queue, never an id from the query', async () => {
+        const { controller, calls } = make();
+        await expect(controller.summary('ws-1', user)).resolves.toEqual({
+            waitingOnMe: 2,
+            mine: 1
+        });
+        expect(calls).toEqual([
+            { method: 'summary', args: ['ws-1', 'user-1'] }
         ]);
     });
 });

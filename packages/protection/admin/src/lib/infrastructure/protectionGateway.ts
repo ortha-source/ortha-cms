@@ -12,7 +12,8 @@ import type {
     ReviewApproval,
     ReviewerCandidate,
     ReviewQueue,
-    ReviewQueueItem
+    ReviewQueueItem,
+    ReviewQueueSummary
 } from '../domain/types';
 
 /** Addresses one entry's review state. */
@@ -86,6 +87,11 @@ export type ProtectionGateway = {
         params?: ReviewQueueParams,
         workspaceId?: string
     ): Promise<ReviewQueue>;
+    /**
+     * The queue's two tab counts in one aggregate read, for a workspace other
+     * than the open one when `workspaceId` is given (the sidebar's list).
+     */
+    queueSummary(workspaceId?: string): Promise<ReviewQueueSummary>;
     listRecentlyApproved(): Promise<RecentlyApproved>;
     /**
      * Every rule the open workspace holds, including any addressed at a type it
@@ -445,6 +451,23 @@ export const httpProtectionGateway: ProtectionGateway = {
                 items: data.items.map(toQueueItem),
                 total: data.total,
                 overdueAfterDays: data.overdueAfterDays
+            };
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async queueSummary(workspaceId?: string): Promise<ReviewQueueSummary> {
+        try {
+            const { data } = await apiClient.get<ReviewQueueSummary>(
+                '/protection/queue/summary',
+                workspaceId
+                    ? { headers: { 'X-Workspace-Id': workspaceId } }
+                    : undefined
+            );
+            return {
+                waitingOnMe: Number(data.waitingOnMe) || 0,
+                mine: Number(data.mine) || 0
             };
         } catch (error) {
             throw toApiError(error);

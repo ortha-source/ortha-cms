@@ -50,6 +50,8 @@ Layered per [ADR-0003](../../../docs/adr/0003-tactical-ddd-inside-plugins.md).
 | Insights line   | `INSIGHTS_SIGNAL_SLOT`        | how much review is outstanding, and the longest wait — opening the queue             |
 | Reviews page    | `WORKSPACE_ROUTE_SLOT` + nav  | what is waiting, and on whom                                                         |
 | Home card       | `HOME_SECTION_SLOT`           | entries awaiting review across workspaces — "0" when none                            |
+| Nav count       | `WORKSPACE_NAV_SLOT.useBadge` | "Reviews 3" — what is waiting on the reader in this workspace                        |
+| List count      | `WORKSPACE_LIST_BADGE_SLOT`   | the same count on the workspace's row in the global sidebar                          |
 
 **The three entry contributions render nothing on an unprotected type** and on a
 non-publishable one. `reviewScopeOf` is the single place that decides, so the
@@ -358,6 +360,23 @@ second one tells a reviewer they are free when they are not — so a failed read
 shows no count at all. The overdue threshold arrives **with** the figure rather
 than being restated here, so the line cannot come to say "3 days" over a number
 counted against something else. `retry: 1`, as every Insights read.
+
+## The navigation counts
+
+`useReviewsNavBadge(workspaceId, enabled)` is the Reviews row's badge and the
+workspace's chip in the global sidebar list — one hook for both, so the two
+cannot count differently. It reads `GET /protection/queue/summary`
+(`useReviewQueueSummary`), **not** the queue: the sidebar is on every screen,
+and a page of lines (each a timeline and two snapshot reads on the server) per
+workspace per screen would be the most expensive thing the admin does. The
+number is the "Waiting on me" tab's, counted server-side, so it is not capped
+at the first window the way a client-side split would be. Its key sits under
+`queuePrefix`, so whatever refreshes the queue refreshes the badge; it also
+polls once a minute, because what moves it happens in other people's sessions.
+
+It is **silent** at 0, while loading and on a failed read — a missing nudge is
+honest where a wrong number is not — and without `content:read`, which the
+workspace list has no gate of its own for.
 
 ## The Home card
 

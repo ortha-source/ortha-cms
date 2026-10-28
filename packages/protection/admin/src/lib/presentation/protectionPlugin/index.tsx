@@ -11,6 +11,7 @@ import {
 } from '@orthacms/content-admin';
 import { INSIGHTS_SIGNAL_SLOT } from '@orthacms/insights-admin';
 import {
+    WORKSPACE_LIST_BADGE_SLOT,
     WORKSPACE_NAV_SLOT,
     WORKSPACE_ROUTE_SLOT,
     WORKSPACE_SETTINGS_TAB_SLOT
@@ -27,6 +28,7 @@ import { ReviewsSignal } from '../components/ReviewsSignal';
 import { ReviewsDrill } from '../components/ReviewsDrill';
 import { useReviewStateFilterFields } from '../../application/useReviewStateFilterFields';
 import { useReviewStatusByEntry } from '../../application/hooks';
+import { useReviewsNavBadge } from '../hooks/useReviewsNavBadge';
 
 // Lazy so the Reviews page is its own chunk, fetched when somebody first opens
 // it — every other surface this plugin has is a slot contribution that rides
@@ -102,7 +104,23 @@ export function ProtectionPlugin(): ProtectionAdminPlugin {
                         // requests" tab is an author checking on work they
                         // sent, and somebody who cannot approve still has to
                         // see whether anyone has looked.
-                        permission: 'content:read'
+                        permission: 'content:read',
+                        // What is waiting on the reader here — the page's
+                        // "Waiting on me" count.
+                        useBadge: useReviewsNavBadge
+                    }
+                ]
+            },
+            {
+                // The same count on this workspace's row in the global
+                // sidebar, so a reviewer sees where they are wanted before
+                // opening any workspace.
+                slot: WORKSPACE_LIST_BADGE_SLOT,
+                items: [
+                    {
+                        id: 'protection.reviews',
+                        order: 10,
+                        useBadge: useReviewsNavBadge
                     }
                 ]
             },

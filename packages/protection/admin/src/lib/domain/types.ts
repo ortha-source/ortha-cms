@@ -292,6 +292,14 @@ export type RecentlyApproved = {
 };
 
 /** A page of the reviewer queue. */
+/** The queue's two tab counts, without its lines — what the nav badge shows. */
+export type ReviewQueueSummary = {
+    /** Open asks naming the caller, sent by somebody else. */
+    waitingOnMe: number;
+    /** Open asks the caller sent. */
+    mine: number;
+};
+
 export type ReviewQueue = {
     items: ReviewQueueItem[];
     /** Open requests in the workspace, before the page window. */

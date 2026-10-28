@@ -30,6 +30,7 @@ import {
     REVIEWER_CANDIDATES_SCHEMA,
     RECENTLY_APPROVED_SCHEMA,
     REVIEW_QUEUE_SCHEMA,
+    REVIEW_QUEUE_SUMMARY_SCHEMA,
     REVIEW_STATUS_MAP_SCHEMA,
     buildProtectionSchemas
 } from './protection-schemas';
@@ -102,6 +103,14 @@ const ROUTES = {
             schema: REVIEW_QUEUE_SCHEMA,
             description:
                 'Open review requests across every content type in the workspace, newest first. `?mine=1` narrows to the caller’s own. Each line says how many fields changed since the entry was live.'
+        }
+    },
+    '/queue/summary': {
+        get: {
+            list: false,
+            schema: REVIEW_QUEUE_SUMMARY_SCHEMA,
+            description:
+                'The Reviews page’s first two tab counts — what is waiting on the caller and what the caller asked for — without reading a single line. What the navigation badge shows.'
         }
     },
     '/queue/approved': {

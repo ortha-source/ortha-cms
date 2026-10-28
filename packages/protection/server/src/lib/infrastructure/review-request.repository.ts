@@ -1,5 +1,16 @@
 import { Injectable } from '@nestjs/common';
-import { and, count, desc, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
+import {
+    and,
+    arrayContains,
+    count,
+    desc,
+    eq,
+    inArray,
+    isNotNull,
+    isNull,
+    ne,
+    sql
+} from 'drizzle-orm';
 import { UnitOfWork, type Database } from '@orthacms/database';
 import {
     reviewRequests,
@@ -272,6 +283,43 @@ export class ReviewRequestRepository {
             .from(reviewRequests)
             .where(where);
         return { items: rows.map(toRequest), total: Number(total) };
+    }
+
+    /**
+     * The queue's two tab counts, for the navigation badges: open asks that
+     * name the caller and that somebody else sent ("Waiting on me"), and open
+     * asks the caller sent ("My requests").
+     *
+     * The same split `splitQueue` makes on the admin side, counted here so a
+     * badge is one indexed read rather than a page of lines — and not capped
+     * at a page, which a client-side count over the first window would be.
+     */
+    async counts(
+        workspaceId: string,
+        callerId: string
+    ): Promise<{ waitingOnMe: number; mine: number }> {
+        const [row] = await this.exec
+            .select({
+                waitingOnMe: sql<number>`count(*) filter (where ${and(
+                    ne(reviewRequests.requestedBy, callerId),
+                    arrayContains(reviewRequests.reviewerIds, [callerId])
+                )})`,
+                mine: sql<number>`count(*) filter (where ${eq(
+                    reviewRequests.requestedBy,
+                    callerId
+                )})`
+            })
+            .from(reviewRequests)
+            .where(
+                and(
+                    eq(reviewRequests.workspaceId, workspaceId),
+                    isNull(reviewRequests.resolvedAt)
+                )
+            );
+        return {
+            waitingOnMe: Number(row?.waitingOnMe ?? 0),
+            mine: Number(row?.mine ?? 0)
+        };
     }
 }
 

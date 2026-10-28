@@ -15,6 +15,7 @@ import type {
     RecentlyApprovedItemView,
     RecentlyApprovedView,
     ReviewQueueItemView,
+    ReviewQueueSummaryView,
     ReviewQueueView
 } from '../types/protection-views';
 
@@ -76,6 +77,14 @@ export class ReviewQueueService {
     ) {}
 
     /** One page of open requests, newest first. */
+    /** The two tab counts, without reading a single line. */
+    summary(
+        workspaceId: string,
+        callerId: string
+    ): Promise<ReviewQueueSummaryView> {
+        return this.requests.counts(workspaceId, callerId);
+    }
+
     async list(
         workspaceId: string,
         options: { mine?: boolean; limit?: number; offset?: number },

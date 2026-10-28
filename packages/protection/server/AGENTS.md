@@ -53,6 +53,7 @@ src/lib/
 | `DELETE …/approve`                           | workspace | `content:approve`   |
 | `GET /protection/queue`                      | workspace | `content:read`      |
 | `GET /protection/queue/approved`             | workspace | `content:read`      |
+| `GET /protection/queue/summary`              | workspace | `content:read`      |
 
 `protection:manage` is administrator-only and has **no `protection:read` beside
 it** — the only such asymmetry in the catalogue. A contributor does need to know
@@ -377,6 +378,13 @@ through content's `diffSnapshots`, never a second diff, so the admin panel
 line agree. It is per line of a bounded page (one timeline read, two snapshot
 reads), and a count that cannot be computed is `null` rather than a failed
 queue.
+
+`GET /protection/queue/summary` is the first two tabs' counts —
+`waitingOnMe` (open asks naming the caller that somebody else sent) and `mine`
+(open asks the caller sent) — in **one** aggregate read with no line built: the
+navigation badge asks it on every page, so it must not cost a page of timeline
+reads, and counting the split client-side over one fetched window would cap the
+badge at that window.
 
 `GET /protection/queue/approved` lists what **the caller** approved in the last
 30 days (`RECENTLY_APPROVED_DAYS`, at most 50 entries), one line per entry,

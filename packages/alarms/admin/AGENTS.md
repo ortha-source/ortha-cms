@@ -18,6 +18,17 @@ a warning when any is an error and info otherwise — so a flag is seen without
 opening the Properties panel. It shares the widget's query key, so it costs no
 request.
 
+The navigation carries the same findings as a **count**
+(`presentation/hooks/useAlarmsNavBadge`): the Alarms row in the workspace
+sidebar and the workspace's row in the global list, both from
+`GET /alarms/findings/summary` under `alarmsKeys.summary`, the key the page's
+figures strip and Home's card read — one cache entry, one answer. It counts
+**errors and warnings only** and is toned by the worst one open
+(`alarmsBadgeOf`): `info` is an alarm saying something without asking anybody
+to act, and a navigation chip is exactly that ask. Silent while loading, on a
+failed read and without `alarms:read`; polled once a minute, since findings
+open from scans the tab is never told about.
+
 The page is for the person who owns editorial policy — what is flagged across
 the workspace, grouped by alarm, and the alarms themselves (the R7 boards
 AlarmsFlagged / AlarmsRules). It leads with the shared `ContainerHeader` —
