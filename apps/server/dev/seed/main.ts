@@ -37,7 +37,8 @@ import { seedAlarms } from './phases/08-alarms';
 import { seedCopilot } from './phases/09-copilot';
 import { seedApiTokens } from './phases/10-api-tokens';
 import { seedWebhooks } from './phases/11-webhooks';
-import { seedBackdate } from './phases/12-backdate';
+import { seedInbox } from './phases/12-inbox';
+import { seedBackdate } from './phases/13-backdate';
 
 const PHASES: [string, (ctx: SeedContext) => Promise<void>][] = [
     ['identity', seedIdentity],
@@ -53,6 +54,8 @@ const PHASES: [string, (ctx: SeedContext) => Promise<void>][] = [
     // Last but one: an endpoint seeded earlier would turn every content write
     // above into a real delivery attempt.
     ['webhooks', seedWebhooks],
+    // After every phase whose writes tell somebody something.
+    ['inbox', seedInbox],
     // Last: services stamp `now()`, so history is rewritten after the fact.
     ['backdate', seedBackdate]
 ];

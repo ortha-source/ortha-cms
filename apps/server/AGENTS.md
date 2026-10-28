@@ -144,8 +144,14 @@ again: invite and reset links, API tokens. Every account's password is
 - **Content** — for every type its edge cases: empty and full records, every
   lifecycle state, every translation-group shape, every link shape.
 - **Plugins** — media of every kind, protection in every review state, segments,
-  saved views, alarm findings open and resolved, copilot history (shown once
-  the copilot is enabled), API tokens in every state, webhook endpoints and a delivery log.
+  saved views, alarm findings open and resolved (in Main and Library), copilot
+  history (shown once the copilot is enabled), API tokens in every state,
+  webhook endpoints and a delivery log.
+- **Inbox** — written by the producers as the phases above run (review
+  requests, ready to publish, stale approvals, alarm findings); the `inbox`
+  phase marks read what each person has dealt with, and `backdate` moves those
+  into the past, so `/inbox` has a Today and an Earlier. Sign in as
+  `reviewer@dev.local`, or as `admin@dev.local` for two workspaces.
 - **Time** — the last phase spreads it all over four months, so Insights has
   something to draw.
 
