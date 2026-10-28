@@ -14,10 +14,14 @@ export {
     WORKSPACE_NAV_SLOT,
     WORKSPACE_SECTION_SLOT,
     WORKSPACE_ROUTE_SLOT,
-    WORKSPACE_SETTINGS_TAB_SLOT
+    WORKSPACE_SETTINGS_TAB_SLOT,
+    WORKSPACE_LIST_BADGE_SLOT,
+    WORKSPACE_NAV_HEADER_ACTION_SLOT
 } from './lib/presentation/slots/workspaceSlots';
 export type {
     WorkspaceNavItem,
+    WorkspaceListBadgeItem,
+    WorkspaceNavHeaderAction,
     WorkspaceSectionItem,
     WorkspaceRoute,
     WorkspaceSettingsTab

@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react';
 import { createSlot } from '@orthacms/utils-admin';
+import type { NavBadge } from '../../components/NavBadges';
 
 /**
  * The section a {@link SidebarItem} belongs to in the global sidebar's primary
@@ -43,6 +44,14 @@ export type SidebarItem = {
      * signed-in user (the default — the linked page still gates itself).
      */
     permission?: string;
+    /**
+     * Optional count for the row — the inbox's unread number. A **hook**,
+     * called once per render of the row and unconditionally (slot items are
+     * frozen at boot, so the hook count cannot change), before the permission
+     * gate; `enabled` is false when the row is gated out, so a hidden row never
+     * fetches. Returns `null` when it has nothing to say.
+     */
+    useBadge?: (enabled: boolean) => NavBadge | null;
 };
 
 /**

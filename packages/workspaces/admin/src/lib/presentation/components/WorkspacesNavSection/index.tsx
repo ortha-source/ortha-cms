@@ -2,7 +2,8 @@ import { Link, useMatch } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { ChevronRight, Plus } from 'lucide-react';
 import { useHasPermission } from '@orthacms/identity-admin';
-import { initialsOf } from '@orthacms/utils-admin';
+import { byOrder, initialsOf } from '@orthacms/utils-admin';
+import { NavBadges, navBadgeText } from '@orthacms/shell-admin';
 import {
     Collapsible,
     CollapsibleContent,
@@ -19,6 +20,8 @@ import { useWorkspaces } from '../../../application/useWorkspaces';
 import { isActiveWorkspace } from '../../../domain/isActiveWorkspace';
 import { WORKSPACES_CREATE } from '../../../domain/permissions';
 import { WorkspaceAvatar } from '../WorkspaceAvatar';
+import { WORKSPACE_LIST_BADGE_SLOT } from '../../slots/workspaceSlots';
+import type { NavBadge } from '@orthacms/shell-admin';
 import type { Workspace } from '../../../domain/types/workspace';
 
 /** Intl descriptors for {@link WorkspacesNavSection}, co-located here. */
@@ -37,9 +40,28 @@ const messages = defineMessages({
     }
 });
 
+/**
+ * The contributed counts for one row. Every item's hook is called, in a fixed
+ * order, on every render — the slot is frozen at boot — and the ones with
+ * nothing to say drop out afterwards, never by skipping a call.
+ */
+function useWorkspaceBadges(workspaceId: string): NavBadge[] {
+    const items = byOrder(WORKSPACE_LIST_BADGE_SLOT.getItems());
+    const badges: NavBadge[] = [];
+    for (const item of items) {
+        const badge = item.useBadge(workspaceId);
+        if (badge) {
+            badges.push(badge);
+        }
+    }
+    return badges;
+}
+
 /** One workspace row: a link to the workspace, active on any of its sub-paths. */
 function WorkspaceNavRow({ workspace }: { workspace: Workspace }) {
     const match = useMatch(`/workspaces/${workspace.id}/*`);
+    const badges = useWorkspaceBadges(workspace.id);
+    const badgeText = navBadgeText(badges);
 
     return (
         <SidebarMenuItem>
@@ -47,6 +69,12 @@ function WorkspaceNavRow({ workspace }: { workspace: Workspace }) {
                 asChild
                 isActive={Boolean(match)}
                 tooltip={workspace.name}
+                // Room for the chips, which sit over the row's right end.
+                style={
+                    badges.length > 0
+                        ? { paddingRight: `${badges.length * 2.5 + 0.5}rem` }
+                        : undefined
+                }
             >
                 <Link
                     to={`/workspaces/${workspace.id}`}
@@ -57,9 +85,15 @@ function WorkspaceNavRow({ workspace }: { workspace: Workspace }) {
                         color={workspace.color}
                         className="size-5 rounded-[5px] text-[10px]"
                     />
-                    <span>{workspace.name}</span>
+                    <span>
+                        {workspace.name}
+                        {badgeText ? (
+                            <span className="sr-only">, {badgeText}</span>
+                        ) : null}
+                    </span>
                 </Link>
             </SidebarMenuButton>
+            <NavBadges badges={badges} />
         </SidebarMenuItem>
     );
 }

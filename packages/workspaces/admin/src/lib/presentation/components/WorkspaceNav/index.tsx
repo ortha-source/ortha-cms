@@ -14,6 +14,7 @@ import {
 import { byOrder } from '@orthacms/utils-admin';
 import { useWorkspaces } from '../../../application/useWorkspaces';
 import {
+    WORKSPACE_NAV_HEADER_ACTION_SLOT,
     WORKSPACE_NAV_SLOT,
     WORKSPACE_SECTION_SLOT
 } from '../../slots/workspaceSlots';
@@ -71,18 +72,22 @@ export function WorkspaceNav({ workspace }: { workspace: Workspace }) {
     const isVisible = (item: WorkspaceNavItem) =>
         !item.permission || permissions.includes(item.permission);
     const visibleNavItems = navItems.filter(isVisible);
+    const headerActions = byOrder(WORKSPACE_NAV_HEADER_ACTION_SLOT.getItems());
 
     return (
         <>
             <SidebarHeader className="gap-2 px-2 pt-2">
-                <div className="flex items-center justify-between gap-1">
+                <div className="flex items-center gap-1">
                     <Link
                         to="/"
-                        className="flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+                        className="mr-auto flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
                     >
                         <ArrowLeft className="size-4" aria-hidden />
                         {intl.formatMessage(messages.back)}
                     </Link>
+                    {headerActions.map(({ id, Component }) => (
+                        <Component key={id} />
+                    ))}
                     {/* Only reachable while the sidebar is open, so it always
                         *hides* — and it says so in the session's own language
                         rather than the design system's English default

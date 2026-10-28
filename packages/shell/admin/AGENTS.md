@@ -214,8 +214,18 @@ other overlay in the app.
 - `HomePage` — greets the signed-in user and renders the dashboard from
   `HOME_SECTION_SLOT`.
 - `SIDEBAR_NAV_SLOT` / `SidebarItem` (`{ labelId, defaultLabel, to, end?, group,
-order, icon, permission? }`) — the primary nav slot; `group` is
-  `'overview' | 'directory'`.
+order, icon, permission?, useBadge? }`) — the primary nav slot; `group` is
+  `'overview' | 'directory'`. `useBadge(enabled)` is an optional **hook** that
+  returns a `NavBadge` (`{ count, tone, label, icon? }`) or `null`; the row calls
+  it on every render, before the permission gate, with `enabled: false` when the
+  row is gated out, so a hidden row never fetches.
+- `NavBadge` / `NavBadges` / `navBadgeText` / `useNoBadge` — the one shape of a
+  navigation count. **The plugin reports, the row draws**: the chips are a
+  sibling of the row's button (`SidebarMenuButton` truncates its last
+  `<span>`, which a chip inside the link would steal), `aria-hidden`, and the
+  same fact in words (`label`) is appended to the link's name as `sr-only`
+  text. Counts past 99 read `99+`. `workspaces-admin` draws its rows with the
+  same component.
 - `SIDEBAR_SECTION_SLOT` / `SidebarSectionItem` (`{ id, order, Component }`) —
   data-driven sections below the nav.
 - `SIDEBAR_FOOTER_SLOT` / `SidebarFooterItem` (`{ id, order, Component }`) — the
