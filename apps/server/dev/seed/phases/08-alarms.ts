@@ -29,10 +29,11 @@ export async function seedAlarms(ctx: SeedContext): Promise<void> {
         findingTitle: string,
         severity: Severity,
         filter: Record<string, unknown>,
-        enabled = true
+        enabled = true,
+        workspaceId = main
     ) => {
         const { rule } = await alarms.create(
-            main,
+            workspaceId,
             admin.id,
             {
                 contentType,
@@ -106,9 +107,22 @@ export async function seedAlarms(ctx: SeedContext): Promise<void> {
         })
         .where(eq(alarmRules.id, broken));
 
+    // One in Library too, so the admin's inbox spans two workspaces — the
+    // reason the inbox exists. It flags `lib_draft`.
+    await rule(
+        'rel_target',
+        'Unpublished shared targets',
+        'Not shared yet — still a draft',
+        'warn',
+        { and: [{ field: 'status', op: 'eq', value: 'draft' }] },
+        true,
+        ctx.workspace('library').id
+    );
+
     ctx.section('Alarms (Main)', [
         '- error: `field_date` without a datetime; warn: `field_text` without an email; info: `flags_publishable` drafts',
         '- a rule with no matches (`field_number` rating 0), a disabled rule, a broken rule',
-        '- `field_select`: a finding that opened and then resolved when the record was fixed'
+        '- `field_select`: a finding that opened and then resolved when the record was fixed',
+        '- Library: a warn rule over `rel_target` drafts, flagging `lib_draft`'
     ]);
 }
