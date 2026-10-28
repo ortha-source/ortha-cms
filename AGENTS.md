@@ -72,7 +72,7 @@ The full map — every app and package, one line each — is
   `config/`, not a variable.
 - `packages/{nx,cli,create-orthacms-app}` — the workspace Nx plugin, the
   `orthacms` command (`dev` / `build` / `start` / `migrate` / `generate` /
-  `content sync` / `studio`), and the scaffolder. The Nx database targets are
+  `content sync` / `studio` / `doctor`), and the scaffolder. The Nx database targets are
   adapters over the CLI, so this repo and a generated app migrate through one
   implementation. Every published package must be classified in
   `create-orthacms-app`'s `features.ts`, or its tests fail.

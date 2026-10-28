@@ -25,6 +25,7 @@ provisioned on boot, idempotently — clear those two variables once you have it
 | `npm run content:sync` | Rewrites `apps/server/src/content/index.ts` from the type files beside it |
 | `npm run generate -- --name=<name>` | Generates a migration for your own content tables (`apps/server/drizzle.config.ts`) |
 | `npm run studio` | Opens Drizzle Studio on this app's database |
+| `npx orthacms doctor` | Shows the configuration in effect, checks the database, mail and anything else it points at, and says what is wrong |
 | `npm test` | Unit tests — both halves |
 | `npm run e2e` | Both end-to-end suites |
 | `npm run e2e:server` | API tests against a real database |

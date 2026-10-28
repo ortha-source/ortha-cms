@@ -19,6 +19,9 @@ Commands:
   generate [--name=<n>]  Generate a migration for this app's content tables
   content sync           Rewrite src/content/index.ts from the type files
   studio [--host --port] Open Drizzle Studio on this app's database
+  doctor [--offline --json --all]
+                         Show the configuration in effect, check what it
+                         points at, and say what is wrong
 
 Options:
   --server               build/dev: the server only, skipping the admin

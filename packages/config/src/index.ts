@@ -77,3 +77,19 @@ export {
     selectEnv,
     type RenderEnvOptions
 } from './lib/render';
+export {
+    featuresFromDependencies,
+    inspectEnvironment,
+    maskValue,
+    type EnvEntry,
+    type EnvFinding,
+    type EnvReport,
+    type EnvSource,
+    type InspectOptions
+} from './lib/inspect';
+export {
+    WORKSPACE_FEATURES,
+    generatedFiles,
+    renderTemplateEnv,
+    renderWorkspaceEnvExample
+} from './lib/generated';

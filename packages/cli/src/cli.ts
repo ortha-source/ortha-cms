@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import {
     USAGE,
+    flag,
     halves,
     numberOption,
     option,
@@ -10,6 +11,7 @@ import {
 import { buildCommand } from './lib/commands/build';
 import { contentCommand } from './lib/commands/content';
 import { devCommand } from './lib/commands/dev';
+import { doctorCommand } from './lib/commands/doctor';
 import { generateCommand } from './lib/commands/generate';
 import { migrateCommand } from './lib/commands/migrate';
 import { startCommand } from './lib/commands/start';
@@ -55,6 +57,12 @@ async function main(): Promise<void> {
             return generateCommand(root, option(argv, 'name'));
         case 'content':
             return contentCommand(root, argv);
+        case 'doctor':
+            return doctorCommand(root, {
+                json: flag(argv, 'json'),
+                offline: flag(argv, 'offline'),
+                all: flag(argv, 'all')
+            });
         case 'studio':
             return studioCommand(root, {
                 host: option(argv, 'host'),

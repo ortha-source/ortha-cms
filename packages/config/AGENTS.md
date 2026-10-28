@@ -18,18 +18,19 @@ rendered from the same list.
 
 ## What is here
 
-| File               | What it is                                                                                                                                                          |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `lib/catalog.ts`   | `ENV_CATALOG` — every variable: group, kind, default, when required, which scaffolder features read it, old names. **The only place a variable is added.**          |
-| `lib/urls.ts`      | `PUBLIC_URL` (dev default: the admin dev server; none in production), `API_PUBLIC_URL`, and `allowedOrigins()`, which derives the sign-in origins from them.        |
-| `lib/server.ts`    | Port, `TRUST_PROXY`, `DATABASE_URL`, `ORTHACMS_WORKERS`, `API_DOCS`, `MCP_ENABLED`, webhooks' URL policy, the schema builder, the root admin.                       |
-| `lib/mail.ts`      | `MAIL_URL` (`smtp://`, `smtps://`, `console://`) → backend + relay; the legacy `MAIL_PROVIDER` + `SMTP_*`, read with a warning.                                     |
-| `lib/sso.ts`       | OIDC, GitHub, SAML connection settings, plus the `sso` block (provisioning, password login). **Names, labels and scopes are not here — they are code in the host.** |
-| `lib/storage.ts`   | Local, S3, GCS, Azure, Vercel Blob, and `MEDIA_DIRECT_SERVE`.                                                                                                       |
-| `lib/copilot.ts`   | The kill switch, the two backends, the usage quotas.                                                                                                                |
-| `lib/retired.ts`   | `RETIRED_ENV` and `checkRetiredEnv()` — variables no longer read (now code), with their old default and new home.                                                   |
-| `lib/render.ts`    | `renderEnvFile` (`.env`-shaped, plain or with `orthacms:if` blocks) and `renderConfigReference` (Markdown).                                                         |
-| `lib/generated.ts` | The three generated files and their paths.                                                                                                                          |
+| File               | What it is                                                                                                                                                                                                                        |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `lib/catalog.ts`   | `ENV_CATALOG` — every variable: group, kind, default, when required, which scaffolder features read it, old names. **The only place a variable is added.**                                                                        |
+| `lib/urls.ts`      | `PUBLIC_URL` (dev default: the admin dev server; none in production), `API_PUBLIC_URL`, and `allowedOrigins()`, which derives the sign-in origins from them.                                                                      |
+| `lib/server.ts`    | Port, `TRUST_PROXY`, `DATABASE_URL`, `ORTHACMS_WORKERS`, `API_DOCS`, `MCP_ENABLED`, webhooks' URL policy, the schema builder, the root admin.                                                                                     |
+| `lib/mail.ts`      | `MAIL_URL` (`smtp://`, `smtps://`, `console://`) → backend + relay; the legacy `MAIL_PROVIDER` + `SMTP_*`, read with a warning.                                                                                                   |
+| `lib/sso.ts`       | OIDC, GitHub, SAML connection settings, plus the `sso` block (provisioning, password login). **Names, labels and scopes are not here — they are code in the host.**                                                               |
+| `lib/storage.ts`   | Local, S3, GCS, Azure, Vercel Blob, and `MEDIA_DIRECT_SERVE`.                                                                                                                                                                     |
+| `lib/copilot.ts`   | The kill switch, the two backends, the usage quotas.                                                                                                                                                                              |
+| `lib/retired.ts`   | `RETIRED_ENV` and `checkRetiredEnv()` — variables no longer read (now code), with their old default and new home.                                                                                                                 |
+| `lib/inspect.ts`   | `inspectEnvironment()` — every variable with its source (env, `_FILE`, old name, default), masked; the builders' refusals collected instead of thrown; production pitfalls. What `orthacms doctor` and `orthacms setup` stand on. |
+| `lib/render.ts`    | `renderEnvFile` (`.env`-shaped, plain or with `orthacms:if` blocks) and `renderConfigReference` (Markdown).                                                                                                                       |
+| `lib/generated.ts` | The three generated files and their paths.                                                                                                                                                                                        |
 
 ## Rules
 
