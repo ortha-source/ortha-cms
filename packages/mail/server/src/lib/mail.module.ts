@@ -1,5 +1,9 @@
 import { Module, type DynamicModule } from '@nestjs/common';
-import { MAIL_DISPATCHER, MAIL_PROVIDER } from '@orthacms/mail-domain';
+import {
+    MAIL_DISPATCHER,
+    MAIL_PROVIDER,
+    NOTIFICATION_DISPATCHER
+} from '@orthacms/mail-domain';
 import type { MailProvider } from '@orthacms/mail-domain';
 import { MAIL_CONFIG } from './mail.tokens';
 import { MailDispatcherService } from './application/mail-dispatcher.service';
@@ -50,6 +54,14 @@ export class MailModule {
                     provide: MAIL_DISPATCHER,
                     useExisting: MailDispatcherService
                 },
+                // The notice half (a review request, the alarm digest), on the
+                // same instance and the same queue — a separate token so a
+                // plugin that only tells people things never sees the
+                // token-bearing half.
+                {
+                    provide: NOTIFICATION_DISPATCHER,
+                    useExisting: MailDispatcherService
+                },
                 // Arms the sender. The only place this plugin touches the
                 // network, and it never holds a transaction while it does.
                 MailDeliveryWorker,
@@ -60,6 +72,7 @@ export class MailModule {
                 MAIL_CONFIG,
                 MAIL_PROVIDER,
                 MAIL_DISPATCHER,
+                NOTIFICATION_DISPATCHER,
                 MailDispatcherService,
                 MailDeliveryRepository,
                 MailDeliveryWorker

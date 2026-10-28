@@ -37,6 +37,7 @@ const EXPECTED_PLUGINS = [
     'identity',
     'workspaces',
     'activity',
+    'inbox',
     // orthacms:if mail
     // Before `users`, whose invite, resend and reset queue through the port
     // mail binds — and mail owns `mail_deliveries`, so this is migration order

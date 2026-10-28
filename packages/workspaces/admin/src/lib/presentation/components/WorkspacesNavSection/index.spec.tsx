@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SidebarProvider } from '@orthacms/design-system';
 import { useHasPermission } from '@orthacms/identity-admin';
 import { useWorkspaces } from '../../../application/useWorkspaces';
+import { WORKSPACE_LIST_BADGE_SLOT } from '../../slots/workspaceSlots';
 import type { Workspace } from '../../../domain/types/workspace';
 import { WorkspacesNavSection } from './index';
 
@@ -199,5 +200,62 @@ describe('WorkspacesNavSection', () => {
         ).toBe('/workspaces/ws_1');
         expect(screen.queryByText('Old campaign')).toBeNull();
         expect(screen.queryByText(UNAVAILABLE)).toBeNull();
+    });
+
+    describe('contributed counts', () => {
+        beforeEach(() => {
+            WORKSPACE_LIST_BADGE_SLOT._reset();
+        });
+
+        it('draws every contributed count and says it in the link name', () => {
+            WORKSPACE_LIST_BADGE_SLOT._register([
+                {
+                    id: 'alarms',
+                    order: 20,
+                    useBadge: (id) =>
+                        id === 'ws_1'
+                            ? {
+                                  count: 2,
+                                  tone: 'destructive',
+                                  label: '2 alarms'
+                              }
+                            : null
+                },
+                {
+                    id: 'reviews',
+                    order: 10,
+                    useBadge: () => ({
+                        count: 3,
+                        tone: 'info',
+                        label: '3 reviews waiting on you'
+                    })
+                }
+            ]);
+            answerWith({ data: [workspace()] });
+
+            renderSection();
+
+            // Ordered by `order`, and the words travel with the link: the chips
+            // themselves are aria-hidden decoration.
+            expect(
+                // The avatar's monogram leads the name ("MS Marketing site").
+                screen.getByRole('link', {
+                    name: /Marketing site ?, 3 reviews waiting on you, 2 alarms$/
+                })
+            ).toBeTruthy();
+        });
+
+        it('leaves a row untouched when nobody has anything to say', () => {
+            WORKSPACE_LIST_BADGE_SLOT._register([
+                { id: 'reviews', order: 10, useBadge: () => null }
+            ]);
+            answerWith({ data: [workspace()] });
+
+            renderSection();
+
+            expect(
+                screen.getByRole('link', { name: /Marketing site$/ })
+            ).toBeTruthy();
+        });
     });
 });

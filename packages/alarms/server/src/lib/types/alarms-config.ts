@@ -42,6 +42,16 @@ export interface AlarmsPluginConfig {
      * that closes "links to a draft" findings when the draft is published.
      */
     maxDependentsPerEvent?: number;
+
+    /**
+     * How often, in minutes, the alarm digest loop looks for periods that are
+     * due (ADR-0023). `0` disables the loop — the e2e harness drives it by
+     * hand. It only arms when a mail provider is configured.
+     */
+    digestIntervalMinutes?: number;
+
+    /** The UTC hour from which a day's digest may go out (0–23). */
+    digestHourUtc?: number;
 }
 
 /** Config with every optional filled in — what the services actually read. */
@@ -52,7 +62,9 @@ export const ALARMS_DEFAULTS: ResolvedAlarmsConfig = {
     maxScanEntries: 20_000,
     scanBatchSize: 500,
     sweepIntervalMinutes: 60,
-    maxDependentsPerEvent: 500
+    maxDependentsPerEvent: 500,
+    digestIntervalMinutes: 30,
+    digestHourUtc: 7
 };
 
 /** Fills the defaults in, so no service has to repeat a `??`. */

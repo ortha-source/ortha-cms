@@ -16,6 +16,15 @@ export type {
     SidebarSectionItem,
     SidebarFooterItem
 } from './lib/slots/sidebarSlots';
+// The one shape of a navigation count: a plugin reports a `NavBadge` from a
+// row's `useBadge` hook and the row draws it. `NavBadges` is exported for the
+// rows other packages own (the workspace sidebar).
+export {
+    NavBadges,
+    navBadgeText,
+    useNoBadge
+} from './lib/components/NavBadges';
+export type { NavBadge, NavBadgeTone } from './lib/components/NavBadges';
 export {
     useSidebarContent,
     SidebarContentProvider

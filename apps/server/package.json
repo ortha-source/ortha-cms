@@ -167,6 +167,7 @@
         "@orthacms/identity-provider-oidc": "*",
         "@orthacms/identity-provider-saml": "*",
         "@orthacms/identity-server": "*",
+        "@orthacms/inbox-server": "*",
         "@orthacms/mail-provider-console": "*",
         "@orthacms/mail-provider-smtp": "*",
         "@orthacms/mail-server": "*",

@@ -42,6 +42,7 @@ export type {
     PublishOutlookView,
     ReviewApprovalView,
     ReviewQueueItemView,
+    ReviewQueueSummaryView,
     ReviewQueueView,
     ReviewerCandidatesView,
     ReviewerCandidateView,

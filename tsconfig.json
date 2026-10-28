@@ -233,6 +233,15 @@
         },
         {
             "path": "./packages/schema-builder/admin"
+        },
+        {
+            "path": "./packages/inbox/domain"
+        },
+        {
+            "path": "./packages/inbox/server"
+        },
+        {
+            "path": "./packages/inbox/admin"
         }
     ]
 }

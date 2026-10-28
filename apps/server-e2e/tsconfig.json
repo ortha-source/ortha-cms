@@ -34,6 +34,9 @@
             "path": "../../packages/content/graphql"
         },
         {
+            "path": "../../packages/inbox/server"
+        },
+        {
             "path": "../../packages/activity/server"
         },
         {

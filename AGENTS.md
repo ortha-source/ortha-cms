@@ -43,6 +43,10 @@ The full map — every app and package, one line each — is
 - `packages/{webhooks,mail}/*` — outgoing webhooks and mail, both delivered by a
   worker from a queue, never from inside a transaction
   ([ADR-0016](docs/adr/0016-webhooks-deliver-from-a-queue.md)).
+- `packages/inbox/*` — the in-app inbox: what a person was told, across every
+  workspace. Producers (protection, alarms) write through the optional
+  `INBOX_WRITER` port; mail's **notices** (`NOTIFICATION_DISPATCHER`) are the
+  same events by mail ([ADR-0023](docs/adr/0023-notices-and-the-inbox.md)).
 - `packages/copilot/*` — the AI copilot. **Only `provider-anthropic` may import
   a vendor SDK** ([ADR-0004](docs/adr/0004-model-agnostic-copilot-provider.md)).
   `provider-fake` is a **private test fixture**: published nowhere, registered

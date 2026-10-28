@@ -11,6 +11,7 @@
         "@orthacms/copilot-admin": "*",
         "@orthacms/i18n-admin": "*",
         "@orthacms/identity-admin": "*",
+        "@orthacms/inbox-admin": "*",
         "@orthacms/insights-admin": "*",
         "@orthacms/media-admin": "*",
         "@orthacms/protection-admin": "*",

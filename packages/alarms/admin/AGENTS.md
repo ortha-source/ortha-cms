@@ -18,6 +18,17 @@ a warning when any is an error and info otherwise — so a flag is seen without
 opening the Properties panel. It shares the widget's query key, so it costs no
 request.
 
+The navigation carries the same findings as a **count**
+(`presentation/hooks/useAlarmsNavBadge`): the Alarms row in the workspace
+sidebar and the workspace's row in the global list, both from
+`GET /alarms/findings/summary` under `alarmsKeys.summary`, the key the page's
+figures strip and Home's card read — one cache entry, one answer. It counts
+**errors and warnings only** and is toned by the worst one open
+(`alarmsBadgeOf`): `info` is an alarm saying something without asking anybody
+to act, and a navigation chip is exactly that ask. Silent while loading, on a
+failed read and without `alarms:read`; polled once a minute, since findings
+open from scans the tab is never told about.
+
 The page is for the person who owns editorial policy — what is flagged across
 the workspace, grouped by alarm, and the alarms themselves (the R7 boards
 AlarmsFlagged / AlarmsRules). It leads with the shared `ContainerHeader` —
@@ -388,6 +399,19 @@ locally is a hue nobody measured.
   in `support/api/auth.ts` had to gain `alarms:read` / `alarms:manage` first —
   without them this whole surface renders for nobody and no browser test can see
   it, which is why it shipped with a `window.prompt` in it.
+
+## The digest's frequency, on the notification settings
+
+`AlarmDigestSettings` fills `@orthacms/inbox-admin`'s `INBOX_SETTINGS_SLOT`:
+Daily / Weekly / Off as a `SegmentedControl`, read and saved through
+`GET`/`PUT /alarms/digest/settings` (`application/useDigestSettings`, keyed
+`alarmsKeys.digestSettings()` — the only alarms key **without** a workspace
+id, because the setting is the person's and one digest covers every
+workspace). It renders nothing without `alarms:read`. With no mail provider
+the server answers `available: false` and the control stays visible but
+disabled, with the reason beside it — a setting that silently does nothing is
+worse than one that says why. Pinned in `admin-e2e`'s
+`inbox/inbox-settings.spec.ts`.
 
 ## On Home
 

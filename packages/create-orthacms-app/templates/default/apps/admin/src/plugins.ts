@@ -16,6 +16,7 @@ import { AlarmsPlugin } from '@orthacms/alarms-admin';
 import { transferAdminPlugin } from '@orthacms/transfer-admin';
 import { SegmentsPlugin } from '@orthacms/segments-admin';
 import { ProtectionPlugin } from '@orthacms/protection-admin';
+import { InboxPlugin } from '@orthacms/inbox-admin';
 import { SchemaBuilderPlugin } from '@orthacms/schema-builder-admin';
 
 /**
@@ -76,6 +77,9 @@ export function buildPlugins(): AdminPlugin[] {
         ProtectionPlugin(),
         UsersPlugin(),
         ActivityPlugin(),
+        // The inbox: its sidebar row and the button beside "← Home" in a
+        // workspace's sidebar.
+        InboxPlugin(),
         ApiTokensPlugin(),
         WebhooksPlugin(),
         // The content model (directory group, after Webhooks). Global because

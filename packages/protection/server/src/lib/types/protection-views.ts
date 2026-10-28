@@ -164,6 +164,14 @@ export interface ReviewerCandidatesView {
     candidates: ReviewerCandidateView[];
 }
 
+/** `GET /protection/queue/summary` — the queue's two tab counts. */
+export interface ReviewQueueSummaryView {
+    /** Open asks naming the caller, sent by somebody else. */
+    waitingOnMe: number;
+    /** Open asks the caller sent. */
+    mine: number;
+}
+
 /** One line of the reviewer queue. */
 export interface ReviewQueueItemView {
     id: string;

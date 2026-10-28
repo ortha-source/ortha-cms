@@ -15,6 +15,7 @@ import type {
     RecentlyApprovedItemView,
     RecentlyApprovedView,
     ReviewQueueItemView,
+    ReviewQueueSummaryView,
     ReviewQueueView
 } from '../types/protection-views';
 
@@ -45,8 +46,8 @@ interface EntryLine {
  * content type — and, beside it, what the caller approved lately.
  *
  * It exists because without it approvals are possible and nobody knows they are
- * wanted. Until the mail port lands (ORT-207) this page is the *only* way a
- * reviewer learns there is work, which is why it is a page of its own rather
+ * wanted. A request mails the people it names when a provider is configured,
+ * but this is where the asks are, which is why it is a page of its own rather
  * than a saved view of one collection's records list — a saved view can only
  * ever ask about the collection it belongs to.
  *
@@ -76,6 +77,14 @@ export class ReviewQueueService {
     ) {}
 
     /** One page of open requests, newest first. */
+    /** The two tab counts, without reading a single line. */
+    summary(
+        workspaceId: string,
+        callerId: string
+    ): Promise<ReviewQueueSummaryView> {
+        return this.requests.counts(workspaceId, callerId);
+    }
+
     async list(
         workspaceId: string,
         options: { mine?: boolean; limit?: number; offset?: number },

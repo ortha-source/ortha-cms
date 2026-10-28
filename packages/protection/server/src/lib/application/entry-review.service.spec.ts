@@ -62,6 +62,7 @@ function makeService(
         granted?: string[];
     } = {}
 ) {
+    const notified: unknown[] = [];
     const opened: unknown[] = [];
     const cast: unknown[] = [];
     const head =
@@ -101,10 +102,18 @@ function makeService(
         grants(...(options.granted ?? ['article'])) as never,
         { forRole: async () => [] } as never,
         { can: () => false } as never,
-        registry as never
+        registry as never,
+        {
+            reviewRequested: async (review: unknown) => {
+                notified.push(review);
+            },
+            reviewReady: async (review: unknown) => {
+                notified.push({ ready: review });
+            }
+        } as never
     );
 
-    return { service: instance, opened, cast };
+    return { service: instance, opened, cast, notified };
 }
 
 describe('EntryReviewService.state', () => {
@@ -506,5 +515,135 @@ describe('EntryReviewService.requestReview', () => {
             )
         ).rejects.toBeInstanceOf(NothingToReviewError);
         expect(opened).toEqual([]);
+    });
+});
+
+/**
+ * Who hears about a request. Changing the reviewers replaces the list whole,
+ * so the notice goes to the people this write **adds** — "add Grace" must not
+ * be a second message to everyone already asked.
+ */
+describe('EntryReviewService.requestReview notices', () => {
+    const candidates = [
+        { userId: BORIS, email: 'boris@example.com' },
+        { userId: 'carla', email: 'carla@example.com' }
+    ];
+
+    it('tells everybody on a first ask, with the rule’s count', async () => {
+        const { service, notified } = makeService({
+            candidates,
+            rule: { enabled: true, requiredApprovals: 2 }
+        });
+
+        await service.requestReview(
+            WORKSPACE,
+            'article',
+            ENTRY,
+            [BORIS, 'carla'],
+            caller(ANNA)
+        );
+
+        expect(notified).toEqual([
+            expect.objectContaining({
+                requesterId: ANNA,
+                reviewerIds: [BORIS, 'carla'],
+                newReviewerIds: [BORIS, 'carla'],
+                requiredApprovals: 2
+            })
+        ]);
+    });
+
+    it('tells only the reviewer a changed request adds', async () => {
+        const { service, notified } = makeService({
+            candidates,
+            openRequest: {
+                id: 'request-1',
+                requestedBy: ANNA,
+                reviewerIds: [BORIS],
+                revisionId: 'rev-7',
+                createdAt: new Date()
+            }
+        });
+
+        await service.requestReview(
+            WORKSPACE,
+            'article',
+            ENTRY,
+            [BORIS, 'carla'],
+            caller(ANNA)
+        );
+
+        expect(notified).toEqual([
+            expect.objectContaining({
+                newReviewerIds: ['carla'],
+                // Nobody protected the type: an ask, not a gate.
+                requiredApprovals: 0
+            })
+        ]);
+    });
+});
+
+/**
+ * "Ready to publish" goes to the requester once — from the vote that
+ * completes the kernel's count, never from a vote past it.
+ */
+describe('EntryReviewService.approve tells the requester', () => {
+    const rule = {
+        enabled: true,
+        requiredApprovals: 2,
+        requireOtherPerson: true,
+        countStaleApprovals: false,
+        adminBypass: true,
+        allowTokenPublish: false
+    };
+    const openRequest = {
+        id: 'request-1',
+        requestedBy: ANNA,
+        reviewerIds: [BORIS, 'carla'],
+        revisionId: 'rev-7',
+        createdAt: new Date()
+    };
+
+    it('when this vote completes the count', async () => {
+        const { service, notified } = makeService({
+            rule,
+            openRequest,
+            votes: [{ userId: 'carla', revisionId: 'rev-7' }]
+        });
+
+        await service.approve(WORKSPACE, 'article', ENTRY, caller(BORIS));
+
+        expect(notified).toEqual([
+            {
+                ready: expect.objectContaining({
+                    requesterId: ANNA,
+                    revisionId: 'rev-7',
+                    requiredApprovals: 2
+                })
+            }
+        ]);
+    });
+
+    it('not while the count is still short', async () => {
+        const { service, notified } = makeService({ rule, openRequest });
+
+        await service.approve(WORKSPACE, 'article', ENTRY, caller(BORIS));
+
+        expect(notified).toEqual([]);
+    });
+
+    it('not again for a vote past the count', async () => {
+        const { service, notified } = makeService({
+            rule,
+            openRequest,
+            votes: [
+                { userId: 'carla', revisionId: 'rev-7' },
+                { userId: 'dmitri', revisionId: 'rev-7' }
+            ]
+        });
+
+        await service.approve(WORKSPACE, 'article', ENTRY, caller(BORIS));
+
+        expect(notified).toEqual([]);
     });
 });

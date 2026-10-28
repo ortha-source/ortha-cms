@@ -53,6 +53,7 @@ src/lib/
 | `DELETE …/approve`                           | workspace | `content:approve`   |
 | `GET /protection/queue`                      | workspace | `content:read`      |
 | `GET /protection/queue/approved`             | workspace | `content:read`      |
+| `GET /protection/queue/summary`              | workspace | `content:read`      |
 
 `protection:manage` is administrator-only and has **no `protection:read` beside
 it** — the only such asymmetry in the catalogue. A contributor does need to know
@@ -378,6 +379,13 @@ line agree. It is per line of a bounded page (one timeline read, two snapshot
 reads), and a count that cannot be computed is `null` rather than a failed
 queue.
 
+`GET /protection/queue/summary` is the first two tabs' counts —
+`waitingOnMe` (open asks naming the caller that somebody else sent) and `mine`
+(open asks the caller sent) — in **one** aggregate read with no line built: the
+navigation badge asks it on every page, so it must not cost a page of timeline
+reads, and counting the split client-side over one fetched window would cap the
+badge at that window.
+
 `GET /protection/queue/approved` lists what **the caller** approved in the last
 30 days (`RECENTLY_APPROVED_DAYS`, at most 50 entries), one line per entry,
 newest first: `approvalCurrent` (their approval is on the head and still
@@ -388,6 +396,29 @@ resolved, or `null`. One grouped query over `review_approvals`, served by the
 `EntryReviewView.countsStaleApprovals` reports the rule's switch (false when
 unprotected), so the panel can say whether "a new save asks again".
 
+## Telling the reviewers
+
+`EntryReviewService.requestReview` hands the write to `ReviewNotifier` inside
+its own unit of work ([ADR-0023](../../../docs/adr/0023-notices-and-the-inbox.md)).
+It mails a `review_requested` notice through the **optional**
+`NOTIFICATION_DISPATCHER` to the reviewers this write **adds** — the open
+request's previous list is read first, because changing the reviewers replaces
+it whole and "add Grace" must not be a second message to everyone else.
+Approvals, saves and `EntryEditedSubscriber`'s reopen send no mail. With no
+mail provider configured nothing is bound.
+
+The same notifier writes **inbox items** through the optional `INBOX_WRITER`
+(`@orthacms/inbox-domain`): `review.requested` to the reviewers a write adds;
+`review.ready` to the requester from the vote that completes the kernel's
+count (`countApprovals` before and after it — never from a vote past it);
+and `review.approval_stale` from `ApprovalStaleSubscriber`, on `entry.updated`,
+to whoever approved the version the save replaced — only on an enabled rule
+that does not count stale approvals, with a review open and the head not live,
+and never to the saver. Each item's `dedupeKey` makes a retried delivery a
+no-op. Without the inbox plugin nothing is bound and none of this runs.
+`ReviewNoticeQuery` supplies the words (the workspace's name, the record's
+title, people's names) from the schema objects their plugins export.
+
 ## Not here yet
 
 Deliberately:
@@ -395,8 +426,6 @@ Deliberately:
 - **Scheduled publishing.** The rule must be evaluated when the timer fires
   rather than when the schedule is set, and a fired timer has no human, so a
   bypass cannot apply to it. That needs the scheduler to exist (ORT-210).
-- **Mail on a review request.** After the mail port (ORT-207). Until then the
-  reviews page is the only way a reviewer learns there is work.
 - **`transfer` on a protected type** is not an open question so much as an
   unreachable one: `ImportEntriesUseCase` calls only `writer.create`/`.update`,
   and a create on a publishable type is stamped `draft`, so an import cannot

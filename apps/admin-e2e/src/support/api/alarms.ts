@@ -621,3 +621,36 @@ export async function mockAlarmSummary(
         });
     });
 }
+
+/** What {@link mockDigestSettings} saw the page send. */
+export type DigestSettingsRecorder = { saved: string[] };
+
+/**
+ * Stubs `GET` / `PUT /api/alarms/digest/settings` — the reader's own digest
+ * frequency, per person and so with no workspace header. A `PUT` answers with
+ * the frequency it was sent; `available: false` is a deployment with no mail.
+ */
+export async function mockDigestSettings(
+    page: Page,
+    {
+        frequency = 'daily',
+        available = true,
+        status = 200
+    }: { frequency?: string; available?: boolean; status?: number } = {}
+): Promise<DigestSettingsRecorder> {
+    const recorder: DigestSettingsRecorder = { saved: [] };
+    let current = frequency;
+    await page.route('**/api/alarms/digest/settings', async (route) => {
+        if (status !== 200) {
+            await route.fulfill({ status, body: '{}' });
+            return;
+        }
+        if (route.request().method() === 'PUT') {
+            current = (route.request().postDataJSON() as { frequency: string })
+                .frequency;
+            recorder.saved.push(current);
+        }
+        await route.fulfill(json({ frequency: current, available }));
+    });
+    return recorder;
+}

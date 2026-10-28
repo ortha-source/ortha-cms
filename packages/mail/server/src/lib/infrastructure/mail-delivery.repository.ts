@@ -1,20 +1,29 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDatabase, UnitOfWork, type Database } from '@orthacms/database';
-import type { MailKind } from '@orthacms/mail-domain';
+import {
+    MAIL_KINDS,
+    type MailKind,
+    type NotificationKind
+} from '@orthacms/mail-domain';
 import { and, desc, eq, gt, inArray, isNull, lte, sql } from 'drizzle-orm';
 import { mailDeliveries } from './schema/mail-deliveries';
 
 /** A message to queue, already rendered. */
 export interface MailToQueue {
-    kind: MailKind;
+    /** A token message's kind, or a notice's. */
+    kind: MailKind | NotificationKind;
     toAddress: string;
     subject: string;
     bodyText: string;
     bodyHtml?: string;
-    /** The link on its own, for `reveal-link`. */
-    link: string;
+    /**
+     * The link on its own, for `reveal-link`. A token message only: a notice
+     * stores none, since its link is an ordinary signed-in URL and there is
+     * no secret to hand back.
+     */
+    link?: string;
     userId: string;
-    /** The token's expiry — past it the row is swept unsent. */
+    /** The token's expiry (or a notice's TTL) — past it the row is swept unsent. */
     expiresAt: Date;
 }
 
@@ -90,7 +99,7 @@ export class MailDeliveryRepository {
                 subject: mail.subject,
                 bodyText: mail.bodyText,
                 bodyHtml: mail.bodyHtml ?? null,
-                link: mail.link,
+                link: mail.link ?? null,
                 userId: mail.userId,
                 expiresAt: mail.expiresAt
             });
@@ -290,7 +299,11 @@ export class MailDeliveryRepository {
             .where(
                 and(
                     eq(mailDeliveries.userId, userId),
-                    gt(mailDeliveries.expiresAt, new Date())
+                    gt(mailDeliveries.expiresAt, new Date()),
+                    // Only a token message has a secret to reveal. A queued
+                    // notice to the same member — newer than their invite —
+                    // must not hide the invite's link behind its own null.
+                    inArray(mailDeliveries.kind, Object.values(MAIL_KINDS))
                 )
             )
             .orderBy(desc(mailDeliveries.createdAt))

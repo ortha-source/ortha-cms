@@ -12,6 +12,10 @@ import { EntryTitlesQuery } from './infrastructure/entry-titles.query';
 import { AlarmsCopilotToolProvider } from './copilot/alarms-tool.provider';
 import { AlarmFindingsController } from './http/controllers/alarm-findings.controller';
 import { AlarmRulesController } from './http/controllers/alarm-rules.controller';
+import { AlarmDigestController } from './http/controllers/alarm-digest.controller';
+import { AlarmNotifier } from './application/alarm-notifier';
+import { AlarmDigestService } from './application/alarm-digest.service';
+import { AlarmDigestRepository } from './infrastructure/alarm-digest.repository';
 import {
     resolveAlarmsConfig,
     type AlarmsPluginConfig
@@ -36,7 +40,12 @@ export class AlarmsModule {
         return {
             module: AlarmsModule,
             global: true,
-            controllers: [AlarmFindingsController, AlarmRulesController],
+            controllers: [
+                AlarmFindingsController,
+                AlarmRulesController,
+                // The caller's own digest frequency — not workspace-scoped.
+                AlarmDigestController
+            ],
             providers: [
                 {
                     provide: ALARMS_CONFIG,
@@ -63,6 +72,13 @@ export class AlarmsModule {
                 // Arms the periodic rescan — the only path that covers rules
                 // about entries nobody is touching.
                 AlarmSweepService,
+                // Tells an alarm's creator, in their inbox, when a scan opens
+                // new findings on it — a no-op without the inbox plugin.
+                AlarmNotifier,
+                // The daily/weekly digest by mail — arms only when a mail
+                // provider is configured (ADR-0023).
+                AlarmDigestRepository,
+                AlarmDigestService,
                 // Contributes the one alarms read tool to the shared registry,
                 // narrowed to the copilot surface. Registers itself from
                 // `onModuleInit` against an optionally-injected registry, so a

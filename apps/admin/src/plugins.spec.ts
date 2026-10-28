@@ -44,6 +44,7 @@ const EXPECTED_PLUGINS = [
     'protection',
     'users',
     'activity',
+    'inbox',
     'api-tokens',
     'webhooks',
     'schema-builder'

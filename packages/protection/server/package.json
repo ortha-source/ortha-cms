@@ -23,6 +23,8 @@
         "@orthacms/content-server": "*",
         "@orthacms/database": "*",
         "@orthacms/identity-server": "*",
+        "@orthacms/inbox-domain": "*",
+        "@orthacms/mail-domain": "*",
         "@orthacms/protection-domain": "*",
         "@orthacms/tools-server": "*",
         "@orthacms/utils-server": "*",

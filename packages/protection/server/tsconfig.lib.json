@@ -27,6 +27,12 @@
             "path": "../domain/tsconfig.lib.json"
         },
         {
+            "path": "../../mail/domain/tsconfig.lib.json"
+        },
+        {
+            "path": "../../inbox/domain/tsconfig.lib.json"
+        },
+        {
             "path": "../../identity/server/tsconfig.lib.json"
         },
         {

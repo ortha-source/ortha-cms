@@ -334,7 +334,12 @@ export function daysAgo(days: number): string {
 export async function mockReviewQueue(
     page: Page,
     items: ReviewQueueSeed[] = [],
-    options: { status?: number; overdueAfterDays?: number } = {}
+    options: {
+        status?: number;
+        overdueAfterDays?: number;
+        /** Whose badge the summary counts. Defaults to the seeded admin. */
+        callerId?: string;
+    } = {}
 ): Promise<void> {
     await page.route('**/api/protection/queue*', async (route) => {
         if (options.status && options.status >= 400) {
@@ -374,7 +379,37 @@ export async function mockReviewQueue(
             })
         });
     });
+
+    // The badge's two counts, from the same seed and the same split the page
+    // makes — so the Reviews row in the sidebar agrees with the tab it opens.
+    // Registered after the queue's route, so it wins for `/queue/summary`.
+    await page.route('**/api/protection/queue/summary*', async (route) => {
+        if (options.status && options.status >= 400) {
+            await route.fulfill({
+                status: options.status,
+                contentType: 'application/json',
+                body: JSON.stringify({ message: 'Queue unavailable' })
+            });
+            return;
+        }
+        const caller = options.callerId ?? SIGNED_IN_USER_ID;
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+                waitingOnMe: items.filter(
+                    (item) =>
+                        item.requestedBy !== caller &&
+                        (item.reviewerIds ?? []).includes(caller)
+                ).length,
+                mine: items.filter((item) => item.requestedBy === caller).length
+            })
+        });
+    });
 }
+
+/** The signed-in admin `mockSignedIn` seeds by default. */
+const SIGNED_IN_USER_ID = '00000000-0000-0000-0000-000000000001';
 
 /** A line's change summary, with the seed defaults filled in. */
 function changesOf(item: {

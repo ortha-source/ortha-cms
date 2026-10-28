@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 import type { ServerPlugin } from '@orthacms/bootstrap-server';
 import { ActivityPlugin } from '@orthacms/activity-server';
+import { InboxPlugin } from '@orthacms/inbox-server';
 import { ContentPlugin, ContentViewsPlugin } from '@orthacms/content-server';
 import { ContentGraphqlPlugin } from '@orthacms/content-graphql';
 import { CopilotPlugin } from '@orthacms/copilot-server';
@@ -175,6 +176,7 @@ export function buildTestPlugins(
         }),
         WorkspacesPlugin(),
         ActivityPlugin(),
+        InboxPlugin(),
         // Mail before users, as in the host: `users` queues its three messages
         // through the port this binds, and this plugin owns `mail_deliveries`
         // (migrations run in this array's order). The provider captures rather
@@ -238,8 +240,9 @@ export function buildTestPlugins(
         // interval, and a background rescan firing mid-suite would
         // reconcile findings a test is in the middle of asserting on.
         // The event path and the explicit rescan are what the suites
-        // exercise, and neither needs the timer.
-        AlarmsPlugin({ sweepIntervalMinutes: 0 }),
+        // exercise, and neither needs the timer. The digest's timer is off
+        // for the same reason; `support/alarm-digest.ts` runs it by hand.
+        AlarmsPlugin({ sweepIntervalMinutes: 0, digestIntervalMinutes: 0 }),
         // Copilot before MCP: runs are workspace-scoped and execute as the
         // calling user, so it must register after workspaces and identity. Both
         // providers are scripted fakes — no key, no network, and the whole tool

@@ -66,7 +66,12 @@ business truth (ADR-0003 frontend guidance).
   `WORKSPACE_ROUTE_SLOT` (pages mounted
   inside the shell; `WorkspaceRoute.order` picks the default landing), and
   `WORKSPACE_SETTINGS_TAB_SLOT` (a section on the **settings** page — see
-  below), plus the `WorkspaceNavItem` / `WorkspaceSectionItem` /
+  below), `WORKSPACE_LIST_BADGE_SLOT` (per-workspace counts on the global
+  sidebar's quick-list rows: `{ id, order, useBadge(workspaceId) }`, each hook
+  called unconditionally per row and gating itself) and
+  `WORKSPACE_NAV_HEADER_ACTION_SLOT` (a control in the workspace sidebar's
+  header row, between "← Home" and the collapse button — the inbox's button),
+  plus the `WorkspaceNavItem` / `WorkspaceSectionItem` /
   `WorkspaceRoute` / `WorkspaceSettingsTab` item types. A
   feature plugin that lives inside a workspace (Content Library, Media Library,
   Insights) contributes a route + either a nav entry or a section to these — and
@@ -109,7 +114,10 @@ exist", mirroring the API's flat 403.
   section (`WORKSPACE_NAV_SLOT` — Media, Insights, Settings) as labeled rows.
   Nav rows use `SidebarMenuButton`, resolve their **relative** `to` against the
   active `:id`, derive active state via `useMatch`, and gate on
-  `useHasPermission`.
+  `useHasPermission`. A row's optional `useBadge(workspaceId, enabled)` hook
+  (Reviews' "waiting on you", Alarms' open findings) is called on every render
+  before the gate, with `enabled: false` for a hidden row; the chip is drawn by
+  the shell's `NavBadges`, never by the contributor.
 - The workspace accent tints the switcher avatar; the persistent account footer
   (from the shell) stays below.
 - Workspaces owns the last **Settings** entry (`WORKSPACE_NAV_SLOT`, `order:
@@ -183,7 +191,8 @@ exist", mirroring the API's flat 403.
   `defaultDescription`, shown under the section's `<h1>`) and the `element` to
   render; `WorkspaceSettingsNav` links
   to it and `WorkspaceSettingsPage` mounts it as a nested route.
-  `@orthacms/protection-admin` is the first contributor. Three rules worth
+  No shipped plugin contributes one today (`@orthacms/protection-admin` was the
+  first, and its rules moved to its own Reviews page). Three rules worth
   knowing:
     - **Contributed sections sit between Members and Danger zone**, and `order`
       sorts them only against each other. Danger zone is last because it is

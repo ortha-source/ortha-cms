@@ -103,6 +103,57 @@ describe('/api/protection/queue', () => {
      */
     const EMPTY_QUEUE = { items: [], total: 0, overdueAfterDays: 3 };
 
+    /**
+     * `GET /api/protection/queue/summary` — the navigation badge's numbers.
+     * The same split as the page's first two tabs: an ask naming the caller
+     * that somebody else sent is waiting on them, an ask they sent is theirs,
+     * and one naming neither is in neither count.
+     */
+    it('counts what is waiting on the caller and what they asked for', async () => {
+        const { agent: author, user: authorUser } = await member(
+            AUTHOR,
+            'contributor'
+        );
+        await askFor(author, 'test_article', {
+            text: 'Waiting on the standing reviewer',
+            select: 'article'
+        });
+        const { agent: reviewer, user: reviewerUser } = await member(
+            REVIEWER,
+            'contributor'
+        );
+        // One ask naming the reviewer, from the author.
+        const created = await author
+            .post('/api/content/test_author')
+            .send({ values: { text: 'For the reviewer' } })
+            .expect(201);
+        await author
+            .post(
+                `/api/protection/entries/test_author/${created.body.id}/request`
+            )
+            .send({ reviewerIds: [reviewerUser.id] })
+            .expect(201);
+
+        const forReviewer = await reviewer
+            .get('/api/protection/queue/summary')
+            .expect(200);
+        expect(forReviewer.body).toEqual({ waitingOnMe: 1, mine: 0 });
+
+        const forAuthor = await author
+            .get('/api/protection/queue/summary')
+            .expect(200);
+        expect(forAuthor.body).toEqual({ waitingOnMe: 0, mine: 2 });
+        expect(authorUser.id).not.toBe(reviewerUser.id);
+    });
+
+    it('counts nothing for a workspace with no open asks', async () => {
+        const { agent } = await member(REVIEWER, 'contributor');
+        const response = await agent
+            .get('/api/protection/queue/summary')
+            .expect(200);
+        expect(response.body).toEqual({ waitingOnMe: 0, mine: 0 });
+    });
+
     it('is empty when nobody has asked for anything', async () => {
         const { agent } = await member(REVIEWER, 'contributor');
         const response = await agent.get('/api/protection/queue').expect(200);

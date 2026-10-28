@@ -48,6 +48,9 @@ export const PROTECTION_INSIGHTS_SCHEMA = 'ProtectionInsights';
 /** Component name for a page of the reviewer queue. */
 export const REVIEW_QUEUE_SCHEMA = 'ReviewQueue';
 
+/** Component name for the queue's tab counts. */
+export const REVIEW_QUEUE_SUMMARY_SCHEMA = 'ReviewQueueSummary';
+
 /** Component name for the "Recently approved" tab. */
 export const RECENTLY_APPROVED_SCHEMA = 'RecentlyApproved';
 
@@ -525,6 +528,23 @@ export function buildProtectionSchemas(): Record<string, OpenApiSchema> {
                             ...ENTRY_CHANGES_PROPERTIES
                         }
                     }
+                }
+            }
+        },
+        [REVIEW_QUEUE_SUMMARY_SCHEMA]: {
+            type: 'object',
+            required: ['waitingOnMe', 'mine'],
+            properties: {
+                waitingOnMe: {
+                    type: 'integer',
+                    example: 3,
+                    description:
+                        'Open requests that name the caller and that somebody else sent.'
+                },
+                mine: {
+                    type: 'integer',
+                    example: 1,
+                    description: 'Open requests the caller sent.'
                 }
             }
         },

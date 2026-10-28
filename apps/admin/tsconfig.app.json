@@ -37,16 +37,13 @@
     "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
     "references": [
         {
-            "path": "../../packages/protection/admin/tsconfig.lib.json"
-        },
-        {
-            "path": "../../packages/webhooks/admin/tsconfig.lib.json"
-        },
-        {
             "path": "../../packages/wysiwyg/admin/tsconfig.lib.json"
         },
         {
             "path": "../../packages/workspaces/admin/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/webhooks/admin/tsconfig.lib.json"
         },
         {
             "path": "../../packages/users/admin/tsconfig.lib.json"
@@ -64,10 +61,16 @@
             "path": "../../packages/schema-builder/admin/tsconfig.lib.json"
         },
         {
+            "path": "../../packages/protection/admin/tsconfig.lib.json"
+        },
+        {
             "path": "../../packages/media/admin/tsconfig.lib.json"
         },
         {
             "path": "../../packages/insights/admin/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/inbox/admin/tsconfig.lib.json"
         },
         {
             "path": "../../packages/identity/admin/tsconfig.lib.json"

@@ -16,7 +16,8 @@ import type {
     ProtectionRuleRecord,
     RecentlyApproved,
     ReviewerCandidate,
-    ReviewQueue
+    ReviewQueue,
+    ReviewQueueSummary
 } from '../domain/types';
 import { splitQueue } from '../domain/types';
 import {
@@ -27,6 +28,7 @@ import {
     newEntryProtectionPrefix,
     queueKey,
     queuePrefix,
+    queueSummaryKey,
     recentlyApprovedKey,
     reviewerCandidatesKey,
     reviewStatusKey,
@@ -406,6 +408,27 @@ export function useReviewQueue(
         queryFn: () => httpProtectionGateway.listQueue(params),
         placeholderData: keepPreviousData,
         enabled
+    });
+}
+
+/**
+ * The queue's two tab counts for one workspace — the Reviews nav badge and the
+ * sidebar's per-workspace chip. One aggregate read, never a page of lines,
+ * because it runs on every screen that shows the sidebar.
+ *
+ * Asks for `workspaceId` explicitly (the `X-Workspace-Id` header), since the
+ * sidebar renders above the open workspace and lists the others too. Polled
+ * once a minute: what changes it — somebody else asking, a publish closing an
+ * ask — happens in another person's session, and nothing here is told.
+ */
+export function useReviewQueueSummary(workspaceId: string, enabled = true) {
+    return useQuery<ReviewQueueSummary, ApiError>({
+        queryKey: queueSummaryKey(workspaceId),
+        queryFn: () => httpProtectionGateway.queueSummary(workspaceId),
+        enabled: enabled && Boolean(workspaceId),
+        staleTime: 30_000,
+        refetchInterval: 60_000,
+        retry: 1
     });
 }
 

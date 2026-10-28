@@ -1,4 +1,8 @@
-import { MAIL_KINDS } from '@orthacms/mail-domain';
+import {
+    MAIL_KINDS,
+    NOTICE_TTL_MS,
+    NOTIFICATION_KINDS
+} from '@orthacms/mail-domain';
 import { MailDispatcherService } from './mail-dispatcher.service';
 import type {
     MailDeliveryRepository,
@@ -158,5 +162,57 @@ describe('revealing the link of a message that never left', () => {
         // which is what makes this an answer to "it never arrived" rather than
         // a second copy of a message that did.
         await expect(dispatcher.revealableLink('user-1')).resolves.toBeNull();
+    });
+});
+
+describe('queueing a notice', () => {
+    const notice = {
+        kind: NOTIFICATION_KINDS.REVIEW_REQUESTED,
+        to: 'amara@example.com',
+        userId: 'user-2',
+        recipientName: 'Amara',
+        requesterName: 'Margaret',
+        entryTitle: 'Team page',
+        contentTypeLabel: 'Pages',
+        workspaceName: 'Marketing site',
+        requiredApprovals: 2,
+        alsoAsked: [],
+        reviewPath: 'workspaces/ws_1/reviews'
+    } as const;
+
+    it('renders it against appUrl and stores no link to reveal', async () => {
+        const { dispatcher, queued } = dispatcherFor();
+        const before = Date.now();
+
+        await dispatcher.notify(notice);
+
+        expect(queued[0]).toMatchObject({
+            kind: 'review_requested',
+            toAddress: 'amara@example.com',
+            userId: 'user-2'
+        });
+        // No secret: `reveal-link` has nothing to hand back for a notice.
+        expect(queued[0].link).toBeUndefined();
+        expect(queued[0].bodyText).toContain(
+            'https://cms.example.com/workspaces/ws_1/reviews'
+        );
+        // It expires on the notice TTL, so a send stuck for days is swept.
+        const ttl = queued[0].expiresAt.getTime() - before;
+        expect(ttl).toBeGreaterThanOrEqual(NOTICE_TTL_MS - 1_000);
+        expect(ttl).toBeLessThanOrEqual(NOTICE_TTL_MS + 1_000);
+    });
+
+    it('lets a host override one notice’s copy and keep the rest', async () => {
+        const { dispatcher, queued } = dispatcherFor({
+            appUrl: 'https://cms.example.com',
+            from: 'no-reply@example.com',
+            notificationTemplates: {
+                review_requested: () => ({ subject: 'Bitte prüfen', text: 'x' })
+            }
+        });
+
+        await dispatcher.notify(notice);
+
+        expect(queued[0].subject).toBe('Bitte prüfen');
     });
 });

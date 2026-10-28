@@ -1,4 +1,6 @@
 import type {
+    DigestFrequency,
+    DigestSettings,
     AlarmFinding,
     AlarmFindingList,
     AlarmRule,
@@ -69,4 +71,8 @@ export type AlarmsGateway = {
      * given (Home, which sits outside any workspace, asks each in turn).
      */
     summary(workspaceId?: string): Promise<AlarmSummary>;
+    /** The reader's own digest frequency — not workspace-scoped. */
+    digestSettings(): Promise<DigestSettings>;
+    /** Sets it, and answers the stored value. */
+    saveDigestSettings(frequency: DigestFrequency): Promise<DigestSettings>;
 };

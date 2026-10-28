@@ -29,5 +29,7 @@ export const alarmsKeys = {
     byEntry: (workspaceId: string, entryIds: readonly string[]) =>
         ['alarms', workspaceId, 'by-entry', [...entryIds].sort()] as const,
     summary: (workspaceId: string) =>
-        ['alarms', workspaceId, 'summary'] as const
+        ['alarms', workspaceId, 'summary'] as const,
+    /** The reader's own digest setting — the one key with no workspace. */
+    digestSettings: () => ['alarms', 'digest-settings'] as const
 };

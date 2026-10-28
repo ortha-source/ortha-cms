@@ -89,6 +89,13 @@ export const rulesKey = (workspaceId: string) =>
 export const queuePrefix = (workspaceId: string) =>
     ['protection', 'queue', workspaceId] as const;
 
+/**
+ * The queue's tab counts. Under {@link queuePrefix}, so anything that
+ * refreshes the queue refreshes the badge with it.
+ */
+export const queueSummaryKey = (workspaceId: string) =>
+    ['protection', 'queue', workspaceId, 'summary'] as const;
+
 /** What the caller approved lately, in one workspace. */
 export const recentlyApprovedKey = (workspaceId: string) =>
     ['protection', 'recently-approved', workspaceId] as const;

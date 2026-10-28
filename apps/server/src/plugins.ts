@@ -12,6 +12,7 @@ import { createAnthropicProvider } from '@orthacms/copilot-provider-anthropic';
 import { createOpenAiProvider } from '@orthacms/copilot-provider-openai';
 import { DatabasePlugin } from '@orthacms/database';
 import { I18nServerPlugin } from '@orthacms/i18n-server';
+import { InboxPlugin } from '@orthacms/inbox-server';
 import { IdentityPlugin } from '@orthacms/identity-server';
 import { createOidcProvider } from '@orthacms/identity-provider-oidc';
 import { createGithubProvider } from '@orthacms/identity-provider-github';
@@ -255,6 +256,10 @@ export function buildPlugins(config: OrthaCmsConfig): ServerPlugin[] {
         }),
         WorkspacesPlugin(),
         ActivityPlugin(),
+        // The in-app inbox (ADR-0023). Before the plugins that write to it —
+        // protection, alarms — which inject its writer optionally and behave
+        // exactly as before without it.
+        InboxPlugin(),
         // Mail, before users: its `MAIL_DISPATCHER` is what the invite, resend
         // and reset use cases queue their messages through, and what makes
         // those routes stop returning a raw token (ADR-0018 §4). Registered

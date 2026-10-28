@@ -25,6 +25,12 @@ export interface AlarmRuleRecord {
     filter: unknown;
     enabled: boolean;
     brokenReason: string | null;
+    /**
+     * Who created the alarm — whom its inbox items and its digest go to.
+     * `null` for an alarm whose creator is unknown (made by a token, or
+     * before the column was read).
+     */
+    createdBy?: string | null;
 }
 
 /** Fields a create accepts. */
@@ -360,7 +366,8 @@ function toRecord(row: typeof alarmRules.$inferSelect): AlarmRuleRecord {
         severity: coerceSeverity(row.severity),
         filter: row.filter,
         enabled: row.enabled,
-        brokenReason: row.brokenReason
+        brokenReason: row.brokenReason,
+        createdBy: row.createdBy ?? null
     };
 }
 

@@ -1,7 +1,9 @@
 import {
     DEFAULT_MAIL_TEMPLATES,
     DEFAULT_MAX_ATTEMPTS,
-    type MailTemplates
+    DEFAULT_NOTIFICATION_TEMPLATES,
+    type MailTemplates,
+    type NotificationTemplates
 } from '@orthacms/mail-domain';
 
 /**
@@ -86,6 +88,13 @@ export interface MailPluginConfig {
      * which the first version does not otherwise have.
      */
     templates?: Partial<MailTemplates>;
+
+    /**
+     * Replacements for the shipped **notice** copy (a review request, the
+     * alarm digest), by kind — the same hook as {@link templates}, for the
+     * messages that carry no token.
+     */
+    notificationTemplates?: Partial<NotificationTemplates>;
 }
 
 /** Config with every optional filled in — what the services actually read. */
@@ -101,6 +110,7 @@ export interface ResolvedMailConfig {
     claimLeaseMs: number;
     sweepIntervalMs: number;
     templates: MailTemplates;
+    notificationTemplates: NotificationTemplates;
 }
 
 /** Defaults chosen to be unsurprising next to somebody else's relay. */
@@ -136,6 +146,10 @@ export function resolveMailConfig(
             config.sweepIntervalMs ?? MAIL_DEFAULTS.sweepIntervalMs,
         // A host overriding one template keeps the other two, rather than
         // having to restate copy it did not want to change.
-        templates: { ...DEFAULT_MAIL_TEMPLATES, ...config.templates }
+        templates: { ...DEFAULT_MAIL_TEMPLATES, ...config.templates },
+        notificationTemplates: {
+            ...DEFAULT_NOTIFICATION_TEMPLATES,
+            ...config.notificationTemplates
+        }
     };
 }

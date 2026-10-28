@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
+import { useSearchParams } from 'react-router-dom';
 import {
     Container,
     ContainerHeader,
@@ -10,7 +11,7 @@ import {
     TabsList,
     TabsTrigger
 } from '@orthacms/design-system';
-import { useAuth } from '@orthacms/identity-admin';
+import { useAuth, useHasPermission } from '@orthacms/identity-admin';
 import { PageTopBar } from '@orthacms/shell-admin';
 import { useCurrentWorkspace } from '@orthacms/workspaces-admin';
 import { ShieldCheck } from 'lucide-react';
@@ -23,6 +24,7 @@ import {
     type RecentlyApprovedItem,
     type ReviewQueueItem
 } from '../../../domain/types';
+import { ProtectionSettings } from '../../components/ProtectionSettings';
 import { RecentlyApprovedTable } from '../../components/RecentlyApprovedTable';
 import {
     ReviewPanel,
@@ -54,6 +56,19 @@ const messages = defineMessages({
     tabApproved: {
         id: 'protection.reviews.tabApproved',
         defaultMessage: 'Recently approved'
+    },
+    tabRules: {
+        id: 'protection.reviews.tabRules',
+        defaultMessage: 'Rules'
+    },
+    rulesTitle: {
+        id: 'protection.reviews.rulesTitle',
+        defaultMessage: 'Publishing rules'
+    },
+    rulesSubtitle: {
+        id: 'protection.reviews.rulesSubtitle',
+        defaultMessage:
+            'Content types that need a review before they go live, in this workspace.'
     },
     loading: {
         id: 'protection.reviews.loading',
@@ -90,8 +105,21 @@ const messages = defineMessages({
     }
 });
 
-/** The three questions the page answers. */
-type Tab = 'waiting' | 'mine' | 'approved';
+/**
+ * The three questions the page answers, and — for an administrator — the
+ * rules that make anybody ask them.
+ */
+type Tab = 'waiting' | 'mine' | 'approved' | 'rules';
+
+const TABS: readonly Tab[] = ['waiting', 'mine', 'approved', 'rules'];
+
+/** `?tab=`, read leniently: anything unknown is the default tab. */
+function tabOf(value: string | null, canManage: boolean): Tab {
+    const tab = TABS.find((candidate) => candidate === value) ?? 'waiting';
+    // The Rules tab is not rendered without the permission, so a link to it
+    // lands on the queue rather than on a tab that is not there.
+    return tab === 'rules' && !canManage ? 'waiting' : tab;
+}
 
 /** A queue line as the side panel reads it. */
 function fromQueue(item: ReviewQueueItem): ReviewPanelItem {
@@ -126,9 +154,9 @@ function fromApproved(item: RecentlyApprovedItem): ReviewPanelItem {
 /**
  * The reviewer's queue — **the page without which the feature does not work**.
  *
- * Approvals can be recorded from the moment a rule exists, but until the mail
- * port lands (ORT-207) nothing tells a reviewer that one is wanted. This is the
- * only place somebody finds out, which is why it is a page of its own rather
+ * A request mails the reviewers it names (when a mail provider is configured)
+ * and the navigation counts what waits, but this is where the asks are — which
+ * is why it is a page of its own rather
  * than a saved view of one collection's records list: a saved view can only
  * ever ask about the collection it belongs to, and an ask arrives against
  * whichever type someone happened to be editing.
@@ -142,13 +170,35 @@ function fromApproved(item: RecentlyApprovedItem): ReviewPanelItem {
  * **Review opens a side panel beside the table** with the changes since the
  * live version and Approve, so a reviewer can work down the queue without
  * leaving it; Open record is there for a closer look.
+ *
+ * **The rules live here too**, on a fourth tab only `protection:manage` sees.
+ * They used to be a section of workspace settings, which put "why does this
+ * need a review" one page away from "what needs a review" — alarms keep their
+ * rules beside their findings for the same reason. They are still the
+ * workspace's rules: nothing about how a rule is stored or scoped moved. The
+ * tab is in the URL (`?tab=rules`) so the old settings address can redirect
+ * to it and a link can open it.
  */
 export function ReviewsPage() {
     const intl = useIntl();
     const auth = useAuth();
     const workspace = useCurrentWorkspace();
-    const [tab, setTab] = useState<Tab>('waiting');
-    const [approvedOpened, setApprovedOpened] = useState(false);
+    const canManage = useHasPermission('protection:manage');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const tab = tabOf(searchParams.get('tab'), canManage);
+    const setTab = (next: Tab) =>
+        setSearchParams(
+            (params) => {
+                const updated = new URLSearchParams(params);
+                if (next === 'waiting') updated.delete('tab');
+                else updated.set('tab', next);
+                return updated;
+            },
+            { replace: true }
+        );
+    const [approvedClicked, setApprovedOpened] = useState(false);
+    // Opened by a click or arrived at by link — either way the read is wanted.
+    const approvedOpened = approvedClicked || tab === 'approved';
     const [reviewing, setReviewing] = useState<ReviewPanelItem | null>(null);
     const trigger = useRef<HTMLElement | null>(null);
 
@@ -260,6 +310,11 @@ export function ReviewsPage() {
                                 <TabsTrigger value="approved">
                                     {intl.formatMessage(messages.tabApproved)}
                                 </TabsTrigger>
+                                {canManage ? (
+                                    <TabsTrigger value="rules">
+                                        {intl.formatMessage(messages.tabRules)}
+                                    </TabsTrigger>
+                                ) : null}
                             </TabsList>
 
                             <TabsContent value="waiting">
@@ -310,6 +365,31 @@ export function ReviewsPage() {
                                     </p>
                                 )}
                             </TabsContent>
+                            {canManage ? (
+                                <TabsContent value="rules">
+                                    <section
+                                        aria-labelledby="protection-rules-heading"
+                                        className="flex flex-col gap-4"
+                                    >
+                                        <div>
+                                            <h2
+                                                id="protection-rules-heading"
+                                                className="text-base font-semibold"
+                                            >
+                                                {intl.formatMessage(
+                                                    messages.rulesTitle
+                                                )}
+                                            </h2>
+                                            <p className="text-sm text-muted-foreground">
+                                                {intl.formatMessage(
+                                                    messages.rulesSubtitle
+                                                )}
+                                            </p>
+                                        </div>
+                                        <ProtectionSettings />
+                                    </section>
+                                </TabsContent>
+                            ) : null}
                         </Tabs>
                     </>
                 )}

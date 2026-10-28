@@ -46,7 +46,9 @@ import {
 } from '../infrastructure/review-approval.repository';
 import { ReviewRequestRepository } from '../infrastructure/review-request.repository';
 import { PROTECTION_EVENT_KINDS, reviewEvent } from '../protection.events';
+import { ReviewNotifier } from './review-notifier';
 import type {
+    ProtectionRuleView,
     EntryReviewView,
     NewEntryProtectionView,
     PublishOutlookView,
@@ -112,7 +114,10 @@ export class EntryReviewService {
         private readonly permissions: PermissionsService,
         private readonly accessPolicy: AccessPolicy,
         @InjectContentRegistry()
-        private readonly registry: ContentTypeRegistry
+        private readonly registry: ContentTypeRegistry,
+        // Optional only so the unit specs, which build this service by hand,
+        // need not; Nest always provides it.
+        private readonly notifier?: ReviewNotifier
     ) {}
 
     /**
@@ -298,7 +303,15 @@ export class EntryReviewService {
         if (!reviewers.length || reviewers.some((id) => !eligible.has(id))) {
             throw new ReviewerNotEligibleError();
         }
+        const rule = await this.ruleFor(entry);
         await this.uow.run(async () => {
+            // Who was already asked, so only the people this write adds are
+            // told — changing the reviewers replaces the list whole.
+            const previous = await this.requests.findOpen(
+                workspaceId,
+                entry.entryId
+            );
+            const alreadyAsked = new Set(previous?.reviewerIds ?? []);
             const request = await this.requests.open({
                 workspaceId,
                 contentType: entry.contentType,
@@ -321,6 +334,17 @@ export class EntryReviewService {
                 ),
                 actor
             );
+            await this.notifier?.reviewRequested({
+                workspaceId,
+                contentType: entry.contentType,
+                entryId: entry.entryId,
+                requestId: request.id,
+                revisionId: entry.head.id,
+                requesterId: actor.id,
+                reviewerIds: reviewers,
+                newReviewerIds: reviewers.filter((id) => !alreadyAsked.has(id)),
+                requiredApprovals: rule?.enabled ? rule.requiredApprovals : 0
+            });
         });
     }
 
@@ -378,6 +402,10 @@ export class EntryReviewService {
         }
 
         await this.uow.run(async () => {
+            const before = await this.approvals.listForEntry(
+                workspaceId,
+                entry.entryId
+            );
             await this.approvals.cast({
                 workspaceId,
                 contentType: entry.contentType,
@@ -402,7 +430,54 @@ export class EntryReviewService {
                 ),
                 actor
             );
+            await this.tellRequesterIfReady(entry, rule, before, actor);
         });
+    }
+
+    /**
+     * Tells the requester their record has every approval it needs, when
+     * **this** vote is the one that completed the count — the kernel's count,
+     * before and after it, so "ready" means what the publish button will say.
+     */
+    private async tellRequesterIfReady(
+        entry: ResolvedEntry,
+        rule: ProtectionRuleView | null,
+        before: readonly { revisionId: string; userId: string }[],
+        actor: ReviewActor
+    ): Promise<void> {
+        if (!this.notifier || !rule?.enabled) return;
+        const request = await this.requests.findOpen(
+            entry.workspaceId,
+            entry.entryId
+        );
+        if (!request || request.requestedBy === actor.id) return;
+        const counted = (
+            approvals: readonly { revisionId: string; userId: string }[]
+        ) =>
+            countApprovals({
+                rule,
+                headRevisionId: entry.head.id,
+                headAuthorId: entry.head.authorId,
+                approvals,
+                actor: { userId: actor.id, isAdmin: false, isToken: false }
+            }).given;
+        const after = [
+            ...before,
+            { revisionId: entry.head.id, userId: actor.id }
+        ];
+        if (
+            counted(before) < rule.requiredApprovals &&
+            counted(after) >= rule.requiredApprovals
+        ) {
+            await this.notifier.reviewReady({
+                workspaceId: entry.workspaceId,
+                contentType: entry.contentType,
+                entryId: entry.entryId,
+                requesterId: request.requestedBy,
+                revisionId: entry.head.id,
+                requiredApprovals: rule.requiredApprovals
+            });
+        }
     }
 
     /**

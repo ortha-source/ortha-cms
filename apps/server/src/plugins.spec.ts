@@ -32,6 +32,7 @@ const EXPECTED_PLUGINS = [
     'identity',
     'workspaces',
     'activity',
+    'inbox',
     'users',
     'content',
     'content-views',

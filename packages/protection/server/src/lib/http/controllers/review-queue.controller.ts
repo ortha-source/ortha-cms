@@ -12,6 +12,7 @@ import { ReviewQueueService } from '../../application/review-queue.service';
 import { ReviewQueueQueryDto } from '../../application/dto/review-queue-query.dto';
 import type {
     RecentlyApprovedView,
+    ReviewQueueSummaryView,
     ReviewQueueView
 } from '../../types/protection-views';
 
@@ -52,6 +53,26 @@ export class ReviewQueueController {
         @CurrentUser() user: PublicUser
     ): Promise<RecentlyApprovedView> {
         return this.queue.recentlyApproved(workspaceId, user.id);
+    }
+
+    /**
+     * The queue's tab counts: `GET /api/protection/queue/summary` — what the
+     * Reviews navigation badge and the sidebar's workspace list show.
+     */
+    @ApiOperation({
+        summary: 'Count the caller’s open review requests',
+        description:
+            '`waitingOnMe` counts open requests that name the caller and ' +
+            'that somebody else sent; `mine` counts open requests the caller ' +
+            'sent — the same split as the Reviews page’s first two tabs.'
+    })
+    @RequirePermissions(PERMISSIONS.CONTENT_READ)
+    @Get('summary')
+    summary(
+        @CurrentWorkspace() workspaceId: string,
+        @CurrentUser() user: PublicUser
+    ): Promise<ReviewQueueSummaryView> {
+        return this.queue.summary(workspaceId, user.id);
     }
 
     /** Open review requests in the workspace, newest first. */

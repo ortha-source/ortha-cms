@@ -1,10 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import {
     MAIL_KINDS,
+    NOTICE_TTL_MS,
+    appLink,
     inviteLink,
     passwordResetLink,
     type MailDispatcher,
     type MailKind,
+    type Notice,
+    type NoticeContext,
+    type NotificationDispatcher,
+    type NotificationTemplate,
     type RevealableLink,
     type TransactionalMail
 } from '@orthacms/mail-domain';
@@ -22,7 +28,9 @@ import { MailDeliveryRepository } from '../infrastructure/mail-delivery.reposito
  * decides what an invitation says.
  */
 @Injectable()
-export class MailDispatcherService implements MailDispatcher {
+export class MailDispatcherService
+    implements MailDispatcher, NotificationDispatcher
+{
     constructor(
         private readonly deliveries: MailDeliveryRepository,
         @InjectMailConfig() private readonly config: ResolvedMailConfig
@@ -60,6 +68,37 @@ export class MailDispatcherService implements MailDispatcher {
             link,
             userId: mail.userId,
             expiresAt: mail.expiresAt
+        });
+    }
+
+    /**
+     * Renders a notice and writes it to the queue, in the caller's open
+     * transaction like a token message.
+     *
+     * No `link` is stored — the row has no secret for `reveal-link` to hand
+     * back — and it expires after {@link NOTICE_TTL_MS}, so a notice that
+     * could not be handed over for days is swept rather than delivered late.
+     */
+    async notify(notice: Notice): Promise<void> {
+        const context: NoticeContext = {
+            productName: this.config.productName,
+            url: (path) => appLink(this.config.appUrl, path)
+        };
+        // The map is keyed by kind, so this template takes exactly this
+        // notice; TypeScript cannot follow the correlation through an index.
+        const template = this.config.notificationTemplates[
+            notice.kind
+        ] as NotificationTemplate;
+        const rendered = template(notice, context);
+
+        await this.deliveries.enqueue({
+            kind: notice.kind,
+            toAddress: notice.to,
+            subject: rendered.subject,
+            bodyText: rendered.text,
+            ...(rendered.html ? { bodyHtml: rendered.html } : {}),
+            userId: notice.userId,
+            expiresAt: new Date(Date.now() + NOTICE_TTL_MS)
         });
     }
 

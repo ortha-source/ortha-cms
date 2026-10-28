@@ -1,5 +1,6 @@
 import type { ComponentType, ReactNode } from 'react';
 import { createSlot } from '@orthacms/utils-admin';
+import type { NavBadge } from '@orthacms/shell-admin';
 
 /**
  * A navigation entry in the workspace sidebar's "Workspace" section, rendered
@@ -36,6 +37,48 @@ export type WorkspaceNavItem = {
      * member (the default — the linked page still gates itself).
      */
     permission?: string;
+    /**
+     * Optional count for the row ("Reviews 3"). A **hook**, called on every
+     * render of the row and unconditionally — slot items are frozen at boot,
+     * so the number of hooks a row calls cannot change — before the permission
+     * gate, with `enabled` false when the row is gated out so a hidden row
+     * never fetches. It receives the open workspace's id because the sidebar
+     * renders **above** `CurrentWorkspaceProvider`. Returns `null` when it has
+     * nothing to say; the row draws the chip.
+     */
+    useBadge?: (workspaceId: string, enabled: boolean) => NavBadge | null;
+};
+
+/**
+ * A count another plugin hangs on one workspace's row in the global sidebar's
+ * Workspaces quick-list — "3 reviews waiting on you" beside "Marketing site" —
+ * so a member sees where they are wanted before opening anything.
+ *
+ * `workspaces-admin` owns the row and must not learn what is being counted, so
+ * the count arrives through this slot. The hook is called once per row per
+ * item, unconditionally (frozen at boot, like every slot), and gates itself:
+ * it returns `null` for a reader who may not see the thing it counts.
+ */
+export type WorkspaceListBadgeItem = {
+    /** Stable id, also the order chips are drawn in after `order`. */
+    id: string;
+    /** Sort order; lower is drawn first. */
+    order: number;
+    useBadge: (workspaceId: string) => NavBadge | null;
+};
+
+/**
+ * A control in the workspace sidebar's header row, between the back link and
+ * the collapse button — the inbox's button, so somebody working inside one
+ * workspace still hears about the others. A component, because the control is
+ * the contributor's own (its link, its label, its count).
+ */
+export type WorkspaceNavHeaderAction = {
+    /** Stable id (also the React key). */
+    id: string;
+    /** Sort order; lower is further left. */
+    order: number;
+    Component: ComponentType;
 };
 
 /**
@@ -166,12 +209,27 @@ export const WORKSPACE_ROUTE_SLOT =
     createSlot<WorkspaceRoute>('workspace.routes');
 
 /**
+ * Per-workspace counts on the global sidebar's Workspaces quick-list. Empty by
+ * default, and then every row is exactly what it was before the slot existed.
+ */
+export const WORKSPACE_LIST_BADGE_SLOT = createSlot<WorkspaceListBadgeItem>(
+    'workspace.list.badge'
+);
+
+/**
+ * Controls in the workspace sidebar's header row (see
+ * {@link WorkspaceNavHeaderAction}).
+ */
+export const WORKSPACE_NAV_HEADER_ACTION_SLOT =
+    createSlot<WorkspaceNavHeaderAction>('workspace.nav.headerAction');
+
+/**
  * The workspace **settings** page's tab slot — how a plugin adds a section to
  * a page `workspaces-admin` owns, without that package learning what the
  * section is for.
  *
- * `@orthacms/protection-admin` is the first contributor (the Protection tab
- * and its rule editor). With nothing registered the tab bar and its routes are
+ * No shipped plugin contributes one today — protection's rules, the first
+ * contributor, moved to its own Reviews page. With nothing registered the tab bar and its routes are
  * byte for byte what they were before the slot existed, which
  * `WorkspaceSettingsNav`' own spec pins — an empty slot is the state this
  * seam spends almost all of its life in, and nothing else would record that

@@ -9,9 +9,7 @@
 > carry. The packages' own `AGENTS.md` files are the reference for their
 > internals and this file keeps the cross-cutting picture.
 >
-> **What remains is unbuilt, not blocked on this feature:** mail on a review
-> request is not sent — the mail port exists (`packages/mail`) but nothing in
-> protection queues a message through it; the scheduling re-check waits on a
+> **What remains is unbuilt, not blocked on this feature:** the scheduling re-check waits on a
 > scheduler existing at all (ORT-210); and the `transfer`
 > question is moot because it is **not reachable** — an import calls only
 > `writer.create`/`.update`, and a create on a publishable type is stamped
@@ -285,7 +283,8 @@ rendering the button. Content owns the button because it already computes the
 publish gate's half of its state, and a second component drawing a second button
 would drift from the first.
 
-**`WORKSPACE_SETTINGS_TAB_SLOT`** (`workspaces-admin`). A contribution names a
+**`WORKSPACE_SETTINGS_TAB_SLOT`** (`workspaces-admin`) — the rules' first home; they have
+since moved to the Reviews page's **Rules** tab, beside the queue they create. A contribution names a
 path, a label, an icon, an order and the section to render; the settings page
 mounts it as a nested route and the tab strip links to it, between Content and
 Danger zone. Danger zone stays last because it is where a workspace is
@@ -520,10 +519,11 @@ protection.nothing_to_review`, and the editor offers neither Approve nor
 1. ~~**The rule works**~~ — **done.** ADR accepted, domain, three tables, the
    port, the routes, the two permissions, the guard slot, the rail section, the
    button states, the bypass dialog, the settings tab, the five event kinds.
-2. ~~**People use it**~~ — **done**, except mail. The reviews page, the records
-   column and the `reviewState` filter, the Insights card, the header chip, the
-   four tools. Mail on a review request is unbuilt: the mail port has shipped
-   (`packages/mail`), but no review-request template or enqueue exists.
+2. ~~**People use it**~~ — **done**. The reviews page, the records column and
+   the `reviewState` filter, the Insights card, the header chip, the four
+   tools, the navigation counts, and mail on a review request
+   ([ADR-0023](../adr/0023-notices-and-the-inbox.md): a `review_requested`
+   notice to each newly named reviewer, queued in the request's transaction).
 3. **Seams** — the scheduling re-check (after ORT-210), the feature page on the
    website and the docs section. The transfer question is **unreachable** rather
    than open: import cannot publish, so it never meets the guard.
