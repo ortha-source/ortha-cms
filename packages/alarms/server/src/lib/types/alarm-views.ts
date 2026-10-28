@@ -124,3 +124,10 @@ export interface AlarmPreviewSampleView {
 export interface AlarmFindingsByEntryView {
     byEntry: Record<string, AlarmFindingView[]>;
 }
+
+/** `GET/PUT /api/alarms/digest/settings`. */
+export interface AlarmDigestSettingsView {
+    frequency: 'daily' | 'weekly' | 'off';
+    /** Whether the deployment can send a digest at all (a mail provider). */
+    available: boolean;
+}

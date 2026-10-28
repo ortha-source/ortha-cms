@@ -20,6 +20,8 @@
         { "path": "../../workspaces/server/tsconfig.lib.json" },
         { "path": "../../content/server/tsconfig.lib.json" },
         { "path": "../../database/tsconfig.lib.json" },
-        { "path": "../../bootstrap/server/tsconfig.lib.json" }
+        { "path": "../../bootstrap/server/tsconfig.lib.json" },
+        { "path": "../../inbox/domain/tsconfig.lib.json" },
+        { "path": "../../mail/domain/tsconfig.lib.json" }
     ]
 }

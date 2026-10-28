@@ -57,3 +57,14 @@ export { severityTally } from './lib/copilot/findings-tool-output';
 export { AlarmEvaluator } from './lib/infrastructure/alarm-evaluator.service';
 export { AlarmFindingStore } from './lib/infrastructure/alarm-finding.store';
 export { AlarmRulesService } from './lib/application/alarm-rules.service';
+// The digest (ADR-0023): its schema for the host's diff, and the service a
+// test drives with a clock.
+export {
+    AlarmDigestService,
+    digestPeriod
+} from './lib/application/alarm-digest.service';
+export {
+    alarmDigestRuns,
+    alarmDigestSettings
+} from './lib/infrastructure/schema';
+export type { AlarmDigestSettingsView } from './lib/types/alarm-views';

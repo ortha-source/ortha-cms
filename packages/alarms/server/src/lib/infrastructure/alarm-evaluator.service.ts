@@ -15,6 +15,7 @@ import {
     type AlarmRuleRecord
 } from './alarm-rule.repository';
 import { AlarmFindingStore } from './alarm-finding.store';
+import { AlarmNotifier } from '../application/alarm-notifier';
 
 /**
  * Runs rules against content.
@@ -48,8 +49,33 @@ export class AlarmEvaluator {
         private readonly matches: EntryMatchQuery,
         @InjectContentRegistry()
         private readonly registry: ContentTypeRegistry,
-        @InjectAlarmsConfig() private readonly config: ResolvedAlarmsConfig
+        @InjectAlarmsConfig() private readonly config: ResolvedAlarmsConfig,
+        // Optional only so the unit specs, which build this by hand, need not.
+        private readonly notifier?: AlarmNotifier
     ) {}
+
+    /**
+     * The store's reconcile, then — when it opened anything — the alarm's
+     * creator is told. A notice that fails is logged and never fails the scan.
+     */
+    private async reconcile(
+        rule: AlarmRuleRecord,
+        examined: readonly string[],
+        matched: readonly string[]
+    ) {
+        const result = await this.findings.reconcile(rule, examined, matched);
+        if (result.opened > 0 && this.notifier) {
+            await this.notifier
+                .flagged(rule, result.opened)
+                .catch((error) =>
+                    this.logger.warn(
+                        `Could not tell the owner of alarm "${rule.name}" (${rule.id}) ` +
+                            `about ${result.opened} new finding(s): ${(error as Error).message}`
+                    )
+                );
+        }
+        return result;
+    }
 
     /**
      * Evaluates one or more entries of one type against every active rule for
@@ -135,7 +161,7 @@ export class AlarmEvaluator {
                 examined
             );
             if (matched === null) continue;
-            await this.findings.reconcile(rule, examined, matched);
+            await this.reconcile(rule, examined, matched);
         }
     }
 
@@ -220,11 +246,7 @@ export class AlarmEvaluator {
         const outsideWindow = flagged.filter((id) => !seen.has(id));
         const fullExamined = [...examined, ...outsideWindow];
 
-        const result = await this.findings.reconcile(
-            rule,
-            fullExamined,
-            matched
-        );
+        const result = await this.reconcile(rule, fullExamined, matched);
         await this.rules.markScanned(rule.id, new Date());
 
         return {
@@ -244,7 +266,7 @@ export class AlarmEvaluator {
     ): Promise<void> {
         const matched = await this.safeMatch(rule, type, rule.filter, entryIds);
         if (matched === null) return;
-        await this.findings.reconcile(rule, entryIds, matched);
+        await this.reconcile(rule, entryIds, matched);
     }
 
     /**

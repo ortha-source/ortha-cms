@@ -16,6 +16,8 @@ import {
 } from '@orthacms/workspaces-admin';
 import { COPILOT_TOOL_RESULT_SLOT } from '@orthacms/copilot-admin';
 import { HOME_SECTION_SLOT } from '@orthacms/shell-admin';
+import { INBOX_SETTINGS_SLOT } from '@orthacms/inbox-admin';
+import { AlarmDigestSettings } from '../../presentation/components/AlarmDigestSettings';
 import { AlarmsHomeAttention } from '../../presentation/components/AlarmsHomeAttention';
 import { BellRing } from 'lucide-react';
 import { AlarmsSkeleton } from '../../presentation/components/AlarmsSkeleton';
@@ -217,6 +219,18 @@ export function AlarmsPlugin(): AlarmsAdminPlugin {
                     {
                         id: 'alarms.records.saveAsRule',
                         Component: SaveFilterAsRuleAction
+                    }
+                ]
+            },
+            {
+                // The digest's frequency, on the reader's notification
+                // settings — per person, across every workspace.
+                slot: INBOX_SETTINGS_SLOT,
+                items: [
+                    {
+                        id: 'alarms.digest',
+                        order: 20,
+                        Component: AlarmDigestSettings
                     }
                 ]
             },

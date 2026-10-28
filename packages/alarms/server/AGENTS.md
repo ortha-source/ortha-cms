@@ -123,9 +123,12 @@ onto that would be a violation of the ADR, not compliance with it.
 
 ## Routes
 
-All under `/api/alarms`, all behind `WorkspaceGuard`. Reads need `alarms:read`,
+All under `/api/alarms`, all behind `WorkspaceGuard` except the digest
+setting, which is the person's rather than a workspace's. Reads need `alarms:read`,
 every write needs `alarms:manage` — the split that keeps "who may see a finding"
-apart from "who decides what the workspace considers wrong". Writes additionally
+apart from "who decides what the workspace considers wrong". (The digest
+setting's `PUT` needs only `alarms:read`: it changes what the caller is sent,
+not what the workspace considers wrong.) Writes additionally
 carry `OriginGuard`, per route rather than per class, matching content's
 controllers: these are cookie-authenticated and therefore CSRF-able.
 
@@ -140,6 +143,8 @@ controllers: these are cookie-authenticated and therefore CSRF-able.
 | `GET    /alarms/findings`          | `alarms:read`   |
 | `GET    /alarms/findings/by-entry` | `alarms:read`   |
 | `GET    /alarms/findings/summary`  | `alarms:read`   |
+| `GET    /alarms/digest/settings`   | `alarms:read`   |
+| `PUT    /alarms/digest/settings`   | `alarms:read`   |
 
 A content type that is unregistered and one the workspace was never granted
 produce the **same** 404 with the same message — content's own rule
@@ -175,6 +180,30 @@ deployment's content model.
   entries **nobody is touching** ("not updated in 90 days"), which by definition
   produce no events. `OutboxDispatcher` is the precedent for the mechanism. It
   is therefore not suitable for anything that must happen exactly once.
+
+## Who hears about a finding
+
+Findings used to wait to be looked at. Two things now carry them to people
+([ADR-0023](../../../docs/adr/0023-notices-and-the-inbox.md)), both optional
+ports this plugin never requires:
+
+- **The alarm's creator gets an inbox item** (`application/alarm-notifier.ts`,
+  through `INBOX_WRITER`) whenever a reconcile **opens** findings at `warn` or
+  `error` — `info` is an alarm saying something without asking anybody to
+  act. `AlarmEvaluator.reconcile` wraps the store's reconcile for it; a notice
+  that fails is logged and never fails the scan. An alarm with no
+  `created_by` tells nobody.
+- **A digest by mail** (`application/alarm-digest.service.ts`, through
+  `NOTIFICATION_DISPATCHER`): per person, across every workspace they belong
+  to, the warn/error findings first seen since their previous digest, grouped
+  by workspace and alarm. `daily` (the default), `weekly` (Mondays) or `off`,
+  stored in `alarm_digest_settings`; nothing is sent for a quiet period. The
+  timer is per-process like the sweep, so **once per period** is the job of
+  `alarm_digest_runs` — `(user_id, period_key)` is claimed in the same
+  transaction that queues the mail, and a second instance's claim is a no-op.
+  It never runs before `digestHourUtc` (default 7) and is armed only with a
+  mail dispatcher bound and `digestIntervalMinutes > 0` (default 30; `0`
+  turns it off, which the e2e harness does and drives it by hand).
 
 ## The copilot can read findings
 
@@ -235,7 +264,9 @@ the honest-looking operator turns a valid tree into a validation failure.
 
 ## Schema
 
-Two tables, migrations committed here (`__drizzle_migrations_alarms`).
+Four tables, migrations committed here (`__drizzle_migrations_alarms`):
+`alarm_rules`, `alarm_findings`, and the digest's `alarm_digest_settings` and
+`alarm_digest_runs` (`0002_digest`).
 `workspace_id`, `entry_id` and `created_by` carry **no FK** — the first two
 point at identity- and host-owned tables, and the last must outlive the user it
 names, exactly like `activity_events.actor_id`.

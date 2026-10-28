@@ -33,6 +33,22 @@ function assertConfig(config: AlarmsPluginConfig): void {
             );
         }
     }
+    const digest = config.digestIntervalMinutes;
+    if (digest !== undefined && (!Number.isInteger(digest) || digest < 0)) {
+        throw new Error(
+            'AlarmsPlugin: digestIntervalMinutes must be a non-negative integer ' +
+                `(0 disables the digest); got ${digest}.`
+        );
+    }
+    const hour = config.digestHourUtc;
+    if (
+        hour !== undefined &&
+        (!Number.isInteger(hour) || hour < 0 || hour > 23)
+    ) {
+        throw new Error(
+            `AlarmsPlugin: digestHourUtc must be an hour from 0 to 23; got ${hour}.`
+        );
+    }
     const sweep = config.sweepIntervalMinutes;
     if (sweep !== undefined && (!Number.isInteger(sweep) || sweep < 0)) {
         throw new Error(

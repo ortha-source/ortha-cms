@@ -16,6 +16,8 @@ src/lib/
   presentation/
     inboxPlugin/               the factory
     pages/InboxPage/           /inbox — tabs in the URL, Today / Earlier
+    pages/InboxSettingsPage/   /inbox/settings — one section per INBOX_SETTINGS_SLOT item
+    slots/inboxSlots/          INBOX_SETTINGS_SLOT
     components/
       InboxItemRow/            one item: tile, sentence (readItem), where, when, action
       InboxHeaderButton/       the workspace header's button (WORKSPACE_NAV_HEADER_ACTION_SLOT)
@@ -52,3 +54,11 @@ item costs no request to name where it happened.
 **Every tab has a panel.** Radix gives each trigger `aria-controls`; with one
 panel for the open tab only, the others dangle and axe fails
 `aria-valid-attr-value`. One `TabsContent` per tab, the list in the open one.
+
+**Notification settings belong to whoever sends the notice.** `/inbox/settings`
+is a page with no settings of its own: each plugin that tells people things
+contributes a section to `INBOX_SETTINGS_SLOT` (alarms: the digest's
+frequency), which reads and saves its own data. The page exists even when the
+slot is empty — the digest mail links to it — and then says there is nothing
+to configure. The inbox itself is never switched off: it is the record of what
+somebody was told.

@@ -6,7 +6,9 @@ import type {
     AlarmRulePreview,
     AlarmRuleUpdated,
     AlarmScanResult,
-    AlarmSummary
+    AlarmSummary,
+    DigestFrequency,
+    DigestSettings
 } from '../../types/alarm';
 import type {
     AlarmsGateway,
@@ -119,5 +121,31 @@ export const httpAlarmsGateway: AlarmsGateway = {
                 : undefined
         );
         return toAlarmSummary(data);
+    },
+
+    async digestSettings(): Promise<DigestSettings> {
+        const { data } = await apiClient.get<DigestSettings>(
+            '/alarms/digest/settings'
+        );
+        return toDigestSettings(data);
+    },
+
+    async saveDigestSettings(
+        frequency: DigestFrequency
+    ): Promise<DigestSettings> {
+        const { data } = await apiClient.put<DigestSettings>(
+            '/alarms/digest/settings',
+            { frequency }
+        );
+        return toDigestSettings(data);
     }
 };
+
+/** An unknown frequency reads as the default, `daily`. */
+function toDigestSettings(data: Partial<DigestSettings>): DigestSettings {
+    const frequency =
+        data.frequency === 'weekly' || data.frequency === 'off'
+            ? data.frequency
+            : 'daily';
+    return { frequency, available: data.available !== false };
+}

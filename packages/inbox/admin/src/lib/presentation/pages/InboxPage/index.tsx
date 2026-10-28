@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { useSearchParams } from 'react-router-dom';
-import { CheckCheck, Inbox } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { CheckCheck, Inbox, Settings } from 'lucide-react';
 import {
     Button,
     Container,
@@ -44,6 +44,10 @@ const messages = defineMessages({
         defaultMessage: '{count, plural, one {# unread} other {# unread}}'
     },
     markAll: { id: 'inbox.markAll', defaultMessage: 'Mark all as read' },
+    settings: {
+        id: 'inbox.settingsLink',
+        defaultMessage: 'Notification settings'
+    },
     today: { id: 'inbox.today', defaultMessage: 'Today' },
     earlier: { id: 'inbox.earlier', defaultMessage: 'Earlier' },
     more: { id: 'inbox.more', defaultMessage: 'Show older' },
@@ -191,6 +195,12 @@ export function InboxPage() {
                 ]}
             />
             <PageActionsPortal>
+                <Button asChild variant="outline" size="sm">
+                    <Link to="/inbox/settings">
+                        <Settings aria-hidden />
+                        {intl.formatMessage(messages.settings)}
+                    </Link>
+                </Button>
                 <Button
                     size="sm"
                     onClick={() => markAll.mutate(category)}

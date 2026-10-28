@@ -400,6 +400,19 @@ locally is a hue nobody measured.
   without them this whole surface renders for nobody and no browser test can see
   it, which is why it shipped with a `window.prompt` in it.
 
+## The digest's frequency, on the notification settings
+
+`AlarmDigestSettings` fills `@orthacms/inbox-admin`'s `INBOX_SETTINGS_SLOT`:
+Daily / Weekly / Off as a `SegmentedControl`, read and saved through
+`GET`/`PUT /alarms/digest/settings` (`application/useDigestSettings`, keyed
+`alarmsKeys.digestSettings()` — the only alarms key **without** a workspace
+id, because the setting is the person's and one digest covers every
+workspace). It renders nothing without `alarms:read`. With no mail provider
+the server answers `available: false` and the control stays visible but
+disabled, with the reason beside it — a setting that silently does nothing is
+worse than one that says why. Pinned in `admin-e2e`'s
+`inbox/inbox-settings.spec.ts`.
+
 ## On Home
 
 `AlarmsHomeAttention` fills `HOME_SECTION_SLOT`'s `attention` region: open

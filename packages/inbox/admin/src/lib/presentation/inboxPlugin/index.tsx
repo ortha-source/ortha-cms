@@ -11,6 +11,10 @@ import { useInboxNavBadge } from '../hooks/useInboxNavBadge';
 // Lazy so the page is its own chunk; the badge and the header button are what
 // every screen pays for, and both read one small summary.
 const InboxPage = lazyPage(() => import('../pages/InboxPage'), 'InboxPage');
+const InboxSettingsPage = lazyPage(
+    () => import('../pages/InboxSettingsPage'),
+    'InboxSettingsPage'
+);
 
 /** Admin-side inbox plugin shape — a named alias of {@link AdminPlugin}. */
 export type InboxAdminPlugin = AdminPlugin;
@@ -30,6 +34,17 @@ export function InboxPlugin(): InboxAdminPlugin {
                 element: (
                     <Suspense fallback={<InboxSkeleton />}>
                         <InboxPage />
+                    </Suspense>
+                )
+            },
+            {
+                // The reader's notification settings — sections other
+                // plugins contribute (INBOX_SETTINGS_SLOT); the alarm
+                // digest's link points here.
+                path: '/inbox/settings',
+                element: (
+                    <Suspense fallback={<InboxSkeleton />}>
+                        <InboxSettingsPage />
                     </Suspense>
                 )
             }

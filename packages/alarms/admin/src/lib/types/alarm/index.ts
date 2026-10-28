@@ -88,6 +88,16 @@ export type AlarmRulePreview = {
     sample: { id: string; title: string | null }[];
 };
 
+/** How often the alarm digest is mailed to the reader. */
+export type DigestFrequency = 'daily' | 'weekly' | 'off';
+
+/** The reader's digest setting, and whether this deployment can mail one. */
+export type DigestSettings = {
+    frequency: DigestFrequency;
+    /** `false` with no mail provider configured — nothing is sent then. */
+    available: boolean;
+};
+
 /** Open counts for the workspace. */
 export type AlarmSummary = {
     open: Record<AlarmSeverity, number>;

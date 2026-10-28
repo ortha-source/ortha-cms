@@ -240,8 +240,9 @@ export function buildTestPlugins(
         // interval, and a background rescan firing mid-suite would
         // reconcile findings a test is in the middle of asserting on.
         // The event path and the explicit rescan are what the suites
-        // exercise, and neither needs the timer.
-        AlarmsPlugin({ sweepIntervalMinutes: 0 }),
+        // exercise, and neither needs the timer. The digest's timer is off
+        // for the same reason; `support/alarm-digest.ts` runs it by hand.
+        AlarmsPlugin({ sweepIntervalMinutes: 0, digestIntervalMinutes: 0 }),
         // Copilot before MCP: runs are workspace-scoped and execute as the
         // calling user, so it must register after workspaces and identity. Both
         // providers are scripted fakes — no key, no network, and the whole tool
