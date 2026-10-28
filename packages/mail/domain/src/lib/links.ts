@@ -72,3 +72,13 @@ export function inviteLink(appUrl: string, token: string): string {
 export function passwordResetLink(appUrl: string, token: string): string {
     return linkFor(appUrl, RESET_PASSWORD_PATH, token);
 }
+
+/**
+ * Joins an app-relative path (`workspaces/ws_1/reviews?tab=…`) onto `appUrl` —
+ * a notice's link, which carries no token. A leading slash is ignored, so the
+ * deployment's own base path survives either spelling.
+ */
+export function appLink(appUrl: string, path: string): string {
+    const base = appUrl.endsWith('/') ? appUrl : `${appUrl}/`;
+    return new URL(path.replace(/^\/+/, ''), base).toString();
+}

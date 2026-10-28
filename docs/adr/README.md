@@ -64,5 +64,6 @@ much of it changes:
 - [0020 — The schema builder writes code, and only in development](0020-schema-builder-writes-code.md)
 - [0021 — A storage provider may publish public URLs, and the operator decides whether the API reports them](0021-storage-providers-may-publish-public-urls.md)
 - [0022 — The entry editor is one form in schema order, and its properties open on demand](0022-entry-editor-one-form-properties-on-demand.md)
+- [0023 — Notices: a second kind of mail, and an inbox, so people hear about work](0023-notices-and-the-inbox.md)
 
 <!-- Add new ADRs to this index. -->

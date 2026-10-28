@@ -46,6 +46,7 @@ import {
 } from '../infrastructure/review-approval.repository';
 import { ReviewRequestRepository } from '../infrastructure/review-request.repository';
 import { PROTECTION_EVENT_KINDS, reviewEvent } from '../protection.events';
+import { ReviewNotifier } from './review-notifier';
 import type {
     EntryReviewView,
     NewEntryProtectionView,
@@ -112,7 +113,10 @@ export class EntryReviewService {
         private readonly permissions: PermissionsService,
         private readonly accessPolicy: AccessPolicy,
         @InjectContentRegistry()
-        private readonly registry: ContentTypeRegistry
+        private readonly registry: ContentTypeRegistry,
+        // Optional only so the unit specs, which build this service by hand,
+        // need not; Nest always provides it.
+        private readonly notifier?: ReviewNotifier
     ) {}
 
     /**
@@ -298,7 +302,15 @@ export class EntryReviewService {
         if (!reviewers.length || reviewers.some((id) => !eligible.has(id))) {
             throw new ReviewerNotEligibleError();
         }
+        const rule = await this.ruleFor(entry);
         await this.uow.run(async () => {
+            // Who was already asked, so only the people this write adds are
+            // told — changing the reviewers replaces the list whole.
+            const previous = await this.requests.findOpen(
+                workspaceId,
+                entry.entryId
+            );
+            const alreadyAsked = new Set(previous?.reviewerIds ?? []);
             const request = await this.requests.open({
                 workspaceId,
                 contentType: entry.contentType,
@@ -321,6 +333,15 @@ export class EntryReviewService {
                 ),
                 actor
             );
+            await this.notifier?.reviewRequested({
+                workspaceId,
+                contentType: entry.contentType,
+                entryId: entry.entryId,
+                requesterId: actor.id,
+                reviewerIds: reviewers,
+                newReviewerIds: reviewers.filter((id) => !alreadyAsked.has(id)),
+                requiredApprovals: rule?.enabled ? rule.requiredApprovals : 0
+            });
         });
     }
 

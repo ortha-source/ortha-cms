@@ -154,9 +154,9 @@ function fromApproved(item: RecentlyApprovedItem): ReviewPanelItem {
 /**
  * The reviewer's queue — **the page without which the feature does not work**.
  *
- * Approvals can be recorded from the moment a rule exists, but until the mail
- * port lands (ORT-207) nothing tells a reviewer that one is wanted. This is the
- * only place somebody finds out, which is why it is a page of its own rather
+ * A request mails the reviewers it names (when a mail provider is configured)
+ * and the navigation counts what waits, but this is where the asks are — which
+ * is why it is a page of its own rather
  * than a saved view of one collection's records list: a saved view can only
  * ever ask about the collection it belongs to, and an ask arrives against
  * whichever type someone happened to be editing.

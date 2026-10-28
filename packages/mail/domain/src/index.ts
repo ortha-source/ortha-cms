@@ -31,8 +31,29 @@ export {
 } from './lib/mail-dispatcher';
 
 export {
+    NOTICE_TTL_MS,
+    NOTIFICATION_DISPATCHER,
+    NOTIFICATION_KINDS,
+    type AlarmDigestLine,
+    type AlarmDigestNotice,
+    type AlarmDigestSection,
+    type Notice,
+    type NotificationDispatcher,
+    type NotificationKind,
+    type ReviewRequestedNotice
+} from './lib/notifications';
+
+export {
+    DEFAULT_NOTIFICATION_TEMPLATES,
+    type NoticeContext,
+    type NotificationTemplate,
+    type NotificationTemplates
+} from './lib/notification-templates';
+
+export {
     ACCEPT_INVITE_PATH,
     RESET_PASSWORD_PATH,
+    appLink,
     assertAppUrl,
     inviteLink,
     passwordResetLink

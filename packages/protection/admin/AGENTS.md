@@ -258,9 +258,9 @@ predates that decision and is wrong; the interface says the true thing.
 
 ## The Reviews page
 
-**It is the only way a reviewer learns there is work.** Approvals can be
-recorded the moment a rule exists, but nothing announces one until the mail port
-lands (ORT-207), so this page carries the whole feature's discoverability. It is
+**It is where a reviewer works through what is asked of them.** A request
+mails the people it names when the deployment has a mail provider, and the
+navigation counts it either way, but this page is where the asks are. It is
 a page rather than a saved view of a records list because an ask arrives against
 whichever type somebody happened to be editing, and a saved view can only ever
 ask about the collection it belongs to.

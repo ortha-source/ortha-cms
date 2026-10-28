@@ -26,6 +26,8 @@ import { ReviewStateFilterProvider } from './infrastructure/review-state-filter.
 import { ProtectionInsightsQuery } from './application/protection-insights.query';
 import { ProtectionInsightsController } from './http/controllers/protection-insights.controller';
 import { ProtectionToolProvider } from './tools/protection-tool.provider';
+import { ReviewNotifier } from './application/review-notifier';
+import { ReviewNoticeQuery } from './infrastructure/review-notice.query';
 
 /**
  * The protection plugin's module — three tables, one controller.
@@ -80,6 +82,10 @@ export class ProtectionModule {
                 // Who may be asked to review — one list for the picker and for
                 // the check the request route makes.
                 ReviewerCandidatesQuery,
+                // Tells the people a request newly names that they were asked
+                // — by mail when a provider is configured, a no-op otherwise.
+                ReviewNotifier,
+                ReviewNoticeQuery,
                 // Clears this workspace's rules, requests and approvals on
                 // delete. All three carry a plain `workspace_id` with no FK, so
                 // without this they outlive the workspace — the exact residue a

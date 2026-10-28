@@ -927,10 +927,6 @@ Existing suites: `apps/server-e2e/src/server/protection/` (`publish-guard`, `ent
 
 ### What is missing, and why
 
-- **Mail on a review request.** The mail port has shipped (`packages/mail`, ADR-0018), but
-  protection queues nothing through it and there is no review-request template, so the
-  Reviews page is the only way a reviewer learns there is work. That is the single largest usability gap in the
-  feature as shipped.
 - **The scheduled-publish re-check (ORT-210).** ADR-0017 requires the rule to be evaluated when
   a timer fires rather than when the schedule was set, and that a fired timer — having no human
   — cannot bypass. There is no scheduler yet, so there is nothing to hook.

@@ -62,6 +62,7 @@ function makeService(
         granted?: string[];
     } = {}
 ) {
+    const notified: unknown[] = [];
     const opened: unknown[] = [];
     const cast: unknown[] = [];
     const head =
@@ -101,10 +102,15 @@ function makeService(
         grants(...(options.granted ?? ['article'])) as never,
         { forRole: async () => [] } as never,
         { can: () => false } as never,
-        registry as never
+        registry as never,
+        {
+            reviewRequested: async (review: unknown) => {
+                notified.push(review);
+            }
+        } as never
     );
 
-    return { service: instance, opened, cast };
+    return { service: instance, opened, cast, notified };
 }
 
 describe('EntryReviewService.state', () => {
@@ -506,5 +512,70 @@ describe('EntryReviewService.requestReview', () => {
             )
         ).rejects.toBeInstanceOf(NothingToReviewError);
         expect(opened).toEqual([]);
+    });
+});
+
+/**
+ * Who hears about a request. Changing the reviewers replaces the list whole,
+ * so the notice goes to the people this write **adds** — "add Grace" must not
+ * be a second message to everyone already asked.
+ */
+describe('EntryReviewService.requestReview notices', () => {
+    const candidates = [
+        { userId: BORIS, email: 'boris@example.com' },
+        { userId: 'carla', email: 'carla@example.com' }
+    ];
+
+    it('tells everybody on a first ask, with the rule’s count', async () => {
+        const { service, notified } = makeService({
+            candidates,
+            rule: { enabled: true, requiredApprovals: 2 }
+        });
+
+        await service.requestReview(
+            WORKSPACE,
+            'article',
+            ENTRY,
+            [BORIS, 'carla'],
+            caller(ANNA)
+        );
+
+        expect(notified).toEqual([
+            expect.objectContaining({
+                requesterId: ANNA,
+                reviewerIds: [BORIS, 'carla'],
+                newReviewerIds: [BORIS, 'carla'],
+                requiredApprovals: 2
+            })
+        ]);
+    });
+
+    it('tells only the reviewer a changed request adds', async () => {
+        const { service, notified } = makeService({
+            candidates,
+            openRequest: {
+                id: 'request-1',
+                requestedBy: ANNA,
+                reviewerIds: [BORIS],
+                revisionId: 'rev-7',
+                createdAt: new Date()
+            }
+        });
+
+        await service.requestReview(
+            WORKSPACE,
+            'article',
+            ENTRY,
+            [BORIS, 'carla'],
+            caller(ANNA)
+        );
+
+        expect(notified).toEqual([
+            expect.objectContaining({
+                newReviewerIds: ['carla'],
+                // Nobody protected the type: an ask, not a gate.
+                requiredApprovals: 0
+            })
+        ]);
     });
 });

@@ -9,13 +9,15 @@ line for the same reason.
 
 ## What is here
 
-| File                 | What it holds                                                                                                                                                             |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `mail-provider.ts`   | The `MailProvider` port every adapter implements — `id`, declared `capabilities`, `send`, optional `verify` — plus `MailMessage`, `MailReceipt` and `MailPermanentError`. |
-| `mail-dispatcher.ts` | The `MailDispatcher` port a use case queues through, `MAIL_KINDS`, and the `TransactionalMail` it takes.                                                                  |
-| `links.ts`           | Where a message's links point, built from configured `appUrl` and never from a request header.                                                                            |
-| `templates.ts`       | The three templates and the `MailTemplates` map a host may override.                                                                                                      |
-| `retry-policy.ts`    | The backoff schedule and the attempt budget.                                                                                                                              |
+| File                        | What it holds                                                                                                                                                             |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mail-provider.ts`          | The `MailProvider` port every adapter implements — `id`, declared `capabilities`, `send`, optional `verify` — plus `MailMessage`, `MailReceipt` and `MailPermanentError`. |
+| `mail-dispatcher.ts`        | The `MailDispatcher` port a use case queues through, `MAIL_KINDS`, and the `TransactionalMail` it takes.                                                                  |
+| `links.ts`                  | Where a message's links point, built from configured `appUrl` and never from a request header.                                                                            |
+| `templates.ts`              | The three templates and the `MailTemplates` map a host may override.                                                                                                      |
+| `retry-policy.ts`           | The backoff schedule and the attempt budget.                                                                                                                              |
+| `notifications.ts`          | The **notice** port (`NOTIFICATION_DISPATCHER`), `NOTIFICATION_KINDS`, and the typed `Notice` union — messages with no token (ADR-0023).                                  |
+| `notification-templates.ts` | The notice copy and the `NotificationTemplates` map a host may override (`notificationTemplates`).                                                                        |
 
 ## The decisions that live here
 
@@ -57,6 +59,19 @@ token can get a message queued **inside its own transaction** without depending
 on the mail plugin. A deployment that configured no provider binds nothing, and
 that absence is the switch ADR-0018 §4 reads — the invite and reset routes keep
 returning the raw token exactly as they always have.
+
+## Notices are not transactional mail
+
+A **notice** (`review_requested`, `alarm_digest`) tells somebody that work
+concerns them; it carries **no token**, stores **no link**, and expires after
+`NOTICE_TTL_MS` (three days) rather than with a secret. It has its own port
+(`NotificationDispatcher.notify`), its own typed shape per kind and its own
+templates, because folding it into `TransactionalMail` would give every notice
+a fake token and every token message fields it never uses. Its kind must never
+reuse a `MAIL_KINDS` name: `reveal-link` tells a secret-bearing row from a
+notice by its kind (`notification-templates.spec.ts` pins it). Adding a notice
+is the same three things as a message kind: a `NOTIFICATION_KINDS` entry and
+its shape, a template, and the use case that raises it.
 
 ## Working here
 
