@@ -331,9 +331,16 @@ async function checkRunningApp(base, server) {
     }
 
     step(`POST /api/auth/login as ${email}`);
+    // `Origin` as a browser sends it — on every POST, same-origin included.
+    // Without it the origin guard waves the request through, and a login that
+    // answers 403 to every real browser passed here.
     const login = await fetch(`${base}/api/auth/login`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: {
+            'content-type': 'application/json',
+            // The address the generated README tells you to open.
+            origin: base.replace('127.0.0.1', 'localhost')
+        },
         body: JSON.stringify({ email, password })
     });
     expect(login.ok, `login answered ${login.status}: ${await login.text()}`);

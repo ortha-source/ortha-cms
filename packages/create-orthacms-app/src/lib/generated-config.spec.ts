@@ -210,6 +210,30 @@ describe('the GitHub provider', () => {
             scopes: ['read:user', 'user:email']
         });
     });
+
+    /**
+     * This template once read `SSO_GITHUB_ENTERPRISE_BASE_URL` and
+     * `SSO_GITHUB_ORGANIZATION` while the CMS's own host read the shorter
+     * names, so a setting copied between the two did nothing. Both apps read
+     * the short names now; the long ones still work, with a warning.
+     */
+    it('reads the same names the CMS host reads, and the old ones with a warning', () => {
+        process.env['SSO_GITHUB_CLIENT_ID'] = 'abc';
+        process.env['SSO_GITHUB_CLIENT_SECRET'] = 'shh';
+        process.env['SSO_GITHUB_ENTERPRISE_URL'] = 'https://github.acme.com';
+        delete process.env['SSO_GITHUB_ORG'];
+        process.env['SSO_GITHUB_ORGANIZATION'] = 'acme';
+        const warn = jest.spyOn(console, 'warn').mockImplementation();
+
+        expect(githubProvider()()).toMatchObject({
+            enterpriseBaseUrl: 'https://github.acme.com',
+            organization: 'acme'
+        });
+        expect(warn).toHaveBeenCalledWith(
+            expect.stringContaining('SSO_GITHUB_ORGANIZATION has been renamed')
+        );
+        warn.mockRestore();
+    });
 });
 
 describe('the SAML provider', () => {
@@ -534,6 +558,7 @@ describe('the webhook URL policy', () => {
         allowInsecureUrls?: boolean;
         allowPrivateNetworks?: boolean;
         retentionDays?: number;
+        deliveryIntervalMs?: number;
     } {
         return load<{ webhooksConfig: () => never }>(
             ['media-local', 'rest'],
@@ -560,6 +585,21 @@ describe('the webhook URL policy', () => {
             allowInsecureUrls: true,
             allowPrivateNetworks: true,
             retentionDays: 7
+        });
+    });
+
+    /**
+     * Both zeros are documented — "queue but never send from this process"
+     * and "keep the log forever" — and both used to stop the app from booting,
+     * because they were read as positive integers.
+     */
+    it('takes 0 for the send interval and the retention window', () => {
+        process.env['WEBHOOKS_DELIVERY_INTERVAL'] = '0';
+        process.env['WEBHOOKS_RETENTION_DAYS'] = '0';
+
+        expect(webhooksConfig()()).toMatchObject({
+            deliveryIntervalMs: 0,
+            retentionDays: 0
         });
     });
 });
@@ -646,5 +686,55 @@ describe('the schema builder', () => {
             projectRoot: resolve(process.cwd(), 'server'),
             restart: 'manual'
         });
+    });
+
+    it('refuses a restart mode it does not know instead of reading it as watch', () => {
+        process.env['SCHEMA_BUILDER_RESTART'] = 'manaul';
+
+        expect(() => schemaBuilderConfig()()).toThrow(
+            'SCHEMA_BUILDER_RESTART must be one of watch, manual'
+        );
+    });
+});
+
+/**
+ * The origin guard on sign-in. A browser sends `Origin` on every POST,
+ * same-origin included, so the origin `npm start` serves the admin from must be
+ * allowed by default — it was not, and a freshly generated app answered every
+ * browser sign-in with a 403 while the smoke test, which sent no `Origin`,
+ * passed.
+ */
+describe('the allowed origins', () => {
+    /** Renders a default app and reads the identity builder back. */
+    function allowedOrigins(): string[] {
+        return load<{ identityConfig: () => { allowedOrigins: string[] } }>(
+            ['media-local', 'rest'],
+            'apps/server/config/identity'
+        ).identityConfig().allowedOrigins;
+    }
+
+    beforeEach(() => {
+        delete process.env['ALLOWED_ORIGINS'];
+        delete process.env['ADMIN_PORT'];
+        delete process.env['PORT'];
+    });
+
+    it('allows the dev server and the origin `npm start` serves', () => {
+        expect(allowedOrigins()).toEqual([
+            'http://localhost:4200',
+            'http://localhost:3000'
+        ]);
+    });
+
+    it('follows PORT, which is what `npm start` listens on', () => {
+        process.env['PORT'] = '8080';
+
+        expect(allowedOrigins()).toContain('http://localhost:8080');
+    });
+
+    it('takes a deployment origin from ALLOWED_ORIGINS', () => {
+        process.env['ALLOWED_ORIGINS'] = 'https://cms.example.com';
+
+        expect(allowedOrigins()).toEqual(['https://cms.example.com']);
     });
 });

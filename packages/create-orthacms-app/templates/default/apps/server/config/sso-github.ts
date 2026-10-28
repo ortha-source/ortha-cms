@@ -33,10 +33,10 @@ export function githubProvider():
         // the CMS access it has no use for.
         scopes: scopes.length > 0 ? scopes : undefined,
         // Only for GitHub Enterprise Server; github.com needs none.
-        enterpriseBaseUrl: readEnv('SSO_GITHUB_ENTERPRISE_BASE_URL'),
+        enterpriseBaseUrl: readEnv('SSO_GITHUB_ENTERPRISE_URL'),
         // Cosmetic, like Google's `hd`: it shapes the account chooser. Who
         // actually gets in is this CMS's own decision, not GitHub's.
-        organization: readEnv('SSO_GITHUB_ORGANIZATION')
+        organization: readEnv('SSO_GITHUB_ORG')
     });
 }
 // orthacms:end

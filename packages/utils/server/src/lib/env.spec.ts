@@ -3,6 +3,7 @@ import {
     isProduction,
     NODE_ENVS,
     readEnv,
+    readEnum,
     readFlag,
     readList,
     readNodeEnv,
@@ -296,18 +297,74 @@ describe('environment readers', () => {
             expect(readFlag('ORTHACMS_TEST_FLAG', true)).toBe(true);
         });
 
-        it('is true only for exactly "true"', () => {
-            set('ORTHACMS_TEST_FLAG', 'true');
-            expect(readFlag('ORTHACMS_TEST_FLAG', false)).toBe(true);
-        });
-
-        it('turns the switch off for anything else, including a typo', () => {
-            // These gate surfaces that send content to a third party or open a
-            // door for an external agent. A misspelling must not open one.
-            for (const raw of ['TRUE', 'yes', '1', 'ture']) {
+        it('reads true and 1 as on, false and 0 as off, in any case', () => {
+            for (const raw of ['true', 'TRUE', 'True', '1']) {
+                set('ORTHACMS_TEST_FLAG', raw);
+                expect(readFlag('ORTHACMS_TEST_FLAG', false)).toBe(true);
+            }
+            for (const raw of ['false', 'FALSE', '0']) {
                 set('ORTHACMS_TEST_FLAG', raw);
                 expect(readFlag('ORTHACMS_TEST_FLAG', true)).toBe(false);
             }
+        });
+
+        it('refuses anything else instead of reading it as off', () => {
+            // `COPILOT_ENABLED=yes` used to switch the copilot off in silence,
+            // and an email-verification override spelt `ture` was a decision
+            // the operator believed they had made.
+            for (const raw of ['yes', 'ture', 'on', '2']) {
+                set('ORTHACMS_TEST_FLAG', raw);
+                expect(() => readFlag('ORTHACMS_TEST_FLAG', false)).toThrow(
+                    /ORTHACMS_TEST_FLAG must be true or false/
+                );
+            }
+        });
+    });
+
+    describe('readEnum', () => {
+        const MODES = ['off', 'signed-url'] as const;
+
+        it('falls back when unset or empty', () => {
+            set('ORTHACMS_TEST_ENUM', undefined);
+            expect(readEnum('ORTHACMS_TEST_ENUM', MODES, 'off')).toBe('off');
+            set('ORTHACMS_TEST_ENUM', '');
+            expect(readEnum('ORTHACMS_TEST_ENUM', MODES, 'off')).toBe('off');
+        });
+
+        it('reads an allowed value', () => {
+            set('ORTHACMS_TEST_ENUM', 'signed-url');
+            expect(readEnum('ORTHACMS_TEST_ENUM', MODES, 'off')).toBe(
+                'signed-url'
+            );
+        });
+
+        it('refuses a near miss and lists what it accepts', () => {
+            // `signed_url` used to read as `off`.
+            set('ORTHACMS_TEST_ENUM', 'signed_url');
+            expect(() => readEnum('ORTHACMS_TEST_ENUM', MODES, 'off')).toThrow(
+                'ORTHACMS_TEST_ENUM must be one of off, signed-url (got "signed_url")'
+            );
+        });
+    });
+
+    describe('renamed variables', () => {
+        it('reads the old name and warns once that it moved', () => {
+            const warn = jest.spyOn(console, 'warn').mockImplementation();
+            set('SSO_GITHUB_ORG', undefined);
+            set('SSO_GITHUB_ORGANIZATION', 'acme');
+            expect(readEnv('SSO_GITHUB_ORG')).toBe('acme');
+            expect(readEnv('SSO_GITHUB_ORG')).toBe('acme');
+            expect(warn).toHaveBeenCalledTimes(1);
+            expect(warn.mock.calls[0][0]).toContain(
+                'SSO_GITHUB_ORGANIZATION has been renamed to SSO_GITHUB_ORG'
+            );
+            warn.mockRestore();
+        });
+
+        it('prefers the current name when both are set', () => {
+            set('SSO_GITHUB_ORG', 'current');
+            set('SSO_GITHUB_ORGANIZATION', 'legacy');
+            expect(readEnv('SSO_GITHUB_ORG')).toBe('current');
         });
     });
 

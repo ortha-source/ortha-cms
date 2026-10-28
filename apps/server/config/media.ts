@@ -2,7 +2,7 @@
 import type { MediaPluginConfig } from '@orthacms/media-server';
 import type { LocalStorageConfig } from '@orthacms/media-provider-local';
 
-import { readEnv, readPositiveInt } from '@orthacms/utils-server';
+import { readEnum, readEnv, readPositiveInt } from '@orthacms/utils-server';
 
 /**
  * Media settings, plus the connection settings for the one storage backend this
@@ -41,10 +41,11 @@ export function mediaConfig(): OrthaCmsMediaConfig {
         // local-filesystem provider cannot, so setting this here without
         // switching the provider in `plugins.ts` is a boot error naming both,
         // which is the intended way to find out.
-        directServe:
-            readEnv('MEDIA_DIRECT_SERVE') === 'signed-url'
-                ? 'signed-url'
-                : 'off',
+        directServe: readEnum(
+            'MEDIA_DIRECT_SERVE',
+            ['off', 'signed-url'],
+            'off'
+        ),
         directServeTtlSeconds: readPositiveInt(
             'MEDIA_DIRECT_SERVE_TTL_SECONDS',
             300

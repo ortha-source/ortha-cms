@@ -180,10 +180,10 @@ describe('NODE_ENV', () => {
         expect(
             loadConfig({ NODE_ENV: undefined, API_DOCS: 'false' }).docs.enabled
         ).toBe(false);
-        // Fail-closed on any other spelling, which is the right way round.
-        expect(
-            loadConfig({ NODE_ENV: undefined, API_DOCS: 'TRUE' }).docs.enabled
-        ).toBe(false);
+        // Any other spelling refuses to load rather than guessing a direction.
+        expect(loadError({ NODE_ENV: undefined, API_DOCS: 'yes' })).toContain(
+            'API_DOCS must be true or false'
+        );
     });
 });
 
@@ -350,6 +350,49 @@ describe('copilot usage limits', () => {
         'COPILOT_MAX_CONCURRENT_RUNS'
     ])('rejects zero for %s', (name) => {
         expect(loadError({ ...unset, [name]: '0' })).toContain(name);
+    });
+});
+
+describe('settings whose documented value used to be refused', () => {
+    it('takes 0 for the webhook send interval and retention window', () => {
+        // "Queue but never send from this process" and "keep the log
+        // forever" are both spelt 0 in `.env.example`, and both refused boot.
+        const { webhooks } = loadConfig({
+            WEBHOOKS_DELIVERY_INTERVAL: '0',
+            WEBHOOKS_RETENTION_DAYS: '0'
+        }).plugins;
+        expect(webhooks).toMatchObject({
+            deliveryIntervalMs: 0,
+            retentionDays: 0
+        });
+    });
+});
+
+describe('a value outside what a setting accepts', () => {
+    it('refuses an unknown direct-serve mode instead of reading it as off', () => {
+        expect(loadError({ MEDIA_DIRECT_SERVE: 'signed_url' })).toContain(
+            'MEDIA_DIRECT_SERVE must be one of off, signed-url'
+        );
+    });
+
+    it('refuses a flag that is neither true nor false', () => {
+        expect(loadError({ COPILOT_ENABLED: 'yes' })).toContain(
+            'COPILOT_ENABLED must be true or false'
+        );
+    });
+
+    it('reads SSO_ALLOW_PASSWORD_LOGIN like every other flag', () => {
+        // It used to be "anything but the exact string false is on", the
+        // opposite convention to every other switch in this file.
+        const allowed = (value: string | undefined) =>
+            loadConfig({ SSO_ALLOW_PASSWORD_LOGIN: value }).plugins.identity.sso
+                ?.allowPasswordLogin;
+        expect(allowed(undefined)).toBe(true);
+        expect(allowed('false')).toBe(false);
+        expect(allowed('0')).toBe(false);
+        expect(loadError({ SSO_ALLOW_PASSWORD_LOGIN: 'no' })).toContain(
+            'SSO_ALLOW_PASSWORD_LOGIN must be true or false'
+        );
     });
 });
 

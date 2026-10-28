@@ -15,7 +15,7 @@ import type { GcsStorageConfig } from '@orthacms/media-provider-gcs';
 // orthacms:if media-vercel-blob
 import type { VercelBlobStorageConfig } from '@orthacms/media-provider-vercel-blob';
 // orthacms:end
-import { readEnv, readPositiveInt } from '@orthacms/utils-server';
+import { readEnum, readPositiveInt } from '@orthacms/utils-server';
 
 import { mediaStorage } from './media-storage';
 
@@ -51,10 +51,11 @@ export function mediaConfig(): AppMediaConfig {
         // for, and only possible on a backend that can sign a URL — the plugin
         // refuses the combination at boot rather than proxying while the
         // operator believes otherwise.
-        directServe:
-            readEnv('MEDIA_DIRECT_SERVE') === 'signed-url'
-                ? 'signed-url'
-                : 'off',
+        directServe: readEnum(
+            'MEDIA_DIRECT_SERVE',
+            ['off', 'signed-url'],
+            'off'
+        ),
         directServeTtlSeconds: readPositiveInt(
             'MEDIA_DIRECT_SERVE_TTL_SECONDS',
             300

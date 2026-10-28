@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 import type { SchemaBuilderPluginConfig } from '@orthacms/schema-builder-server';
-import { isProduction, readEnv, readFlag } from '@orthacms/utils-server';
+import { isProduction, readEnum, readEnv, readFlag } from '@orthacms/utils-server';
 
 /**
  * The schema builder — the admin's Content model page.
@@ -16,7 +16,6 @@ import { isProduction, readEnv, readFlag } from '@orthacms/utils-server';
  * `apps/server`; `SCHEMA_BUILDER_ROOT` overrides it for anything else.
  */
 export function schemaBuilderConfig(): SchemaBuilderPluginConfig {
-    const restart = readEnv('SCHEMA_BUILDER_RESTART');
     return {
         enabled: readFlag('SCHEMA_BUILDER', false),
         production: isProduction(),
@@ -24,6 +23,10 @@ export function schemaBuilderConfig(): SchemaBuilderPluginConfig {
         // `orthacms dev` runs `tsc --watch` and `node --watch`, so a change to
         // `src/content/` restarts the server on its own. `manual` is for a
         // server started some other way: the page asks you to restart it.
-        restart: restart === 'manual' ? 'manual' : 'watch'
+        restart: readEnum(
+            'SCHEMA_BUILDER_RESTART',
+            ['watch', 'manual'],
+            'watch'
+        )
     };
 }

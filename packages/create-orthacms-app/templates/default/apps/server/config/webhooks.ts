@@ -1,5 +1,9 @@
 import type { WebhooksPluginConfig } from '@orthacms/webhooks-server';
-import { readFlag, readPositiveInt } from '@orthacms/utils-server';
+import {
+    readFlag,
+    readNonNegativeInt,
+    readPositiveInt
+} from '@orthacms/utils-server';
 
 /**
  * Outgoing webhooks — how hard the sender pushes, and where it may reach.
@@ -21,13 +25,16 @@ export function webhooksConfig(): WebhooksPluginConfig {
     return {
         // 0 turns the sender off in this process. Rows still queue, so a
         // deployment can run web nodes that only enqueue and one that sends.
-        deliveryIntervalMs: readPositiveInt(
+        // `readNonNegativeInt`, because 0 is the documented setting here and
+        // the positive reader refused it at boot.
+        deliveryIntervalMs: readNonNegativeInt(
             'WEBHOOKS_DELIVERY_INTERVAL',
             2_000
         ),
         timeoutMs: readPositiveInt('WEBHOOKS_TIMEOUT', 10_000),
         // Nothing else prunes the delivery log.
-        retentionDays: readPositiveInt('WEBHOOKS_RETENTION_DAYS', 30),
+        // 0 keeps finished deliveries forever — the plugin skips pruning.
+        retentionDays: readNonNegativeInt('WEBHOOKS_RETENTION_DAYS', 30),
         allowInsecureUrls: readFlag('WEBHOOKS_ALLOW_INSECURE_URLS', false),
         allowPrivateNetworks: readFlag('WEBHOOKS_ALLOW_PRIVATE_NETWORKS', false)
     };

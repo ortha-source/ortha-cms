@@ -63,12 +63,17 @@ export interface AppIdentityConfig extends IdentityPluginConfig {
 export function identityConfig(): AppIdentityConfig {
     return {
         // Origins allowed to make state-changing calls (login-CSRF defence).
-        // In development that is the Vite dev server; in production the app is
-        // same-origin, so this list is what a separately-hosted admin would
-        // need adding to.
+        // A browser sends `Origin` on every POST, same-origin ones included,
+        // so the origin `npm start` serves the admin from has to be on this
+        // list as much as the Vite dev server does — leaving it off answered
+        // every login with a 403. A deployment on its own domain sets
+        // ALLOWED_ORIGINS to that origin.
         allowedOrigins: readList(
             'ALLOWED_ORIGINS',
-            `http://localhost:${readPositiveInt('ADMIN_PORT', 4200)}`
+            [
+                `http://localhost:${readPositiveInt('ADMIN_PORT', 4200)}`,
+                `http://localhost:${readPositiveInt('PORT', 3000)}`
+            ].join(',')
         ),
         session: {
             ttlSeconds: readPositiveInt('SESSION_TTL_SECONDS', 60 * 60 * 24 * 7),

@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 import type { SchemaBuilderPluginConfig } from '@orthacms/schema-builder-server';
-import { readEnv, readFlag } from '@orthacms/utils-server';
+import { readEnum, readEnv, readFlag } from '@orthacms/utils-server';
 
 import { isProduction } from './env';
 
@@ -16,11 +16,14 @@ import { isProduction } from './env';
  * `SCHEMA_BUILDER_ROOT` overrides it for anything else.
  */
 export function schemaBuilderConfig(): SchemaBuilderPluginConfig {
-    const restart = readEnv('SCHEMA_BUILDER_RESTART');
     return {
         enabled: readFlag('SCHEMA_BUILDER', false),
         production: isProduction,
         projectRoot: resolve(readEnv('SCHEMA_BUILDER_ROOT') ?? 'apps/server'),
-        restart: restart === 'manual' ? 'manual' : 'watch'
+        restart: readEnum(
+            'SCHEMA_BUILDER_RESTART',
+            ['watch', 'manual'],
+            'watch'
+        )
     };
 }

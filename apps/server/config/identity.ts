@@ -159,7 +159,7 @@ function ssoConfig(): NonNullable<IdentityPluginConfig['sso']> {
         // `IdentitySsoConfig.allowPasswordLogin`; without that exemption a
         // mis-scoped provider locks an operator out of their own CMS with no
         // way back short of a database client.
-        allowPasswordLogin: readEnv('SSO_ALLOW_PASSWORD_LOGIN') !== 'false',
+        allowPasswordLogin: readFlag('SSO_ALLOW_PASSWORD_LOGIN', true),
         // Shorter than the ordinary session lifetime for a provider with no
         // back-channel logout: without one, a session's own expiry is the only
         // thing that eventually ends access after somebody is offboarded.

@@ -241,6 +241,9 @@ the admin bundle on one origin. Set in the environment:
 - `DATABASE_URL` — required
 - `NODE_ENV=production` — spelled exactly; anything else drops `Secure` from the
   session cookie and publishes the API reference
+- `ALLOWED_ORIGINS` — the origin people open the admin on, e.g.
+  `https://cms.example.com`. Browsers send `Origin` on every sign-in, and one
+  not on this list is refused with a 403
 - `TRUST_PROXY` — required behind a load balancer, or every client shares one
   rate-limit bucket
 - `MEDIA_LOCAL_ROOT` — a persistent volume, or uploads vanish on each deploy
