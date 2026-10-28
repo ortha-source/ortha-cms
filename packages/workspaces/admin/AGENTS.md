@@ -191,7 +191,8 @@ exist", mirroring the API's flat 403.
   `defaultDescription`, shown under the section's `<h1>`) and the `element` to
   render; `WorkspaceSettingsNav` links
   to it and `WorkspaceSettingsPage` mounts it as a nested route.
-  `@orthacms/protection-admin` is the first contributor. Three rules worth
+  No shipped plugin contributes one today (`@orthacms/protection-admin` was the
+  first, and its rules moved to its own Reviews page). Three rules worth
   knowing:
     - **Contributed sections sit between Members and Danger zone**, and `order`
       sorts them only against each other. Danger zone is last because it is

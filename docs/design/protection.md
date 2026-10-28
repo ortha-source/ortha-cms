@@ -285,7 +285,8 @@ rendering the button. Content owns the button because it already computes the
 publish gate's half of its state, and a second component drawing a second button
 would drift from the first.
 
-**`WORKSPACE_SETTINGS_TAB_SLOT`** (`workspaces-admin`). A contribution names a
+**`WORKSPACE_SETTINGS_TAB_SLOT`** (`workspaces-admin`) — the rules' first home; they have
+since moved to the Reviews page's **Rules** tab, beside the queue they create. A contribution names a
 path, a label, an icon, an order and the section to render; the settings page
 mounts it as a nested route and the tab strip links to it, between Content and
 Danger zone. Danger zone stays last because it is where a workspace is

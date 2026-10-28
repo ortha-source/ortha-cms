@@ -69,7 +69,7 @@ exists on the current version or it does not.
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | A contributor writing an entry | A **Review** block in the properties rail headed by a "Needs review · 0 of 2" chip, a Publish button held with the reason, and a way to ask named people to look               |
 | A reviewer                     | The workspace's **Reviews** page (an ask arrives against whichever type someone was editing, so no single collection's list can hold it), plus an Approve control on the entry |
-| An administrator               | The workspace settings **Publishing** section, where a rule is written; and a confirmed bypass on a held entry                                                                 |
+| An administrator               | The Reviews page's **Rules** tab, where a rule is written; and a confirmed bypass on a held entry                                                                              |
 | A viewer                       | `content:approve` is withheld from them, so they read the state but never vote                                                                                                 |
 | A reader of the public API     | **Nothing.** No status is added, and no review state is readable through REST, GraphQL, MCP or a webhook payload                                                               |
 
@@ -354,9 +354,10 @@ the feature.
 
 ### 7.1 A workspace writes its first rule
 
-1. An administrator opens **Workspace settings → Protection** (the tab is contributed into
-   `WORKSPACE_SETTINGS_TAB_SLOT`; it is the one protection surface visible before a rule
-   exists, because it is where a workspace goes to get one).
+1. An administrator opens **Reviews → Rules** (`/reviews?tab=rules`, a tab only
+   `protection:manage` sees; it is the one protection surface visible before a rule exists,
+   because it is where a workspace goes to get one). The old address,
+   `settings/protection`, redirects there.
 2. The page lists every **publishable** type the workspace was granted, each with its rule
    or "Not protected". A type with no publish step has no transition to hold.
 3. Saving sends `PUT /api/protection/rules/:kind/:slug`. The service checks the type is
@@ -582,30 +583,33 @@ section instead.
 
 ## 10. The admin UI
 
-**Eight contributions and one route.** Almost everything this plugin shows lives inside
-somebody else's screen — three in the entry editor, where the requirement is met or missed,
-and one in workspace settings, where a rule is made.
+**Contributions into other screens, and one page.** Almost everything this plugin shows
+lives inside somebody else's screen — three in the entry editor, where the requirement is met
+or missed, and counts in the navigation. The rules are written on the plugin's own page, on
+its Rules tab.
 
-| Slot                                          | Contribution                  | Notes                                                                                                                                                                                                                                                                                                                                                              |
-| --------------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `ENTRY_SIDEBAR_WIDGET_SLOT`                   | The **Review** block          | Headed by the review chip ("Needs review · 0 of 2"), the one place the editor states the requirement — it used to be a title-row chip repeating the block's own count. Renders `EntrySidebarSection`, so it is part of the rail rather than a floating card. Lands after Publish gate → Details → Revisions, which reads correctly: review is the gate after those |
-| `ENTRY_PUBLISH_GUARD_SLOT`                    | `usePublishProtectionVerdict` | A hook, so it can hold the bypass dialog's state; the dialog is returned as an `overlay`, rendered outside the actions cluster so it stays mounted while the button re-renders                                                                                                                                                                                     |
-| `RECORDS_COLUMN_SLOT`                         | The **Review** column         | Every publishable type, so column order survives a settings toggle; one batched request per page, and only when the column is visible                                                                                                                                                                                                                              |
-| `RECORDS_FILTER_FIELDS_SLOT`                  | `reviewState`                 | One contribution, three surfaces: the list, saved views, and alarms' "Save as rule"                                                                                                                                                                                                                                                                                |
-| `INSIGHTS_SIGNAL_SLOT` | "Waiting on review" | A Needs-attention line on the Insights page's first tab: the open count and the oldest overdue request (`oldestOpen`), opening the queue's first page in a side panel; `permission: content:read`, matching the route |
-| `WORKSPACE_NAV_SLOT` + `WORKSPACE_ROUTE_SLOT` | **Reviews** (`/reviews`)      | `order: 50`, after the content library and alarms; lazy, so it is its own chunk                                                                                                                                                                                                                                                                                    |
-| `WORKSPACE_SETTINGS_TAB_SLOT`                 | **Protection**                | `permission: protection:manage` — a member without it is shown no tab rather than one that answers 403                                                                                                                                                                                                                                                             |
+| Slot                                                        | Contribution                  | Notes                                                                                                                                                                                                                                                                                                                                                              |
+| ----------------------------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ENTRY_SIDEBAR_WIDGET_SLOT`                                 | The **Review** block          | Headed by the review chip ("Needs review · 0 of 2"), the one place the editor states the requirement — it used to be a title-row chip repeating the block's own count. Renders `EntrySidebarSection`, so it is part of the rail rather than a floating card. Lands after Publish gate → Details → Revisions, which reads correctly: review is the gate after those |
+| `ENTRY_PUBLISH_GUARD_SLOT`                                  | `usePublishProtectionVerdict` | A hook, so it can hold the bypass dialog's state; the dialog is returned as an `overlay`, rendered outside the actions cluster so it stays mounted while the button re-renders                                                                                                                                                                                     |
+| `RECORDS_COLUMN_SLOT`                                       | The **Review** column         | Every publishable type, so column order survives a settings toggle; one batched request per page, and only when the column is visible                                                                                                                                                                                                                              |
+| `RECORDS_FILTER_FIELDS_SLOT`                                | `reviewState`                 | One contribution, three surfaces: the list, saved views, and alarms' "Save as rule"                                                                                                                                                                                                                                                                                |
+| `INSIGHTS_SIGNAL_SLOT`                                      | "Waiting on review"           | A Needs-attention line on the Insights page's first tab: the open count and the oldest overdue request (`oldestOpen`), opening the queue's first page in a side panel; `permission: content:read`, matching the route                                                                                                                                              |
+| `WORKSPACE_NAV_SLOT` + `WORKSPACE_ROUTE_SLOT`               | **Reviews** (`/reviews`)      | `order: 50`, after the content library and alarms; lazy, so it is its own chunk                                                                                                                                                                                                                                                                                    |
+| `WORKSPACE_ROUTE_SLOT`                                      | `settings/protection` → Rules | Where the rules used to be: a redirect to `reviews?tab=rules`, so a bookmark follows the move                                                                                                                                                                                                                                                                      |
+| `WORKSPACE_NAV_SLOT.useBadge` + `WORKSPACE_LIST_BADGE_SLOT` | The **Reviews** count         | "Waiting on me", from `GET /protection/queue/summary`, on the nav row and on the workspace's row in the global list                                                                                                                                                                                                                                                |
 
-Two of these slots did not exist before this feature: `ENTRY_PUBLISH_GUARD_SLOT` in
-`content-admin` and `WORKSPACE_SETTINGS_TAB_SLOT` in `workspaces-admin`, whose tab strip was
-hardcoded. Both are recorded in ADR-0017's consequences.
+Two slots were created for this feature: `ENTRY_PUBLISH_GUARD_SLOT` in `content-admin` and
+`WORKSPACE_SETTINGS_TAB_SLOT` in `workspaces-admin`, whose tab strip was hardcoded. Both are
+recorded in ADR-0017's consequences. The settings tab has since moved to the Reviews page's
+Rules tab (`protection:manage` only), so the settings slot now has no shipped contributor.
 
 ### States
 
 - **The three entry contributions render nothing** on an unprotected type — and the Review
   block also on a create form and a non-publishable type. With no rule the feature is inert
   server-side, so a chip or a block describing a requirement that does not exist would be an
-  invention. The settings tab is the deliberate exception: it must be visible before there is
+  invention. The Rules tab is the deliberate exception: it must be visible before there is
   anything to see.
 - **The Review block lists people, not votes**: everybody asked, in pick order, then anybody
   else who approved. A green check once they approved the current version, a pending mark
@@ -618,12 +622,12 @@ hardcoded. Both are recorded in ADR-0017's consequences.
   **Review** opens a non-modal side panel with the changes since the live version (content's
   `diffRevision`; the line's "N fields changed" is the server's `diffSnapshots` over the same
   two versions) and **Approve**, offered exactly when the editor's rail would offer it.
-- **The settings section is called Publishing**; its editor reads the rule back in one
+- **The Rules tab is headed "Publishing rules"**; its editor reads the rule back in one
   sentence ("In short: …") from the same `readRule` the list's one-line hint uses.
-- **The settings tab distinguishes three states** — not protected, switched off, and in force
+- **The Rules tab distinguishes three states** — not protected, switched off, and in force
   — and has its own denied, error and empty states. The error copy is explicit that a failed
   load "is not the same as nothing is protected".
-- **Both the queue and the settings tab load into a skeleton**, not a spinner.
+- **Both the queue and the Rules tab load into a skeleton**, not a spinner.
 
 ### Accessibility details worth keeping
 

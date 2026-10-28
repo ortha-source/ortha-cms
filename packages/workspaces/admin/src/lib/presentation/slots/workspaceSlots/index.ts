@@ -228,8 +228,8 @@ export const WORKSPACE_NAV_HEADER_ACTION_SLOT =
  * a page `workspaces-admin` owns, without that package learning what the
  * section is for.
  *
- * `@orthacms/protection-admin` is the first contributor (the Protection tab
- * and its rule editor). With nothing registered the tab bar and its routes are
+ * No shipped plugin contributes one today — protection's rules, the first
+ * contributor, moved to its own Reviews page. With nothing registered the tab bar and its routes are
  * byte for byte what they were before the slot existed, which
  * `WorkspaceSettingsNav`' own spec pins — an empty slot is the state this
  * seam spends almost all of its life in, and nothing else would record that

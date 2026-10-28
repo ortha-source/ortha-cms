@@ -21,7 +21,7 @@ src/lib/
         RequestReviewDialog/     the people picker behind Request review
         ReviewActions/           request review / approve
       BypassDialog/            the way past a rule — a confirmation
-      ProtectionSettings/      the settings section "Publishing" (WORKSPACE_SETTINGS_TAB_SLOT)
+      ProtectionSettings/      the publishing rules — the Reviews page's Rules tab
         RuleEditorDialog/        switches + 1/2/3/Other…, an "In short" sentence; six fields, submitted whole
       ReviewQueueTable/        one queue tab's rows, as a real table
       RecentlyApprovedTable/   "Recently approved": what I approved, and where it stands now
@@ -44,11 +44,11 @@ Layered per [ADR-0003](../../../docs/adr/0003-tactical-ddd-inside-plugins.md).
 | --------------- | ----------------------------- | ------------------------------------------------------------------------------------ |
 | Review block    | `ENTRY_SIDEBAR_WIDGET_SLOT`   | "Needs review · 0 of 2" in its heading, who was asked, who approved, and the actions |
 | Publish verdict | `ENTRY_PUBLISH_GUARD_SLOT`    | whether Publish is held, and why                                                     |
-| Publishing      | `WORKSPACE_SETTINGS_TAB_SLOT` | which types are protected, and how                                                   |
 | Review column   | `RECORDS_COLUMN_SLOT`         | where each row stands, one request per page                                          |
 | `reviewState`   | `RECORDS_FILTER_FIELDS_SLOT`  | waiting on review / not requested                                                    |
 | Insights line   | `INSIGHTS_SIGNAL_SLOT`        | how much review is outstanding, and the longest wait — opening the queue             |
-| Reviews page    | `WORKSPACE_ROUTE_SLOT` + nav  | what is waiting, and on whom                                                         |
+| Reviews page    | `WORKSPACE_ROUTE_SLOT` + nav  | what is waiting, and on whom — and, on a Rules tab, which types are protected        |
+| Old address     | `WORKSPACE_ROUTE_SLOT`        | `settings/protection` redirects to `reviews?tab=rules`                               |
 | Home card       | `HOME_SECTION_SLOT`           | entries awaiting review across workspaces — "0" when none                            |
 | Nav count       | `WORKSPACE_NAV_SLOT.useBadge` | "Reviews 3" — what is waiting on the reader in this workspace                        |
 | List count      | `WORKSPACE_LIST_BADGE_SLOT`   | the same count on the workspace's row in the global sidebar                          |
@@ -193,11 +193,21 @@ name beside a vote costs no request. Somebody who has left is named as such
 rather than given a fabricated label: a vote records who looked, and inventing a
 name over a gap in the roster misreports the one fact the row carries.
 
-## The settings section (Publishing)
+## The Rules tab (formerly settings › Publishing)
 
-Listed in the workspace settings side nav as **Publishing** ("Content types
-that need a review before they go live."); the page
-draws its `<h1>` and description from the slot item, and the section is one
+**The rules live on the Reviews page**, on a fourth tab — **Rules** — that only
+`protection:manage` sees. They used to be a section of workspace settings, which
+put "why does this need a review" a page away from "what needs a review";
+alarms keep their alarms beside their findings for the same reason. Nothing
+about the rules moved but the screen: they are still per workspace, addressed
+by `(workspace, kind, slug)`, and the list route is still administrator-only.
+The page's tab is in the URL (`?tab=rules`, the queue's default tab leaving
+it out), so `RulesMovedRedirect` — mounted at `settings/protection`, a static
+path that outranks the settings page's `settings/*` — sends an old bookmark
+there, and a link to the tab for somebody without the permission lands on the
+queue rather than on a tab that is not rendered.
+
+The tab opens on an `<h2>` "Publishing rules" and one line, and the body is one
 framed list — each publishable type with its rule in one line (the count, then
 each exception), a Protected / Not protected / Switched off badge, and
 Configure — with rules on types no longer granted in a second list under it.

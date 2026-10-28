@@ -13,13 +13,12 @@ import { INSIGHTS_SIGNAL_SLOT } from '@orthacms/insights-admin';
 import {
     WORKSPACE_LIST_BADGE_SLOT,
     WORKSPACE_NAV_SLOT,
-    WORKSPACE_ROUTE_SLOT,
-    WORKSPACE_SETTINGS_TAB_SLOT
+    WORKSPACE_ROUTE_SLOT
 } from '@orthacms/workspaces-admin';
-import { Shield, ShieldCheck } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 import { HOME_SECTION_SLOT } from '@orthacms/shell-admin';
 import { ReviewsHomeAttention } from '../components/ReviewsHomeAttention';
-import { ProtectionSettings } from '../components/ProtectionSettings';
+import { RulesMovedRedirect } from '../components/RulesMovedRedirect';
 import { ReviewsSkeleton } from '../components/ReviewsSkeleton';
 import { ReviewSection } from '../components/ReviewSection';
 import { usePublishProtectionVerdict } from '../slots/publishGuard';
@@ -44,17 +43,18 @@ export type ProtectionAdminPlugin = AdminPlugin;
 /**
  * Creates the admin-side protection plugin.
  *
- * **Eight contributions and one route of its own.** Almost everything this plugin
- * shows lives inside somebody else's screen — three in the entry editor, where
- * the requirement is met or missed, and one in workspace settings, where a rule
- * is made. The Reviews page is the exception, and it has to be: an ask arrives
- * against whichever type someone happened to be editing, so no single
- * collection's list can be where a reviewer looks for it.
+ * **Contributions into other screens, and one page of its own.** Almost
+ * everything this plugin shows lives inside somebody else's screen — three in
+ * the entry editor, where the requirement is met or missed, and counts in the
+ * navigation. The Reviews page is the exception, and it has to be: an ask
+ * arrives against whichever type someone happened to be editing, so no single
+ * collection's list can be where a reviewer looks for it. The rules live on
+ * that page too, on a Rules tab administrators see.
  *
  * The three entry contributions render **nothing** on an unprotected type, so
  * an installation with no rule is byte-for-byte the admin it was before the
- * plugin was installed (`protection:I-04`, the client half). The settings tab
- * is the exception on purpose: it is where a workspace with no rule goes to get
+ * plugin was installed (`protection:I-04`, the client half). The Rules tab is
+ * the exception on purpose: it is where a workspace with no rule goes to get
  * one, so it has to be visible before there is anything to see.
  */
 export function ProtectionPlugin(): ProtectionAdminPlugin {
@@ -88,6 +88,14 @@ export function ProtectionPlugin(): ProtectionAdminPlugin {
                                 <ReviewsPage />
                             </Suspense>
                         )
+                    },
+                    {
+                        // The rules moved from settings to the Reviews page's
+                        // Rules tab; the old address follows them. A static
+                        // path, so it outranks the settings page's `settings/*`.
+                        path: 'settings/protection',
+                        order: 51,
+                        element: <RulesMovedRedirect />
                     }
                 ]
             },
@@ -201,27 +209,6 @@ export function ProtectionPlugin(): ProtectionAdminPlugin {
                         defaultTitle: 'Waiting on review',
                         Component: ReviewsSignal,
                         Drill: ReviewsDrill
-                    }
-                ]
-            },
-            {
-                slot: WORKSPACE_SETTINGS_TAB_SLOT,
-                items: [
-                    {
-                        id: 'protection',
-                        path: 'protection',
-                        labelId: 'protection.settings.tab',
-                        defaultLabel: 'Publishing',
-                        descriptionId: 'protection.settings.tabDescription',
-                        defaultDescription:
-                            'Content types that need a review before they go live.',
-                        icon: Shield,
-                        order: 10,
-                        // Administrator-only, and so is the list route it
-                        // opens — a member without it is shown no link rather
-                        // than a tab that answers 403.
-                        permission: 'protection:manage',
-                        element: <ProtectionSettings />
                     }
                 ]
             }

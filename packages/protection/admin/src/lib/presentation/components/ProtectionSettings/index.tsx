@@ -108,12 +108,13 @@ const messages = defineMessages({
 });
 
 /**
- * The workspace settings **Publishing** section: every publishable type the
+ * The Reviews page's **Rules** tab (formerly workspace settings ›
+ * Publishing): every publishable type the
  * workspace holds in one framed list — its name, its rule in a few words (the
  * count, then each way it is loosened; "—" when none is in force), a Protected
  * / Not protected / Switched off badge, and Configure — then any rule left on a
- * type the workspace no longer has. The settings page draws the `<h1>` and
- * description from the slot item.
+ * type the workspace no longer has. The page draws the tab's heading and
+ * description around it.
  *
  * **The list is the workspace's content grants, not its rules.** A rule is
  * addressed by `(workspace, kind, slug)` — the same pair `workspace_content`

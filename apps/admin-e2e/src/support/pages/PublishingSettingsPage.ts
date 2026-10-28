@@ -2,9 +2,10 @@ import { type Locator, type Page } from '@playwright/test';
 import { BasePage } from './BasePage';
 
 /**
- * Workspace settings › **Publishing** (`/workspaces/:id/settings/protection`) —
- * protection's settings section: the publishable types with their rule in a
- * few words, and the rule editor dialog.
+ * Reviews › **Rules** (`/workspaces/:id/reviews?tab=rules`) — the publishing
+ * rules, which used to be the settings page's Publishing section: the
+ * publishable types with their rule in a few words, and the rule editor
+ * dialog. The old settings address redirects here.
  */
 export class PublishingSettingsPage extends BasePage {
     readonly heading: Locator;
@@ -13,20 +14,20 @@ export class PublishingSettingsPage extends BasePage {
     constructor(page: Page) {
         super(page);
         this.heading = page.getByRole('heading', {
-            name: 'Publishing',
+            name: 'Publishing rules',
             exact: true,
-            level: 1
+            level: 2
         });
         this.dialog = page.getByRole('dialog');
     }
 
     async goto(workspaceId: string) {
-        await this.page.goto(`/workspaces/${workspaceId}/settings/protection`);
+        await this.page.goto(`/workspaces/${workspaceId}/reviews?tab=rules`);
     }
 
-    /** The section's entry in the settings side nav. */
-    navLink(): Locator {
-        return this.page.getByRole('link', { name: 'Publishing', exact: true });
+    /** The Rules tab on the Reviews page. */
+    tab(): Locator {
+        return this.page.getByRole('tab', { name: 'Rules', exact: true });
     }
 
     /** One type's row in the list. */

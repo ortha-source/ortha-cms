@@ -3,7 +3,10 @@ import { expectNoA11yViolations } from '../support/a11y';
 import { mockSignedIn } from '../support/api/auth';
 import { mockWorkspaces } from '../support/api/workspaces';
 import { LIBRARY_WORKSPACE, mockContentSchema } from '../support/api/content';
-import { mockProtectionRules } from '../support/api/protection';
+import {
+    mockProtectionRules,
+    mockReviewQueue
+} from '../support/api/protection';
 import { PublishingSettingsPage } from '../support/pages/PublishingSettingsPage';
 
 /**
@@ -17,7 +20,8 @@ const test = base.extend<{ publishing: PublishingSettingsPage }>({
 });
 
 const WS = LIBRARY_WORKSPACE.id;
-const SETTINGS = `/workspaces/${WS}/settings/protection`;
+const RULES = `/workspaces/${WS}/reviews?tab=rules`;
+const OLD_SETTINGS = `/workspaces/${WS}/settings/protection`;
 
 /**
  * The seed summaries carry no `publishable` flag, while the real
@@ -47,7 +51,8 @@ const TYPES = [
 ];
 
 /**
- * The workspace settings **Publishing** section — the surface that makes a
+ * The Reviews page's **Rules** tab (formerly workspace settings ›
+ * Publishing) — the surface that makes a
  * rule exist at all. Until this shipped a rule could only be written with SQL.
  *
  * The server side is covered by `server-e2e`; what only a browser can answer is
@@ -56,11 +61,13 @@ const TYPES = [
  * whether the workspace that would lock itself out is told so at the moment it
  * happens rather than a week later.
  */
-test.describe('Workspace settings, Publishing', () => {
+test.describe('Reviews, Rules', () => {
     test.beforeEach(async ({ page }) => {
         await mockSignedIn(page);
         await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
         await mockContentSchema(page, { types: TYPES });
+        // The tabs render once the queue has answered.
+        await mockReviewQueue(page, []);
     });
 
     test('lists the granted publishable types, protected or not', async ({
@@ -93,15 +100,24 @@ test.describe('Workspace settings, Publishing', () => {
         ).toHaveCount(0);
     });
 
-    test('is reachable from the settings side nav', async ({
+    test('is a tab on the Reviews page', async ({ page, publishing }) => {
+        await mockProtectionRules(page, []);
+        await page.goto(`/workspaces/${WS}/reviews`);
+
+        await publishing.tab().click();
+        await expect(page).toHaveURL(/\/reviews\?tab=rules$/);
+        await expect(publishing.heading).toBeVisible();
+    });
+
+    // The rules moved off the settings page; a bookmark follows them.
+    test('sends the old settings address to the Rules tab', async ({
         page,
         publishing
     }) => {
         await mockProtectionRules(page, []);
-        await page.goto(`/workspaces/${WS}/settings/general`);
+        await page.goto(OLD_SETTINGS);
 
-        await publishing.navLink().click();
-        await expect(page).toHaveURL(new RegExp(`${SETTINGS}$`));
+        await expect(page).toHaveURL(/\/reviews\?tab=rules$/);
         await expect(publishing.heading).toBeVisible();
     });
 
@@ -232,7 +248,7 @@ test.describe('Workspace settings, Publishing', () => {
         await expect(page.getByText('Not protected')).toHaveCount(0);
     });
 
-    test('hides the section from somebody without protection:manage', async ({
+    test('hides the tab from somebody without protection:manage', async ({
         page,
         publishing
     }) => {
@@ -240,9 +256,15 @@ test.describe('Workspace settings, Publishing', () => {
             permissions: ['workspaces:read', 'content:read']
         });
         await mockProtectionRules(page, []);
-        await page.goto(`/workspaces/${WS}/settings/general`);
+        await page.goto(RULES);
 
-        await expect(publishing.navLink()).toHaveCount(0);
+        // A link to the tab lands on the queue instead of a tab that is not
+        // there.
+        await expect(
+            page.getByRole('heading', { name: 'Reviews', level: 1 })
+        ).toBeVisible();
+        await expect(publishing.tab()).toHaveCount(0);
+        await expect(publishing.heading).toHaveCount(0);
     });
 
     test('is operable from the keyboard', async ({ page, publishing }) => {
