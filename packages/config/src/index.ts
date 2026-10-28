@@ -93,3 +93,18 @@ export {
     renderTemplateEnv,
     renderWorkspaceEnvExample
 } from './lib/generated';
+export {
+    SETUP_STEPS,
+    SMTP_PRESETS,
+    buildMailUrl,
+    emailProblem,
+    oidcIssuer,
+    type ChoiceField,
+    type ConfirmField,
+    type SetupCheck,
+    type SetupChoice,
+    type SetupContext,
+    type SetupField,
+    type SetupStep,
+    type TextField
+} from './lib/setup';

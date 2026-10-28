@@ -5,12 +5,22 @@ An [Ortha CMS](https://github.com/ortha-source/ortha-cms) app.
 ## Getting started
 
 ```sh
+npx orthacms setup     # Postgres, migrations, checks, your admin account
+npm run dev            # API on :3000, admin on :4200
+```
+
+`orthacms setup` asks a few questions, checks every connection as it goes and
+creates the administrator in the database, so no password stays in `.env`. Run
+it again any time to change one section. Without it, the manual route still
+works:
+
+```sh
 docker compose up -d   # Postgres
 npm run migrate        # create the schema
 npm run dev            # API on :3000, admin on :4200
 ```
 
-Sign in at <http://localhost:4200> with the admin credentials in `.env`
+and you sign in at <http://localhost:4200> with the admin credentials in `.env`
 (`ORTHACMS_ROOT_ADMIN_EMAIL` / `ORTHACMS_ROOT_ADMIN_PASSWORD`). That account is
 provisioned on boot, idempotently — clear those two variables once you have it.
 
@@ -25,6 +35,7 @@ provisioned on boot, idempotently — clear those two variables once you have it
 | `npm run content:sync` | Rewrites `apps/server/src/content/index.ts` from the type files beside it |
 | `npm run generate -- --name=<name>` | Generates a migration for your own content tables (`apps/server/drizzle.config.ts`) |
 | `npm run studio` | Opens Drizzle Studio on this app's database |
+| `npx orthacms setup` | Asks where this app runs, writes the settings, checks each one, creates the first admin — re-run it to change one section |
 | `npx orthacms doctor` | Shows the configuration in effect, checks the database, mail and anything else it points at, and says what is wrong |
 | `npm test` | Unit tests — both halves |
 | `npm run e2e` | Both end-to-end suites |

@@ -12,7 +12,7 @@ import { join, relative, sep } from 'node:path';
  * name))` slips past any literal scan.
  *
  * The observable was chosen badly, not missing. A read has to *happen* through
- * a filesystem API, and there are nineteen such call sites in the whole package.
+ * a filesystem API, and there are twenty-four such call sites in the whole package.
  * Enumerating **call sites** rather than paths is bounded, and it is
  * indifferent to how the path was computed: a new read is caught whether it
  * names its file, joins it, or receives it as an argument.
@@ -22,10 +22,10 @@ import { join, relative, sep } from 'node:path';
  * - the reading APIs the package imports are a fixed set, so a read cannot
  *   arrive through an identifier the site scan does not look for (an alias, a
  *   promises handle, a namespace import);
- * - the nineteen sites are listed here in full, each one a `.env`, a
+ * - the twenty-four sites are listed here in full, each one a `.env`, a
  *   `package.json`, a path out of `LAYOUT`, a content type module under
- *   `LAYOUT.contentDir`, or a client library the app installed (`doctor`).
- *   None is a settings file, and a twentieth cannot
+ *   `LAYOUT.contentDir`, or a client library the app installed (`doctor`, `setup`).
+ *   None is a settings file, and a twenty-fifth cannot
  *   appear without this list being edited to admit it.
  */
 
@@ -123,6 +123,15 @@ const EXPECTED_READS = [
     // app's own copies of the clients it checks with (`nodemailer`, the S3 SDK).
     "src/lib/commands/doctor.ts: readFileSync(join(root, 'package.json'), 'utf8')",
     "src/lib/doctor/checks.ts: createRequire(join(root, 'package.json'))",
+    // `setup`: the `.env` it rewrites (environment, as in env.ts), whether a
+    // docker-compose.yml exists to offer `docker compose up`, and the app's
+    // own nodemailer and Nest packages — the test message, and the one boot
+    // that creates the administrator.
+    'src/lib/commands/setup.ts: existsSync(envPath)',
+    "src/lib/commands/setup.ts: readFileSync(envPath, 'utf8')",
+    "src/lib/commands/setup.ts: existsSync(join(root, 'docker-compose.yml'))",
+    "src/lib/commands/setup.ts: createRequire(join(root, 'package.json'))",
+    "src/lib/setup/admin.ts: createRequire(join(root, 'package.json'))",
     // This package's manifest, for `orthacms --version`.
     "src/lib/version.ts: readFileSync(manifest, 'utf8')",
     // The rest are `LAYOUT` paths: the admin entry, the drizzle config, the server bundle.
@@ -170,7 +179,7 @@ describe('the CLI reads no settings file of its own', () => {
             expect(READERS as readonly string[]).toContain(id);
     });
 
-    it('performs exactly these nineteen reads, none of them a settings file [cli:I-22]', () => {
+    it('performs exactly these twenty-four reads, none of them a settings file [cli:I-22]', () => {
         const files = sources();
         // Guard against the scan silently finding nothing and passing.
         expect(files.length).toBeGreaterThan(5);

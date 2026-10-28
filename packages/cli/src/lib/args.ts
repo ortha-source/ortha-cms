@@ -19,6 +19,9 @@ Commands:
   generate [--name=<n>]  Generate a migration for this app's content tables
   content sync           Rewrite src/content/index.ts from the type files
   studio [--host --port] Open Drizzle Studio on this app's database
+  setup [--production --yes --set NAME=value --output env|compose|kubernetes|file --skip-checks]
+                         Ask where this app runs, write the settings, check
+                         each one, and create the first administrator
   doctor [--offline --json --all]
                          Show the configuration in effect, check what it
                          points at, and say what is wrong
@@ -48,6 +51,23 @@ export function option(
 }
 
 /** Whether a bare `--flag` is present. */
+/**
+ * Every value of a repeatable option — `--set A=1 --set B=2` or `--set=A=1` —
+ * in the order given.
+ */
+export function options(argv: readonly string[], name: string): string[] {
+    const values: string[] = [];
+    argv.forEach((arg, index) => {
+        if (arg.startsWith(`--${name}=`))
+            values.push(arg.slice(`--${name}=`.length));
+        else if (arg === `--${name}`) {
+            const next = argv[index + 1];
+            if (next !== undefined && !next.startsWith('--')) values.push(next);
+        }
+    });
+    return values;
+}
+
 export function flag(argv: readonly string[], name: string): boolean {
     return argv.includes(`--${name}`);
 }

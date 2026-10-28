@@ -739,7 +739,8 @@ Statements that must always hold. Both a review list and a starting set of test 
 - **I-15** — `COPILOT_ENABLED=false` is always written into `.env`, whatever was chosen — the copilot is installed unconditionally, so the kill switch must be there to be turned on. `MCP_ENABLED=false` is written only when `mcp` was chosen: it sits inside that feature’s `orthacms:if` block, so an app scaffolded without MCP has no such line, no `McpPlugin`, and nothing the setting could switch.
 - **I-16** — A copilot backend and an SSO provider register **only when their settings are present**: an empty key means no item in the list rather than an item that fails on the first message.
 - **I-17** — The generated `.env` holds neither a `SESSION_SECRET` nor a `TOKEN_SECRET`: sessions and one-time tokens are opaque random values verified against a database row, and there is nothing to sign them with.
-- **I-18** — The administrator's password is generated rather than asked for, and exists in exactly two places: in `.env` (which is in `.gitignore`) and in one printed line.
+- **I-18** — The administrator's password is generated rather than asked for, and exists in exactly two places: in `.env` (which is in `.gitignore`) and in one printed line. When the person scaffolding accepts the hand-off to `orthacms setup`, the wizard creates the account in the database and removes the `ORTHACMS_ROOT_ADMIN_*` lines from `.env`.
+- **I-37** — The hand-off to `orthacms setup` is offered only when someone can answer it: never with `--yes`, `--no-install` or without a TTY, so CI and the scaffold smoke run exactly as before.
 - **I-19** — An existing non-empty directory is never overwritten — the refusal comes before the first write.
 - **I-20** — The scaffolder never blocks on a prompt: no TTY or `--yes` means the defaults, and every question has a flag.
 - **I-21** — stdin is returned from raw mode to its original state on any outcome — an answer, a cancellation, an exception.
