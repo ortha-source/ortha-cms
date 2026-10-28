@@ -3,6 +3,7 @@
 # local env files (.env.example is committed)
 .env
 .env.local
+.env.release
 .env.*.local
 
 # compiled output

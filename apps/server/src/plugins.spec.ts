@@ -194,7 +194,7 @@ describe('mailProvider()', () => {
                     from: 'no-reply@example.com'
                 })
             )
-        ).toThrow(/SMTP_HOST/);
+        ).toThrow(/MAIL_URL/);
     });
 });
 

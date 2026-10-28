@@ -1,32 +1,27 @@
 /** Outgoing webhooks — how hard the sender pushes, and where it may reach. */
 import type { WebhooksPluginConfig } from '@orthacms/webhooks-server';
-import { readFlag, readPositiveInt } from '@orthacms/utils-server';
+
+import { webhooksFromEnv } from '@orthacms/config';
 
 /**
  * Webhook delivery settings.
  *
- * Only the four values a deployment genuinely varies are env-sourced; the rest
- * are left to the plugin's own defaults, which is where the reasoning behind
- * them is written down.
- *
- * The two `allow*` flags are the ones worth reading twice. Both default to
- * **off**, and both widen what a URL an operator types can reach:
+ * From the environment: whether this process sends at all
+ * (`ORTHACMS_WORKERS=false` queues without sending, for web nodes in front of
+ * a dedicated worker) and the two `allow*` flags, which both default to
+ * **off** and both widen what a URL an operator types can reach —
  * `WEBHOOKS_ALLOW_INSECURE_URLS` permits plain HTTP, and
- * `WEBHOOKS_ALLOW_PRIVATE_NETWORKS` permits loopback and RFC 1918 — which a
- * self-hosted install with an in-cluster receiver genuinely needs, and an
+ * `WEBHOOKS_ALLOW_PRIVATE_NETWORKS` permits loopback and RFC 1918, which a
+ * self-hosted install with an in-cluster receiver genuinely needs and an
  * internet-facing one must not have.
+ *
+ * The rest is code: the per-request timeout, and how long a finished delivery
+ * stays in the log (`0` keeps it forever; nothing else prunes the table).
  */
 export function webhooksConfig(): WebhooksPluginConfig {
     return {
-        // 0 turns the sender off in this process. Rows still queue, so a
-        // deployment can run web nodes that only enqueue and one that sends.
-        deliveryIntervalMs: readPositiveInt(
-            'WEBHOOKS_DELIVERY_INTERVAL',
-            2_000
-        ),
-        timeoutMs: readPositiveInt('WEBHOOKS_TIMEOUT', 10_000),
-        retentionDays: readPositiveInt('WEBHOOKS_RETENTION_DAYS', 30),
-        allowInsecureUrls: readFlag('WEBHOOKS_ALLOW_INSECURE_URLS', false),
-        allowPrivateNetworks: readFlag('WEBHOOKS_ALLOW_PRIVATE_NETWORKS', false)
+        timeoutMs: 10_000,
+        retentionDays: 30,
+        ...webhooksFromEnv()
     };
 }

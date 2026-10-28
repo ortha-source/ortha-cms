@@ -63,7 +63,7 @@ that dies mid-send releases it by timeout — no reaper, and no state machine.
 
 With this plugin registered, `POST /api/users/invites`, the resend route and the
 reset route stop returning the raw token (ADR-0018 §4). That is the point, and
-it is why the host registers it only when `MAIL_PROVIDER` names a backend.
+it is why the host registers it only when `MAIL_URL` names a backend.
 `revealLinks` keeps the token alongside the message for debugging a delivery
 problem; `POST /api/users/:id/reveal-link` (`users:manage`, audited) is the
 supported way to see one otherwise.

@@ -110,8 +110,8 @@ injects them without importing the module.
   a dozen concurrent requests over a backlog, with no timeout and no recovery.
   Cross-process concurrency is unaffected: `SKIP LOCKED` is what makes that
   safe.
-- **Delivered rows are pruned; nothing else ever is.** `OUTBOX_RETENTION_DAYS`
-  (default 30, `0` = never) sets the window, `OutboxDispatcher.pruneDelivered`
+- **Delivered rows are pruned; nothing else ever is.** `outboxRetentionDays`
+  (30 in the host's config, `0` = never) sets the window, `OutboxDispatcher.pruneDelivered`
   does the deleting — 1 000 at a time through a `FOR UPDATE SKIP LOCKED`
   sub-select, at most ten passes a tick — and a private `pruneIfDue` calls it at
   the tail of a poll tick, at most hourly. No new timer, and no bookkeeping
@@ -199,7 +199,7 @@ co-located subscribers, and is merged with the runtime-registered ones.
 ## Configuration
 
 The settings flow from `apps/server/orthacms.config.ts` (`database.url` from
-`DATABASE_URL`, `database.outboxRetentionDays` from `OUTBOX_RETENTION_DAYS`)
+`DATABASE_URL`; `database.outboxRetentionDays` is a literal there, 30)
 into the plugin. The wiring itself lives in **`apps/server/src/plugins.ts`**;
 `main.ts` only calls `buildPlugins(config)`.
 

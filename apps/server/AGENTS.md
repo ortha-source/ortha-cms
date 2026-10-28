@@ -26,7 +26,7 @@ point: it holds almost no logic. It assembles the product by handing a list of
   and `src/plugins.ts` and `apps/server-e2e` import its types.
 - `config/` — the single place that reads the environment, and it does so
   **only** through the readers (`readEnv`, `requireEnv`, `readPositiveInt`,
-  `readList`, `readFlag`, `readTrustProxy`, `readNodeEnv`) in
+  `readList`, `readFlag`, `readEnum`, `readTrustProxy`, `readNodeEnv`) in
   `@orthacms/utils-server`, shared with the scaffolder's template so a
   generated app validates its environment the same way. These modules name the
   variables and the defaults; the readers decide what a value has to look like.

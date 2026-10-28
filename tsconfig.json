@@ -242,6 +242,9 @@
         },
         {
             "path": "./packages/inbox/admin"
+        },
+        {
+            "path": "./packages/config"
         }
     ]
 }

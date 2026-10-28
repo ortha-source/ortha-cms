@@ -23,10 +23,11 @@ unattended run.
 
 ### Credentials
 
-Both live in `.env` at the workspace root, which is git-ignored.
-[`.env.example`](../.env.example) documents them. `tools/release/release.mjs`
-loads the file before handing off; anything already exported in your shell
-wins over it.
+Both live in `.env.release` at the workspace root, which is git-ignored and
+kept apart from the app's `.env` — nothing the server reads belongs beside a
+publish token. `tools/release/release.mjs` loads the file before handing off
+(falling back to `.env`, where they used to live); anything already exported in
+your shell wins over it.
 
 |                |                                                                                                                                                                                                                               |
 | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

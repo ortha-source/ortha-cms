@@ -109,7 +109,7 @@ the admin). A host, not a plugin: ADR-0003's layers do not apply.
   exceeds, and the parser answers `413` above every controller, guard and
   protocol layer, so an MCP client gets a REST error body rather than a JSON-RPC
   frame. Multipart uploads do not pass through here; the media plugin caps
-  those separately with `MEDIA_MAX_UPLOAD_BYTES`.
+  those separately with `maxUploadBytes` in `config/media.ts`.
 - **API docs, once.** `setupApiDocs` (`utils/setup-api-docs.ts`) runs after the
   prefix + pipe and before `listen`, so the document describes the real URLs.
   Each plugin's `decorate` pass is guarded individually: the reference is

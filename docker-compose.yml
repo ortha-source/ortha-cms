@@ -27,7 +27,7 @@ services:
     #
     # Then, in the admin console at http://localhost:8080 (admin/admin), create
     # a realm `orthacms`, a confidential client `orthacms` with the redirect URI
-    # http://localhost:4200/api/auth/sso/keycloak/callback, and a user whose
+    # http://localhost:4200/api/auth/sso/oidc/callback, and a user whose
     # email matches a seeded Ortha CMS account and is marked verified — the email
     # must be verified or the first sign-in is refused, by design.
     #
@@ -35,8 +35,9 @@ services:
     #     SSO_OIDC_ISSUER=http://localhost:8080/realms/orthacms
     #     SSO_OIDC_CLIENT_ID=orthacms
     #     SSO_OIDC_CLIENT_SECRET=<from the client's Credentials tab>
-    #     SSO_OIDC_NAME=keycloak
-    #     SSO_OIDC_LABEL=Keycloak
+    #
+    # The provider is registered as `oidc`; its name and button label are code,
+    # in apps/server/config/identity.ts.
     #
     # `start-dev` serves plain HTTP, which the adapter allows for localhost
     # only — deliberately, since an identity token crossing the network in

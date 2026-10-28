@@ -14,7 +14,9 @@ export const DEV_PASSWORD = 'ortha-dev-password';
 
 /** Where the links the seed prints point: the admin's dev server. */
 export const ADMIN_URL = (
-    process.env['APP_URL'] ?? 'http://localhost:4200'
+    process.env['PUBLIC_URL'] ??
+    process.env['APP_URL'] ??
+    'http://localhost:4200'
 ).replace(/\/$/, '');
 
 export interface SeededUser extends PublicUser {

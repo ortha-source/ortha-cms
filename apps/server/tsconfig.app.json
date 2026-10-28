@@ -28,19 +28,19 @@
             "path": "../../packages/users/server/tsconfig.lib.json"
         },
         {
-            "path": "../../packages/schema-builder/domain/tsconfig.lib.json"
-        },
-        {
             "path": "../../packages/mail/provider-console/tsconfig.lib.json"
-        },
-        {
-            "path": "../../packages/inbox/server/tsconfig.lib.json"
         },
         {
             "path": "../../packages/identity/domain/tsconfig.lib.json"
         },
         {
+            "path": "../../packages/schema-builder/domain/tsconfig.lib.json"
+        },
+        {
             "path": "../../packages/activity/server/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/inbox/server/tsconfig.lib.json"
         },
         {
             "path": "../../packages/alarms/server/tsconfig.lib.json"
@@ -107,6 +107,9 @@
         },
         {
             "path": "../../packages/utils/server/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/config/tsconfig.lib.json"
         },
         {
             "path": "../../packages/copilot/provider-openai/tsconfig.lib.json"

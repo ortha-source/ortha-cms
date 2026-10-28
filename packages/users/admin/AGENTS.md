@@ -181,7 +181,7 @@ confirm dialog's _title_ does too — a dialog's accessible name is its title, a
 
 ## The invite link hand-off
 
-Outgoing mail is optional (`@orthacms/mail-*`, inert until `MAIL_PROVIDER`
+Outgoing mail is optional (`@orthacms/mail-*`, inert until `MAIL_URL`
 names a backend — ADR-0018). With a provider configured the server emails the
 invitation and returns `inviteToken: null`, and `InviteSent` says where it went
 instead of drawing a link. Without one — the default — the **admin is the

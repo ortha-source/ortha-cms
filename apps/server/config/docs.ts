@@ -1,17 +1,13 @@
 /** The OpenAPI document and the Scalar API reference it is served as. */
 import type { ApiDocsOptions } from '@orthacms/bootstrap-server';
 
-import { readFlag } from '@orthacms/utils-server';
-
-import { isProduction } from './env';
+import { docsEnabled } from '@orthacms/config';
 
 /** OpenAPI document + Scalar API reference settings. */
 export function docsConfig(): ApiDocsOptions {
     return {
-        // On outside production, where the reference is a development tool.
-        // `API_DOCS` overrides either way — set it to `true` to publish the
-        // reference from a deployed instance.
-        enabled: readFlag('API_DOCS', !isProduction),
+        // `API_DOCS`: on outside production unless set.
+        enabled: docsEnabled(),
         title: 'Ortha CMS API',
         version: '1.0.0',
         description: [
