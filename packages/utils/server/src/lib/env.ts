@@ -23,6 +23,8 @@
  * exists to end.
  */
 
+import { readFileSync } from 'node:fs';
+
 /**
  * A trimmed environment value, `undefined` when unset **or empty**.
  *
@@ -33,18 +35,46 @@
  * that is in the picker and fails on the first message.
  */
 export function readEnv(name: string): string | undefined {
-    const value = process.env[name]?.trim();
+    const value = readOne(name);
     if (value) {
         return value;
     }
     for (const previous of RENAMED[name] ?? []) {
-        const legacy = process.env[previous]?.trim();
+        const legacy = readOne(previous);
         if (legacy) {
             warnRenamed(previous, name);
             return legacy;
         }
     }
     return undefined;
+}
+
+/**
+ * One variable, or the file its `_FILE` twin names.
+ *
+ * `DATABASE_URL_FILE=/run/secrets/db` is how Docker and Kubernetes hand a
+ * secret to a process without putting it in the environment, where `ps e` and
+ * every crash reporter can read it. The variable itself wins when both are
+ * set. A `_FILE` that names a missing file throws: the operator pointed at a
+ * secret, and booting without it would be a guess.
+ */
+function readOne(name: string): string | undefined {
+    const direct = process.env[name]?.trim();
+    if (direct) {
+        return direct;
+    }
+    const file = process.env[`${name}_FILE`]?.trim();
+    if (!file) {
+        return undefined;
+    }
+    try {
+        return readFileSync(file, 'utf8').trim() || undefined;
+    } catch (error) {
+        throw new Error(
+            `${name}_FILE points at ${file}, which could not be read ` +
+                `(${error instanceof Error ? error.message : String(error)}).`
+        );
+    }
 }
 
 /**
@@ -61,10 +91,14 @@ export function readEnv(name: string): string | undefined {
  * this repo's host does.
  */
 export const RENAMED: Readonly<Record<string, readonly string[]>> = {
-    // The scaffolder's template spelled these differently from this repo's
-    // host, so a setting copied from one to the other was silently ignored.
-    SSO_GITHUB_ENTERPRISE_URL: ['SSO_GITHUB_ENTERPRISE_BASE_URL'],
-    SSO_GITHUB_ORG: ['SSO_GITHUB_ORGANIZATION']
+    // One URL now says where the admin is; mail's link base was a second name
+    // for the same address.
+    PUBLIC_URL: ['APP_URL'],
+    // Only an API on its own origin needs it, and SSO is not the only reader.
+    API_PUBLIC_URL: ['SSO_PUBLIC_BASE_URL'],
+    // The scaffolder's template spelled it differently from this repo's host,
+    // so a setting copied from one to the other was silently ignored.
+    SSO_GITHUB_ENTERPRISE_URL: ['SSO_GITHUB_ENTERPRISE_BASE_URL']
 };
 
 const warned = new Set<string>();
@@ -196,7 +230,9 @@ export function readNonNegativeInt(name: string, fallback: number): number {
  * because "allow no origins" is a setting somebody means.
  */
 export function readList(name: string, fallback: string): string[] {
-    return (process.env[name] ?? fallback)
+    // Present-but-empty stays an empty list; absent may still come from a
+    // `_FILE` twin or an old name, through `readEnv`.
+    return (process.env[name] ?? readEnv(name) ?? fallback)
         .split(',')
         .map((item) => item.trim())
         .filter(Boolean);

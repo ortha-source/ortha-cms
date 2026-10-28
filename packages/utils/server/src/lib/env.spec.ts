@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
     defined,
     isProduction,
@@ -347,24 +350,67 @@ describe('environment readers', () => {
         });
     });
 
+    describe('a _FILE twin', () => {
+        let dir: string;
+        beforeEach(() => {
+            dir = mkdtempSync(join(tmpdir(), 'orthacms-env-'));
+        });
+        afterEach(() => rmSync(dir, { recursive: true, force: true }));
+
+        it('reads the secret from the file it names, trimmed', () => {
+            const file = join(dir, 'db');
+            writeFileSync(file, 'postgresql://secret\n');
+            set('ORTHACMS_TEST_SECRET', undefined);
+            set('ORTHACMS_TEST_SECRET_FILE', file);
+            expect(readEnv('ORTHACMS_TEST_SECRET')).toBe('postgresql://secret');
+            expect(requireEnv('ORTHACMS_TEST_SECRET')).toBe(
+                'postgresql://secret'
+            );
+        });
+
+        it('loses to the variable itself', () => {
+            const file = join(dir, 'db');
+            writeFileSync(file, 'from-file');
+            set('ORTHACMS_TEST_SECRET', 'direct');
+            set('ORTHACMS_TEST_SECRET_FILE', file);
+            expect(readEnv('ORTHACMS_TEST_SECRET')).toBe('direct');
+        });
+
+        it('feeds the list reader too', () => {
+            const file = join(dir, 'list');
+            writeFileSync(file, 'a, b');
+            set('ORTHACMS_TEST_LIST', undefined);
+            set('ORTHACMS_TEST_LIST_FILE', file);
+            expect(readList('ORTHACMS_TEST_LIST', 'x')).toEqual(['a', 'b']);
+        });
+
+        it('refuses a file that is not there, naming both', () => {
+            set('ORTHACMS_TEST_SECRET', undefined);
+            set('ORTHACMS_TEST_SECRET_FILE', join(dir, 'missing'));
+            expect(() => readEnv('ORTHACMS_TEST_SECRET')).toThrow(
+                /ORTHACMS_TEST_SECRET_FILE points at .*missing/
+            );
+        });
+    });
+
     describe('renamed variables', () => {
         it('reads the old name and warns once that it moved', () => {
             const warn = jest.spyOn(console, 'warn').mockImplementation();
-            set('SSO_GITHUB_ORG', undefined);
-            set('SSO_GITHUB_ORGANIZATION', 'acme');
-            expect(readEnv('SSO_GITHUB_ORG')).toBe('acme');
-            expect(readEnv('SSO_GITHUB_ORG')).toBe('acme');
+            set('PUBLIC_URL', undefined);
+            set('APP_URL', 'https://cms.example.com');
+            expect(readEnv('PUBLIC_URL')).toBe('https://cms.example.com');
+            expect(readEnv('PUBLIC_URL')).toBe('https://cms.example.com');
             expect(warn).toHaveBeenCalledTimes(1);
             expect(warn.mock.calls[0][0]).toContain(
-                'SSO_GITHUB_ORGANIZATION has been renamed to SSO_GITHUB_ORG'
+                'APP_URL has been renamed to PUBLIC_URL'
             );
             warn.mockRestore();
         });
 
         it('prefers the current name when both are set', () => {
-            set('SSO_GITHUB_ORG', 'current');
-            set('SSO_GITHUB_ORGANIZATION', 'legacy');
-            expect(readEnv('SSO_GITHUB_ORG')).toBe('current');
+            set('PUBLIC_URL', 'https://current.example.com');
+            set('APP_URL', 'https://legacy.example.com');
+            expect(readEnv('PUBLIC_URL')).toBe('https://current.example.com');
         });
     });
 
