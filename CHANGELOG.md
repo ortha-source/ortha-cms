@@ -1,3 +1,46 @@
+## 0.14.0 (2026-11-02)
+
+### 🚀 Features
+
+- **inbox:** a new in-app inbox — one list per person of what they were told, across every workspace, with category tabs, an unread count in Overview and a button in each workspace sidebar; new packages `@orthacms/inbox-domain`, `@orthacms/inbox-server` and `@orthacms/inbox-admin` (ADR-0023) ([#362](https://github.com/ortha-source/ortha-cms/pull/362))
+- **shell-admin, workspaces-admin:** sidebar rows carry count badges — reviews waiting on you, and open alarm findings toned by the worst — on the workspace's nav and on its row in the global list ([#362](https://github.com/ortha-source/ortha-cms/pull/362))
+- **mail, protection:** a review request mails the reviewers it names, and a changed request mails only the ones it adds ([#362](https://github.com/ortha-source/ortha-cms/pull/362))
+- **alarms:** a mailed digest of the warn and error findings your alarms opened, daily, weekly or off, set from `/inbox/settings` ([#362](https://github.com/ortha-source/ortha-cms/pull/362))
+- **protection-admin:** publishing rules move to a Rules tab on the Reviews page; the old `settings/protection` URL redirects there ([#362](https://github.com/ortha-source/ortha-cms/pull/362))
+- **config:** one catalog of environment variables in the new `@orthacms/config` — 115 names down to about 35, with `.env.example`, the template's `env.tmpl` and `docs/configuration.md` generated from it; `PUBLIC_URL` and `MAIL_URL` replace the variables listed below ([#364](https://github.com/ortha-source/ortha-cms/pull/364))
+- **utils-server:** any variable can be read from a file, `DATABASE_URL_FILE=/run/secrets/db`, the way Docker and Kubernetes hand out secrets ([#364](https://github.com/ortha-source/ortha-cms/pull/364))
+- **cli:** `orthacms doctor` shows every variable with where its value came from, secrets masked, and checks the database, uploads, SMTP, OIDC, SAML and the copilot backends live; `--json` for CI ([#364](https://github.com/ortha-source/ortha-cms/pull/364))
+- **cli:** `orthacms setup`, a configuration wizard that runs doctor's check at every step, creates the first administrator and writes `.env`, a Compose block, a Kubernetes Secret or a file for Fly, Render or Railway ([#364](https://github.com/ortha-source/ortha-cms/pull/364))
+
+### 🩹 Fixes
+
+- **config:** a generated app no longer answers every browser sign-in with 403 under `npm start` and in production ([#364](https://github.com/ortha-source/ortha-cms/pull/364))
+- **webhooks:** `WEBHOOKS_DELIVERY_INTERVAL=0` and `WEBHOOKS_RETENTION_DAYS=0` boot, as documented ([#364](https://github.com/ortha-source/ortha-cms/pull/364))
+- **create-orthacms-app:** a generated app and the host read the GitHub SSO settings under the same names ([#364](https://github.com/ortha-source/ortha-cms/pull/364))
+- **utils-server:** a typo in a flag or an enum refuses boot instead of silently reading as off or the default ([#364](https://github.com/ortha-source/ortha-cms/pull/364))
+- **inbox-admin:** the first day heading on `/inbox` no longer sits on the tab bar's underline ([#363](https://github.com/ortha-source/ortha-cms/pull/363))
+
+### 🗄️ Migrations
+
+Run `orthacms migrate` after upgrading. Both are additive:
+
+- **alarms:** `0002_digest` — `alarm_digest_settings` and `alarm_digest_runs`
+- **inbox:** `0000_init` — `inbox_items`
+
+### ⚠️ Upgrading
+
+`orthacms doctor` reports all of this. An app scaffolded before this release keeps its own `config/`, so the first two items start when it moves to the new template's config; the last two apply straight away.
+
+- **`PUBLIC_URL` is required in production**, unless the legacy `ALLOWED_ORIGINS` is still set.
+- **41 tuning variables are no longer read from the environment.** One still set to its old default logs a warning; set to anything else, the server refuses to start and says where the value goes now. The list is in [`docs/configuration.md`](docs/configuration.md).
+- **Renamed variables still work, with a warning:** `ALLOWED_ORIGINS` and `APP_URL` become `PUBLIC_URL`, `SSO_PUBLIC_BASE_URL` becomes `API_PUBLIC_URL`, and `MAIL_PROVIDER` with the `SMTP_*` variables becomes `MAIL_URL`.
+- **A flag now accepts only `true`, `false`, `1` and `0`.** Anything else stops the boot.
+
+### ❤️ Thank You
+
+- Claude
+- Pavel Makhanko @pmknk
+
 ## 0.13.1 (2026-10-27)
 
 ### 🩹 Fixes
